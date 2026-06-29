@@ -1,0 +1,18 @@
+:root {
+    --ipro-primary: #1a3a6b;
+    --ipro-secondary: #2563eb;
+    --ipro-accent: #f59e0b;
+}
+body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f8fafc; }
+.navbar { box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+.card { border-radius: 12px; transition: box-shadow 0.2s; }
+.card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.12) !important; }
+.sidebar { min-height: calc(100vh - 56px); background: #fff; border-right: 1px solid #e5e7eb; }
+.table th { font-weight: 600; color: #374151; background: #f9fafb; }
+.btn { border-radius: 8px; }
+.badge { border-radius: 6px; }
+.form-control, .form-select { border-radius: 8px; }
+.alert { border-radius: 10px; border: none; }
+.status-active   { color: #16a34a; }
+.status-pending  { color: #d97706; }
+.status-inactive { color: #dc2626; }

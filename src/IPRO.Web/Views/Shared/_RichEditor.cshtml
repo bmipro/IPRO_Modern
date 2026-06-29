@@ -1,0 +1,44 @@
+@model string
+@{
+    var editorId = ViewData["EditorId"]?.ToString() ?? "richEditor";
+    var fieldName = ViewData["FieldName"]?.ToString() ?? "Content";
+    var height = ViewData["Height"]?.ToString() ?? "400";
+    var toolbarMode = ViewData["Toolbar"]?.ToString() ?? "full";
+    
+    var toolbar = toolbarMode == "simple"
+        ? "bold italic underline | bullist numlist | link"
+        : "undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | forecolor backcolor | code fullscreen";
+}
+<textarea id="@editorId" name="@fieldName" class="rich-text-editor d-none">@Model</textarea>
+<div id="@editorId-container" class="tinymce-wrapper border rounded"></div>
+
+<script>
+(function () {
+    tinymce.init({
+        selector: '#@editorId',
+        target: document.getElementById('@editorId'),
+        inline: false,
+        hidden_input: true,
+        plugins: 'lists link image table code fullscreen emoticons wordcount autosave',
+        toolbar: '@toolbar', // <-- Fixed: use Razor var, not JS var
+        height: @height,
+        menubar: '@toolbarMode' == 'full',
+        skin: 'oxide',
+        content_css: 'default',
+        branding: false,
+        resize: true,
+        autosave_interval: '30s',
+        autosave_prefix: 'ipro-editor-@editorId-',
+        image_uploadtab: true,
+        images_upload_url: '/api/upload/image',
+        images_upload_credentials: true,
+        automatic_uploads: true,
+        file_picker_types: 'image',
+        setup: function(editor) {
+            editor.on('change', function() {
+                document.getElementById('@editorId').value = editor.getContent();
+            });
+        }
+    });
+})();
+</script>

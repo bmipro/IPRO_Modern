@@ -1,0 +1,33 @@
+@model IEnumerable<IPRO.Entities.Client>
+@{ ViewData["Title"] = "Newsletter Subscribers"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1"><li class="breadcrumb-item"><a href="/Newsletter">Newsletters</a></li><li class="breadcrumb-item active">Subscribers</li></ol></nav>
+    <h2 class="fw-bold mb-0"><i class="fas fa-users me-2 text-success"></i>Subscribers</h2>
+    <small class="text-muted">@Model.Count() clients opted in to your newsletter</small>
+  </div>
+  <a href="/Newsletter" class="btn btn-outline-secondary">← Back to Newsletters</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Name</th><th>Email</th><th>City</th><th>Added</th><th></th></tr></thead>
+      <tbody>
+      @foreach (var c in Model)
+      {
+        <tr>
+          <td class="fw-semibold">@c.FirstName @c.LastName</td>
+          <td><a href="mailto:@c.Email" class="text-decoration-none text-muted">@c.Email</a></td>
+          <td><small class="text-muted">@(c.City ?? "—")</small></td>
+          <td><small class="text-muted">@c.CreatedAt.ToString("MMM d, yyyy")</small></td>
+          <td><a href="/Clients/Details/@c.Id" class="btn btn-sm btn-outline-secondary">View</a></td>
+        </tr>
+      }
+      @if (!Model.Any())
+      { <tr><td colspan="5" class="text-center py-4 text-muted">No newsletter subscribers yet. Add clients and enable the newsletter option.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+</div>

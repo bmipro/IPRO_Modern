@@ -1,0 +1,33 @@
+@model IPRO.Entities.BillingRule
+@{ ViewData["Title"] = "Create Package"; }
+
+<div class="mb-4">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Packages">Packages</a></li><li class="breadcrumb-item active">Create</li></ol></nav>
+  <h4 class="fw-bold">Create Package</h4>
+</div>
+
+<div class="row"><div class="col-lg-7">
+<div class="card border-0 shadow-sm">
+<div class="card-body p-4">
+<form asp-action="Create" method="post">
+  @Html.AntiForgeryToken()
+  <div class="mb-3"><label class="form-label fw-semibold">Package Name <span class="text-danger">*</span></label><input asp-for="PackageName" class="form-control" placeholder="Basic / Professional / Enterprise" required/></div>
+  <div class="mb-3"><label class="form-label fw-semibold">Description</label><input asp-for="Description" class="form-control" placeholder="Short description shown to agents"/></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><label class="form-label fw-semibold">Monthly Price ($)</label><input asp-for="MonthlyPrice" type="number" step="0.01" class="form-control" required/></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Quarterly Price ($)</label><input asp-for="QuarterlyPrice" type="number" step="0.01" class="form-control"/></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Annual Price ($)</label><input asp-for="AnnualPrice" type="number" step="0.01" class="form-control"/></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label fw-semibold">Max Clients</label><input asp-for="MaxClients" type="number" class="form-control" value="500"/></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">Max Newsletters/year</label><input asp-for="MaxNewsletters" type="number" class="form-control" value="12"/></div>
+  </div>
+  <div class="mb-3"><label class="form-label fw-semibold">PayPal Monthly Plan ID</label><input asp-for="PayPalMonthlyPlanId" class="form-control" placeholder="P-xxxxxxxxx"/><div class="form-text">From your PayPal Developer dashboard → Subscriptions → Plans</div></div>
+  <div class="mb-4"><label class="form-label fw-semibold">PayPal Annual Plan ID</label><input asp-for="PayPalAnnualPlanId" class="form-control" placeholder="P-xxxxxxxxx"/></div>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>Create Package</button>
+    <a href="/Packages" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+</div></div>
+</div></div>

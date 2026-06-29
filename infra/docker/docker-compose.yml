@@ -1,0 +1,49 @@
+version: '3.9'
+
+services:
+  web:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=server=db;port=3306;database=ipro_crm;user=ipro_user;password=IproPass2024!;
+      - Email__SendGridApiKey=${SENDGRID_API_KEY}
+      - PayPal__ClientId=${PAYPAL_CLIENT_ID}
+      - PayPal__ClientSecret=${PAYPAL_CLIENT_SECRET}
+      - PayPal__IsSandbox=true
+      - Azure__StorageConnectionString=${AZURE_STORAGE_CONN}
+      - Azure__StorageAccountName=${AZURE_STORAGE_ACCOUNT}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ipro-net
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: RootPass2024!
+      MYSQL_DATABASE: ipro_crm
+      MYSQL_USER: ipro_user
+      MYSQL_PASSWORD: IproPass2024!
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "ipro_user", "-pIproPass2024!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ipro-net
+
+volumes:
+  mysql-data:
+
+networks:
+  ipro-net:
+    driver: bridge

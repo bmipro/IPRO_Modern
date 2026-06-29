@@ -1,0 +1,109 @@
+@model IPRO.Entities.AgentUser
+@{ ViewData["Title"] = $"Agent: {Model.UserName}"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1"><li class="breadcrumb-item"><a href="/Agents">Agents</a></li><li class="breadcrumb-item active">@Model.UserName</li></ol></nav>
+        <h4 class="fw-bold mb-0">@Model.FirstName @Model.LastName
+            @if (Model.IsActive) { <span class="badge badge-status-active ms-2">Active</span> }
+            else { <span class="badge badge-status-inactive ms-2">Inactive</span> }
+        </h4>
+    </div>
+    <div class="d-flex gap-2">
+        @if (Model.IsActive)
+        {
+            <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Deactivate this agent?')"><i class="fas fa-ban me-1"></i>Deactivate</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="Activate" asp-route-id="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i>Activate</button>
+            </form>
+        }
+        <form asp-action="ProvisionHosting" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-primary" onclick="return confirm('Provision Plesk hosting for this agent?')"><i class="fas fa-server me-1"></i>Provision Hosting</button>
+        </form>
+        <form asp-action="PleskLogin" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-external-link-alt me-1"></i>Plesk Login</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3 text-muted text-uppercase" style="font-size:.75rem;letter-spacing:.08em">Profile</h6>
+                <dl class="row mb-0" style="font-size:.9rem">
+                    <dt class="col-5 text-muted">Username</dt><dd class="col-7">@Model.UserName</dd>
+                    <dt class="col-5 text-muted">Email</dt><dd class="col-7">@Model.Email</dd>
+                    <dt class="col-5 text-muted">Phone</dt><dd class="col-7">@(Model.Phone ?? "—")</dd>
+                    <dt class="col-5 text-muted">Domain</dt><dd class="col-7"><span class="text-primary">@(Model.DomainName ?? "—")</span></dd>
+                    <dt class="col-5 text-muted">Package</dt><dd class="col-7">Package @Model.PackageId</dd>
+                    <dt class="col-5 text-muted">Joined</dt><dd class="col-7">@Model.CreatedAt.ToString("MMM d, yyyy")</dd>
+                    <dt class="col-5 text-muted">Last Login</dt><dd class="col-7">@(Model.LastLoginAt.HasValue ? Model.LastLoginAt.Value.ToString("MMM d, yyyy") : "Never")</dd>
+                </dl>
+            </div>
+        </div>
+        <div class="row g-2">
+            <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold text-info">@ViewBag.ClientCount</div><div class="text-muted small">Clients</div></div></div>
+            <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold @(ViewBag.Subscription != null ? "text-success" : "text-danger")"><i class="fas @(ViewBag.Subscription != null ? "fa-check-circle" : "fa-times-circle")"></i></div><div class="text-muted small">Subscription</div></div></div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-receipt me-2 text-success"></i>Invoices</h6>
+                @{ var invoices = ViewBag.Invoices as IEnumerable<IPRO.Entities.Invoice>; }
+                @if (invoices != null && invoices.Any())
+                {
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                        @foreach (var inv in invoices)
+                        {
+                            <tr>
+                                <td class="small">@inv.InvoiceNumber</td>
+                                <td class="small text-muted">@inv.IssuedAt.ToString("MMM d, yyyy")</td>
+                                <td class="fw-semibold text-success">$@inv.Total.ToString("N2")</td>
+                                <td><span class="badge @(inv.IsPaid ? "bg-success" : "bg-warning text-dark")">@(inv.IsPaid ? "Paid" : "Unpaid")</span></td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+                else { <p class="text-muted mb-0">No invoices yet.</p> }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-history me-2 text-secondary"></i>Activity Log</h6>
+                @{ var logs = ViewBag.Logs as IEnumerable<IPRO.Entities.OperateLog>; }
+                @if (logs != null && logs.Any())
+                {
+                    <div style="max-height:250px;overflow-y:auto;">
+                    @foreach (var log in logs)
+                    {
+                        <div class="d-flex gap-3 py-2 border-bottom">
+                            <div class="text-muted" style="font-size:.75rem;white-space:nowrap;min-width:80px;">@log.CreatedAt.ToString("MMM d HH:mm")</div>
+                            <div>
+                                <span class="badge bg-light text-dark me-1">@log.Module</span>
+                                <span style="font-size:.85rem">@log.Description</span>
+                            </div>
+                        </div>
+                    }
+                    </div>
+                }
+                else { <p class="text-muted mb-0">No activity logged.</p> }
+            </div>
+        </div>
+    </div>
+</div>

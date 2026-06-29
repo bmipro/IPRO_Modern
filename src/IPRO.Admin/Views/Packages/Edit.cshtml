@@ -1,0 +1,34 @@
+@model IPRO.Entities.BillingRule
+@{ ViewData["Title"] = "Edit Package"; }
+
+<div class="mb-4">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Packages">Packages</a></li><li class="breadcrumb-item active">Edit</li></ol></nav>
+  <h4 class="fw-bold">Edit Package: @Model.PackageName</h4>
+</div>
+
+<div class="row"><div class="col-lg-7">
+<div class="card border-0 shadow-sm">
+<div class="card-body p-4">
+<form asp-action="Edit" method="post">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id"/>
+  <div class="mb-3"><label class="form-label fw-semibold">Package Name <span class="text-danger">*</span></label><input asp-for="PackageName" class="form-control" required/></div>
+  <div class="mb-3"><label class="form-label fw-semibold">Description</label><input asp-for="Description" class="form-control"/></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><label class="form-label fw-semibold">Monthly ($)</label><input asp-for="MonthlyPrice" type="number" step="0.01" class="form-control" required/></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Quarterly ($)</label><input asp-for="QuarterlyPrice" type="number" step="0.01" class="form-control"/></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Annual ($)</label><input asp-for="AnnualPrice" type="number" step="0.01" class="form-control"/></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label fw-semibold">Max Clients</label><input asp-for="MaxClients" type="number" class="form-control"/></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">Max Newsletters/year</label><input asp-for="MaxNewsletters" type="number" class="form-control"/></div>
+  </div>
+  <div class="mb-3"><label class="form-label fw-semibold">PayPal Monthly Plan ID</label><input asp-for="PayPalMonthlyPlanId" class="form-control"/></div>
+  <div class="mb-4"><label class="form-label fw-semibold">PayPal Annual Plan ID</label><input asp-for="PayPalAnnualPlanId" class="form-control"/></div>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>Save Changes</button>
+    <a href="/Packages" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+</div></div>
+</div></div>

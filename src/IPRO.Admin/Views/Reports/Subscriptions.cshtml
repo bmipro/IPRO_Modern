@@ -1,0 +1,39 @@
+@{ ViewData["Title"] = "Subscriptions Report"; var billings = ViewBag.Billings as IEnumerable<IPRO.Entities.Billing>; }
+
+<div class="mb-4"><h4 class="fw-bold"><i class="fas fa-credit-card me-2 text-warning"></i>Subscriptions Report</h4></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-success">@ViewBag.Active</div><div class="text-muted">Active</div></div></div>
+  <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-secondary">@ViewBag.Pending</div><div class="text-muted">Pending</div></div></div>
+  <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-warning">@ViewBag.Cancelled</div><div class="text-muted">Cancelled</div></div></div>
+  <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-danger">@ViewBag.Failed</div><div class="text-muted">Failed</div></div></div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Agent ID</th><th>Plan</th><th>Amount</th><th>Period</th><th>Status</th><th>Started</th><th>Next Billing</th></tr></thead>
+      <tbody>
+      @if (billings != null)
+      {
+        @foreach (var b in billings)
+        {
+          <tr>
+            <td class="small text-muted">@b.AgentUserId</td>
+            <td class="small font-monospace text-muted">@(b.PayPalPlanId.Length > 15 ? b.PayPalPlanId[..15] + "…" : b.PayPalPlanId)</td>
+            <td class="fw-bold">$@b.Amount.ToString("N2") <small class="text-muted">@b.Currency</small></td>
+            <td><span class="badge bg-light text-dark">@b.Period</span></td>
+            <td>
+              <span class="badge @(b.Status == IPRO.Entities.BillingStatus.Active ? "bg-success" : b.Status == IPRO.Entities.BillingStatus.Pending ? "bg-warning text-dark" : b.Status == IPRO.Entities.BillingStatus.Failed ? "bg-danger" : "bg-secondary")">
+                @b.Status
+              </span>
+            </td>
+            <td><small>@b.StartDate.ToString("MMM d, yyyy")</small></td>
+            <td><small class="text-muted">@(b.NextBillingDate?.ToString("MMM d, yyyy") ?? "—")</small></td>
+          </tr>
+        }
+      }
+      </tbody>
+    </table>
+  </div>
+</div>

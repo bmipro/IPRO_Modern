@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\IPRO.Entities\IPRO.Entities.csproj" />
+    <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
+    <ProjectReference Include="..\IPRO.Utility\IPRO.Utility.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.11" />
+  </ItemGroup>
+</Project>

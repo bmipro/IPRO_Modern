@@ -1,0 +1,154 @@
+@model IPRO.Entities.AgentWebsite
+@{ ViewData["Title"] = "My Website"; var templates = ViewBag.Templates as IEnumerable<IPRO.Entities.WebsiteTemplate>; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-0"><i class="fas fa-globe me-2 text-info"></i>My Website</h2>
+        <small class="text-muted">Manage your public-facing adviser website</small>
+    </div>
+    @if (Model != null)
+    {
+        <div class="d-flex gap-2">
+            @if (Model.IsPublished)
+            {
+                <a href="https://@Model.CustomDomain" target="_blank" class="btn btn-outline-success"><i class="fas fa-external-link-alt me-1"></i>View Live Site</a>
+                <form asp-action="Unpublish" method="post">@Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-warning">Take Offline</button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="Publish" method="post">@Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success"><i class="fas fa-rocket me-1"></i>Publish Website</button>
+                </form>
+            }
+        </div>
+    }
+</div>
+
+@if (Model != null)
+{
+    <div class="alert alert-@(Model.IsPublished ? "success" : "warning") border-0 shadow-sm mb-4">
+        <i class="fas fa-@(Model.IsPublished ? "check-circle" : "clock") me-2"></i>
+        @if (Model.IsPublished)
+        { <strong>Your website is live</strong> at <a href="https://@Model.CustomDomain" target="_blank" class="alert-link">@Model.CustomDomain</a> }
+        else
+        <script>
+    $(document).ready(function() { 
+        // your code here
+    });
+</script>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold mb-0"><i class="fas fa-paint-brush me-2 text-primary"></i>Website Settings</h5>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Save" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    @if (Model != null) { <input type="hidden" asp-for="Id"/> }
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Site Title <span class="text-danger">*</span></label>
+                            <input asp-for="SiteTitle" class="form-control" placeholder="John Smith — Insurance Adviser" required/>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Your Domain <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">https://</span>
+                                <input asp-for="CustomDomain" class="form-control" placeholder="yourname.com" required/>
+                            </div>
+                            <div class="form-text">Your domain registrar must point this domain to our servers.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Tagline</label>
+                            <input asp-for="TagLine" class="form-control" placeholder="Protecting families across Ontario since 2005"/>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Theme Colour</label>
+                            <div class="input-group">
+                                <input asp-for="ThemeColor" type="color" class="form-control form-control-color" style="width:60px"/>
+                                <input type="text" id="themeHex" class="form-control" value="@(Model?.ThemeColor ?? "#003366")" readonly/>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Logo</label>
+                            <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/svg+xml"/>
+                            @if (!string.IsNullOrEmpty(Model?.LogoUrl))
+                            { <div class="mt-2"><img src="@Model.LogoUrl" style="height:40px;" alt="Current logo"/><small class="text-muted ms-2">Current logo</small></div> }
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Choose Template</label>
+                            <div class="row g-3">
+                                @if (templates != null)
+                                {
+                                    @foreach (var t in templates)
+                                    {
+                                        <div class="col-md-4">
+                                            <div class="card border-2 @(Model?.TemplateId == t.Id ? "border-primary" : "border-light") template-card" style="cursor:pointer;" onclick="selectTemplate(@t.Id, this)">
+                                                <img src="@t.PreviewImageUrl" class="card-img-top" style="height:100px;object-fit:cover;" alt="@t.Name" onerror="this.src='/images/template-placeholder.png'"/>
+                                                <div class="card-body p-2 text-center">
+                                                    <small class="fw-semibold">@t.Name</small>
+                                                    @if (Model?.TemplateId == t.Id)
+                                                    { <div><span class="badge bg-primary mt-1">Selected</span></div> }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                            <input type="hidden" asp-for="TemplateId" id="selectedTemplateId"/>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg px-5"><i class="fas fa-save me-2"></i>Save Settings</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-info"></i>Domain Setup</h6>
+                <p class="small text-muted">To use your own domain, add this DNS record at your registrar (GoDaddy, Namecheap, etc.):</p>
+                <div class="bg-light rounded p-3 font-monospace small">
+                    CNAME &nbsp;@ &nbsp;→ &nbsp;ipro-prod-web.azurewebsites.net
+                </div>
+                <p class="small text-muted mt-2">DNS changes can take up to 48 hours to propagate.</p>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-checklist me-2 text-success"></i>Website Checklist</h6>
+                <ul class="list-unstyled mb-0 small">
+                    <li class="mb-2 @(Model?.SiteTitle?.Length > 0 == true ? "text-success" : "text-muted")"><i class="fas fa-@(Model?.SiteTitle?.Length > 0 == true ? "check-circle text-success" : "circle") me-2"></i>Site title set</li>
+                    <li class="mb-2 @(Model?.CustomDomain?.Length > 0 == true ? "text-success" : "text-muted")"><i class="fas fa-@(Model?.CustomDomain?.Length > 0 == true ? "check-circle text-success" : "circle") me-2"></i>Domain configured</li>
+                    <li class="mb-2 @(Model?.LogoUrl?.Length > 0 == true ? "text-success" : "text-muted")"><i class="fas fa-@(Model?.LogoUrl?.Length > 0 == true ? "check-circle text-success" : "circle") me-2"></i>Logo uploaded</li>
+                    <li class="mb-2 @(Model?.TemplateId > 0 == true ? "text-success" : "text-muted")"><i class="fas fa-@(Model?.TemplateId > 0 == true ? "check-circle text-success" : "circle") me-2"></i>Template selected</li>
+                    <li class="mb-2 @(Model?.IsPublished == true ? "text-success" : "text-muted")"><i class="fas fa-@(Model?.IsPublished == true ? "check-circle text-success" : "circle") me-2"></i>Website published</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function selectTemplate(id, el) {
+    document.querySelectorAll('.template-card').forEach(c => c.classList.remove('border-primary'));
+    el.classList.add('border-primary');
+    document.getElementById('selectedTemplateId').value = id;
+}
+document.getElementById('ThemeColor')?.addEventListener('input', function() {
+    document.getElementById('themeHex').value = this.value;
+});
+</script>
+}

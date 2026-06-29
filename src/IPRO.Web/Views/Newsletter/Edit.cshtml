@@ -1,0 +1,113 @@
+@model IPRO.Entities.NewsLetter
+@{ ViewData["Title"] = "Edit Newsletter"; var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>; }
+
+<div class="row mb-4">
+  <div class="col">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Newsletter">Newsletters</a></li><li class="breadcrumb-item active">Edit</li></ol>
+    </nav>
+    <div class="d-flex align-items-center gap-3">
+      <h2 class="fw-bold mb-0"><i class="fas fa-edit me-2 text-primary"></i>Edit Newsletter</h2>
+      <span class="badge bg-@(Model.Status == IPRO.Entities.NewsLetterStatus.Sent ? "success" : Model.Status == IPRO.Entities.NewsLetterStatus.Scheduled ? "warning" : "secondary") fs-6">@Model.Status</span>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 pt-4 px-4"><h5 class="fw-bold">Newsletter Content</h5></div>
+      <div class="card-body px-4 pb-4">
+        <form asp-action="Edit" method="post">
+          @Html.AntiForgeryToken()
+          <input type="hidden" asp-for="Id"/>
+          <input type="hidden" asp-for="AgentUserId"/>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Subject</label>
+            <input asp-for="Subject" class="form-control" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">HTML Body</label>
+            @await Html.PartialAsync("_RichEditor", Model.HtmlBody, new ViewDataDictionary(ViewData) {
+                { "EditorId", "nlBody" }, { "FieldName", "HtmlBody" }, { "Height", "450" }, { "Toolbar", "full" }
+            })
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Plain Text</label>
+            <textarea asp-for="TextBody" class="form-control" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Articles Section -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0">Articles</h5>
+      </div>
+      <div class="card-body px-4 pb-4">
+        @if (articles != null && articles.Any())
+        {
+          @foreach (var a in articles.OrderBy(x => x.SortOrder))
+          {
+            <div class="border rounded p-3 mb-2 d-flex align-items-center gap-3">
+              @if (!string.IsNullOrEmpty(a.ImageUrl))
+              { <img src="@a.ImageUrl" class="rounded" style="width:60px;height:60px;object-fit:cover;"/> }
+              <div class="flex-grow-1">
+                <div class="fw-semibold">@a.Title</div>
+                <small class="text-muted">@(a.Content.Length > 80 ? a.Content[..80] + "..." : a.Content)</small>
+              </div>
+            </div>
+          }
+        }
+        else { <p class="text-muted">No articles added yet.</p> }
+
+        <hr/>
+        <h6 class="fw-bold">Add Article</h6>
+        <form asp-action="AddArticle" method="post">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="NewsLetterId" value="@Model.Id"/>
+          <div class="mb-2"><input name="Title" class="form-control" placeholder="Article title" required/></div>
+          <div class="mb-2">
+            @await Html.PartialAsync("_RichEditor", string.Empty, new ViewDataDictionary(ViewData) {
+                { "EditorId", "articleBody" }, { "FieldName", "Content" }, { "Height", "250" }, { "Toolbar", "simple" }
+            })
+          </div>
+          <button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>Add Article</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white border-0 pt-4 px-4"><h6 class="fw-bold mb-0"><i class="fas fa-calendar me-2 text-warning"></i>Schedule</h6></div>
+      <div class="card-body px-4 pb-4">
+        <form asp-action="Schedule" method="post">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="id" value="@Model.Id"/>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Send Date & Time</label>
+            <input type="datetime-local" name="scheduledAt" class="form-control" required min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")"/>
+          </div>
+          <button type="submit" class="btn btn-warning w-100"><i class="fas fa-clock me-1"></i>Schedule Send</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4 text-center">
+        <div class="text-muted small mb-1">Total Sent</div>
+        <div class="display-6 fw-bold text-success">@Model.TotalSent</div>
+        <div class="text-muted small mt-1">of @Model.TotalRecipients recipients</div>
+        @if (Model.SentAt.HasValue)
+        { <div class="text-muted small mt-2">Sent @Model.SentAt.Value.ToString("MMM d, yyyy h:mm tt")</div> }
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.tiny.cloud/1/YOUR_TINYMCE_KEY/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+}

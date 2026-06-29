@@ -1,0 +1,27 @@
+@{ ViewData["Title"] = "Agent Statistics"; }
+
+<div class="mb-4"><h4 class="fw-bold"><i class="fas fa-chart-bar me-2 text-primary"></i>Agent Statistics</h4></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-success">@ViewBag.TotalActive</div><div class="text-muted">Active Agents</div></div></div>
+  <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-danger">@ViewBag.TotalInactive</div><div class="text-muted">Inactive Agents</div></div></div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <h6 class="fw-bold mb-3">New Agent Registrations by Month</h6>
+    <canvas id="agentsChart" height="100"></canvas>
+  </div>
+</div>
+
+@section Scripts {
+<script>
+const labels = [@Html.Raw(string.Join(",", (ViewBag.ByMonth as IEnumerable<dynamic> ?? []).Select(i => $"'{i.Label}'")))];
+const data   = [@Html.Raw(string.Join(",", (ViewBag.ByMonth as IEnumerable<dynamic> ?? []).Select(i => i.Count)))];
+new Chart(document.getElementById('agentsChart'), {
+  type: 'line',
+  data: { labels, datasets: [{ label: 'New Agents', data, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.3 }] },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+</script>
+}

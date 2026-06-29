@@ -1,0 +1,51 @@
+using IPRO.Business.Interfaces;
+using IPRO.DataAccess.Repositories;
+using IPRO.Entities;
+
+namespace IPRO.Business.Services;
+
+public class WebsiteService : IWebsiteService
+{
+    private readonly IUnitOfWork _uow;
+    public WebsiteService(IUnitOfWork uow) => _uow = uow;
+
+    public Task<AgentWebsite?> GetByAgentIdAsync(int agentId) =>
+        _uow.AgentWebsites.FirstOrDefaultAsync(w => w.AgentUserId == agentId);
+
+    public Task<AgentWebsite?> GetByDomainAsync(string domain) =>
+        _uow.AgentWebsites.FirstOrDefaultAsync(w => w.CustomDomain == domain);
+
+    public async Task<AgentWebsite> CreateAsync(AgentWebsite website)
+    {
+        website.CreatedAt = DateTime.UtcNow;
+        website.UpdatedAt = DateTime.UtcNow;
+        await _uow.AgentWebsites.AddAsync(website);
+        await _uow.SaveChangesAsync();
+        return website;
+    }
+
+    public async Task UpdateAsync(AgentWebsite website)
+    {
+        website.UpdatedAt = DateTime.UtcNow;
+        _uow.AgentWebsites.Update(website);
+        await _uow.SaveChangesAsync();
+    }
+
+    public async Task PublishAsync(int agentId)
+    {
+        var site = await GetByAgentIdAsync(agentId);
+        if (site != null) { site.IsPublished = true; site.UpdatedAt = DateTime.UtcNow; _uow.AgentWebsites.Update(site); await _uow.SaveChangesAsync(); }
+    }
+
+    public async Task UnpublishAsync(int agentId)
+    {
+        var site = await GetByAgentIdAsync(agentId);
+        if (site != null) { site.IsPublished = false; site.UpdatedAt = DateTime.UtcNow; _uow.AgentWebsites.Update(site); await _uow.SaveChangesAsync(); }
+    }
+
+    public Task<IEnumerable<WebsiteTemplate>> GetTemplatesAsync() =>
+        _uow.WebsiteTemplates.FindAsync(t => t.IsActive);
+
+    public Task<WebsiteTemplate?> GetTemplateByIdAsync(int id) =>
+        _uow.WebsiteTemplates.GetByIdAsync(id);
+}

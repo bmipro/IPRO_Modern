@@ -1,0 +1,43 @@
+using System.Security.Claims;
+using IPRO.Billing;
+using IPRO.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace IPRO.Web.Controllers;
+
+[Authorize]
+public class BillingController : Controller
+{
+    private readonly IBillingService _billing;
+    private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    public BillingController(IBillingService billing) => _billing = billing;
+
+    public async Task<IActionResult> Index()
+    {
+        ViewBag.Packages     = await _billing.GetPackagesAsync();
+        ViewBag.Subscription = await _billing.GetActiveSubscriptionAsync(AgentId);
+        ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);
+        return View();
+    }
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Subscribe(int billingRuleId, BillingPeriod period)
+    {
+        var url = await _billing.CreateSubscriptionAsync(AgentId, billingRuleId, period);
+        return Redirect(url);
+    }
+    public IActionResult Success() { TempData["Success"] = "Subscription activated!"; return RedirectToAction(nameof(Index)); }
+    public IActionResult Cancel()  { TempData["Warning"] = "Subscription was cancelled."; return RedirectToAction(nameof(Index)); }
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelSubscription() { await _billing.CancelSubscriptionAsync(AgentId); TempData["Success"] = "Subscription cancelled."; return RedirectToAction(nameof(Index)); }
+
+    [AllowAnonymous, HttpPost("/billing/webhook")]
+    public async Task<IActionResult> Webhook([FromBody] PayPalWebhookPayload p)
+    {
+        await _billing.HandleWebhookAsync(p.EventType, p.Resource?.Id ?? "", p.Resource?.TransactionId ?? "", p.Resource?.Amount?.Value ?? 0);
+        return Ok();
+    }
+}
+public record PayPalWebhookPayload(string EventType, WebhookResource? Resource);
+public record WebhookResource(string Id, string TransactionId, WebhookAmount? Amount);
+public record WebhookAmount(decimal Value);

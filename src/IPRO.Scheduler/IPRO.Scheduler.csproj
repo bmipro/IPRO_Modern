@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire.Core" Version="1.8.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />
+    <ProjectReference Include="..\IPRO.Email\IPRO.Email.csproj" />
+    <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
+    <ProjectReference Include="..\IPRO.Entities\IPRO.Entities.csproj" />
+  </ItemGroup>
+</Project>

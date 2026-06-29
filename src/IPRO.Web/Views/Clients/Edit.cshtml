@@ -1,0 +1,78 @@
+@model IPRO.Entities.Client
+@{ ViewData["Title"] = "Edit Client"; }
+
+<div class="row mb-4">
+  <div class="col">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Clients">Clients</a></li><li class="breadcrumb-item"><a href="/Clients/Details/@Model.Id">@Model.FirstName @Model.LastName</a></li><li class="breadcrumb-item active">Edit</li></ol>
+    </nav>
+    <h2 class="fw-bold"><i class="fas fa-edit me-2 text-primary"></i>Edit Client</h2>
+  </div>
+</div>
+
+<div class="row">
+<div class="col-lg-8">
+<div class="card border-0 shadow-sm">
+<div class="card-body p-4">
+<form asp-action="Edit" method="post">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id"/>
+  <input type="hidden" asp-for="AgentUserId"/>
+  <input type="hidden" asp-for="CreatedAt"/>
+
+  <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.08em">Personal Information</h6>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+      <input asp-for="FirstName" class="form-control" required/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
+      <input asp-for="LastName" class="form-control" required/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+      <input asp-for="Email" type="email" class="form-control" required/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Phone</label>
+      <input asp-for="Phone" class="form-control"/>
+    </div>
+  </div>
+
+  <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.08em">Address</h6>
+  <div class="row g-3 mb-4">
+    <div class="col-12"><label class="form-label fw-semibold">Street Address</label><input asp-for="Address" class="form-control"/></div>
+    <div class="col-md-5"><label class="form-label fw-semibold">City</label><input asp-for="City" class="form-control"/></div>
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">Province</label>
+      <select asp-for="Province" class="form-select">
+        <option value="">Select…</option>
+        <option>AB</option><option>BC</option><option>MB</option><option>NB</option>
+        <option>NL</option><option>NS</option><option>ON</option><option>PE</option>
+        <option>QC</option><option>SK</option>
+      </select>
+    </div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Postal Code</label><input asp-for="PostalCode" class="form-control"/></div>
+  </div>
+
+  <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.08em">Preferences</h6>
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="form-check form-switch">
+        <input asp-for="IsNewsletterSubscribed" class="form-check-input" type="checkbox"/>
+        <label class="form-check-label fw-semibold">Newsletter subscribed</label>
+      </div>
+    </div>
+    <div class="col-12"><label class="form-label fw-semibold">Notes</label><textarea asp-for="Notes" class="form-control" rows="3"></textarea></div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary btn-lg px-4"><i class="fas fa-save me-2"></i>Save Changes</button>
+    <a href="/Clients/Details/@Model.Id" class="btn btn-outline-secondary btn-lg">Cancel</a>
+  </div>
+</form>
+</div>
+</div>
+</div>
+</div>

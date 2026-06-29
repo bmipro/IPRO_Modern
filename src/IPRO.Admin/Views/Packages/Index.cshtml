@@ -1,0 +1,41 @@
+@model IEnumerable<IPRO.Entities.BillingRule>
+@{ ViewData["Title"] = "Packages"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0"><i class="fas fa-box me-2 text-primary"></i>Subscription Packages</h4>
+  <a href="/Packages/Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Package</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Package</th><th>Monthly</th><th>Quarterly</th><th>Annual</th><th>Max Clients</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      @foreach (var p in Model)
+      {
+        <tr>
+          <td>
+            <div class="fw-semibold">@p.PackageName</div>
+            <small class="text-muted">@p.Description</small>
+          </td>
+          <td class="fw-bold text-primary">$@p.MonthlyPrice.ToString("N2")</td>
+          <td>$@p.QuarterlyPrice.ToString("N2")</td>
+          <td>$@p.AnnualPrice.ToString("N2")</td>
+          <td>@p.MaxClients</td>
+          <td>
+            <form asp-action="Toggle" asp-route-id="@p.Id" method="post">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="badge border-0 @(p.IsActive ? "bg-success" : "bg-secondary") text-white" style="cursor:pointer;">
+                @(p.IsActive ? "Active" : "Inactive")
+              </button>
+            </form>
+          </td>
+          <td><a href="/Packages/Edit/@p.Id" class="btn btn-sm btn-outline-primary">Edit</a></td>
+        </tr>
+      }
+      @if (!Model.Any())
+      { <tr><td colspan="7" class="text-center py-4 text-muted">No packages yet. <a href="/Packages/Create">Create one.</a></td></tr> }
+      </tbody>
+    </table>
+  </div>
+</div>

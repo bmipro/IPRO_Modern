@@ -1,0 +1,57 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Web", "src\IPRO.Web\IPRO.Web.csproj", "{A1B2C3D4-0001-0001-0001-000000000001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Admin", "src\IPRO.Admin\IPRO.Admin.csproj", "{A1B2C3D4-0002-0002-0002-000000000002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Business", "src\IPRO.Business\IPRO.Business.csproj", "{A1B2C3D4-0003-0003-0003-000000000003}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Entities", "src\IPRO.Entities\IPRO.Entities.csproj", "{A1B2C3D4-0004-0004-0004-000000000004}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.DataAccess", "src\IPRO.DataAccess\IPRO.DataAccess.csproj", "{A1B2C3D4-0005-0005-0005-000000000005}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Utility", "src\IPRO.Utility\IPRO.Utility.csproj", "{A1B2C3D4-0006-0006-0006-000000000006}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Scheduler", "src\IPRO.Scheduler\IPRO.Scheduler.csproj", "{A1B2C3D4-0007-0007-0007-000000000007}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Billing", "src\IPRO.Billing\IPRO.Billing.csproj", "{A1B2C3D4-0008-0008-0008-000000000008}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Email", "src\IPRO.Email\IPRO.Email.csproj", "{A1B2C3D4-0009-0009-0009-000000000009}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Business.Tests", "tests\IPRO.Business.Tests\IPRO.Business.Tests.csproj", "{A1B2C3D4-0010-0010-0010-000000000010}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPRO.Billing.Tests", "tests\IPRO.Billing.Tests\IPRO.Billing.Tests.csproj", "{A1B2C3D4-0011-0011-0011-000000000011}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1B2C3D4-0001-0001-0001-000000000001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0001-0001-0001-000000000001}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0002-0002-0002-000000000002}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0002-0002-0002-000000000002}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0003-0003-0003-000000000003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0003-0003-0003-000000000003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0004-0004-0004-000000000004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0004-0004-0004-000000000004}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0005-0005-0005-000000000005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0005-0005-0005-000000000005}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0006-0006-0006-000000000006}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0006-0006-0006-000000000006}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0007-0007-0007-000000000007}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0007-0007-0007-000000000007}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0008-0008-0008-000000000008}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0008-0008-0008-000000000008}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0009-0009-0009-000000000009}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0009-0009-0009-000000000009}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0010-0010-0010-000000000010}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0010-0010-0010-000000000010}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0011-0011-0011-000000000011}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0011-0011-0011-000000000011}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+EndGlobal

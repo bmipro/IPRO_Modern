@@ -1,0 +1,76 @@
+@model IEnumerable<IPRO.Entities.BannerSlide>
+<div id="iproBannerSlider" class="banner-slider position-relative overflow-hidden rounded-3 shadow">
+    <div class="slides-wrapper">
+        @{ int i = 0; }
+        @foreach (var slide in Model)
+        {
+            <div class="slide @(i == 0 ? "active" : "")" data-index="@i">
+                @if (!string.IsNullOrEmpty(slide.VideoUrl))
+                {
+                    <video class="slide-media" autoplay muted loop playsinline>
+                        <source src="@slide.VideoUrl" type="video/mp4"/>
+                    </video>
+                }
+                else
+                {
+                    <img src="@slide.ImageUrl" alt="@slide.Title" class="slide-media"/>
+                }
+                <div class="slide-overlay">
+                    <div class="slide-content">
+                        @if (!string.IsNullOrEmpty(slide.Title))
+                        { <h2 class="slide-title">@slide.Title</h2> }
+                        @if (!string.IsNullOrEmpty(slide.SubTitle))
+                        { <p class="slide-subtitle">@slide.SubTitle</p> }
+                        @if (!string.IsNullOrEmpty(slide.LinkUrl))
+                        { <a href="@slide.LinkUrl" class="btn btn-light btn-lg mt-3">@(slide.LinkText ?? "Learn More")</a> }
+                    </div>
+                </div>
+            </div>
+            i++;
+        }
+    </div>
+    @if (Model.Count() > 1)
+    {
+        <button class="slider-nav prev" onclick="iproSlider.prev()">&#10094;</button>
+        <button class="slider-nav next" onclick="iproSlider.next()">&#10095;</button>
+        <div class="slider-dots">
+            @for (int d = 0; d < Model.Count(); d++)
+            { <span class="dot @(d == 0 ? "active" : "")" onclick="iproSlider.goTo(@d)"></span> }
+        </div>
+    }
+</div>
+
+<style>
+.banner-slider { background:#1a3a6b; min-height:400px; }
+.slides-wrapper { position:relative; }
+.slide { display:none; position:relative; }
+.slide.active { display:block; }
+.slide-media { width:100%; height:400px; object-fit:cover; }
+.slide-overlay { position:absolute; inset:0; background:linear-gradient(to bottom,transparent 30%,rgba(0,0,0,0.65)); display:flex; align-items:flex-end; padding:2rem; }
+.slide-content { color:#fff; }
+.slide-title { font-size:2rem; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,0.5); }
+.slide-subtitle { font-size:1.1rem; opacity:.9; }
+.slider-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.85); border:none; border-radius:50%; width:44px; height:44px; font-size:1.2rem; cursor:pointer; z-index:10; transition:background .2s; }
+.slider-nav:hover { background:#fff; }
+.slider-nav.prev { left:12px; }
+.slider-nav.next { right:12px; }
+.slider-dots { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:8px; }
+.dot { width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.5); cursor:pointer; transition:background .2s; }
+.dot.active { background:#fff; }
+</style>
+<script>
+const iproSlider = (() => {
+    const slides = document.querySelectorAll('#iproBannerSlider .slide');
+    const dots   = document.querySelectorAll('#iproBannerSlider .dot');
+    let current = 0, timer;
+    const show = (n) => {
+        slides[current].classList.remove('active'); dots[current]?.classList.remove('active');
+        current = (n + slides.length) % slides.length;
+        slides[current].classList.add('active'); dots[current]?.classList.add('active');
+    };
+    const start = () => { timer = setInterval(() => show(current + 1), 5000); };
+    const reset = () => { clearInterval(timer); start(); };
+    start();
+    return { prev: () => { show(current - 1); reset(); }, next: () => { show(current + 1); reset(); }, goTo: (n) => { show(n); reset(); } };
+})();
+</script>

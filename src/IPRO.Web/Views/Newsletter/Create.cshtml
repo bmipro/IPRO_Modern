@@ -1,0 +1,71 @@
+@model IPRO.Entities.NewsLetter
+@{ ViewData["Title"] = "Create Newsletter"; }
+
+<div class="row mb-4">
+  <div class="col">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Newsletter">Newsletters</a></li><li class="breadcrumb-item active">Create</li></ol>
+    </nav>
+    <h2 class="fw-bold"><i class="fas fa-paper-plane me-2 text-success"></i>Create Newsletter</h2>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form asp-action="Create" method="post">
+          @Html.AntiForgeryToken()
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Subject Line <span class="text-danger">*</span></label>
+            <input asp-for="Subject" class="form-control form-control-lg" placeholder="Enter a compelling subject line..." required/>
+            <div class="form-text">This is what your subscribers will see in their inbox.</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Newsletter Body <span class="text-danger">*</span></label>
+            @await Html.PartialAsync("_RichEditor", string.Empty, new ViewDataDictionary(ViewData) {
+                { "EditorId", "nlBody" }, { "FieldName", "HtmlBody" }, { "Height", "500" }, { "Toolbar", "full" }
+            })
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Plain Text Version</label>
+            <textarea asp-for="TextBody" class="form-control" rows="4" placeholder="Plain text fallback for email clients that don't support HTML..."></textarea>
+            <div class="form-text">Used by email clients that don't render HTML.</div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success btn-lg px-4"><i class="fas fa-save me-2"></i>Save as Draft</button>
+            <a href="/Newsletter" class="btn btn-outline-secondary btn-lg">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="fas fa-lightbulb me-2 text-warning"></i>Tips</h6>
+        <ul class="small text-muted ps-3">
+          <li class="mb-2">Keep subject lines under 50 characters</li>
+          <li class="mb-2">Personalise with the agent's name</li>
+          <li class="mb-2">Include a clear call-to-action button</li>
+          <li class="mb-2">Always preview before scheduling</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="fas fa-users me-2 text-info"></i>Subscribers</h6>
+        <p class="small text-muted">This newsletter will be sent to all clients who have opted in to your newsletter list.</p>
+        <a href="/Newsletter/Subscribers" class="btn btn-sm btn-outline-info w-100">View Subscriber List</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.tiny.cloud/1/YOUR_TINYMCE_KEY/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+}

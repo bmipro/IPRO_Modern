@@ -1,0 +1,12 @@
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\bin\Release\net8.0\IPRO.Entities.deps.json
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\bin\Release\net8.0\IPRO.Entities.dll
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\bin\Release\net8.0\IPRO.Entities.pdb
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\IPRO.Entities.GeneratedMSBuildEditorConfig.editorconfig
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\IPRO.Entities.AssemblyInfoInputs.cache
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\IPRO.Entities.AssemblyInfo.cs
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\IPRO.Entities.csproj.CoreCompileInputs.cache
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\IPRO.Entities.sourcelink.json
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\IPRO.Entities.dll
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\refint\IPRO.Entities.dll
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\IPRO.Entities.pdb
+C:\users\admin\Documents\iPro_Project\IPRO_Modern\src\IPRO.Entities\obj\Release\net8.0\ref\IPRO.Entities.dll

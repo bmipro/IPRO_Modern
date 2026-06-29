@@ -1,0 +1,109 @@
+@model IEnumerable<IPRO.Entities.Client>
+@{ ViewData["Title"] = "My Clients"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-0"><i class="fas fa-users me-2 text-primary"></i>My Clients</h2>
+        <small class="text-muted">@ViewBag.TotalCount total contacts</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
+        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal"><i class="fas fa-file-import me-1"></i>Import CSV</button>
+        <a href="/Clients/ExportCsv" class="btn btn-outline-success"><i class="fas fa-download me-1"></i>Export</a>
+    </div>
+</div>
+
+<!-- Search bar -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2">
+            <div class="col-md-9">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" name="search" value="@ViewBag.Search" class="form-control border-start-0" placeholder="Search by name, email or phone…"/>
+                </div>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">Search</button>
+                @if (!string.IsNullOrEmpty(ViewBag.Search as string))
+                { <a href="/Clients" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a> }
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Client table -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Newsletter</th><th>Added</th><th></th></tr>
+            </thead>
+            <tbody>
+            @foreach (var c in Model)
+            {
+                <tr>
+                    <td>
+                        <div class="fw-semibold">@c.FirstName @c.LastName</div>
+                    </td>
+                    <td><a href="mailto:@c.Email" class="text-decoration-none text-muted small">@c.Email</a></td>
+                    <td><small class="text-muted">@(c.Phone ?? "—")</small></td>
+                    <td><small class="text-muted">@(c.City ?? "—")</small></td>
+                    <td>
+                        @if (c.IsNewsletterSubscribed)
+                        { <span class="badge bg-success-subtle text-success rounded-pill"><i class="fas fa-check me-1"></i>Yes</span> }
+                        else
+                        { <span class="badge bg-light text-muted rounded-pill">No</span> }
+                    </td>
+                    <td><small class="text-muted">@c.CreatedAt.ToString("MMM d, yyyy")</small></td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="/Clients/Details/@c.Id" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="/Clients/Edit/@c.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" data-confirm="Delete @c.FirstName @c.LastName?"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="fas fa-users fa-3x d-block mb-3 opacity-25"></i>
+                        No clients yet. <a href="/Clients/Create">Add your first client</a> or <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#importModal">import from CSV</button>.
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-csv me-2 text-success"></i>Import Contacts</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Upload a CSV file. Required column: <strong>Email</strong>. Optional: First Name, Last Name, Phone, Address, City, Province, PostalCode.</p>
+                <form asp-action="ImportCsv" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">CSV File</label>
+                        <input type="file" name="file" class="form-control" accept=".csv" required/>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100"><i class="fas fa-upload me-1"></i>Import Now</button>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <small class="text-muted">Also supports Outlook CSV and vCard (.vcf) exports.</small>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,52 @@
+@model IEnumerable<IPRO.Entities.NewsLetter>
+@{ ViewData["Title"] = "Newsletters"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-0"><i class="fas fa-envelope me-2 text-success"></i>Newsletters</h2>
+    <small class="text-muted">@Model.Count() newsletters</small>
+  </div>
+  <a href="/Newsletter/Create" class="btn btn-success"><i class="fas fa-plus me-1"></i>Create Newsletter</a>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="fas fa-envelope-open fa-3x text-muted opacity-25 mb-3 d-block"></i>
+      <h5 class="fw-bold">No newsletters yet</h5>
+      <p class="text-muted">Create your first newsletter to stay in touch with your clients.</p>
+      <a href="/Newsletter/Create" class="btn btn-success"><i class="fas fa-plus me-1"></i>Create Newsletter</a>
+    </div>
+  </div>
+}
+else
+{
+  <div class="row g-3">
+  @foreach (var nl in Model.OrderByDescending(n => n.CreatedAt))
+  {
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge rounded-pill @(nl.Status == IPRO.Entities.NewsLetterStatus.Sent ? "bg-success" : nl.Status == IPRO.Entities.NewsLetterStatus.Scheduled ? "bg-warning text-dark" : nl.Status == IPRO.Entities.NewsLetterStatus.Sending ? "bg-info" : "bg-secondary")">
+              @nl.Status
+            </span>
+            <small class="text-muted">@nl.CreatedAt.ToString("MMM d, yyyy")</small>
+          </div>
+          <h6 class="fw-bold mb-1">@nl.Subject</h6>
+          @if (nl.Status == IPRO.Entities.NewsLetterStatus.Sent)
+          { <small class="text-muted"><i class="fas fa-paper-plane me-1"></i>Sent to @nl.TotalSent recipients on @nl.SentAt?.ToString("MMM d")</small> }
+          @if (nl.Status == IPRO.Entities.NewsLetterStatus.Scheduled)
+          { <small class="text-muted"><i class="fas fa-clock me-1"></i>Scheduled for @nl.ScheduledAt?.ToString("MMM d, h:mm tt")</small> }
+        </div>
+        <div class="card-footer bg-white border-0 px-4 pb-3 d-flex gap-2">
+          <a href="/Newsletter/Edit/@nl.Id" class="btn btn-sm btn-outline-primary flex-grow-1"><i class="fas fa-edit me-1"></i>Edit</a>
+          @if (nl.Status == IPRO.Entities.NewsLetterStatus.Sent)
+          { <span class="btn btn-sm btn-success disabled flex-grow-1"><i class="fas fa-check me-1"></i>Sent</span> }
+        </div>
+      </div>
+    </div>
+  }
+  </div>
+}
