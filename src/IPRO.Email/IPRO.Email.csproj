@@ -7,7 +7,7 @@
   <ItemGroup>
   <PackageReference Include="Hangfire.AspNetCore" />
   <PackageReference Include="Hangfire.Core" />
-  <PackageReference Include="Hangfire.MySqlStorage" />
+  <PackageReference Include="Hangfire.Storage.MySql" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />

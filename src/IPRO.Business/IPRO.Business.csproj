@@ -10,7 +10,7 @@
     <ProjectReference Include="..\IPRO.Utility\IPRO.Utility.csproj" />
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.Core" />
-    <PackageReference Include="Hangfire.MySqlStorage" />
+    <PackageReference Include="Hangfire.Storage.MySql" />
     <!-- keep your other PackageReference + ProjectReference lines -->
   </ItemGroup>
   <ItemGroup>
