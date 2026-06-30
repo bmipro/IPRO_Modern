@@ -2,7 +2,7 @@
 
 using AspNetCoreRateLimit;
 using Hangfire;
-using Hangfire.Storage.MySql; // CHANGED: v1.7.31 is net462 only. Use Storage.MySql 1.3.8 for net8.0
+using Hangfire.MySqlStorage; // FIXED: v2.0.1 for net8.0. Namespace is Hangfire.MySqlStorage
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
@@ -20,17 +20,17 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
-              ?? throw new InvalidOperationException("ConnectionString 'DefaultConnection' not found.");
+             ?? throw new InvalidOperationException("ConnectionString 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<IPRODbContext>(o =>
     o.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
-// ── Hangfire v1.8.23 + Storage.MySql for .NET 8 ───────────────────────────
+// ── Hangfire v1.8.23 + MySqlStorage v2.0.1 for.NET 8 ───────────────────────────
 builder.Services.AddHangfire(config => config
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UseStorage(new MySqlStorage(connStr, new MySqlStorageOptions // CHANGED: was UseMySqlStorage
+   .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+   .UseSimpleAssemblyNameTypeSerializer()
+   .UseRecommendedSerializerSettings()
+   .UseStorage(new MySqlStorage(connStr, new MySqlStorageOptions // v2.0.1 uses ctor, not UseMySqlStorage()
     { 
         TablePrefix = "Hangfire_" 
     }))); 
@@ -41,7 +41,7 @@ builder.Services.AddHangfireServer(o =>
     o.Queues = new[] { "newsletters", "drip", "reminders", "default" };
 });
 
-// ... rest unchanged ...
+//... rest unchanged...
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
 builder.Services.AddScoped<IAgentService, AgentService>();
@@ -57,20 +57,20 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<IContactImporter, ContactImporter>();
 builder.Services.AddSingleton<ITenantResolver>(_ => 
-    new DomainTenantResolver(builder.Configuration["App:AdminDomain"] ?? "admin.iprosystem.com"));
+    new DomainTenantResolver(builder.Configuration["App:AdminDomain"]?? "admin.iprosystem.com"));
 builder.Services.AddHttpClient("plesk");
 builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(o =>
+   .AddCookie(o =>
     {
-        o.LoginPath         = "/Account/Login";
-        o.LogoutPath        = "/Account/Logout";
-        o.AccessDeniedPath  = "/Account/AccessDenied";
-        o.ExpireTimeSpan    = TimeSpan.FromHours(8);
+        o.LoginPath = "/Account/Login";
+        o.LogoutPath = "/Account/Logout";
+        o.AccessDeniedPath = "/Account/AccessDenied";
+        o.ExpireTimeSpan = TimeSpan.FromHours(8);
         o.SlidingExpiration = true;
-        o.Cookie.HttpOnly   = true;
+        o.Cookie.HttpOnly = true;
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        o.Cookie.SameSite   = SameSiteMode.Strict;
+        o.Cookie.SameSite = SameSiteMode.Strict;
     });
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
@@ -96,8 +96,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseSecurityHeaders();          
-app.UseIpRateLimiting();           
+app.UseSecurityHeaders(); 
+app.UseIpRateLimiting(); 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
