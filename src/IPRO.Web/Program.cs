@@ -2,7 +2,7 @@
 
 using AspNetCoreRateLimit;
 using Hangfire;
-using Hangfire.MySqlStorage; // FIXED: v2.0.1 for net8.0. Namespace is Hangfire.MySqlStorage
+using Hangfire.MySql.Core;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;

@@ -19,7 +19,7 @@
   <ItemGroup>
   <PackageReference Include="Hangfire.AspNetCore" />
   <PackageReference Include="Hangfire.Core" />
-  <PackageReference Include="Hangfire.Storage.MySql" />
+  <PackageReference Include="Hangfire.MySql.Core" />
   <!-- keep your other PackageReference + ProjectReference lines -->
 </ItemGroup>
 </Project>
