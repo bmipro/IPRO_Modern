@@ -2,7 +2,7 @@
 
 using AspNetCoreRateLimit;
 using Hangfire;
-using Hangfire.MySqlStorage; // <-- v1.7.31 needs this exact namespace
+using Hangfire.Storage.MySql; // CHANGED: v1.7.31 is net462 only. Use Storage.MySql 1.3.8 for net8.0
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
@@ -25,15 +25,15 @@ var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
 builder.Services.AddDbContext<IPRODbContext>(o =>
     o.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
-// ── Hangfire v1.7.31 MySQL ONLY ───────────────────────────
+// ── Hangfire v1.8.23 + Storage.MySql for .NET 8 ───────────────────────────
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseMySqlStorage(connStr, new MySqlStorageOptions 
+    .UseStorage(new MySqlStorage(connStr, new MySqlStorageOptions // CHANGED: was UseMySqlStorage
     { 
         TablePrefix = "Hangfire_" 
-    })); 
+    }))); 
 
 builder.Services.AddHangfireServer(o =>
 {
