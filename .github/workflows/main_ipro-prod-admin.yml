@@ -26,7 +26,7 @@ jobs:
         run: dotnet build IPRO.sln --configuration Release --no-restore
 
       - name: Publish admin app
-        run: dotnet publish src/IPRO.Admin/IPRO.Admin.csproj -c Release -o ./publish-admin --no-build
+        run: dotnet publish src/IPRO.Admin/IPRO.Admin.csproj -c Release -o ./publish-admin
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
