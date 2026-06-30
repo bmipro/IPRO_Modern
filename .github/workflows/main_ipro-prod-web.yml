@@ -1,17 +1,14 @@
 name: Build and deploy ASP.Net Core app to Azure Web App - ipro-prod-web
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - uses: actions/checkout@v4
       - name: Set up .NET Core
@@ -19,9 +16,9 @@ jobs:
         with:
           dotnet-version: '8.x'
       - name: Restore dependencies
-        run: dotnet restore src/IPRO.sln
+        run: dotnet restore IPRO.sln
       - name: Build
-        run: dotnet build src/IPRO.sln --configuration Release
+        run: dotnet build IPRO.sln --configuration Release
       - name: Publish
         run: dotnet publish src/IPRO.Web/IPRO.Web.csproj -c Release -o ./publish
       - name: Upload artifact for deployment job
@@ -29,7 +26,6 @@ jobs:
         with:
           name: .net-app
           path: ./publish
-
   deploy:
     runs-on: ubuntu-latest
     needs: build
