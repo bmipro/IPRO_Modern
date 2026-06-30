@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageVersion Include="Hangfire.AspNetCore" Version="[1.8.23]" />
     <PackageVersion Include="Hangfire.Core" Version="[1.8.23]" />
-    <PackageVersion Include="Hangfire.MySql.Core" Version="[2.2.2]" />
+    <PackageVersion Include="Hangfire.MemoryStorage" Version="[1.8.1.2]" />
     <PackageVersion Include="AspNetCoreRateLimit" Version="[5.0.0]" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="[12.19.1]" />
     <PackageVersion Include="Azure.Security.KeyVault.Secrets" Version="[4.6.0]" />

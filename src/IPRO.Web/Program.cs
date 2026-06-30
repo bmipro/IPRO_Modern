@@ -2,7 +2,7 @@
 
 using AspNetCoreRateLimit;
 using Hangfire;
-using Hangfire.MySql.Core;
+using Hangfire.MemoryStorage;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
@@ -25,15 +25,11 @@ var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
 builder.Services.AddDbContext<IPRODbContext>(o =>
     o.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
-// ── Hangfire v1.8.23 + MySqlStorage v2.0.1 for.NET 8 ───────────────────────────
 builder.Services.AddHangfire(config => config
    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
    .UseSimpleAssemblyNameTypeSerializer()
    .UseRecommendedSerializerSettings()
-   .UseStorage(new MySqlStorage(connStr, new MySqlStorageOptions // v2.0.1 uses ctor, not UseMySqlStorage()
-    { 
-        TablePrefix = "Hangfire_" 
-    }))); 
+   .UseMemoryStorage());
 
 builder.Services.AddHangfireServer(o =>
 {
