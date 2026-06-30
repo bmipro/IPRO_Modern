@@ -22,15 +22,12 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore IPRO.sln
-        working-directory: IPRO_Modern  # <-- THIS IS THE KEY FIX
 
       - name: Build with dotnet
         run: dotnet build IPRO.sln --configuration Release --no-restore
-        working-directory: IPRO_Modern  # <-- THIS IS THE KEY FIX
 
       - name: dotnet publish
         run: dotnet publish IPRO.Web/IPRO.Web.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp --no-build
-        working-directory: IPRO_Modern  # <-- THIS IS THE KEY FIX
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
