@@ -1,8 +1,6 @@
-<<<<<<< HEAD
 name: Deploy to Azure Web App
 on:
-  push:
-    branches: [ "main" ]
+   push:   branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
