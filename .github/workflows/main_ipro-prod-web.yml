@@ -1,8 +1,9 @@
 <<<<<<< HEAD
-name: Deploy to Azure Web App  # Line 1
-on:                             # Line 2
+name: Deploy to Azure Web App
+on:
   push:
-    branches: [ "main" ]  workflow_dispatch:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
