@@ -1,11 +1,8 @@
 <<<<<<< HEAD
-name: Build and deploy ASP.Net Core app to Azure Web App - ipro-prod-web
-
-on:
+name: Deploy to Azure Web App  # Line 1
+on:                             # Line 2
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [ "main" ]  workflow_dispatch:
 
 jobs:
   build:
