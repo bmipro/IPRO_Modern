@@ -5,7 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-  <PackageReference Include="Hangfire.MemoryStorage" />
   <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   <PackageReference Include="AspNetCoreRateLimit" />
   <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
@@ -22,5 +21,6 @@
     <ProjectReference Include="..\IPRO.Entities\IPRO.Entities.csproj" />
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.Core" />
+    <PackageReference Include="Hangfire.Storage.MySql" />
   </ItemGroup>
 </Project>
