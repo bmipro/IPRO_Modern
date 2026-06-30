@@ -1,57 +1,80 @@
+#nullable enable
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using IPRO.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.DataAccess.Repositories;
 
-public class UnitOfWork : IUnitOfWork
+public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
 {
-    private readonly IPRODbContext _context;
+    private readonly IPRODbContext _context; // <-- CHANGED
+    private bool _disposed;
 
-    public UnitOfWork(IPRODbContext context)
+    private IRepository<AgentUser>? _agentUsers;
+    private IRepository<AgentWebsite>? _agentWebsites;
+    private IRepository<WebsiteTemplate>? _websiteTemplates;
+    private IRepository<Client>? _clients;
+    private IRepository<ClientCategory>? _clientCategories;
+    private IRepository<ClientComment>? _clientComments;
+    private IRepository<Billing>? _billings;
+    private IRepository<BillingRule>? _billingRules;
+    private IRepository<Invoice>? _invoices;
+    private IRepository<NewsLetter>? _newsLetters;
+    private IRepository<NewsLetterArticle>? _newsLetterArticles;
+    private IRepository<DripCampaign>? _dripCampaigns;
+    private IRepository<DripCampaignStep>? _dripCampaignSteps;
+    private IRepository<Scheduler>? _schedulers;
+    private IRepository<Article>? _articles;
+    private IRepository<Coupon>? _coupons;
+    private IRepository<CalendarEvent>? _calendarEvents;
+    private IRepository<Testimonial>? _testimonials;
+    private IRepository<OperateLog>? _operateLogs;
+
+    public UnitOfWork(IPRODbContext context) // <-- CHANGED
     {
-        _context = context;
-        AgentUsers       = new Repository<AgentUser>(_context);
-        AgentWebsites    = new Repository<AgentWebsite>(_context);
-        WebsiteTemplates = new Repository<WebsiteTemplate>(_context);
-        Clients          = new Repository<Client>(_context);
-        ClientCategories = new Repository<ClientCategory>(_context);
-        ClientComments   = new Repository<ClientComment>(_context);
-        Billings         = new Repository<Billing>(_context);
-        BillingRules     = new Repository<BillingRule>(_context);
-        Invoices         = new Repository<Invoice>(_context);
-        NewsLetters      = new Repository<NewsLetter>(_context);
-        NewsLetterArticles = new Repository<NewsLetterArticle>(_context);
-        DripCampaigns    = new Repository<DripCampaign>(_context);
-        DripCampaignSteps = new Repository<DripCampaignStep>(_context);
-        Schedulers       = new Repository<Scheduler>(_context);
-        Articles         = new Repository<Article>(_context);
-        Coupons          = new Repository<Coupon>(_context);
-        CalendarEvents   = new Repository<CalendarEvent>(_context);
-        Testimonials     = new Repository<Testimonial>(_context);
-        OperateLogs      = new Repository<OperateLog>(_context);
+        _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public IRepository<AgentUser>        AgentUsers        { get; }
-    public IRepository<AgentWebsite>     AgentWebsites     { get; }
-    public IRepository<WebsiteTemplate>  WebsiteTemplates  { get; }
-    public IRepository<Client>           Clients           { get; }
-    public IRepository<ClientCategory>   ClientCategories  { get; }
-    public IRepository<ClientComment>    ClientComments    { get; }
-    public IRepository<Billing>          Billings          { get; }
-    public IRepository<BillingRule>      BillingRules      { get; }
-    public IRepository<Invoice>          Invoices          { get; }
-    public IRepository<NewsLetter>       NewsLetters       { get; }
-    public IRepository<NewsLetterArticle> NewsLetterArticles { get; }
-    public IRepository<DripCampaign>     DripCampaigns     { get; }
-    public IRepository<DripCampaignStep> DripCampaignSteps { get; }
-    public IRepository<Scheduler>        Schedulers        { get; }
-    public IRepository<Article>          Articles          { get; }
-    public IRepository<Coupon>           Coupons           { get; }
-    public IRepository<CalendarEvent>    CalendarEvents    { get; }
-    public IRepository<Testimonial>      Testimonials      { get; }
-    public IRepository<OperateLog>       OperateLogs       { get; }
+    public IRepository<AgentUser> AgentUsers => _agentUsers ??= new Repository<AgentUser>(_context);
+    public IRepository<AgentWebsite> AgentWebsites => _agentWebsites ??= new Repository<AgentWebsite>(_context);
+    public IRepository<WebsiteTemplate> WebsiteTemplates => _websiteTemplates ??= new Repository<WebsiteTemplate>(_context);
+    public IRepository<Client> Clients => _clients ??= new Repository<Client>(_context);
+    public IRepository<ClientCategory> ClientCategories => _clientCategories ??= new Repository<ClientCategory>(_context);
+    public IRepository<ClientComment> ClientComments => _clientComments ??= new Repository<ClientComment>(_context);
+    public IRepository<Billing> Billings => _billings ??= new Repository<Billing>(_context);
+    public IRepository<BillingRule> BillingRules => _billingRules ??= new Repository<BillingRule>(_context);
+    public IRepository<Invoice> Invoices => _invoices ??= new Repository<Invoice>(_context);
+    public IRepository<NewsLetter> NewsLetters => _newsLetters ??= new Repository<NewsLetter>(_context);
+    public IRepository<NewsLetterArticle> NewsLetterArticles => _newsLetterArticles ??= new Repository<NewsLetterArticle>(_context);
+    public IRepository<DripCampaign> DripCampaigns => _dripCampaigns ??= new Repository<DripCampaign>(_context);
+    public IRepository<DripCampaignStep> DripCampaignSteps => _dripCampaignSteps ??= new Repository<DripCampaignStep>(_context);
+    public IRepository<Scheduler> Schedulers => _schedulers ??= new Repository<Scheduler>(_context);
+    public IRepository<Article> Articles => _articles ??= new Repository<Article>(_context);
+    public IRepository<Coupon> Coupons => _coupons ??= new Repository<Coupon>(_context);
+    public IRepository<CalendarEvent> CalendarEvents => _calendarEvents ??= new Repository<CalendarEvent>(_context);
+    public IRepository<Testimonial> Testimonials => _testimonials ??= new Repository<Testimonial>(_context);
+    public IRepository<OperateLog> OperateLogs => _operateLogs ??= new Repository<OperateLog>(_context);
 
-    public async Task<int> SaveChangesAsync() =>
-        await _context.SaveChangesAsync();
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
+        => _context.SaveChangesAsync(cancellationToken);
 
-    public void Dispose() => _context.Dispose();
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed && disposing)
+        {
+            _context.Dispose();
+        }
+        _disposed = true;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    public ValueTask DisposeAsync() => _context.DisposeAsync();
 }

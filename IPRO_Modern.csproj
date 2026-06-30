@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Azure.Storage.Blobs" />
+    <PackageReference Include="CsvHelper" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="src\IPRO.Entities\IPRO.Entities.csproj" />
+    <ProjectReference Include="src\IPRO.DataAccess\IPRO.DataAccess.csproj" />
+    <ProjectReference Include="src\IPRO.Business\IPRO.Business.csproj" />
+    <ProjectReference Include="src\IPRO.Utility\IPRO.Utility.csproj" />
+    <ProjectReference Include="src\IPRO.Web\IPRO.Web.csproj" />
+    <ProjectReference Include="src\IPRO.Email\IPRO.Email.csproj" />
+    <ProjectReference Include="src\IPRO.Scheduler\IPRO.Scheduler.csproj" />
+    <ProjectReference Include="src\IPRO.Billing\IPRO.Billing.csproj" />
+  </ItemGroup>
+</Project>
+
+

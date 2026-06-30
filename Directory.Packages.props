@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.7.31" />
+    <PackageVersion Include="Hangfire.Core" Version="1.7.31" />
+    <PackageVersion Include="Hangfire.MySqlStorage" Version="1.7.31" />
+  </ItemGroup>
+</Project>

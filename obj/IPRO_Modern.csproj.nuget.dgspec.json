@@ -1,0 +1,1029 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\IPRO_Modern.csproj": {}
+  },
+  "projects": {
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\IPRO_Modern.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\IPRO_Modern.csproj",
+        "projectName": "IPRO_Modern",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\IPRO_Modern.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\IPRO.Billing.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\IPRO.Billing.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\IPRO.Business.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\IPRO.Business.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\IPRO.Scheduler.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\IPRO.Scheduler.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Web\\IPRO.Web.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Web\\IPRO.Web.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Azure.Storage.Blobs": {
+              "target": "Package",
+              "version": "[12.19.1, )",
+              "versionCentrallyManaged": true
+            },
+            "CsvHelper": {
+              "target": "Package",
+              "version": "[33.1.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "target": "Package",
+              "version": "[8.0.10, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.EntityFrameworkCore.SqlServer": {
+              "target": "Package",
+              "version": "[8.0.10, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "target": "Package",
+              "version": "[8.0.10, )",
+              "versionCentrallyManaged": true
+            }
+          },
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\IPRO.Billing.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\IPRO.Billing.csproj",
+        "projectName": "IPRO.Billing",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\IPRO.Billing.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.Http": {
+              "target": "Package",
+              "version": "[9.0.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.Extensions.Options": {
+              "target": "Package",
+              "version": "[9.0.0, )",
+              "versionCentrallyManaged": true
+            },
+            "PayPalCheckoutSdk": {
+              "target": "Package",
+              "version": "[1.0.4, )",
+              "versionCentrallyManaged": true
+            }
+          },
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\IPRO.Business.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\IPRO.Business.csproj",
+        "projectName": "IPRO.Business",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\IPRO.Business.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.AspNetCore.Identity": {
+              "target": "Package",
+              "version": "[2.2.0, )",
+              "versionCentrallyManaged": true
+            }
+          },
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj",
+        "projectName": "IPRO.DataAccess",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.EntityFrameworkCore.SqlServer": {
+              "target": "Package",
+              "version": "[8.0.10, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "target": "Package",
+              "version": "[8.0.10, )",
+              "versionCentrallyManaged": true
+            }
+          },
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj",
+        "projectName": "IPRO.Email",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj",
+        "projectName": "IPRO.Entities",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\IPRO.Scheduler.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\IPRO.Scheduler.csproj",
+        "projectName": "IPRO.Scheduler",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\IPRO.Scheduler.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.Logging.Abstractions": {
+              "target": "Package",
+              "version": "[9.0.0, )",
+              "versionCentrallyManaged": true
+            }
+          },
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj",
+        "projectName": "IPRO.Utility",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Azure.Security.KeyVault.Secrets": {
+              "target": "Package",
+              "version": "[4.6.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Azure.Storage.Blobs": {
+              "target": "Package",
+              "version": "[12.19.1, )",
+              "versionCentrallyManaged": true
+            },
+            "CsvHelper": {
+              "target": "Package",
+              "version": "[33.1.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.AspNetCore.Http.Abstractions": {
+              "target": "Package",
+              "version": "[2.2.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.Extensions.Configuration.Abstractions": {
+              "target": "Package",
+              "version": "[9.0.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.Extensions.Http": {
+              "target": "Package",
+              "version": "[9.0.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.Extensions.Logging.Abstractions": {
+              "target": "Package",
+              "version": "[9.0.0, )",
+              "versionCentrallyManaged": true
+            }
+          },
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Web\\IPRO.Web.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Web\\IPRO.Web.csproj",
+        "projectName": "IPRO.Web",
+        "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Web\\IPRO.Web.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Web\\obj\\",
+        "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
+        "CentralPackageTransitivePinningEnabled": true,
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "framework": "net8.0",
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\IPRO.Billing.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Billing\\IPRO.Billing.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\IPRO.Business.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Business\\IPRO.Business.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.DataAccess\\IPRO.DataAccess.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Email\\IPRO.Email.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Entities\\IPRO.Entities.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\IPRO.Scheduler.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Scheduler\\IPRO.Scheduler.csproj"
+              },
+              "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj": {
+                "projectPath": "C:\\users\\admin\\Documents\\iPro_Project\\IPRO_Modern\\src\\IPRO.Utility\\IPRO.Utility.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "framework": "net8.0",
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "AspNetCore.HealthChecks.MySql": {
+              "target": "Package",
+              "version": "[7.0.0, )",
+              "versionCentrallyManaged": true
+            },
+            "AspNetCore.HealthChecks.NpgSql": {
+              "target": "Package",
+              "version": "[7.0.0, )",
+              "versionCentrallyManaged": true
+            },
+            "AspNetCoreRateLimit": {
+              "target": "Package",
+              "version": "[4.0.2, )",
+              "versionCentrallyManaged": true
+            },
+            "Hangfire.AspNetCore": {
+              "target": "Package",
+              "version": "[1.8.18, )",
+              "versionCentrallyManaged": true
+            },
+            "Hangfire.MySql.Core": {
+              "target": "Package",
+              "version": "[2.0.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.AspNetCore.Authentication.Cookies": {
+              "target": "Package",
+              "version": "[2.2.0, )",
+              "versionCentrallyManaged": true
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "target": "Package",
+              "version": "[8.0.10, )",
+              "versionCentrallyManaged": true
+            },
+            "Pomelo.EntityFrameworkCore.MySql": {
+              "target": "Package",
+              "version": "[8.0.2, )",
+              "versionCentrallyManaged": true
+            }
+          },
+          "centralPackageVersions": {
+            "AspNetCore.HealthChecks.MySql": "7.0.0",
+            "AspNetCore.HealthChecks.NpgSql": "7.0.0",
+            "AspNetCoreRateLimit": "4.0.2",
+            "Azure.Security.KeyVault.Secrets": "4.6.0",
+            "Azure.Storage.Blobs": "12.19.1",
+            "CsvHelper": "33.1.0",
+            "Hangfire.AspNetCore": "1.8.18",
+            "Hangfire.MySql.Core": "2.0.0",
+            "Microsoft.AspNetCore.Authentication.Cookies": "2.2.0",
+            "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+            "Microsoft.AspNetCore.Identity": "2.2.0",
+            "Microsoft.EntityFrameworkCore": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Design": "8.0.10",
+            "Microsoft.EntityFrameworkCore.SqlServer": "8.0.10",
+            "Microsoft.EntityFrameworkCore.Tools": "8.0.10",
+            "Microsoft.Extensions.Caching.Memory": "9.0.0",
+            "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Http": "9.0.0",
+            "Microsoft.Extensions.Logging.Abstractions": "9.0.0",
+            "Microsoft.Extensions.Options": "9.0.0",
+            "PayPalCheckoutSdk": "1.0.4",
+            "Pomelo.EntityFrameworkCore.MySql": "8.0.2"
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

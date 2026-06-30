@@ -1,8 +1,12 @@
+#nullable enable
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using IPRO.Entities;
 
 namespace IPRO.DataAccess.Repositories;
 
-public interface IUnitOfWork : IDisposable
+public interface IUnitOfWork : IAsyncDisposable, IDisposable
 {
     IRepository<AgentUser> AgentUsers { get; }
     IRepository<AgentWebsite> AgentWebsites { get; }
@@ -23,5 +27,6 @@ public interface IUnitOfWork : IDisposable
     IRepository<CalendarEvent> CalendarEvents { get; }
     IRepository<Testimonial> Testimonials { get; }
     IRepository<OperateLog> OperateLogs { get; }
-    Task<int> SaveChangesAsync();
+
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

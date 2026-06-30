@@ -5,11 +5,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="SendGrid" Version="9.29.3" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
+  <PackageReference Include="Hangfire.AspNetCore" />
+  <PackageReference Include="Hangfire.Core" />
+  <PackageReference Include="Hangfire.MySqlStorage" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\IPRO.Entities\IPRO.Entities.csproj" />
     <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SendGrid" />
+  </ItemGroup>
 </Project>
+
+
