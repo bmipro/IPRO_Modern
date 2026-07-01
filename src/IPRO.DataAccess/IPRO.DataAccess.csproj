@@ -6,6 +6,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.Core" />
   </ItemGroup>

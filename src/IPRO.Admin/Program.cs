@@ -66,4 +66,11 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute("admin", "{controller=AdminDashboard}/{action=Index}/{id?}");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
+    await db.Database.MigrateAsync();
+}
+
 app.Run();
