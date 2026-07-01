@@ -38,7 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write
       contents: read
     steps:
       - name: Download artifact from build job
@@ -46,17 +45,11 @@ jobs:
         with:
           name: admin-app
 
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_125A52B329834373956E555A056DFA8A }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F94B3760110944BDB097E394CD3F9702 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2102CCD4C4DB4B7590BD6CA997D6A93C }}
-
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'ipro-prod-admin'
           slot-name: 'Production'
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_IPRO_PROD_ADMIN }}
           package: .
