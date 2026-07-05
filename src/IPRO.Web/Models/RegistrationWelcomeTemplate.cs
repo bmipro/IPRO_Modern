@@ -17,53 +17,52 @@ public static class RegistrationWelcomeTemplate
 
         return $$"""
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8"/>
-<style>
-body{font-family:"Times New Roman",Times,serif;font-size:13px;color:#000;background:#fff;}
-.letter{width:680px;margin:0 auto;padding:24px 16px;}
-.green{display:inline-block;background:#d8ef57;font-weight:bold;padding:1px 3px;}
-.bar{height:12px;background:#000;margin:12px 0;}
-.orange{height:12px;background:#c53500;margin:8px 0 18px;}
-.creds{font-weight:bold;display:flex;gap:80px;margin:16px 0;}
-.footer{height:12px;background:#c53500;margin-top:18px;color:#fff;font-weight:bold;padding:1px 4px;}
-p{line-height:1.25;margin:12px 0;}
-</style>
 </head>
-<body>
-<div class="letter">
-  <div><span class="green">CONGRATULATIONS!</span></div>
-  <div class="bar"></div>
-  <div class="orange"></div>
+<body style="margin:0;background:#edf2f8;color:#172033;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;">Your IPRO Advisers account has been created. Save your temporary username and password.</div>
+<div style="max-width:720px;margin:0 auto;padding:28px 14px;">
+  <div style="background:#fff;border:1px solid #dce3ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(18,38,73,.14);">
+    <div style="padding:28px 32px;background:linear-gradient(135deg,#0c1d38,#1556d7);color:#fff;">
+      <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#b9d2ff;">IPRO Advisers</div>
+      <h1 style="margin:8px 0 0;font-size:28px;line-height:1.15;">Welcome, {{name}}</h1>
+      <p style="margin:8px 0 0;color:#dce8ff;font-size:15px;">Your account registration is complete.</p>
+    </div>
+    <div style="padding:30px 32px;">
+      <p style="font-size:16px;line-height:1.55;margin:0 0 16px;">We are pleased that you have decided to use IPRO Advisers. Your account gives you access to tools designed to help you manage, follow up, prospect, service, and attract new clients.</p>
 
-  <p>Dear {{name}}</p>
+      <div style="background:#f6f9ff;border:1px solid #d8e5ff;border-radius:14px;padding:18px;margin:22px 0;">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#556987;margin-bottom:6px;">Temporary Website</div>
+        <a href="{{domainUrl}}" style="font-size:17px;font-weight:800;color:#1457d9;text-decoration:none;">{{domainUrl}}</a>
+        <p style="margin:10px 0 0;color:#667085;font-size:14px;line-height:1.45;">You can use this temporary domain right away and later attach your own registered domain from the control panel.</p>
+      </div>
 
-  <p>We are pleased that you have decided to use one of the most exciting and unique set of tools available on the Internet today for professional advisors. iPro exceeds the functions of a regular website to provide you with features designed to create the best solution for your day to day challenges. You will get an effective partner that will help you manage, follow-up, prospect, service and attract new clients.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:22px 0;">
+        <tr>
+          <td style="width:50%;padding:16px;border:1px solid #dce3ef;border-radius:12px;background:#fbfcff;">
+            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#667085;">Username</div>
+            <div style="font-size:18px;font-weight:800;margin-top:6px;color:#172033;">{{userName}}</div>
+          </td>
+          <td style="width:14px;"></td>
+          <td style="width:50%;padding:16px;border:1px solid #dce3ef;border-radius:12px;background:#fbfcff;">
+            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#667085;">Temporary Password</div>
+            <div style="font-size:18px;font-weight:800;margin-top:6px;color:#172033;">{{password}}</div>
+          </td>
+        </tr>
+      </table>
 
-  <p>Please take the time to explore the different tools available to you in your iPro package and experience firsthand how this tool box can help eliminate your challenges.</p>
+      <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 16px;">For your security, you will be asked to change this temporary password the first time you sign in.</p>
+      <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 24px;">We recommend visiting the video tutorials in each admin section to get familiar with your tools. For training, contact <a href="mailto:{{trainingEmail}}" style="color:#1457d9;">{{trainingEmail}}</a>.</p>
 
-  <p>Remember, you can always upgrade your package to a higher package in order to take advantage of the most advanced functions.</p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="{{domainUrl}}" style="display:inline-block;background:#1457d9;color:#fff;text-decoration:none;font-weight:800;border-radius:999px;padding:13px 24px;">Open Your Temporary Website</a>
+      </div>
 
-  <p>You can access your web site at this URL address: <a href="{{domainUrl}}">{{domainUrl}}</a></p>
-
-  <p>This is your temporary website domain but you can add your own domain or use your temporary one as much as you want.</p>
-
-  <p>Please log in to your admin section of your website.</p>
-
-  <div class="bar"></div>
-  <div class="creds">
-    <div>Your username. : {{userName}}</div>
-    <div>Your Password: {{password}}</div>
+      <p style="margin:28px 0 0;color:#667085;font-size:14px;">IPRO Advisers Management<br/><a href="https://{{websiteUrl}}" style="color:#1457d9;">{{websiteUrl}}</a></p>
+    </div>
   </div>
-  <div class="bar"></div>
-
-  <p>We recommend that you visit the video tutorials in every section of the admin section in order to get some idea about your fantastic set of tools.</p>
-
-  <p>Please contact our training department through: <a href="mailto:{{trainingEmail}}">{{trainingEmail}}</a> in order to book a seat for our next available training session.</p>
-
-  <p style="margin-top:36px;">IPro <em>Management</em></p>
-  <div class="footer">{{websiteUrl}}</div>
 </div>
 </body>
 </html>

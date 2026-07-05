@@ -96,6 +96,7 @@ public class AccountController : Controller
             _logger.LogWarning("Registration welcome email was not sent to {Email}", agent.Email);
         }
 
+        TempData["RegistrationEmailSent"] = emailSent ? "true" : "false";
         TempData["RegistrationFullName"] = welcome.FullName;
         TempData["RegistrationEmail"] = welcome.Email;
         TempData["RegistrationUserName"] = agent.UserName;

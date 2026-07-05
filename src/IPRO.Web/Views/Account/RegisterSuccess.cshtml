@@ -2,5 +2,86 @@
 @{
     ViewData["Title"] = "Registration Complete";
     Layout = null;
+    var domainUrl = $"http://{Model.SetupDomain}";
+    var emailSent = string.Equals(TempData["RegistrationEmailSent"] as string, "true", StringComparison.OrdinalIgnoreCase);
 }
-@Html.Raw(IPRO.Web.Models.RegistrationWelcomeTemplate.BuildHtml(Model))
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Registration Complete - IPRO Advisers</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,#f7f9fd,#eaf0f8);color:#162033;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+body:before{content:"";position:fixed;inset:0 0 auto;height:220px;background:linear-gradient(110deg,#0c1d38,#1556d7);z-index:-1}
+.page{width:min(980px,calc(100% - 32px));margin:0 auto;padding:36px 0 56px}
+.card{background:#fff;border:1px solid #dce3ef;border-radius:20px;box-shadow:0 24px 70px rgba(18,38,73,.18);overflow:hidden}
+.hero{padding:34px 38px;background:linear-gradient(180deg,#fff,#f8fbff);border-bottom:1px solid #e7edf6;display:flex;justify-content:space-between;gap:24px;align-items:center}
+.brand{display:flex;align-items:center;justify-content:center;max-width:390px;padding:16px 20px;border-radius:14px;background:linear-gradient(135deg,#05070c,#18233a)}
+.brand img{width:min(340px,100%);height:auto;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35))}
+.badge{display:inline-block;background:#e8f7ee;color:#087443;border:1px solid #bfe9cf;border-radius:999px;padding:7px 12px;font-weight:800;font-size:13px;margin-bottom:10px}
+h1{font-size:30px;line-height:1.1;margin:0 0 8px;font-weight:850}
+.sub{margin:0;color:#667085}
+.content{padding:32px 38px}
+.notice{border-radius:14px;padding:16px 18px;margin-bottom:22px;background:#eef5ff;border:1px solid #cfe0ff;color:#244575}
+.notice.warn{background:#fff8e8;border-color:#f4d58c;color:#76500b}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+.box{border:1px solid #dce3ef;border-radius:14px;padding:18px;background:#fbfcff}
+.label{font-size:12px;color:#667085;text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin-bottom:8px}
+.value{font-size:16px;font-weight:800;overflow-wrap:anywhere}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;text-decoration:none;font-weight:800}
+.btn.primary{background:#1457d9;color:#fff;box-shadow:0 10px 22px rgba(20,87,217,.22)}
+.btn.secondary{background:#eef2f8;color:#1f2d44}
+.fine{margin-top:24px;color:#667085;font-size:14px;line-height:1.55}
+@@media(max-width:760px){.page{width:calc(100% - 20px);padding-top:10px}.hero{display:block;padding:22px}.brand{max-width:none}.content{padding:22px}.grid{grid-template-columns:1fr}h1{font-size:24px}}
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="card">
+    <header class="hero">
+      <div class="brand"><img src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/></div>
+      <div>
+        <div class="badge">Registration Complete</div>
+        <h1>Welcome, @Model.FullName</h1>
+        <p class="sub">Your IPRO Advisers account has been created.</p>
+      </div>
+    </header>
+    <div class="content">
+      @if (emailSent)
+      {
+        <div class="notice">A confirmation email was sent to <strong>@Model.Email</strong>. Please keep it for your records.</div>
+      }
+      else
+      {
+        <div class="notice warn">Your account was created, but the confirmation email could not be sent. Please save the login details below.</div>
+      }
+
+      <div class="grid">
+        <div class="box">
+          <div class="label">Temporary Website</div>
+          <div class="value"><a href="@domainUrl">@Model.SetupDomain</a></div>
+        </div>
+        <div class="box">
+          <div class="label">Username</div>
+          <div class="value">@Model.UserName</div>
+        </div>
+        <div class="box">
+          <div class="label">Temporary Password</div>
+          <div class="value">@Model.TemporaryPassword</div>
+        </div>
+      </div>
+
+      <p class="fine">You will be asked to change this temporary password the first time you sign in. Your temporary website domain can be used right away, and later you can attach your own registered domain from the user control panel.</p>
+
+      <div class="actions">
+        <a class="btn primary" href="/Account/Login">Sign In</a>
+        <a class="btn secondary" href="@domainUrl">Open Temporary Website</a>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

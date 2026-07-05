@@ -20,6 +20,12 @@ public class SendGridEmailService : IEmailService
     {
         try
         {
+            if (!IsConfigured())
+            {
+                _logger.LogWarning("SendGrid email is not configured. Email to {Email} was not sent.", toEmail);
+                return false;
+            }
+
             var client = new SendGridClient(_settings.SendGridApiKey);
             var msg = MailHelper.CreateSingleEmail(
                 new EmailAddress(_settings.FromEmail, _settings.FromName),
@@ -40,6 +46,12 @@ public class SendGridEmailService : IEmailService
     {
         try
         {
+            if (!IsConfigured())
+            {
+                _logger.LogWarning("SendGrid email is not configured. Bulk email to {Count} recipients was not sent.", recipients.Count());
+                return false;
+            }
+
             var client = new SendGridClient(_settings.SendGridApiKey);
             var from = new EmailAddress(_settings.FromEmail, _settings.FromName);
             var tos = recipients.Select(r => new EmailAddress(r.Email, r.Name)).ToList();
@@ -59,6 +71,12 @@ public class SendGridEmailService : IEmailService
     {
         try
         {
+            if (!IsConfigured())
+            {
+                _logger.LogWarning("SendGrid email is not configured. Template email {TemplateId} to {Email} was not sent.", templateId, toEmail);
+                return false;
+            }
+
             var client = new SendGridClient(_settings.SendGridApiKey);
             var msg = new SendGridMessage
             {
@@ -76,4 +94,9 @@ public class SendGridEmailService : IEmailService
             return false;
         }
     }
+
+    private bool IsConfigured() =>
+        !string.IsNullOrWhiteSpace(_settings.SendGridApiKey)
+        && !_settings.SendGridApiKey.Contains("YOUR_SENDGRID_KEY", StringComparison.OrdinalIgnoreCase)
+        && _settings.SendGridApiKey.StartsWith("SG.", StringComparison.Ordinal);
 }
