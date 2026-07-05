@@ -4,6 +4,7 @@ using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IPRO.Admin.Controllers;
@@ -15,11 +16,12 @@ public class AgentsController : Controller
     private readonly IWebsiteService _websites;
     private readonly IUnitOfWork _uow;
     private readonly IPleskHostingService _plesk;
+    private readonly IPasswordHasher<AgentUser> _hasher;
     private readonly ILogger<AgentsController> _logger;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk, ILogger<AgentsController> logger)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _logger = logger; }
+        IUnitOfWork uow, IPleskHostingService plesk, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger)
+    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _hasher = hasher; _logger = logger; }
 
     public async Task<IActionResult> Index(string? search, string? status, int page = 1)
     {
@@ -110,6 +112,24 @@ public class AgentsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(int id)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+
+        var temporaryPassword = BuildTemporaryPassword(agent);
+        agent.PasswordHash = _hasher.HashPassword(agent, temporaryPassword);
+        agent.MustChangePassword = true;
+        agent.PasswordChangedAt = null;
+
+        await _agents.UpdateAsync(agent);
+        await LogAsync(id, "ResetPassword", "Temporary password reset by Super Admin");
+
+        TempData["Success"] = $"Temporary password for {agent.UserName} reset to: {temporaryPassword}";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(int id)
     {
         var agent = await _agents.GetByIdAsync(id);
@@ -185,14 +205,32 @@ public class AgentsController : Controller
 
     private async Task DeleteAgentOwnedDataAsync(int agentId)
     {
+        var clients = (await _uow.Clients.FindAsync(x => x.AgentUserId == agentId)).ToList();
+        foreach (var client in clients)
+        {
+            RemoveEach(await _uow.ClientComments.FindAsync(x => x.ClientId == client.Id), _uow.ClientComments);
+        }
+
+        var newsletters = (await _uow.NewsLetters.FindAsync(x => x.AgentUserId == agentId)).ToList();
+        foreach (var newsletter in newsletters)
+        {
+            RemoveEach(await _uow.NewsLetterArticles.FindAsync(x => x.NewsLetterId == newsletter.Id), _uow.NewsLetterArticles);
+        }
+
+        var dripCampaigns = (await _uow.DripCampaigns.FindAsync(x => x.AgentUserId == agentId)).ToList();
+        foreach (var campaign in dripCampaigns)
+        {
+            RemoveEach(await _uow.DripCampaignSteps.FindAsync(x => x.DripCampaignId == campaign.Id), _uow.DripCampaignSteps);
+        }
+
         RemoveEach(await _uow.OperateLogs.FindAsync(x => x.AgentUserId == agentId), _uow.OperateLogs);
         RemoveEach(await _uow.Invoices.FindAsync(x => x.AgentUserId == agentId), _uow.Invoices);
         RemoveEach(await _uow.Billings.FindAsync(x => x.AgentUserId == agentId), _uow.Billings);
         RemoveEach(await _uow.AgentWebsites.FindAsync(x => x.AgentUserId == agentId), _uow.AgentWebsites);
-        RemoveEach(await _uow.Clients.FindAsync(x => x.AgentUserId == agentId), _uow.Clients);
+        RemoveEach(clients, _uow.Clients);
         RemoveEach(await _uow.ClientCategories.FindAsync(x => x.AgentUserId == agentId), _uow.ClientCategories);
-        RemoveEach(await _uow.NewsLetters.FindAsync(x => x.AgentUserId == agentId), _uow.NewsLetters);
-        RemoveEach(await _uow.DripCampaigns.FindAsync(x => x.AgentUserId == agentId), _uow.DripCampaigns);
+        RemoveEach(newsletters, _uow.NewsLetters);
+        RemoveEach(dripCampaigns, _uow.DripCampaigns);
         RemoveEach(await _uow.Schedulers.FindAsync(x => x.AgentUserId == agentId), _uow.Schedulers);
         RemoveEach(await _uow.Articles.FindAsync(x => x.AgentUserId == agentId), _uow.Articles);
         RemoveEach(await _uow.Coupons.FindAsync(x => x.AgentUserId == agentId), _uow.Coupons);
@@ -206,6 +244,12 @@ public class AgentsController : Controller
         {
             repository.Remove(entity);
         }
+    }
+
+    private static string BuildTemporaryPassword(AgentUser agent)
+    {
+        var lastName = new string((agent.LastName ?? "").Where(char.IsLetterOrDigit).ToArray());
+        return string.IsNullOrWhiteSpace(lastName) ? $"IPRO-{agent.Id:000000}" : lastName;
     }
 
     private static AgentEditViewModel ToEditModel(AgentUser agent) => new()

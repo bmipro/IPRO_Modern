@@ -79,6 +79,10 @@
                                     <div class="d-flex gap-1 justify-content-end">
                                         <a href="/Agents/Details/@a.Id" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
                                         <a href="/Agents/Edit/@a.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-pen"></i></a>
+                                        <form asp-controller="Agents" asp-action="ResetPassword" asp-route-id="@a.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-dark" title="Reset password" onclick="return confirm('Reset @a.UserName password to their last name and force password change?')"><i class="fas fa-key"></i></button>
+                                        </form>
                                         <form asp-controller="Agents" asp-action="Delete" asp-route-id="@a.Id" method="post" class="d-inline">
                                             @Html.AntiForgeryToken()
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete @a.UserName permanently? This cannot be undone.')"><i class="fas fa-trash"></i></button>
