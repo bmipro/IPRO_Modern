@@ -5,6 +5,7 @@ using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
+using IPRO.Utility;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,8 @@ builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("plesk");
+builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
 
 // ── Auth ──────────────────────────────────────────────────
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
