@@ -34,7 +34,6 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    [Route("/pub/register.aspx")]
     public IActionResult Register() => View(new AgentUser());
 
     [HttpPost]
