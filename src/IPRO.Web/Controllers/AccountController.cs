@@ -40,10 +40,10 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Register() => View(new AgentUser());
+    public IActionResult Register() => View(new AgentRegistrationViewModel());
 
     [HttpPost]
-    public async Task<IActionResult> Register(AgentUser model, string verificationCode, bool acceptTerms = false)
+    public async Task<IActionResult> Register(AgentRegistrationViewModel model, string verificationCode, bool acceptTerms = false)
     {
         if (string.IsNullOrWhiteSpace(model.FirstName)) ModelState.AddModelError("", "First name is required.");
         if (string.IsNullOrWhiteSpace(model.LastName)) ModelState.AddModelError("", "Last name is required.");
@@ -66,15 +66,16 @@ public class AccountController : Controller
         }
 
         NormalizeRegistration(model);
-        model.UserName = await GenerateUniqueUserNameAsync(model.FirstName, model.LastName);
-        model.DomainName = await GenerateUniqueDomainAsync(model.UserName);
-        model.TermsAcceptedAt = DateTime.UtcNow;
-        model.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
-        model.MustChangePassword = true;
+        var agent = ToAgentUser(model);
+        agent.UserName = await GenerateUniqueUserNameAsync(agent.FirstName, agent.LastName);
+        agent.DomainName = await GenerateUniqueDomainAsync(agent.UserName);
+        agent.TermsAcceptedAt = DateTime.UtcNow;
+        agent.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        agent.MustChangePassword = true;
         var temporaryPassword = GenerateTemporaryPassword(model.FirstName, model.LastName);
         try
         {
-            await _agents.RegisterAsync(model, temporaryPassword);
+            await _agents.RegisterAsync(agent, temporaryPassword);
         }
         catch (Exception ex)
         {
@@ -83,23 +84,23 @@ public class AccountController : Controller
             return View(model);
         }
 
-        var welcome = BuildWelcomeModel(model, temporaryPassword);
+        var welcome = BuildWelcomeModel(agent, temporaryPassword);
         var emailSent = await _email.SendAsync(
-            model.Email,
+            agent.Email,
             welcome.FullName,
             "Account Registration",
             RegistrationWelcomeTemplate.BuildHtml(welcome),
             RegistrationWelcomeTemplate.BuildText(welcome));
         if (!emailSent)
         {
-            _logger.LogWarning("Registration welcome email was not sent to {Email}", model.Email);
+            _logger.LogWarning("Registration welcome email was not sent to {Email}", agent.Email);
         }
 
         TempData["RegistrationFullName"] = welcome.FullName;
         TempData["RegistrationEmail"] = welcome.Email;
-        TempData["RegistrationUserName"] = model.UserName;
+        TempData["RegistrationUserName"] = agent.UserName;
         TempData["RegistrationPassword"] = temporaryPassword;
-        TempData["RegistrationDomain"] = model.DomainName;
+        TempData["RegistrationDomain"] = agent.DomainName;
         return RedirectToAction(nameof(RegisterSuccess));
     }
 
@@ -226,7 +227,29 @@ public class AccountController : Controller
         SetupDomain = model.DomainName
     };
 
-    private static void NormalizeRegistration(AgentUser model)
+    private static AgentUser ToAgentUser(AgentRegistrationViewModel model) => new()
+    {
+        FirstName = model.FirstName,
+        LastName = model.LastName,
+        Email = model.Email,
+        Designation = model.Designation ?? "",
+        CompanyName = model.CompanyName,
+        CompanyAddress = model.CompanyAddress ?? "",
+        City = model.City,
+        Province = model.Province,
+        PostalCode = model.PostalCode,
+        Country = model.Country,
+        TimeZone = model.TimeZone ?? "",
+        Phone = model.Phone,
+        BusinessFax = model.BusinessFax ?? "",
+        CellPhone = model.CellPhone ?? "",
+        BusinessType = model.BusinessType,
+        PackageId = model.PackageId,
+        PromotionCode = model.PromotionCode ?? "",
+        IsActive = true
+    };
+
+    private static void NormalizeRegistration(AgentRegistrationViewModel model)
     {
         model.FirstName = model.FirstName.Trim();
         model.LastName = model.LastName.Trim();
