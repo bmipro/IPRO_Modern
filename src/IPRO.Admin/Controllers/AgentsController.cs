@@ -14,10 +14,11 @@ public class AgentsController : Controller
     private readonly IWebsiteService _websites;
     private readonly IUnitOfWork _uow;
     private readonly IPleskHostingService _plesk;
+    private readonly ILogger<AgentsController> _logger;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; }
+        IUnitOfWork uow, IPleskHostingService plesk, ILogger<AgentsController> logger)
+    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _logger = logger; }
 
     public async Task<IActionResult> Index(string? search, string? status, int page = 1)
     {
@@ -40,11 +41,29 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
-        ViewBag.Website      = await _websites.GetByAgentIdAsync(id);
-        ViewBag.Subscription = await _uow.Billings.FirstOrDefaultAsync(b => b.AgentUserId == id && b.Status == BillingStatus.Active);
-        ViewBag.Invoices     = (await _uow.Invoices.FindAsync(i => i.AgentUserId == id)).OrderByDescending(i => i.IssuedAt).Take(10);
-        ViewBag.ClientCount  = await _uow.Clients.CountAsync(c => c.AgentUserId == id);
-        ViewBag.Logs         = (await _uow.OperateLogs.FindAsync(l => l.AgentUserId == id)).OrderByDescending(l => l.CreatedAt).Take(20);
+
+        var warnings = new List<string>();
+        ViewBag.Website = await LoadDetailsPanelAsync(
+            () => _websites.GetByAgentIdAsync(id),
+            "Website details",
+            warnings);
+        ViewBag.Subscription = await LoadDetailsPanelAsync(
+            () => _uow.Billings.FirstOrDefaultAsync(b => b.AgentUserId == id && b.Status == BillingStatus.Active),
+            "Subscription details",
+            warnings);
+        ViewBag.Invoices = await LoadDetailsPanelAsync(
+            async () => (await _uow.Invoices.FindAsync(i => i.AgentUserId == id)).OrderByDescending(i => i.IssuedAt).Take(10),
+            "Invoices",
+            warnings) ?? Enumerable.Empty<Invoice>();
+        ViewBag.ClientCount = await LoadDetailsPanelAsync(
+            () => _uow.Clients.CountAsync(c => c.AgentUserId == id),
+            "Client count",
+            warnings);
+        ViewBag.Logs = await LoadDetailsPanelAsync(
+            async () => (await _uow.OperateLogs.FindAsync(l => l.AgentUserId == id)).OrderByDescending(l => l.CreatedAt).Take(20),
+            "Activity log",
+            warnings) ?? Enumerable.Empty<OperateLog>();
+        ViewBag.DetailsWarnings = warnings;
         return View(agent);
     }
 
@@ -167,6 +186,20 @@ public class AgentsController : Controller
     {
         await _uow.OperateLogs.AddAsync(new OperateLog { AgentUserId = agentId, Action = action, Module = "Agents", Description = desc, CreatedAt = DateTime.UtcNow });
         await _uow.SaveChangesAsync();
+    }
+
+    private async Task<T?> LoadDetailsPanelAsync<T>(Func<Task<T>> load, string panelName, List<string> warnings)
+    {
+        try
+        {
+            return await load();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load {PanelName} on agent details page.", panelName);
+            warnings.Add($"{panelName} could not be loaded because some legacy data needs cleanup.");
+            return default;
+        }
     }
 
     private async Task DeleteAgentOwnedDataAsync(int agentId)
