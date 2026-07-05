@@ -6,5 +6,14 @@
     <div class="card-body p-4">
         <h1 class="h4 mb-2">Something went wrong</h1>
         <p class="text-muted mb-0">The admin portal could not complete this request. Check the application logs for details.</p>
+        @if (ViewBag.ExceptionMessage != null)
+        {
+            <div class="alert alert-warning mt-4 mb-0">
+                <div class="fw-semibold mb-2">Diagnostic details for Super Admin</div>
+                <div class="small"><strong>Path:</strong> @(ViewBag.ExceptionPath ?? "-")</div>
+                <div class="small"><strong>Type:</strong> @(ViewBag.ExceptionType ?? "-")</div>
+                <div class="small"><strong>Message:</strong> @ViewBag.ExceptionMessage</div>
+            </div>
+        }
     </div>
 </div>

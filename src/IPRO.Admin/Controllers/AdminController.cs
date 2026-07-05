@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IPRO.Admin.Controllers;
@@ -45,5 +46,16 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Login));
     }
     public IActionResult AccessDenied() => View();
-    public IActionResult Error() => View();
+    public IActionResult Error()
+    {
+        if (User.HasClaim("Role", "SuperAdmin"))
+        {
+            var exceptionFeature = HttpContext.Features.Get<IExceptionHandlerPathFeature>();
+            ViewBag.ExceptionPath = exceptionFeature?.Path;
+            ViewBag.ExceptionType = exceptionFeature?.Error.GetType().FullName;
+            ViewBag.ExceptionMessage = exceptionFeature?.Error.Message;
+        }
+
+        return View();
+    }
 }
