@@ -14,6 +14,7 @@ namespace IPRO.Web.Controllers;
 
 public class AccountController : Controller
 {
+    private const string RegistrationVerifyCodeSessionKey = "RegistrationVerifyCode";
     private readonly IAgentService _agents;
     private readonly IEmailService _email;
     private readonly ILogger<AccountController> _logger;
@@ -40,11 +41,16 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Register() => View(new AgentRegistrationViewModel());
+    public IActionResult Register()
+    {
+        SetRegistrationVerifyCode();
+        return View(new AgentRegistrationViewModel());
+    }
 
     [HttpPost]
     public async Task<IActionResult> Register(AgentRegistrationViewModel model, string verificationCode, bool acceptTerms = false)
     {
+        var expectedVerificationCode = HttpContext.Session.GetString(RegistrationVerifyCodeSessionKey);
         if (string.IsNullOrWhiteSpace(model.FirstName)) ModelState.AddModelError("", "First name is required.");
         if (string.IsNullOrWhiteSpace(model.LastName)) ModelState.AddModelError("", "Last name is required.");
         if (string.IsNullOrWhiteSpace(model.Email)) ModelState.AddModelError("", "Email is required.");
@@ -56,12 +62,21 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
         if (model.PackageId <= 1) ModelState.AddModelError("", "Package is required.");
-        if (verificationCode != "5345") ModelState.AddModelError("", "Verify code is incorrect.");
+        if (string.IsNullOrWhiteSpace(expectedVerificationCode)
+            || !string.Equals(verificationCode?.Trim(), expectedVerificationCode, StringComparison.Ordinal))
+        {
+            ModelState.AddModelError("", "Verify code is incorrect.");
+        }
         if (!acceptTerms) ModelState.AddModelError("", "You must accept the terms and conditions.");
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid)
+        {
+            SetRegistrationVerifyCode();
+            return View(model);
+        }
         if (await _agents.EmailExistsAsync(model.Email.Trim()))
         {
             ModelState.AddModelError("", "An account already exists for this email address.");
+            SetRegistrationVerifyCode();
             return View(model);
         }
 
@@ -81,6 +96,7 @@ public class AccountController : Controller
         {
             _logger.LogError(ex, "Registration failed for {Email}", model.Email);
             ModelState.AddModelError("", "We could not complete the registration. Please check the form and try again.");
+            SetRegistrationVerifyCode();
             return View(model);
         }
 
@@ -102,6 +118,7 @@ public class AccountController : Controller
         TempData["RegistrationUserName"] = agent.UserName;
         TempData["RegistrationPassword"] = temporaryPassword;
         TempData["RegistrationDomain"] = agent.DomainName;
+        HttpContext.Session.Remove(RegistrationVerifyCodeSessionKey);
         return RedirectToAction(nameof(RegisterSuccess));
     }
 
@@ -161,6 +178,13 @@ public class AccountController : Controller
         return RedirectToAction("Login");
     }
     public IActionResult AccessDenied() => View();
+
+    private void SetRegistrationVerifyCode()
+    {
+        var code = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
+        HttpContext.Session.SetString(RegistrationVerifyCodeSessionKey, code);
+        ViewBag.VerificationCode = code;
+    }
 
     private async Task SignInAgentAsync(AgentUser user, AuthenticationProperties props)
     {
