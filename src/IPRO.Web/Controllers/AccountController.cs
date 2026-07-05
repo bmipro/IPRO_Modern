@@ -54,11 +54,16 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.PostalCode)) ModelState.AddModelError("", "Postal code is required.");
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
-        if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
         if (verificationCode != "5345") ModelState.AddModelError("", "Verify code is incorrect.");
         if (!acceptTerms) ModelState.AddModelError("", "You must accept the terms and conditions.");
         if (!ModelState.IsValid) return View(model);
+        if (await _agents.EmailExistsAsync(model.Email.Trim()))
+        {
+            ModelState.AddModelError("", "An account already exists for this email address.");
+            return View(model);
+        }
 
+        NormalizeRegistration(model);
         model.UserName = await GenerateUniqueUserNameAsync(model.FirstName, model.LastName);
         model.DomainName = await GenerateUniqueDomainAsync(model.UserName);
         model.PackageId = model.PackageId <= 0 ? 1 : model.PackageId;
@@ -66,7 +71,16 @@ public class AccountController : Controller
         model.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         model.MustChangePassword = true;
         var temporaryPassword = GenerateTemporaryPassword(model.FirstName, model.LastName);
-        await _agents.RegisterAsync(model, temporaryPassword);
+        try
+        {
+            await _agents.RegisterAsync(model, temporaryPassword);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Registration failed for {Email}", model.Email);
+            ModelState.AddModelError("", "We could not complete the registration. Please check the form and try again.");
+            return View(model);
+        }
 
         var welcome = BuildWelcomeModel(model, temporaryPassword);
         var emailSent = await _email.SendAsync(
@@ -210,4 +224,24 @@ public class AccountController : Controller
         TemporaryPassword = temporaryPassword,
         SetupDomain = model.DomainName
     };
+
+    private static void NormalizeRegistration(AgentUser model)
+    {
+        model.FirstName = model.FirstName.Trim();
+        model.LastName = model.LastName.Trim();
+        model.Email = model.Email.Trim();
+        model.Designation = model.Designation?.Trim() ?? "";
+        model.CompanyName = model.CompanyName.Trim();
+        model.CompanyAddress = model.CompanyAddress?.Trim() ?? "";
+        model.City = model.City.Trim();
+        model.Province = model.Province.Trim();
+        model.PostalCode = model.PostalCode.Trim();
+        model.Country = model.Country.Trim();
+        model.TimeZone = model.TimeZone?.Trim() ?? "";
+        model.Phone = model.Phone.Trim();
+        model.BusinessFax = model.BusinessFax?.Trim() ?? "";
+        model.CellPhone = model.CellPhone?.Trim() ?? "";
+        model.BusinessType = model.BusinessType?.Trim() ?? "";
+        model.PromotionCode = model.PromotionCode?.Trim() ?? "";
+    }
 }

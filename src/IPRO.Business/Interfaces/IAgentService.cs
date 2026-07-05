@@ -13,6 +13,7 @@ public interface IAgentService
     Task ChangePasswordAsync(int id, string plainPassword);
     Task DeactivateAsync(int id);
     Task<bool> UsernameExistsAsync(string username);
+    Task<bool> EmailExistsAsync(string email);
     Task<bool> DomainExistsAsync(string domain);
     Task UpdateLastLoginAsync(int id);
     Task<IEnumerable<AgentUser>> GetAllAsync();

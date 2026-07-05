@@ -40,8 +40,9 @@ textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier 
 .terms-check{margin:4px 0 0 142px;font-size:12px;}
 .payment{margin:10px 0 0 88px;width:150px;text-align:center;}
 .payment img{display:block;width:150px;height:auto;}
-.submit-row{margin:6px 0 0 198px;}
-button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;background:#eee;cursor:pointer;}
+.submit-row{margin:10px 0 0 198px;}
+.submit-button{min-width:86px;height:30px;border:1px solid #141414;border-radius:4px;background:linear-gradient(#2d2d2d,#050505);color:#fff;font-size:13px;font-weight:bold;letter-spacing:.2px;box-shadow:0 2px 4px rgba(0,0,0,.22);cursor:pointer;}
+.submit-button:hover{background:linear-gradient(#3d3d3d,#101010);}
 .signin{margin-left:12px;font-size:12px;color:#004f9e;}
 @@media(max-width:760px){
   .page{width:auto;margin:0 14px 40px;padding-top:8px;}
@@ -150,8 +151,8 @@ button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;ba
       <input asp-for="CellPhone" class="short" maxlength="40"/>
     </div>
     <div class="form-row">
-      <label><span class="required">*</span>Business Type:</label>
-      <select asp-for="BusinessType" class="short" required>
+      <label>Business Type:</label>
+      <select asp-for="BusinessType" class="short">
         <option>Accountants</option>
         <option>Insurance / Financial</option>
         <option>Mortgage</option>
@@ -188,7 +189,7 @@ button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;ba
     </div>
 
     <div class="submit-row">
-      <button type="submit">Submit</button>
+      <button class="submit-button" type="submit">Submit</button>
       <a class="signin" href="/Account/Login">Sign in</a>
     </div>
   </form>

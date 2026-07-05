@@ -74,6 +74,9 @@ public class AgentService : IAgentService
     public Task<bool> UsernameExistsAsync(string username) =>
         _uow.AgentUsers.ExistsAsync(u => u.UserName == username);
 
+    public Task<bool> EmailExistsAsync(string email) =>
+        _uow.AgentUsers.ExistsAsync(u => u.Email == email);
+
     public Task<bool> DomainExistsAsync(string domain) =>
         _uow.AgentUsers.ExistsAsync(u => u.DomainName == domain);
 
