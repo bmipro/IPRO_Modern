@@ -22,7 +22,8 @@ body:before{content:"";position:fixed;inset:0 0 auto 0;height:180px;background:l
 .page{width:min(1080px,calc(100% - 32px));margin:0 auto 48px;padding-top:28px;}
 .shell{background:#fff;border:1px solid rgba(215,222,234,.8);box-shadow:0 24px 70px rgba(18,38,73,.16);border-radius:18px;overflow:hidden;}
 .hero{display:flex;justify-content:space-between;gap:24px;align-items:center;padding:30px 34px;border-bottom:1px solid #e7ebf2;background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);}
-.logo{display:block;width:min(390px,100%);height:auto;}
+.brand-mark{display:flex;align-items:center;justify-content:center;max-width:430px;padding:18px 22px;border-radius:14px;background:linear-gradient(135deg,#05070c,#18233a);box-shadow:0 14px 30px rgba(16,36,69,.22);}
+.logo{display:block;width:min(370px,100%);height:auto;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));}
 .hero-copy{max-width:360px;text-align:right;}
 .eyebrow{font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
 .hero h1{font-size:28px;line-height:1.1;margin:0 0 8px;font-weight:800;}
@@ -61,6 +62,7 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
   .page{width:calc(100% - 20px);margin-bottom:24px;padding-top:10px;}
   .shell{border-radius:14px;}
   .hero{display:block;padding:22px 18px;}
+  .brand-mark{max-width:none;padding:15px 16px;}
   .hero-copy{text-align:left;margin-top:18px;}
   .hero h1{font-size:23px;}
   form{padding:20px 18px 24px;}
@@ -80,7 +82,9 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
 <main class="page">
   <div class="shell">
   <header class="hero">
-    <img class="logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
+    <div class="brand-mark">
+      <img class="logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
+    </div>
     <div class="hero-copy">
       <div class="eyebrow">New account registration</div>
       <h1>Start your IPRO Advisers portal</h1>
