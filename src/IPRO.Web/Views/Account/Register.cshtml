@@ -15,51 +15,78 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>IPRO Advisers Registration</title>
 <style>
-html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:14px;}
-.page{width:720px;margin:0 0 40px 62px;padding-top:8px;}
-.logo{display:block;width:370px;height:auto;margin:0 0 12px 0;}
-.hint{margin:6px 0 28px 0;font-size:12px;}
-.required{color:#d60000;}
-.validation{width:520px;margin:0 0 16px 120px;padding:10px 12px;border:1px solid #e49a9a;background:#fff1f1;color:#8a0000;font-size:12px;}
-.form-row{display:flex;align-items:center;margin:4px 0;}
-.form-row label{width:136px;text-align:right;margin-right:6px;font-size:12px;}
-input[type=text],input[type=email],input[type=password],select{box-sizing:border-box;height:22px;border:1px solid #8f96a3;background:#f8f8f8;font-size:12px;padding:1px 4px;}
-input.short{width:165px;}
-input.medium{width:215px;}
-select.short{width:165px;}
-select.medium{width:215px;}
-select.wide{width:315px;}
-.agreement-row{align-items:flex-start;margin-top:6px;}
-.agreement-row label{padding-top:126px;}
-textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier New",monospace;font-size:12px;line-height:1.22;padding:8px;white-space:pre-wrap;}
-.verify-code{display:inline-block;margin-left:8px;font-weight:700;font-size:16px;letter-spacing:4px;font-family:Georgia,serif;vertical-align:middle;}
+:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#d7deea;--soft:#f6f8fb;--blue:#1457d9;--blue2:#0d3f9e;--gold:#f2b400;--danger:#c9182b;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;min-height:100%;background:linear-gradient(180deg,#f7f9fd 0%,#edf2f8 100%);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,Helvetica,sans-serif;font-size:15px;}
+body:before{content:"";position:fixed;inset:0 0 auto 0;height:180px;background:linear-gradient(90deg,#102445,#1d59c9);z-index:-1;}
+.page{width:min(1080px,calc(100% - 32px));margin:0 auto 48px;padding-top:28px;}
+.shell{background:#fff;border:1px solid rgba(215,222,234,.8);box-shadow:0 24px 70px rgba(18,38,73,.16);border-radius:18px;overflow:hidden;}
+.hero{display:flex;justify-content:space-between;gap:24px;align-items:center;padding:30px 34px;border-bottom:1px solid #e7ebf2;background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);}
+.logo{display:block;width:min(390px,100%);height:auto;}
+.hero-copy{max-width:360px;text-align:right;}
+.eyebrow{font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.hero h1{font-size:28px;line-height:1.1;margin:0 0 8px;font-weight:800;}
+.hint{margin:0;color:var(--muted);font-size:13px;}
+.required{color:var(--danger);font-weight:800;}
+.validation{margin:24px 34px 0;padding:14px 16px;border:1px solid #f1adb6;background:#fff2f4;color:#8a0010;border-radius:10px;font-size:14px;}
+form{padding:28px 34px 34px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;}
+.section{grid-column:1/-1;margin:8px 0 -2px;padding-bottom:10px;border-bottom:1px solid #e8edf5;font-size:13px;font-weight:800;color:#344054;text-transform:uppercase;letter-spacing:.06em;}
+.form-row{display:flex;flex-direction:column;gap:7px;margin:0;}
+.form-row label{font-size:13px;font-weight:700;color:#26364f;}
+input[type=text],input[type=email],input[type=password],select,textarea{width:100%;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s,background .15s;}
+input[type=text],input[type=email],input[type=password],select{height:43px;padding:9px 12px;}
+input:focus,select:focus,textarea:focus{border-color:#6d96ee;box-shadow:0 0 0 4px rgba(20,87,217,.12);}
+select{appearance:auto;}
+.agreement-row{grid-column:1/-1;}
+textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.45;white-space:pre-wrap;background:#fbfcff;}
+.verify-row{display:grid;grid-template-columns:minmax(160px,260px) auto 1fr;gap:12px;align-items:end;}
+.verify-row label{grid-column:1/-1;}
+.verify-code{display:inline-flex;align-items:center;gap:3px;min-height:43px;padding:0 12px;border:1px dashed #c6cfdd;border-radius:9px;background:#f9fbff;font-weight:800;font-size:20px;letter-spacing:4px;font-family:Georgia,serif;vertical-align:middle;}
 .verify-code span:nth-child(1){color:#d10000;transform:rotate(-8deg);display:inline-block;}
 .verify-code span:nth-child(2){color:#111;transform:rotate(8deg);display:inline-block;}
 .verify-code span:nth-child(3){color:#1746d8;transform:rotate(-5deg);display:inline-block;}
 .verify-code span:nth-child(4){color:#009a63;transform:rotate(6deg);display:inline-block;}
-.terms-check{margin:4px 0 0 142px;font-size:12px;}
-.payment{margin:10px 0 0 88px;width:150px;text-align:center;}
+.terms-check{grid-column:1/-1;display:flex;align-items:flex-start;gap:10px;margin-top:4px;font-size:14px;color:#344054;}
+.terms-check input{width:18px;height:18px;margin-top:1px;accent-color:var(--blue);}
+.footer-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:8px;padding-top:22px;border-top:1px solid #e8edf5;}
 .payment img{display:block;width:150px;height:auto;}
-.submit-row{margin:10px 0 0 198px;}
-.submit-button{min-width:86px;height:30px;border:1px solid #141414;border-radius:4px;background:linear-gradient(#2d2d2d,#050505);color:#fff;font-size:13px;font-weight:bold;letter-spacing:.2px;box-shadow:0 2px 4px rgba(0,0,0,.22);cursor:pointer;}
-.submit-button:hover{background:linear-gradient(#3d3d3d,#101010);}
-.signin{margin-left:12px;font-size:12px;color:#004f9e;}
+.submit-row{display:flex;align-items:center;gap:16px;}
+.submit-button{min-width:176px;height:46px;border:0;border-radius:999px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;font-size:15px;font-weight:800;letter-spacing:.2px;box-shadow:0 10px 22px rgba(20,87,217,.25);cursor:pointer;transition:transform .15s,box-shadow .15s,filter .15s;}
+.submit-button:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(20,87,217,.3);filter:saturate(1.08);}
+.signin{font-size:14px;color:var(--blue);font-weight:700;text-decoration:none;}
+.signin:hover{text-decoration:underline;}
 @@media(max-width:760px){
-  .page{width:auto;margin:0 14px 40px;padding-top:8px;}
-  .logo{width:min(320px,100%);}
-  .form-row{display:block;margin:7px 0;}
-  .form-row label{display:block;width:auto;text-align:left;margin:0 0 2px;}
-  input.short,input.medium,select.short,select.medium,select.wide,textarea{width:100%;}
-  .agreement-row label{padding-top:0;}
-  .terms-check,.submit-row{margin-left:0;width:auto;}
-  .payment{margin-left:0;}
+  body:before{height:130px;}
+  .page{width:calc(100% - 20px);margin-bottom:24px;padding-top:10px;}
+  .shell{border-radius:14px;}
+  .hero{display:block;padding:22px 18px;}
+  .hero-copy{text-align:left;margin-top:18px;}
+  .hero h1{font-size:23px;}
+  form{padding:20px 18px 24px;}
+  .form-grid{grid-template-columns:1fr;gap:15px;}
+  .validation{margin:18px 18px 0;}
+  textarea{height:210px;}
+  .verify-row{grid-template-columns:1fr auto;}
+  .verify-code{justify-content:center;}
+  .footer-actions{display:block;}
+  .payment{margin-bottom:18px;}
+  .submit-row{align-items:stretch;flex-direction:column;}
+  .submit-button{width:100%;}
 }
 </style>
 </head>
 <body>
 <main class="page">
-  <img class="logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
-  <div class="hint">Field marked with <span class="required">*</span> is required.</div>
+  <div class="shell">
+  <header class="hero">
+    <img class="logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
+    <div class="hero-copy">
+      <div class="eyebrow">New account registration</div>
+      <h1>Start your IPRO Advisers portal</h1>
+      <p class="hint">Fields marked with <span class="required">*</span> are required.</p>
+    </div>
+  </header>
 
   @if (!ViewData.ModelState.IsValid)
   {
@@ -68,7 +95,9 @@ textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier 
 
   <form asp-action="Register" method="post">
     @Html.AntiForgeryToken()
+    <div class="form-grid">
 
+    <div class="section">Contact Information</div>
     <div class="form-row">
       <label><span class="required">*</span>First Name:</label>
       <input asp-for="FirstName" class="short" maxlength="80" required/>
@@ -85,6 +114,8 @@ textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier 
       <label><span class="required">*</span>Email:</label>
       <input asp-for="Email" type="email" class="short" maxlength="200" required/>
     </div>
+
+    <div class="section">Company Details</div>
     <div class="form-row">
       <label><span class="required">*</span>Company Name:</label>
       <input asp-for="CompanyName" class="short" maxlength="150" required/>
@@ -138,6 +169,8 @@ textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier 
         <option value="(GMT-03:30) Newfoundland">(GMT-03:30) Newfoundland</option>
       </select>
     </div>
+
+    <div class="section">Phone and Plan</div>
     <div class="form-row">
       <label><span class="required">*</span>Business Phone:</label>
       <input asp-for="Phone" class="short" maxlength="40" required/>
@@ -169,12 +202,13 @@ textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier 
       </select>
     </div>
 
+    <div class="section">Terms and Verification</div>
     <div class="form-row agreement-row">
       <label>Terms and Conditions:</label>
       <textarea readonly>@agreement</textarea>
     </div>
 
-    <div class="form-row">
+    <div class="form-row verify-row">
       <label>Verify Code:</label>
       <input type="text" name="verificationCode" class="short" maxlength="4" autocomplete="off" required/>
       <span class="verify-code" aria-label="Verify code 5345"><span>5</span><span>3</span><span>4</span><span>5</span></span>
@@ -185,15 +219,18 @@ textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier 
       <label for="acceptTerms">Yes, I have read and accept the General Terms and Conditions.</label>
     </div>
 
-    <div class="payment">
-      <img src="/images/paypalverified.gif" alt="PayPal Verified"/>
+    <div class="footer-actions">
+      <div class="payment">
+        <img src="/images/paypalverified.gif" alt="PayPal Verified"/>
+      </div>
+      <div class="submit-row">
+        <button class="submit-button" type="submit">Submit Registration</button>
+        <a class="signin" href="/Account/Login">Already registered? Sign in</a>
+      </div>
     </div>
-
-    <div class="submit-row">
-      <button class="submit-button" type="submit">Submit</button>
-      <a class="signin" href="/Account/Login">Sign in</a>
     </div>
   </form>
+  </div>
 </main>
 </body>
 </html>
