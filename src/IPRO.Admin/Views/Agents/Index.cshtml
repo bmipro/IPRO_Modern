@@ -10,12 +10,12 @@
     <div class="card-body p-3">
         <form method="get" class="row g-2 align-items-end">
             <div class="col-md-6">
-                <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by name, email or username…"/>
+                <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by name, email or username..."/>
             </div>
             <div class="col-md-3">
                 <select name="status" class="form-select">
                     <option value="">All Status</option>
-                    <option value="active"   selected="@(ViewBag.Status == "active")">Active</option>
+                    <option value="active" selected="@(ViewBag.Status == "active")">Active</option>
                     <option value="inactive" selected="@(ViewBag.Status == "inactive")">Inactive</option>
                 </select>
             </div>
@@ -32,7 +32,14 @@
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Agent</th><th>Domain</th><th>Package</th><th>Joined</th><th>Last Login</th><th>Status</th><th></th>
+                    <th>Agent</th>
+                    <th>Company</th>
+                    <th>Domain</th>
+                    <th>Package</th>
+                    <th>Joined</th>
+                    <th>Last Login</th>
+                    <th>Status</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -41,9 +48,13 @@
                 <tr>
                     <td>
                         <div class="fw-semibold">@a.FirstName @a.LastName</div>
-                        <small class="text-muted">@a.UserName · @a.Email</small>
+                        <small class="text-muted">@a.UserName - @a.Email</small>
                     </td>
-                    <td><small class="text-primary">@(a.DomainName ?? "—")</small></td>
+                    <td>
+                        <div class="small fw-semibold">@(string.IsNullOrWhiteSpace(a.CompanyName) ? "-" : a.CompanyName)</div>
+                        <small class="text-muted">@(string.IsNullOrWhiteSpace(a.City) ? "" : a.City)@(string.IsNullOrWhiteSpace(a.Province) ? "" : $", {a.Province}")</small>
+                    </td>
+                    <td><small class="text-primary">@(string.IsNullOrWhiteSpace(a.DomainName) ? "-" : a.DomainName)</small></td>
                     <td><span class="badge bg-light text-dark">Package @a.PackageId</span></td>
                     <td><small>@a.CreatedAt.ToString("MMM d, yyyy")</small></td>
                     <td><small class="text-muted">@(a.LastLoginAt.HasValue ? a.LastLoginAt.Value.ToString("MMM d") : "Never")</small></td>
@@ -57,7 +68,7 @@
                 </tr>
             }
             @if (!Model.Items.Any())
-            { <tr><td colspan="7" class="text-center text-muted py-5"><i class="fas fa-search fa-2x d-block mb-2 opacity-25"></i>No agents found</td></tr> }
+            { <tr><td colspan="8" class="text-center text-muted py-5"><i class="fas fa-search fa-2x d-block mb-2 opacity-25"></i>No agents found</td></tr> }
             </tbody>
         </table>
     </div>
@@ -67,9 +78,9 @@
             <small class="text-muted">Page @Model.Page of @Model.TotalPages</small>
             <nav><ul class="pagination pagination-sm mb-0">
                 @if (Model.HasPrevious)
-                { <li class="page-item"><a class="page-link" href="?page=@(Model.Page-1)&search=@ViewBag.Search&status=@ViewBag.Status">‹</a></li> }
+                { <li class="page-item"><a class="page-link" href="?page=@(Model.Page-1)&search=@ViewBag.Search&status=@ViewBag.Status">&lt;</a></li> }
                 @if (Model.HasNext)
-                { <li class="page-item"><a class="page-link" href="?page=@(Model.Page+1)&search=@ViewBag.Search&status=@ViewBag.Status">›</a></li> }
+                { <li class="page-item"><a class="page-link" href="?page=@(Model.Page+1)&search=@ViewBag.Search&status=@ViewBag.Status">&gt;</a></li> }
             </ul></nav>
         </div>
     }

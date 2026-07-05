@@ -39,7 +39,23 @@ public class IPRODbContext : DbContext
             e.HasIndex(u => u.DomainName).IsUnique();
             e.Property(u => u.UserName).HasMaxLength(100).IsRequired();
             e.Property(u => u.Email).HasMaxLength(200).IsRequired();
+            e.Property(u => u.FirstName).HasMaxLength(80).IsRequired();
+            e.Property(u => u.LastName).HasMaxLength(80).IsRequired();
+            e.Property(u => u.Designation).HasMaxLength(80);
+            e.Property(u => u.CompanyName).HasMaxLength(150).IsRequired();
+            e.Property(u => u.CompanyAddress).HasMaxLength(200);
+            e.Property(u => u.City).HasMaxLength(80).IsRequired();
+            e.Property(u => u.Province).HasMaxLength(80).IsRequired();
+            e.Property(u => u.PostalCode).HasMaxLength(20).IsRequired();
+            e.Property(u => u.Country).HasMaxLength(80).IsRequired();
+            e.Property(u => u.TimeZone).HasMaxLength(120);
+            e.Property(u => u.Phone).HasMaxLength(40).IsRequired();
+            e.Property(u => u.BusinessFax).HasMaxLength(40);
+            e.Property(u => u.CellPhone).HasMaxLength(40);
+            e.Property(u => u.BusinessType).HasMaxLength(80);
             e.Property(u => u.DomainName).HasMaxLength(255);
+            e.Property(u => u.PromotionCode).HasMaxLength(80);
+            e.Property(u => u.RegistrationIpAddress).HasMaxLength(64);
         });
 
         // AgentWebsite → AgentUser

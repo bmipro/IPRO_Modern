@@ -33,13 +33,35 @@ public class AccountController : Controller
         return RedirectToAction("Index", "Dashboard");
     }
 
-    [HttpGet] public IActionResult Register() => View(new AgentUser());
+    [HttpGet]
+    [Route("/pub/register.aspx")]
+    public IActionResult Register() => View(new AgentUser());
 
     [HttpPost]
-    public async Task<IActionResult> Register(AgentUser model, string password, string confirmPassword)
+    public async Task<IActionResult> Register(AgentUser model, string password, string confirmPassword, string verificationCode, bool acceptTerms = false)
     {
+        if (string.IsNullOrWhiteSpace(model.FirstName)) ModelState.AddModelError("", "First name is required.");
+        if (string.IsNullOrWhiteSpace(model.LastName)) ModelState.AddModelError("", "Last name is required.");
+        if (string.IsNullOrWhiteSpace(model.Email)) ModelState.AddModelError("", "Email is required.");
+        if (string.IsNullOrWhiteSpace(model.CompanyName)) ModelState.AddModelError("", "Company name is required.");
+        if (string.IsNullOrWhiteSpace(model.City)) ModelState.AddModelError("", "City is required.");
+        if (string.IsNullOrWhiteSpace(model.Province)) ModelState.AddModelError("", "Province is required.");
+        if (string.IsNullOrWhiteSpace(model.PostalCode)) ModelState.AddModelError("", "Postal code is required.");
+        if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
+        if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
+        if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
+        if (string.IsNullOrWhiteSpace(model.UserName)) ModelState.AddModelError("", "Username is required.");
+        if (string.IsNullOrWhiteSpace(model.DomainName)) ModelState.AddModelError("", "Website/domain name is required.");
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 8) ModelState.AddModelError("", "Password must be at least 8 characters.");
+        if (verificationCode != "5345") ModelState.AddModelError("", "Verify code is incorrect.");
+        if (!acceptTerms) ModelState.AddModelError("", "You must accept the terms and conditions.");
         if (password != confirmPassword) { ModelState.AddModelError("", "Passwords do not match."); return View(model); }
+        if (!ModelState.IsValid) return View(model);
         if (await _agents.UsernameExistsAsync(model.UserName)) { ModelState.AddModelError("", "Username already taken."); return View(model); }
+        if (await _agents.DomainExistsAsync(model.DomainName)) { ModelState.AddModelError("", "Website/domain name already taken."); return View(model); }
+        model.PackageId = model.PackageId <= 0 ? 1 : model.PackageId;
+        model.TermsAcceptedAt = DateTime.UtcNow;
+        model.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         await _agents.RegisterAsync(model, password);
         return RedirectToAction("Login");
     }

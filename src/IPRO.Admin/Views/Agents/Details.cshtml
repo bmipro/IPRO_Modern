@@ -43,9 +43,11 @@
                 <dl class="row mb-0" style="font-size:.9rem">
                     <dt class="col-5 text-muted">Username</dt><dd class="col-7">@Model.UserName</dd>
                     <dt class="col-5 text-muted">Email</dt><dd class="col-7">@Model.Email</dd>
-                    <dt class="col-5 text-muted">Phone</dt><dd class="col-7">@(Model.Phone ?? "—")</dd>
-                    <dt class="col-5 text-muted">Domain</dt><dd class="col-7"><span class="text-primary">@(Model.DomainName ?? "—")</span></dd>
+                    <dt class="col-5 text-muted">Name</dt><dd class="col-7">@Model.FirstName @Model.LastName</dd>
+                    <dt class="col-5 text-muted">Designation</dt><dd class="col-7">@(string.IsNullOrWhiteSpace(Model.Designation) ? "-" : Model.Designation)</dd>
+                    <dt class="col-5 text-muted">Domain</dt><dd class="col-7"><span class="text-primary">@(string.IsNullOrWhiteSpace(Model.DomainName) ? "-" : Model.DomainName)</span></dd>
                     <dt class="col-5 text-muted">Package</dt><dd class="col-7">Package @Model.PackageId</dd>
+                    <dt class="col-5 text-muted">Promotion</dt><dd class="col-7">@(string.IsNullOrWhiteSpace(Model.PromotionCode) ? "-" : Model.PromotionCode)</dd>
                     <dt class="col-5 text-muted">Joined</dt><dd class="col-7">@Model.CreatedAt.ToString("MMM d, yyyy")</dd>
                     <dt class="col-5 text-muted">Last Login</dt><dd class="col-7">@(Model.LastLoginAt.HasValue ? Model.LastLoginAt.Value.ToString("MMM d, yyyy") : "Never")</dd>
                 </dl>
@@ -58,6 +60,27 @@
     </div>
 
     <div class="col-md-8">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-address-card me-2 text-primary"></i>Registration Details</h6>
+                <dl class="row mb-0" style="font-size:.9rem">
+                    <dt class="col-md-3 text-muted">Company</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.CompanyName) ? "-" : Model.CompanyName)</dd>
+                    <dt class="col-md-3 text-muted">Address</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.CompanyAddress) ? "-" : Model.CompanyAddress)</dd>
+                    <dt class="col-md-3 text-muted">City</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.City) ? "-" : Model.City)</dd>
+                    <dt class="col-md-3 text-muted">Province/State</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.Province) ? "-" : Model.Province)</dd>
+                    <dt class="col-md-3 text-muted">Postal Code</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.PostalCode) ? "-" : Model.PostalCode)</dd>
+                    <dt class="col-md-3 text-muted">Country</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.Country) ? "-" : Model.Country)</dd>
+                    <dt class="col-md-3 text-muted">Time Zone</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.TimeZone) ? "-" : Model.TimeZone)</dd>
+                    <dt class="col-md-3 text-muted">Business Type</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.BusinessType) ? "-" : Model.BusinessType)</dd>
+                    <dt class="col-md-3 text-muted">Business Phone</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.Phone) ? "-" : Model.Phone)</dd>
+                    <dt class="col-md-3 text-muted">Fax</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.BusinessFax) ? "-" : Model.BusinessFax)</dd>
+                    <dt class="col-md-3 text-muted">Mobile Phone</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.CellPhone) ? "-" : Model.CellPhone)</dd>
+                    <dt class="col-md-3 text-muted">Terms Accepted</dt><dd class="col-md-9">@(Model.TermsAcceptedAt.HasValue ? Model.TermsAcceptedAt.Value.ToString("MMM d, yyyy h:mm tt") : "-")</dd>
+                    <dt class="col-md-3 text-muted">Registration IP</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.RegistrationIpAddress) ? "-" : Model.RegistrationIpAddress)</dd>
+                </dl>
+            </div>
+        </div>
+
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body p-4">
                 <h6 class="fw-bold mb-3"><i class="fas fa-receipt me-2 text-success"></i>Invoices</h6>

@@ -1,72 +1,233 @@
 @model IPRO.Entities.AgentUser
-@{ ViewData["Title"] = "Register"; Layout = null; }
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+@{
+    ViewData["Title"] = "Register";
+    Layout = null;
+    var agreementPath = System.IO.Path.Combine(Env.WebRootPath, "content", "ipro_agreement.txt");
+    var agreement = System.IO.File.Exists(agreementPath)
+        ? System.IO.File.ReadAllText(agreementPath)
+        : "ONLINE SUBSCRIPTION AGREEMENT";
+}
 <!DOCTYPE html>
-<html><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>IPRO – Create Account</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IPRO Advisers Registration</title>
 <style>
-body{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);min-height:100vh;padding:2rem 0;}
-.card{border:none;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:14px;}
+.page{width:720px;margin:0 0 40px 62px;padding-top:8px;}
+.logo{position:relative;width:370px;height:72px;margin:0 0 12px 0;font-weight:900;letter-spacing:-2px;font-size:36px;line-height:72px;color:#050505;text-transform:uppercase;text-shadow:0 8px 8px rgba(0,0,0,.25);}
+.logo:before{content:"";position:absolute;left:14px;top:0;width:270px;height:46px;border-top:4px solid #111;border-radius:55% 70% 0 0;transform:rotate(-7deg);}
+.logo:after{content:"";position:absolute;left:0;top:19px;width:12px;height:12px;background:#050505;border-radius:50%;}
+.logo .soft{color:#f5f5f5;text-shadow:0 2px 0 #9b9b9b,0 7px 9px rgba(0,0,0,.35);}
+.hint{margin:6px 0 28px 0;font-size:12px;}
+.required{color:#d60000;}
+.validation{width:520px;margin:0 0 16px 120px;padding:10px 12px;border:1px solid #e49a9a;background:#fff1f1;color:#8a0000;font-size:12px;}
+.form-row{display:flex;align-items:center;margin:4px 0;}
+.form-row label{width:136px;text-align:right;margin-right:6px;font-size:12px;}
+input[type=text],input[type=email],input[type=password],select{box-sizing:border-box;height:22px;border:1px solid #8f96a3;background:#f8f8f8;font-size:12px;padding:1px 4px;}
+input.short{width:165px;}
+input.medium{width:215px;}
+select.short{width:165px;}
+select.medium{width:215px;}
+select.wide{width:315px;}
+.agreement-row{align-items:flex-start;margin-top:6px;}
+.agreement-row label{padding-top:126px;}
+textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier New",monospace;font-size:12px;line-height:1.22;padding:8px;white-space:pre-wrap;}
+.verify-code{display:inline-block;margin-left:8px;font-weight:700;font-size:16px;letter-spacing:4px;font-family:Georgia,serif;vertical-align:middle;}
+.verify-code span:nth-child(1){color:#d10000;transform:rotate(-8deg);display:inline-block;}
+.verify-code span:nth-child(2){color:#111;transform:rotate(8deg);display:inline-block;}
+.verify-code span:nth-child(3){color:#1746d8;transform:rotate(-5deg);display:inline-block;}
+.verify-code span:nth-child(4){color:#009a63;transform:rotate(6deg);display:inline-block;}
+.terms-check{margin:4px 0 0 142px;font-size:12px;}
+.account-panel{width:520px;margin:14px 0 4px 142px;padding:8px 10px;border:1px solid #d5d5d5;background:#fafafa;}
+.account-panel-title{font-weight:bold;font-size:12px;margin-bottom:4px;}
+.account-panel .form-row label{width:130px;}
+.payment{margin:10px 0 0 88px;width:150px;text-align:center;}
+.seal{width:92px;height:92px;margin:0 auto 6px;border-radius:50%;background:radial-gradient(circle,#fff 0 34%,#e8d842 35% 66%,#d4bd22 67%);display:flex;align-items:center;justify-content:center;color:#1c4f91;font-size:18px;font-weight:900;font-style:italic;line-height:1;text-shadow:0 1px #fff;}
+.paypal-word{font-size:28px;font-weight:900;font-style:italic;color:#064f9e;text-shadow:1px 1px #fff;margin-bottom:4px;}
+.cards{display:flex;gap:3px;justify-content:center;}
+.cardmark{border:1px solid #194a7d;background:#f6f6f6;font-size:9px;font-weight:bold;padding:2px 4px;color:#0a51a1;}
+.submit-row{margin:6px 0 0 198px;}
+button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;background:#eee;cursor:pointer;}
+.signin{margin-left:12px;font-size:12px;color:#004f9e;}
+@@media(max-width:760px){
+  .page{width:auto;margin:0 14px 40px;padding-top:8px;}
+  .logo{width:320px;font-size:30px;}
+  .form-row{display:block;margin:7px 0;}
+  .form-row label{display:block;width:auto;text-align:left;margin:0 0 2px;}
+  input.short,input.medium,select.short,select.medium,select.wide,textarea{width:100%;}
+  .agreement-row label{padding-top:0;}
+  .terms-check,.account-panel,.submit-row{margin-left:0;width:auto;}
+  .payment{margin-left:0;}
+}
 </style>
-</head><body>
-<div class="container">
-<div class="row justify-content-center">
-<div class="col-md-7 col-lg-6">
-<div class="card">
-<div class="card-body p-5">
-  <div class="text-center mb-4">
-    <i class="fas fa-shield-alt fa-3x text-primary"></i>
-    <h3 class="fw-bold mt-2">Create Your Account</h3>
-    <p class="text-muted">Start managing your insurance clients today</p>
-  </div>
+</head>
+<body>
+<main class="page">
+  <div class="logo"><span class="soft">IPRO</span>ADVISERS</div>
+  <div class="hint">Field marked with <span class="required">*</span> is required.</div>
+
   @if (!ViewData.ModelState.IsValid)
-  { <div class="alert alert-danger">@Html.ValidationSummary()</div> }
+  {
+    <div class="validation">@Html.ValidationSummary()</div>
+  }
+
   <form asp-action="Register" method="post">
     @Html.AntiForgeryToken()
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
-        <input asp-for="FirstName" class="form-control" placeholder="John" required/>
+
+    <div class="form-row">
+      <label><span class="required">*</span>First Name:</label>
+      <input asp-for="FirstName" class="short" maxlength="80" required/>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Last Name:</label>
+      <input asp-for="LastName" class="short" maxlength="80" required/>
+    </div>
+    <div class="form-row">
+      <label>Designation:</label>
+      <input asp-for="Designation" class="short" maxlength="80"/>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Email:</label>
+      <input asp-for="Email" type="email" class="short" maxlength="200" required/>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Company Name:</label>
+      <input asp-for="CompanyName" class="short" maxlength="150" required/>
+    </div>
+    <div class="form-row">
+      <label>Company Address:</label>
+      <input asp-for="CompanyAddress" class="short" maxlength="200"/>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>City:</label>
+      <input asp-for="City" class="short" maxlength="80" required/>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Province:</label>
+      <select asp-for="Province" class="medium" required>
+        <option>Alberta</option>
+        <option>British Columbia</option>
+        <option>Manitoba</option>
+        <option>New Brunswick</option>
+        <option>Newfoundland</option>
+        <option>Northwest Territories</option>
+        <option>Nova Scotia</option>
+        <option>Nunavut</option>
+        <option>Ontario</option>
+        <option>Prince Edward Island</option>
+        <option>Quebec</option>
+        <option>Saskatchewan</option>
+        <option>Yukon Territory</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Postal Code:</label>
+      <input asp-for="PostalCode" class="short" maxlength="20" required/>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Country:</label>
+      <select asp-for="Country" class="medium" required>
+        <option>Canada</option>
+        <option>United States</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Time Zone:</label>
+      <select asp-for="TimeZone" class="wide">
+        <option value="(GMT-05:00) Eastern Time (US & Canada)">(GMT-05:00) Eastern Time (US & Canada)</option>
+        <option value="(GMT-06:00) Central Time (US & Canada)">(GMT-06:00) Central Time (US & Canada)</option>
+        <option value="(GMT-07:00) Mountain Time (US & Canada)">(GMT-07:00) Mountain Time (US & Canada)</option>
+        <option value="(GMT-08:00) Pacific Time (US & Canada)">(GMT-08:00) Pacific Time (US & Canada)</option>
+        <option value="(GMT-04:00) Atlantic Time (Canada)">(GMT-04:00) Atlantic Time (Canada)</option>
+        <option value="(GMT-03:30) Newfoundland">(GMT-03:30) Newfoundland</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Business Phone:</label>
+      <input asp-for="Phone" class="short" maxlength="40" required/>
+    </div>
+    <div class="form-row">
+      <label>Fax:</label>
+      <input asp-for="BusinessFax" class="short" maxlength="40"/>
+    </div>
+    <div class="form-row">
+      <label>Mobile Phone:</label>
+      <input asp-for="CellPhone" class="short" maxlength="40"/>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>Business Type:</label>
+      <select asp-for="BusinessType" class="short" required>
+        <option>Accountants</option>
+        <option>Insurance / Financial</option>
+        <option>Mortgage</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Packages:</label>
+      <select asp-for="PackageId" class="short" required>
+        <option value="1">Click here</option>
+        <option value="2">IPro Silver</option>
+        <option value="3">IPro Gold</option>
+        <option value="4">IPro Platinum</option>
+      </select>
+    </div>
+
+    <div class="form-row agreement-row">
+      <label>Terms and Conditions:</label>
+      <textarea readonly>@agreement</textarea>
+    </div>
+
+    <div class="form-row">
+      <label>Verify Code:</label>
+      <input type="text" name="verificationCode" class="short" maxlength="4" autocomplete="off" required/>
+      <span class="verify-code" aria-label="Verify code 5345"><span>5</span><span>3</span><span>4</span><span>5</span></span>
+    </div>
+
+    <div class="terms-check">
+      <input type="checkbox" value="true" name="acceptTerms" id="acceptTerms" required/>
+      <label for="acceptTerms">Yes, I have read and accept the General Terms and Conditions.</label>
+    </div>
+
+    <div class="account-panel">
+      <div class="account-panel-title">Account Setup</div>
+      <div class="form-row">
+        <label><span class="required">*</span>Username:</label>
+        <input asp-for="UserName" class="short" maxlength="100" required/>
       </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
-        <input asp-for="LastName" class="form-control" placeholder="Smith" required/>
+      <div class="form-row">
+        <label><span class="required">*</span>Website / Domain:</label>
+        <input asp-for="DomainName" class="medium" maxlength="255" required/>
       </div>
-      <div class="col-12">
-        <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-        <input asp-for="Email" type="email" class="form-control" placeholder="john@example.com" required/>
+      <div class="form-row">
+        <label><span class="required">*</span>Password:</label>
+        <input type="password" name="password" class="short" minlength="8" required/>
       </div>
-      <div class="col-12">
-        <label class="form-label fw-semibold">Phone</label>
-        <input asp-for="Phone" class="form-control" placeholder="(416) 555-0100"/>
-      </div>
-      <div class="col-12">
-        <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
-        <input asp-for="UserName" class="form-control" placeholder="johnsmith" required/>
-        <div class="form-text">Letters and numbers only. This is how you log in.</div>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
-        <input type="password" name="password" class="form-control" placeholder="Min 8 characters" required minlength="8"/>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
-        <input type="password" name="confirmPassword" class="form-control" placeholder="Repeat password" required/>
+      <div class="form-row">
+        <label><span class="required">*</span>Confirm Password:</label>
+        <input type="password" name="confirmPassword" class="short" minlength="8" required/>
       </div>
     </div>
-    <div class="mt-4">
-      <button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-user-plus me-2"></i>Create Account</button>
+
+    <div class="payment">
+      <div class="seal">PayPal<br/>VERIFIED</div>
+      <div class="paypal-word">PayPal</div>
+      <div class="cards">
+        <span class="cardmark">VISA</span>
+        <span class="cardmark">MasterCard</span>
+        <span class="cardmark">DISCOVER</span>
+        <span class="cardmark">AMEX</span>
+      </div>
     </div>
-    <div class="text-center mt-3">
-      <small>Already have an account? <a href="/Account/Login">Sign in</a></small>
+
+    <div class="submit-row">
+      <button type="submit">Submit</button>
+      <a class="signin" href="/Account/Login">Sign in</a>
     </div>
   </form>
-</div>
-</div>
-</div>
-</div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body></html>
+</main>
+</body>
+</html>
