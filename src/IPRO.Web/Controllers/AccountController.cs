@@ -1,9 +1,10 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using IPRO.Business.Interfaces;
 using IPRO.Entities;
+using IPRO.Email;
+using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -14,7 +15,15 @@ namespace IPRO.Web.Controllers;
 public class AccountController : Controller
 {
     private readonly IAgentService _agents;
-    public AccountController(IAgentService agents) => _agents = agents;
+    private readonly IEmailService _email;
+    private readonly ILogger<AccountController> _logger;
+
+    public AccountController(IAgentService agents, IEmailService email, ILogger<AccountController> logger)
+    {
+        _agents = agents;
+        _email = email;
+        _logger = logger;
+    }
 
     [HttpGet] public IActionResult Login() => View();
 
@@ -59,6 +68,20 @@ public class AccountController : Controller
         var temporaryPassword = GenerateTemporaryPassword(model.FirstName, model.LastName);
         await _agents.RegisterAsync(model, temporaryPassword);
 
+        var welcome = BuildWelcomeModel(model, temporaryPassword);
+        var emailSent = await _email.SendAsync(
+            model.Email,
+            welcome.FullName,
+            "Account Registration",
+            RegistrationWelcomeTemplate.BuildHtml(welcome),
+            RegistrationWelcomeTemplate.BuildText(welcome));
+        if (!emailSent)
+        {
+            _logger.LogWarning("Registration welcome email was not sent to {Email}", model.Email);
+        }
+
+        TempData["RegistrationFullName"] = welcome.FullName;
+        TempData["RegistrationEmail"] = welcome.Email;
         TempData["RegistrationUserName"] = model.UserName;
         TempData["RegistrationPassword"] = temporaryPassword;
         TempData["RegistrationDomain"] = model.DomainName;
@@ -66,7 +89,24 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult RegisterSuccess() => View();
+    public IActionResult RegisterSuccess()
+    {
+        var welcome = new RegistrationWelcomeModel
+        {
+            FullName = TempData["RegistrationFullName"] as string ?? string.Empty,
+            Email = TempData["RegistrationEmail"] as string ?? string.Empty,
+            UserName = TempData["RegistrationUserName"] as string ?? string.Empty,
+            TemporaryPassword = TempData["RegistrationPassword"] as string ?? string.Empty,
+            SetupDomain = TempData["RegistrationDomain"] as string ?? string.Empty
+        };
+
+        if (string.IsNullOrWhiteSpace(welcome.UserName))
+        {
+            welcome = RegistrationWelcomeTemplate.Sample();
+        }
+
+        return View(welcome);
+    }
 
     [Authorize]
     [HttpGet]
@@ -152,7 +192,7 @@ public class AccountController : Controller
 
     private static string NormalizeIdentifier(string value)
     {
-        return Regex.Replace(value.ToLowerInvariant(), "[^a-z0-9]", "");
+        return Regex.Replace(value, "[^A-Za-z0-9]", "");
     }
 
     private static string GenerateTemporaryPassword(string firstName, string lastName)
@@ -161,4 +201,13 @@ public class AccountController : Controller
         var random = RandomNumberGenerator.GetInt32(100000, 999999);
         return $"IPRO-{initials}-{DateTime.UtcNow:yyyyMMdd}-{random}!";
     }
+
+    private static RegistrationWelcomeModel BuildWelcomeModel(AgentUser model, string temporaryPassword) => new()
+    {
+        FullName = $"{model.FirstName} {model.LastName}".Trim(),
+        Email = model.Email,
+        UserName = model.UserName,
+        TemporaryPassword = temporaryPassword,
+        SetupDomain = model.DomainName
+    };
 }
