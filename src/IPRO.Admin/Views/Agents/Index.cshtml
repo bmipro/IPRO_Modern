@@ -64,7 +64,16 @@
                         else
                         { <span class="badge badge-status-inactive rounded-pill px-3">Inactive</span> }
                     </td>
-                    <td><a href="/Agents/Details/@a.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+                    <td>
+                        <div class="d-flex gap-1 justify-content-end">
+                            <a href="/Agents/Details/@a.Id" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="/Agents/Edit/@a.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-pen"></i></a>
+                            <form asp-action="Delete" asp-route-id="@a.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete @a.UserName permanently? This cannot be undone.')"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
             }
             @if (!Model.Items.Any())

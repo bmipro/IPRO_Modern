@@ -1,0 +1,144 @@
+@model IPRO.Entities.AgentUser
+@{ ViewData["Title"] = $"Edit Agent: {Model.UserName}"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a href="/Agents">Agents</a></li>
+                <li class="breadcrumb-item"><a href="/Agents/Details/@Model.Id">@Model.UserName</a></li>
+                <li class="breadcrumb-item active">Edit</li>
+            </ol>
+        </nav>
+        <h4 class="fw-bold mb-0"><i class="fas fa-user-edit me-2 text-primary"></i>Edit Agent</h4>
+    </div>
+</div>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">@Html.ValidationSummary()</div>
+}
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id"/>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+            <h6 class="fw-bold mb-3 text-muted text-uppercase" style="font-size:.75rem;letter-spacing:.08em">Login & Package</h6>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                    <input asp-for="UserName" class="form-control" maxlength="100" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                    <input asp-for="Email" type="email" class="form-control" maxlength="200" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Setup Domain</label>
+                    <input asp-for="DomainName" class="form-control" maxlength="255"/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Business Type <span class="text-danger">*</span></label>
+                    <select asp-for="BusinessType" class="form-select" required>
+                        <option value="">Click here</option>
+                        <option>Accountants</option>
+                        <option>Insurance / Financial</option>
+                        <option>Mortgage</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Package <span class="text-danger">*</span></label>
+                    <select asp-for="PackageId" class="form-select" required>
+                        <option value="">Click here</option>
+                        <option value="2">IPro Silver</option>
+                        <option value="3">IPro Gold</option>
+                        <option value="4">IPro Platinum</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Promotion Code</label>
+                    <input asp-for="PromotionCode" class="form-control" maxlength="80"/>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check form-switch">
+                        <input asp-for="IsActive" class="form-check-input" type="checkbox"/>
+                        <label asp-for="IsActive" class="form-check-label fw-semibold">Active</label>
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check form-switch">
+                        <input asp-for="MustChangePassword" class="form-check-input" type="checkbox"/>
+                        <label asp-for="MustChangePassword" class="form-check-label fw-semibold">Force password change</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+            <h6 class="fw-bold mb-3 text-muted text-uppercase" style="font-size:.75rem;letter-spacing:.08em">Registration Details</h6>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+                    <input asp-for="FirstName" class="form-control" maxlength="80" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
+                    <input asp-for="LastName" class="form-control" maxlength="80" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Designation</label>
+                    <input asp-for="Designation" class="form-control" maxlength="80"/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
+                    <input asp-for="CompanyName" class="form-control" maxlength="150" required/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Company Address</label>
+                    <input asp-for="CompanyAddress" class="form-control" maxlength="200"/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">City <span class="text-danger">*</span></label>
+                    <input asp-for="City" class="form-control" maxlength="80" required/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Province/State <span class="text-danger">*</span></label>
+                    <input asp-for="Province" class="form-control" maxlength="80" required/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Postal Code <span class="text-danger">*</span></label>
+                    <input asp-for="PostalCode" class="form-control" maxlength="20" required/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Country <span class="text-danger">*</span></label>
+                    <input asp-for="Country" class="form-control" maxlength="80" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Time Zone</label>
+                    <input asp-for="TimeZone" class="form-control" maxlength="120"/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Business Phone <span class="text-danger">*</span></label>
+                    <input asp-for="Phone" class="form-control" maxlength="40" required/>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Fax</label>
+                    <input asp-for="BusinessFax" class="form-control" maxlength="40"/>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Mobile</label>
+                    <input asp-for="CellPhone" class="form-control" maxlength="40"/>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center">
+        <a href="/Agents/Details/@Model.Id" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Cancel</a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+    </div>
+</form>
