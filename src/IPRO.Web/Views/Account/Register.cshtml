@@ -17,10 +17,7 @@
 <style>
 html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:14px;}
 .page{width:720px;margin:0 0 40px 62px;padding-top:8px;}
-.logo{position:relative;width:370px;height:72px;margin:0 0 12px 0;font-weight:900;letter-spacing:-2px;font-size:36px;line-height:72px;color:#050505;text-transform:uppercase;text-shadow:0 8px 8px rgba(0,0,0,.25);}
-.logo:before{content:"";position:absolute;left:14px;top:0;width:270px;height:46px;border-top:4px solid #111;border-radius:55% 70% 0 0;transform:rotate(-7deg);}
-.logo:after{content:"";position:absolute;left:0;top:19px;width:12px;height:12px;background:#050505;border-radius:50%;}
-.logo .soft{color:#f5f5f5;text-shadow:0 2px 0 #9b9b9b,0 7px 9px rgba(0,0,0,.35);}
+.logo{display:block;width:370px;height:auto;margin:0 0 12px 0;}
 .hint{margin:6px 0 28px 0;font-size:12px;}
 .required{color:#d60000;}
 .validation{width:520px;margin:0 0 16px 120px;padding:10px 12px;border:1px solid #e49a9a;background:#fff1f1;color:#8a0000;font-size:12px;}
@@ -51,7 +48,7 @@ button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;ba
 .signin{margin-left:12px;font-size:12px;color:#004f9e;}
 @@media(max-width:760px){
   .page{width:auto;margin:0 14px 40px;padding-top:8px;}
-  .logo{width:320px;font-size:30px;}
+  .logo{width:min(320px,100%);}
   .form-row{display:block;margin:7px 0;}
   .form-row label{display:block;width:auto;text-align:left;margin:0 0 2px;}
   input.short,input.medium,select.short,select.medium,select.wide,textarea{width:100%;}
@@ -63,7 +60,7 @@ button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;ba
 </head>
 <body>
 <main class="page">
-  <div class="logo"><span class="soft">IPRO</span>ADVISERS</div>
+  <img class="logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
   <div class="hint">Field marked with <span class="required">*</span> is required.</div>
 
   @if (!ViewData.ModelState.IsValid)
