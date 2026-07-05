@@ -55,6 +55,7 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
+        if (model.PackageId <= 1) ModelState.AddModelError("", "Package is required.");
         if (verificationCode != "5345") ModelState.AddModelError("", "Verify code is incorrect.");
         if (!acceptTerms) ModelState.AddModelError("", "You must accept the terms and conditions.");
         if (!ModelState.IsValid) return View(model);
@@ -67,7 +68,6 @@ public class AccountController : Controller
         NormalizeRegistration(model);
         model.UserName = await GenerateUniqueUserNameAsync(model.FirstName, model.LastName);
         model.DomainName = await GenerateUniqueDomainAsync(model.UserName);
-        model.PackageId = model.PackageId <= 0 ? 1 : model.PackageId;
         model.TermsAcceptedAt = DateTime.UtcNow;
         model.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         model.MustChangePassword = true;
