@@ -1,4 +1,5 @@
 using IPRO.Business.Interfaces;
+using IPRO.Admin.Models;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Utility;
@@ -71,11 +72,11 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
-        return View(agent);
+        return View(ToEditModel(agent));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, AgentUser model)
+    public async Task<IActionResult> Edit(int id, AgentEditViewModel model)
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
@@ -85,27 +86,7 @@ public class AgentsController : Controller
         await ValidateUniqueAgentFieldsAsync(id, model);
         if (!ModelState.IsValid) return View(model);
 
-        agent.UserName = model.UserName;
-        agent.Email = model.Email;
-        agent.FirstName = model.FirstName;
-        agent.LastName = model.LastName;
-        agent.Designation = model.Designation;
-        agent.CompanyName = model.CompanyName;
-        agent.CompanyAddress = model.CompanyAddress;
-        agent.City = model.City;
-        agent.Province = model.Province;
-        agent.PostalCode = model.PostalCode;
-        agent.Country = model.Country;
-        agent.TimeZone = model.TimeZone;
-        agent.Phone = model.Phone;
-        agent.BusinessFax = model.BusinessFax;
-        agent.CellPhone = model.CellPhone;
-        agent.BusinessType = model.BusinessType;
-        agent.DomainName = model.DomainName;
-        agent.PackageId = model.PackageId;
-        agent.PromotionCode = model.PromotionCode;
-        agent.IsActive = model.IsActive;
-        agent.MustChangePassword = model.MustChangePassword;
+        ApplyEditModel(agent, model);
 
         await _agents.UpdateAsync(agent);
         await LogAsync(id, "Edit", "Agent profile updated");
@@ -227,7 +208,58 @@ public class AgentsController : Controller
         }
     }
 
-    private static void NormalizeAgent(AgentUser agent)
+    private static AgentEditViewModel ToEditModel(AgentUser agent) => new()
+    {
+        Id = agent.Id,
+        UserName = agent.UserName ?? "",
+        Email = agent.Email ?? "",
+        FirstName = agent.FirstName ?? "",
+        LastName = agent.LastName ?? "",
+        Designation = agent.Designation ?? "",
+        CompanyName = agent.CompanyName ?? "",
+        CompanyAddress = agent.CompanyAddress ?? "",
+        City = agent.City ?? "",
+        Province = agent.Province ?? "",
+        PostalCode = agent.PostalCode ?? "",
+        Country = agent.Country ?? "",
+        TimeZone = agent.TimeZone ?? "",
+        Phone = agent.Phone ?? "",
+        BusinessFax = agent.BusinessFax ?? "",
+        CellPhone = agent.CellPhone ?? "",
+        BusinessType = agent.BusinessType ?? "",
+        DomainName = agent.DomainName ?? "",
+        PackageId = agent.PackageId,
+        PromotionCode = agent.PromotionCode ?? "",
+        IsActive = agent.IsActive,
+        MustChangePassword = agent.MustChangePassword
+    };
+
+    private static void ApplyEditModel(AgentUser agent, AgentEditViewModel model)
+    {
+        agent.UserName = model.UserName;
+        agent.Email = model.Email;
+        agent.FirstName = model.FirstName;
+        agent.LastName = model.LastName;
+        agent.Designation = model.Designation;
+        agent.CompanyName = model.CompanyName;
+        agent.CompanyAddress = model.CompanyAddress;
+        agent.City = model.City;
+        agent.Province = model.Province;
+        agent.PostalCode = model.PostalCode;
+        agent.Country = model.Country;
+        agent.TimeZone = model.TimeZone;
+        agent.Phone = model.Phone;
+        agent.BusinessFax = model.BusinessFax;
+        agent.CellPhone = model.CellPhone;
+        agent.BusinessType = model.BusinessType;
+        agent.DomainName = model.DomainName;
+        agent.PackageId = model.PackageId;
+        agent.PromotionCode = model.PromotionCode;
+        agent.IsActive = model.IsActive;
+        agent.MustChangePassword = model.MustChangePassword;
+    }
+
+    private static void NormalizeAgent(AgentEditViewModel agent)
     {
         agent.UserName = agent.UserName?.Trim() ?? "";
         agent.Email = agent.Email?.Trim() ?? "";
@@ -249,7 +281,7 @@ public class AgentsController : Controller
         agent.PromotionCode = agent.PromotionCode?.Trim() ?? "";
     }
 
-    private void ValidateAgentEdit(AgentUser agent)
+    private void ValidateAgentEdit(AgentEditViewModel agent)
     {
         if (string.IsNullOrWhiteSpace(agent.UserName)) ModelState.AddModelError("", "Username is required.");
         if (string.IsNullOrWhiteSpace(agent.Email)) ModelState.AddModelError("", "Email is required.");
@@ -265,7 +297,7 @@ public class AgentsController : Controller
         if (agent.PackageId <= 1) ModelState.AddModelError("", "Package is required.");
     }
 
-    private async Task ValidateUniqueAgentFieldsAsync(int id, AgentUser agent)
+    private async Task ValidateUniqueAgentFieldsAsync(int id, AgentEditViewModel agent)
     {
         var existingUserName = await _uow.AgentUsers.FirstOrDefaultAsync(a => a.UserName == agent.UserName && a.Id != id);
         if (existingUserName != null) ModelState.AddModelError("", "Username is already used by another agent.");
