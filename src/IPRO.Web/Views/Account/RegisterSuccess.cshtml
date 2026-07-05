@@ -1,0 +1,45 @@
+@{
+    ViewData["Title"] = "Registration Complete";
+    Layout = null;
+    var userName = TempData["RegistrationUserName"] as string;
+    var password = TempData["RegistrationPassword"] as string;
+    var domain = TempData["RegistrationDomain"] as string;
+}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IPRO Advisers Registration Complete</title>
+<style>
+body{margin:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#111827;}
+.wrap{max-width:720px;margin:48px auto;padding:0 18px;}
+.panel{background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:28px;box-shadow:0 12px 30px rgba(15,23,42,.12);}
+h1{font-size:24px;margin:0 0 10px;}
+p{line-height:1.5;}
+.details{background:#f8fafc;border:1px solid #dbe3ef;padding:16px;margin:18px 0;border-radius:6px;}
+.row{display:flex;gap:12px;margin:8px 0;}
+.label{width:170px;color:#4b5563;font-weight:bold;}
+.value{font-family:Consolas,monospace;}
+.warning{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:12px;border-radius:6px;}
+a{display:inline-block;margin-top:12px;background:#0d6efd;color:#fff;text-decoration:none;padding:10px 18px;border-radius:5px;}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section class="panel">
+    <h1>Registration Complete</h1>
+    <p>Your IPRO Advisers account has been created. Please save this temporary login information.</p>
+
+    <div class="details">
+      <div class="row"><div class="label">Username</div><div class="value">@userName</div></div>
+      <div class="row"><div class="label">Temporary Password</div><div class="value">@password</div></div>
+      <div class="row"><div class="label">Setup Domain</div><div class="value">@domain</div></div>
+    </div>
+
+    <div class="warning">You will be required to change this temporary password the first time you sign in.</div>
+    <a href="/Account/Login">Sign in now</a>
+  </section>
+</main>
+</body>
+</html>

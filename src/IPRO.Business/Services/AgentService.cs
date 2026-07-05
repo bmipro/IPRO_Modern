@@ -48,6 +48,18 @@ public class AgentService : IAgentService
         await _uow.SaveChangesAsync();
     }
 
+    public async Task ChangePasswordAsync(int id, string plainPassword)
+    {
+        var user = await _uow.AgentUsers.GetByIdAsync(id);
+        if (user == null) return;
+
+        user.PasswordHash = _hasher.HashPassword(user, plainPassword);
+        user.MustChangePassword = false;
+        user.PasswordChangedAt = DateTime.UtcNow;
+        _uow.AgentUsers.Update(user);
+        await _uow.SaveChangesAsync();
+    }
+
     public async Task DeactivateAsync(int id)
     {
         var user = await _uow.AgentUsers.GetByIdAsync(id);

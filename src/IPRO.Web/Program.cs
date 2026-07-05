@@ -103,6 +103,22 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? "";
+    var canChangePassword = path.StartsWith("/Account/ChangePassword", StringComparison.OrdinalIgnoreCase);
+    var canLogout = path.StartsWith("/Account/Logout", StringComparison.OrdinalIgnoreCase);
+    var mustChangePassword = context.User.Identity?.IsAuthenticated == true
+        && string.Equals(context.User.FindFirst("MustChangePassword")?.Value, "true", StringComparison.OrdinalIgnoreCase);
+
+    if (mustChangePassword && !canChangePassword && !canLogout)
+    {
+        context.Response.Redirect("/Account/ChangePassword");
+        return;
+    }
+
+    await next();
+});
 
 app.MapControllerRoute(
     "legacy-register",

@@ -1,6 +1,10 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using IPRO.Business.Interfaces;
 using IPRO.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -19,17 +23,10 @@ public class AccountController : Controller
     {
         var user = await _agents.AuthenticateAsync(username, password);
         if (user == null) { ModelState.AddModelError("", "Invalid username or password."); return View(); }
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.UserName),
-            new(ClaimTypes.Email, user.Email),
-            new("FullName", $"{user.FirstName} {user.LastName}"),
-            new("PackageId", user.PackageId.ToString())
-        };
         var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)), props);
+        await SignInAgentAsync(user, props);
         await _agents.UpdateLastLoginAsync(user.Id);
+        if (user.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
         return RedirectToAction("Index", "Dashboard");
     }
 
@@ -37,7 +34,7 @@ public class AccountController : Controller
     public IActionResult Register() => View(new AgentUser());
 
     [HttpPost]
-    public async Task<IActionResult> Register(AgentUser model, string password, string confirmPassword, string verificationCode, bool acceptTerms = false)
+    public async Task<IActionResult> Register(AgentUser model, string verificationCode, bool acceptTerms = false)
     {
         if (string.IsNullOrWhiteSpace(model.FirstName)) ModelState.AddModelError("", "First name is required.");
         if (string.IsNullOrWhiteSpace(model.LastName)) ModelState.AddModelError("", "Last name is required.");
@@ -49,20 +46,56 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
-        if (string.IsNullOrWhiteSpace(model.UserName)) ModelState.AddModelError("", "Username is required.");
-        if (string.IsNullOrWhiteSpace(model.DomainName)) ModelState.AddModelError("", "Website/domain name is required.");
-        if (string.IsNullOrWhiteSpace(password) || password.Length < 8) ModelState.AddModelError("", "Password must be at least 8 characters.");
         if (verificationCode != "5345") ModelState.AddModelError("", "Verify code is incorrect.");
         if (!acceptTerms) ModelState.AddModelError("", "You must accept the terms and conditions.");
-        if (password != confirmPassword) { ModelState.AddModelError("", "Passwords do not match."); return View(model); }
         if (!ModelState.IsValid) return View(model);
-        if (await _agents.UsernameExistsAsync(model.UserName)) { ModelState.AddModelError("", "Username already taken."); return View(model); }
-        if (await _agents.DomainExistsAsync(model.DomainName)) { ModelState.AddModelError("", "Website/domain name already taken."); return View(model); }
+
+        model.UserName = await GenerateUniqueUserNameAsync(model.FirstName, model.LastName);
+        model.DomainName = await GenerateUniqueDomainAsync(model.UserName);
         model.PackageId = model.PackageId <= 0 ? 1 : model.PackageId;
         model.TermsAcceptedAt = DateTime.UtcNow;
         model.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
-        await _agents.RegisterAsync(model, password);
-        return RedirectToAction("Login");
+        model.MustChangePassword = true;
+        var temporaryPassword = GenerateTemporaryPassword(model.FirstName, model.LastName);
+        await _agents.RegisterAsync(model, temporaryPassword);
+
+        TempData["RegistrationUserName"] = model.UserName;
+        TempData["RegistrationPassword"] = temporaryPassword;
+        TempData["RegistrationDomain"] = model.DomainName;
+        return RedirectToAction(nameof(RegisterSuccess));
+    }
+
+    [HttpGet]
+    public IActionResult RegisterSuccess() => View();
+
+    [Authorize]
+    [HttpGet]
+    public IActionResult ChangePassword() => View();
+
+    [Authorize]
+    [HttpPost]
+    public async Task<IActionResult> ChangePassword(string newPassword, string confirmPassword)
+    {
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            ModelState.AddModelError("", "New password must be at least 8 characters.");
+        if (newPassword != confirmPassword)
+            ModelState.AddModelError("", "Passwords do not match.");
+        if (!ModelState.IsValid) return View();
+
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idValue, out var id)) return RedirectToAction(nameof(Login));
+
+        await _agents.ChangePasswordAsync(id, newPassword);
+        var user = await _agents.GetByIdAsync(id);
+        if (user != null)
+        {
+            await SignInAgentAsync(user, new AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+            });
+        }
+        return RedirectToAction("Index", "Dashboard");
     }
 
     public async Task<IActionResult> Logout()
@@ -71,4 +104,61 @@ public class AccountController : Controller
         return RedirectToAction("Login");
     }
     public IActionResult AccessDenied() => View();
+
+    private async Task SignInAgentAsync(AgentUser user, AuthenticationProperties props)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.UserName),
+            new(ClaimTypes.Email, user.Email),
+            new("FullName", $"{user.FirstName} {user.LastName}"),
+            new("PackageId", user.PackageId.ToString()),
+            new("MustChangePassword", user.MustChangePassword ? "true" : "false")
+        };
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            props);
+    }
+
+    private async Task<string> GenerateUniqueUserNameAsync(string firstName, string lastName)
+    {
+        var baseName = NormalizeIdentifier($"{firstName}{lastName}");
+        if (string.IsNullOrWhiteSpace(baseName)) baseName = "agent";
+
+        var candidate = baseName;
+        var suffix = 1;
+        while (await _agents.UsernameExistsAsync(candidate))
+        {
+            candidate = $"{baseName}{suffix}";
+            suffix++;
+        }
+        return candidate;
+    }
+
+    private async Task<string> GenerateUniqueDomainAsync(string userName)
+    {
+        var baseName = NormalizeIdentifier(userName);
+        var candidate = $"{baseName}.247Advisers.com";
+        var suffix = 1;
+        while (await _agents.DomainExistsAsync(candidate))
+        {
+            candidate = $"{baseName}{suffix}.247Advisers.com";
+            suffix++;
+        }
+        return candidate;
+    }
+
+    private static string NormalizeIdentifier(string value)
+    {
+        return Regex.Replace(value.ToLowerInvariant(), "[^a-z0-9]", "");
+    }
+
+    private static string GenerateTemporaryPassword(string firstName, string lastName)
+    {
+        var initials = $"{firstName.FirstOrDefault()}{lastName.FirstOrDefault()}".ToUpperInvariant();
+        var random = RandomNumberGenerator.GetInt32(100000, 999999);
+        return $"IPRO-{initials}-{DateTime.UtcNow:yyyyMMdd}-{random}!";
+    }
 }

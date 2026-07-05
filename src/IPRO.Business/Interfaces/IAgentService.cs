@@ -10,6 +10,7 @@ public interface IAgentService
     Task<AgentUser?> AuthenticateAsync(string username, string password);
     Task<AgentUser> RegisterAsync(AgentUser user, string plainPassword);
     Task UpdateAsync(AgentUser user);
+    Task ChangePasswordAsync(int id, string plainPassword);
     Task DeactivateAsync(int id);
     Task<bool> UsernameExistsAsync(string username);
     Task<bool> DomainExistsAsync(string domain);

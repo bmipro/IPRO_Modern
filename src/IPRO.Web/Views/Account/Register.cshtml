@@ -41,9 +41,6 @@ textarea{width:540px;height:265px;border:1px solid #8f96a3;font-family:"Courier 
 .verify-code span:nth-child(3){color:#1746d8;transform:rotate(-5deg);display:inline-block;}
 .verify-code span:nth-child(4){color:#009a63;transform:rotate(6deg);display:inline-block;}
 .terms-check{margin:4px 0 0 142px;font-size:12px;}
-.account-panel{width:520px;margin:14px 0 4px 142px;padding:8px 10px;border:1px solid #d5d5d5;background:#fafafa;}
-.account-panel-title{font-weight:bold;font-size:12px;margin-bottom:4px;}
-.account-panel .form-row label{width:130px;}
 .payment{margin:10px 0 0 88px;width:150px;text-align:center;}
 .seal{width:92px;height:92px;margin:0 auto 6px;border-radius:50%;background:radial-gradient(circle,#fff 0 34%,#e8d842 35% 66%,#d4bd22 67%);display:flex;align-items:center;justify-content:center;color:#1c4f91;font-size:18px;font-weight:900;font-style:italic;line-height:1;text-shadow:0 1px #fff;}
 .paypal-word{font-size:28px;font-weight:900;font-style:italic;color:#064f9e;text-shadow:1px 1px #fff;margin-bottom:4px;}
@@ -59,7 +56,7 @@ button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;ba
   .form-row label{display:block;width:auto;text-align:left;margin:0 0 2px;}
   input.short,input.medium,select.short,select.medium,select.wide,textarea{width:100%;}
   .agreement-row label{padding-top:0;}
-  .terms-check,.account-panel,.submit-row{margin-left:0;width:auto;}
+  .terms-check,.submit-row{margin-left:0;width:auto;}
   .payment{margin-left:0;}
 }
 </style>
@@ -190,26 +187,6 @@ button{font-size:12px;padding:2px 9px;border:1px solid #777;border-radius:3px;ba
     <div class="terms-check">
       <input type="checkbox" value="true" name="acceptTerms" id="acceptTerms" required/>
       <label for="acceptTerms">Yes, I have read and accept the General Terms and Conditions.</label>
-    </div>
-
-    <div class="account-panel">
-      <div class="account-panel-title">Account Setup</div>
-      <div class="form-row">
-        <label><span class="required">*</span>Username:</label>
-        <input asp-for="UserName" class="short" maxlength="100" required/>
-      </div>
-      <div class="form-row">
-        <label><span class="required">*</span>Website / Domain:</label>
-        <input asp-for="DomainName" class="medium" maxlength="255" required/>
-      </div>
-      <div class="form-row">
-        <label><span class="required">*</span>Password:</label>
-        <input type="password" name="password" class="short" minlength="8" required/>
-      </div>
-      <div class="form-row">
-        <label><span class="required">*</span>Confirm Password:</label>
-        <input type="password" name="confirmPassword" class="short" minlength="8" required/>
-      </div>
     </div>
 
     <div class="payment">

@@ -25,6 +25,8 @@ public class AgentUser
     public string PromotionCode { get; set; } = string.Empty;
     public DateTime? TermsAcceptedAt { get; set; }
     public string RegistrationIpAddress { get; set; } = string.Empty;
+    public bool MustChangePassword { get; set; }
+    public DateTime? PasswordChangedAt { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
