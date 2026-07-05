@@ -96,10 +96,10 @@ public static class RegistrationWelcomeTemplate
 
     public static RegistrationWelcomeModel Sample() => new()
     {
-        FullName = "Masoud Zangeneh",
-        Email = "bmotamed@yahoo.com",
-        UserName = "MasoudZangeneh",
-        TemporaryPassword = "zangeneh",
-        SetupDomain = "MasoudZangeneh.247advisers.com"
+        FullName = "Firstname Lastname",
+        Email = "user@example.com",
+        UserName = "FirstnameLastname",
+        TemporaryPassword = "Lastname",
+        SetupDomain = "FirstnameLastname.245Advisers.com"
     };
 }

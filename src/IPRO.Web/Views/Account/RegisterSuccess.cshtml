@@ -17,9 +17,9 @@ body{margin:0;min-height:100vh;background:linear-gradient(180deg,#f7f9fd,#eaf0f8
 body:before{content:"";position:fixed;inset:0 0 auto;height:220px;background:linear-gradient(110deg,#0c1d38,#1556d7);z-index:-1}
 .page{width:min(980px,calc(100% - 32px));margin:0 auto;padding:36px 0 56px}
 .card{background:#fff;border:1px solid #dce3ef;border-radius:20px;box-shadow:0 24px 70px rgba(18,38,73,.18);overflow:hidden}
-.hero{padding:34px 38px;background:linear-gradient(180deg,#fff,#f8fbff);border-bottom:1px solid #e7edf6;display:flex;justify-content:space-between;gap:24px;align-items:center}
-.brand{display:flex;align-items:center;justify-content:center;max-width:390px;padding:8px 0}
-.brand img{width:min(360px,100%);height:auto;filter:drop-shadow(0 8px 14px rgba(16,32,51,.18))}
+.hero{padding:34px 38px;background:linear-gradient(180deg,#fff,#f8fbff);border-bottom:1px solid #e7edf6;display:flex;justify-content:space-between;gap:32px;align-items:center}
+.brand{display:flex;align-items:center;justify-content:center;width:390px;max-width:44%;padding:18px 20px;border:1px solid #e5ebf5;border-radius:16px;background:#fff}
+.brand img{display:block;width:100%;max-width:340px;height:auto}
 .badge{display:inline-block;background:#e8f7ee;color:#087443;border:1px solid #bfe9cf;border-radius:999px;padding:7px 12px;font-weight:800;font-size:13px;margin-bottom:10px}
 h1{font-size:30px;line-height:1.1;margin:0 0 8px;font-weight:850}
 .sub{margin:0;color:#667085}
@@ -35,7 +35,7 @@ h1{font-size:30px;line-height:1.1;margin:0 0 8px;font-weight:850}
 .btn.primary{background:#1457d9;color:#fff;box-shadow:0 10px 22px rgba(20,87,217,.22)}
 .btn.secondary{background:#eef2f8;color:#1f2d44}
 .fine{margin-top:24px;color:#667085;font-size:14px;line-height:1.55}
-@@media(max-width:760px){.page{width:calc(100% - 20px);padding-top:10px}.hero{display:block;padding:22px}.brand{max-width:none;justify-content:flex-start}.content{padding:22px}.grid{grid-template-columns:1fr}h1{font-size:24px}}
+@@media(max-width:760px){.page{width:calc(100% - 20px);padding-top:10px}.hero{display:block;padding:22px}.brand{width:100%;max-width:none;margin-bottom:18px}.content{padding:22px}.grid{grid-template-columns:1fr}h1{font-size:24px}}
 </style>
 </head>
 <body>
