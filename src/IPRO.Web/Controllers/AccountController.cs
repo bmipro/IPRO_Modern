@@ -54,6 +54,7 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.PostalCode)) ModelState.AddModelError("", "Postal code is required.");
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
+        if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
         if (verificationCode != "5345") ModelState.AddModelError("", "Verify code is incorrect.");
         if (!acceptTerms) ModelState.AddModelError("", "You must accept the terms and conditions.");
         if (!ModelState.IsValid) return View(model);
