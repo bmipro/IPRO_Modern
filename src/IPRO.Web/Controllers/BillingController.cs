@@ -32,17 +32,40 @@ public class BillingController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Subscribe(int billingRuleId, BillingPeriod period)
     {
-        var created = await _billing.CreateSubscriptionAsync(AgentId, billingRuleId, period);
-        if (!created)
+        var result = await _billing.CreateSubscriptionAsync(
+            AgentId,
+            billingRuleId,
+            period,
+            Url.ActionLink(nameof(PayPalReturn)) ?? $"{Request.Scheme}://{Request.Host}/Billing/PayPalReturn",
+            Url.ActionLink(nameof(Cancel)) ?? $"{Request.Scheme}://{Request.Host}/Billing/Cancel");
+
+        if (!result.Success)
         {
-            TempData["Error"] = "We could not activate that subscription. Please choose an active package.";
+            TempData["Error"] = result.Message;
             return RedirectToAction(nameof(Index));
         }
 
-        var pendingChange = await _billing.GetPendingChangeAsync(AgentId);
-        TempData["Success"] = pendingChange?.RequestedBillingRuleId == billingRuleId
-            ? $"Your package change is scheduled for {pendingChange.EffectiveDate:MMMM d, yyyy}."
-            : "Your subscription change was applied and the invoice was created.";
+        if (result.RequiresPayment && !string.IsNullOrWhiteSpace(result.ApprovalUrl))
+        {
+            return Redirect(result.ApprovalUrl);
+        }
+
+        TempData["Success"] = result.Message;
+        return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> PayPalReturn(string token)
+    {
+        var result = await _billing.CapturePaymentAsync(AgentId, token);
+        if (result.Success)
+        {
+            TempData["Success"] = result.Message;
+        }
+        else
+        {
+            TempData["Error"] = result.Message;
+        }
+
         return RedirectToAction(nameof(Index));
     }
 

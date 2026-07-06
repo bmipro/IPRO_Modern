@@ -1,15 +1,29 @@
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
+using Microsoft.Extensions.Options;
 
 namespace IPRO.Billing;
 
 public class PayPalBillingService : IBillingService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly PayPalSettings _settings;
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
-    public PayPalBillingService(IUnitOfWork uow)
+    public PayPalBillingService(IUnitOfWork uow, IHttpClientFactory httpClientFactory, IOptions<PayPalSettings> settings)
     {
         _uow = uow;
+        _httpClientFactory = httpClientFactory;
+        _settings = settings.Value;
     }
 
     public async Task<IPRO.Entities.Billing?> GetActiveSubscriptionAsync(int userId)
@@ -28,43 +42,125 @@ public class PayPalBillingService : IBillingService
             c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
     }
 
-    public async Task<bool> CreateSubscriptionAsync(int userId, int billingRuleId, BillingPeriod period)
+    public async Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, BillingPeriod period, string returnUrl, string cancelUrl)
     {
         var requestedPackage = await _uow.BillingRules.FirstOrDefaultAsync(p => p.Id == billingRuleId && p.IsActive);
         if (requestedPackage == null)
         {
-            return false;
+            return BillingChangeResult.Failed("We could not activate that subscription. Please choose an active package.");
         }
 
         var activeSubscription = await GetActiveSubscriptionAsync(userId);
         if (activeSubscription == null)
         {
             await CancelPendingChangesAsync(userId);
-            await CreateInitialSubscriptionAsync(userId, requestedPackage, period);
-            return true;
+            return await BeginPaidChangeAsync(
+                userId,
+                null,
+                requestedPackage,
+                period,
+                SubscriptionChangeType.Subscribe,
+                DateTime.UtcNow,
+                0,
+                GetAmount(requestedPackage, period),
+                GetAmount(requestedPackage, period),
+                returnUrl,
+                cancelUrl);
         }
 
         if (activeSubscription.BillingRuleId == requestedPackage.Id)
         {
             await CancelPendingChangesAsync(userId);
-            return true;
+            return new BillingChangeResult { Success = true, Message = "You are already on that package." };
         }
 
         var currentPackage = await _uow.BillingRules.GetByIdAsync(activeSubscription.BillingRuleId);
         if (currentPackage == null)
         {
-            return false;
+            return BillingChangeResult.Failed("Your current package could not be found.");
         }
 
         if (IsUpgrade(currentPackage, requestedPackage))
         {
             await CancelPendingChangesAsync(userId);
-            await ApplyUpgradeAsync(userId, activeSubscription, currentPackage, requestedPackage, period);
-            return true;
+            var now = DateTime.UtcNow;
+            var effectiveEnd = activeSubscription.NextBillingDate ?? GetNextBillingDate(now, activeSubscription.Period);
+            var remainingFraction = CalculateRemainingFraction(now, activeSubscription.StartDate, effectiveEnd);
+            var credit = Math.Round(GetAmount(currentPackage, activeSubscription.Period) * remainingFraction, 2);
+            var charge = Math.Round(GetAmount(requestedPackage, period) * remainingFraction, 2);
+            var amountDue = Math.Max(0, charge - credit);
+
+            return amountDue <= 0
+                ? await ApplyUpgradeWithoutPaymentAsync(userId, activeSubscription, currentPackage, requestedPackage, period, credit, charge)
+                : await BeginPaidChangeAsync(userId, currentPackage, requestedPackage, period, SubscriptionChangeType.Upgrade, now, credit, charge, amountDue, returnUrl, cancelUrl, activeSubscription.Id, effectiveEnd);
         }
 
         await ScheduleDowngradeAsync(userId, activeSubscription, currentPackage, requestedPackage, period);
-        return true;
+        return new BillingChangeResult
+        {
+            Success = true,
+            Message = $"Your downgrade to {requestedPackage.PackageName} is scheduled for {(activeSubscription.NextBillingDate ?? GetNextBillingDate(DateTime.UtcNow, activeSubscription.Period)):MMMM d, yyyy}."
+        };
+    }
+
+    public async Task<BillingChangeResult> CapturePaymentAsync(int userId, string orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return BillingChangeResult.Failed("Missing PayPal order id.");
+        }
+
+        var invoice = await _uow.Invoices.FirstOrDefaultAsync(i =>
+            i.AgentUserId == userId && i.PayPalTransactionId == orderId && !i.IsPaid);
+        if (invoice == null)
+        {
+            return BillingChangeResult.Failed("We could not find a pending invoice for that PayPal payment.");
+        }
+
+        var captured = await CapturePayPalOrderAsync(orderId);
+        if (!captured)
+        {
+            return BillingChangeResult.Failed("PayPal did not confirm the payment. Please try again.");
+        }
+
+        invoice.IsPaid = true;
+        _uow.Invoices.Update(invoice);
+
+        var change = await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
+            c.BillingId == invoice.BillingId && c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
+        var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
+        if (change == null || billing == null)
+        {
+            await _uow.SaveChangesAsync();
+            return new BillingChangeResult { Success = true, Message = "Payment captured." };
+        }
+
+        var activeSubscriptions = await _uow.Billings.FindAsync(b =>
+            b.AgentUserId == userId && b.Status == BillingStatus.Active);
+        foreach (var subscription in activeSubscriptions)
+        {
+            subscription.Status = BillingStatus.Cancelled;
+            subscription.CancelledAt = DateTime.UtcNow;
+            _uow.Billings.Update(subscription);
+        }
+
+        billing.Status = BillingStatus.Active;
+        if (change.ChangeType == SubscriptionChangeType.Upgrade && change.EffectiveDate < DateTime.UtcNow)
+        {
+            billing.StartDate = DateTime.UtcNow;
+        }
+        _uow.Billings.Update(billing);
+
+        change.Status = SubscriptionChangeStatus.Applied;
+        change.AppliedAt = DateTime.UtcNow;
+        _uow.SubscriptionChanges.Update(change);
+
+        await _uow.SaveChangesAsync();
+        return new BillingChangeResult
+        {
+            Success = true,
+            Message = "Payment confirmed and your package is active."
+        };
     }
 
     public async Task<bool> CancelSubscriptionAsync(int userId)
@@ -112,20 +208,122 @@ public class PayPalBillingService : IBillingService
         return packages.OrderBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice).ToList();
     }
 
-    private async Task CreateInitialSubscriptionAsync(int userId, BillingRule package, BillingPeriod period)
+    private async Task<BillingChangeResult> BeginPaidChangeAsync(
+        int userId,
+        BillingRule? currentPackage,
+        BillingRule requestedPackage,
+        BillingPeriod period,
+        SubscriptionChangeType changeType,
+        DateTime effectiveDate,
+        decimal credit,
+        decimal charge,
+        decimal amountDue,
+        string returnUrl,
+        string cancelUrl,
+        int? currentBillingId = null,
+        DateTime? nextBillingDate = null)
     {
-        var amount = GetAmount(package, period);
-        var now = DateTime.UtcNow;
+        if (!HasPayPalSettings())
+        {
+            return BillingChangeResult.Failed("PayPal is not configured yet. Please add PayPal ClientId and ClientSecret in Azure app settings.");
+        }
+
         var billing = new IPRO.Entities.Billing
         {
             AgentUserId = userId,
-            BillingRuleId = package.Id,
-            Amount = amount,
+            BillingRuleId = requestedPackage.Id,
+            Amount = GetAmount(requestedPackage, period),
+            Currency = "CAD",
+            Status = BillingStatus.Pending,
+            Period = period,
+            StartDate = effectiveDate,
+            NextBillingDate = nextBillingDate ?? GetNextBillingDate(effectiveDate, period),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _uow.Billings.AddAsync(billing);
+        await _uow.SaveChangesAsync();
+
+        await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
+        {
+            AgentUserId = userId,
+            CurrentBillingRuleId = currentPackage?.Id,
+            RequestedBillingRuleId = requestedPackage.Id,
+            BillingId = billing.Id,
+            ChangeType = changeType,
+            Status = SubscriptionChangeStatus.Pending,
+            Period = period,
+            EffectiveDate = effectiveDate,
+            ProratedCredit = credit,
+            ProratedCharge = charge,
+            AmountDue = amountDue
+        });
+        await _uow.SaveChangesAsync();
+
+        var invoice = await CreateInvoiceAsync(billing.Id, userId, amountDue, false);
+        PayPalOrderResult order;
+        try
+        {
+            order = await CreatePayPalOrderAsync(invoice, requestedPackage.PackageName, returnUrl, cancelUrl);
+        }
+        catch (Exception ex)
+        {
+            billing.Status = BillingStatus.Failed;
+            _uow.Billings.Update(billing);
+
+            var pendingChange = await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
+                c.BillingId == billing.Id && c.Status == SubscriptionChangeStatus.Pending);
+            if (pendingChange != null)
+            {
+                pendingChange.Status = SubscriptionChangeStatus.Cancelled;
+                pendingChange.CancelledAt = DateTime.UtcNow;
+                _uow.SubscriptionChanges.Update(pendingChange);
+            }
+
+            await _uow.SaveChangesAsync();
+            return BillingChangeResult.Failed($"PayPal checkout could not be started: {ex.Message}");
+        }
+
+        if (string.IsNullOrWhiteSpace(order.ApprovalUrl))
+        {
+            billing.Status = BillingStatus.Failed;
+            _uow.Billings.Update(billing);
+            await _uow.SaveChangesAsync();
+            return BillingChangeResult.Failed("PayPal did not return an approval link.");
+        }
+
+        invoice.PayPalTransactionId = order.OrderId;
+        _uow.Invoices.Update(invoice);
+        await _uow.SaveChangesAsync();
+
+        return new BillingChangeResult
+        {
+            Success = true,
+            RequiresPayment = true,
+            ApprovalUrl = order.ApprovalUrl,
+            InvoiceId = invoice.Id,
+            AmountDue = amountDue,
+            Message = "Please complete payment in PayPal to activate this package change."
+        };
+    }
+
+    private async Task<BillingChangeResult> ApplyUpgradeWithoutPaymentAsync(int userId, IPRO.Entities.Billing activeSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period, decimal credit, decimal charge)
+    {
+        var now = DateTime.UtcNow;
+        activeSubscription.Status = BillingStatus.Cancelled;
+        activeSubscription.CancelledAt = now;
+        _uow.Billings.Update(activeSubscription);
+
+        var billing = new IPRO.Entities.Billing
+        {
+            AgentUserId = userId,
+            BillingRuleId = requestedPackage.Id,
+            Amount = GetAmount(requestedPackage, period),
             Currency = "CAD",
             Status = BillingStatus.Active,
             Period = period,
             StartDate = now,
-            NextBillingDate = GetNextBillingDate(now, period),
+            NextBillingDate = activeSubscription.NextBillingDate ?? GetNextBillingDate(now, period),
             CreatedAt = now
         };
 
@@ -135,68 +333,22 @@ public class PayPalBillingService : IBillingService
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
         {
             AgentUserId = userId,
-            RequestedBillingRuleId = package.Id,
-            BillingId = billing.Id,
-            ChangeType = SubscriptionChangeType.Subscribe,
-            Status = SubscriptionChangeStatus.Applied,
-            Period = period,
-            EffectiveDate = now,
-            ProratedCharge = amount,
-            AmountDue = amount,
-            AppliedAt = now
-        });
-        await _uow.SaveChangesAsync();
-
-        await CreateInvoiceAsync(billing.Id, userId, amount, true);
-    }
-
-    private async Task ApplyUpgradeAsync(int userId, IPRO.Entities.Billing currentSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period)
-    {
-        var now = DateTime.UtcNow;
-        var effectiveEnd = currentSubscription.NextBillingDate ?? GetNextBillingDate(now, currentSubscription.Period);
-        var remainingFraction = CalculateRemainingFraction(now, currentSubscription.StartDate, effectiveEnd);
-        var credit = Math.Round(GetAmount(currentPackage, currentSubscription.Period) * remainingFraction, 2);
-        var charge = Math.Round(GetAmount(requestedPackage, period) * remainingFraction, 2);
-        var amountDue = Math.Max(0, charge - credit);
-
-        currentSubscription.Status = BillingStatus.Cancelled;
-        currentSubscription.CancelledAt = now;
-        _uow.Billings.Update(currentSubscription);
-
-        var upgradedBilling = new IPRO.Entities.Billing
-        {
-            AgentUserId = userId,
-            BillingRuleId = requestedPackage.Id,
-            Amount = GetAmount(requestedPackage, period),
-            Currency = "CAD",
-            Status = BillingStatus.Active,
-            Period = period,
-            StartDate = now,
-            NextBillingDate = effectiveEnd > now ? effectiveEnd : GetNextBillingDate(now, period),
-            CreatedAt = now
-        };
-
-        await _uow.Billings.AddAsync(upgradedBilling);
-        await _uow.SaveChangesAsync();
-
-        await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
-        {
-            AgentUserId = userId,
             CurrentBillingRuleId = currentPackage.Id,
             RequestedBillingRuleId = requestedPackage.Id,
-            BillingId = upgradedBilling.Id,
+            BillingId = billing.Id,
             ChangeType = SubscriptionChangeType.Upgrade,
             Status = SubscriptionChangeStatus.Applied,
             Period = period,
             EffectiveDate = now,
             ProratedCredit = credit,
             ProratedCharge = charge,
-            AmountDue = amountDue,
+            AmountDue = 0,
             AppliedAt = now
         });
         await _uow.SaveChangesAsync();
+        await CreateInvoiceAsync(billing.Id, userId, 0, true);
 
-        await CreateInvoiceAsync(upgradedBilling.Id, userId, amountDue, true);
+        return new BillingChangeResult { Success = true, Message = "Your package was upgraded." };
     }
 
     private async Task ScheduleDowngradeAsync(int userId, IPRO.Entities.Billing currentSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period)
@@ -234,6 +386,15 @@ public class PayPalBillingService : IBillingService
             _uow.SubscriptionChanges.Update(change);
         }
 
+        var pendingBillings = await _uow.Billings.FindAsync(b =>
+            b.AgentUserId == userId && b.Status == BillingStatus.Pending);
+        foreach (var billing in pendingBillings)
+        {
+            billing.Status = BillingStatus.Cancelled;
+            billing.CancelledAt = DateTime.UtcNow;
+            _uow.Billings.Update(billing);
+        }
+
         await _uow.SaveChangesAsync();
     }
 
@@ -243,6 +404,7 @@ public class PayPalBillingService : IBillingService
         var dueChanges = await _uow.SubscriptionChanges.FindAsync(c =>
             c.AgentUserId == userId &&
             c.Status == SubscriptionChangeStatus.Pending &&
+            c.ChangeType == SubscriptionChangeType.Downgrade &&
             c.EffectiveDate <= now);
 
         foreach (var change in dueChanges.OrderBy(c => c.EffectiveDate))
@@ -312,6 +474,102 @@ public class PayPalBillingService : IBillingService
         return invoice;
     }
 
+    private async Task<PayPalOrderResult> CreatePayPalOrderAsync(IPRO.Entities.Invoice invoice, string packageName, string returnUrl, string cancelUrl)
+    {
+        var accessToken = await GetPayPalAccessTokenAsync();
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var payload = new
+        {
+            intent = "CAPTURE",
+            purchase_units = new[]
+            {
+                new
+                {
+                    reference_id = invoice.InvoiceNumber,
+                    description = $"IPRO Advisers {packageName}",
+                    custom_id = invoice.Id.ToString(),
+                    amount = new
+                    {
+                        currency_code = invoice.Currency,
+                        value = invoice.Total.ToString("0.00")
+                    }
+                }
+            },
+            application_context = new
+            {
+                brand_name = "IPRO Advisers",
+                user_action = "PAY_NOW",
+                return_url = returnUrl,
+                cancel_url = cancelUrl
+            }
+        };
+
+        using var response = await client.PostAsync(
+            $"{_settings.BaseUrl}/v2/checkout/orders",
+            new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json"));
+
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"PayPal order creation failed: {json}");
+        }
+
+        using var document = JsonDocument.Parse(json);
+        var orderId = document.RootElement.GetProperty("id").GetString() ?? string.Empty;
+        var approvalUrl = document.RootElement.GetProperty("links").EnumerateArray()
+            .FirstOrDefault(link => link.TryGetProperty("rel", out var rel) && rel.GetString() == "approve")
+            .GetProperty("href").GetString() ?? string.Empty;
+
+        return new PayPalOrderResult(orderId, approvalUrl);
+    }
+
+    private async Task<bool> CapturePayPalOrderAsync(string orderId)
+    {
+        if (!HasPayPalSettings())
+        {
+            return false;
+        }
+
+        var accessToken = await GetPayPalAccessTokenAsync();
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var response = await client.PostAsync(
+            $"{_settings.BaseUrl}/v2/checkout/orders/{orderId}/capture",
+            new StringContent("{}", Encoding.UTF8, "application/json"));
+
+        return response.IsSuccessStatusCode;
+    }
+
+    private async Task<string> GetPayPalAccessTokenAsync()
+    {
+        var client = _httpClientFactory.CreateClient();
+        var rawCredentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_settings.ClientId}:{_settings.ClientSecret}"));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", rawCredentials);
+
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials"
+        });
+        using var response = await client.PostAsync($"{_settings.BaseUrl}/v1/oauth2/token", content);
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"PayPal token request failed: {json}");
+        }
+
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.GetProperty("access_token").GetString() ?? string.Empty;
+    }
+
+    private bool HasPayPalSettings()
+    {
+        return !string.IsNullOrWhiteSpace(_settings.ClientId)
+            && !string.IsNullOrWhiteSpace(_settings.ClientSecret);
+    }
+
     private static bool IsUpgrade(BillingRule currentPackage, BillingRule requestedPackage)
     {
         return GetComparableMonthlyPrice(requestedPackage) > GetComparableMonthlyPrice(currentPackage);
@@ -345,4 +603,6 @@ public class PayPalBillingService : IBillingService
         BillingPeriod.Annually => startDate.AddYears(1),
         _ => startDate.AddMonths(1)
     };
+
+    private sealed record PayPalOrderResult(string OrderId, string ApprovalUrl);
 }

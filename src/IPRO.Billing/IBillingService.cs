@@ -3,7 +3,8 @@ namespace IPRO.Billing;
 public interface IBillingService
 {
     Task<IPRO.Entities.Billing?> GetActiveSubscriptionAsync(int userId);
-    Task<bool> CreateSubscriptionAsync(int userId, int billingRuleId, IPRO.Entities.BillingPeriod period);
+    Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, IPRO.Entities.BillingPeriod period, string returnUrl, string cancelUrl);
+    Task<BillingChangeResult> CapturePaymentAsync(int userId, string orderId);
     Task<IPRO.Entities.SubscriptionChange?> GetPendingChangeAsync(int userId);
     Task<bool> CancelSubscriptionAsync(int userId);
     Task<bool> HandleWebhookAsync(string eventType, string payload, string signature, decimal amount);

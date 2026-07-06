@@ -22,6 +22,7 @@ builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
+builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
 builder.Services.AddHttpClient();
