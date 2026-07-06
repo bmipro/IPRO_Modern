@@ -28,8 +28,9 @@ public class AgentService : IAgentService
     public async Task<AgentUser?> AuthenticateAsync(string username, string password)
     {
         username = username?.Trim() ?? "";
+        var normalizedEmail = username.ToLowerInvariant();
         var user = await GetByUsernameAsync(username)
-            ?? await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == username);
+            ?? await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
         if (user == null || !user.IsActive) return null;
         var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
         return result == PasswordVerificationResult.Success ? user : null;
@@ -76,8 +77,11 @@ public class AgentService : IAgentService
     public Task<bool> UsernameExistsAsync(string username) =>
         _uow.AgentUsers.ExistsAsync(u => u.UserName == username);
 
-    public Task<bool> EmailExistsAsync(string email) =>
-        _uow.AgentUsers.ExistsAsync(u => u.Email == email);
+    public Task<bool> EmailExistsAsync(string email)
+    {
+        email = email.Trim().ToLowerInvariant();
+        return _uow.AgentUsers.ExistsAsync(u => u.Email == email);
+    }
 
     public Task<bool> DomainExistsAsync(string domain) =>
         _uow.AgentUsers.ExistsAsync(u => u.DomainName == domain);

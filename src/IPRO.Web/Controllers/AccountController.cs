@@ -74,7 +74,7 @@ public class AccountController : Controller
             SetRegistrationVerifyCode();
             return View(model);
         }
-        if (await _agents.EmailExistsAsync(model.Email.Trim()))
+        if (await _agents.EmailExistsAsync(model.Email))
         {
             ModelState.AddModelError("", "An account already exists for this email address.");
             SetRegistrationVerifyCode();
@@ -282,7 +282,7 @@ public class AccountController : Controller
     {
         model.FirstName = model.FirstName?.Trim() ?? "";
         model.LastName = model.LastName?.Trim() ?? "";
-        model.Email = model.Email?.Trim() ?? "";
+        model.Email = (model.Email?.Trim() ?? "").ToLowerInvariant();
         model.Designation = model.Designation?.Trim() ?? "";
         model.CompanyName = model.CompanyName?.Trim() ?? "";
         model.CompanyAddress = model.CompanyAddress?.Trim() ?? "";

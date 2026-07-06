@@ -306,7 +306,7 @@ public class AgentsController : Controller
     private static void NormalizeAgent(AgentEditViewModel agent)
     {
         agent.UserName = agent.UserName?.Trim() ?? "";
-        agent.Email = agent.Email?.Trim() ?? "";
+        agent.Email = (agent.Email?.Trim() ?? "").ToLowerInvariant();
         agent.FirstName = agent.FirstName?.Trim() ?? "";
         agent.LastName = agent.LastName?.Trim() ?? "";
         agent.Designation = agent.Designation?.Trim() ?? "";
