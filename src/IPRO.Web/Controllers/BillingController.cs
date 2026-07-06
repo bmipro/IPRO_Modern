@@ -24,6 +24,7 @@ public class BillingController : Controller
     {
         ViewBag.Packages     = await _billing.GetPackagesAsync();
         ViewBag.Subscription = await _billing.GetActiveSubscriptionAsync(AgentId);
+        ViewBag.PendingChange = await _billing.GetPendingChangeAsync(AgentId);
         ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);
         ViewBag.PackageFeatures = await _uow.PackageFeatures.GetAllAsync();
         return View();
@@ -38,7 +39,10 @@ public class BillingController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        TempData["Success"] = "Subscription activated and invoice created.";
+        var pendingChange = await _billing.GetPendingChangeAsync(AgentId);
+        TempData["Success"] = pendingChange?.RequestedBillingRuleId == billingRuleId
+            ? $"Your package change is scheduled for {pendingChange.EffectiveDate:MMMM d, yyyy}."
+            : "Your subscription change was applied and the invoice was created.";
         return RedirectToAction(nameof(Index));
     }
 

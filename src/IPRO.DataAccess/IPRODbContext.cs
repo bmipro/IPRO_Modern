@@ -17,6 +17,7 @@ public class IPRODbContext : DbContext
     public DbSet<BillingRule> BillingRules => Set<BillingRule>();
     public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
     public DbSet<NewsLetter> NewsLetters => Set<NewsLetter>();
     public DbSet<NewsLetterArticle> NewsLetterArticles => Set<NewsLetterArticle>();
     public DbSet<DripCampaign> DripCampaigns => Set<DripCampaign>();
@@ -122,6 +123,34 @@ public class IPRODbContext : DbContext
             e.Property(i => i.SubTotal).HasPrecision(10, 2);
             e.Property(i => i.TaxAmount).HasPrecision(10, 2);
             e.Property(i => i.Total).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<SubscriptionChange>(e =>
+        {
+            e.HasOne(c => c.AgentUser)
+             .WithMany()
+             .HasForeignKey(c => c.AgentUserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(c => c.CurrentBillingRule)
+             .WithMany()
+             .HasForeignKey(c => c.CurrentBillingRuleId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(c => c.RequestedBillingRule)
+             .WithMany()
+             .HasForeignKey(c => c.RequestedBillingRuleId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(c => c.Billing)
+             .WithMany()
+             .HasForeignKey(c => c.BillingId)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            e.Property(c => c.ProratedCredit).HasPrecision(10, 2);
+            e.Property(c => c.ProratedCharge).HasPrecision(10, 2);
+            e.Property(c => c.AmountDue).HasPrecision(10, 2);
+            e.Property(c => c.Currency).HasMaxLength(3).IsRequired();
         });
 
         // NewsLetter → AgentUser

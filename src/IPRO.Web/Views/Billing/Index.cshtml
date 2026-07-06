@@ -5,6 +5,7 @@
         .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
         .ToList();
     var subscription = ViewBag.Subscription as IPRO.Entities.Billing;
+    var pendingChange = ViewBag.PendingChange as IPRO.Entities.SubscriptionChange;
     var invoices = ViewBag.Invoices as IEnumerable<IPRO.Entities.Invoice>;
     var allFeatures = ((ViewBag.PackageFeatures as IEnumerable<IPRO.Entities.PackageFeature>) ?? Enumerable.Empty<IPRO.Entities.PackageFeature>()).ToList();
     var featureRows = allFeatures
@@ -14,6 +15,7 @@
         .ThenBy(f => f.FeatureName)
         .ToList();
     var currentPackage = subscription == null ? null : packageList.FirstOrDefault(p => p.Id == subscription.BillingRuleId);
+    var pendingPackage = pendingChange == null ? null : packageList.FirstOrDefault(p => p.Id == pendingChange.RequestedBillingRuleId);
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -35,6 +37,17 @@
       @Html.AntiForgeryToken()
       <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Cancel your subscription? Your site will go offline at the end of the billing period.">Cancel Subscription</button>
     </form>
+  </div>
+}
+
+@if (pendingChange != null && pendingPackage != null)
+{
+  <div class="alert alert-info border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
+    <i class="fas fa-calendar-check fa-2x"></i>
+    <div>
+      <div class="fw-bold">Scheduled package change</div>
+      <small>Your @pendingChange.ChangeType.ToString().ToLowerInvariant() to @pendingPackage.PackageName will take effect on @pendingChange.EffectiveDate.ToString("MMMM d, yyyy").</small>
+    </div>
   </div>
 }
 else
@@ -59,11 +72,16 @@ else
             @foreach (var pkg in packageList)
             {
               var isCurrent = subscription?.BillingRuleId == pkg.Id;
+              var isPending = pendingChange?.RequestedBillingRuleId == pkg.Id;
               var isContactPackage = pkg.MonthlyPrice <= 0;
               <th class="text-center package-col @(isCurrent ? "current-package" : "")">
                 @if (isCurrent)
                 {
                   <span class="badge bg-primary mb-2">Current Plan</span>
+                }
+                @if (isPending)
+                {
+                  <span class="badge bg-info text-dark mb-2 ms-1">Scheduled</span>
                 }
                 <div class="h5 fw-bold mb-1">@pkg.PackageName</div>
                 @if (isContactPackage)
@@ -82,6 +100,10 @@ else
                   @if (isCurrent)
                   {
                     <button class="btn btn-outline-secondary btn-sm w-100" disabled>Current Plan</button>
+                  }
+                  else if (isPending)
+                  {
+                    <button class="btn btn-outline-secondary btn-sm w-100" disabled>Scheduled</button>
                   }
                   else if (isContactPackage)
                   {
