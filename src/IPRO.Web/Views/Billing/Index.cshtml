@@ -1,7 +1,9 @@
-@{ ViewData["Title"] = "Billing & Subscription";
-   var packages = ViewBag.Packages as IEnumerable<IPRO.Entities.BillingRule>;
-   var subscription = ViewBag.Subscription as IPRO.Entities.Billing;
-   var invoices = ViewBag.Invoices as IEnumerable<IPRO.Entities.Invoice>; }
+@{
+    ViewData["Title"] = "Billing & Subscription";
+    var packages = ViewBag.Packages as IEnumerable<IPRO.Entities.BillingRule>;
+    var subscription = ViewBag.Subscription as IPRO.Entities.Billing;
+    var invoices = ViewBag.Invoices as IEnumerable<IPRO.Entities.Invoice>;
+}
 
 <div class="row mb-4">
   <div class="col">
@@ -9,14 +11,13 @@
   </div>
 </div>
 
-<!-- Active subscription banner -->
 @if (subscription != null)
 {
   <div class="alert alert-success border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
     <i class="fas fa-check-circle fa-2x"></i>
     <div class="flex-grow-1">
       <div class="fw-bold">Subscription Active</div>
-      <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "—") · $@subscription.Amount.ToString("N2") @subscription.Currency</small>
+      <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@subscription.Amount.ToString("N2") @subscription.Currency</small>
     </div>
     <form asp-action="CancelSubscription" method="post">
       @Html.AntiForgeryToken()
@@ -32,28 +33,44 @@ else
   </div>
 }
 
-<!-- Packages -->
 @if (packages != null && packages.Any())
 {
   <h5 class="fw-bold mb-3">Available Packages</h5>
   <div class="row g-4 mb-5">
   @foreach (var pkg in packages)
   {
+    var isContactPackage = pkg.MonthlyPrice <= 0;
+    var maxClientsLabel = pkg.MaxClients < 0 ? "Unlimited clients" : $"Up to {pkg.MaxClients} clients";
+    var newslettersLabel = pkg.MaxNewsletters < 0 ? "Unlimited newsletters/year" : $"{pkg.MaxNewsletters} newsletters/year";
+    var canShowAnnualSavings = pkg.MonthlyPrice > 0 && pkg.AnnualPrice > 0 && pkg.AnnualPrice < pkg.MonthlyPrice * 12;
+    var annualSavings = canShowAnnualSavings
+      ? Math.Round((1 - pkg.AnnualPrice / (pkg.MonthlyPrice * 12)) * 100)
+      : 0;
+
     <div class="col-md-4">
       <div class="card border-0 shadow-sm h-100 @(subscription?.BillingRuleId == pkg.Id ? "border border-primary border-2" : "")">
         @if (subscription?.BillingRuleId == pkg.Id)
-        { <div class="card-header bg-primary text-white text-center py-2 fw-bold">Your Current Plan</div> }
+        {
+          <div class="card-header bg-primary text-white text-center py-2 fw-bold">Your Current Plan</div>
+        }
         <div class="card-body p-4 text-center">
           <h4 class="fw-bold">@pkg.PackageName</h4>
           <p class="text-muted small">@pkg.Description</p>
-          <div class="display-5 fw-bold text-primary my-3">$@pkg.MonthlyPrice.ToString("N0")<small class="fs-6 text-muted fw-normal">/mo</small></div>
+          @if (isContactPackage)
+          {
+            <div class="display-6 fw-bold text-primary my-3">Contact Us</div>
+          }
+          else
+          {
+            <div class="display-5 fw-bold text-primary my-3">$@pkg.MonthlyPrice.ToString("N0")<small class="fs-6 text-muted fw-normal">/mo</small></div>
+          }
           <ul class="list-unstyled text-start small mb-4">
-            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Up to @pkg.MaxClients clients</li>
-            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>@pkg.MaxNewsletters newsletters/year</li>
+            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>@maxClientsLabel</li>
+            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>@newslettersLabel</li>
             <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Custom domain website</li>
             <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Drip email campaigns</li>
           </ul>
-          @if (subscription == null)
+          @if (subscription == null && !isContactPackage)
           {
             <form asp-action="Subscribe" method="post">
               @Html.AntiForgeryToken()
@@ -61,21 +78,38 @@ else
               <div class="d-grid gap-2">
                 <button type="submit" name="period" value="Monthly" class="btn btn-primary">Subscribe Monthly</button>
                 <button type="submit" name="period" value="Annually" class="btn btn-outline-primary">
-                  Annual – $@pkg.AnnualPrice.ToString("N0")/yr <span class="badge bg-success ms-1">Save @(Math.Round((1 - pkg.AnnualPrice / (pkg.MonthlyPrice * 12)) * 100))%</span>
+                  Annual - $@pkg.AnnualPrice.ToString("N0")/yr
+                  @if (canShowAnnualSavings)
+                  {
+                    <span class="badge bg-success ms-1">Save @annualSavings%</span>
+                  }
                 </button>
               </div>
             </form>
           }
+          else if (subscription == null)
+          {
+            <a href="mailto:support@iproadvisers.com?subject=Broker%20Package%20Inquiry" class="btn btn-outline-primary w-100">Contact Us</a>
+          }
           else if (subscription.BillingRuleId == pkg.Id)
-          { <button class="btn btn-outline-secondary w-100 disabled">Current Plan</button> }
+          {
+            <button class="btn btn-outline-secondary w-100 disabled">Current Plan</button>
+          }
         </div>
       </div>
     </div>
   }
   </div>
 }
+else
+{
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5 text-muted">
+      No active billing packages are available yet.
+    </div>
+  </div>
+}
 
-<!-- Invoices -->
 @if (invoices != null && invoices.Any())
 {
   <h5 class="fw-bold mb-3">Invoice History</h5>
