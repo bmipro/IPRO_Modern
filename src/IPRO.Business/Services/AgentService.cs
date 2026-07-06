@@ -27,7 +27,9 @@ public class AgentService : IAgentService
 
     public async Task<AgentUser?> AuthenticateAsync(string username, string password)
     {
-        var user = await GetByUsernameAsync(username);
+        username = username?.Trim() ?? "";
+        var user = await GetByUsernameAsync(username)
+            ?? await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == username);
         if (user == null || !user.IsActive) return null;
         var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
         return result == PasswordVerificationResult.Success ? user : null;

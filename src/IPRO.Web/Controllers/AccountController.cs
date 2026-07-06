@@ -28,7 +28,7 @@ public class AccountController : Controller
 
     [HttpGet] public IActionResult Login() => View();
 
-    [HttpPost]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password, bool rememberMe = false)
     {
         var user = await _agents.AuthenticateAsync(username, password);
@@ -47,9 +47,10 @@ public class AccountController : Controller
         return View(new AgentRegistrationViewModel());
     }
 
-    [HttpPost]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(AgentRegistrationViewModel model, string verificationCode, bool acceptTerms = false)
     {
+        NormalizeRegistration(model);
         var expectedVerificationCode = HttpContext.Session.GetString(RegistrationVerifyCodeSessionKey);
         if (string.IsNullOrWhiteSpace(model.FirstName)) ModelState.AddModelError("", "First name is required.");
         if (string.IsNullOrWhiteSpace(model.LastName)) ModelState.AddModelError("", "Last name is required.");
@@ -80,7 +81,6 @@ public class AccountController : Controller
             return View(model);
         }
 
-        NormalizeRegistration(model);
         var agent = ToAgentUser(model);
         agent.UserName = await GenerateUniqueUserNameAsync(agent.FirstName, agent.LastName);
         agent.DomainName = await GenerateUniqueDomainAsync(agent.UserName);
@@ -147,7 +147,7 @@ public class AccountController : Controller
     public IActionResult ChangePassword() => View();
 
     [Authorize]
-    [HttpPost]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword(string newPassword, string confirmPassword)
     {
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
@@ -238,9 +238,13 @@ public class AccountController : Controller
 
     private static string GenerateTemporaryPassword(string firstName, string lastName)
     {
-        var initials = $"{firstName.FirstOrDefault()}{lastName.FirstOrDefault()}".ToUpperInvariant();
-        var random = RandomNumberGenerator.GetInt32(100000, 999999);
-        return $"IPRO-{initials}-{DateTime.UtcNow:yyyyMMdd}-{random}!";
+        var password = NormalizeIdentifier(lastName);
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            password = NormalizeIdentifier($"{firstName}{lastName}");
+        }
+
+        return string.IsNullOrWhiteSpace(password) ? "ChangeMe123!" : password;
     }
 
     private static RegistrationWelcomeModel BuildWelcomeModel(AgentUser model, string temporaryPassword) => new()
@@ -276,18 +280,18 @@ public class AccountController : Controller
 
     private static void NormalizeRegistration(AgentRegistrationViewModel model)
     {
-        model.FirstName = model.FirstName.Trim();
-        model.LastName = model.LastName.Trim();
-        model.Email = model.Email.Trim();
+        model.FirstName = model.FirstName?.Trim() ?? "";
+        model.LastName = model.LastName?.Trim() ?? "";
+        model.Email = model.Email?.Trim() ?? "";
         model.Designation = model.Designation?.Trim() ?? "";
-        model.CompanyName = model.CompanyName.Trim();
+        model.CompanyName = model.CompanyName?.Trim() ?? "";
         model.CompanyAddress = model.CompanyAddress?.Trim() ?? "";
-        model.City = model.City.Trim();
-        model.Province = model.Province.Trim();
-        model.PostalCode = model.PostalCode.Trim();
-        model.Country = model.Country.Trim();
+        model.City = model.City?.Trim() ?? "";
+        model.Province = model.Province?.Trim() ?? "";
+        model.PostalCode = model.PostalCode?.Trim() ?? "";
+        model.Country = model.Country?.Trim() ?? "";
         model.TimeZone = model.TimeZone?.Trim() ?? "";
-        model.Phone = model.Phone.Trim();
+        model.Phone = model.Phone?.Trim() ?? "";
         model.BusinessFax = model.BusinessFax?.Trim() ?? "";
         model.CellPhone = model.CellPhone?.Trim() ?? "";
         model.BusinessType = model.BusinessType?.Trim() ?? "";
