@@ -10,8 +10,8 @@ public class IPRODbContextFactory : IDesignTimeDbContextFactory<IPRODbContext>
     {
         var options = new DbContextOptionsBuilder<IPRODbContext>()
             .UseMySql(
-                "Server=localhost;Database=ipro_design_time;User=root;Password=password;",
-                new MySqlServerVersion(new Version(8, 0, 0)))
+                "server=localhost;port=3306;database=ipro_design_time;user=root;password=password;",
+                new MySqlServerVersion(new Version(8, 0, 36)))
             .Options;
 
         return new IPRODbContext(options);

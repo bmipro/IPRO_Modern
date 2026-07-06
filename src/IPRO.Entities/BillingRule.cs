@@ -14,4 +14,5 @@ public class BillingRule
     public int MaxNewsletters { get; set; } = 12;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public ICollection<PackageFeature> Features { get; set; } = new List<PackageFeature>();
 }

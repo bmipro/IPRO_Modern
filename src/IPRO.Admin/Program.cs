@@ -18,6 +18,7 @@ builder.Services.AddDbContext<IPRODbContext>(o =>
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAgentService, AgentService>();
+builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
@@ -74,6 +75,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
     await db.Database.MigrateAsync();
+    await PackageEntitlementSeeder.SeedAsync(db);
 }
 
 app.Run();

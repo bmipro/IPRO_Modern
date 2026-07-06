@@ -15,6 +15,7 @@ public class IPRODbContext : DbContext
     public DbSet<ClientComment> ClientComments => Set<ClientComment>();
     public DbSet<Billing> Billings => Set<Billing>();
     public DbSet<BillingRule> BillingRules => Set<BillingRule>();
+    public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<NewsLetter> NewsLetters => Set<NewsLetter>();
     public DbSet<NewsLetterArticle> NewsLetterArticles => Set<NewsLetterArticle>();
@@ -156,6 +157,18 @@ public class IPRODbContext : DbContext
             e.Property(r => r.MonthlyPrice).HasPrecision(10, 2);
             e.Property(r => r.QuarterlyPrice).HasPrecision(10, 2);
             e.Property(r => r.AnnualPrice).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<PackageFeature>(e =>
+        {
+            e.HasIndex(f => new { f.BillingRuleId, f.FeatureCode }).IsUnique();
+            e.Property(f => f.FeatureCode).HasMaxLength(120).IsRequired();
+            e.Property(f => f.FeatureName).HasMaxLength(180).IsRequired();
+            e.Property(f => f.LimitLabel).HasMaxLength(120);
+            e.HasOne(f => f.BillingRule)
+             .WithMany(r => r.Features)
+             .HasForeignKey(f => f.BillingRuleId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

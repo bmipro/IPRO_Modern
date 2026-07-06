@@ -16,6 +16,7 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<ClientComment> ClientComments { get; }
     IRepository<Billing> Billings { get; }
     IRepository<BillingRule> BillingRules { get; }
+    IRepository<PackageFeature> PackageFeatures { get; }
     IRepository<Invoice> Invoices { get; }
     IRepository<NewsLetter> NewsLetters { get; }
     IRepository<NewsLetterArticle> NewsLetterArticles { get; }
