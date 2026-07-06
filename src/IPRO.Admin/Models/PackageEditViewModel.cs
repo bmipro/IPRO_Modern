@@ -9,15 +9,15 @@ public class PackageEditViewModel
     [Required]
     public string PackageName { get; set; } = string.Empty;
 
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
     [Required]
     public decimal MonthlyPrice { get; set; }
 
     public decimal? QuarterlyPrice { get; set; }
     public decimal? AnnualPrice { get; set; }
-    public string PayPalMonthlyPlanId { get; set; } = string.Empty;
-    public string PayPalAnnualPlanId { get; set; } = string.Empty;
+    public string? PayPalMonthlyPlanId { get; set; }
+    public string? PayPalAnnualPlanId { get; set; }
     public int MaxClients { get; set; } = 500;
     public int? MaxNewsletters { get; set; } = 12;
     public bool IsActive { get; set; } = true;
@@ -31,6 +31,6 @@ public class PackageFeatureEditViewModel
     public string FeatureName { get; set; } = string.Empty;
     public bool IsIncluded { get; set; }
     public int? LimitValue { get; set; }
-    public string LimitLabel { get; set; } = string.Empty;
+    public string? LimitLabel { get; set; }
     public int SortOrder { get; set; }
 }
