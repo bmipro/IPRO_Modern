@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IPRO.Billing;
+using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,14 +11,21 @@ namespace IPRO.Web.Controllers;
 public class BillingController : Controller
 {
     private readonly IBillingService _billing;
+    private readonly IUnitOfWork _uow;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public BillingController(IBillingService billing) => _billing = billing;
+
+    public BillingController(IBillingService billing, IUnitOfWork uow)
+    {
+        _billing = billing;
+        _uow = uow;
+    }
 
     public async Task<IActionResult> Index()
     {
         ViewBag.Packages     = await _billing.GetPackagesAsync();
         ViewBag.Subscription = await _billing.GetActiveSubscriptionAsync(AgentId);
         ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);
+        ViewBag.PackageFeatures = await _uow.PackageFeatures.GetAllAsync();
         return View();
     }
     [HttpPost, ValidateAntiForgeryToken]
