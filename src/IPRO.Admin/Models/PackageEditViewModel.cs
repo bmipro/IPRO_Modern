@@ -14,12 +14,12 @@ public class PackageEditViewModel
     [Required]
     public decimal MonthlyPrice { get; set; }
 
-    public decimal QuarterlyPrice { get; set; }
-    public decimal AnnualPrice { get; set; }
+    public decimal? QuarterlyPrice { get; set; }
+    public decimal? AnnualPrice { get; set; }
     public string PayPalMonthlyPlanId { get; set; } = string.Empty;
     public string PayPalAnnualPlanId { get; set; } = string.Empty;
     public int MaxClients { get; set; } = 500;
-    public int MaxNewsletters { get; set; } = 12;
+    public int? MaxNewsletters { get; set; } = 12;
     public bool IsActive { get; set; } = true;
     public List<PackageFeatureEditViewModel> Features { get; set; } = new();
 }

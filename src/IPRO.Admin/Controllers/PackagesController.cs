@@ -91,12 +91,12 @@ public class PackagesController : Controller
             PackageName = rule.PackageName,
             Description = rule.Description,
             MonthlyPrice = rule.MonthlyPrice,
-            QuarterlyPrice = rule.QuarterlyPrice,
-            AnnualPrice = rule.AnnualPrice,
+            QuarterlyPrice = rule.QuarterlyPrice == 0 ? null : rule.QuarterlyPrice,
+            AnnualPrice = rule.AnnualPrice == 0 ? null : rule.AnnualPrice,
             PayPalMonthlyPlanId = rule.PayPalMonthlyPlanId,
             PayPalAnnualPlanId = rule.PayPalAnnualPlanId,
             MaxClients = rule.MaxClients,
-            MaxNewsletters = rule.MaxNewsletters,
+            MaxNewsletters = rule.MaxNewsletters == 0 ? null : rule.MaxNewsletters,
             IsActive = rule.IsActive,
             Features = features
         };
@@ -206,12 +206,12 @@ public class PackagesController : Controller
         rule.PackageName = model.PackageName;
         rule.Description = model.Description ?? string.Empty;
         rule.MonthlyPrice = model.MonthlyPrice;
-        rule.QuarterlyPrice = model.QuarterlyPrice;
-        rule.AnnualPrice = model.AnnualPrice;
+        rule.QuarterlyPrice = model.QuarterlyPrice ?? 0;
+        rule.AnnualPrice = model.AnnualPrice ?? 0;
         rule.PayPalMonthlyPlanId = model.PayPalMonthlyPlanId ?? string.Empty;
         rule.PayPalAnnualPlanId = model.PayPalAnnualPlanId ?? string.Empty;
         rule.MaxClients = ResolveMaxClients(model);
-        rule.MaxNewsletters = model.MaxNewsletters;
+        rule.MaxNewsletters = model.MaxNewsletters ?? 0;
         rule.IsActive = model.IsActive;
     }
 
@@ -235,7 +235,7 @@ public class PackagesController : Controller
             return contacts.LimitValue.Value;
         }
 
-        if (contacts.LimitLabel.Contains("unlimited", StringComparison.OrdinalIgnoreCase))
+        if ((contacts.LimitLabel ?? string.Empty).Contains("unlimited", StringComparison.OrdinalIgnoreCase))
         {
             return Unlimited;
         }

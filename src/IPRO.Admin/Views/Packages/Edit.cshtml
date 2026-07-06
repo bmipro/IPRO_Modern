@@ -12,7 +12,7 @@
 <form asp-action="Edit" method="post">
   @Html.AntiForgeryToken()
   <input type="hidden" asp-for="Id"/>
-  <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+  <div asp-validation-summary="All" class="text-danger mb-3"></div>
   <div class="row g-3 mb-3">
     <div class="col-lg-6"><label class="form-label fw-semibold">Package Name <span class="text-danger">*</span></label><input asp-for="PackageName" class="form-control" required/></div>
     <div class="col-lg-6"><label class="form-label fw-semibold">Description</label><input asp-for="Description" class="form-control"/></div>
@@ -24,7 +24,7 @@
   </div>
   <input type="hidden" asp-for="MaxClients"/>
   <div class="row g-3 mb-3">
-    <div class="col-md-6"><label class="form-label fw-semibold">Max Newsletters/year</label><input asp-for="MaxNewsletters" type="number" class="form-control"/></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">Max Newsletters/year</label><input asp-for="MaxNewsletters" type="number" class="form-control" placeholder="blank if not limited"/></div>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-6"><label class="form-label fw-semibold">PayPal Monthly Plan ID</label><input asp-for="PayPalMonthlyPlanId" class="form-control"/></div>
