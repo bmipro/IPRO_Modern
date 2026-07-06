@@ -20,12 +20,21 @@ public class BillingController : Controller
         ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);
         return View();
     }
-  [HttpPost, ValidateAntiForgeryToken]
-public async Task<IActionResult> Subscribe(int billingRuleId, IPRO.Billing.BillingPeriod period)
-{
-    // TODO: implement this
-    return Ok(); 
-}  public IActionResult Success() { TempData["Success"] = "Subscription activated!"; return RedirectToAction(nameof(Index)); }
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Subscribe(int billingRuleId, BillingPeriod period)
+    {
+        var created = await _billing.CreateSubscriptionAsync(AgentId, billingRuleId, period);
+        if (!created)
+        {
+            TempData["Error"] = "We could not activate that subscription. Please choose an active package.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        TempData["Success"] = "Subscription activated and invoice created.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    public IActionResult Success() { TempData["Success"] = "Subscription activated!"; return RedirectToAction(nameof(Index)); }
     public IActionResult Cancel()  { TempData["Warning"] = "Subscription was cancelled."; return RedirectToAction(nameof(Index)); }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> CancelSubscription() { await _billing.CancelSubscriptionAsync(AgentId); TempData["Success"] = "Subscription cancelled."; return RedirectToAction(nameof(Index)); }
