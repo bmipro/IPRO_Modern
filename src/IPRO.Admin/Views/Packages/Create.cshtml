@@ -21,8 +21,8 @@
     <div class="col-md-4"><label class="form-label fw-semibold">Quarterly Price ($)</label><input asp-for="QuarterlyPrice" type="number" step="0.01" class="form-control"/></div>
     <div class="col-md-4"><label class="form-label fw-semibold">Annual Price ($)</label><input asp-for="AnnualPrice" type="number" step="0.01" class="form-control"/></div>
   </div>
+  <input type="hidden" asp-for="MaxClients"/>
   <div class="row g-3 mb-3">
-    <div class="col-md-6"><label class="form-label fw-semibold">Max Clients</label><input asp-for="MaxClients" type="number" class="form-control"/></div>
     <div class="col-md-6"><label class="form-label fw-semibold">Max Newsletters/year</label><input asp-for="MaxNewsletters" type="number" class="form-control"/></div>
   </div>
   <div class="row g-3 mb-3">

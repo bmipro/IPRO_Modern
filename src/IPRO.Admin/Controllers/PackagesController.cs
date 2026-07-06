@@ -9,6 +9,7 @@ namespace IPRO.Admin.Controllers;
 [Authorize]
 public class PackagesController : Controller
 {
+    private const int Unlimited = -1;
     private readonly IUnitOfWork _uow;
 
     public PackagesController(IUnitOfWork uow) => _uow = uow;
@@ -209,8 +210,36 @@ public class PackagesController : Controller
         rule.AnnualPrice = model.AnnualPrice;
         rule.PayPalMonthlyPlanId = model.PayPalMonthlyPlanId ?? string.Empty;
         rule.PayPalAnnualPlanId = model.PayPalAnnualPlanId ?? string.Empty;
-        rule.MaxClients = model.MaxClients;
+        rule.MaxClients = ResolveMaxClients(model);
         rule.MaxNewsletters = model.MaxNewsletters;
         rule.IsActive = model.IsActive;
+    }
+
+    private static int ResolveMaxClients(PackageEditViewModel model)
+    {
+        var contacts = model.Features.FirstOrDefault(f =>
+            string.Equals(f.FeatureCode, PackageFeatureCodes.Contacts, StringComparison.OrdinalIgnoreCase));
+
+        if (contacts == null)
+        {
+            return model.MaxClients;
+        }
+
+        if (!contacts.IsIncluded)
+        {
+            return 0;
+        }
+
+        if (contacts.LimitValue.HasValue)
+        {
+            return contacts.LimitValue.Value;
+        }
+
+        if (contacts.LimitLabel.Contains("unlimited", StringComparison.OrdinalIgnoreCase))
+        {
+            return Unlimited;
+        }
+
+        return model.MaxClients > 0 ? model.MaxClients : Unlimited;
     }
 }
