@@ -8,6 +8,7 @@
     </div>
     <div class="d-flex gap-2">
         <a href="/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
+        <a href="/Clients/AccountTypes" class="btn btn-outline-primary"><i class="fas fa-tags me-1"></i>Account Types</a>
         <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal"><i class="fas fa-file-import me-1"></i>Import CSV</button>
         <a href="/Clients/ExportCsv" class="btn btn-outline-success"><i class="fas fa-download me-1"></i>Export</a>
     </div>
@@ -37,7 +38,7 @@
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead>
-                <tr><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Newsletter</th><th>Added</th><th></th></tr>
+                <tr><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Account Types</th><th>Newsletter</th><th>Added</th><th></th></tr>
             </thead>
             <tbody>
             @foreach (var c in Model)
@@ -49,6 +50,23 @@
                     <td><a href="mailto:@c.Email" class="text-decoration-none text-muted small">@c.Email</a></td>
                     <td><small class="text-muted">@(c.Phone ?? "—")</small></td>
                     <td><small class="text-muted">@(c.City ?? "—")</small></td>
+                    <td>
+                        @if (c.Categories.Any())
+                        {
+                            <div class="d-flex flex-wrap gap-1">
+                            @foreach (var category in c.Categories.OrderBy(x => x.Name).Take(3))
+                            {
+                                <span class="badge bg-primary-subtle text-primary rounded-pill">@category.Name</span>
+                            }
+                            @if (c.Categories.Count > 3)
+                            {
+                                <span class="badge bg-light text-muted rounded-pill">+@(c.Categories.Count - 3)</span>
+                            }
+                            </div>
+                        }
+                        else
+                        { <small class="text-muted">-</small> }
+                    </td>
                     <td>
                         @if (c.IsNewsletterSubscribed)
                         { <span class="badge bg-success-subtle text-success rounded-pill"><i class="fas fa-check me-1"></i>Yes</span> }
@@ -71,7 +89,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
+                    <td colspan="8" class="text-center py-5 text-muted">
                         <i class="fas fa-users fa-3x d-block mb-3 opacity-25"></i>
                         No clients yet. <a href="/Clients/Create">Add your first client</a> or <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#importModal">import from CSV</button>.
                     </td>

@@ -1,0 +1,67 @@
+@{
+    ViewData["Title"] = "Account Types";
+    var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory>) ?? Enumerable.Empty<IPRO.Entities.ClientCategory>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1"><li class="breadcrumb-item"><a href="/Clients">Clients</a></li><li class="breadcrumb-item active">Account Types</li></ol>
+    </nav>
+    <h2 class="fw-bold mb-0"><i class="fas fa-tags me-2 text-primary"></i>Account Types</h2>
+    <small class="text-muted">Create client groupings like seminar attendees, life insurance prospects, or mailing groups.</small>
+  </div>
+  <a href="/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-3">New Account Type</h5>
+        <form asp-action="CreateAccountType" method="post">
+          @Html.AntiForgeryToken()
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Name</label>
+            <input name="name" class="form-control" maxlength="120" placeholder="Met in 2026 Seminar" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="3" maxlength="250" placeholder="Optional note for this grouping"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Account Type</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Name</th><th>Description</th><th></th></tr></thead>
+          <tbody>
+          @foreach (var type in accountTypes)
+          {
+            <tr>
+              <td class="fw-semibold">@type.Name</td>
+              <td><small class="text-muted">@(!string.IsNullOrWhiteSpace(type.Description) ? type.Description : "-")</small></td>
+              <td class="text-end">
+                <form asp-action="DeleteAccountType" asp-route-id="@type.Id" method="post">
+                  @Html.AntiForgeryToken()
+                  <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete this account type? Existing clients will be ungrouped from it.">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+          }
+          @if (!accountTypes.Any())
+          {
+            <tr><td colspan="3" class="text-center py-5 text-muted">No account types yet. Add your first grouping.</td></tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

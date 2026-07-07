@@ -1,5 +1,9 @@
 @model IPRO.Entities.Client
-@{ ViewData["Title"] = "Add Client"; }
+@{
+    ViewData["Title"] = "Add Client";
+    var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory>) ?? Enumerable.Empty<IPRO.Entities.ClientCategory>();
+    var selectedCategoryIds = (ViewBag.SelectedCategoryIds as HashSet<int>) ?? new HashSet<int>();
+}
 
 <div class="row mb-4">
   <div class="col">
@@ -71,6 +75,36 @@
       </div>
     </div>
     <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="form-label fw-semibold mb-0">Account Type</label>
+        <a href="/Clients/AccountTypes" class="small fw-semibold text-decoration-none"><i class="fas fa-tags me-1"></i>Manage account types</a>
+      </div>
+      @if (accountTypes.Any())
+      {
+        <div class="account-type-grid">
+          @foreach (var type in accountTypes)
+          {
+            <label class="account-type-option">
+              <input type="checkbox" name="categoryIds" value="@type.Id" @(selectedCategoryIds.Contains(type.Id) ? "checked" : "")/>
+              <span>
+                <strong>@type.Name</strong>
+                @if (!string.IsNullOrWhiteSpace(type.Description))
+                {
+                  <small>@type.Description</small>
+                }
+              </span>
+            </label>
+          }
+        </div>
+      }
+      else
+      {
+        <div class="alert alert-light border mb-0">
+          No account types yet. <a href="/Clients/AccountTypes">Create account types</a> to group clients.
+        </div>
+      }
+    </div>
+    <div class="col-12">
       <label class="form-label fw-semibold">Notes</label>
       <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Any notes about this client…"></textarea>
     </div>
@@ -85,3 +119,11 @@
 </div>
 </div>
 </div>
+
+<style>
+  .account-type-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;}
+  .account-type-option{display:flex;align-items:flex-start;gap:.65rem;border:1px solid #dbe3ef;border-radius:.75rem;padding:.75rem;background:#f8fafc;cursor:pointer;}
+  .account-type-option input{margin-top:.2rem;accent-color:#0d6efd;}
+  .account-type-option span{display:flex;flex-direction:column;line-height:1.2;}
+  .account-type-option small{color:#64748b;margin-top:.25rem;}
+</style>
