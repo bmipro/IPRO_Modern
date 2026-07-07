@@ -28,7 +28,6 @@ public class PackagesController : Controller
                 PackageName = p.PackageName,
                 Description = p.Description,
                 MonthlyPrice = p.MonthlyPrice,
-                QuarterlyPrice = p.QuarterlyPrice,
                 AnnualPrice = p.AnnualPrice,
                 ContactsLimit = FormatFeatureLimit(features.FirstOrDefault(f =>
                     f.BillingRuleId == p.Id &&

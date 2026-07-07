@@ -41,7 +41,6 @@ public class PackageListViewModel
     public string PackageName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal MonthlyPrice { get; set; }
-    public decimal QuarterlyPrice { get; set; }
     public decimal AnnualPrice { get; set; }
     public string ContactsLimit { get; set; } = string.Empty;
     public string DomainsLimit { get; set; } = string.Empty;

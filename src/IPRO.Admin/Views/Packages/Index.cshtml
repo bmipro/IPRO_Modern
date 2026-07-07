@@ -9,7 +9,7 @@
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>Package</th><th>Monthly</th><th>Quarterly</th><th>Annual</th><th>Contacts</th><th>Domains</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Package</th><th>Monthly</th><th>Annual</th><th>Contacts</th><th>Domains</th><th>Status</th><th></th></tr></thead>
       <tbody>
       @foreach (var p in Model)
       {
@@ -19,7 +19,6 @@
             <small class="text-muted">@p.Description</small>
           </td>
           <td class="fw-bold text-primary">$@p.MonthlyPrice.ToString("N2")</td>
-          <td>$@p.QuarterlyPrice.ToString("N2")</td>
           <td>$@p.AnnualPrice.ToString("N2")</td>
           <td>@p.ContactsLimit</td>
           <td>@p.DomainsLimit</td>
@@ -35,7 +34,7 @@
         </tr>
       }
       @if (!Model.Any())
-      { <tr><td colspan="8" class="text-center py-4 text-muted">No packages yet. <a href="/Packages/Create">Create one.</a></td></tr> }
+      { <tr><td colspan="7" class="text-center py-4 text-muted">No packages yet. <a href="/Packages/Create">Create one.</a></td></tr> }
       </tbody>
     </table>
   </div>
