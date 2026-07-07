@@ -14,7 +14,7 @@ public interface IContactImporter
     byte[] ExportToCsvAsync(IEnumerable<Client> clients);
 }
 
-public record ImportResult(int Imported, int Skipped, int Errors, List<string> Messages);
+public record ImportResult(int Imported, int Skipped, int Errors, List<string> Messages, List<Client> Clients);
 
 public class ContactImporter : IContactImporter
 {
@@ -85,7 +85,7 @@ public class ContactImporter : IContactImporter
             }
         }
 
-        return new ImportResult(imported, skipped, errors, messages);
+        return new ImportResult(imported, skipped, errors, messages, clients);
     }
 
     // ── vCard Import ──────────────────────────────────────
@@ -119,7 +119,7 @@ public class ContactImporter : IContactImporter
             }
         }
 
-        return new ImportResult(imported, skipped, errors, messages);
+        return new ImportResult(imported, skipped, errors, messages, new List<Client>());
     }
 
     // ── CSV Export ────────────────────────────────────────

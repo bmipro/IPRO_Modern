@@ -1,12 +1,17 @@
 @model IEnumerable<IPRO.Entities.Client>
-@{ ViewData["Title"] = "My Clients"; }
+@{
+    ViewData["Title"] = "My Clients";
+    var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory>) ?? Enumerable.Empty<IPRO.Entities.ClientCategory>();
+    var selectedAccountTypeId = ViewBag.AccountTypeId as int?;
+    var selectedNewsletter = ViewBag.Newsletter as string;
+}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
         <h2 class="fw-bold mb-0"><i class="fas fa-users me-2 text-primary"></i>My Clients</h2>
         <small class="text-muted">@ViewBag.TotalCount total contacts</small>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <a href="/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
         <a href="/Clients/AccountTypes" class="btn btn-outline-primary"><i class="fas fa-tags me-1"></i>Account Types</a>
         <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal"><i class="fas fa-file-import me-1"></i>Import CSV</button>
@@ -14,26 +19,42 @@
     </div>
 </div>
 
-<!-- Search bar -->
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body p-3">
         <form method="get" class="row g-2">
-            <div class="col-md-9">
+            <div class="col-lg-5">
                 <div class="input-group">
                     <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" name="search" value="@ViewBag.Search" class="form-control border-start-0" placeholder="Search by name, email or phone…"/>
+                    <input type="text" name="search" value="@ViewBag.Search" class="form-control border-start-0" placeholder="Search name, company, email, phone, city, or account type..."/>
                 </div>
             </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button type="submit" class="btn btn-primary flex-grow-1">Search</button>
-                @if (!string.IsNullOrEmpty(ViewBag.Search as string))
-                { <a href="/Clients" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a> }
+            <div class="col-lg-3">
+                <select name="accountTypeId" class="form-select">
+                    <option value="">All account types</option>
+                    @foreach (var type in accountTypes)
+                    {
+                        <option value="@type.Id" selected="@(selectedAccountTypeId == type.Id)">@type.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <select name="newsletter" class="form-select">
+                    <option value="">All newsletter</option>
+                    <option value="yes" selected="@(selectedNewsletter == "yes")">Subscribed</option>
+                    <option value="no" selected="@(selectedNewsletter == "no")">Not subscribed</option>
+                </select>
+            </div>
+            <div class="col-lg-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
+                @if (!string.IsNullOrEmpty(ViewBag.Search as string) || selectedAccountTypeId.HasValue || !string.IsNullOrEmpty(selectedNewsletter))
+                {
+                    <a href="/Clients" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
+                }
             </div>
         </form>
     </div>
 </div>
 
-<!-- Client table -->
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -46,10 +67,14 @@
                 <tr>
                     <td>
                         <div class="fw-semibold">@c.FirstName @c.LastName</div>
+                        @if (!string.IsNullOrWhiteSpace(c.CompanyName))
+                        {
+                            <small class="text-muted">@c.CompanyName</small>
+                        }
                     </td>
                     <td><a href="mailto:@c.Email" class="text-decoration-none text-muted small">@c.Email</a></td>
-                    <td><small class="text-muted">@(c.Phone ?? "—")</small></td>
-                    <td><small class="text-muted">@(c.City ?? "—")</small></td>
+                    <td><small class="text-muted">@(!string.IsNullOrWhiteSpace(c.CellPhone) ? c.CellPhone : (!string.IsNullOrWhiteSpace(c.Phone) ? c.Phone : "-"))</small></td>
+                    <td><small class="text-muted">@(!string.IsNullOrWhiteSpace(c.City) ? c.City : "-")</small></td>
                     <td>
                         @if (c.Categories.Any())
                         {
@@ -65,13 +90,19 @@
                             </div>
                         }
                         else
-                        { <small class="text-muted">-</small> }
+                        {
+                            <small class="text-muted">-</small>
+                        }
                     </td>
                     <td>
                         @if (c.IsNewsletterSubscribed)
-                        { <span class="badge bg-success-subtle text-success rounded-pill"><i class="fas fa-check me-1"></i>Yes</span> }
+                        {
+                            <span class="badge bg-success-subtle text-success rounded-pill"><i class="fas fa-check me-1"></i>Yes</span>
+                        }
                         else
-                        { <span class="badge bg-light text-muted rounded-pill">No</span> }
+                        {
+                            <span class="badge bg-light text-muted rounded-pill">No</span>
+                        }
                     </td>
                     <td><small class="text-muted">@c.CreatedAt.ToString("MMM d, yyyy")</small></td>
                     <td>
@@ -91,7 +122,7 @@
                 <tr>
                     <td colspan="8" class="text-center py-5 text-muted">
                         <i class="fas fa-users fa-3x d-block mb-3 opacity-25"></i>
-                        No clients yet. <a href="/Clients/Create">Add your first client</a> or <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#importModal">import from CSV</button>.
+                        No clients found. <a href="/Clients/Create">Add a client</a> or <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#importModal">import from CSV</button>.
                     </td>
                 </tr>
             }
@@ -100,7 +131,6 @@
     </div>
 </div>
 
-<!-- Import Modal -->
 <div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content border-0 shadow">
@@ -109,7 +139,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">Upload a CSV file. Required column: <strong>Email</strong>. Optional: First Name, Last Name, Phone, Address, City, Province, PostalCode.</p>
+                <p class="text-muted small">Upload a CSV file. Required columns: <strong>First Name</strong>, <strong>Last Name</strong>, and <strong>Email</strong>. Duplicate emails are skipped.</p>
                 <form asp-action="ImportCsv" method="post" enctype="multipart/form-data">
                     @Html.AntiForgeryToken()
                     <div class="mb-3">
@@ -118,9 +148,6 @@
                     </div>
                     <button type="submit" class="btn btn-success w-100"><i class="fas fa-upload me-1"></i>Import Now</button>
                 </form>
-            </div>
-            <div class="modal-footer border-0 pt-0">
-                <small class="text-muted">Also supports Outlook CSV and vCard (.vcf) exports.</small>
             </div>
         </div>
     </div>

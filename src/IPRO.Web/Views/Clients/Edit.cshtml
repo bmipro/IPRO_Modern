@@ -20,6 +20,7 @@
 <div class="card-body p-4">
 <form asp-action="Edit" method="post">
   @Html.AntiForgeryToken()
+  <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
   <input type="hidden" asp-for="Id"/>
   <input type="hidden" asp-for="AgentUserId"/>
   <input type="hidden" asp-for="CreatedAt"/>
@@ -29,14 +30,17 @@
     <div class="col-md-6">
       <label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
       <input asp-for="FirstName" class="form-control" required/>
+      <span asp-validation-for="FirstName" class="text-danger small"></span>
     </div>
     <div class="col-md-6">
       <label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
       <input asp-for="LastName" class="form-control" required/>
+      <span asp-validation-for="LastName" class="text-danger small"></span>
     </div>
     <div class="col-md-6">
       <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
       <input asp-for="Email" type="email" class="form-control" required/>
+      <span asp-validation-for="Email" class="text-danger small"></span>
     </div>
     <div class="col-md-6">
       <label class="form-label fw-semibold">Email 2</label>

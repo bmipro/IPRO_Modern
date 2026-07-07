@@ -22,7 +22,7 @@ public class ClientsController : Controller
     public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db)
     { _clients = clients; _importer = importer; _uow = uow; _db = db; }
 
-    public async Task<IActionResult> Index(string? search)
+    public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter)
     {
         var query = _db.Clients
             .Include(c => c.Categories)
@@ -30,15 +30,45 @@ public class ClientsController : Controller
 
         if (!string.IsNullOrWhiteSpace(search))
         {
+            search = search.Trim();
             query = query.Where(c =>
                 c.FirstName.Contains(search) ||
                 c.LastName.Contains(search) ||
                 c.Email.Contains(search) ||
-                c.Phone.Contains(search));
+                c.Email2.Contains(search) ||
+                c.CompanyName.Contains(search) ||
+                c.Phone.Contains(search) ||
+                c.HomePhone2.Contains(search) ||
+                c.BusinessPhone.Contains(search) ||
+                c.BusinessPhone2.Contains(search) ||
+                c.CellPhone.Contains(search) ||
+                c.CellPhone2.Contains(search) ||
+                c.City.Contains(search) ||
+                c.Categories.Any(cat => cat.Name.Contains(search)));
+        }
+
+        if (accountTypeId.HasValue)
+        {
+            query = query.Where(c => c.Categories.Any(cat => cat.Id == accountTypeId.Value));
+        }
+
+        if (string.Equals(newsletter, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(c => c.IsNewsletterSubscribed);
+        }
+        else if (string.Equals(newsletter, "no", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(c => !c.IsNewsletterSubscribed);
         }
 
         ViewBag.Search     = search;
+        ViewBag.AccountTypeId = accountTypeId;
+        ViewBag.Newsletter = newsletter;
         ViewBag.TotalCount = await _clients.GetCountAsync(AgentId);
+        ViewBag.AccountTypes = await _db.ClientCategories
+            .Where(c => c.AgentUserId == AgentId)
+            .OrderBy(c => c.Name)
+            .ToListAsync();
         return View(await query.OrderByDescending(c => c.CreatedAt).ToListAsync());
     }
 
@@ -64,6 +94,7 @@ public class ClientsController : Controller
         NormalizeClient(model);
         ClearOptionalClientModelState();
         ValidateClient(model);
+        await ValidateUniqueEmailAsync(model.Email);
         if (!ModelState.IsValid)
         {
             await LoadAccountTypesAsync(categoryIds);
@@ -103,6 +134,7 @@ public class ClientsController : Controller
         NormalizeClient(model);
         ClearOptionalClientModelState();
         ValidateClient(model);
+        await ValidateUniqueEmailAsync(model.Email, client.Id);
         if (!ModelState.IsValid)
         {
             await LoadAccountTypesAsync(categoryIds);
@@ -174,6 +206,39 @@ public class ClientsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAccountType(int id, string name, string? description)
+    {
+        name = name?.Trim() ?? "";
+        description = description?.Trim() ?? "";
+
+        var accountType = await _db.ClientCategories
+            .FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (accountType == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            TempData["Error"] = "Account type name is required.";
+            return RedirectToAction(nameof(AccountTypes));
+        }
+
+        var duplicate = await _db.ClientCategories.AnyAsync(c =>
+            c.AgentUserId == AgentId &&
+            c.Id != id &&
+            c.Name.ToLower() == name.ToLower());
+        if (duplicate)
+        {
+            TempData["Error"] = "That account type already exists.";
+            return RedirectToAction(nameof(AccountTypes));
+        }
+
+        accountType.Name = name;
+        accountType.Description = description;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Account type updated.";
+        return RedirectToAction(nameof(AccountTypes));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
         var client = await _clients.GetByIdAsync(id);
@@ -200,7 +265,40 @@ public class ClientsController : Controller
 
         using var stream = file.OpenReadStream();
         var result = await _importer.ImportCsvAsync(stream, AgentId);
-        TempData["Success"] = $"Import complete: {result.Imported} imported, {result.Skipped} skipped, {result.Errors} errors.";
+        var existingEmails = await _db.Clients
+            .Where(c => c.AgentUserId == AgentId)
+            .Select(c => c.Email.ToLower())
+            .ToListAsync();
+        var seenEmails = existingEmails.ToHashSet();
+        var toImport = new List<Client>();
+        var skipped = result.Skipped;
+
+        foreach (var client in result.Clients)
+        {
+            NormalizeClient(client);
+            if (string.IsNullOrWhiteSpace(client.FirstName) ||
+                string.IsNullOrWhiteSpace(client.LastName) ||
+                string.IsNullOrWhiteSpace(client.Email) ||
+                seenEmails.Contains(client.Email))
+            {
+                skipped++;
+                continue;
+            }
+
+            client.AgentUserId = AgentId;
+            client.CreatedAt = DateTime.UtcNow;
+            client.UpdatedAt = DateTime.UtcNow;
+            seenEmails.Add(client.Email);
+            toImport.Add(client);
+        }
+
+        if (toImport.Count > 0)
+        {
+            await _db.Clients.AddRangeAsync(toImport);
+            await _db.SaveChangesAsync();
+        }
+
+        TempData["Success"] = $"Import complete: {toImport.Count} imported, {skipped} skipped, {result.Errors} errors.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -288,6 +386,20 @@ public class ClientsController : Controller
         if (string.IsNullOrWhiteSpace(client.FirstName)) ModelState.AddModelError("", "First name is required.");
         if (string.IsNullOrWhiteSpace(client.LastName)) ModelState.AddModelError("", "Last name is required.");
         if (string.IsNullOrWhiteSpace(client.Email)) ModelState.AddModelError("", "Email is required.");
+    }
+
+    private async Task ValidateUniqueEmailAsync(string email, int? currentClientId = null)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return;
+
+        var exists = await _db.Clients.AnyAsync(c =>
+            c.AgentUserId == AgentId &&
+            c.Email == email &&
+            (!currentClientId.HasValue || c.Id != currentClientId.Value));
+        if (exists)
+        {
+            ModelState.AddModelError(nameof(Client.Email), "A client with this email already exists.");
+        }
     }
 
     private void ClearOptionalClientModelState()
