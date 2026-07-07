@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Email;
 using IPRO.Web.Models;
@@ -17,12 +18,14 @@ public class AccountController : Controller
     private const string RegistrationVerifyCodeSessionKey = "RegistrationVerifyCode";
     private readonly IAgentService _agents;
     private readonly IEmailService _email;
+    private readonly IUnitOfWork _uow;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IAgentService agents, IEmailService email, ILogger<AccountController> logger)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, ILogger<AccountController> logger)
     {
         _agents = agents;
         _email = email;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -41,9 +44,10 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Register()
+    public async Task<IActionResult> Register()
     {
         SetRegistrationVerifyCode();
+        await LoadActivePackagesAsync();
         return View(new AgentRegistrationViewModel());
     }
 
@@ -62,7 +66,11 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
-        if (model.PackageId <= 1) ModelState.AddModelError("", "Package is required.");
+        if (model.PackageId <= 0) ModelState.AddModelError("", "Package is required.");
+        else if (!await _uow.BillingRules.ExistsAsync(p => p.Id == model.PackageId && p.IsActive))
+        {
+            ModelState.AddModelError("", "Please choose an active package.");
+        }
         if (string.IsNullOrWhiteSpace(expectedVerificationCode)
             || !string.Equals(verificationCode?.Trim(), expectedVerificationCode, StringComparison.Ordinal))
         {
@@ -72,12 +80,14 @@ public class AccountController : Controller
         if (!ModelState.IsValid)
         {
             SetRegistrationVerifyCode();
+            await LoadActivePackagesAsync();
             return View(model);
         }
         if (await _agents.EmailExistsAsync(model.Email))
         {
             ModelState.AddModelError("", "An account already exists for this email address.");
             SetRegistrationVerifyCode();
+            await LoadActivePackagesAsync();
             return View(model);
         }
 
@@ -97,6 +107,7 @@ public class AccountController : Controller
             _logger.LogError(ex, "Registration failed for {Email}", model.Email);
             ModelState.AddModelError("", "We could not complete the registration. Please check the form and try again.");
             SetRegistrationVerifyCode();
+            await LoadActivePackagesAsync();
             return View(model);
         }
 
@@ -185,6 +196,25 @@ public class AccountController : Controller
         HttpContext.Session.SetString(RegistrationVerifyCodeSessionKey, code);
         ViewBag.VerificationCode = code;
     }
+
+    private async Task LoadActivePackagesAsync()
+    {
+        var packages = await _uow.BillingRules.FindAsync(p => p.IsActive);
+        ViewBag.Packages = packages
+            .OrderBy(GetPackageRank)
+            .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
+            .ThenBy(p => p.PackageName)
+            .ToList();
+    }
+
+    private static int GetPackageRank(BillingRule package) => package.PackageName switch
+    {
+        "IPro Silver" => 1,
+        "IPro Gold" => 2,
+        "IPro Platinum" => 3,
+        "Broker Package" => 4,
+        _ => 50
+    };
 
     private async Task SignInAgentAsync(AgentUser user, AuthenticationProperties props)
     {

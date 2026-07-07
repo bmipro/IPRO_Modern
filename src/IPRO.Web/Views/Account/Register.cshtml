@@ -8,6 +8,7 @@
         ? System.IO.File.ReadAllText(agreementPath)
         : "ONLINE SUBSCRIPTION AGREEMENT";
     var verificationDisplayCode = ViewBag.VerificationCode as string ?? "0000";
+    var packages = ((ViewBag.Packages as IEnumerable<IPRO.Entities.BillingRule>) ?? Enumerable.Empty<IPRO.Entities.BillingRule>()).ToList();
 }
 <!DOCTYPE html>
 <html>
@@ -201,9 +202,10 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
       <label><span class="required">*</span>Packages:</label>
       <select asp-for="PackageId" class="short" required>
         <option value="">Click here</option>
-        <option value="2">IPro Silver</option>
-        <option value="3">IPro Gold</option>
-        <option value="4">IPro Platinum</option>
+        @foreach (var package in packages)
+        {
+          <option value="@package.Id">@package.PackageName</option>
+        }
       </select>
     </div>
 

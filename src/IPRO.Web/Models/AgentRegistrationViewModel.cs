@@ -44,7 +44,7 @@ public class AgentRegistrationViewModel
     [Required]
     public string BusinessType { get; set; } = string.Empty;
 
-    [Range(2, int.MaxValue, ErrorMessage = "Package is required.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Package is required.")]
     public int PackageId { get; set; }
 
     public string? PromotionCode { get; set; }
