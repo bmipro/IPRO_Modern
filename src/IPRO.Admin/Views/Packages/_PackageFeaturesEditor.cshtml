@@ -33,9 +33,9 @@
             <input type="hidden" name="Features[@i].FeatureCode" value="@Model[i].FeatureCode"/>
             <input type="hidden" name="Features[@i].FeatureName" value="@Model[i].FeatureName"/>
             <input type="hidden" name="Features[@i].SortOrder" value="@Model[i].SortOrder"/>
-            <input type="hidden" name="Features[@i].IsIncluded" value="false"/>
             <div class="form-check form-switch">
               <input class="form-check-input package-function-checkbox" type="checkbox" name="Features[@i].IsIncluded" value="true" @(Model[i].IsIncluded ? "checked" : "")/>
+              <input type="hidden" name="Features[@i].IsIncluded" value="false"/>
             </div>
           </td>
           <td>

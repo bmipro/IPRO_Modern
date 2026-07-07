@@ -34,3 +34,16 @@ public class PackageFeatureEditViewModel
     public string? LimitLabel { get; set; }
     public int SortOrder { get; set; }
 }
+
+public class PackageListViewModel
+{
+    public int Id { get; set; }
+    public string PackageName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal MonthlyPrice { get; set; }
+    public decimal QuarterlyPrice { get; set; }
+    public decimal AnnualPrice { get; set; }
+    public string ContactsLimit { get; set; } = string.Empty;
+    public string DomainsLimit { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+}

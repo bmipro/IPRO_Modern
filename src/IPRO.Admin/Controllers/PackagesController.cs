@@ -14,7 +14,34 @@ public class PackagesController : Controller
 
     public PackagesController(IUnitOfWork uow) => _uow = uow;
 
-    public async Task<IActionResult> Index() => View(await _uow.BillingRules.GetAllAsync());
+    public async Task<IActionResult> Index()
+    {
+        var packages = (await _uow.BillingRules.GetAllAsync()).ToList();
+        var features = (await _uow.PackageFeatures.GetAllAsync()).ToList();
+
+        var model = packages
+            .OrderBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
+            .ThenBy(p => p.PackageName)
+            .Select(p => new PackageListViewModel
+            {
+                Id = p.Id,
+                PackageName = p.PackageName,
+                Description = p.Description,
+                MonthlyPrice = p.MonthlyPrice,
+                QuarterlyPrice = p.QuarterlyPrice,
+                AnnualPrice = p.AnnualPrice,
+                ContactsLimit = FormatFeatureLimit(features.FirstOrDefault(f =>
+                    f.BillingRuleId == p.Id &&
+                    string.Equals(f.FeatureCode, PackageFeatureCodes.Contacts, StringComparison.OrdinalIgnoreCase)), p.MaxClients),
+                DomainsLimit = FormatFeatureLimit(features.FirstOrDefault(f =>
+                    f.BillingRuleId == p.Id &&
+                    string.Equals(f.FeatureCode, PackageFeatureCodes.MultiDomainSupport, StringComparison.OrdinalIgnoreCase))),
+                IsActive = p.IsActive
+            })
+            .ToList();
+
+        return View(model);
+    }
 
     public async Task<IActionResult> Create() =>
         View(await BuildPackageModelAsync(new BillingRule()));
@@ -242,4 +269,21 @@ public class PackagesController : Controller
 
         return model.MaxClients > 0 ? model.MaxClients : Unlimited;
     }
+
+    private static string FormatFeatureLimit(PackageFeature? feature, int? fallbackValue = null)
+    {
+        if (feature?.IsIncluded != true)
+        {
+            return fallbackValue.HasValue ? FormatLimitNumber(fallbackValue.Value) : "-";
+        }
+
+        if (!string.IsNullOrWhiteSpace(feature.LimitLabel))
+        {
+            return feature.LimitLabel;
+        }
+
+        return feature.LimitValue.HasValue ? FormatLimitNumber(feature.LimitValue.Value) : "Included";
+    }
+
+    private static string FormatLimitNumber(int value) => value == Unlimited ? "Unlimited" : value.ToString("N0");
 }
