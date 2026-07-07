@@ -74,6 +74,7 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+        await LoadActivePackagesAsync();
         return View(ToEditModel(agent));
     }
 
@@ -86,7 +87,11 @@ public class AgentsController : Controller
         NormalizeAgent(model);
         ValidateAgentEdit(model);
         await ValidateUniqueAgentFieldsAsync(id, model);
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid)
+        {
+            await LoadActivePackagesAsync();
+            return View(model);
+        }
 
         ApplyEditModel(agent, model);
 
@@ -284,21 +289,21 @@ public class AgentsController : Controller
         agent.Email = model.Email;
         agent.FirstName = model.FirstName;
         agent.LastName = model.LastName;
-        agent.Designation = model.Designation;
+        agent.Designation = model.Designation ?? "";
         agent.CompanyName = model.CompanyName;
-        agent.CompanyAddress = model.CompanyAddress;
+        agent.CompanyAddress = model.CompanyAddress ?? "";
         agent.City = model.City;
         agent.Province = model.Province;
         agent.PostalCode = model.PostalCode;
         agent.Country = model.Country;
-        agent.TimeZone = model.TimeZone;
+        agent.TimeZone = model.TimeZone ?? "";
         agent.Phone = model.Phone;
-        agent.BusinessFax = model.BusinessFax;
-        agent.CellPhone = model.CellPhone;
+        agent.BusinessFax = model.BusinessFax ?? "";
+        agent.CellPhone = model.CellPhone ?? "";
         agent.BusinessType = model.BusinessType;
-        agent.DomainName = model.DomainName;
+        agent.DomainName = model.DomainName ?? "";
         agent.PackageId = model.PackageId;
-        agent.PromotionCode = model.PromotionCode;
+        agent.PromotionCode = model.PromotionCode ?? "";
         agent.IsActive = model.IsActive;
         agent.MustChangePassword = model.MustChangePassword;
     }
@@ -338,7 +343,7 @@ public class AgentsController : Controller
         if (string.IsNullOrWhiteSpace(agent.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(agent.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(agent.BusinessType)) ModelState.AddModelError("", "Business type is required.");
-        if (agent.PackageId <= 1) ModelState.AddModelError("", "Package is required.");
+        if (agent.PackageId <= 0) ModelState.AddModelError("", "Package is required.");
     }
 
     private async Task ValidateUniqueAgentFieldsAsync(int id, AgentEditViewModel agent)
@@ -355,4 +360,23 @@ public class AgentsController : Controller
             if (existingDomain != null) ModelState.AddModelError("", "Domain is already used by another agent.");
         }
     }
+
+    private async Task LoadActivePackagesAsync()
+    {
+        var packages = await _uow.BillingRules.FindAsync(p => p.IsActive);
+        ViewBag.Packages = packages
+            .OrderBy(GetPackageRank)
+            .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
+            .ThenBy(p => p.PackageName)
+            .ToList();
+    }
+
+    private static int GetPackageRank(BillingRule package) => package.PackageName switch
+    {
+        "IPro Silver" => 1,
+        "IPro Gold" => 2,
+        "IPro Platinum" => 3,
+        "Broker Package" => 4,
+        _ => 50
+    };
 }
