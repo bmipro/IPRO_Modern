@@ -16,6 +16,10 @@
         .ToList();
     var currentPackage = subscription == null ? null : packageList.FirstOrDefault(p => p.Id == subscription.BillingRuleId);
     var pendingPackage = pendingChange == null ? null : packageList.FirstOrDefault(p => p.Id == pendingChange.RequestedBillingRuleId);
+    var unpaidInvoices = (invoices ?? Enumerable.Empty<IPRO.Entities.Invoice>())
+        .Where(i => !i.IsPaid && packageList.Any(p => p.Id == i.Billing?.BillingRuleId))
+        .OrderByDescending(i => i.IssuedAt)
+        .ToList();
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -43,10 +47,19 @@
 @if (pendingChange != null && pendingPackage != null)
 {
   <div class="alert alert-info border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
-    <i class="fas fa-calendar-check fa-2x"></i>
+    <i class="fas @(pendingChange.AmountDue > 0 ? "fa-hourglass-half" : "fa-calendar-check") fa-2x"></i>
     <div>
-      <div class="fw-bold">Scheduled package change</div>
-      <small>Your @pendingChange.ChangeType.ToString().ToLowerInvariant() to @pendingPackage.PackageName will take effect on @pendingChange.EffectiveDate.ToString("MMMM d, yyyy").</small>
+      <div class="fw-bold">@(pendingChange.AmountDue > 0 ? "Payment pending" : "Scheduled package change")</div>
+      <small>
+        @if (pendingChange.AmountDue > 0)
+        {
+          @:Your @pendingChange.ChangeType.ToString().ToLowerInvariant() to @pendingPackage.PackageName is waiting for payment.
+        }
+        else
+        {
+          @:Your @pendingChange.ChangeType.ToString().ToLowerInvariant() to @pendingPackage.PackageName will take effect on @pendingChange.EffectiveDate.ToString("MMMM d, yyyy").
+        }
+      </small>
     </div>
   </div>
 }
@@ -55,6 +68,38 @@ else
   <div class="alert alert-warning border-0 shadow-sm mb-4">
     <i class="fas fa-exclamation-triangle me-2"></i>
     <strong>No active subscription.</strong> Choose a package below to activate your website.
+  </div>
+}
+
+@if (unpaidInvoices.Any())
+{
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <h5 class="fw-bold mb-3"><i class="fas fa-receipt me-2 text-warning"></i>Unpaid Checkout</h5>
+      <p class="text-muted mb-3">You have a checkout that was started but not completed. You can continue payment or cancel it and choose a plan again.</p>
+      @foreach (var invoice in unpaidInvoices)
+      {
+        var invoicePackage = packageList.FirstOrDefault(p => p.Id == invoice.Billing.BillingRuleId);
+        <div class="border rounded-3 p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div>
+            <div class="fw-bold">@invoicePackage?.PackageName</div>
+            <small class="text-muted">@invoice.InvoiceNumber - $@invoice.Total.ToString("N2") @invoice.Currency</small>
+          </div>
+          <div class="d-flex gap-2">
+            <form asp-action="ResumePayment" method="post">
+              @Html.AntiForgeryToken()
+              <input type="hidden" name="invoiceId" value="@invoice.Id"/>
+              <button type="submit" class="btn btn-primary btn-sm">Continue Payment</button>
+            </form>
+            <form asp-action="CancelPendingPayment" method="post">
+              @Html.AntiForgeryToken()
+              <input type="hidden" name="invoiceId" value="@invoice.Id"/>
+              <button type="submit" class="btn btn-outline-secondary btn-sm" data-confirm="Cancel this pending checkout?">Cancel Checkout</button>
+            </form>
+          </div>
+        </div>
+      }
+    </div>
   </div>
 }
 
@@ -160,7 +205,7 @@ else
   <div class="card border-0 shadow-sm">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
-        <thead><tr><th>Invoice #</th><th>Date</th><th>Subtotal</th><th>Tax (HST)</th><th>Total</th><th>Status</th></tr></thead>
+        <thead><tr><th>Invoice #</th><th>Date</th><th>Subtotal</th><th>Tax (HST)</th><th>Total</th><th>Status</th><th></th></tr></thead>
         <tbody>
         @foreach (var inv in invoices)
         {
@@ -171,6 +216,16 @@ else
             <td>$@inv.TaxAmount.ToString("N2")</td>
             <td class="fw-bold">$@inv.Total.ToString("N2") <small class="text-muted">@inv.Currency</small></td>
             <td><span class="badge @(inv.IsPaid ? "bg-success" : "bg-warning text-dark")">@(inv.IsPaid ? "Paid" : "Unpaid")</span></td>
+            <td class="text-end">
+              @if (!inv.IsPaid && inv.Billing?.Status == IPRO.Entities.BillingStatus.Pending)
+              {
+                <form asp-action="ResumePayment" method="post" class="d-inline">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="invoiceId" value="@inv.Id"/>
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Pay</button>
+                </form>
+              }
+            </td>
           </tr>
         }
         </tbody>

@@ -71,6 +71,42 @@ public class BillingController : Controller
 
     public IActionResult Success() { TempData["Success"] = "Subscription activated!"; return RedirectToAction(nameof(Index)); }
     public IActionResult Cancel()  { TempData["Warning"] = "Subscription was cancelled."; return RedirectToAction(nameof(Index)); }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResumePayment(int invoiceId)
+    {
+        var result = await _billing.ResumePaymentAsync(
+            AgentId,
+            invoiceId,
+            Url.ActionLink(nameof(PayPalReturn)) ?? $"{Request.Scheme}://{Request.Host}/Billing/PayPalReturn",
+            Url.ActionLink(nameof(Cancel)) ?? $"{Request.Scheme}://{Request.Host}/Billing/Cancel");
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Message;
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (result.RequiresPayment && !string.IsNullOrWhiteSpace(result.ApprovalUrl))
+        {
+            return Redirect(result.ApprovalUrl);
+        }
+
+        TempData["Success"] = result.Message;
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelPendingPayment(int invoiceId)
+    {
+        var cancelled = await _billing.CancelPendingPaymentAsync(AgentId, invoiceId);
+        TempData[cancelled ? "Success" : "Error"] = cancelled
+            ? "Pending payment cancelled. You can choose a package again when you are ready."
+            : "We could not cancel that pending payment.";
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> CancelSubscription() { await _billing.CancelSubscriptionAsync(AgentId); TempData["Success"] = "Subscription cancelled."; return RedirectToAction(nameof(Index)); }
 

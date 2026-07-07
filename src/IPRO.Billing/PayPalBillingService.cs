@@ -163,6 +163,94 @@ public class PayPalBillingService : IBillingService
         };
     }
 
+    public async Task<BillingChangeResult> ResumePaymentAsync(int userId, int invoiceId, string returnUrl, string cancelUrl)
+    {
+        if (!HasPayPalSettings())
+        {
+            return BillingChangeResult.Failed("PayPal is not configured yet. Please add PayPal ClientId and ClientSecret in Azure app settings.");
+        }
+
+        var invoice = await _uow.Invoices.FirstOrDefaultAsync(i =>
+            i.Id == invoiceId && i.AgentUserId == userId && !i.IsPaid);
+        if (invoice == null)
+        {
+            return BillingChangeResult.Failed("We could not find that unpaid invoice.");
+        }
+
+        var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
+        if (billing == null || billing.AgentUserId != userId || billing.Status != BillingStatus.Pending)
+        {
+            return BillingChangeResult.Failed("That invoice is not connected to a pending package payment anymore.");
+        }
+
+        var package = await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
+        if (package == null)
+        {
+            return BillingChangeResult.Failed("The package for this invoice could not be found.");
+        }
+
+        PayPalOrderResult order;
+        try
+        {
+            order = await CreatePayPalOrderAsync(invoice, package.PackageName, returnUrl, cancelUrl);
+        }
+        catch (Exception ex)
+        {
+            return BillingChangeResult.Failed($"PayPal checkout could not be restarted: {ex.Message}");
+        }
+
+        if (string.IsNullOrWhiteSpace(order.ApprovalUrl))
+        {
+            return BillingChangeResult.Failed("PayPal did not return an approval link.");
+        }
+
+        invoice.PayPalTransactionId = order.OrderId;
+        _uow.Invoices.Update(invoice);
+        await _uow.SaveChangesAsync();
+
+        return new BillingChangeResult
+        {
+            Success = true,
+            RequiresPayment = true,
+            ApprovalUrl = order.ApprovalUrl,
+            InvoiceId = invoice.Id,
+            AmountDue = invoice.Total,
+            Message = "Please complete payment in PayPal to activate this package change."
+        };
+    }
+
+    public async Task<bool> CancelPendingPaymentAsync(int userId, int invoiceId)
+    {
+        var invoice = await _uow.Invoices.FirstOrDefaultAsync(i =>
+            i.Id == invoiceId && i.AgentUserId == userId && !i.IsPaid);
+        if (invoice == null)
+        {
+            return false;
+        }
+
+        var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
+        if (billing == null || billing.AgentUserId != userId || billing.Status != BillingStatus.Pending)
+        {
+            return false;
+        }
+
+        billing.Status = BillingStatus.Cancelled;
+        billing.CancelledAt = DateTime.UtcNow;
+        _uow.Billings.Update(billing);
+
+        var pendingChange = await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
+            c.BillingId == billing.Id && c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
+        if (pendingChange != null)
+        {
+            pendingChange.Status = SubscriptionChangeStatus.Cancelled;
+            pendingChange.CancelledAt = DateTime.UtcNow;
+            _uow.SubscriptionChanges.Update(pendingChange);
+        }
+
+        await _uow.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<bool> CancelSubscriptionAsync(int userId)
     {
         var subscription = await GetActiveSubscriptionAsync(userId);
@@ -188,7 +276,17 @@ public class PayPalBillingService : IBillingService
     public async Task<List<IPRO.Entities.Invoice>> GetInvoicesAsync(int userId)
     {
         var invoices = await _uow.Invoices.FindAsync(i => i.AgentUserId == userId);
-        return invoices.OrderByDescending(i => i.IssuedAt).ToList();
+        var invoiceList = invoices.OrderByDescending(i => i.IssuedAt).ToList();
+        foreach (var invoice in invoiceList)
+        {
+            var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
+            if (billing != null)
+            {
+                invoice.Billing = billing;
+            }
+        }
+
+        return invoiceList;
     }
 
     public async Task<IPRO.Entities.Invoice> GenerateInvoiceAsync(int userId, decimal amount, string description)
