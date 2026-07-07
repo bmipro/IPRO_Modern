@@ -54,9 +54,20 @@ public class ContactImporter : IContactImporter
                     AgentUserId  = agentId,
                     FirstName    = GetField(csv, "First Name", "FirstName", "Given Name") ?? "",
                     LastName     = GetField(csv, "Last Name", "LastName", "Surname") ?? "",
+                    DateOfBirth  = TryParseDate(GetField(csv, "Date of Birth", "Birthdate", "Birthday", "DOB")),
+                    CompanyName  = GetField(csv, "Company", "Company Name", "Organization") ?? "",
                     Email        = email,
-                    Phone        = GetField(csv, "Phone", "Business Phone", "Mobile Phone", "Home Phone") ?? "",
+                    Email2       = GetField(csv, "Email 2", "E-mail Address 2", "EmailAddress2") ?? "",
+                    Phone        = GetField(csv, "Phone", "Home Phone", "Home Number", "Home Phone 1") ?? "",
+                    HomePhone2   = GetField(csv, "Home Phone 2", "Home Number 2") ?? "",
+                    BusinessPhone = GetField(csv, "Business Phone", "Business Number", "Business Phone 1") ?? "",
+                    BusinessPhone2 = GetField(csv, "Business Phone 2", "Business Number 2") ?? "",
+                    CellPhone    = GetField(csv, "Mobile Phone", "Cell Phone", "Cell Number", "Cell Phone 1") ?? "",
+                    CellPhone2   = GetField(csv, "Mobile Phone 2", "Cell Phone 2", "Cell Number 2") ?? "",
+                    Fax          = GetField(csv, "Fax", "Fax Number", "Fax Phone", "Fax Number 1") ?? "",
+                    Fax2         = GetField(csv, "Fax 2", "Fax Number 2") ?? "",
                     Address      = GetField(csv, "Address", "Business Street", "Home Street") ?? "",
+                    UnitNumber   = GetField(csv, "Unit", "Unit Number", "Apt", "Suite") ?? "",
                     City         = GetField(csv, "City", "Business City", "Home City") ?? "",
                     Province     = GetField(csv, "Province", "State", "Business State") ?? "",
                     PostalCode   = GetField(csv, "PostalCode", "Postal Code", "ZIP", "Business Postal Code") ?? "",
@@ -126,9 +137,20 @@ public class ContactImporter : IContactImporter
             {
                 FirstName    = c.FirstName,
                 LastName     = c.LastName,
+                DateOfBirth  = c.DateOfBirth?.ToString("yyyy-MM-dd") ?? "",
+                CompanyName  = c.CompanyName,
                 Email        = c.Email,
+                Email2       = c.Email2,
                 Phone        = c.Phone,
+                HomePhone2   = c.HomePhone2,
+                BusinessPhone = c.BusinessPhone,
+                BusinessPhone2 = c.BusinessPhone2,
+                CellPhone    = c.CellPhone,
+                CellPhone2   = c.CellPhone2,
+                Fax          = c.Fax,
+                Fax2         = c.Fax2,
                 Address      = c.Address,
+                UnitNumber   = c.UnitNumber,
                 City         = c.City,
                 Province     = c.Province,
                 PostalCode   = c.PostalCode,
@@ -151,6 +173,13 @@ public class ContactImporter : IContactImporter
         return null;
     }
 
+    private static DateTime? TryParseDate(string? value)
+    {
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed
+            : null;
+    }
+
     private static string? GetVCardField(List<string> lines, string property) =>
         lines.FirstOrDefault(l => l.StartsWith(property + ":", StringComparison.OrdinalIgnoreCase)
                                || l.StartsWith(property + ";", StringComparison.OrdinalIgnoreCase))
@@ -161,9 +190,20 @@ public class ClientCsvRecord
 {
     public string FirstName { get; set; } = "";
     public string LastName { get; set; } = "";
+    public string DateOfBirth { get; set; } = "";
+    public string CompanyName { get; set; } = "";
     public string Email { get; set; } = "";
+    public string Email2 { get; set; } = "";
     public string Phone { get; set; } = "";
+    public string HomePhone2 { get; set; } = "";
+    public string BusinessPhone { get; set; } = "";
+    public string BusinessPhone2 { get; set; } = "";
+    public string CellPhone { get; set; } = "";
+    public string CellPhone2 { get; set; } = "";
+    public string Fax { get; set; } = "";
+    public string Fax2 { get; set; } = "";
     public string Address { get; set; } = "";
+    public string UnitNumber { get; set; } = "";
     public string City { get; set; } = "";
     public string Province { get; set; } = "";
     public string PostalCode { get; set; } = "";

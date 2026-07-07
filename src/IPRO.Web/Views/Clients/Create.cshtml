@@ -35,16 +35,64 @@
       <input asp-for="Email" type="email" class="form-control" required/>
     </div>
     <div class="col-md-6">
-      <label class="form-label fw-semibold">Phone</label>
+      <label class="form-label fw-semibold">Email 2</label>
+      <input asp-for="Email2" type="email" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Date of Birth</label>
+      <input asp-for="DateOfBirth" type="date" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Company Name</label>
+      <input asp-for="CompanyName" class="form-control"/>
+    </div>
+  </div>
+
+  <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.08em">Contact Information</h6>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Home Number 1</label>
       <input asp-for="Phone" class="form-control" placeholder="(416) 555-0100"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Home Number 2</label>
+      <input asp-for="HomePhone2" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Business Number 1</label>
+      <input asp-for="BusinessPhone" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Business Number 2</label>
+      <input asp-for="BusinessPhone2" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Cell Number 1</label>
+      <input asp-for="CellPhone" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Cell Number 2</label>
+      <input asp-for="CellPhone2" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Fax Number 1</label>
+      <input asp-for="Fax" class="form-control"/>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Fax Number 2</label>
+      <input asp-for="Fax2" class="form-control"/>
     </div>
   </div>
 
   <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.08em">Address</h6>
   <div class="row g-3 mb-4">
-    <div class="col-12">
-      <label class="form-label fw-semibold">Street Address</label>
+    <div class="col-md-8">
+      <label class="form-label fw-semibold">Street Name</label>
       <input asp-for="Address" class="form-control" placeholder="123 Main Street"/>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">Unit #</label>
+      <input asp-for="UnitNumber" class="form-control"/>
     </div>
     <div class="col-md-5">
       <label class="form-label fw-semibold">City</label>
@@ -53,7 +101,7 @@
     <div class="col-md-3">
       <label class="form-label fw-semibold">Province</label>
       <select asp-for="Province" class="form-select">
-        <option value="">Select…</option>
+        <option value="">Select...</option>
         <option>AB</option><option>BC</option><option>MB</option><option>NB</option>
         <option>NL</option><option>NS</option><option>ON</option><option>PE</option>
         <option>QC</option><option>SK</option>
@@ -62,6 +110,10 @@
     <div class="col-md-4">
       <label class="form-label fw-semibold">Postal Code</label>
       <input asp-for="PostalCode" class="form-control" placeholder="M5V 3A8"/>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">Country</label>
+      <input asp-for="Country" class="form-control" placeholder="Canada"/>
     </div>
   </div>
 
@@ -106,7 +158,7 @@
     </div>
     <div class="col-12">
       <label class="form-label fw-semibold">Notes</label>
-      <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Any notes about this client…"></textarea>
+      <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Any notes about this client..."></textarea>
     </div>
   </div>
 

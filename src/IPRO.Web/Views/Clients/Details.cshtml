@@ -1,5 +1,12 @@
 @model IPRO.Entities.Client
-@{ ViewData["Title"] = $"{Model.FirstName} {Model.LastName}"; var comments = ViewBag.Comments as IEnumerable<IPRO.Entities.ClientComment>; }
+@{
+    ViewData["Title"] = $"{Model.FirstName} {Model.LastName}";
+    var comments = ViewBag.Comments as IEnumerable<IPRO.Entities.ClientComment>;
+    var addressParts = new[] { Model.Address, Model.UnitNumber, Model.City, Model.Province, Model.PostalCode, Model.Country }
+        .Where(x => !string.IsNullOrWhiteSpace(x));
+    var fullAddress = string.Join(", ", addressParts);
+    string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+}
 
 <div class="row mb-4">
   <div class="col">
@@ -41,13 +48,42 @@
           }
         </div>
         <hr/>
-        <dl class="row mb-0" style="font-size:.9rem">
+        <dl class="row mb-0 client-details-list" style="font-size:.9rem">
+          <dt class="col-5 text-muted">Company</dt>
+          <dd class="col-7">@Display(Model.CompanyName)</dd>
           <dt class="col-5 text-muted">Email</dt>
           <dd class="col-7"><a href="mailto:@Model.Email" class="text-decoration-none">@Model.Email</a></dd>
-          <dt class="col-5 text-muted">Phone</dt>
-          <dd class="col-7">@(Model.Phone ?? "—")</dd>
+          <dt class="col-5 text-muted">Email 2</dt>
+          <dd class="col-7">
+            @if (!string.IsNullOrWhiteSpace(Model.Email2))
+            {
+              <a href="mailto:@Model.Email2" class="text-decoration-none">@Model.Email2</a>
+            }
+            else
+            {
+              <span>-</span>
+            }
+          </dd>
+          <dt class="col-5 text-muted">Date of Birth</dt>
+          <dd class="col-7">@(Model.DateOfBirth?.ToString("MMM d, yyyy") ?? "-")</dd>
+          <dt class="col-5 text-muted">Home 1</dt>
+          <dd class="col-7">@Display(Model.Phone)</dd>
+          <dt class="col-5 text-muted">Home 2</dt>
+          <dd class="col-7">@Display(Model.HomePhone2)</dd>
+          <dt class="col-5 text-muted">Business 1</dt>
+          <dd class="col-7">@Display(Model.BusinessPhone)</dd>
+          <dt class="col-5 text-muted">Business 2</dt>
+          <dd class="col-7">@Display(Model.BusinessPhone2)</dd>
+          <dt class="col-5 text-muted">Cell 1</dt>
+          <dd class="col-7">@Display(Model.CellPhone)</dd>
+          <dt class="col-5 text-muted">Cell 2</dt>
+          <dd class="col-7">@Display(Model.CellPhone2)</dd>
+          <dt class="col-5 text-muted">Fax 1</dt>
+          <dd class="col-7">@Display(Model.Fax)</dd>
+          <dt class="col-5 text-muted">Fax 2</dt>
+          <dd class="col-7">@Display(Model.Fax2)</dd>
           <dt class="col-5 text-muted">Address</dt>
-          <dd class="col-7">@(string.IsNullOrEmpty(Model.Address) ? "—" : $"{Model.Address}, {Model.City}, {Model.Province} {Model.PostalCode}")</dd>
+          <dd class="col-7">@(string.IsNullOrWhiteSpace(fullAddress) ? "-" : fullAddress)</dd>
           <dt class="col-5 text-muted">Added</dt>
           <dd class="col-7">@Model.CreatedAt.ToString("MMM d, yyyy")</dd>
           <dt class="col-5 text-muted">Updated</dt>
@@ -95,7 +131,7 @@
           @Html.AntiForgeryToken()
           <input type="hidden" name="clientId" value="@Model.Id"/>
           <div class="d-flex gap-2">
-            <input type="text" name="comment" class="form-control" placeholder="Add a note or comment…" required/>
+            <input type="text" name="comment" class="form-control" placeholder="Add a note or comment..." required/>
             <button type="submit" class="btn btn-primary px-4"><i class="fas fa-plus"></i></button>
           </div>
         </form>
@@ -103,3 +139,9 @@
     </div>
   </div>
 </div>
+
+<style>
+  .client-details-list dt,
+  .client-details-list dd{padding:.25rem 0;word-break:break-word;}
+  .client-details-list dd{margin-bottom:0;}
+</style>

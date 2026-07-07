@@ -77,6 +77,26 @@ public class IPRODbContext : DbContext
         // Client → AgentUser
         modelBuilder.Entity<Client>(e =>
         {
+            e.Property(c => c.FirstName).HasMaxLength(80).IsRequired();
+            e.Property(c => c.LastName).HasMaxLength(80).IsRequired();
+            e.Property(c => c.CompanyName).HasMaxLength(150);
+            e.Property(c => c.Email).HasMaxLength(200).IsRequired();
+            e.Property(c => c.Email2).HasMaxLength(200);
+            e.Property(c => c.Phone).HasMaxLength(40);
+            e.Property(c => c.HomePhone2).HasMaxLength(40);
+            e.Property(c => c.BusinessPhone).HasMaxLength(40);
+            e.Property(c => c.BusinessPhone2).HasMaxLength(40);
+            e.Property(c => c.CellPhone).HasMaxLength(40);
+            e.Property(c => c.CellPhone2).HasMaxLength(40);
+            e.Property(c => c.Fax).HasMaxLength(40);
+            e.Property(c => c.Fax2).HasMaxLength(40);
+            e.Property(c => c.Address).HasMaxLength(200);
+            e.Property(c => c.UnitNumber).HasMaxLength(40);
+            e.Property(c => c.City).HasMaxLength(80);
+            e.Property(c => c.Province).HasMaxLength(80);
+            e.Property(c => c.PostalCode).HasMaxLength(20);
+            e.Property(c => c.Country).HasMaxLength(80);
+
             e.HasOne(c => c.AgentUser)
              .WithMany(u => u.Clients)
              .HasForeignKey(c => c.AgentUserId)

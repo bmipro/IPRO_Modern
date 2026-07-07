@@ -237,9 +237,20 @@ public class ClientsController : Controller
     {
         client.FirstName = model.FirstName;
         client.LastName = model.LastName;
+        client.DateOfBirth = model.DateOfBirth;
+        client.CompanyName = model.CompanyName;
         client.Email = model.Email;
+        client.Email2 = model.Email2;
         client.Phone = model.Phone;
+        client.HomePhone2 = model.HomePhone2;
+        client.BusinessPhone = model.BusinessPhone;
+        client.BusinessPhone2 = model.BusinessPhone2;
+        client.CellPhone = model.CellPhone;
+        client.CellPhone2 = model.CellPhone2;
+        client.Fax = model.Fax;
+        client.Fax2 = model.Fax2;
         client.Address = model.Address;
+        client.UnitNumber = model.UnitNumber;
         client.City = model.City;
         client.Province = model.Province;
         client.PostalCode = model.PostalCode;
@@ -252,9 +263,19 @@ public class ClientsController : Controller
     {
         client.FirstName = client.FirstName?.Trim() ?? "";
         client.LastName = client.LastName?.Trim() ?? "";
+        client.CompanyName = client.CompanyName?.Trim() ?? "";
         client.Email = (client.Email?.Trim() ?? "").ToLowerInvariant();
+        client.Email2 = (client.Email2?.Trim() ?? "").ToLowerInvariant();
         client.Phone = client.Phone?.Trim() ?? "";
+        client.HomePhone2 = client.HomePhone2?.Trim() ?? "";
+        client.BusinessPhone = client.BusinessPhone?.Trim() ?? "";
+        client.BusinessPhone2 = client.BusinessPhone2?.Trim() ?? "";
+        client.CellPhone = client.CellPhone?.Trim() ?? "";
+        client.CellPhone2 = client.CellPhone2?.Trim() ?? "";
+        client.Fax = client.Fax?.Trim() ?? "";
+        client.Fax2 = client.Fax2?.Trim() ?? "";
         client.Address = client.Address?.Trim() ?? "";
+        client.UnitNumber = client.UnitNumber?.Trim() ?? "";
         client.City = client.City?.Trim() ?? "";
         client.Province = client.Province?.Trim() ?? "";
         client.PostalCode = client.PostalCode?.Trim() ?? "";
@@ -277,8 +298,19 @@ public class ClientsController : Controller
             nameof(Client.Categories),
             nameof(Client.Comments),
             nameof(Client.AgentUserId),
+            nameof(Client.DateOfBirth),
+            nameof(Client.CompanyName),
+            nameof(Client.Email2),
             nameof(Client.Phone),
+            nameof(Client.HomePhone2),
+            nameof(Client.BusinessPhone),
+            nameof(Client.BusinessPhone2),
+            nameof(Client.CellPhone),
+            nameof(Client.CellPhone2),
+            nameof(Client.Fax),
+            nameof(Client.Fax2),
             nameof(Client.Address),
+            nameof(Client.UnitNumber),
             nameof(Client.City),
             nameof(Client.Province),
             nameof(Client.PostalCode),
