@@ -2,6 +2,10 @@
 @{
     ViewData["Title"] = $"{Model.FirstName} {Model.LastName}";
     var comments = ViewBag.Comments as IEnumerable<IPRO.Entities.ClientComment>;
+    var recentComments = (comments ?? Enumerable.Empty<IPRO.Entities.ClientComment>())
+        .OrderByDescending(c => c.CreatedAt)
+        .Take(5)
+        .ToList();
     var timeline = (ViewBag.Timeline as IEnumerable<IPRO.Web.Models.ClientTimelineItem>) ?? Enumerable.Empty<IPRO.Web.Models.ClientTimelineItem>();
     var addressParts = new[] { Model.Address, Model.UnitNumber, Model.City, Model.Province, Model.PostalCode, Model.Country }
         .Where(x => !string.IsNullOrWhiteSpace(x));
@@ -246,6 +250,31 @@
         { <p class="text-muted py-3">No timeline activity yet.</p> }
       </div>
       <div class="card-footer bg-white border-0 px-4 pb-4">
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0"><i class="fas fa-comments me-2 text-primary"></i>Recent Notes</h6>
+            <span class="badge bg-light text-muted">@((comments ?? Enumerable.Empty<IPRO.Entities.ClientComment>()).Count()) total</span>
+          </div>
+          @if (recentComments.Any())
+          {
+            <div class="vstack gap-2">
+            @foreach (var note in recentComments)
+            {
+              <div class="client-note rounded-3 border p-3">
+                <div class="d-flex justify-content-between gap-2 flex-wrap mb-1">
+                  <span class="fw-semibold small text-muted">Note</span>
+                  <span class="small text-muted">@note.CreatedAt.ToString("MMM d, yyyy h:mm tt")</span>
+                </div>
+                <div>@note.Comment</div>
+              </div>
+            }
+            </div>
+          }
+          else
+          {
+            <div class="text-muted small border rounded-3 p-3 bg-light">No notes yet. Add the first note below.</div>
+          }
+        </div>
         <h6 class="fw-bold mb-2"><i class="fas fa-comment me-2 text-secondary"></i>Add note</h6>
         <form asp-action="AddComment" method="post">
           @Html.AntiForgeryToken()
@@ -265,6 +294,7 @@
   .client-details-list dd{padding:.25rem 0;word-break:break-word;}
   .client-details-list dd{margin-bottom:0;}
   .follow-up-item{background:#f8fafc;}
+  .client-note{background:#f8fafc;}
   .timeline-marker{width:36px;height:36px;font-size:.8rem;}
   .timeline-row:last-child .timeline-content{border-bottom:0!important;}
 </style>
