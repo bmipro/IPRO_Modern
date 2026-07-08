@@ -644,7 +644,9 @@ public class PayPalBillingService : IBillingService
     private async Task<string> GetPayPalAccessTokenAsync()
     {
         var client = _httpClientFactory.CreateClient();
-        var rawCredentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_settings.ClientId}:{_settings.ClientSecret}"));
+        var clientId = _settings.ClientId.Trim();
+        var clientSecret = _settings.ClientSecret.Trim();
+        var rawCredentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", rawCredentials);
 
         using var content = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -655,7 +657,13 @@ public class PayPalBillingService : IBillingService
         var json = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"PayPal token request failed: {json}");
+            if (json.Contains("invalid_client", StringComparison.OrdinalIgnoreCase))
+            {
+                var mode = _settings.IsSandbox ? "sandbox" : "live";
+                throw new InvalidOperationException($"PayPal rejected the configured Client ID or Secret for {mode} mode. Check Azure app settings PayPal__ClientId, PayPal__ClientSecret, and PayPal__IsSandbox. Sandbox credentials only work when PayPal__IsSandbox is true; live credentials only work when it is false.");
+            }
+
+            throw new InvalidOperationException("PayPal token request failed. Please check the PayPal app settings in Azure and try again.");
         }
 
         using var document = JsonDocument.Parse(json);
@@ -664,8 +672,8 @@ public class PayPalBillingService : IBillingService
 
     private bool HasPayPalSettings()
     {
-        return !string.IsNullOrWhiteSpace(_settings.ClientId)
-            && !string.IsNullOrWhiteSpace(_settings.ClientSecret);
+        return !string.IsNullOrWhiteSpace(_settings.ClientId?.Trim())
+            && !string.IsNullOrWhiteSpace(_settings.ClientSecret?.Trim());
     }
 
     private static bool IsUpgrade(BillingRule currentPackage, BillingRule requestedPackage)
