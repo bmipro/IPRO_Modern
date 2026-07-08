@@ -784,18 +784,19 @@ public class PayPalBillingService : IBillingService
 
     private async Task<IPRO.Entities.Invoice> CreateInvoiceWithLinesAsync(int billingId, int userId, decimal subtotal, decimal taxAmount, decimal taxRate, string taxRegion, bool isPaid, IEnumerable<InvoiceLineDraft> lines)
     {
+        var issuedAt = DateTime.UtcNow;
         var invoice = new IPRO.Entities.Invoice
         {
             BillingId = billingId,
             AgentUserId = userId,
-            InvoiceNumber = $"IPRO-{DateTime.UtcNow:yyyyMMddHHmmssfffffff}-{userId}",
+            InvoiceNumber = await GenerateInvoiceNumberAsync(issuedAt),
             SubTotal = subtotal,
             TaxAmount = taxAmount,
             TaxRate = taxRate,
             TaxRegion = taxRegion,
             Total = subtotal + taxAmount,
             Currency = "CAD",
-            IssuedAt = DateTime.UtcNow,
+            IssuedAt = issuedAt,
             IsPaid = isPaid
         };
 
@@ -828,6 +829,26 @@ public class PayPalBillingService : IBillingService
 
         await _uow.SaveChangesAsync();
         return invoice;
+    }
+
+    private async Task<string> GenerateInvoiceNumberAsync(DateTime issuedAt)
+    {
+        var prefix = $"IPRO-{issuedAt:yyyy}-";
+        var existingInvoices = await _uow.Invoices.FindAsync(i => i.InvoiceNumber.StartsWith(prefix));
+        var nextNumber = existingInvoices
+            .Select(i => int.TryParse(i.InvoiceNumber[prefix.Length..], out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+
+        string invoiceNumber;
+        do
+        {
+            invoiceNumber = $"{prefix}{nextNumber:000000}";
+            nextNumber++;
+        }
+        while (await _uow.Invoices.FirstOrDefaultAsync(i => i.InvoiceNumber == invoiceNumber) != null);
+
+        return invoiceNumber;
     }
 
     private async Task<TaxCalculation> CalculateTaxAsync(int userId, decimal taxableAmount)
