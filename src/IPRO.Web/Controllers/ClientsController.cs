@@ -128,6 +128,32 @@ public class ClientsController : Controller
         return View(followUps);
     }
 
+    public async Task<IActionResult> Calendar(int? year, int? month)
+    {
+        var today = DateTime.Today;
+        var selectedMonth = new DateTime(
+            year.GetValueOrDefault(today.Year),
+            month.GetValueOrDefault(today.Month),
+            1);
+        var monthStart = selectedMonth.Date;
+        var monthEnd = monthStart.AddMonths(1);
+
+        ViewBag.MonthStart = monthStart;
+        ViewBag.PreviousMonth = monthStart.AddMonths(-1);
+        ViewBag.NextMonth = monthStart.AddMonths(1);
+
+        var followUps = await _db.ClientFollowUps
+            .Include(f => f.Client)
+            .Where(f => f.Client.AgentUserId == AgentId &&
+                        f.DueAt >= monthStart &&
+                        f.DueAt < monthEnd)
+            .OrderBy(f => f.DueAt)
+            .ThenBy(f => f.IsCompleted)
+            .ToListAsync();
+
+        return View(followUps);
+    }
+
     public async Task<IActionResult> Create()
     {
         await LoadAccountTypesAsync();

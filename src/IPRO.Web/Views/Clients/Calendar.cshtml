@@ -1,0 +1,243 @@
+@model IEnumerable<IPRO.Entities.ClientFollowUp>
+@{
+    ViewData["Title"] = "Follow-up Calendar";
+    var monthStart = (DateTime)(ViewBag.MonthStart ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1));
+    var previousMonth = (DateTime)(ViewBag.PreviousMonth ?? monthStart.AddMonths(-1));
+    var nextMonth = (DateTime)(ViewBag.NextMonth ?? monthStart.AddMonths(1));
+    var firstVisibleDay = monthStart.AddDays(-(int)monthStart.DayOfWeek);
+    var followUpsByDate = Model
+        .GroupBy(f => f.DueAt.Date)
+        .ToDictionary(g => g.Key, g => g.OrderBy(f => f.IsCompleted).ThenBy(f => f.DueAt).ToList());
+
+    string MonthUrl(DateTime date) => $"/Clients/Calendar?year={date.Year}&month={date.Month}";
+    string DayCellClass(DateTime day)
+    {
+        var classes = new List<string> { "calendar-day" };
+        if (day.Month != monthStart.Month) classes.Add("is-muted");
+        if (day.Date == DateTime.Today) classes.Add("is-today");
+        return string.Join(" ", classes);
+    }
+
+    string FollowUpClass(IPRO.Entities.ClientFollowUp followUp)
+    {
+        if (followUp.IsCompleted) return "calendar-event is-completed";
+        if (followUp.DueAt.Date < DateTime.Today) return "calendar-event is-overdue";
+        if (followUp.DueAt.Date == DateTime.Today) return "calendar-event is-due-today";
+        return "calendar-event";
+    }
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="/Dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/Clients">Clients</a></li>
+        <li class="breadcrumb-item active">Calendar</li>
+      </ol>
+    </nav>
+    <h2 class="fw-bold mb-0"><i class="fas fa-calendar-alt me-2 text-primary"></i>Follow-up Calendar</h2>
+    <small class="text-muted">Track every client follow-up due this month.</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/Clients" class="btn btn-outline-secondary"><i class="fas fa-users me-1"></i>Clients</a>
+    <a href="/Dashboard" class="btn btn-outline-primary"><i class="fas fa-home me-1"></i>Dashboard</a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 p-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <a href="@MonthUrl(previousMonth)" class="btn btn-outline-primary">
+        <i class="fas fa-chevron-left me-1"></i>@previousMonth.ToString("MMM yyyy")
+      </a>
+      <div class="text-center">
+        <h4 class="fw-bold mb-1">@monthStart.ToString("MMMM yyyy")</h4>
+        <div class="text-muted small">@Model.Count() follow-up@(Model.Count() == 1 ? "" : "s") scheduled</div>
+      </div>
+      <a href="@MonthUrl(nextMonth)" class="btn btn-outline-primary">
+        @nextMonth.ToString("MMM yyyy")<i class="fas fa-chevron-right ms-1"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="calendar-weekdays px-4">
+    @foreach (var dayName in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+    {
+      <div>@dayName</div>
+    }
+  </div>
+
+  <div class="calendar-grid px-4 pb-4">
+    @for (var index = 0; index < 42; index++)
+    {
+      var day = firstVisibleDay.AddDays(index);
+      var dayFollowUps = followUpsByDate.TryGetValue(day.Date, out var items)
+          ? items
+          : new List<IPRO.Entities.ClientFollowUp>();
+
+      <div class="@DayCellClass(day)">
+        <div class="calendar-day-number">@day.Day</div>
+        @if (dayFollowUps.Any())
+        {
+          <div class="calendar-events">
+          @foreach (var item in dayFollowUps)
+          {
+            <div class="@FollowUpClass(item)">
+              <div class="d-flex justify-content-between gap-2">
+                <a href="/Clients/Details/@item.ClientId" class="calendar-event-title">@item.Title</a>
+                @if (!item.IsCompleted)
+                {
+                  <form asp-action="CompleteFollowUp" asp-route-id="@item.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
+                    <button type="submit" class="calendar-complete" title="Mark complete"><i class="fas fa-check"></i></button>
+                  </form>
+                }
+              </div>
+              <div class="calendar-client">@item.Client.FirstName @item.Client.LastName</div>
+            </div>
+          }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<div class="d-flex gap-3 flex-wrap mt-3 small text-muted">
+  <span><span class="legend-dot bg-danger"></span>Overdue</span>
+  <span><span class="legend-dot bg-warning"></span>Today</span>
+  <span><span class="legend-dot bg-primary"></span>Upcoming</span>
+  <span><span class="legend-dot bg-success"></span>Completed</span>
+</div>
+
+<style>
+  .calendar-weekdays,
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar-weekdays {
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .calendar-weekdays > div {
+    border-top: 1px solid #e2e8f0;
+    padding: .75rem;
+  }
+
+  .calendar-day {
+    background: #fff;
+    border-right: 1px solid #e2e8f0;
+    border-top: 1px solid #e2e8f0;
+    min-height: 145px;
+    padding: .65rem;
+  }
+
+  .calendar-day:nth-child(7n+1) {
+    border-left: 1px solid #e2e8f0;
+  }
+
+  .calendar-day:nth-last-child(-n+7) {
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .calendar-day.is-muted {
+    background: #f8fafc;
+    color: #94a3b8;
+  }
+
+  .calendar-day.is-today {
+    box-shadow: inset 0 0 0 2px #2563eb;
+  }
+
+  .calendar-day-number {
+    font-size: .9rem;
+    font-weight: 800;
+    margin-bottom: .5rem;
+  }
+
+  .calendar-events {
+    display: grid;
+    gap: .45rem;
+  }
+
+  .calendar-event {
+    background: #eff6ff;
+    border-left: 4px solid #2563eb;
+    border-radius: 6px;
+    padding: .45rem .5rem;
+  }
+
+  .calendar-event.is-overdue {
+    background: #fef2f2;
+    border-left-color: #dc3545;
+  }
+
+  .calendar-event.is-due-today {
+    background: #fffbeb;
+    border-left-color: #f59e0b;
+  }
+
+  .calendar-event.is-completed {
+    background: #ecfdf5;
+    border-left-color: #198754;
+    opacity: .85;
+  }
+
+  .calendar-event-title {
+    color: #0f172a;
+    font-size: .82rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+  }
+
+  .calendar-client {
+    color: #64748b;
+    font-size: .74rem;
+    line-height: 1.2;
+    margin-top: .2rem;
+  }
+
+  .calendar-complete {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #bbf7d0;
+    border-radius: 999px;
+    color: #198754;
+    display: inline-flex;
+    height: 22px;
+    justify-content: center;
+    width: 22px;
+  }
+
+  .legend-dot {
+    border-radius: 999px;
+    display: inline-block;
+    height: .65rem;
+    margin-right: .35rem;
+    width: .65rem;
+  }
+
+  @@media (max-width: 900px) {
+    .calendar-weekdays {
+      display: none;
+    }
+
+    .calendar-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .calendar-day {
+      border: 1px solid #e2e8f0;
+      min-height: auto;
+    }
+  }
+</style>

@@ -31,7 +31,7 @@
       <div class="card-body text-center p-4">
         <div class="display-4 fw-bold @(overdueCount > 0 ? "text-danger" : "text-success")">@overdueCount</div>
         <div class="text-muted mt-1"><i class="fas fa-exclamation-circle me-1"></i>Overdue Follow-ups</div>
-        <a href="/Clients" class="btn btn-outline-danger btn-sm mt-3">Review Clients</a>
+        <a href="/Clients/Calendar" class="btn btn-outline-danger btn-sm mt-3">Open Calendar</a>
       </div>
     </div>
   </div>
@@ -40,7 +40,7 @@
       <div class="card-body text-center p-4">
         <div class="display-4 fw-bold text-warning">@todayCount</div>
         <div class="text-muted mt-1"><i class="fas fa-calendar-day me-1"></i>Due Today</div>
-        <a href="#followups" class="btn btn-outline-warning btn-sm mt-3">See Today</a>
+        <a href="/Clients/Calendar" class="btn btn-outline-warning btn-sm mt-3">See Calendar</a>
       </div>
     </div>
   </div>
@@ -49,7 +49,7 @@
       <div class="card-body text-center p-4">
         <div class="display-4 fw-bold text-info">@upcomingCount</div>
         <div class="text-muted mt-1"><i class="fas fa-clock me-1"></i>Upcoming</div>
-        <a href="#followups" class="btn btn-outline-info btn-sm mt-3">View Queue</a>
+        <a href="/Clients/Calendar" class="btn btn-outline-info btn-sm mt-3">View Calendar</a>
       </div>
     </div>
   </div>
@@ -118,6 +118,7 @@
         <div class="d-grid gap-2">
           <a href="/Clients/Create" class="btn btn-light text-start"><i class="fas fa-user-plus me-2 text-primary"></i>Add New Client</a>
           <a href="/Clients" class="btn btn-light text-start"><i class="fas fa-search me-2 text-primary"></i>Search Clients</a>
+          <a href="/Clients/Calendar" class="btn btn-light text-start"><i class="fas fa-calendar-alt me-2 text-primary"></i>Follow-up Calendar</a>
           <a href="/Newsletter/Create" class="btn btn-light text-start"><i class="fas fa-paper-plane me-2 text-success"></i>Create Newsletter</a>
           <a href="/Billing" class="btn btn-light text-start"><i class="fas fa-credit-card me-2 text-secondary"></i>Billing</a>
         </div>
