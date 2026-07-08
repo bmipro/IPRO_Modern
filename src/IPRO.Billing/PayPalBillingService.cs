@@ -47,14 +47,22 @@ public class PayPalBillingService : IBillingService
 
     public async Task<BillingIssue?> GetBillingIssueAsync(int userId)
     {
+        var activeSubscription = await GetActiveSubscriptionAsync(userId);
         var invoices = await GetInvoicesAsync(userId);
-        var failedInvoice = invoices.FirstOrDefault(i => !i.IsPaid && i.Billing?.Status == BillingStatus.Failed);
+        var failedInvoice = invoices.FirstOrDefault(i =>
+            !i.IsPaid &&
+            i.Billing?.Status == BillingStatus.Failed &&
+            IsActionableBillingIssue(i.Billing, activeSubscription));
         if (failedInvoice != null)
         {
             return await BuildBillingIssueAsync(failedInvoice, "Payment failed", "Your last payment could not be completed. Please update or retry your payment to keep your IPRO services active.");
         }
 
-        var pendingInvoice = invoices.FirstOrDefault(i => !i.IsPaid && i.Billing?.Status == BillingStatus.Pending && i.IssuedAt <= DateTime.UtcNow.AddHours(-24));
+        var pendingInvoice = invoices.FirstOrDefault(i =>
+            !i.IsPaid &&
+            i.Billing?.Status == BillingStatus.Pending &&
+            i.IssuedAt <= DateTime.UtcNow.AddHours(-24) &&
+            IsActionableBillingIssue(i.Billing, activeSubscription));
         if (pendingInvoice != null)
         {
             return await BuildBillingIssueAsync(pendingInvoice, "Payment pending", "You have a payment that was started but not completed. Please continue payment or cancel the checkout.");
@@ -350,6 +358,12 @@ public class PayPalBillingService : IBillingService
         var sent = 0;
         foreach (var billing in problemBillings.OrderBy(b => b.CreatedAt))
         {
+            var activeSubscription = await GetActiveSubscriptionAsync(billing.AgentUserId);
+            if (!IsActionableBillingIssue(billing, activeSubscription))
+            {
+                continue;
+            }
+
             var invoice = (await _uow.Invoices.FindAsync(i =>
                     i.BillingId == billing.Id && !i.IsPaid))
                 .OrderByDescending(i => i.IssuedAt)
@@ -900,6 +914,17 @@ public class PayPalBillingService : IBillingService
             Currency = invoice.Currency,
             Message = message
         };
+    }
+
+    private static bool IsActionableBillingIssue(IPRO.Entities.Billing issueBilling, IPRO.Entities.Billing? activeSubscription)
+    {
+        if (activeSubscription == null)
+        {
+            return true;
+        }
+
+        return activeSubscription.Id == issueBilling.Id ||
+            activeSubscription.BillingRuleId != issueBilling.BillingRuleId;
     }
 
     private static string BuildBillingIssueEmailHtml(string fullName, string packageName, string amount, BillingStatus status)
