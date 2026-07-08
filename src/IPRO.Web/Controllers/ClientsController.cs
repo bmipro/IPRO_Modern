@@ -128,6 +128,49 @@ public class ClientsController : Controller
         return View(followUps);
     }
 
+    [HttpGet("Clients/FollowUps")]
+    public async Task<IActionResult> FollowUpQueue(string status = "open", int page = 1)
+    {
+        const int pageSize = 15;
+        page = Math.Max(page, 1);
+        status = string.IsNullOrWhiteSpace(status) ? "open" : status.Trim().ToLowerInvariant();
+
+        var today = DateTime.Today;
+        var nextWeek = today.AddDays(7);
+        var query = _db.ClientFollowUps
+            .Include(f => f.Client)
+            .Where(f => f.Client.AgentUserId == AgentId);
+
+        query = status switch
+        {
+            "completed" => query.Where(f => f.IsCompleted),
+            "overdue" => query.Where(f => !f.IsCompleted && f.DueAt.Date < today),
+            "today" => query.Where(f => !f.IsCompleted && f.DueAt.Date == today),
+            "upcoming" => query.Where(f => !f.IsCompleted && f.DueAt.Date > today && f.DueAt.Date <= nextWeek),
+            "all" => query,
+            _ => query.Where(f => !f.IsCompleted)
+        };
+
+        var totalCount = await query.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        page = Math.Min(page, totalPages);
+
+        ViewBag.Status = status;
+        ViewBag.Page = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
+        var followUps = await query
+            .OrderBy(f => f.IsCompleted)
+            .ThenBy(f => f.IsCompleted ? DateTime.MaxValue : f.DueAt)
+            .ThenByDescending(f => f.CompletedAt ?? f.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return View(followUps);
+    }
+
     public async Task<IActionResult> Calendar(int? year, int? month)
     {
         var today = DateTime.Today;
