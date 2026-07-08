@@ -8,10 +8,13 @@ public class Invoice
     public string InvoiceNumber { get; set; } = string.Empty;
     public decimal SubTotal { get; set; }
     public decimal TaxAmount { get; set; }
+    public decimal TaxRate { get; set; }
+    public string TaxRegion { get; set; } = string.Empty;
     public decimal Total { get; set; }
     public string Currency { get; set; } = "CAD";
     public string PayPalTransactionId { get; set; } = string.Empty;
     public DateTime IssuedAt { get; set; } = DateTime.UtcNow;
     public bool IsPaid { get; set; } = false;
     public Billing Billing { get; set; } = null!;
+    public ICollection<InvoiceLineItem> LineItems { get; set; } = new List<InvoiceLineItem>();
 }

@@ -14,6 +14,7 @@ public class PackageEditViewModel
     [Required]
     public decimal MonthlyPrice { get; set; }
 
+    public decimal SetupFee { get; set; }
     public decimal? QuarterlyPrice { get; set; }
     public decimal? AnnualPrice { get; set; }
     public string? PayPalMonthlyPlanId { get; set; }
@@ -42,6 +43,7 @@ public class PackageListViewModel
     public string Description { get; set; } = string.Empty;
     public decimal MonthlyPrice { get; set; }
     public decimal AnnualPrice { get; set; }
+    public decimal SetupFee { get; set; }
     public string ContactsLimit { get; set; } = string.Empty;
     public string DomainsLimit { get; set; } = string.Empty;
     public bool IsActive { get; set; }

@@ -207,7 +207,7 @@ else
   <div class="card border-0 shadow-sm">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
-        <thead><tr><th>Invoice #</th><th>Date</th><th>Subtotal</th><th>Tax (HST)</th><th>Total</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Invoice #</th><th>Date</th><th>Items</th><th>Subtotal</th><th>Tax</th><th>Total</th><th>Status</th><th></th></tr></thead>
         <tbody>
         @foreach (var inv in invoices)
         {
@@ -215,8 +215,32 @@ else
           <tr>
             <td class="fw-semibold small">@inv.InvoiceNumber</td>
             <td><small class="text-muted">@inv.IssuedAt.ToString("MMM d, yyyy")</small></td>
+            <td>
+              @if (inv.LineItems?.Any() == true)
+              {
+                <ul class="list-unstyled mb-0 small">
+                  @foreach (var item in inv.LineItems.OrderBy(i => i.SortOrder))
+                  {
+                    <li class="d-flex justify-content-between gap-3">
+                      <span>@item.Description</span>
+                      <span>$@item.Amount.ToString("N2")</span>
+                    </li>
+                  }
+                </ul>
+              }
+              else
+              {
+                <small class="text-muted">Subscription charge</small>
+              }
+            </td>
             <td>$@inv.SubTotal.ToString("N2")</td>
-            <td>$@inv.TaxAmount.ToString("N2")</td>
+            <td>
+              $@inv.TaxAmount.ToString("N2")
+              @if (!string.IsNullOrWhiteSpace(inv.TaxRegion))
+              {
+                <small class="text-muted d-block">@inv.TaxRegion @(inv.TaxRate > 0 ? inv.TaxRate.ToString("P3") : "")</small>
+              }
+            </td>
             <td class="fw-bold">$@inv.Total.ToString("N2") <small class="text-muted">@inv.Currency</small></td>
             <td><span class="badge @invoiceStatus.CssClass">@invoiceStatus.Text</span></td>
             <td class="text-end">

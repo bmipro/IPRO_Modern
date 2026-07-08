@@ -17,8 +17,9 @@
     <div class="col-lg-6"><label class="form-label fw-semibold">Description</label><input asp-for="Description" class="form-control" placeholder="Short description shown to agents"/></div>
   </div>
   <div class="row g-3 mb-3">
-    <div class="col-md-6"><label class="form-label fw-semibold">Monthly Price ($)</label><input asp-for="MonthlyPrice" type="number" step="0.01" class="form-control" required/></div>
-    <div class="col-md-6"><label class="form-label fw-semibold">Annual Price ($)</label><input asp-for="AnnualPrice" type="number" step="0.01" class="form-control"/></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Monthly Recurring Price ($)</label><input asp-for="MonthlyPrice" type="number" step="0.01" class="form-control" required/></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Annual Recurring Price ($)</label><input asp-for="AnnualPrice" type="number" step="0.01" class="form-control"/></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">One-time Setup Fee ($)</label><input asp-for="SetupFee" type="number" step="0.01" class="form-control"/></div>
   </div>
   <input type="hidden" asp-for="QuarterlyPrice" value="0"/>
   <input type="hidden" asp-for="MaxClients"/>

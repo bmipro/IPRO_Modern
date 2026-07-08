@@ -18,6 +18,7 @@ public class IPRODbContext : DbContext
     public DbSet<BillingRule> BillingRules => Set<BillingRule>();
     public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
     public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
     public DbSet<NewsLetter> NewsLetters => Set<NewsLetter>();
     public DbSet<NewsLetterArticle> NewsLetterArticles => Set<NewsLetterArticle>();
@@ -154,7 +155,20 @@ public class IPRODbContext : DbContext
             e.HasIndex(i => i.InvoiceNumber).IsUnique();
             e.Property(i => i.SubTotal).HasPrecision(10, 2);
             e.Property(i => i.TaxAmount).HasPrecision(10, 2);
+            e.Property(i => i.TaxRate).HasPrecision(7, 4);
+            e.Property(i => i.TaxRegion).HasMaxLength(80);
             e.Property(i => i.Total).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<InvoiceLineItem>(e =>
+        {
+            e.HasOne(i => i.Invoice)
+             .WithMany(i => i.LineItems)
+             .HasForeignKey(i => i.InvoiceId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.Property(i => i.Description).HasMaxLength(200).IsRequired();
+            e.Property(i => i.Amount).HasPrecision(10, 2);
         });
 
         modelBuilder.Entity<SubscriptionChange>(e =>
@@ -218,6 +232,7 @@ public class IPRODbContext : DbContext
             e.Property(r => r.MonthlyPrice).HasPrecision(10, 2);
             e.Property(r => r.QuarterlyPrice).HasPrecision(10, 2);
             e.Property(r => r.AnnualPrice).HasPrecision(10, 2);
+            e.Property(r => r.SetupFee).HasPrecision(10, 2);
         });
 
         modelBuilder.Entity<PackageFeature>(e =>

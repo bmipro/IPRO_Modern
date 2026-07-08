@@ -8,6 +8,7 @@ public class BillingRule
     public decimal MonthlyPrice { get; set; }
     public decimal QuarterlyPrice { get; set; }
     public decimal AnnualPrice { get; set; }
+    public decimal SetupFee { get; set; }
     public string PayPalMonthlyPlanId { get; set; } = string.Empty;
     public string PayPalAnnualPlanId { get; set; } = string.Empty;
     public int MaxClients { get; set; } = 500;

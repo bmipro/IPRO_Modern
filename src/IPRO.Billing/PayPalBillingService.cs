@@ -86,7 +86,8 @@ public class PayPalBillingService : IBillingService
                 GetAmount(requestedPackage, period),
                 GetAmount(requestedPackage, period),
                 returnUrl,
-                cancelUrl);
+                cancelUrl,
+                includeSetupFee: true);
         }
 
         if (activeSubscription.BillingRuleId == requestedPackage.Id)
@@ -419,6 +420,10 @@ public class PayPalBillingService : IBillingService
             {
                 invoice.Billing = billing;
             }
+
+            invoice.LineItems = (await _uow.InvoiceLineItems.FindAsync(i => i.InvoiceId == invoice.Id))
+                .OrderBy(i => i.SortOrder)
+                .ToList();
         }
 
         return invoiceList;
@@ -432,7 +437,13 @@ public class PayPalBillingService : IBillingService
             throw new InvalidOperationException("Cannot generate an invoice without an active subscription.");
         }
 
-        return await CreateInvoiceAsync(activeSubscription.Id, userId, amount, false);
+        var package = await _uow.BillingRules.GetByIdAsync(activeSubscription.BillingRuleId);
+        if (package == null)
+        {
+            return await CreateInvoiceAsync(activeSubscription.Id, userId, amount, false);
+        }
+
+        return await CreateInvoiceAsync(activeSubscription.Id, userId, package, activeSubscription.Period, amount, 0, false);
     }
 
     public async Task<List<BillingRule>> GetPackagesAsync()
@@ -454,7 +465,8 @@ public class PayPalBillingService : IBillingService
         string returnUrl,
         string cancelUrl,
         int? currentBillingId = null,
-        DateTime? nextBillingDate = null)
+        DateTime? nextBillingDate = null,
+        bool includeSetupFee = false)
     {
         if (!HasPayPalSettings())
         {
@@ -477,6 +489,9 @@ public class PayPalBillingService : IBillingService
         await _uow.Billings.AddAsync(billing);
         await _uow.SaveChangesAsync();
 
+        var setupFee = includeSetupFee ? requestedPackage.SetupFee : 0;
+        var invoice = await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, amountDue, setupFee, false);
+
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
         {
             AgentUserId = userId,
@@ -489,11 +504,10 @@ public class PayPalBillingService : IBillingService
             EffectiveDate = effectiveDate,
             ProratedCredit = credit,
             ProratedCharge = charge,
-            AmountDue = amountDue
+            AmountDue = invoice.Total
         });
         await _uow.SaveChangesAsync();
 
-        var invoice = await CreateInvoiceAsync(billing.Id, userId, amountDue, false);
         PayPalOrderResult order;
         try
         {
@@ -535,7 +549,7 @@ public class PayPalBillingService : IBillingService
             RequiresPayment = true,
             ApprovalUrl = order.ApprovalUrl,
             InvoiceId = invoice.Id,
-            AmountDue = amountDue,
+            AmountDue = invoice.Total,
             Message = "Please complete payment in PayPal to activate this package change."
         };
     }
@@ -579,7 +593,7 @@ public class PayPalBillingService : IBillingService
             AppliedAt = now
         });
         await _uow.SaveChangesAsync();
-        await CreateInvoiceAsync(billing.Id, userId, 0, true);
+        await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, 0, 0, true);
 
         return new BillingChangeResult { Success = true, Message = "Your package was upgraded." };
     }
@@ -684,7 +698,7 @@ public class PayPalBillingService : IBillingService
             _uow.SubscriptionChanges.Update(change);
             await _uow.SaveChangesAsync();
 
-            await CreateInvoiceAsync(billing.Id, userId, amount, true);
+            await CreateInvoiceAsync(billing.Id, userId, requestedPackage, change.Period, amount, 0, true);
             applied++;
         }
 
@@ -718,14 +732,54 @@ public class PayPalBillingService : IBillingService
 
     private async Task<IPRO.Entities.Invoice> CreateInvoiceAsync(int billingId, int userId, decimal amount, bool isPaid)
     {
+        var billing = await _uow.Billings.GetByIdAsync(billingId);
+        var package = billing == null ? null : await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
+        if (billing == null || package == null)
+        {
+            return await CreateInvoiceWithLinesAsync(billingId, userId, amount, 0, 0, string.Empty, isPaid, new[]
+            {
+                new InvoiceLineDraft("IPRO billing charge", amount)
+            });
+        }
+
+        return await CreateInvoiceAsync(billingId, userId, package, billing.Period, amount, 0, isPaid);
+    }
+
+    private async Task<IPRO.Entities.Invoice> CreateInvoiceAsync(int billingId, int userId, BillingRule package, BillingPeriod period, decimal recurringAmount, decimal setupFee, bool isPaid)
+    {
+        var lineItems = new List<InvoiceLineDraft>();
+        if (recurringAmount > 0)
+        {
+            lineItems.Add(new InvoiceLineDraft($"{package.PackageName} {FormatPeriod(period)} recurring subscription", recurringAmount));
+        }
+
+        if (setupFee > 0)
+        {
+            lineItems.Add(new InvoiceLineDraft($"{package.PackageName} one-time setup fee", setupFee));
+        }
+
+        if (lineItems.Count == 0)
+        {
+            lineItems.Add(new InvoiceLineDraft($"{package.PackageName} subscription adjustment", 0));
+        }
+
+        var subtotal = lineItems.Sum(i => i.Amount);
+        var tax = await CalculateTaxAsync(userId, subtotal);
+        return await CreateInvoiceWithLinesAsync(billingId, userId, subtotal, tax.Amount, tax.Rate, tax.Region, isPaid, lineItems);
+    }
+
+    private async Task<IPRO.Entities.Invoice> CreateInvoiceWithLinesAsync(int billingId, int userId, decimal subtotal, decimal taxAmount, decimal taxRate, string taxRegion, bool isPaid, IEnumerable<InvoiceLineDraft> lines)
+    {
         var invoice = new IPRO.Entities.Invoice
         {
             BillingId = billingId,
             AgentUserId = userId,
             InvoiceNumber = $"IPRO-{DateTime.UtcNow:yyyyMMddHHmmssfffffff}-{userId}",
-            SubTotal = amount,
-            TaxAmount = 0,
-            Total = amount,
+            SubTotal = subtotal,
+            TaxAmount = taxAmount,
+            TaxRate = taxRate,
+            TaxRegion = taxRegion,
+            Total = subtotal + taxAmount,
             Currency = "CAD",
             IssuedAt = DateTime.UtcNow,
             IsPaid = isPaid
@@ -733,8 +787,117 @@ public class PayPalBillingService : IBillingService
 
         await _uow.Invoices.AddAsync(invoice);
         await _uow.SaveChangesAsync();
+
+        var sortOrder = 10;
+        foreach (var line in lines)
+        {
+            await _uow.InvoiceLineItems.AddAsync(new InvoiceLineItem
+            {
+                InvoiceId = invoice.Id,
+                Description = line.Description,
+                Amount = line.Amount,
+                SortOrder = sortOrder
+            });
+            sortOrder += 10;
+        }
+
+        if (taxAmount > 0)
+        {
+            await _uow.InvoiceLineItems.AddAsync(new InvoiceLineItem
+            {
+                InvoiceId = invoice.Id,
+                Description = $"{taxRegion} tax ({taxRate:P3})",
+                Amount = taxAmount,
+                SortOrder = sortOrder
+            });
+        }
+
+        await _uow.SaveChangesAsync();
         return invoice;
     }
+
+    private async Task<TaxCalculation> CalculateTaxAsync(int userId, decimal taxableAmount)
+    {
+        if (taxableAmount <= 0)
+        {
+            return new TaxCalculation(0, 0, "No tax");
+        }
+
+        var agent = await _uow.AgentUsers.GetByIdAsync(userId);
+        if (agent == null)
+        {
+            return new TaxCalculation(0, 0, "No tax");
+        }
+
+        var country = (agent.Country ?? string.Empty).Trim();
+        if (country.Equals("US", StringComparison.OrdinalIgnoreCase) ||
+            country.Equals("USA", StringComparison.OrdinalIgnoreCase) ||
+            country.Equals("United States", StringComparison.OrdinalIgnoreCase) ||
+            country.Equals("United States of America", StringComparison.OrdinalIgnoreCase))
+        {
+            return new TaxCalculation(0, 0, "US");
+        }
+
+        if (!country.Equals("Canada", StringComparison.OrdinalIgnoreCase) &&
+            !country.Equals("CA", StringComparison.OrdinalIgnoreCase))
+        {
+            return new TaxCalculation(0, 0, country.Length == 0 ? "No tax" : country);
+        }
+
+        var province = NormalizeProvince(agent.Province);
+        var rate = CanadaTaxRates.TryGetValue(province, out var configuredRate) ? configuredRate : 0;
+        var amount = Math.Round(taxableAmount * rate, 2, MidpointRounding.AwayFromZero);
+        return new TaxCalculation(rate, amount, string.IsNullOrWhiteSpace(province) ? "Canada" : province);
+    }
+
+    private static string FormatPeriod(BillingPeriod period) => period switch
+    {
+        BillingPeriod.Annually => "annual",
+        BillingPeriod.Quarterly => "quarterly",
+        _ => "monthly"
+    };
+
+    private static string NormalizeProvince(string? province)
+    {
+        var value = (province ?? string.Empty).Trim().ToUpperInvariant();
+        return ProvinceAliases.TryGetValue(value, out var alias) ? alias : value;
+    }
+
+    private static readonly Dictionary<string, string> ProvinceAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ALBERTA"] = "AB",
+        ["BRITISH COLUMBIA"] = "BC",
+        ["MANITOBA"] = "MB",
+        ["NEW BRUNSWICK"] = "NB",
+        ["NEWFOUNDLAND"] = "NL",
+        ["NEWFOUNDLAND AND LABRADOR"] = "NL",
+        ["NORTHWEST TERRITORIES"] = "NT",
+        ["NOVA SCOTIA"] = "NS",
+        ["NUNAVUT"] = "NU",
+        ["ONTARIO"] = "ON",
+        ["PRINCE EDWARD ISLAND"] = "PE",
+        ["QUEBEC"] = "QC",
+        ["QUÉBEC"] = "QC",
+        ["SASKATCHEWAN"] = "SK",
+        ["YUKON"] = "YT"
+    };
+
+    private static readonly Dictionary<string, decimal> CanadaTaxRates = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["AB"] = 0.05m,
+        ["BC"] = 0.12m,
+        ["MB"] = 0.12m,
+        ["NB"] = 0.15m,
+        ["NL"] = 0.15m,
+        ["NT"] = 0.05m,
+        ["NS"] = 0.14m,
+        ["NU"] = 0.05m,
+        ["ON"] = 0.13m,
+        ["PE"] = 0.15m,
+        ["QC"] = 0.14975m,
+        ["SK"] = 0.11m,
+        ["YT"] = 0.05m
+    };
 
     private async Task<BillingIssue> BuildBillingIssueAsync(IPRO.Entities.Invoice invoice, string status, string message)
     {
@@ -914,5 +1077,7 @@ public class PayPalBillingService : IBillingService
         _ => startDate.AddMonths(1)
     };
 
+    private sealed record InvoiceLineDraft(string Description, decimal Amount);
+    private sealed record TaxCalculation(decimal Rate, decimal Amount, string Region);
     private sealed record PayPalOrderResult(string OrderId, string ApprovalUrl);
 }

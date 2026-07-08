@@ -29,6 +29,7 @@ public class PackagesController : Controller
                 Description = p.Description,
                 MonthlyPrice = p.MonthlyPrice,
                 AnnualPrice = p.AnnualPrice,
+                SetupFee = p.SetupFee,
                 ContactsLimit = FormatFeatureLimit(features.FirstOrDefault(f =>
                     f.BillingRuleId == p.Id &&
                     string.Equals(f.FeatureCode, PackageFeatureCodes.Contacts, StringComparison.OrdinalIgnoreCase)), p.MaxClients),
@@ -117,6 +118,7 @@ public class PackagesController : Controller
             PackageName = rule.PackageName,
             Description = rule.Description,
             MonthlyPrice = rule.MonthlyPrice,
+            SetupFee = rule.SetupFee,
             QuarterlyPrice = rule.QuarterlyPrice == 0 ? null : rule.QuarterlyPrice,
             AnnualPrice = rule.AnnualPrice == 0 ? null : rule.AnnualPrice,
             PayPalMonthlyPlanId = rule.PayPalMonthlyPlanId,
@@ -232,6 +234,7 @@ public class PackagesController : Controller
         rule.PackageName = model.PackageName;
         rule.Description = model.Description ?? string.Empty;
         rule.MonthlyPrice = model.MonthlyPrice;
+        rule.SetupFee = model.SetupFee;
         rule.QuarterlyPrice = model.QuarterlyPrice ?? 0;
         rule.AnnualPrice = model.AnnualPrice ?? 0;
         rule.PayPalMonthlyPlanId = model.PayPalMonthlyPlanId ?? string.Empty;

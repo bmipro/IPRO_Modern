@@ -18,6 +18,7 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<BillingRule> BillingRules { get; }
     IRepository<PackageFeature> PackageFeatures { get; }
     IRepository<Invoice> Invoices { get; }
+    IRepository<InvoiceLineItem> InvoiceLineItems { get; }
     IRepository<SubscriptionChange> SubscriptionChanges { get; }
     IRepository<NewsLetter> NewsLetters { get; }
     IRepository<NewsLetterArticle> NewsLetterArticles { get; }

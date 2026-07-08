@@ -21,10 +21,10 @@ public static class PackageEntitlementSeeder
     {
         var packageDefinitions = new[]
         {
-            new PackageDefinition("IPro Silver", "Entry package for individual advisors.", 40m, 120m, 480m, 500, 12),
-            new PackageDefinition("IPro Gold", "Expanded package with marketing, banners, coupons, and mail tools.", 60m, 180m, 720m, Unlimited, Unlimited),
-            new PackageDefinition("IPro Platinum", "Premium package with managed content, SEO, and PayPal tools.", 90m, 270m, 1080m, Unlimited, Unlimited),
-            new PackageDefinition("Broker Package", "Broker/team package. Pricing, setup, and monthly fees vary.", 0m, 0m, 0m, Unlimited, Unlimited)
+            new PackageDefinition("IPro Silver", "Entry package for individual advisors.", 40m, 120m, 480m, 150m, 500, 12),
+            new PackageDefinition("IPro Gold", "Expanded package with marketing, banners, coupons, and mail tools.", 60m, 180m, 720m, 200m, Unlimited, Unlimited),
+            new PackageDefinition("IPro Platinum", "Premium package with managed content, SEO, and PayPal tools.", 90m, 270m, 1080m, 400m, Unlimited, Unlimited),
+            new PackageDefinition("Broker Package", "Broker/team package. Pricing, setup, and monthly fees vary.", 0m, 0m, 0m, 0m, Unlimited, Unlimited)
         };
 
         foreach (var definition in packageDefinitions)
@@ -39,6 +39,7 @@ public static class PackageEntitlementSeeder
                     MonthlyPrice = definition.MonthlyPrice,
                     QuarterlyPrice = definition.QuarterlyPrice,
                     AnnualPrice = definition.AnnualPrice,
+                    SetupFee = definition.SetupFee,
                     MaxClients = definition.MaxClients,
                     MaxNewsletters = definition.MaxNewsletters,
                     IsActive = true,
@@ -49,6 +50,7 @@ public static class PackageEntitlementSeeder
             else
             {
                 existing.Description = string.IsNullOrWhiteSpace(existing.Description) ? definition.Description : existing.Description;
+                existing.SetupFee = existing.SetupFee == 0 ? definition.SetupFee : existing.SetupFee;
                 existing.MaxClients = existing.MaxClients == 0 ? definition.MaxClients : existing.MaxClients;
                 existing.MaxNewsletters = existing.MaxNewsletters == 0 ? definition.MaxNewsletters : existing.MaxNewsletters;
             }
@@ -159,7 +161,7 @@ public static class PackageEntitlementSeeder
             ["Broker Package"] = broker
         });
 
-    private sealed record PackageDefinition(string Name, string Description, decimal MonthlyPrice, decimal QuarterlyPrice, decimal AnnualPrice, int MaxClients, int MaxNewsletters);
+    private sealed record PackageDefinition(string Name, string Description, decimal MonthlyPrice, decimal QuarterlyPrice, decimal AnnualPrice, decimal SetupFee, int MaxClients, int MaxNewsletters);
     private sealed record FeatureDefinition(int SortOrder, string Code, string Name, IReadOnlyDictionary<string, FeatureValue> Values);
     private sealed record FeatureValue(bool IsIncluded, int? LimitValue = null, string LimitLabel = "");
 }
