@@ -845,9 +845,14 @@ public class PayPalBillingService : IBillingService
         }
 
         var province = NormalizeProvince(agent.Province);
-        var rate = CanadaTaxRates.TryGetValue(province, out var configuredRate) ? configuredRate : 0;
-        var amount = Math.Round(taxableAmount * rate, 2, MidpointRounding.AwayFromZero);
-        return new TaxCalculation(rate, amount, string.IsNullOrWhiteSpace(province) ? "Canada" : province);
+        var taxRate = await _uow.ProvinceTaxRates.FirstOrDefaultAsync(t => t.ProvinceCode == province && t.IsActive);
+        if (taxRate == null)
+        {
+            return new TaxCalculation(0, 0, string.IsNullOrWhiteSpace(province) ? "Canada" : province);
+        }
+
+        var amount = Math.Round(taxableAmount * taxRate.Rate, 2, MidpointRounding.AwayFromZero);
+        return new TaxCalculation(taxRate.Rate, amount, $"{taxRate.ProvinceCode} {taxRate.TaxLabel}".Trim());
     }
 
     private static string FormatPeriod(BillingPeriod period) => period switch
@@ -880,23 +885,6 @@ public class PayPalBillingService : IBillingService
         ["QUÉBEC"] = "QC",
         ["SASKATCHEWAN"] = "SK",
         ["YUKON"] = "YT"
-    };
-
-    private static readonly Dictionary<string, decimal> CanadaTaxRates = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["AB"] = 0.05m,
-        ["BC"] = 0.12m,
-        ["MB"] = 0.12m,
-        ["NB"] = 0.15m,
-        ["NL"] = 0.15m,
-        ["NT"] = 0.05m,
-        ["NS"] = 0.14m,
-        ["NU"] = 0.05m,
-        ["ON"] = 0.13m,
-        ["PE"] = 0.15m,
-        ["QC"] = 0.14975m,
-        ["SK"] = 0.11m,
-        ["YT"] = 0.05m
     };
 
     private async Task<BillingIssue> BuildBillingIssueAsync(IPRO.Entities.Invoice invoice, string status, string message)

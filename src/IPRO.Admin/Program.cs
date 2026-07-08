@@ -4,6 +4,7 @@ using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
+using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -22,6 +23,8 @@ builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
@@ -77,6 +80,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
+    await TaxRateSeeder.SeedAsync(db);
 }
 
 app.Run();

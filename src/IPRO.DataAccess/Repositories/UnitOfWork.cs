@@ -22,6 +22,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<Billing>? _billings;
     private IRepository<BillingRule>? _billingRules;
     private IRepository<PackageFeature>? _packageFeatures;
+    private IRepository<ProvinceTaxRate>? _provinceTaxRates;
     private IRepository<Invoice>? _invoices;
     private IRepository<InvoiceLineItem>? _invoiceLineItems;
     private IRepository<SubscriptionChange>? _subscriptionChanges;
@@ -50,6 +51,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     public IRepository<Billing> Billings => _billings ??= new Repository<Billing>(_context);
     public IRepository<BillingRule> BillingRules => _billingRules ??= new Repository<BillingRule>(_context);
     public IRepository<PackageFeature> PackageFeatures => _packageFeatures ??= new Repository<PackageFeature>(_context);
+    public IRepository<ProvinceTaxRate> ProvinceTaxRates => _provinceTaxRates ??= new Repository<ProvinceTaxRate>(_context);
     public IRepository<Invoice> Invoices => _invoices ??= new Repository<Invoice>(_context);
     public IRepository<InvoiceLineItem> InvoiceLineItems => _invoiceLineItems ??= new Repository<InvoiceLineItem>(_context);
     public IRepository<SubscriptionChange> SubscriptionChanges => _subscriptionChanges ??= new Repository<SubscriptionChange>(_context);

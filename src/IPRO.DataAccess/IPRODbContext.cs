@@ -17,6 +17,7 @@ public class IPRODbContext : DbContext
     public DbSet<Billing> Billings => Set<Billing>();
     public DbSet<BillingRule> BillingRules => Set<BillingRule>();
     public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
+    public DbSet<ProvinceTaxRate> ProvinceTaxRates => Set<ProvinceTaxRate>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
     public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
@@ -245,6 +246,15 @@ public class IPRODbContext : DbContext
              .WithMany(r => r.Features)
              .HasForeignKey(f => f.BillingRuleId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProvinceTaxRate>(e =>
+        {
+            e.HasIndex(t => t.ProvinceCode).IsUnique();
+            e.Property(t => t.ProvinceCode).HasMaxLength(10).IsRequired();
+            e.Property(t => t.ProvinceName).HasMaxLength(80).IsRequired();
+            e.Property(t => t.TaxLabel).HasMaxLength(80).IsRequired();
+            e.Property(t => t.Rate).HasPrecision(7, 5);
         });
     }
 }

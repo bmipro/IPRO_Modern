@@ -138,6 +138,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
+    await TaxRateSeeder.SeedAsync(db);
 }
 
 app.Run();

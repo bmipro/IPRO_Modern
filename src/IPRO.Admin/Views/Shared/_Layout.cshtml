@@ -47,6 +47,9 @@
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Packages" ? "active" : "")" href="/Packages">
             <i class="fas fa-box"></i>Packages
         </a>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "TaxRates" ? "active" : "")" href="/TaxRates">
+            <i class="fas fa-percent"></i>Tax Rates
+        </a>
         <a class="nav-link" href="/Reports/Revenue">
             <i class="fas fa-dollar-sign"></i>Revenue
         </a>
