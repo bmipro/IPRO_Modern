@@ -1,0 +1,11 @@
+@model IPRO.Billing.BillingIssue
+
+<div class="alert alert-danger border-0 shadow-sm d-flex flex-wrap align-items-center gap-3 mb-3">
+    <i class="fas fa-credit-card fa-2x"></i>
+    <div class="flex-grow-1">
+        <div class="fw-bold">@Model.Status: @Model.PackageName</div>
+        <div>@Model.Message</div>
+        <small>Amount due: $@Model.AmountDue.ToString("N2") @Model.Currency</small>
+    </div>
+    <a class="btn btn-light fw-semibold" href="/Billing">Fix Billing</a>
+</div>

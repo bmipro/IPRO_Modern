@@ -17,9 +17,14 @@ public class SubscriptionBillingJob
     public async Task RunAsync()
     {
         var applied = await _billing.ProcessDueSubscriptionChangesAsync();
+        var notified = await _billing.NotifyBillingIssuesAsync();
         if (applied > 0)
         {
             _logger.LogInformation("Applied {Count} due subscription change(s).", applied);
+        }
+        if (notified > 0)
+        {
+            _logger.LogInformation("Sent {Count} billing issue notification(s).", notified);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using IPRO.DataAccess.Repositories;
+using IPRO.Email;
 using IPRO.Entities;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,7 @@ public class PayPalBillingService : IBillingService
 {
     private readonly IUnitOfWork _uow;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IEmailService _email;
     private readonly PayPalSettings _settings;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -19,10 +21,11 @@ public class PayPalBillingService : IBillingService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public PayPalBillingService(IUnitOfWork uow, IHttpClientFactory httpClientFactory, IOptions<PayPalSettings> settings)
+    public PayPalBillingService(IUnitOfWork uow, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings)
     {
         _uow = uow;
         _httpClientFactory = httpClientFactory;
+        _email = email;
         _settings = settings.Value;
     }
 
@@ -40,6 +43,24 @@ public class PayPalBillingService : IBillingService
 
         return await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
             c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
+    }
+
+    public async Task<BillingIssue?> GetBillingIssueAsync(int userId)
+    {
+        var invoices = await GetInvoicesAsync(userId);
+        var failedInvoice = invoices.FirstOrDefault(i => !i.IsPaid && i.Billing?.Status == BillingStatus.Failed);
+        if (failedInvoice != null)
+        {
+            return await BuildBillingIssueAsync(failedInvoice, "Payment failed", "Your last payment could not be completed. Please update or retry your payment to keep your IPRO services active.");
+        }
+
+        var pendingInvoice = invoices.FirstOrDefault(i => !i.IsPaid && i.Billing?.Status == BillingStatus.Pending && i.IssuedAt <= DateTime.UtcNow.AddHours(-24));
+        if (pendingInvoice != null)
+        {
+            return await BuildBillingIssueAsync(pendingInvoice, "Payment pending", "You have a payment that was started but not completed. Please continue payment or cancel the checkout.");
+        }
+
+        return null;
     }
 
     public async Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, BillingPeriod period, string returnUrl, string cancelUrl)
@@ -317,6 +338,68 @@ public class PayPalBillingService : IBillingService
         }
 
         return applied;
+    }
+
+    public async Task<int> NotifyBillingIssuesAsync()
+    {
+        var problemBillings = await _uow.Billings.FindAsync(b =>
+            b.Status == BillingStatus.Failed ||
+            (b.Status == BillingStatus.Pending && b.CreatedAt <= DateTime.UtcNow.AddHours(-24)));
+
+        var sent = 0;
+        foreach (var billing in problemBillings.OrderBy(b => b.CreatedAt))
+        {
+            var invoice = (await _uow.Invoices.FindAsync(i =>
+                    i.BillingId == billing.Id && !i.IsPaid))
+                .OrderByDescending(i => i.IssuedAt)
+                .FirstOrDefault();
+            if (invoice == null)
+            {
+                continue;
+            }
+
+            var alreadyLogged = await _uow.OperateLogs.FirstOrDefaultAsync(l =>
+                l.AgentUserId == billing.AgentUserId &&
+                l.Module == "Billing" &&
+                l.Action == "BillingIssueEmail" &&
+                l.Description == $"Billing:{billing.Id}:Invoice:{invoice.Id}");
+            if (alreadyLogged != null)
+            {
+                continue;
+            }
+
+            var agent = await _uow.AgentUsers.GetByIdAsync(billing.AgentUserId);
+            if (agent == null || string.IsNullOrWhiteSpace(agent.Email))
+            {
+                continue;
+            }
+
+            var package = await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
+            var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+            var amount = $"{invoice.Total:N2} {invoice.Currency}";
+            var packageName = package?.PackageName ?? "your IPRO package";
+            var subject = billing.Status == BillingStatus.Failed
+                ? "Action required: IPRO payment failed"
+                : "Reminder: IPRO payment pending";
+            var html = BuildBillingIssueEmailHtml(fullName, packageName, amount, billing.Status);
+            var text = $"Hello {fullName},\n\nWe need your attention on the payment for {packageName}. Amount: {amount}. Please sign in to your IPRO Agent Portal and go to Billing to correct the issue.\n\nIPRO Management";
+
+            if (await _email.SendAsync(agent.Email, fullName, subject, html, text))
+            {
+                await _uow.OperateLogs.AddAsync(new OperateLog
+                {
+                    AgentUserId = billing.AgentUserId,
+                    Module = "Billing",
+                    Action = "BillingIssueEmail",
+                    Description = $"Billing:{billing.Id}:Invoice:{invoice.Id}",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _uow.SaveChangesAsync();
+                sent++;
+            }
+        }
+
+        return sent;
     }
 
     public async Task<bool> HandleWebhookAsync(string eventType, string payload, string signature, decimal amount)
@@ -651,6 +734,46 @@ public class PayPalBillingService : IBillingService
         await _uow.Invoices.AddAsync(invoice);
         await _uow.SaveChangesAsync();
         return invoice;
+    }
+
+    private async Task<BillingIssue> BuildBillingIssueAsync(IPRO.Entities.Invoice invoice, string status, string message)
+    {
+        var package = await _uow.BillingRules.GetByIdAsync(invoice.Billing.BillingRuleId);
+        return new BillingIssue
+        {
+            BillingId = invoice.BillingId,
+            InvoiceId = invoice.Id,
+            PackageName = package?.PackageName ?? "IPRO package",
+            Status = status,
+            AmountDue = invoice.Total,
+            Currency = invoice.Currency,
+            Message = message
+        };
+    }
+
+    private static string BuildBillingIssueEmailHtml(string fullName, string packageName, string amount, BillingStatus status)
+    {
+        var heading = status == BillingStatus.Failed ? "Payment Needs Attention" : "Payment Still Pending";
+        return $"""
+        <div style="font-family:Arial,sans-serif;background:#f4f7fb;padding:24px;">
+          <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dbe5f2;">
+            <div style="background:#0f3f8f;color:#ffffff;padding:24px 28px;">
+              <h1 style="margin:0;font-size:24px;">{heading}</h1>
+              <p style="margin:8px 0 0;color:#dbeafe;">IPRO Advisers billing notice</p>
+            </div>
+            <div style="padding:28px;color:#1f2937;">
+              <p>Hello {fullName},</p>
+              <p>We need your attention on the payment for <strong>{packageName}</strong>.</p>
+              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:16px;margin:20px 0;">
+                <strong>Amount:</strong> {amount}<br/>
+                <strong>Status:</strong> {heading}
+              </div>
+              <p>Please sign in to your IPRO Agent Portal and open <strong>Billing</strong> to update or retry your payment.</p>
+              <p style="margin-top:28px;">IPRO Management</p>
+            </div>
+          </div>
+        </div>
+        """;
     }
 
     private async Task<PayPalOrderResult> CreatePayPalOrderAsync(IPRO.Entities.Invoice invoice, string packageName, string returnUrl, string cancelUrl)
