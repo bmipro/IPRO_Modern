@@ -4,6 +4,7 @@ using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Utility;
+using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -79,7 +80,9 @@ public class ClientsController : Controller
             .Include(c => c.FollowUps)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
-        ViewBag.Comments = await _clients.GetCommentsAsync(id);
+        var comments = (await _clients.GetCommentsAsync(id)).ToList();
+        ViewBag.Comments = comments;
+        ViewBag.Timeline = BuildClientTimeline(client, comments);
         return View(client);
     }
 
@@ -552,5 +555,79 @@ public class ClientsController : Controller
         {
             ModelState.Remove(key);
         }
+    }
+
+    private static List<ClientTimelineItem> BuildClientTimeline(Client client, IEnumerable<ClientComment> comments)
+    {
+        var items = new List<ClientTimelineItem>
+        {
+            new()
+            {
+                OccurredAt = client.CreatedAt,
+                Kind = "Client",
+                Icon = "fa-user-plus",
+                ColorClass = "text-primary bg-primary-subtle",
+                Title = "Client created",
+                Details = $"{client.FirstName} {client.LastName} was added to the contact list."
+            }
+        };
+
+        if (client.UpdatedAt > client.CreatedAt.AddMinutes(1))
+        {
+            items.Add(new ClientTimelineItem
+            {
+                OccurredAt = client.UpdatedAt,
+                Kind = "Client",
+                Icon = "fa-pen",
+                ColorClass = "text-info bg-info-subtle",
+                Title = "Client profile updated",
+                Details = "Contact information was updated."
+            });
+        }
+
+        foreach (var comment in comments)
+        {
+            items.Add(new ClientTimelineItem
+            {
+                OccurredAt = comment.CreatedAt,
+                Kind = "Note",
+                Icon = "fa-comment",
+                ColorClass = "text-secondary bg-secondary-subtle",
+                Title = "Note added",
+                Details = comment.Comment
+            });
+        }
+
+        foreach (var followUp in client.FollowUps)
+        {
+            items.Add(new ClientTimelineItem
+            {
+                OccurredAt = followUp.CreatedAt,
+                Kind = "Follow-up",
+                Icon = "fa-calendar-plus",
+                ColorClass = "text-warning bg-warning-subtle",
+                Title = $"Follow-up added: {followUp.Title}",
+                Details = $"Due {followUp.DueAt:MMM d, yyyy}" + (string.IsNullOrWhiteSpace(followUp.Notes) ? "" : $" - {followUp.Notes}"),
+                Url = $"/Clients/FollowUps/{client.Id}"
+            });
+
+            if (followUp.IsCompleted && followUp.CompletedAt.HasValue)
+            {
+                items.Add(new ClientTimelineItem
+                {
+                    OccurredAt = followUp.CompletedAt.Value,
+                    Kind = "Follow-up",
+                    Icon = "fa-check",
+                    ColorClass = "text-success bg-success-subtle",
+                    Title = $"Follow-up completed: {followUp.Title}",
+                    Details = $"Completed on {followUp.CompletedAt.Value:MMM d, yyyy}",
+                    Url = $"/Clients/FollowUps/{client.Id}?status=completed"
+                });
+            }
+        }
+
+        return items
+            .OrderByDescending(i => i.OccurredAt)
+            .ToList();
     }
 }

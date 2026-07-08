@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = $"{Model.FirstName} {Model.LastName}";
     var comments = ViewBag.Comments as IEnumerable<IPRO.Entities.ClientComment>;
+    var timeline = (ViewBag.Timeline as IEnumerable<IPRO.Web.Models.ClientTimelineItem>) ?? Enumerable.Empty<IPRO.Web.Models.ClientTimelineItem>();
     var addressParts = new[] { Model.Address, Model.UnitNumber, Model.City, Model.Province, Model.PostalCode, Model.Country }
         .Where(x => !string.IsNullOrWhiteSpace(x));
     var fullAddress = string.Join(", ", addressParts);
@@ -206,28 +207,46 @@
 
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-0 pt-4 px-4">
-        <h5 class="fw-bold mb-0"><i class="fas fa-comments me-2 text-primary"></i>Activity &amp; Comments</h5>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h5 class="fw-bold mb-0"><i class="fas fa-stream me-2 text-primary"></i>Client Timeline</h5>
+          <span class="badge bg-light text-muted">@timeline.Count() events</span>
+        </div>
       </div>
       <div class="card-body px-4 pb-2">
-        @if (comments != null && comments.Any())
+        @if (timeline.Any())
         {
-          @foreach (var c in comments.OrderByDescending(x => x.CreatedAt))
+          <div class="client-timeline">
+          @foreach (var item in timeline)
           {
-            <div class="d-flex gap-3 py-3 border-bottom">
-              <div class="rounded-circle bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;">
-                <i class="fas fa-user text-secondary" style="font-size:.8rem;"></i>
+            <div class="timeline-row d-flex gap-3 pb-3">
+              <div class="timeline-marker rounded-circle @item.ColorClass d-flex align-items-center justify-content-center flex-shrink-0">
+                <i class="fas @item.Icon"></i>
               </div>
-              <div>
-                <div class="small text-muted mb-1">@c.CreatedAt.ToString("MMM d, yyyy h:mm tt")</div>
-                <div>@c.Comment</div>
+              <div class="timeline-content border-bottom pb-3 flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                  <div>
+                    <div class="fw-semibold">@item.Title</div>
+                    @if (!string.IsNullOrWhiteSpace(item.Details))
+                    {
+                      <div class="text-muted small mt-1">@item.Details</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(item.Url))
+                    {
+                      <a href="@item.Url" class="small fw-semibold text-decoration-none">Open related item</a>
+                    }
+                  </div>
+                  <span class="small text-muted">@item.OccurredAt.ToString("MMM d, yyyy h:mm tt")</span>
+                </div>
               </div>
             </div>
           }
+          </div>
         }
         else
-        { <p class="text-muted py-3">No comments yet. Add the first one below.</p> }
+        { <p class="text-muted py-3">No timeline activity yet.</p> }
       </div>
       <div class="card-footer bg-white border-0 px-4 pb-4">
+        <h6 class="fw-bold mb-2"><i class="fas fa-comment me-2 text-secondary"></i>Add note</h6>
         <form asp-action="AddComment" method="post">
           @Html.AntiForgeryToken()
           <input type="hidden" name="clientId" value="@Model.Id"/>
@@ -246,4 +265,6 @@
   .client-details-list dd{padding:.25rem 0;word-break:break-word;}
   .client-details-list dd{margin-bottom:0;}
   .follow-up-item{background:#f8fafc;}
+  .timeline-marker{width:36px;height:36px;font-size:.8rem;}
+  .timeline-row:last-child .timeline-content{border-bottom:0!important;}
 </style>
