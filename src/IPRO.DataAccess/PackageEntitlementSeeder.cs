@@ -51,7 +51,6 @@ public static class PackageEntitlementSeeder
                 existing.Description = string.IsNullOrWhiteSpace(existing.Description) ? definition.Description : existing.Description;
                 existing.MaxClients = existing.MaxClients == 0 ? definition.MaxClients : existing.MaxClients;
                 existing.MaxNewsletters = existing.MaxNewsletters == 0 ? definition.MaxNewsletters : existing.MaxNewsletters;
-                existing.IsActive = true;
             }
         }
 
@@ -91,11 +90,8 @@ public static class PackageEntitlementSeeder
                 }
                 else
                 {
-                    existing.FeatureName = definition.Name;
-                    existing.IsIncluded = value.IsIncluded;
-                    existing.LimitValue = value.LimitValue;
-                    existing.LimitLabel = value.LimitLabel;
-                    existing.SortOrder = definition.SortOrder;
+                    existing.FeatureName = string.IsNullOrWhiteSpace(existing.FeatureName) ? definition.Name : existing.FeatureName;
+                    existing.SortOrder = existing.SortOrder == 0 ? definition.SortOrder : existing.SortOrder;
                 }
             }
         }
