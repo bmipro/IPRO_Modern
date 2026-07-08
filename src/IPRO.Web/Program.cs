@@ -70,7 +70,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         o.SlidingExpiration = true;
         o.Cookie.HttpOnly = true;
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        o.Cookie.SameSite = SameSiteMode.Strict;
+        o.Cookie.SameSite = SameSiteMode.Lax;
     });
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();

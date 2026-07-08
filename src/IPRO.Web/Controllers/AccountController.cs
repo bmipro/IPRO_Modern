@@ -29,10 +29,15 @@ public class AccountController : Controller
         _logger = logger;
     }
 
-    [HttpGet] public IActionResult Login() => View();
+    [HttpGet]
+    public IActionResult Login(string? returnUrl = null)
+    {
+        ViewData["ReturnUrl"] = returnUrl;
+        return View();
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(string username, string password, bool rememberMe = false)
+    public async Task<IActionResult> Login(string username, string password, bool rememberMe = false, string? returnUrl = null)
     {
         var user = await _agents.AuthenticateAsync(username, password);
         if (user == null) { ModelState.AddModelError("", "Invalid username or password."); return View(); }
@@ -40,6 +45,11 @@ public class AccountController : Controller
         await SignInAgentAsync(user, props);
         await _agents.UpdateLastLoginAsync(user.Id);
         if (user.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
         return RedirectToAction("Index", "Dashboard");
     }
 
