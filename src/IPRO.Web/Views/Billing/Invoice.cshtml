@@ -1,0 +1,364 @@
+@model IPRO.Entities.Invoice
+@{
+    Layout = null;
+    var agent = ViewBag.Agent as IPRO.Entities.AgentUser;
+    var package = ViewBag.Package as IPRO.Entities.BillingRule;
+    var statusText = Model.IsPaid ? "Paid" : Model.Billing?.Status.ToString() ?? "Unpaid";
+    var statusClass = Model.IsPaid ? "paid" : "open";
+    var billToName = $"{agent?.FirstName} {agent?.LastName}".Trim();
+    if (string.IsNullOrWhiteSpace(billToName))
+    {
+        billToName = agent?.UserName ?? "IPRO Agent";
+    }
+}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invoice @Model.InvoiceNumber</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #64748b;
+      --line: #dbe4ef;
+      --panel: #f8fafc;
+      --blue: #1457d9;
+      --green: #087f5b;
+      --orange: #9a3412;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #e8eef7;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      max-width: 920px;
+      margin: 24px auto 0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 0 18px;
+    }
+
+    .btn {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+      font-weight: 700;
+      padding: 10px 14px;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+
+    .invoice {
+      max-width: 920px;
+      min-height: 1120px;
+      margin: 18px auto 40px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .14);
+      overflow: hidden;
+    }
+
+    .header {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 24px;
+      padding: 44px 48px;
+      background: linear-gradient(135deg, #102a5c, #1457d9);
+      color: #fff;
+    }
+
+    .brand {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: .02em;
+      margin-bottom: 8px;
+    }
+
+    .brand-subtitle {
+      color: #dbeafe;
+      font-size: 14px;
+    }
+
+    .invoice-title {
+      text-align: right;
+    }
+
+    .invoice-title h1 {
+      font-size: 42px;
+      line-height: 1;
+      margin: 0 0 12px;
+    }
+
+    .status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      background: #fff;
+    }
+
+    .status.paid { color: var(--green); }
+    .status.open { color: var(--orange); }
+
+    .content {
+      padding: 42px 48px 48px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-bottom: 34px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 20px;
+      background: var(--panel);
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .value {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    th {
+      border-bottom: 2px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .08em;
+      padding: 13px 0;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 16px 0;
+      vertical-align: top;
+    }
+
+    .amount {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .totals {
+      margin-left: auto;
+      margin-top: 24px;
+      width: min(360px, 100%);
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .grand-total {
+      color: var(--blue);
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 42px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    @@media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .invoice {
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        margin: 0;
+        max-width: none;
+        min-height: auto;
+      }
+      .header {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      @@page { margin: .5in; }
+    }
+
+    @@media (max-width: 720px) {
+      .header,
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .invoice-title {
+        text-align: left;
+      }
+
+      .content,
+      .header {
+        padding: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="btn" href="/Billing">Back to Billing</a>
+    <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+  </div>
+
+  <main class="invoice">
+    <section class="header">
+      <div>
+        <div class="brand">IPRO Advisers</div>
+        <div class="brand-subtitle">Professional agent portal billing</div>
+      </div>
+      <div class="invoice-title">
+        <h1>Invoice</h1>
+        <span class="status @statusClass">@statusText</span>
+      </div>
+    </section>
+
+    <section class="content">
+      <div class="meta-grid">
+        <div class="panel">
+          <div class="label">Bill To</div>
+          <div class="value">@billToName</div>
+          @if (!string.IsNullOrWhiteSpace(agent?.CompanyName))
+          {
+            <div>@agent.CompanyName</div>
+          }
+          @if (!string.IsNullOrWhiteSpace(agent?.Email))
+          {
+            <div class="muted">@agent.Email</div>
+          }
+          <div class="muted">
+            @agent?.CompanyAddress
+            @if (!string.IsNullOrWhiteSpace(agent?.City))
+            {
+              <br />@agent.City
+            }
+            @if (!string.IsNullOrWhiteSpace(agent?.Province) || !string.IsNullOrWhiteSpace(agent?.PostalCode))
+            {
+              <br />@agent?.Province @agent?.PostalCode
+            }
+            @if (!string.IsNullOrWhiteSpace(agent?.Country))
+            {
+              <br />@agent.Country
+            }
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="label">Invoice Details</div>
+          <div><strong>Invoice #:</strong> @Model.InvoiceNumber</div>
+          <div><strong>Date:</strong> @Model.IssuedAt.ToString("MMMM d, yyyy")</div>
+          <div><strong>Package:</strong> @(package?.PackageName ?? "IPRO package")</div>
+          @if (!string.IsNullOrWhiteSpace(Model.PayPalTransactionId))
+          {
+            <div><strong>PayPal transaction:</strong> @Model.PayPalTransactionId</div>
+          }
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="amount">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (Model.LineItems?.Any() == true)
+          {
+            @foreach (var item in Model.LineItems.OrderBy(i => i.SortOrder))
+            {
+              <tr>
+                <td>@item.Description</td>
+                <td class="amount">$@item.Amount.ToString("N2") @Model.Currency</td>
+              </tr>
+            }
+          }
+          else
+          {
+            <tr>
+              <td>IPRO billing charge</td>
+              <td class="amount">$@Model.SubTotal.ToString("N2") @Model.Currency</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="total-row">
+          <span>Subtotal</span>
+          <strong>$@Model.SubTotal.ToString("N2") @Model.Currency</strong>
+        </div>
+        <div class="total-row">
+          <span>
+            Tax
+            @if (!string.IsNullOrWhiteSpace(Model.TaxRegion))
+            {
+              <small class="muted">(@Model.TaxRegion @(Model.TaxRate > 0 ? Model.TaxRate.ToString("P3") : ""))</small>
+            }
+          </span>
+          <strong>$@Model.TaxAmount.ToString("N2") @Model.Currency</strong>
+        </div>
+        <div class="total-row grand-total">
+          <span>Total</span>
+          <span>$@Model.Total.ToString("N2") @Model.Currency</span>
+        </div>
+      </div>
+
+      <div class="footer">
+        Thank you for your business. Please keep this invoice for your records.
+      </div>
+    </section>
+  </main>
+</body>
+</html>

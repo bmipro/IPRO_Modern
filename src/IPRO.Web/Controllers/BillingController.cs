@@ -29,6 +29,28 @@ public class BillingController : Controller
         ViewBag.PackageFeatures = await _uow.PackageFeatures.GetAllAsync();
         return View();
     }
+
+    public async Task<IActionResult> Invoice(int id)
+    {
+        var invoice = await _uow.Invoices.FirstOrDefaultAsync(i => i.Id == id && i.AgentUserId == AgentId);
+        if (invoice == null)
+        {
+            return NotFound();
+        }
+
+        invoice.Billing = await _uow.Billings.GetByIdAsync(invoice.BillingId) ?? invoice.Billing;
+        invoice.LineItems = (await _uow.InvoiceLineItems.FindAsync(i => i.InvoiceId == invoice.Id))
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+        ViewBag.Agent = await _uow.AgentUsers.GetByIdAsync(AgentId);
+        ViewBag.Package = invoice.Billing == null
+            ? null
+            : await _uow.BillingRules.GetByIdAsync(invoice.Billing.BillingRuleId);
+
+        return View(invoice);
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Subscribe(int billingRuleId, BillingPeriod period)
     {

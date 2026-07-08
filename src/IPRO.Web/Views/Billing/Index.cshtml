@@ -251,6 +251,7 @@ else
             <td class="fw-bold">$@inv.Total.ToString("N2") <small class="text-muted">@inv.Currency</small></td>
             <td><span class="badge @invoiceStatus.CssClass">@invoiceStatus.Text</span></td>
             <td class="text-end">
+              <a asp-action="Invoice" asp-route-id="@inv.Id" class="btn btn-sm btn-outline-secondary me-1" target="_blank">Print/PDF</a>
               @if (!inv.IsPaid && inv.Billing?.Status == IPRO.Entities.BillingStatus.Pending)
               {
                 <form asp-action="ResumePayment" method="post" class="d-inline">
