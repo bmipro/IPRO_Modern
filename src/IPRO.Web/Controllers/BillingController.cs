@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using IPRO.Billing;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
@@ -76,9 +77,9 @@ public class BillingController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> PayPalReturn(string token)
+    public async Task<IActionResult> PayPalReturn(string token, string subscription_id)
     {
-        var result = await _billing.CapturePaymentAsync(AgentId, token);
+        var result = await _billing.CapturePaymentAsync(AgentId, !string.IsNullOrWhiteSpace(subscription_id) ? subscription_id : token);
         if (result.Success)
         {
             TempData["Success"] = result.Message;
@@ -140,12 +141,40 @@ public class BillingController : Controller
     public async Task<IActionResult> CancelSubscription() { await _billing.CancelSubscriptionAsync(AgentId); TempData["Success"] = "Subscription cancelled."; return RedirectToAction(nameof(Index)); }
 
     [AllowAnonymous, HttpPost("/billing/webhook")]
-    public async Task<IActionResult> Webhook([FromBody] PayPalWebhookPayload p)
+    public async Task<IActionResult> Webhook()
     {
-        await _billing.HandleWebhookAsync(p.EventType, p.Resource?.Id ?? "", p.Resource?.TransactionId ?? "", p.Resource?.Amount?.Value ?? 0);
+        using var reader = new StreamReader(Request.Body);
+        var payload = await reader.ReadToEndAsync();
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return BadRequest();
+        }
+
+        using var document = JsonDocument.Parse(payload);
+        var eventType = document.RootElement.TryGetProperty("event_type", out var eventTypeElement)
+            ? eventTypeElement.GetString() ?? string.Empty
+            : string.Empty;
+        var resource = document.RootElement.TryGetProperty("resource", out var resourceElement)
+            ? resourceElement
+            : default;
+        var amount = 0m;
+        if (resource.ValueKind == JsonValueKind.Object &&
+            resource.TryGetProperty("amount", out var amountElement) &&
+            amountElement.ValueKind == JsonValueKind.Object &&
+            amountElement.TryGetProperty("total", out var totalElement))
+        {
+            decimal.TryParse(totalElement.GetString(), out amount);
+        }
+        else if (resource.ValueKind == JsonValueKind.Object &&
+            resource.TryGetProperty("amount", out amountElement) &&
+            amountElement.ValueKind == JsonValueKind.Object &&
+            amountElement.TryGetProperty("value", out var valueElement))
+        {
+            decimal.TryParse(valueElement.GetString(), out amount);
+        }
+
+        var signature = Request.Headers["PayPal-Transmission-Sig"].ToString();
+        await _billing.HandleWebhookAsync(eventType, payload, signature, amount);
         return Ok();
     }
 }
-public record PayPalWebhookPayload(string EventType, WebhookResource? Resource);
-public record WebhookResource(string Id, string TransactionId, WebhookAmount? Amount);
-public record WebhookAmount(decimal Value);
