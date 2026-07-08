@@ -46,6 +46,9 @@
 
 @{
     var detailsWarnings = ViewBag.DetailsWarnings as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var billings = (ViewBag.Billings as IEnumerable<IPRO.Entities.Billing> ?? Enumerable.Empty<IPRO.Entities.Billing>()).ToList();
+    var subscriptionChanges = (ViewBag.SubscriptionChanges as IEnumerable<IPRO.Entities.SubscriptionChange> ?? Enumerable.Empty<IPRO.Entities.SubscriptionChange>()).ToList();
+    var packageLookup = ViewBag.PackageLookup as IDictionary<int, IPRO.Entities.BillingRule> ?? new Dictionary<int, IPRO.Entities.BillingRule>();
 }
 @if (detailsWarnings.Any())
 {
@@ -86,6 +89,40 @@
     <div class="col-md-8">
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body p-4">
+                @{
+                    var activeBilling = ViewBag.Subscription as IPRO.Entities.Billing;
+                    var activePackage = activeBilling != null && packageLookup.TryGetValue(activeBilling.BillingRuleId, out var activePkg) ? activePkg : null;
+                    var recentInvoicesForFailures = ViewBag.Invoices as IEnumerable<IPRO.Entities.Invoice> ?? Enumerable.Empty<IPRO.Entities.Invoice>();
+                    var failedPayments = recentInvoicesForFailures
+                        .Where(i => !i.IsPaid && (i.Billing?.Status == IPRO.Entities.BillingStatus.Failed || i.PayPalTransactionId.StartsWith("PAYPAL_FAILED:", StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
+                }
+                <h6 class="fw-bold mb-3"><i class="fas fa-credit-card me-2 text-primary"></i>Billing Status</h6>
+                @if (activeBilling != null)
+                {
+                    <div class="alert alert-success border-0">
+                        <div class="fw-bold">Current package: @(activePackage?.PackageName ?? $"Package {activeBilling.BillingRuleId}")</div>
+                        <div class="small">Next billing: @(activeBilling.NextBillingDate?.ToString("MMM d, yyyy") ?? "-") - $@activeBilling.Amount.ToString("N2") @activeBilling.Currency / @activeBilling.Period</div>
+                        @if (!string.IsNullOrWhiteSpace(activeBilling.PayPalSubscriptionId))
+                        {
+                            <div class="small font-monospace mt-1">PayPal subscription: @activeBilling.PayPalSubscriptionId</div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning border-0">No active subscription.</div>
+                }
+                @if (failedPayments.Any())
+                {
+                    <div class="alert alert-danger border-0">
+                        <div class="fw-bold mb-1">Failed payment attention needed</div>
+                        @foreach (var failed in failedPayments.Take(3))
+                        {
+                            <div class="small">@failed.InvoiceNumber - $@failed.Total.ToString("N2") @failed.Currency - @failed.IssuedAt.ToString("MMM d, yyyy")</div>
+                        }
+                    </div>
+                }
                 <h6 class="fw-bold mb-3"><i class="fas fa-address-card me-2 text-primary"></i>Registration Details</h6>
                 <dl class="row mb-0" style="font-size:.9rem">
                     <dt class="col-md-3 text-muted">Company</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.CompanyName) ? "-" : Model.CompanyName)</dd>
@@ -112,7 +149,7 @@
                 @if (invoices != null && invoices.Any())
                 {
                     <table class="table table-sm align-middle mb-0">
-                        <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th><th>PayPal</th></tr></thead>
                         <tbody>
                         @foreach (var inv in invoices)
                         {
@@ -120,13 +157,73 @@
                                 <td class="small">@inv.InvoiceNumber</td>
                                 <td class="small text-muted">@inv.IssuedAt.ToString("MMM d, yyyy")</td>
                                 <td class="fw-semibold text-success">$@inv.Total.ToString("N2")</td>
-                                <td><span class="badge @(inv.IsPaid ? "bg-success" : "bg-warning text-dark")">@(inv.IsPaid ? "Paid" : "Unpaid")</span></td>
+                                <td><span class="badge @(inv.IsPaid ? "bg-success" : inv.Billing?.Status == IPRO.Entities.BillingStatus.Failed ? "bg-danger" : "bg-warning text-dark")">@(inv.IsPaid ? "Paid" : inv.Billing?.Status == IPRO.Entities.BillingStatus.Failed ? "Failed" : "Unpaid")</span></td>
+                                <td class="small font-monospace text-muted">@(string.IsNullOrWhiteSpace(inv.PayPalTransactionId) ? "-" : inv.PayPalTransactionId)</td>
                             </tr>
                         }
                         </tbody>
                     </table>
                 }
                 else { <p class="text-muted mb-0">No invoices yet.</p> }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-rotate me-2 text-info"></i>Subscription History</h6>
+                @if (billings.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Package</th><th>Status</th><th>Period</th><th>Amount</th><th>Started</th><th>Next/Cancelled</th><th>PayPal Subscription</th></tr></thead>
+                            <tbody>
+                            @foreach (var billing in billings)
+                            {
+                                var packageName = packageLookup.TryGetValue(billing.BillingRuleId, out var pkg) ? pkg.PackageName : $"Package {billing.BillingRuleId}";
+                                <tr>
+                                    <td class="fw-semibold">@packageName</td>
+                                    <td><span class="badge @(billing.Status == IPRO.Entities.BillingStatus.Active ? "bg-success" : billing.Status == IPRO.Entities.BillingStatus.Pending ? "bg-warning text-dark" : billing.Status == IPRO.Entities.BillingStatus.Failed ? "bg-danger" : "bg-secondary")">@billing.Status</span></td>
+                                    <td>@billing.Period</td>
+                                    <td>$@billing.Amount.ToString("N2") @billing.Currency</td>
+                                    <td class="small">@billing.StartDate.ToString("MMM d, yyyy")</td>
+                                    <td class="small text-muted">@(billing.CancelledAt?.ToString("MMM d, yyyy") ?? billing.NextBillingDate?.ToString("MMM d, yyyy") ?? "-")</td>
+                                    <td class="small font-monospace text-muted">@(string.IsNullOrWhiteSpace(billing.PayPalSubscriptionId) ? "-" : billing.PayPalSubscriptionId)</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else { <p class="text-muted mb-0">No billing history yet.</p> }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-clock-rotate-left me-2 text-warning"></i>Retry / Change History</h6>
+                @if (subscriptionChanges.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Type</th><th>Status</th><th>Requested Package</th><th>Amount Due</th><th>Effective</th><th>Created</th></tr></thead>
+                            <tbody>
+                            @foreach (var change in subscriptionChanges)
+                            {
+                                var requestedName = packageLookup.TryGetValue(change.RequestedBillingRuleId, out var pkg) ? pkg.PackageName : $"Package {change.RequestedBillingRuleId}";
+                                <tr>
+                                    <td>@change.ChangeType</td>
+                                    <td><span class="badge @(change.Status == IPRO.Entities.SubscriptionChangeStatus.Applied ? "bg-success" : change.Status == IPRO.Entities.SubscriptionChangeStatus.Pending ? "bg-warning text-dark" : "bg-secondary")">@change.Status</span></td>
+                                    <td>@requestedName</td>
+                                    <td>$@change.AmountDue.ToString("N2") @change.Currency</td>
+                                    <td class="small">@change.EffectiveDate.ToString("MMM d, yyyy")</td>
+                                    <td class="small text-muted">@change.CreatedAt.ToString("MMM d, yyyy h:mm tt")</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else { <p class="text-muted mb-0">No subscription changes or retries yet.</p> }
             </div>
         </div>
 

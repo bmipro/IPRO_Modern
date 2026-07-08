@@ -5,6 +5,7 @@ using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace IPRO.Web.Controllers;
 
@@ -13,12 +14,14 @@ public class BillingController : Controller
 {
     private readonly IBillingService _billing;
     private readonly IUnitOfWork _uow;
+    private readonly IConfiguration _configuration;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public BillingController(IBillingService billing, IUnitOfWork uow)
+    public BillingController(IBillingService billing, IUnitOfWork uow, IConfiguration configuration)
     {
         _billing = billing;
         _uow = uow;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index()
@@ -48,6 +51,10 @@ public class BillingController : Controller
         ViewBag.Package = invoice.Billing == null
             ? null
             : await _uow.BillingRules.GetByIdAsync(invoice.Billing.BillingRuleId);
+        ViewBag.CompanyName = _configuration["BillingCompany:Name"] ?? "IPRO Advisers";
+        ViewBag.CompanyEmail = _configuration["BillingCompany:Email"] ?? "billing@iproadvisers.com";
+        ViewBag.CompanyWebsite = _configuration["BillingCompany:Website"] ?? "www.iProAdvisers.com";
+        ViewBag.CompanyTaxNumber = _configuration["BillingCompany:TaxRegistrationNumber"] ?? "";
 
         return View(invoice);
     }

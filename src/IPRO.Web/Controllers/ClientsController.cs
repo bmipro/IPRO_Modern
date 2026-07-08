@@ -175,6 +175,13 @@ public class ClientsController : Controller
 
     public async Task<IActionResult> Calendar(int? year, int? month)
     {
+        var calendarAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.CalendarScheduler);
+        if (!calendarAccess.IsIncluded)
+        {
+            TempData["Error"] = calendarAccess.UpgradeMessage;
+            return RedirectToAction("Index", "Billing");
+        }
+
         var today = DateTime.Today;
         var selectedMonth = new DateTime(
             year.GetValueOrDefault(today.Year),

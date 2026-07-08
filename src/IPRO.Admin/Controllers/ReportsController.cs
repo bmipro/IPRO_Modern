@@ -39,10 +39,25 @@ public class ReportsController : Controller
     public async Task<IActionResult> Subscriptions()
     {
         var billings = (await _uow.Billings.GetAllAsync()).ToList();
+        var agents = (await _uow.AgentUsers.GetAllAsync()).ToDictionary(a => a.Id);
+        var packages = (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id);
+        var invoices = (await _uow.Invoices.GetAllAsync()).ToList();
+        var changes = (await _uow.SubscriptionChanges.GetAllAsync()).ToList();
         ViewBag.Active    = billings.Count(b => b.Status == BillingStatus.Active);
         ViewBag.Cancelled = billings.Count(b => b.Status == BillingStatus.Cancelled);
         ViewBag.Pending   = billings.Count(b => b.Status == BillingStatus.Pending);
         ViewBag.Failed    = billings.Count(b => b.Status == BillingStatus.Failed);
+        ViewBag.FailedPayments = invoices.Count(i => !i.IsPaid && i.PayPalTransactionId.StartsWith("PAYPAL_FAILED:"));
+        ViewBag.OpenInvoices = invoices.Count(i => !i.IsPaid);
+        ViewBag.Agents = agents;
+        ViewBag.Packages = packages;
+        ViewBag.InvoicesByBilling = invoices
+            .GroupBy(i => i.BillingId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(i => i.IssuedAt).ToList());
+        ViewBag.ChangesByBilling = changes
+            .Where(c => c.BillingId.HasValue)
+            .GroupBy(c => c.BillingId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.CreatedAt).ToList());
         ViewBag.Billings  = billings.OrderByDescending(b => b.CreatedAt).Take(50);
         return View();
     }

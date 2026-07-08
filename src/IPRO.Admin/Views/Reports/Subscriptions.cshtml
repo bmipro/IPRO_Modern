@@ -1,6 +1,16 @@
-@{ ViewData["Title"] = "Subscriptions Report"; var billings = ViewBag.Billings as IEnumerable<IPRO.Entities.Billing>; }
+@{
+  ViewData["Title"] = "Subscriptions Report";
+  var billings = ViewBag.Billings as IEnumerable<IPRO.Entities.Billing>;
+  var agents = ViewBag.Agents as IDictionary<int, IPRO.Entities.AgentUser> ?? new Dictionary<int, IPRO.Entities.AgentUser>();
+  var packages = ViewBag.Packages as IDictionary<int, IPRO.Entities.BillingRule> ?? new Dictionary<int, IPRO.Entities.BillingRule>();
+  var invoicesByBilling = ViewBag.InvoicesByBilling as IDictionary<int, List<IPRO.Entities.Invoice>> ?? new Dictionary<int, List<IPRO.Entities.Invoice>>();
+  var changesByBilling = ViewBag.ChangesByBilling as IDictionary<int, List<IPRO.Entities.SubscriptionChange>> ?? new Dictionary<int, List<IPRO.Entities.SubscriptionChange>>();
+}
 
-<div class="mb-4"><h4 class="fw-bold"><i class="fas fa-credit-card me-2 text-warning"></i>Subscriptions Report</h4></div>
+<div class="mb-4">
+  <h4 class="fw-bold"><i class="fas fa-credit-card me-2 text-warning"></i>Subscriptions Report</h4>
+  <div class="text-muted">Agent billing status, PayPal IDs, open invoices, failed payments, and package changes.</div>
+</div>
 
 <div class="row g-3 mb-4">
   <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-success">@ViewBag.Active</div><div class="text-muted">Active</div></div></div>
@@ -9,18 +19,56 @@
   <div class="col-md-3"><div class="card border-0 shadow-sm text-center p-4"><div class="display-5 fw-bold text-danger">@ViewBag.Failed</div><div class="text-muted">Failed</div></div></div>
 </div>
 
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm p-3">
+      <div class="fw-bold text-danger">@ViewBag.FailedPayments failed payment invoice(s)</div>
+      <div class="text-muted small">Created from PayPal payment failure webhooks.</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm p-3">
+      <div class="fw-bold">@ViewBag.OpenInvoices open invoice(s)</div>
+      <div class="text-muted small">Includes pending, failed, and unpaid checkout invoices.</div>
+    </div>
+  </div>
+</div>
+
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>Agent ID</th><th>Plan</th><th>Amount</th><th>Period</th><th>Status</th><th>Started</th><th>Next Billing</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Agent</th>
+          <th>Package</th>
+          <th>Amount</th>
+          <th>Period</th>
+          <th>Status</th>
+          <th>Next Billing</th>
+          <th>PayPal Subscription</th>
+          <th>Invoices</th>
+          <th>Retry / Change</th>
+        </tr>
+      </thead>
       <tbody>
       @if (billings != null)
       {
         @foreach (var b in billings)
         {
+          var agent = agents.TryGetValue(b.AgentUserId, out var a) ? a : null;
+          var package = packages.TryGetValue(b.BillingRuleId, out var p) ? p : null;
+          var invoices = invoicesByBilling.TryGetValue(b.Id, out var inv) ? inv : new List<IPRO.Entities.Invoice>();
+          var changes = changesByBilling.TryGetValue(b.Id, out var ch) ? ch : new List<IPRO.Entities.SubscriptionChange>();
+          var failedInvoiceCount = invoices.Count(i => !i.IsPaid && i.PayPalTransactionId.StartsWith("PAYPAL_FAILED:", StringComparison.OrdinalIgnoreCase));
           <tr>
-            <td class="small text-muted">@b.AgentUserId</td>
-            <td class="small font-monospace text-muted">@(b.PayPalPlanId.Length > 15 ? b.PayPalPlanId[..15] + "…" : b.PayPalPlanId)</td>
+            <td>
+              <a href="/Agents/Details/@b.AgentUserId" class="fw-semibold text-decoration-none">@(agent == null ? $"Agent {b.AgentUserId}" : $"{agent.FirstName} {agent.LastName}")</a>
+              <div class="small text-muted">@(agent?.Email ?? "-")</div>
+            </td>
+            <td>
+              <div class="fw-semibold">@(package?.PackageName ?? $"Package {b.BillingRuleId}")</div>
+              <div class="small font-monospace text-muted">@(string.IsNullOrWhiteSpace(b.PayPalPlanId) ? "No plan ID" : b.PayPalPlanId)</div>
+            </td>
             <td class="fw-bold">$@b.Amount.ToString("N2") <small class="text-muted">@b.Currency</small></td>
             <td><span class="badge bg-light text-dark">@b.Period</span></td>
             <td>
@@ -28,8 +76,26 @@
                 @b.Status
               </span>
             </td>
-            <td><small>@b.StartDate.ToString("MMM d, yyyy")</small></td>
-            <td><small class="text-muted">@(b.NextBillingDate?.ToString("MMM d, yyyy") ?? "—")</small></td>
+            <td><small class="text-muted">@(b.NextBillingDate?.ToString("MMM d, yyyy") ?? "-")</small></td>
+            <td class="small font-monospace text-muted">@(string.IsNullOrWhiteSpace(b.PayPalSubscriptionId) ? "-" : b.PayPalSubscriptionId)</td>
+            <td>
+              <span class="badge bg-light text-dark">@invoices.Count total</span>
+              @if (failedInvoiceCount > 0)
+              {
+                <span class="badge bg-danger">@failedInvoiceCount failed</span>
+              }
+            </td>
+            <td>
+              @if (changes.Any())
+              {
+                var latest = changes.First();
+                <span class="badge @(latest.Status == IPRO.Entities.SubscriptionChangeStatus.Applied ? "bg-success" : latest.Status == IPRO.Entities.SubscriptionChangeStatus.Pending ? "bg-warning text-dark" : "bg-secondary")">@latest.ChangeType @latest.Status</span>
+              }
+              else
+              {
+                <span class="text-muted small">No changes</span>
+              }
+            </td>
           </tr>
         }
       }

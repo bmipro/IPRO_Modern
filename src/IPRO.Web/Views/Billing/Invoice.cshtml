@@ -6,6 +6,10 @@
     var statusText = Model.IsPaid ? "Paid" : Model.Billing?.Status.ToString() ?? "Unpaid";
     var statusClass = Model.IsPaid ? "paid" : "open";
     var billToName = $"{agent?.FirstName} {agent?.LastName}".Trim();
+    var companyName = ViewBag.CompanyName as string ?? "IPRO Advisers";
+    var companyEmail = ViewBag.CompanyEmail as string ?? "billing@iproadvisers.com";
+    var companyWebsite = ViewBag.CompanyWebsite as string ?? "www.iProAdvisers.com";
+    var taxNumber = ViewBag.CompanyTaxNumber as string ?? "";
     if (string.IsNullOrWhiteSpace(billToName))
     {
         billToName = agent?.UserName ?? "IPRO Agent";
@@ -255,8 +259,14 @@
   <main class="invoice">
     <section class="header">
       <div>
-        <div class="brand">IPRO Advisers</div>
+        <div class="brand">@companyName</div>
         <div class="brand-subtitle">Professional agent portal billing</div>
+        <div class="brand-subtitle">@companyWebsite</div>
+        <div class="brand-subtitle">@companyEmail</div>
+        @if (!string.IsNullOrWhiteSpace(taxNumber))
+        {
+          <div class="brand-subtitle">Tax registration: @taxNumber</div>
+        }
       </div>
       <div class="invoice-title">
         <h1>Invoice</h1>
@@ -357,6 +367,10 @@
 
       <div class="footer">
         Thank you for your business. Please keep this invoice for your records.
+        @if (!string.IsNullOrWhiteSpace(taxNumber))
+        {
+          <span> Tax registration: @taxNumber.</span>
+        }
       </div>
     </section>
   </main>

@@ -54,10 +54,22 @@ public class AgentsController : Controller
             () => _uow.Billings.FirstOrDefaultAsync(b => b.AgentUserId == id && b.Status == BillingStatus.Active),
             "Subscription details",
             warnings);
+        ViewBag.Billings = await LoadDetailsPanelAsync(
+            async () => (await _uow.Billings.FindAsync(b => b.AgentUserId == id)).OrderByDescending(b => b.CreatedAt).ToList(),
+            "Billing history",
+            warnings) ?? new List<IPRO.Entities.Billing>();
+        ViewBag.SubscriptionChanges = await LoadDetailsPanelAsync(
+            async () => (await _uow.SubscriptionChanges.FindAsync(c => c.AgentUserId == id)).OrderByDescending(c => c.CreatedAt).ToList(),
+            "Subscription changes",
+            warnings) ?? new List<SubscriptionChange>();
         ViewBag.Invoices = await LoadDetailsPanelAsync(
             async () => (await _uow.Invoices.FindAsync(i => i.AgentUserId == id)).OrderByDescending(i => i.IssuedAt).Take(10),
             "Invoices",
             warnings) ?? Enumerable.Empty<Invoice>();
+        ViewBag.PackageLookup = (await LoadDetailsPanelAsync(
+            async () => (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id),
+            "Packages",
+            warnings)) ?? new Dictionary<int, BillingRule>();
         ViewBag.ClientCount = await LoadDetailsPanelAsync(
             () => _uow.Clients.CountAsync(c => c.AgentUserId == id),
             "Client count",
