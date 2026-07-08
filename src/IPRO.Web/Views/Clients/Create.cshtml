@@ -3,6 +3,7 @@
     ViewData["Title"] = "Add Client";
     var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory>) ?? Enumerable.Empty<IPRO.Entities.ClientCategory>();
     var selectedCategoryIds = (ViewBag.SelectedCategoryIds as HashSet<int>) ?? new HashSet<int>();
+    var contactLimit = ViewBag.ContactLimit as IPRO.Web.Models.ContactLimitStatus;
 }
 
 <div class="row mb-4">
@@ -13,6 +14,20 @@
     <h2 class="fw-bold"><i class="fas fa-user-plus me-2 text-primary"></i>Add New Client</h2>
   </div>
 </div>
+
+@if (contactLimit != null)
+{
+  <div class="alert alert-info border-0 shadow-sm">
+    <div class="fw-semibold"><i class="fas fa-address-book me-2"></i>Contact usage</div>
+    <div class="small">
+      @contactLimit.CurrentCount.ToString("N0") of @contactLimit.LimitLabel contacts used.
+      @if (!contactLimit.IsUnlimited)
+      {
+        <span>You can add @contactLimit.Remaining.ToString("N0") more contact@(contactLimit.Remaining == 1 ? "" : "s") with this package.</span>
+      }
+    </div>
+  </div>
+}
 
 <div class="row">
 <div class="col-lg-8">

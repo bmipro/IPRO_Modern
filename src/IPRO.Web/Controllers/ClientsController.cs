@@ -18,10 +18,11 @@ public class ClientsController : Controller
     private readonly IContactImporter _importer;
     private readonly IUnitOfWork _uow;
     private readonly IPRODbContext _db;
+    private readonly IPackageEntitlementService _entitlements;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db)
-    { _clients = clients; _importer = importer; _uow = uow; _db = db; }
+    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements)
+    { _clients = clients; _importer = importer; _uow = uow; _db = db; _entitlements = entitlements; }
 
     public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter)
     {
@@ -66,6 +67,7 @@ public class ClientsController : Controller
         ViewBag.AccountTypeId = accountTypeId;
         ViewBag.Newsletter = newsletter;
         ViewBag.TotalCount = await _clients.GetCountAsync(AgentId);
+        ViewBag.ContactLimit = await GetContactLimitStatusAsync();
         ViewBag.AccountTypes = await _db.ClientCategories
             .Where(c => c.AgentUserId == AgentId)
             .OrderBy(c => c.Name)
@@ -199,6 +201,14 @@ public class ClientsController : Controller
 
     public async Task<IActionResult> Create()
     {
+        var limitStatus = await GetContactLimitStatusAsync();
+        if (!limitStatus.CanAdd)
+        {
+            TempData["Error"] = limitStatus.Message;
+            return RedirectToAction(nameof(Index));
+        }
+
+        ViewBag.ContactLimit = limitStatus;
         await LoadAccountTypesAsync();
         return View(new Client());
     }
@@ -210,8 +220,15 @@ public class ClientsController : Controller
         ClearOptionalClientModelState();
         ValidateClient(model);
         await ValidateUniqueEmailAsync(model.Email);
+        var limitStatus = await GetContactLimitStatusAsync();
+        if (!limitStatus.CanAdd)
+        {
+            ModelState.AddModelError("", limitStatus.Message);
+        }
+
         if (!ModelState.IsValid)
         {
+            ViewBag.ContactLimit = limitStatus;
             await LoadAccountTypesAsync(categoryIds);
             return View(model);
         }
@@ -457,6 +474,14 @@ public class ClientsController : Controller
 
         using var stream = file.OpenReadStream();
         var result = await _importer.ImportCsvAsync(stream, AgentId);
+        var limitStatus = await GetContactLimitStatusAsync();
+        var remainingSlots = limitStatus.IsUnlimited ? int.MaxValue : Math.Max(0, limitStatus.Remaining);
+        if (remainingSlots <= 0)
+        {
+            TempData["Error"] = limitStatus.Message;
+            return RedirectToAction(nameof(Index));
+        }
+
         var existingEmails = await _db.Clients
             .Where(c => c.AgentUserId == AgentId)
             .Select(c => c.Email.ToLower())
@@ -477,6 +502,12 @@ public class ClientsController : Controller
                 continue;
             }
 
+            if (toImport.Count >= remainingSlots)
+            {
+                skipped++;
+                continue;
+            }
+
             client.AgentUserId = AgentId;
             client.CreatedAt = DateTime.UtcNow;
             client.UpdatedAt = DateTime.UtcNow;
@@ -490,7 +521,8 @@ public class ClientsController : Controller
             await _db.SaveChangesAsync();
         }
 
-        TempData["Success"] = $"Import complete: {toImport.Count} imported, {skipped} skipped, {result.Errors} errors.";
+        var limitNote = limitStatus.IsUnlimited ? "" : $" Package limit remaining after import: {Math.Max(0, remainingSlots - toImport.Count)}.";
+        TempData["Success"] = $"Import complete: {toImport.Count} imported, {skipped} skipped, {result.Errors} errors.{limitNote}";
         return RedirectToAction(nameof(Index));
     }
 
@@ -592,6 +624,48 @@ public class ClientsController : Controller
         {
             ModelState.AddModelError(nameof(Client.Email), "A client with this email already exists.");
         }
+    }
+
+    private async Task<ContactLimitStatus> GetContactLimitStatusAsync()
+    {
+        var currentCount = await _db.Clients.CountAsync(c => c.AgentUserId == AgentId);
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.Contacts);
+
+        if (!access.IsIncluded)
+        {
+            return new ContactLimitStatus
+            {
+                CurrentCount = currentCount,
+                Limit = 0,
+                PackageName = access.CurrentPackageName,
+                CanAdd = false,
+                Message = access.UpgradeMessage
+            };
+        }
+
+        if (!access.LimitValue.HasValue || access.LimitValue.Value < 0)
+        {
+            return new ContactLimitStatus
+            {
+                CurrentCount = currentCount,
+                Limit = null,
+                PackageName = access.CurrentPackageName,
+                CanAdd = true
+            };
+        }
+
+        var limit = access.LimitValue.Value;
+        var remaining = Math.Max(0, limit - currentCount);
+        return new ContactLimitStatus
+        {
+            CurrentCount = currentCount,
+            Limit = limit,
+            PackageName = access.CurrentPackageName,
+            CanAdd = remaining > 0,
+            Message = remaining > 0
+                ? string.Empty
+                : $"Your {access.CurrentPackageName} package includes up to {limit:N0} contacts. You currently have {currentCount:N0}. Please upgrade your package to add more contacts."
+        };
     }
 
     private void ClearOptionalClientModelState()
