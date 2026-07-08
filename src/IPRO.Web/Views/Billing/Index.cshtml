@@ -65,11 +65,18 @@
     </div>
   </div>
 }
-else
+else if (subscription == null)
 {
   <div class="alert alert-warning border-0 shadow-sm mb-4">
     <i class="fas fa-exclamation-triangle me-2"></i>
     <strong>No active subscription.</strong> Choose a package below to activate your website.
+  </div>
+}
+else if (currentPackage == null)
+{
+  <div class="alert alert-warning border-0 shadow-sm mb-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>Your current package is no longer available.</strong> Please choose an active package or contact support.
   </div>
 }
 
