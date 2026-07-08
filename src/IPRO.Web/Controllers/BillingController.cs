@@ -70,7 +70,14 @@ public class BillingController : Controller
     }
 
     public IActionResult Success() { TempData["Success"] = "Subscription activated!"; return RedirectToAction(nameof(Index)); }
-    public IActionResult Cancel()  { TempData["Warning"] = "Subscription was cancelled."; return RedirectToAction(nameof(Index)); }
+    public async Task<IActionResult> Cancel(string? token)
+    {
+        var cancelled = await _billing.CancelPendingPaymentByOrderAsync(AgentId, token ?? string.Empty);
+        TempData[cancelled ? "Warning" : "Error"] = cancelled
+            ? "PayPal checkout was cancelled. You can choose a package again when you are ready."
+            : "PayPal checkout was cancelled, but we could not find the pending checkout to close.";
+        return RedirectToAction(nameof(Index));
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ResumePayment(int invoiceId)

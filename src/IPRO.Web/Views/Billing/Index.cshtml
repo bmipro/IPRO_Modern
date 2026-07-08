@@ -211,13 +211,14 @@ else
         <tbody>
         @foreach (var inv in invoices)
         {
+          var invoiceStatus = GetInvoiceStatus(inv);
           <tr>
             <td class="fw-semibold small">@inv.InvoiceNumber</td>
             <td><small class="text-muted">@inv.IssuedAt.ToString("MMM d, yyyy")</small></td>
             <td>$@inv.SubTotal.ToString("N2")</td>
             <td>$@inv.TaxAmount.ToString("N2")</td>
             <td class="fw-bold">$@inv.Total.ToString("N2") <small class="text-muted">@inv.Currency</small></td>
-            <td><span class="badge @(inv.IsPaid ? "bg-success" : "bg-warning text-dark")">@(inv.IsPaid ? "Paid" : "Unpaid")</span></td>
+            <td><span class="badge @invoiceStatus.CssClass">@invoiceStatus.Text</span></td>
             <td class="text-end">
               @if (!inv.IsPaid && inv.Billing?.Status == IPRO.Entities.BillingStatus.Pending)
               {
@@ -302,6 +303,22 @@ else
         }
 
         return new Microsoft.AspNetCore.Html.HtmlString("<i class=\"fas fa-check feature-check\"></i>");
+    }
+
+    private static (string Text, string CssClass) GetInvoiceStatus(IPRO.Entities.Invoice invoice)
+    {
+        if (invoice.IsPaid)
+        {
+            return ("Paid", "bg-success");
+        }
+
+        return invoice.Billing?.Status switch
+        {
+            IPRO.Entities.BillingStatus.Cancelled => ("Cancelled", "bg-secondary"),
+            IPRO.Entities.BillingStatus.Failed => ("Failed", "bg-danger"),
+            IPRO.Entities.BillingStatus.Pending => ("Pending", "bg-warning text-dark"),
+            _ => ("Unpaid", "bg-warning text-dark")
+        };
     }
 
 }

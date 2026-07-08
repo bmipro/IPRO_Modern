@@ -117,9 +117,20 @@ public class PayPalBillingService : IBillingService
             return BillingChangeResult.Failed("We could not find a pending invoice for that PayPal payment.");
         }
 
-        var captured = await CapturePayPalOrderAsync(orderId);
+        var captured = false;
+        try
+        {
+            captured = await CapturePayPalOrderAsync(orderId);
+        }
+        catch
+        {
+            await MarkPaymentFailedAsync(userId, invoice.BillingId);
+            return BillingChangeResult.Failed("PayPal could not confirm that payment. The checkout was closed, so please choose a package again.");
+        }
+
         if (!captured)
         {
+            await MarkPaymentFailedAsync(userId, invoice.BillingId);
             return BillingChangeResult.Failed("PayPal did not confirm the payment. Please try again.");
         }
 
@@ -262,6 +273,19 @@ public class PayPalBillingService : IBillingService
         return true;
     }
 
+    public async Task<bool> CancelPendingPaymentByOrderAsync(int userId, string orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return false;
+        }
+
+        var invoice = await _uow.Invoices.FirstOrDefaultAsync(i =>
+            i.AgentUserId == userId && i.PayPalTransactionId == orderId && !i.IsPaid);
+
+        return invoice != null && await CancelPendingPaymentAsync(userId, invoice.Id);
+    }
+
     public async Task<bool> CancelSubscriptionAsync(int userId)
     {
         var subscription = await GetActiveSubscriptionAsync(userId);
@@ -276,6 +300,23 @@ public class PayPalBillingService : IBillingService
         _uow.Billings.Update(subscription);
         await _uow.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<int> ProcessDueSubscriptionChangesAsync()
+    {
+        var now = DateTime.UtcNow;
+        var dueChanges = await _uow.SubscriptionChanges.FindAsync(c =>
+            c.Status == SubscriptionChangeStatus.Pending &&
+            c.ChangeType == SubscriptionChangeType.Downgrade &&
+            c.EffectiveDate <= now);
+
+        var applied = 0;
+        foreach (var agentId in dueChanges.Select(c => c.AgentUserId).Distinct())
+        {
+            applied += await ApplyDuePendingChangesAsync(agentId);
+        }
+
+        return applied;
     }
 
     public async Task<bool> HandleWebhookAsync(string eventType, string payload, string signature, decimal amount)
@@ -507,7 +548,7 @@ public class PayPalBillingService : IBillingService
         await _uow.SaveChangesAsync();
     }
 
-    private async Task ApplyDuePendingChangesAsync(int userId)
+    private async Task<int> ApplyDuePendingChangesAsync(int userId)
     {
         var now = DateTime.UtcNow;
         var dueChanges = await _uow.SubscriptionChanges.FindAsync(c =>
@@ -516,6 +557,7 @@ public class PayPalBillingService : IBillingService
             c.ChangeType == SubscriptionChangeType.Downgrade &&
             c.EffectiveDate <= now);
 
+        var applied = 0;
         foreach (var change in dueChanges.OrderBy(c => c.EffectiveDate))
         {
             var requestedPackage = await _uow.BillingRules.GetByIdAsync(change.RequestedBillingRuleId);
@@ -560,7 +602,35 @@ public class PayPalBillingService : IBillingService
             await _uow.SaveChangesAsync();
 
             await CreateInvoiceAsync(billing.Id, userId, amount, true);
+            applied++;
         }
+
+        return applied;
+    }
+
+    private async Task MarkPaymentFailedAsync(int userId, int billingId)
+    {
+        var billing = await _uow.Billings.GetByIdAsync(billingId);
+        if (billing == null || billing.AgentUserId != userId || billing.Status != BillingStatus.Pending)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        billing.Status = BillingStatus.Failed;
+        billing.CancelledAt = now;
+        _uow.Billings.Update(billing);
+
+        var pendingChange = await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
+            c.BillingId == billing.Id && c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
+        if (pendingChange != null)
+        {
+            pendingChange.Status = SubscriptionChangeStatus.Cancelled;
+            pendingChange.CancelledAt = now;
+            _uow.SubscriptionChanges.Update(pendingChange);
+        }
+
+        await _uow.SaveChangesAsync();
     }
 
     private async Task<IPRO.Entities.Invoice> CreateInvoiceAsync(int billingId, int userId, decimal amount, bool isPaid)
