@@ -13,6 +13,7 @@ public class IPRODbContext : DbContext
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientCategory> ClientCategories => Set<ClientCategory>();
     public DbSet<ClientComment> ClientComments => Set<ClientComment>();
+    public DbSet<ClientFollowUp> ClientFollowUps => Set<ClientFollowUp>();
     public DbSet<Billing> Billings => Set<Billing>();
     public DbSet<BillingRule> BillingRules => Set<BillingRule>();
     public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
@@ -112,6 +113,17 @@ public class IPRODbContext : DbContext
             e.HasOne(cc => cc.Client)
              .WithMany(c => c.Comments)
              .HasForeignKey(cc => cc.ClientId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ClientFollowUp>(e =>
+        {
+            e.Property(f => f.Title).HasMaxLength(160).IsRequired();
+            e.Property(f => f.Notes).HasMaxLength(1000);
+
+            e.HasOne(f => f.Client)
+             .WithMany(c => c.FollowUps)
+             .HasForeignKey(f => f.ClientId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -76,6 +76,7 @@ public class ClientsController : Controller
     {
         var client = await _db.Clients
             .Include(c => c.Categories)
+            .Include(c => c.FollowUps)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
         ViewBag.Comments = await _clients.GetCommentsAsync(id);
@@ -254,6 +255,73 @@ public class ClientsController : Controller
         var client = await _clients.GetByIdAsync(clientId);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
         await _clients.AddCommentAsync(new ClientComment { ClientId = clientId, Comment = comment });
+        return RedirectToAction(nameof(Details), new { id = clientId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddFollowUp(int clientId, string title, DateTime dueAt, string? notes)
+    {
+        title = title?.Trim() ?? "";
+        notes = notes?.Trim() ?? "";
+
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
+        if (client == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            TempData["Error"] = "Follow-up title is required.";
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+
+        if (dueAt == default)
+        {
+            TempData["Error"] = "Follow-up date is required.";
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+
+        await _db.ClientFollowUps.AddAsync(new ClientFollowUp
+        {
+            ClientId = clientId,
+            Title = title,
+            Notes = notes,
+            DueAt = dueAt,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Follow-up added.";
+        return RedirectToAction(nameof(Details), new { id = clientId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CompleteFollowUp(int id)
+    {
+        var followUp = await _db.ClientFollowUps
+            .Include(f => f.Client)
+            .FirstOrDefaultAsync(f => f.Id == id);
+        if (followUp == null || followUp.Client.AgentUserId != AgentId) return NotFound();
+
+        followUp.IsCompleted = true;
+        followUp.CompletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Follow-up completed.";
+        return RedirectToAction(nameof(Details), new { id = followUp.ClientId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteFollowUp(int id)
+    {
+        var followUp = await _db.ClientFollowUps
+            .Include(f => f.Client)
+            .FirstOrDefaultAsync(f => f.Id == id);
+        if (followUp == null || followUp.Client.AgentUserId != AgentId) return NotFound();
+
+        var clientId = followUp.ClientId;
+        _db.ClientFollowUps.Remove(followUp);
+        await _db.SaveChangesAsync();
+
+        TempData["Warning"] = "Follow-up deleted.";
         return RedirectToAction(nameof(Details), new { id = clientId });
     }
 

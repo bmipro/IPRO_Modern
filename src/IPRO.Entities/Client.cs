@@ -31,4 +31,5 @@ public class Client
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<ClientCategory> Categories { get; set; } = new List<ClientCategory>();
     public ICollection<ClientComment> Comments { get; set; } = new List<ClientComment>();
+    public ICollection<ClientFollowUp> FollowUps { get; set; } = new List<ClientFollowUp>();
 }

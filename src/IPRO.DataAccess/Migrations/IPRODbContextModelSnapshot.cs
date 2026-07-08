@@ -596,6 +596,46 @@ namespace IPRO.DataAccess.Migrations
                     b.ToTable("ClientComments");
                 });
 
+            modelBuilder.Entity("IPRO.Entities.ClientFollowUp", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("DueAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.ToTable("ClientFollowUps");
+                });
+
             modelBuilder.Entity("IPRO.Entities.Coupon", b =>
                 {
                     b.Property<int>("Id")
@@ -1170,6 +1210,17 @@ namespace IPRO.DataAccess.Migrations
                     b.Navigation("Client");
                 });
 
+            modelBuilder.Entity("IPRO.Entities.ClientFollowUp", b =>
+                {
+                    b.HasOne("IPRO.Entities.Client", "Client")
+                        .WithMany("FollowUps")
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("IPRO.Entities.DripCampaign", b =>
                 {
                     b.HasOne("IPRO.Entities.AgentUser", "AgentUser")
@@ -1293,6 +1344,8 @@ namespace IPRO.DataAccess.Migrations
             modelBuilder.Entity("IPRO.Entities.Client", b =>
                 {
                     b.Navigation("Comments");
+
+                    b.Navigation("FollowUps");
                 });
 
             modelBuilder.Entity("IPRO.Entities.DripCampaign", b =>

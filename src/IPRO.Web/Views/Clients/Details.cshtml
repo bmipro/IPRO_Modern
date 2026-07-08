@@ -5,7 +5,11 @@
     var addressParts = new[] { Model.Address, Model.UnitNumber, Model.City, Model.Province, Model.PostalCode, Model.Country }
         .Where(x => !string.IsNullOrWhiteSpace(x));
     var fullAddress = string.Join(", ", addressParts);
+    var openFollowUps = Model.FollowUps.Where(f => !f.IsCompleted).OrderBy(f => f.DueAt).ToList();
+    var completedFollowUps = Model.FollowUps.Where(f => f.IsCompleted).OrderByDescending(f => f.CompletedAt ?? f.DueAt).Take(5).ToList();
     string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    string DueBadgeClass(DateTime dueAt) => dueAt.Date < DateTime.Today ? "bg-danger-subtle text-danger" : dueAt.Date == DateTime.Today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
+    string DueLabel(DateTime dueAt) => dueAt.Date < DateTime.Today ? "Overdue" : dueAt.Date == DateTime.Today ? "Today" : dueAt.ToString("MMM d, yyyy");
 }
 
 <div class="row mb-4">
@@ -103,6 +107,86 @@
   </div>
 
   <div class="col-md-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h5 class="fw-bold mb-0"><i class="fas fa-calendar-check me-2 text-primary"></i>Follow-ups</h5>
+          <span class="badge bg-light text-muted">@openFollowUps.Count open</span>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <form asp-action="AddFollowUp" method="post" class="row g-2 align-items-end mb-3">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="clientId" value="@Model.Id"/>
+          <div class="col-lg-5">
+            <label class="form-label small fw-semibold text-muted">What to do</label>
+            <input type="text" name="title" class="form-control" maxlength="160" placeholder="Call about policy renewal" required/>
+          </div>
+          <div class="col-lg-3">
+            <label class="form-label small fw-semibold text-muted">Due date</label>
+            <input type="date" name="dueAt" class="form-control" required/>
+          </div>
+          <div class="col-lg-3">
+            <label class="form-label small fw-semibold text-muted">Notes</label>
+            <input type="text" name="notes" class="form-control" maxlength="1000" placeholder="Optional"/>
+          </div>
+          <div class="col-lg-1 d-grid">
+            <button type="submit" class="btn btn-primary" title="Add follow-up"><i class="fas fa-plus"></i></button>
+          </div>
+        </form>
+
+        @if (openFollowUps.Any())
+        {
+          <div class="vstack gap-2">
+            @foreach (var followUp in openFollowUps)
+            {
+              <div class="follow-up-item d-flex justify-content-between align-items-start gap-3 border rounded-3 p-3">
+                <div>
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <strong>@followUp.Title</strong>
+                    <span class="badge rounded-pill @DueBadgeClass(followUp.DueAt)">@DueLabel(followUp.DueAt)</span>
+                  </div>
+                  @if (!string.IsNullOrWhiteSpace(followUp.Notes))
+                  {
+                    <div class="text-muted small mt-1">@followUp.Notes</div>
+                  }
+                </div>
+                <div class="d-flex gap-1">
+                  <form asp-action="CompleteFollowUp" asp-route-id="@followUp.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-success" title="Mark complete"><i class="fas fa-check"></i></button>
+                  </form>
+                  <form asp-action="DeleteFollowUp" asp-route-id="@followUp.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" data-confirm="Delete this follow-up?"><i class="fas fa-trash"></i></button>
+                  </form>
+                </div>
+              </div>
+            }
+          </div>
+        }
+        else
+        {
+          <div class="text-muted small py-3">No open follow-ups. Add the next action above.</div>
+        }
+
+        @if (completedFollowUps.Any())
+        {
+          <hr/>
+          <h6 class="fw-bold text-muted text-uppercase mb-2" style="font-size:.75rem;letter-spacing:.08em">Recently completed</h6>
+          <div class="vstack gap-2">
+          @foreach (var followUp in completedFollowUps)
+          {
+            <div class="small text-muted d-flex justify-content-between border-bottom pb-2">
+              <span><i class="fas fa-check-circle text-success me-1"></i>@followUp.Title</span>
+              <span>@((followUp.CompletedAt ?? followUp.DueAt).ToString("MMM d, yyyy"))</span>
+            </div>
+          }
+          </div>
+        }
+      </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-0 pt-4 px-4">
         <h5 class="fw-bold mb-0"><i class="fas fa-comments me-2 text-primary"></i>Activity &amp; Comments</h5>
@@ -144,4 +228,5 @@
   .client-details-list dt,
   .client-details-list dd{padding:.25rem 0;word-break:break-word;}
   .client-details-list dd{margin-bottom:0;}
+  .follow-up-item{background:#f8fafc;}
 </style>
