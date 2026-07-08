@@ -31,6 +31,23 @@
     <div class="col-md-6"><label class="form-label fw-semibold">PayPal Monthly Plan ID</label><input asp-for="PayPalMonthlyPlanId" class="form-control"/></div>
     <div class="col-md-6"><label class="form-label fw-semibold">PayPal Annual Plan ID</label><input asp-for="PayPalAnnualPlanId" class="form-control"/></div>
   </div>
+  <div class="alert alert-light border d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="fw-bold mb-1"><i class="fab fa-paypal me-2 text-primary"></i>PayPal recurring plans</div>
+      <div class="small text-muted">Save package price changes first, then sync. Sync creates new PayPal plans and stores the returned plan IDs for future subscribers.</div>
+      <div class="small mt-2">
+        <span class="badge @(string.IsNullOrWhiteSpace(Model.PayPalMonthlyPlanId) ? "bg-secondary" : "bg-success") me-1">
+          Monthly @(string.IsNullOrWhiteSpace(Model.PayPalMonthlyPlanId) ? "missing" : "connected")
+        </span>
+        <span class="badge @(string.IsNullOrWhiteSpace(Model.PayPalAnnualPlanId) ? "bg-secondary" : "bg-success")">
+          Annual @(string.IsNullOrWhiteSpace(Model.PayPalAnnualPlanId) ? "missing" : "connected")
+        </span>
+      </div>
+    </div>
+    <button type="submit" form="sync-paypal-plans-form" class="btn btn-outline-primary">
+      <i class="fas fa-sync-alt me-1"></i>Create / Replace PayPal Plans
+    </button>
+  </div>
   <div class="form-check form-switch mb-4">
     <input asp-for="IsActive" class="form-check-input" type="checkbox"/>
     <label asp-for="IsActive" class="form-check-label fw-semibold">Package is active</label>
@@ -42,6 +59,9 @@
     <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>Save Changes</button>
     <a href="/Packages" class="btn btn-outline-secondary">Cancel</a>
   </div>
+</form>
+<form id="sync-paypal-plans-form" asp-action="SyncPayPalPlans" asp-route-id="@Model.Id" method="post">
+  @Html.AntiForgeryToken()
 </form>
 </div></div>
 </div></div>

@@ -549,6 +549,54 @@ public class PayPalBillingService : IBillingService
         };
     }
 
+    public async Task<PayPalPlanSyncResult> SyncPayPalPlansAsync(int billingRuleId)
+    {
+        if (!HasPayPalSettings())
+        {
+            return PayPalPlanSyncResult.Failed("PayPal is not configured yet. Add PayPal ClientId and ClientSecret in Azure app settings.");
+        }
+
+        var package = await _uow.BillingRules.GetByIdAsync(billingRuleId);
+        if (package == null)
+        {
+            return PayPalPlanSyncResult.Failed("Package could not be found.");
+        }
+
+        if (package.MonthlyPrice <= 0 && package.AnnualPrice <= 0)
+        {
+            return PayPalPlanSyncResult.Failed("PayPal plans were not created because this package has no monthly or annual recurring price.");
+        }
+
+        try
+        {
+            var productId = await CreatePayPalProductAsync(package);
+            var monthlyPlanId = package.MonthlyPrice > 0
+                ? await CreatePayPalPlanAsync(productId, package, BillingPeriod.Monthly)
+                : string.Empty;
+            var annualPlanId = package.AnnualPrice > 0
+                ? await CreatePayPalPlanAsync(productId, package, BillingPeriod.Annually)
+                : string.Empty;
+
+            package.PayPalMonthlyPlanId = monthlyPlanId;
+            package.PayPalAnnualPlanId = annualPlanId;
+            _uow.BillingRules.Update(package);
+            await _uow.SaveChangesAsync();
+
+            return new PayPalPlanSyncResult
+            {
+                Success = true,
+                ProductId = productId,
+                MonthlyPlanId = monthlyPlanId,
+                AnnualPlanId = annualPlanId,
+                Message = "PayPal product and plans were created. Future subscribers will use the new plan IDs."
+            };
+        }
+        catch (Exception ex)
+        {
+            return PayPalPlanSyncResult.Failed(ex.Message);
+        }
+    }
+
     private async Task<bool> HandleSubscriptionActivatedWebhookAsync(string subscriptionId)
     {
         if (string.IsNullOrWhiteSpace(subscriptionId))
@@ -1336,6 +1384,102 @@ public class PayPalBillingService : IBillingService
             .GetProperty("href").GetString() ?? string.Empty;
 
         return new PayPalSubscriptionResult(subscriptionId, approvalUrl);
+    }
+
+    private async Task<string> CreatePayPalProductAsync(BillingRule package)
+    {
+        var accessToken = await GetPayPalAccessTokenAsync();
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        client.DefaultRequestHeaders.Add("Prefer", "return=representation");
+
+        var description = string.IsNullOrWhiteSpace(package.Description)
+            ? $"{package.PackageName} subscription package"
+            : package.Description;
+        var payload = new
+        {
+            name = $"IPRO Advisers - {package.PackageName}",
+            description = description.Length > 256 ? description[..256] : description,
+            type = "SERVICE"
+        };
+
+        using var response = await client.PostAsync(
+            $"{_settings.BaseUrl}/v1/catalogs/products",
+            new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json"));
+
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"PayPal product creation failed: {json}");
+        }
+
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.GetProperty("id").GetString() ?? string.Empty;
+    }
+
+    private async Task<string> CreatePayPalPlanAsync(string productId, BillingRule package, BillingPeriod period)
+    {
+        var amount = GetAmount(package, period);
+        if (amount <= 0)
+        {
+            return string.Empty;
+        }
+
+        var accessToken = await GetPayPalAccessTokenAsync();
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        client.DefaultRequestHeaders.Add("Prefer", "return=representation");
+
+        var intervalUnit = period == BillingPeriod.Annually ? "YEAR" : "MONTH";
+        var periodName = period == BillingPeriod.Annually ? "Annual" : "Monthly";
+        var payload = new
+        {
+            product_id = productId,
+            name = $"{package.PackageName} {periodName}",
+            description = $"{package.PackageName} {periodName.ToLowerInvariant()} recurring subscription",
+            status = "ACTIVE",
+            billing_cycles = new[]
+            {
+                new
+                {
+                    frequency = new
+                    {
+                        interval_unit = intervalUnit,
+                        interval_count = 1
+                    },
+                    tenure_type = "REGULAR",
+                    sequence = 1,
+                    total_cycles = 0,
+                    pricing_scheme = new
+                    {
+                        fixed_price = new
+                        {
+                            value = amount.ToString("0.00"),
+                            currency_code = "CAD"
+                        }
+                    }
+                }
+            },
+            payment_preferences = new
+            {
+                auto_bill_outstanding = true,
+                setup_fee_failure_action = "CONTINUE",
+                payment_failure_threshold = 3
+            }
+        };
+
+        using var response = await client.PostAsync(
+            $"{_settings.BaseUrl}/v1/billing/plans",
+            new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json"));
+
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"PayPal {periodName.ToLowerInvariant()} plan creation failed: {json}");
+        }
+
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.GetProperty("id").GetString() ?? string.Empty;
     }
 
     private async Task<string> GetPayPalSubscriptionStatusAsync(string subscriptionId)

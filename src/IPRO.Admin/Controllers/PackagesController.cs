@@ -1,4 +1,5 @@
 using IPRO.Admin.Models;
+using IPRO.Billing;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -11,8 +12,13 @@ public class PackagesController : Controller
 {
     private const int Unlimited = -1;
     private readonly IUnitOfWork _uow;
+    private readonly IBillingService _billing;
 
-    public PackagesController(IUnitOfWork uow) => _uow = uow;
+    public PackagesController(IUnitOfWork uow, IBillingService billing)
+    {
+        _uow = uow;
+        _billing = billing;
+    }
 
     public async Task<IActionResult> Index()
     {
@@ -104,6 +110,17 @@ public class PackagesController : Controller
         _uow.BillingRules.Update(rule);
         await _uow.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncPayPalPlans(int id)
+    {
+        var result = await _billing.SyncPayPalPlansAsync(id);
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? $"{result.Message} Monthly: {FormatPlanStatus(result.MonthlyPlanId)} Annual: {FormatPlanStatus(result.AnnualPlanId)}"
+            : result.Message;
+
+        return RedirectToAction(nameof(Edit), new { id });
     }
 
     private async Task<PackageEditViewModel> BuildPackageModelAsync(BillingRule rule)
@@ -288,4 +305,6 @@ public class PackagesController : Controller
     }
 
     private static string FormatLimitNumber(int value) => value == Unlimited ? "Unlimited" : value.ToString("N0");
+
+    private static string FormatPlanStatus(string planId) => string.IsNullOrWhiteSpace(planId) ? "not created." : planId;
 }
