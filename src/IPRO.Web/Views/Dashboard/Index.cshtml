@@ -1,7 +1,21 @@
-@{ ViewData["Title"] = "Dashboard"; }
+@{
+    ViewData["Title"] = "Dashboard";
+    var followUps = (ViewBag.FollowUps as IEnumerable<IPRO.Entities.ClientFollowUp>) ?? Enumerable.Empty<IPRO.Entities.ClientFollowUp>();
+    var overdueCount = (int)(ViewBag.OverdueFollowUpCount ?? 0);
+    var todayCount = (int)(ViewBag.TodayFollowUpCount ?? 0);
+    var upcomingCount = (int)(ViewBag.UpcomingFollowUpCount ?? 0);
+
+    string DueBadgeClass(DateTime dueAt) => dueAt.Date < DateTime.Today ? "bg-danger-subtle text-danger" : dueAt.Date == DateTime.Today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
+    string DueLabel(DateTime dueAt) => dueAt.Date < DateTime.Today ? "Overdue" : dueAt.Date == DateTime.Today ? "Today" : dueAt.ToString("MMM d");
+}
+
 <div class="row mb-4">
-  <div class="col"><h2 class="fw-bold"><i class="fas fa-home me-2 text-primary"></i>Welcome back, @ViewBag.AgentName!</h2></div>
+  <div class="col">
+    <h2 class="fw-bold mb-1"><i class="fas fa-home me-2 text-primary"></i>Welcome back, @ViewBag.AgentName!</h2>
+    <div class="text-muted">Here is what needs attention today.</div>
+  </div>
 </div>
+
 <div class="row g-4 mb-4">
   <div class="col-md-3">
     <div class="card border-0 shadow-sm h-100">
@@ -15,63 +29,128 @@
   <div class="col-md-3">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center p-4">
-        <div class="display-4 fw-bold text-success">@ViewBag.NewsletterCount</div>
-        <div class="text-muted mt-1"><i class="fas fa-envelope me-1"></i>Newsletters</div>
-        <a href="/Newsletter" class="btn btn-outline-success btn-sm mt-3">Manage Newsletters</a>
+        <div class="display-4 fw-bold @(overdueCount > 0 ? "text-danger" : "text-success")">@overdueCount</div>
+        <div class="text-muted mt-1"><i class="fas fa-exclamation-circle me-1"></i>Overdue Follow-ups</div>
+        <a href="/Clients" class="btn btn-outline-danger btn-sm mt-3">Review Clients</a>
       </div>
     </div>
   </div>
   <div class="col-md-3">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center p-4">
-        @if (ViewBag.Website != null && ViewBag.Website.IsPublished)
-        { <div class="display-4 fw-bold text-info"><i class="fas fa-check-circle"></i></div>
-          <div class="text-muted mt-1">Website Live</div> }
-        else
-        { <div class="display-4 fw-bold text-warning"><i class="fas fa-clock"></i></div>
-          <div class="text-muted mt-1">Website Offline</div> }
-        <a href="/Website" class="btn btn-outline-info btn-sm mt-3">Manage Website</a>
+        <div class="display-4 fw-bold text-warning">@todayCount</div>
+        <div class="text-muted mt-1"><i class="fas fa-calendar-day me-1"></i>Due Today</div>
+        <a href="#followups" class="btn btn-outline-warning btn-sm mt-3">See Today</a>
       </div>
     </div>
   </div>
   <div class="col-md-3">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center p-4">
-        @if (ViewBag.Subscription != null)
-        { <div class="display-4 fw-bold text-success"><i class="fas fa-check-circle"></i></div>
-          <div class="text-muted mt-1">Subscription Active</div> }
-        else
-        { <div class="display-4 fw-bold text-danger"><i class="fas fa-times-circle"></i></div>
-          <div class="text-muted mt-1">No Subscription</div> }
-        <a href="/Billing" class="btn btn-outline-secondary btn-sm mt-3">Billing</a>
+        <div class="display-4 fw-bold text-info">@upcomingCount</div>
+        <div class="text-muted mt-1"><i class="fas fa-clock me-1"></i>Upcoming</div>
+        <a href="#followups" class="btn btn-outline-info btn-sm mt-3">View Queue</a>
       </div>
     </div>
   </div>
 </div>
+
 <div class="row g-4">
-  <div class="col-md-6">
-    <div class="card border-0 shadow-sm">
+  <div class="col-lg-8">
+    <div id="followups" class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h5 class="fw-bold mb-0"><i class="fas fa-calendar-check me-2 text-primary"></i>Next Follow-ups</h5>
+          <span class="badge bg-light text-muted">@followUps.Count() shown</span>
+        </div>
+      </div>
+      <div class="card-body px-4 pb-4">
+        @if (followUps.Any())
+        {
+          <div class="vstack gap-2">
+          @foreach (var item in followUps)
+          {
+            <div class="dashboard-followup d-flex justify-content-between align-items-start gap-3 border rounded-3 p-3">
+              <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <strong>@item.Title</strong>
+                  <span class="badge rounded-pill @DueBadgeClass(item.DueAt)">@DueLabel(item.DueAt)</span>
+                </div>
+                <div class="small mt-1">
+                  <a href="/Clients/Details/@item.ClientId" class="text-decoration-none">@item.Client.FirstName @item.Client.LastName</a>
+                  @if (!string.IsNullOrWhiteSpace(item.Client.CompanyName))
+                  {
+                    <span class="text-muted"> - @item.Client.CompanyName</span>
+                  }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(item.Notes))
+                {
+                  <div class="text-muted small mt-1">@item.Notes</div>
+                }
+              </div>
+              <div class="d-flex gap-1">
+                <a href="/Clients/FollowUps/@item.ClientId" class="btn btn-sm btn-outline-primary" title="View follow-ups"><i class="fas fa-list"></i></a>
+                <form asp-controller="Clients" asp-action="CompleteFollowUp" asp-route-id="@item.Id" method="post">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
+                  <button type="submit" class="btn btn-sm btn-outline-success" title="Mark complete"><i class="fas fa-check"></i></button>
+                </form>
+              </div>
+            </div>
+          }
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-5 text-muted">
+            <i class="fas fa-calendar-check fa-3x d-block mb-3 opacity-25"></i>
+            No open follow-ups. A rare and beautiful calm.
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white border-0 pt-4 px-4"><h5 class="fw-bold mb-0"><i class="fas fa-bolt me-2 text-warning"></i>Quick Actions</h5></div>
       <div class="card-body px-4 pb-4">
         <div class="d-grid gap-2">
           <a href="/Clients/Create" class="btn btn-light text-start"><i class="fas fa-user-plus me-2 text-primary"></i>Add New Client</a>
+          <a href="/Clients" class="btn btn-light text-start"><i class="fas fa-search me-2 text-primary"></i>Search Clients</a>
           <a href="/Newsletter/Create" class="btn btn-light text-start"><i class="fas fa-paper-plane me-2 text-success"></i>Create Newsletter</a>
-          <a href="/Website" class="btn btn-light text-start"><i class="fas fa-paint-brush me-2 text-info"></i>Edit My Website</a>
+          <a href="/Billing" class="btn btn-light text-start"><i class="fas fa-credit-card me-2 text-secondary"></i>Billing</a>
         </div>
       </div>
     </div>
-  </div>
-  <div class="col-md-6">
+
     <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white border-0 pt-4 px-4"><h5 class="fw-bold mb-0"><i class="fas fa-info-circle me-2 text-info"></i>Getting Started</h5></div>
+      <div class="card-header bg-white border-0 pt-4 px-4"><h5 class="fw-bold mb-0"><i class="fas fa-info-circle me-2 text-info"></i>Status</h5></div>
       <div class="card-body px-4 pb-4">
         <ul class="list-unstyled mb-0">
-          <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Add your first client</li>
-          <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Customise your website</li>
-          <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Set up your domain</li>
-          <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Send your first newsletter</li>
+          <li class="mb-2"><i class="fas fa-envelope text-success me-2"></i>@ViewBag.NewsletterCount newsletters created</li>
+          @if (ViewBag.Website != null && ViewBag.Website.IsPublished)
+          {
+            <li class="mb-2"><i class="fas fa-globe text-success me-2"></i>Website is live</li>
+          }
+          else
+          {
+            <li class="mb-2"><i class="fas fa-globe text-warning me-2"></i>Website is not published</li>
+          }
+          @if (ViewBag.Subscription != null)
+          {
+            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Subscription active</li>
+          }
+          else
+          {
+            <li class="mb-2"><i class="fas fa-times-circle text-danger me-2"></i>No active subscription</li>
+          }
         </ul>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .dashboard-followup{background:#f8fafc;}
+</style>
