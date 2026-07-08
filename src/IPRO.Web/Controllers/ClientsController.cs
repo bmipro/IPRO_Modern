@@ -83,6 +83,48 @@ public class ClientsController : Controller
         return View(client);
     }
 
+    public async Task<IActionResult> FollowUps(int id, string status = "open", int page = 1)
+    {
+        const int pageSize = 10;
+        page = Math.Max(page, 1);
+        status = string.IsNullOrWhiteSpace(status) ? "open" : status.Trim().ToLowerInvariant();
+
+        var client = await _db.Clients
+            .FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (client == null) return NotFound();
+
+        var query = _db.ClientFollowUps
+            .Where(f => f.ClientId == id);
+
+        query = status switch
+        {
+            "completed" => query.Where(f => f.IsCompleted),
+            "overdue" => query.Where(f => !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+            "all" => query,
+            _ => query.Where(f => !f.IsCompleted)
+        };
+
+        var totalCount = await query.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        page = Math.Min(page, totalPages);
+
+        ViewBag.Client = client;
+        ViewBag.Status = status;
+        ViewBag.Page = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
+        var followUps = await query
+            .OrderBy(f => f.IsCompleted)
+            .ThenBy(f => f.IsCompleted ? DateTime.MaxValue : f.DueAt)
+            .ThenByDescending(f => f.CompletedAt ?? f.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return View(followUps);
+    }
+
     public async Task<IActionResult> Create()
     {
         await LoadAccountTypesAsync();
@@ -294,7 +336,7 @@ public class ClientsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> CompleteFollowUp(int id)
+    public async Task<IActionResult> CompleteFollowUp(int id, string? returnUrl = null)
     {
         var followUp = await _db.ClientFollowUps
             .Include(f => f.Client)
@@ -306,11 +348,16 @@ public class ClientsController : Controller
         await _db.SaveChangesAsync();
 
         TempData["Success"] = "Follow-up completed.";
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
         return RedirectToAction(nameof(Details), new { id = followUp.ClientId });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteFollowUp(int id)
+    public async Task<IActionResult> DeleteFollowUp(int id, string? returnUrl = null)
     {
         var followUp = await _db.ClientFollowUps
             .Include(f => f.Client)
@@ -322,6 +369,11 @@ public class ClientsController : Controller
         await _db.SaveChangesAsync();
 
         TempData["Warning"] = "Follow-up deleted.";
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
         return RedirectToAction(nameof(Details), new { id = clientId });
     }
 

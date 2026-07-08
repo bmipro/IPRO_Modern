@@ -5,8 +5,10 @@
     var addressParts = new[] { Model.Address, Model.UnitNumber, Model.City, Model.Province, Model.PostalCode, Model.Country }
         .Where(x => !string.IsNullOrWhiteSpace(x));
     var fullAddress = string.Join(", ", addressParts);
-    var openFollowUps = Model.FollowUps.Where(f => !f.IsCompleted).OrderBy(f => f.DueAt).ToList();
+    var allOpenFollowUps = Model.FollowUps.Where(f => !f.IsCompleted).OrderBy(f => f.DueAt).ToList();
+    var openFollowUps = allOpenFollowUps.Take(5).ToList();
     var completedFollowUps = Model.FollowUps.Where(f => f.IsCompleted).OrderByDescending(f => f.CompletedAt ?? f.DueAt).Take(5).ToList();
+    var totalFollowUps = Model.FollowUps.Count;
     string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
     string DueBadgeClass(DateTime dueAt) => dueAt.Date < DateTime.Today ? "bg-danger-subtle text-danger" : dueAt.Date == DateTime.Today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
     string DueLabel(DateTime dueAt) => dueAt.Date < DateTime.Today ? "Overdue" : dueAt.Date == DateTime.Today ? "Today" : dueAt.ToString("MMM d, yyyy");
@@ -111,7 +113,10 @@
       <div class="card-header bg-white border-0 pt-4 px-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
           <h5 class="fw-bold mb-0"><i class="fas fa-calendar-check me-2 text-primary"></i>Follow-ups</h5>
-          <span class="badge bg-light text-muted">@openFollowUps.Count open</span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-muted">@allOpenFollowUps.Count open</span>
+            <a href="/Clients/FollowUps/@Model.Id" class="btn btn-sm btn-outline-primary">View all</a>
+          </div>
         </div>
       </div>
       <div class="card-body px-4 pb-4">
@@ -164,6 +169,12 @@
               </div>
             }
           </div>
+          @if (allOpenFollowUps.Count > openFollowUps.Count)
+          {
+            <div class="text-end mt-3">
+              <a href="/Clients/FollowUps/@Model.Id" class="small fw-semibold text-decoration-none">View @(allOpenFollowUps.Count - openFollowUps.Count) more open follow-ups</a>
+            </div>
+          }
         }
         else
         {
@@ -182,6 +193,12 @@
               <span>@((followUp.CompletedAt ?? followUp.DueAt).ToString("MMM d, yyyy"))</span>
             </div>
           }
+          </div>
+        }
+        @if (totalFollowUps > openFollowUps.Count + completedFollowUps.Count)
+        {
+          <div class="text-end mt-3">
+            <a href="/Clients/FollowUps/@Model.Id?status=all" class="small fw-semibold text-decoration-none">Open full follow-up history</a>
           </div>
         }
       </div>

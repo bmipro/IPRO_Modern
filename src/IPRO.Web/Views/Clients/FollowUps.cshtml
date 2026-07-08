@@ -1,0 +1,138 @@
+@model IEnumerable<IPRO.Entities.ClientFollowUp>
+@{
+    var client = ViewBag.Client as IPRO.Entities.Client;
+    var status = (ViewBag.Status as string) ?? "open";
+    var page = (int)(ViewBag.Page ?? 1);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var totalCount = (int)(ViewBag.TotalCount ?? 0);
+    ViewData["Title"] = client == null ? "Follow-ups" : $"Follow-ups - {client.FirstName} {client.LastName}";
+
+    string StatusUrl(string selectedStatus, int selectedPage = 1) => $"/Clients/FollowUps/{client?.Id}?status={selectedStatus}&page={selectedPage}";
+    string ActiveClass(string selectedStatus) => string.Equals(status, selectedStatus, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    string DueBadgeClass(DateTime dueAt) => dueAt.Date < DateTime.Today ? "bg-danger-subtle text-danger" : dueAt.Date == DateTime.Today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
+    string DueLabel(DateTime dueAt) => dueAt.Date < DateTime.Today ? "Overdue" : dueAt.Date == DateTime.Today ? "Today" : dueAt.ToString("MMM d, yyyy");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="/Clients">Clients</a></li>
+        <li class="breadcrumb-item"><a href="/Clients/Details/@client?.Id">@client?.FirstName @client?.LastName</a></li>
+        <li class="breadcrumb-item active">Follow-ups</li>
+      </ol>
+    </nav>
+    <h2 class="fw-bold mb-0"><i class="fas fa-calendar-check me-2 text-primary"></i>Follow-ups</h2>
+    <small class="text-muted">@totalCount item@(totalCount == 1 ? "" : "s") in this view</small>
+  </div>
+  <a href="/Clients/Details/@client?.Id" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Client</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-3">
+    <div class="d-flex justify-content-between gap-3 flex-wrap">
+      <div class="btn-group" role="group" aria-label="Follow-up filters">
+        <a class="btn btn-outline-primary @ActiveClass("open")" href="@StatusUrl("open")">Open</a>
+        <a class="btn btn-outline-primary @ActiveClass("overdue")" href="@StatusUrl("overdue")">Overdue</a>
+        <a class="btn btn-outline-primary @ActiveClass("completed")" href="@StatusUrl("completed")">Completed</a>
+        <a class="btn btn-outline-primary @ActiveClass("all")" href="@StatusUrl("all")">All</a>
+      </div>
+      <form asp-action="AddFollowUp" method="post" class="d-flex gap-2 flex-wrap">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="clientId" value="@client?.Id"/>
+        <input type="text" name="title" class="form-control followup-title-input" maxlength="160" placeholder="Next action" required/>
+        <input type="date" name="dueAt" class="form-control followup-date-input" required/>
+        <input type="text" name="notes" class="form-control followup-notes-input" maxlength="1000" placeholder="Notes"/>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>Follow-up</th><th>Due</th><th>Status</th><th>Created</th><th></th></tr>
+      </thead>
+      <tbody>
+      @foreach (var followUp in Model)
+      {
+        <tr>
+          <td>
+            <div class="fw-semibold">@followUp.Title</div>
+            @if (!string.IsNullOrWhiteSpace(followUp.Notes))
+            {
+              <small class="text-muted">@followUp.Notes</small>
+            }
+          </td>
+          <td><span class="badge rounded-pill @DueBadgeClass(followUp.DueAt)">@DueLabel(followUp.DueAt)</span></td>
+          <td>
+            @if (followUp.IsCompleted)
+            {
+              <span class="badge bg-success-subtle text-success rounded-pill">Completed</span>
+            }
+            else
+            {
+              <span class="badge bg-light text-muted rounded-pill">Open</span>
+            }
+          </td>
+          <td><small class="text-muted">@followUp.CreatedAt.ToString("MMM d, yyyy")</small></td>
+          <td>
+            <div class="d-flex gap-1 justify-content-end">
+              @if (!followUp.IsCompleted)
+              {
+                <form asp-action="CompleteFollowUp" asp-route-id="@followUp.Id" method="post">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
+                  <button type="submit" class="btn btn-sm btn-outline-success" title="Mark complete"><i class="fas fa-check"></i></button>
+                </form>
+              }
+              <form asp-action="DeleteFollowUp" asp-route-id="@followUp.Id" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" data-confirm="Delete this follow-up?"><i class="fas fa-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      }
+      @if (!Model.Any())
+      {
+        <tr>
+          <td colspan="5" class="text-center py-5 text-muted">
+            <i class="fas fa-calendar-check fa-3x d-block mb-3 opacity-25"></i>
+            No follow-ups found for this view.
+          </td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@if (totalPages > 1)
+{
+  <nav class="mt-3" aria-label="Follow-up pages">
+    <ul class="pagination justify-content-end">
+      <li class="page-item @(page <= 1 ? "disabled" : "")">
+        <a class="page-link" href="@StatusUrl(status, page - 1)">Previous</a>
+      </li>
+      @for (var i = 1; i <= totalPages; i++)
+      {
+        <li class="page-item @(i == page ? "active" : "")">
+          <a class="page-link" href="@StatusUrl(status, i)">@i</a>
+        </li>
+      }
+      <li class="page-item @(page >= totalPages ? "disabled" : "")">
+        <a class="page-link" href="@StatusUrl(status, page + 1)">Next</a>
+      </li>
+    </ul>
+  </nav>
+}
+
+<style>
+  .followup-title-input{width:220px;}
+  .followup-date-input{width:160px;}
+  .followup-notes-input{width:240px;}
+</style>
