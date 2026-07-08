@@ -17,7 +17,9 @@
     var currentPackage = subscription == null ? null : packageList.FirstOrDefault(p => p.Id == subscription.BillingRuleId);
     var pendingPackage = pendingChange == null ? null : packageList.FirstOrDefault(p => p.Id == pendingChange.RequestedBillingRuleId);
     var unpaidInvoices = (invoices ?? Enumerable.Empty<IPRO.Entities.Invoice>())
-        .Where(i => !i.IsPaid && packageList.Any(p => p.Id == i.Billing?.BillingRuleId))
+        .Where(i => !i.IsPaid &&
+            i.Billing?.Status == IPRO.Entities.BillingStatus.Pending &&
+            packageList.Any(p => p.Id == i.Billing.BillingRuleId))
         .OrderByDescending(i => i.IssuedAt)
         .ToList();
 }

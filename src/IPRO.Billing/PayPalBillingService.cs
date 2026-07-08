@@ -229,13 +229,24 @@ public class PayPalBillingService : IBillingService
         }
 
         var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
-        if (billing == null || billing.AgentUserId != userId || billing.Status != BillingStatus.Pending)
+        if (billing == null || billing.AgentUserId != userId)
         {
             return false;
         }
 
+        if (billing.Status == BillingStatus.Cancelled)
+        {
+            return true;
+        }
+
+        if (billing.Status != BillingStatus.Pending && billing.Status != BillingStatus.Failed)
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
         billing.Status = BillingStatus.Cancelled;
-        billing.CancelledAt = DateTime.UtcNow;
+        billing.CancelledAt = now;
         _uow.Billings.Update(billing);
 
         var pendingChange = await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
@@ -243,7 +254,7 @@ public class PayPalBillingService : IBillingService
         if (pendingChange != null)
         {
             pendingChange.Status = SubscriptionChangeStatus.Cancelled;
-            pendingChange.CancelledAt = DateTime.UtcNow;
+            pendingChange.CancelledAt = now;
             _uow.SubscriptionChanges.Update(pendingChange);
         }
 
