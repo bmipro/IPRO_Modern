@@ -9,36 +9,70 @@
         ? "bold italic underline | bullist numlist | link"
         : "undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | forecolor backcolor | code fullscreen";
 }
-<textarea id="@editorId" name="@fieldName" class="rich-text-editor d-none">@Model</textarea>
-<div id="@editorId-container" class="tinymce-wrapper border rounded"></div>
+<textarea id="@editorId" name="@fieldName" class="form-control rich-text-editor" data-custom-rich-editor="true" rows="12">@Model</textarea>
 
 <script>
 (function () {
-    tinymce.init({
-        selector: '#@editorId',
-        target: document.getElementById('@editorId'),
-        inline: false,
-        hidden_input: true,
-        plugins: 'lists link image table code fullscreen emoticons wordcount autosave',
-        toolbar: '@toolbar', // <-- Fixed: use Razor var, not JS var
-        height: @height,
-        menubar: '@toolbarMode' == 'full',
-        skin: 'oxide',
-        content_css: 'default',
-        branding: false,
-        resize: true,
-        autosave_interval: '30s',
-        autosave_prefix: 'ipro-editor-@editorId-',
-        image_uploadtab: true,
-        images_upload_url: '/api/upload/image',
-        images_upload_credentials: true,
-        automatic_uploads: true,
-        file_picker_types: 'image',
-        setup: function(editor) {
-            editor.on('change', function() {
-                document.getElementById('@editorId').value = editor.getContent();
-            });
+    function initRichEditor() {
+        if (typeof tinymce === 'undefined') {
+            return;
         }
-    });
+
+        const textarea = document.getElementById('@editorId');
+        if (!textarea || textarea.dataset.tinyReady === 'true') {
+            return;
+        }
+
+        textarea.dataset.tinyReady = 'true';
+        tinymce.init({
+            selector: '#@editorId',
+            plugins: 'lists link image table code fullscreen emoticons wordcount autosave',
+            toolbar: '@toolbar',
+            height: @height,
+            menubar: '@toolbarMode' == 'full',
+            skin: 'oxide',
+            content_css: 'default',
+            branding: false,
+            resize: true,
+            autosave_interval: '30s',
+            autosave_prefix: 'ipro-editor-@editorId-',
+            image_uploadtab: true,
+            images_upload_url: '/api/upload/image',
+            images_upload_credentials: true,
+            automatic_uploads: true,
+            file_picker_types: 'image',
+            setup: function(editor) {
+                editor.on('change keyup undo redo', function() {
+                    textarea.value = editor.getContent();
+                });
+                editor.on('init', function() {
+                    textarea.value = editor.getContent();
+                });
+                const form = textarea.closest('form');
+                if (form) {
+                    form.addEventListener('submit', function() {
+                        textarea.value = editor.getContent();
+                    });
+                }
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initRichEditor);
+    } else {
+        initRichEditor();
+    }
+
+    window.addEventListener('load', initRichEditor);
+    document.addEventListener('submit', function(event) {
+        const form = event.target;
+        if (form && form.querySelector('#@editorId') && typeof tinymce !== 'undefined') {
+            const editor = tinymce.get('@editorId');
+            if (editor) {
+                document.getElementById('@editorId').value = editor.getContent();
+            }
+        }
+    }, true);
 })();
 </script>

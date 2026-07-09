@@ -16,17 +16,20 @@
       <div class="card-body p-4">
         <form asp-action="Create" method="post">
           @Html.AntiForgeryToken()
+          <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
           <div class="mb-4">
             <label class="form-label fw-semibold">Subject Line <span class="text-danger">*</span></label>
             <input asp-for="Subject" class="form-control form-control-lg" placeholder="Enter a compelling subject line..." required/>
+            <span asp-validation-for="Subject" class="text-danger small"></span>
             <div class="form-text">This is what your subscribers will see in their inbox.</div>
           </div>
 
           <div class="mb-4">
             <label class="form-label fw-semibold">Newsletter Body <span class="text-danger">*</span></label>
-            @await Html.PartialAsync("_RichEditor", string.Empty, new ViewDataDictionary(ViewData) {
+            @await Html.PartialAsync("_RichEditor", Model.HtmlBody ?? string.Empty, new ViewDataDictionary(ViewData) {
                 { "EditorId", "nlBody" }, { "FieldName", "HtmlBody" }, { "Height", "500" }, { "Toolbar", "full" }
             })
+            <span asp-validation-for="HtmlBody" class="text-danger small"></span>
           </div>
 
           <div class="mb-4">
@@ -68,4 +71,5 @@
 
 @section Scripts {
 <script src="https://cdn.tiny.cloud/1/YOUR_TINYMCE_KEY/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<partial name="_ValidationScriptsPartial" />
 }
