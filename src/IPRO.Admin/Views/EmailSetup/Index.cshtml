@@ -1,0 +1,210 @@
+@model IPRO.Admin.Models.EmailSetupViewModel
+@{
+    ViewData["Title"] = "Email Setup";
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="/AdminDashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active">Email Setup</li>
+            </ol>
+        </nav>
+        <h4 class="fw-bold mb-1"><i class="fas fa-envelope-circle-check me-2 text-primary"></i>Email Setup</h4>
+        <div class="text-muted">SendGrid health, sender identity, and recent billing email activity.</div>
+    </div>
+    <a href="/PayPalSetup" class="btn btn-outline-primary">
+        <i class="fab fa-paypal me-1"></i>PayPal Setup
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box @(Model.HasSendGridApiKey ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">
+                    <i class="fas fa-key"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">@(Model.HasSendGridApiKey ? "Configured" : "Missing")</div>
+                    <div class="text-muted small">SendGrid API key</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box @(!string.IsNullOrWhiteSpace(Model.FromEmail) ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">
+                    <i class="fas fa-at"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">@(!string.IsNullOrWhiteSpace(Model.FromEmail) ? "Set" : "Missing")</div>
+                    <div class="text-muted small">From email</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box @(!string.IsNullOrWhiteSpace(Model.ReplyToEmail) ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")">
+                    <i class="fas fa-reply"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">@(!string.IsNullOrWhiteSpace(Model.ReplyToEmail) ? "Set" : "Missing")</div>
+                    <div class="text-muted small">Reply-to email</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box @(Model.RecentFailureCount == 0 ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">@Model.RecentFailureCount</div>
+                    <div class="text-muted small">Recent email failures</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.HasSendGridApiKey || string.IsNullOrWhiteSpace(Model.FromEmail))
+{
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+        <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-2"></i>Email setup needs attention</div>
+        <div>
+            Add SendGrid settings to both <strong>ipro-prod-web</strong> and <strong>ipro-prod-admin</strong>,
+            then restart each App Service. The sender address must be verified in SendGrid.
+        </div>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold mb-1">Azure App Settings</h5>
+                <div class="text-muted small">These are read from the running admin app. Secrets are intentionally masked.</div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Current Value</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var setting in Model.Settings)
+                        {
+                            <tr>
+                                <td class="font-monospace small">@setting.Name</td>
+                                <td>
+                                    <span class="badge @(setting.IsConfigured ? "bg-success" : "bg-danger")">
+                                        @(setting.IsConfigured ? "OK" : "Missing")
+                                    </span>
+                                </td>
+                                <td class="small text-muted">@setting.Value</td>
+                                <td class="small text-muted">@setting.HelpText</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-shield-halved me-2 text-primary"></i>Sender Identity</h5>
+                <div class="small text-muted mb-3">
+                    SendGrid must trust the sender before Yahoo, Gmail, and Outlook will reliably accept invoices.
+                </div>
+                <div class="border rounded-3 p-3 bg-light mb-3">
+                    <div class="small text-muted text-uppercase fw-bold">Recommended production setup</div>
+                    <div class="mt-2"><span class="fw-semibold">From:</span> billing@iproadvisers.com</div>
+                    <div><span class="fw-semibold">Reply-To:</span> support@iproadvisers.com or billing@iproadvisers.com</div>
+                </div>
+                <div class="small text-muted">
+                    Domain authentication for <strong>iproadvisers.com</strong> is better than single-sender verification.
+                    It adds SPF/DKIM records and improves deliverability.
+                </div>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Environment</h5>
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">ASP.NET environment</span>
+                    <span class="fw-semibold">@Model.EnvironmentName</span>
+                </div>
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">From email</span>
+                    <span class="fw-semibold small text-end">@(string.IsNullOrWhiteSpace(Model.FromEmail) ? "-" : Model.FromEmail)</span>
+                </div>
+                <div class="d-flex justify-content-between py-2">
+                    <span class="text-muted">Reply-to</span>
+                    <span class="fw-semibold small text-end">@(string.IsNullOrWhiteSpace(Model.ReplyToEmail) ? "-" : Model.ReplyToEmail)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-1">Recent Billing Email Activity</h5>
+            <div class="text-muted small">Invoice and billing issue email events recorded by IPRO.</div>
+        </div>
+        <span class="badge bg-light text-dark">@Model.RecentLogs.Count records</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Agent</th>
+                        <th>Action</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.RecentLogs.Any())
+                {
+                    @foreach (var log in Model.RecentLogs)
+                    {
+                        <tr>
+                            <td class="small text-muted">@log.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</td>
+                            <td class="small">@(log.AgentUserId?.ToString() ?? "-")</td>
+                            <td>
+                                <span class="badge @(log.Action.Contains("Failed", StringComparison.OrdinalIgnoreCase) ? "bg-danger" : "bg-success")">
+                                    @log.Action
+                                </span>
+                            </td>
+                            <td class="small text-muted">@log.Description</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">No billing email activity yet.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
