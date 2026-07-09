@@ -180,8 +180,16 @@ public class BillingController : Controller
             decimal.TryParse(valueElement.GetString(), out amount);
         }
 
-        var signature = Request.Headers["PayPal-Transmission-Sig"].ToString();
-        await _billing.HandleWebhookAsync(eventType, payload, signature, amount);
-        return Ok();
+        var headers = new PayPalWebhookHeaders
+        {
+            TransmissionId = Request.Headers["PayPal-Transmission-Id"].ToString(),
+            TransmissionTime = Request.Headers["PayPal-Transmission-Time"].ToString(),
+            TransmissionSignature = Request.Headers["PayPal-Transmission-Sig"].ToString(),
+            CertificateUrl = Request.Headers["PayPal-Cert-Url"].ToString(),
+            AuthenticationAlgorithm = Request.Headers["PayPal-Auth-Algo"].ToString()
+        };
+
+        var handled = await _billing.HandleWebhookAsync(eventType, payload, headers, amount);
+        return handled ? Ok() : Unauthorized();
     }
 }

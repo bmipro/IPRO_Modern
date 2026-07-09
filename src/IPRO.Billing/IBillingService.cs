@@ -13,7 +13,7 @@ public interface IBillingService
     Task<bool> CancelSubscriptionAsync(int userId);
     Task<int> ProcessDueSubscriptionChangesAsync();
     Task<int> NotifyBillingIssuesAsync();
-    Task<bool> HandleWebhookAsync(string eventType, string payload, string signature, decimal amount);
+    Task<bool> HandleWebhookAsync(string eventType, string payload, PayPalWebhookHeaders headers, decimal amount);
     Task<PayPalPlanSyncResult> SyncPayPalPlansAsync(int billingRuleId);
     Task<List<IPRO.Entities.Invoice>> GetInvoicesAsync(int userId);
     Task<IPRO.Entities.Invoice> GenerateInvoiceAsync(int userId, decimal amount, string description);

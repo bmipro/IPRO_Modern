@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -193,6 +194,7 @@ public class PayPalBillingService : IBillingService
         if (change == null || billing == null)
         {
             await _uow.SaveChangesAsync();
+            await SendPaidInvoiceEmailAsync(invoice.Id);
             return new BillingChangeResult { Success = true, Message = "Payment captured." };
         }
 
@@ -217,6 +219,7 @@ public class PayPalBillingService : IBillingService
         _uow.SubscriptionChanges.Update(change);
 
         await _uow.SaveChangesAsync();
+        await SendPaidInvoiceEmailAsync(invoice.Id);
         return new BillingChangeResult
         {
             Success = true,
@@ -269,6 +272,11 @@ public class PayPalBillingService : IBillingService
         }
 
         await _uow.SaveChangesAsync();
+        if (invoice != null && invoice.IsPaid)
+        {
+            await SendPaidInvoiceEmailAsync(invoice.Id);
+        }
+
         return new BillingChangeResult
         {
             Success = true,
@@ -523,7 +531,7 @@ public class PayPalBillingService : IBillingService
         return true;
     }
 
-    public async Task<bool> HandleWebhookAsync(string eventType, string payload, string signature, decimal amount)
+    public async Task<bool> HandleWebhookAsync(string eventType, string payload, PayPalWebhookHeaders headers, decimal amount)
     {
         if (string.IsNullOrWhiteSpace(payload))
         {
@@ -531,6 +539,11 @@ public class PayPalBillingService : IBillingService
         }
 
         using var document = JsonDocument.Parse(payload);
+        if (!await VerifyWebhookSignatureAsync(document.RootElement, headers))
+        {
+            return false;
+        }
+
         var resource = document.RootElement.TryGetProperty("resource", out var resourceElement)
             ? resourceElement
             : document.RootElement;
@@ -696,6 +709,7 @@ public class PayPalBillingService : IBillingService
                 : await CreateInvoiceAsync(billing.Id, billing.AgentUserId, package, billing.Period, recurringAmount, 0, true);
             invoice.PayPalTransactionId = transactionId;
             _uow.Invoices.Update(invoice);
+            pendingInvoice = invoice;
         }
 
         if (billing.Status != BillingStatus.Active)
@@ -707,6 +721,11 @@ public class PayPalBillingService : IBillingService
         billing.NextBillingDate = GetNextBillingDate(DateTime.UtcNow, billing.Period);
         _uow.Billings.Update(billing);
         await _uow.SaveChangesAsync();
+        if (pendingInvoice != null)
+        {
+            await SendPaidInvoiceEmailAsync(pendingInvoice.Id);
+        }
+
         return true;
     }
 
@@ -1315,6 +1334,130 @@ public class PayPalBillingService : IBillingService
         """;
     }
 
+    private async Task SendPaidInvoiceEmailAsync(int invoiceId)
+    {
+        var alreadySent = await _uow.OperateLogs.ExistsAsync(l =>
+            l.Module == "Billing" &&
+            l.Action == "InvoiceEmail" &&
+            l.Description == $"Invoice:{invoiceId}");
+        if (alreadySent)
+        {
+            return;
+        }
+
+        var invoice = await _uow.Invoices.GetByIdAsync(invoiceId);
+        if (invoice == null || !invoice.IsPaid)
+        {
+            return;
+        }
+
+        var agent = await _uow.AgentUsers.GetByIdAsync(invoice.AgentUserId);
+        if (agent == null || string.IsNullOrWhiteSpace(agent.Email))
+        {
+            return;
+        }
+
+        var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
+        var package = billing == null ? null : await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
+        var lineItems = (await _uow.InvoiceLineItems.FindAsync(i => i.InvoiceId == invoice.Id))
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+        var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            fullName = agent.UserName;
+        }
+
+        var html = BuildPaidInvoiceEmailHtml(invoice, lineItems, fullName, package?.PackageName ?? "IPRO package");
+        var text = $"Hello {fullName},\n\nThank you for your payment. Invoice {invoice.InvoiceNumber} has been paid. Total: {invoice.Total:N2} {invoice.Currency}.\n\nYou can view your invoice from the Billing page in your IPRO Agent Portal.\n\nIPRO Management";
+        var sent = await _email.SendAsync(agent.Email, fullName, $"IPRO invoice {invoice.InvoiceNumber}", html, text);
+        if (!sent)
+        {
+            return;
+        }
+
+        await _uow.OperateLogs.AddAsync(new OperateLog
+        {
+            AgentUserId = agent.Id,
+            Module = "Billing",
+            Action = "InvoiceEmail",
+            Description = $"Invoice:{invoiceId}",
+            CreatedAt = DateTime.UtcNow
+        });
+        await _uow.SaveChangesAsync();
+    }
+
+    private string BuildPaidInvoiceEmailHtml(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, string fullName, string packageName)
+    {
+        var billingUrl = GetPortalBillingUrl();
+        var rows = lineItems.Any()
+            ? string.Join("", lineItems.Select(item => $"""
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5edf7;">{WebUtility.HtmlEncode(item.Description)}</td>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5edf7;text-align:right;">${item.Amount:N2} {invoice.Currency}</td>
+                </tr>
+                """))
+            : $"""
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5edf7;">{WebUtility.HtmlEncode(packageName)} billing charge</td>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5edf7;text-align:right;">${invoice.SubTotal:N2} {invoice.Currency}</td>
+                </tr>
+                """;
+
+        var billingButton = string.IsNullOrWhiteSpace(billingUrl)
+            ? ""
+            : $"""<p style="margin:26px 0;"><a href="{billingUrl}" style="display:inline-block;background:#1457d9;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:bold;">View Billing</a></p>""";
+
+        return $"""
+        <div style="font-family:Arial,sans-serif;background:#f4f7fb;padding:24px;">
+          <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dbe5f2;">
+            <div style="background:#102a5c;color:#ffffff;padding:26px 30px;">
+              <h1 style="margin:0;font-size:24px;">Invoice Paid</h1>
+              <p style="margin:8px 0 0;color:#dbeafe;">Thank you for your payment to IPRO Advisers.</p>
+            </div>
+            <div style="padding:30px;color:#1f2937;">
+              <p>Hello {WebUtility.HtmlEncode(fullName)},</p>
+              <p>Your payment for <strong>{WebUtility.HtmlEncode(packageName)}</strong> has been received.</p>
+              <div style="background:#f8fafc;border:1px solid #dbe5f2;border-radius:12px;padding:18px;margin:20px 0;">
+                <div><strong>Invoice #:</strong> {WebUtility.HtmlEncode(invoice.InvoiceNumber)}</div>
+                <div><strong>Date:</strong> {invoice.IssuedAt:MMMM d, yyyy}</div>
+                <div><strong>Status:</strong> Paid</div>
+                {(string.IsNullOrWhiteSpace(invoice.PayPalTransactionId) ? "" : $"<div><strong>PayPal transaction:</strong> {WebUtility.HtmlEncode(invoice.PayPalTransactionId)}</div>")}
+              </div>
+              <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+                <thead>
+                  <tr>
+                    <th style="text-align:left;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.08em;border-bottom:2px solid #dbe5f2;padding-bottom:10px;">Description</th>
+                    <th style="text-align:right;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.08em;border-bottom:2px solid #dbe5f2;padding-bottom:10px;">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+              </table>
+              <div style="margin-left:auto;margin-top:20px;max-width:320px;">
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #e5edf7;padding:8px 0;"><span>Subtotal</span><strong>${invoice.SubTotal:N2} {invoice.Currency}</strong></div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #e5edf7;padding:8px 0;"><span>Tax {WebUtility.HtmlEncode(invoice.TaxRegion)}</span><strong>${invoice.TaxAmount:N2} {invoice.Currency}</strong></div>
+                <div style="display:flex;justify-content:space-between;padding:12px 0;color:#1457d9;font-size:20px;"><strong>Total</strong><strong>${invoice.Total:N2} {invoice.Currency}</strong></div>
+              </div>
+              {billingButton}
+              <p style="margin-top:26px;">IPRO Management</p>
+            </div>
+          </div>
+        </div>
+        """;
+    }
+
+    private string GetPortalBillingUrl()
+    {
+        var source = string.IsNullOrWhiteSpace(_settings.ReturnUrl) ? _settings.CancelUrl : _settings.ReturnUrl;
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var uri))
+        {
+            return string.Empty;
+        }
+
+        return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : ":" + uri.Port)}/Billing";
+    }
+
     private async Task<PayPalSubscriptionResult> CreatePayPalSubscriptionAsync(IPRO.Entities.Invoice invoice, BillingRule package, BillingPeriod period, decimal setupFee, string returnUrl, string cancelUrl)
     {
         var planId = GetPayPalPlanId(package, period);
@@ -1624,6 +1767,51 @@ public class PayPalBillingService : IBillingService
 
         using var document = JsonDocument.Parse(json);
         return document.RootElement.GetProperty("access_token").GetString() ?? string.Empty;
+    }
+
+    private async Task<bool> VerifyWebhookSignatureAsync(JsonElement webhookEvent, PayPalWebhookHeaders headers)
+    {
+        if (!HasPayPalSettings() || string.IsNullOrWhiteSpace(_settings.WebhookId))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(headers.TransmissionId) ||
+            string.IsNullOrWhiteSpace(headers.TransmissionTime) ||
+            string.IsNullOrWhiteSpace(headers.TransmissionSignature) ||
+            string.IsNullOrWhiteSpace(headers.CertificateUrl) ||
+            string.IsNullOrWhiteSpace(headers.AuthenticationAlgorithm))
+        {
+            return false;
+        }
+
+        var accessToken = await GetPayPalAccessTokenAsync();
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var body = new Dictionary<string, object?>
+        {
+            ["auth_algo"] = headers.AuthenticationAlgorithm,
+            ["cert_url"] = headers.CertificateUrl,
+            ["transmission_id"] = headers.TransmissionId,
+            ["transmission_sig"] = headers.TransmissionSignature,
+            ["transmission_time"] = headers.TransmissionTime,
+            ["webhook_id"] = _settings.WebhookId,
+            ["webhook_event"] = webhookEvent
+        };
+
+        using var response = await client.PostAsync(
+            $"{_settings.BaseUrl}/v1/notifications/verify-webhook-signature",
+            new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json"));
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return false;
+        }
+
+        using var verification = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return verification.RootElement.TryGetProperty("verification_status", out var status) &&
+            status.GetString()?.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private bool HasPayPalSettings()
