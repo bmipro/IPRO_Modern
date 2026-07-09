@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using IPRO.DataAccess.Repositories;
 using IPRO.Email;
 using IPRO.Entities;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace IPRO.Billing;
@@ -15,6 +16,7 @@ public class PayPalBillingService : IBillingService
     private readonly IUnitOfWork _uow;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
     private readonly PayPalSettings _settings;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -22,11 +24,12 @@ public class PayPalBillingService : IBillingService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public PayPalBillingService(IUnitOfWork uow, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings)
+    public PayPalBillingService(IUnitOfWork uow, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings, IConfiguration configuration)
     {
         _uow = uow;
         _httpClientFactory = httpClientFactory;
         _email = email;
+        _configuration = configuration;
         _settings = settings.Value;
     }
 
@@ -1369,8 +1372,9 @@ public class PayPalBillingService : IBillingService
             fullName = agent.UserName;
         }
 
-        var html = BuildPaidInvoiceEmailHtml(invoice, lineItems, fullName, package?.PackageName ?? "IPRO package");
-        var text = $"Hello {fullName},\n\nThank you for your payment. Invoice {invoice.InvoiceNumber} has been paid. Total: {invoice.Total:N2} {invoice.Currency}.\n\nYou can view your invoice from the Billing page in your IPRO Agent Portal.\n\nIPRO Management";
+        var packageName = package?.PackageName ?? "IPRO package";
+        var html = BuildPaidInvoiceEmailHtml(invoice, lineItems, agent, fullName, packageName);
+        var text = BuildPaidInvoiceEmailText(invoice, lineItems, fullName, packageName);
         var sent = await _email.SendAsync(agent.Email, fullName, $"IPRO invoice {invoice.InvoiceNumber}", html, text);
         if (!sent)
         {
@@ -1388,11 +1392,17 @@ public class PayPalBillingService : IBillingService
         await _uow.SaveChangesAsync();
     }
 
-    private string BuildPaidInvoiceEmailHtml(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, string fullName, string packageName)
+    private string BuildPaidInvoiceEmailHtml(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, AgentUser agent, string fullName, string packageName)
     {
         var billingUrl = GetPortalBillingUrl();
-        var rows = lineItems.Any()
-            ? string.Join("", lineItems.Select(item => $"""
+        var invoiceUrl = GetPortalInvoiceUrl(invoice.Id);
+        var companyName = _configuration["BillingCompany:Name"] ?? "IPRO Advisers";
+        var companyEmail = _configuration["BillingCompany:Email"] ?? "billing@iproadvisers.com";
+        var companyWebsite = _configuration["BillingCompany:Website"] ?? "www.iProAdvisers.com";
+        var taxNumber = _configuration["BillingCompany:TaxRegistrationNumber"] ?? string.Empty;
+        var itemList = lineItems.ToList();
+        var rows = itemList.Any()
+            ? string.Join("", itemList.Select(item => $"""
                 <tr>
                   <td style="padding:12px 0;border-bottom:1px solid #e5edf7;">{WebUtility.HtmlEncode(item.Description)}</td>
                   <td style="padding:12px 0;border-bottom:1px solid #e5edf7;text-align:right;">${item.Amount:N2} {invoice.Currency}</td>
@@ -1405,25 +1415,40 @@ public class PayPalBillingService : IBillingService
                 </tr>
                 """;
 
+        var address = BuildEmailBillToBlock(agent);
         var billingButton = string.IsNullOrWhiteSpace(billingUrl)
             ? ""
             : $"""<p style="margin:26px 0;"><a href="{billingUrl}" style="display:inline-block;background:#1457d9;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:bold;">View Billing</a></p>""";
+        var invoiceButton = string.IsNullOrWhiteSpace(invoiceUrl)
+            ? ""
+            : $"""<a href="{invoiceUrl}" style="display:inline-block;background:#1457d9;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:bold;margin-right:10px;">View / Print Invoice</a>""";
 
         return $"""
         <div style="font-family:Arial,sans-serif;background:#f4f7fb;padding:24px;">
           <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dbe5f2;">
             <div style="background:#102a5c;color:#ffffff;padding:26px 30px;">
-              <h1 style="margin:0;font-size:24px;">Invoice Paid</h1>
-              <p style="margin:8px 0 0;color:#dbeafe;">Thank you for your payment to IPRO Advisers.</p>
+              <h1 style="margin:0;font-size:24px;">{WebUtility.HtmlEncode(companyName)}</h1>
+              <p style="margin:8px 0 0;color:#dbeafe;">Invoice paid</p>
+              <p style="margin:8px 0 0;color:#dbeafe;font-size:13px;">{WebUtility.HtmlEncode(companyWebsite)} &nbsp; | &nbsp; {WebUtility.HtmlEncode(companyEmail)}</p>
+              {(string.IsNullOrWhiteSpace(taxNumber) ? "" : $"<p style=\"margin:6px 0 0;color:#dbeafe;font-size:12px;\">Tax registration: {WebUtility.HtmlEncode(taxNumber)}</p>")}
             </div>
             <div style="padding:30px;color:#1f2937;">
               <p>Hello {WebUtility.HtmlEncode(fullName)},</p>
               <p>Your payment for <strong>{WebUtility.HtmlEncode(packageName)}</strong> has been received.</p>
-              <div style="background:#f8fafc;border:1px solid #dbe5f2;border-radius:12px;padding:18px;margin:20px 0;">
-                <div><strong>Invoice #:</strong> {WebUtility.HtmlEncode(invoice.InvoiceNumber)}</div>
-                <div><strong>Date:</strong> {invoice.IssuedAt:MMMM d, yyyy}</div>
-                <div><strong>Status:</strong> Paid</div>
-                {(string.IsNullOrWhiteSpace(invoice.PayPalTransactionId) ? "" : $"<div><strong>PayPal transaction:</strong> {WebUtility.HtmlEncode(invoice.PayPalTransactionId)}</div>")}
+              <div style="display:table;width:100%;border-spacing:0 0;margin:20px 0;">
+                <div style="display:table-cell;width:50%;background:#f8fafc;border:1px solid #dbe5f2;border-radius:12px;padding:16px;vertical-align:top;">
+                  <div style="color:#64748b;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Bill To</div>
+                  <div style="font-weight:bold;">{WebUtility.HtmlEncode(fullName)}</div>
+                  {address}
+                </div>
+                <div style="display:table-cell;width:16px;"></div>
+                <div style="display:table-cell;width:50%;background:#f8fafc;border:1px solid #dbe5f2;border-radius:12px;padding:16px;vertical-align:top;">
+                  <div style="color:#64748b;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Invoice Details</div>
+                  <div><strong>Invoice #:</strong> {WebUtility.HtmlEncode(invoice.InvoiceNumber)}</div>
+                  <div><strong>Date:</strong> {invoice.IssuedAt:MMMM d, yyyy}</div>
+                  <div><strong>Status:</strong> Paid</div>
+                  {(string.IsNullOrWhiteSpace(invoice.PayPalTransactionId) ? "" : $"<div><strong>PayPal transaction:</strong> {WebUtility.HtmlEncode(invoice.PayPalTransactionId)}</div>")}
+                </div>
               </div>
               <table style="width:100%;border-collapse:collapse;margin-top:10px;">
                 <thead>
@@ -1439,12 +1464,55 @@ public class PayPalBillingService : IBillingService
                 <div style="display:flex;justify-content:space-between;border-bottom:1px solid #e5edf7;padding:8px 0;"><span>Tax {WebUtility.HtmlEncode(invoice.TaxRegion)}</span><strong>${invoice.TaxAmount:N2} {invoice.Currency}</strong></div>
                 <div style="display:flex;justify-content:space-between;padding:12px 0;color:#1457d9;font-size:20px;"><strong>Total</strong><strong>${invoice.Total:N2} {invoice.Currency}</strong></div>
               </div>
+              <p style="margin:26px 0;">{invoiceButton}</p>
               {billingButton}
-              <p style="margin-top:26px;">IPRO Management</p>
+              <p style="margin-top:26px;">Thank you for your business. Please keep this invoice for your records.</p>
+              <p style="margin-top:16px;">IPRO Management</p>
             </div>
           </div>
         </div>
         """;
+    }
+
+    private string BuildPaidInvoiceEmailText(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, string fullName, string packageName)
+    {
+        var itemLines = lineItems.Any()
+            ? string.Join("\n", lineItems.Select(i => $"- {i.Description}: ${i.Amount:N2} {invoice.Currency}"))
+            : $"- {packageName} billing charge: ${invoice.SubTotal:N2} {invoice.Currency}";
+
+        return $"""
+        Hello {fullName},
+
+        Thank you for your payment. Invoice {invoice.InvoiceNumber} has been paid.
+
+        Items:
+        {itemLines}
+
+        Subtotal: ${invoice.SubTotal:N2} {invoice.Currency}
+        Tax {invoice.TaxRegion}: ${invoice.TaxAmount:N2} {invoice.Currency}
+        Total: ${invoice.Total:N2} {invoice.Currency}
+
+        You can view your invoice from the Billing page in your IPRO Agent Portal.
+
+        IPRO Management
+        """;
+    }
+
+    private static string BuildEmailBillToBlock(AgentUser agent)
+    {
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(agent.CompanyName)) lines.Add(agent.CompanyName);
+        if (!string.IsNullOrWhiteSpace(agent.Email)) lines.Add(agent.Email);
+        if (!string.IsNullOrWhiteSpace(agent.CompanyAddress)) lines.Add(agent.CompanyAddress);
+        if (!string.IsNullOrWhiteSpace(agent.City)) lines.Add(agent.City);
+
+        var provincePostal = $"{agent.Province} {agent.PostalCode}".Trim();
+        if (!string.IsNullOrWhiteSpace(provincePostal)) lines.Add(provincePostal);
+        if (!string.IsNullOrWhiteSpace(agent.Country)) lines.Add(agent.Country);
+
+        return lines.Count == 0
+            ? string.Empty
+            : string.Join("", lines.Select(line => $"<div style=\"color:#64748b;font-size:13px;\">{WebUtility.HtmlEncode(line)}</div>"));
     }
 
     private string GetPortalBillingUrl()
@@ -1456,6 +1524,17 @@ public class PayPalBillingService : IBillingService
         }
 
         return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : ":" + uri.Port)}/Billing";
+    }
+
+    private string GetPortalInvoiceUrl(int invoiceId)
+    {
+        var source = string.IsNullOrWhiteSpace(_settings.ReturnUrl) ? _settings.CancelUrl : _settings.ReturnUrl;
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var uri))
+        {
+            return string.Empty;
+        }
+
+        return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : ":" + uri.Port)}/Billing/Invoice/{invoiceId}";
     }
 
     private async Task<PayPalSubscriptionResult> CreatePayPalSubscriptionAsync(IPRO.Entities.Invoice invoice, BillingRule package, BillingPeriod period, decimal setupFee, string returnUrl, string cancelUrl)
