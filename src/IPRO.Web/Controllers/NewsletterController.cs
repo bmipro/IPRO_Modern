@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Net;
 using IPRO.Business.Interfaces;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -76,9 +77,15 @@ public class NewsletterController : Controller
         model.Subject = model.Subject?.Trim() ?? "";
         model.HtmlBody = model.HtmlBody?.Trim() ?? "";
         model.TextBody = model.TextBody?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(model.HtmlBody) && !string.IsNullOrWhiteSpace(model.TextBody))
+        {
+            model.HtmlBody = ConvertPlainTextToHtml(model.TextBody);
+        }
 
         foreach (var key in new[]
         {
+            nameof(NewsLetter.HtmlBody),
+            nameof(NewsLetter.TextBody),
             nameof(NewsLetter.AgentUser),
             nameof(NewsLetter.Articles),
             nameof(NewsLetter.AgentUserId),
@@ -98,9 +105,23 @@ public class NewsletterController : Controller
             ModelState.AddModelError(nameof(NewsLetter.Subject), "Subject line is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(model.HtmlBody))
+        if (string.IsNullOrWhiteSpace(model.HtmlBody) && string.IsNullOrWhiteSpace(model.TextBody))
         {
-            ModelState.AddModelError(nameof(NewsLetter.HtmlBody), "Newsletter body is required.");
+            ModelState.AddModelError(nameof(NewsLetter.HtmlBody), "Newsletter body or plain text version is required.");
         }
+    }
+
+    private static string ConvertPlainTextToHtml(string text)
+    {
+        var paragraphs = text
+            .Replace("\r\n", "\n")
+            .Split('\n', StringSplitOptions.TrimEntries);
+
+        return string.Join(
+            Environment.NewLine,
+            paragraphs.Select(line =>
+                string.IsNullOrWhiteSpace(line)
+                    ? "<br>"
+                    : $"<p>{WebUtility.HtmlEncode(line)}</p>"));
     }
 }

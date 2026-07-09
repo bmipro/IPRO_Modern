@@ -29,14 +29,15 @@
             <span asp-validation-for="Subject" class="text-danger small"></span>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">HTML Body</label>
+            <label class="form-label fw-semibold">Newsletter Body</label>
             @await Html.PartialAsync("_RichEditor", Model.HtmlBody, new ViewDataDictionary(ViewData) {
                 { "EditorId", "nlBody" }, { "FieldName", "HtmlBody" }, { "Height", "450" }, { "Toolbar", "full" }
             })
             <span asp-validation-for="HtmlBody" class="text-danger small"></span>
+            <div class="form-text">If this is blank, the plain text version below will be converted automatically.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Plain Text</label>
+            <label class="form-label fw-semibold">Plain Text Version</label>
             <textarea asp-for="TextBody" class="form-control" rows="3"></textarea>
           </div>
           <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
