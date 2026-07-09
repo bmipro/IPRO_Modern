@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Net;
+using System.Text.Json;
 using IPRO.Business.Interfaces;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -53,6 +54,7 @@ public class NewsletterController : Controller
 
         await LoadNewsletterContextAsync();
         ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
+        ViewBag.Recipients = await _newsletters.GetRecipientsAsync(id);
         return View(nl);
     }
     [HttpPost, ValidateAntiForgeryToken]
@@ -97,6 +99,36 @@ public class NewsletterController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddArticle(NewsLetterArticle article) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await _newsletters.AddArticleAsync(article); return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId }); }
     public async Task<IActionResult> Subscribers() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _clients.GetNewsletterSubscribersAsync(AgentId)); }
+
+    [AllowAnonymous]
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> SendGridEvents([FromBody] JsonElement events)
+    {
+        if (events.ValueKind != JsonValueKind.Array)
+        {
+            return BadRequest();
+        }
+
+        foreach (var item in events.EnumerateArray())
+        {
+            var recipientId = ReadInt(item, "newsletter_recipient_id");
+            if (recipientId <= 0) continue;
+
+            var eventName = ReadString(item, "event");
+            var providerMessageId = ReadString(item, "sg_message_id");
+            var reason = ReadString(item, "reason");
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                reason = ReadString(item, "response");
+            }
+
+            var occurredAt = ReadUnixTimestamp(item, "timestamp") ?? DateTime.UtcNow;
+            await _newsletters.RecordRecipientEventAsync(recipientId, eventName, providerMessageId, reason, occurredAt);
+        }
+
+        return Ok();
+    }
 
     private async Task LoadNewsletterContextAsync()
     {
@@ -164,5 +196,32 @@ public class NewsletterController : Controller
                 string.IsNullOrWhiteSpace(line)
                     ? "<br>"
                     : $"<p>{WebUtility.HtmlEncode(line)}</p>"));
+    }
+
+    private static string ReadString(JsonElement element, string name)
+    {
+        return element.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null
+            ? value.ToString()
+            : string.Empty;
+    }
+
+    private static int ReadInt(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value)) return 0;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
+        return int.TryParse(value.ToString(), out var parsed) ? parsed : 0;
+    }
+
+    private static DateTime? ReadUnixTimestamp(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value)) return null;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var seconds))
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+        }
+
+        return long.TryParse(value.ToString(), out var parsed)
+            ? DateTimeOffset.FromUnixTimeSeconds(parsed).UtcDateTime
+            : null;
     }
 }

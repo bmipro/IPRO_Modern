@@ -18,4 +18,5 @@ public class NewsLetter
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<NewsLetterArticle> Articles { get; set; } = new List<NewsLetterArticle>();
+    public ICollection<NewsLetterRecipient> Recipients { get; set; } = new List<NewsLetterRecipient>();
 }

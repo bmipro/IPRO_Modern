@@ -23,6 +23,7 @@ public class IPRODbContext : DbContext
     public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
     public DbSet<NewsLetter> NewsLetters => Set<NewsLetter>();
     public DbSet<NewsLetterArticle> NewsLetterArticles => Set<NewsLetterArticle>();
+    public DbSet<NewsLetterRecipient> NewsLetterRecipients => Set<NewsLetterRecipient>();
     public DbSet<DripCampaign> DripCampaigns => Set<DripCampaign>();
     public DbSet<DripCampaignStep> DripCampaignSteps => Set<DripCampaignStep>();
     public DbSet<Scheduler> Schedulers => Set<Scheduler>();
@@ -216,6 +217,27 @@ public class IPRODbContext : DbContext
              .WithMany(n => n.Articles)
              .HasForeignKey(a => a.NewsLetterId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NewsLetterRecipient>(e =>
+        {
+            e.HasIndex(r => new { r.NewsLetterId, r.Email });
+            e.HasIndex(r => r.SendGridMessageId);
+            e.Property(r => r.Email).HasMaxLength(200).IsRequired();
+            e.Property(r => r.RecipientName).HasMaxLength(160);
+            e.Property(r => r.SendGridMessageId).HasMaxLength(200);
+            e.Property(r => r.LastEvent).HasMaxLength(80);
+            e.Property(r => r.FailureReason).HasMaxLength(1000);
+
+            e.HasOne(r => r.NewsLetter)
+             .WithMany(n => n.Recipients)
+             .HasForeignKey(r => r.NewsLetterId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(r => r.Client)
+             .WithMany()
+             .HasForeignKey(r => r.ClientId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // DripCampaign → Steps

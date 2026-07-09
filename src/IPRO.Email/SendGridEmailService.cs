@@ -16,10 +16,10 @@ public class SendGridEmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null) =>
-        (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody)).Success;
+    public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null) =>
+        (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody, customArgs)).Success;
 
-    public async Task<EmailSendResult> SendDetailedAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null)
+    public async Task<EmailSendResult> SendDetailedAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null)
     {
         try
         {
@@ -48,6 +48,13 @@ public class SendGridEmailService : IEmailService
             {
                 msg.SetReplyTo(new EmailAddress(_settings.ReplyToEmail));
             }
+            if (customArgs != null)
+            {
+                foreach (var arg in customArgs.Where(a => !string.IsNullOrWhiteSpace(a.Key)))
+                {
+                    msg.AddCustomArg(arg.Key, arg.Value ?? string.Empty);
+                }
+            }
 
             var response = await client.SendEmailAsync(msg);
             if (!response.IsSuccessStatusCode)
@@ -57,7 +64,10 @@ public class SendGridEmailService : IEmailService
                 return EmailSendResult.Failed($"SendGrid rejected the email. Status: {(int)response.StatusCode} {response.StatusCode}. {SummarizeBody(body)}");
             }
 
-            return EmailSendResult.Sent();
+            var messageId = response.Headers.TryGetValues("X-Message-Id", out var values)
+                ? values.FirstOrDefault()
+                : null;
+            return EmailSendResult.Sent(messageId);
         }
         catch (Exception ex)
         {

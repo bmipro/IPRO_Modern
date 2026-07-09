@@ -26,24 +26,68 @@ public class NewsLetterDispatcher
         _uow.NewsLetters.Update(newsletter);
         await _uow.SaveChangesAsync();
 
-        var subscribers = await _uow.Clients.FindAsync(c =>
-            c.AgentUserId == newsletter.AgentUserId && c.IsNewsletterSubscribed);
+        var subscribers = (await _uow.Clients.FindAsync(c =>
+            c.AgentUserId == newsletter.AgentUserId && c.IsNewsletterSubscribed))
+            .ToList();
 
         var recipients = subscribers
-            .Select(c => new EmailRecipient(c.Email, $"{c.FirstName} {c.LastName}"))
+            .Where(c => !string.IsNullOrWhiteSpace(c.Email))
+            .Select(c => new NewsLetterRecipient
+            {
+                NewsLetterId = newsletter.Id,
+                ClientId = c.Id,
+                Email = c.Email.Trim().ToLowerInvariant(),
+                RecipientName = $"{c.FirstName} {c.LastName}".Trim(),
+                Status = NewsLetterRecipientStatus.Queued
+            })
             .ToList();
 
         newsletter.TotalRecipients = recipients.Count;
-        var success = await _email.SendBulkAsync(recipients, newsletter.Subject, newsletter.HtmlBody, newsletter.TextBody);
+        await _uow.NewsLetterRecipients.AddRangeAsync(recipients);
+        _uow.NewsLetters.Update(newsletter);
+        await _uow.SaveChangesAsync();
 
-        newsletter.Status = success ? NewsLetterStatus.Sent : NewsLetterStatus.Cancelled;
+        var sentCount = 0;
+        foreach (var recipient in recipients)
+        {
+            var result = await _email.SendDetailedAsync(
+                recipient.Email,
+                recipient.RecipientName,
+                newsletter.Subject,
+                newsletter.HtmlBody,
+                newsletter.TextBody,
+                new Dictionary<string, string>
+                {
+                    ["ipro_entity"] = "newsletter",
+                    ["newsletter_id"] = newsletter.Id.ToString(),
+                    ["newsletter_recipient_id"] = recipient.Id.ToString(),
+                    ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
+                    ["agent_user_id"] = newsletter.AgentUserId.ToString()
+                });
+
+            recipient.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
+            recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
+            recipient.LastEvent = result.Success ? "processed" : "failed";
+            recipient.SentAt = result.Success ? DateTime.UtcNow : null;
+            recipient.FailedAt = result.Success ? null : DateTime.UtcNow;
+            recipient.FailureReason = result.Success ? string.Empty : result.Message;
+            recipient.UpdatedAt = DateTime.UtcNow;
+            _uow.NewsLetterRecipients.Update(recipient);
+
+            if (result.Success)
+            {
+                sentCount++;
+            }
+        }
+
+        newsletter.Status = sentCount > 0 ? NewsLetterStatus.Sent : NewsLetterStatus.Cancelled;
         newsletter.SentAt = DateTime.UtcNow;
-        newsletter.TotalSent = success ? recipients.Count : 0;
+        newsletter.TotalSent = sentCount;
         _uow.NewsLetters.Update(newsletter);
         await _uow.SaveChangesAsync();
 
         _logger.LogInformation("Newsletter {Id} dispatched to {Count} recipients. Success: {Success}",
-            newsletterId, recipients.Count, success);
+            newsletterId, recipients.Count, sentCount > 0);
     }
 
     public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName)

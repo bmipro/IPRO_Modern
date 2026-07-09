@@ -23,6 +23,7 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<SubscriptionChange> SubscriptionChanges { get; }
     IRepository<NewsLetter> NewsLetters { get; }
     IRepository<NewsLetterArticle> NewsLetterArticles { get; }
+    IRepository<NewsLetterRecipient> NewsLetterRecipients { get; }
     IRepository<DripCampaign> DripCampaigns { get; }
     IRepository<DripCampaignStep> DripCampaignSteps { get; }
     IRepository<Scheduler> Schedulers { get; }

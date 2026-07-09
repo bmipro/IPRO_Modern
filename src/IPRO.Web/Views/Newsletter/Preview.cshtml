@@ -2,8 +2,13 @@
 @{
     ViewData["Title"] = "Preview Newsletter";
     var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>;
+    var recipients = (ViewBag.Recipients as IEnumerable<IPRO.Entities.NewsLetterRecipient> ?? Enumerable.Empty<IPRO.Entities.NewsLetterRecipient>()).ToList();
     var subscriberCount = (int)(ViewBag.SubscriberCount ?? 0);
     var canSchedule = Model.Status != IPRO.Entities.NewsLetterStatus.Sent;
+    var sentCount = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+    var deliveredCount = recipients.Count(r => r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+    var openedCount = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+    var failedCount = recipients.Count(r => r.Status is IPRO.Entities.NewsLetterRecipientStatus.Bounced or IPRO.Entities.NewsLetterRecipientStatus.Failed or IPRO.Entities.NewsLetterRecipientStatus.Dropped);
 }
 
 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -80,6 +85,22 @@
           <strong>@subscriberCount</strong>
         </div>
         <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Sent</span>
+          <strong>@sentCount</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Delivered</span>
+          <strong>@deliveredCount</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Opened / read</span>
+          <strong>@openedCount</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Failed</span>
+          <strong>@failedCount</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
           <span class="text-muted">Status</span>
           <strong>@Model.Status</strong>
         </div>
@@ -116,6 +137,55 @@
     </div>
   </div>
 </div>
+
+@if (recipients.Any())
+{
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-white border-0 p-4 pb-0">
+      <h5 class="fw-bold mb-1"><i class="fas fa-chart-line me-2 text-info"></i>Delivery Tracking</h5>
+      <div class="text-muted small">Recipient-level sent, delivered, read, and failure status.</div>
+    </div>
+    <div class="card-body p-4">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Recipient</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Sent</th>
+              <th>Delivered</th>
+              <th>Opened</th>
+              <th>Issue</th>
+            </tr>
+          </thead>
+          <tbody>
+          @foreach (var recipient in recipients.OrderBy(r => r.RecipientName).ThenBy(r => r.Email))
+          {
+            var statusClass = recipient.Status switch
+            {
+                IPRO.Entities.NewsLetterRecipientStatus.Opened or IPRO.Entities.NewsLetterRecipientStatus.Clicked => "bg-success",
+                IPRO.Entities.NewsLetterRecipientStatus.Delivered or IPRO.Entities.NewsLetterRecipientStatus.Sent => "bg-primary",
+                IPRO.Entities.NewsLetterRecipientStatus.Deferred => "bg-warning text-dark",
+                IPRO.Entities.NewsLetterRecipientStatus.Bounced or IPRO.Entities.NewsLetterRecipientStatus.Failed or IPRO.Entities.NewsLetterRecipientStatus.Dropped => "bg-danger",
+                _ => "bg-secondary"
+            };
+            <tr>
+              <td class="fw-semibold">@(string.IsNullOrWhiteSpace(recipient.RecipientName) ? "-" : recipient.RecipientName)</td>
+              <td><a href="mailto:@recipient.Email">@recipient.Email</a></td>
+              <td><span class="badge @statusClass">@recipient.Status</span></td>
+              <td class="small text-muted">@(recipient.SentAt?.ToString("MMM d, h:mm tt") ?? "-")</td>
+              <td class="small text-muted">@(recipient.DeliveredAt?.ToString("MMM d, h:mm tt") ?? "-")</td>
+              <td class="small text-muted">@(recipient.OpenedAt?.ToString("MMM d, h:mm tt") ?? "-")</td>
+              <td class="small text-muted tracking-issue">@(string.IsNullOrWhiteSpace(recipient.FailureReason) ? "-" : recipient.FailureReason)</td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
 
 <style>
   .newsletter-preview-shell {
@@ -158,5 +228,12 @@
     border-radius: 10px;
     padding: 16px;
     color: #334155;
+  }
+
+  .tracking-issue {
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>
