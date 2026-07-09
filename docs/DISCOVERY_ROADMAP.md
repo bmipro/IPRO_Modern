@@ -56,6 +56,12 @@ Deliverables:
 - Store requested custom domain separately from the setup domain.
 - Add admin visibility for domain setup status.
 - Verify Plesk integration only after the workflow is clear.
+- Before switching to the real IPRO domain, update all external provider callback URLs:
+  - SendGrid Event Webhook: `/Newsletter/SendGridEvents`
+  - PayPal Webhook: `/Billing/Webhook`
+  - PayPal return and cancel URLs
+  - Azure app settings for `App__AdminDomain`, `PayPal__ReturnUrl`, and `PayPal__CancelUrl`
+  - SendGrid verified sender/domain settings, including the final billing/no-reply addresses.
 
 ### 3. Client Management Completion
 
@@ -99,4 +105,3 @@ Start with billing/package subscription because it is the largest visible mismat
 - Admin has package management.
 - Agent billing page exists.
 - But the actual subscription action is still a placeholder.
-
