@@ -4,9 +4,20 @@
     var overdueCount = (int)(ViewBag.OverdueFollowUpCount ?? 0);
     var todayCount = (int)(ViewBag.TodayFollowUpCount ?? 0);
     var upcomingCount = (int)(ViewBag.UpcomingFollowUpCount ?? 0);
+    var featureAccess = ViewBag.FeatureAccess as IDictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>
+        ?? new Dictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>();
 
     string DueBadgeClass(DateTime dueAt) => dueAt.Date < DateTime.Today ? "bg-danger-subtle text-danger" : dueAt.Date == DateTime.Today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
     string DueLabel(DateTime dueAt) => dueAt.Date < DateTime.Today ? "Overdue" : dueAt.Date == DateTime.Today ? "Today" : dueAt.ToString("MMM d");
+    string LockedAttributes(string featureCode)
+    {
+        if (!featureAccess.TryGetValue(featureCode, out var access) || access.IsIncluded)
+        {
+            return "";
+        }
+
+        return $"data-upgrade-lock=\"true\" data-upgrade-title=\"{access.FeatureName}\" data-upgrade-message=\"{access.UpgradeMessage}\"";
+    }
 }
 
 <div class="row mb-4">
@@ -119,8 +130,8 @@
           <a href="/Clients/Create" class="btn btn-light text-start"><i class="fas fa-user-plus me-2 text-primary"></i>Add New Client</a>
           <a href="/Clients" class="btn btn-light text-start"><i class="fas fa-search me-2 text-primary"></i>Search Clients</a>
           <a href="/Clients/FollowUps?status=open" class="btn btn-light text-start"><i class="fas fa-list-check me-2 text-primary"></i>Follow-up Queue</a>
-          <a href="/Clients/Calendar" class="btn btn-light text-start"><i class="fas fa-calendar-alt me-2 text-primary"></i>Follow-up Calendar</a>
-          <a href="/Newsletter/Create" class="btn btn-light text-start"><i class="fas fa-paper-plane me-2 text-success"></i>Create Newsletter</a>
+          <a href="/Clients/Calendar" class="btn btn-light text-start" @Html.Raw(LockedAttributes(IPRO.Entities.PackageFeatureCodes.CalendarScheduler))><i class="fas fa-calendar-alt me-2 text-primary"></i>Follow-up Calendar</a>
+          <a href="/Newsletter/Create" class="btn btn-light text-start" @Html.Raw(LockedAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-paper-plane me-2 text-success"></i>Create Newsletter</a>
           <a href="/Billing" class="btn btn-light text-start"><i class="fas fa-credit-card me-2 text-secondary"></i>Billing</a>
         </div>
       </div>
