@@ -615,10 +615,10 @@ public class PayPalBillingService : IBillingService
 
     public async Task<BillingChangeResult> EmailPaidInvoiceAsync(int invoiceId, bool force = false)
     {
-        var sent = await SendPaidInvoiceEmailAsync(invoiceId, force);
-        return sent
+        var result = await SendPaidInvoiceEmailAsync(invoiceId, force);
+        return result.Success
             ? new BillingChangeResult { Success = true, Message = "Invoice email sent." }
-            : BillingChangeResult.Failed("Invoice email could not be sent. Check SendGrid settings, sender verification, or application logs.");
+            : BillingChangeResult.Failed(result.Message);
     }
 
     private async Task<bool> HandleSubscriptionActivatedWebhookAsync(string subscriptionId)
@@ -1345,7 +1345,7 @@ public class PayPalBillingService : IBillingService
         """;
     }
 
-    private async Task<bool> SendPaidInvoiceEmailAsync(int invoiceId, bool force = false)
+    private async Task<PaidInvoiceEmailResult> SendPaidInvoiceEmailAsync(int invoiceId, bool force = false)
     {
         var alreadySent = await _uow.OperateLogs.ExistsAsync(l =>
             l.Module == "Billing" &&
@@ -1353,19 +1353,19 @@ public class PayPalBillingService : IBillingService
             l.Description == $"Invoice:{invoiceId}");
         if (alreadySent && !force)
         {
-            return true;
+            return PaidInvoiceEmailResult.Sent();
         }
 
         var invoice = await _uow.Invoices.GetByIdAsync(invoiceId);
         if (invoice == null || !invoice.IsPaid)
         {
-            return false;
+            return PaidInvoiceEmailResult.Failed("Invoice email could not be sent because the invoice is missing or unpaid.");
         }
 
         var agent = await _uow.AgentUsers.GetByIdAsync(invoice.AgentUserId);
         if (agent == null || string.IsNullOrWhiteSpace(agent.Email))
         {
-            return false;
+            return PaidInvoiceEmailResult.Failed("Invoice email could not be sent because the agent has no email address.");
         }
 
         var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
@@ -1383,19 +1383,19 @@ public class PayPalBillingService : IBillingService
         var packageName = package?.PackageName ?? "IPRO package";
         var html = BuildPaidInvoiceEmailHtml(invoice, lineItems, agent, fullName, packageName);
         var text = BuildPaidInvoiceEmailText(invoice, lineItems, fullName, packageName);
-        var sent = await _email.SendAsync(agent.Email, fullName, $"IPRO invoice {invoice.InvoiceNumber}", html, text);
-        if (!sent)
+        var sendResult = await _email.SendDetailedAsync(agent.Email, fullName, $"IPRO invoice {invoice.InvoiceNumber}", html, text);
+        if (!sendResult.Success)
         {
             await _uow.OperateLogs.AddAsync(new OperateLog
             {
                 AgentUserId = agent.Id,
                 Module = "Billing",
                 Action = "InvoiceEmailFailed",
-                Description = $"Invoice:{invoiceId}:Email:{agent.Email}",
+                Description = $"Invoice:{invoiceId}:Email:{agent.Email}:Reason:{sendResult.Message}",
                 CreatedAt = DateTime.UtcNow
             });
             await _uow.SaveChangesAsync();
-            return false;
+            return PaidInvoiceEmailResult.Failed(sendResult.Message);
         }
 
         await _uow.OperateLogs.AddAsync(new OperateLog
@@ -1407,7 +1407,7 @@ public class PayPalBillingService : IBillingService
             CreatedAt = DateTime.UtcNow
         });
         await _uow.SaveChangesAsync();
-        return true;
+        return PaidInvoiceEmailResult.Sent();
     }
 
     private string BuildPaidInvoiceEmailHtml(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, AgentUser agent, string fullName, string packageName)
@@ -1991,6 +1991,12 @@ public class PayPalBillingService : IBillingService
     }
 
     private sealed record InvoiceLineDraft(string Description, decimal Amount);
+    private sealed record PaidInvoiceEmailResult(bool Success, string Message)
+    {
+        public static PaidInvoiceEmailResult Sent() => new(true, "Invoice email sent.");
+        public static PaidInvoiceEmailResult Failed(string message) => new(false, message);
+    }
+
     private sealed record TaxCalculation(decimal Rate, decimal Amount, string Region);
     private sealed record PayPalOrderResult(string OrderId, string ApprovalUrl);
     private sealed record PayPalSubscriptionResult(string SubscriptionId, string ApprovalUrl);
