@@ -68,6 +68,19 @@ public class AgentsController : Controller
             async () => (await _uow.Invoices.FindAsync(i => i.AgentUserId == id)).OrderByDescending(i => i.IssuedAt).Take(10),
             "Invoices",
             warnings) ?? Enumerable.Empty<Invoice>();
+        ViewBag.OpenInvoices = await LoadDetailsPanelAsync(
+            async () => (await _uow.Invoices.FindAsync(i => i.AgentUserId == id && !i.IsPaid)).OrderByDescending(i => i.IssuedAt).ToList(),
+            "Open invoices",
+            warnings) ?? new List<Invoice>();
+        ViewBag.FailedPaymentInvoices = await LoadDetailsPanelAsync(
+            async () => (await _uow.Invoices.FindAsync(i =>
+                    i.AgentUserId == id &&
+                    !i.IsPaid &&
+                    i.PayPalTransactionId.StartsWith("PAYPAL_FAILED:")))
+                .OrderByDescending(i => i.IssuedAt)
+                .ToList(),
+            "Failed payment invoices",
+            warnings) ?? new List<Invoice>();
         ViewBag.PackageLookup = (await LoadDetailsPanelAsync(
             async () => (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id),
             "Packages",
@@ -80,6 +93,15 @@ public class AgentsController : Controller
             async () => (await _uow.OperateLogs.FindAsync(l => l.AgentUserId == id)).OrderByDescending(l => l.CreatedAt).Take(20),
             "Activity log",
             warnings) ?? Enumerable.Empty<OperateLog>();
+        ViewBag.BillingLogs = await LoadDetailsPanelAsync(
+            async () => (await _uow.OperateLogs.FindAsync(l =>
+                    l.AgentUserId == id &&
+                    (l.Module == "Billing" || l.Action.Contains("Invoice") || l.Action.Contains("Billing"))))
+                .OrderByDescending(l => l.CreatedAt)
+                .Take(25)
+                .ToList(),
+            "Billing activity log",
+            warnings) ?? new List<OperateLog>();
         ViewBag.DetailsWarnings = warnings;
         return View(agent);
     }
