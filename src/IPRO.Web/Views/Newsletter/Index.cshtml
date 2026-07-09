@@ -41,6 +41,7 @@ else
           { <small class="text-muted"><i class="fas fa-clock me-1"></i>Scheduled for @nl.ScheduledAt?.ToString("MMM d, h:mm tt")</small> }
         </div>
         <div class="card-footer bg-white border-0 px-4 pb-3 d-flex gap-2">
+          <a href="/Newsletter/Preview/@nl.Id" class="btn btn-sm btn-primary flex-grow-1"><i class="fas fa-eye me-1"></i>Preview</a>
           <a href="/Newsletter/Edit/@nl.Id" class="btn btn-sm btn-outline-primary flex-grow-1"><i class="fas fa-edit me-1"></i>Edit</a>
           @if (nl.Status == IPRO.Entities.NewsLetterStatus.Sent)
           { <span class="btn btn-sm btn-success disabled flex-grow-1"><i class="fas fa-check me-1"></i>Sent</span> }

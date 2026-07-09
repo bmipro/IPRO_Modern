@@ -40,7 +40,7 @@
           </div>
 
           <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-success btn-lg px-4"><i class="fas fa-save me-2"></i>Save as Draft</button>
+            <button type="submit" class="btn btn-success btn-lg px-4"><i class="fas fa-eye me-2"></i>Save and Preview</button>
             <a href="/Newsletter" class="btn btn-outline-secondary btn-lg">Cancel</a>
           </div>
         </form>
@@ -56,14 +56,14 @@
           <li class="mb-2">Keep subject lines under 50 characters</li>
           <li class="mb-2">Personalise with the agent's name</li>
           <li class="mb-2">Include a clear call-to-action button</li>
-          <li class="mb-2">Always preview before scheduling</li>
+          <li class="mb-2">Save the draft, preview it, then schedule when it looks right</li>
         </ul>
       </div>
     </div>
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <h6 class="fw-bold mb-3"><i class="fas fa-users me-2 text-info"></i>Subscribers</h6>
-        <p class="small text-muted">This newsletter will be sent to all clients who have opted in to your newsletter list.</p>
+        <p class="small text-muted">After preview, this newsletter can be scheduled for @((int)(ViewBag.SubscriberCount ?? 0)) subscribed clients.</p>
         <a href="/Newsletter/Subscribers" class="btn btn-sm btn-outline-info w-100">View Subscriber List</a>
       </div>
     </div>

@@ -9,6 +9,7 @@
     <div class="d-flex align-items-center gap-3">
       <h2 class="fw-bold mb-0"><i class="fas fa-edit me-2 text-primary"></i>Edit Newsletter</h2>
       <span class="badge bg-@(Model.Status == IPRO.Entities.NewsLetterStatus.Sent ? "success" : Model.Status == IPRO.Entities.NewsLetterStatus.Scheduled ? "warning" : "secondary") fs-6">@Model.Status</span>
+      <a href="/Newsletter/Preview/@Model.Id" class="btn btn-outline-primary btn-sm"><i class="fas fa-eye me-1"></i>Preview</a>
     </div>
   </div>
 </div>
@@ -40,7 +41,10 @@
             <label class="form-label fw-semibold">Plain Text Version</label>
             <textarea asp-for="TextBody" class="form-control" rows="3"></textarea>
           </div>
-          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Save and Preview</button>
+            <a href="/Newsletter/Preview/@Model.Id" class="btn btn-outline-secondary">Preview without saving</a>
+          </div>
         </form>
       </div>
     </div>
@@ -86,17 +90,10 @@
 
   <div class="col-lg-4">
     <div class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-white border-0 pt-4 px-4"><h6 class="fw-bold mb-0"><i class="fas fa-calendar me-2 text-warning"></i>Schedule</h6></div>
-      <div class="card-body px-4 pb-4">
-        <form asp-action="Schedule" method="post">
-          @Html.AntiForgeryToken()
-          <input type="hidden" name="id" value="@Model.Id"/>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold">Send Date & Time</label>
-            <input type="datetime-local" name="scheduledAt" class="form-control" required min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")"/>
-          </div>
-          <button type="submit" class="btn btn-warning w-100"><i class="fas fa-clock me-1"></i>Schedule Send</button>
-        </form>
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-2"><i class="fas fa-eye me-2 text-primary"></i>Preview before sending</h6>
+        <p class="small text-muted mb-3">Review the finished newsletter and schedule it from the preview page.</p>
+        <a href="/Newsletter/Preview/@Model.Id" class="btn btn-primary w-100"><i class="fas fa-eye me-1"></i>Preview Newsletter</a>
       </div>
     </div>
 

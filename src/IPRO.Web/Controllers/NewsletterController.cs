@@ -17,7 +17,14 @@ public class NewsletterController : Controller
     public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _newsletters.GetByAgentAsync(AgentId)); }
-    public async Task<IActionResult> Create() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(new NewsLetter()); }
+    public async Task<IActionResult> Create()
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        await LoadNewsletterContextAsync();
+        return View(new NewsLetter());
+    }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(NewsLetter model)
     {
@@ -26,13 +33,28 @@ public class NewsletterController : Controller
 
         PrepareNewsletterForValidation(model);
         ValidateNewsletter(model);
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid)
+        {
+            await LoadNewsletterContextAsync();
+            return View(model);
+        }
 
         var nl = await _newsletters.CreateAsync(model);
         TempData["Success"] = "Newsletter draft saved.";
-        return RedirectToAction(nameof(Edit), new { id = nl.Id });
+        return RedirectToAction(nameof(Preview), new { id = nl.Id });
     }
-    public async Task<IActionResult> Edit(int id) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; var nl = await _newsletters.GetByIdAsync(id); if (nl == null || nl.AgentUserId != AgentId) return NotFound(); ViewBag.Articles = await _newsletters.GetArticlesAsync(id); return View(nl); }
+    public async Task<IActionResult> Edit(int id)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var nl = await _newsletters.GetByIdAsync(id);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
+        await LoadNewsletterContextAsync();
+        ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
+        return View(nl);
+    }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(NewsLetter model)
     {
@@ -46,6 +68,7 @@ public class NewsletterController : Controller
         ValidateNewsletter(model);
         if (!ModelState.IsValid)
         {
+            await LoadNewsletterContextAsync();
             ViewBag.Articles = await _newsletters.GetArticlesAsync(model.Id);
             return View(model);
         }
@@ -55,13 +78,31 @@ public class NewsletterController : Controller
         existing.TextBody = model.TextBody;
         await _newsletters.UpdateAsync(existing);
         TempData["Success"] = "Newsletter updated.";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Preview), new { id = existing.Id });
+    }
+    public async Task<IActionResult> Preview(int id)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var nl = await _newsletters.GetByIdAsync(id);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
+        await LoadNewsletterContextAsync();
+        ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
+        return View(nl);
     }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Schedule(int id, DateTime scheduledAt) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await _newsletters.ScheduleAsync(id, scheduledAt); TempData["Success"] = "Newsletter scheduled!"; return RedirectToAction(nameof(Index)); }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddArticle(NewsLetterArticle article) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await _newsletters.AddArticleAsync(article); return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId }); }
     public async Task<IActionResult> Subscribers() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _clients.GetNewsletterSubscribersAsync(AgentId)); }
+
+    private async Task LoadNewsletterContextAsync()
+    {
+        var subscribers = await _clients.GetNewsletterSubscribersAsync(AgentId);
+        ViewBag.SubscriberCount = subscribers.Count();
+    }
 
     private async Task<IActionResult?> RequireNewsletterAccessAsync()
     {

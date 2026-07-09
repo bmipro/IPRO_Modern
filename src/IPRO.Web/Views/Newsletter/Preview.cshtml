@@ -1,0 +1,162 @@
+@model IPRO.Entities.NewsLetter
+@{
+    ViewData["Title"] = "Preview Newsletter";
+    var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>;
+    var subscriberCount = (int)(ViewBag.SubscriberCount ?? 0);
+    var canSchedule = Model.Status != IPRO.Entities.NewsLetterStatus.Sent;
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2">
+        <li class="breadcrumb-item"><a href="/Newsletter">Newsletters</a></li>
+        <li class="breadcrumb-item active">Preview</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center gap-3">
+      <h2 class="fw-bold mb-0"><i class="fas fa-eye me-2 text-primary"></i>Preview Newsletter</h2>
+      <span class="badge bg-@(Model.Status == IPRO.Entities.NewsLetterStatus.Sent ? "success" : Model.Status == IPRO.Entities.NewsLetterStatus.Scheduled ? "warning text-dark" : "secondary") fs-6">@Model.Status</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/Newsletter/Edit/@Model.Id" class="btn btn-outline-primary"><i class="fas fa-edit me-1"></i>Edit</a>
+    <a href="/Newsletter" class="btn btn-outline-secondary">Back</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 p-4 pb-0">
+        <div class="small text-uppercase text-muted fw-bold mb-2">Email preview</div>
+        <h4 class="fw-bold mb-1">@Model.Subject</h4>
+        <div class="text-muted small">To: @subscriberCount newsletter subscriber@(subscriberCount == 1 ? "" : "s")</div>
+      </div>
+      <div class="card-body p-4">
+        <div class="newsletter-preview-shell">
+          <div class="newsletter-preview-meta">
+            <div><strong>Subject:</strong> @Model.Subject</div>
+            <div><strong>From:</strong> IPRO Advisers</div>
+          </div>
+          <div class="newsletter-preview-body">
+            @Html.Raw(Model.HtmlBody)
+          </div>
+          @if (articles != null && articles.Any())
+          {
+            <hr />
+            <div class="small text-uppercase text-muted fw-bold mb-3">Articles</div>
+            @foreach (var article in articles.OrderBy(a => a.SortOrder))
+            {
+              <article class="newsletter-preview-article">
+                <h5>@article.Title</h5>
+                @if (!string.IsNullOrWhiteSpace(article.ImageUrl))
+                {
+                  <img src="@article.ImageUrl" alt="" />
+                }
+                <div>@Html.Raw(article.Content)</div>
+              </article>
+            }
+          }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.TextBody))
+        {
+          <details class="mt-4">
+            <summary class="fw-semibold">Plain text version</summary>
+            <pre class="plain-text-preview mt-3">@Model.TextBody</pre>
+          </details>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-3"><i class="fas fa-clipboard-check me-2 text-success"></i>Review checklist</h5>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Subscribers</span>
+          <strong>@subscriberCount</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Status</span>
+          <strong>@Model.Status</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2">
+          <span class="text-muted">Created</span>
+          <strong>@Model.CreatedAt.ToString("MMM d, yyyy")</strong>
+        </div>
+        <a href="/Newsletter/Edit/@Model.Id" class="btn btn-outline-primary w-100 mt-3"><i class="fas fa-edit me-1"></i>Make Changes</a>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="fw-bold mb-0"><i class="fas fa-calendar me-2 text-warning"></i>Schedule send</h5>
+      </div>
+      <div class="card-body px-4 pb-4">
+        @if (canSchedule)
+        {
+          <form asp-action="Schedule" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.Id" />
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Send Date & Time</label>
+              <input type="datetime-local" name="scheduledAt" class="form-control" required min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+            </div>
+            <button type="submit" class="btn btn-warning w-100"><i class="fas fa-clock me-1"></i>Schedule Send</button>
+          </form>
+        }
+        else
+        {
+          <div class="alert alert-success mb-0">This newsletter has already been sent.</div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .newsletter-preview-shell {
+    border: 1px solid #dce5f2;
+    border-radius: 14px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .newsletter-preview-meta {
+    padding: 14px 18px;
+    background: #f6f9fd;
+    border-bottom: 1px solid #dce5f2;
+    color: #475569;
+    font-size: .92rem;
+  }
+
+  .newsletter-preview-body {
+    padding: 24px;
+    color: #172033;
+    line-height: 1.6;
+    min-height: 240px;
+  }
+
+  .newsletter-preview-body img,
+  .newsletter-preview-article img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+
+  .newsletter-preview-article {
+    padding: 0 24px 20px;
+  }
+
+  .plain-text-preview {
+    white-space: pre-wrap;
+    background: #f8fafc;
+    border: 1px solid #dce5f2;
+    border-radius: 10px;
+    padding: 16px;
+    color: #334155;
+  }
+</style>
