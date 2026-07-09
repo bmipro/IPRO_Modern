@@ -1,0 +1,226 @@
+@model IPRO.Admin.Models.PayPalSetupViewModel
+@{
+    ViewData["Title"] = "PayPal Setup";
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="/AdminDashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active">PayPal Setup</li>
+            </ol>
+        </nav>
+        <h4 class="fw-bold mb-1"><i class="fab fa-paypal me-2 text-primary"></i>PayPal Setup</h4>
+        <div class="text-muted">Configuration health, webhook target, and recurring package plan IDs.</div>
+    </div>
+    <a href="/Packages" class="btn btn-outline-primary">
+        <i class="fas fa-box me-1"></i>Manage Packages
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box bg-primary-subtle text-primary"><i class="fas fa-flask"></i></div>
+                <div>
+                    <div class="fw-bold">@(Model.IsSandbox ? "Sandbox" : "Live")</div>
+                    <div class="text-muted small">PayPal mode</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box @(Model.HasClientId && Model.HasClientSecret ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">
+                    <i class="fas fa-key"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">@(Model.HasClientId && Model.HasClientSecret ? "Configured" : "Missing")</div>
+                    <div class="text-muted small">API credentials</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box @(Model.HasWebhookId ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">@(Model.HasWebhookId ? "Verified" : "Needs ID")</div>
+                    <div class="text-muted small">Webhook verification</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="icon-box @(Model.MissingMonthlyPlanCount + Model.MissingAnnualPlanCount == 0 ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")">
+                    <i class="fas fa-link"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">@(Model.MissingMonthlyPlanCount + Model.MissingAnnualPlanCount)</div>
+                    <div class="text-muted small">Missing active plan IDs</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.HasClientId || !Model.HasClientSecret || !Model.HasWebhookId || Model.MissingMonthlyPlanCount > 0 || Model.MissingAnnualPlanCount > 0)
+{
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+        <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-2"></i>PayPal setup needs attention</div>
+        <div>
+            Make sure Azure app settings are configured for both <strong>ipro-prod-web</strong> and <strong>ipro-prod-admin</strong>,
+            and sync PayPal plans for each active paid package.
+        </div>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold mb-1">Azure App Settings</h5>
+                <div class="text-muted small">These are read from the running admin app. Secrets are intentionally masked.</div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Current Value</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var setting in Model.Settings)
+                        {
+                            <tr>
+                                <td class="font-monospace small">@setting.Name</td>
+                                <td>
+                                    <span class="badge @(setting.IsConfigured ? "bg-success" : "bg-danger")">
+                                        @(setting.IsConfigured ? "OK" : "Missing")
+                                    </span>
+                                </td>
+                                <td class="small text-muted">@setting.Value</td>
+                                <td class="small text-muted">@setting.HelpText</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-broadcast-tower me-2 text-primary"></i>Webhook Target</h5>
+                <label class="form-label small text-uppercase text-muted fw-bold">PayPal webhook URL</label>
+                <div class="input-group mb-3">
+                    <input class="form-control font-monospace small" value="@Model.ExpectedWebhookUrl" readonly />
+                    <button type="button" class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText('@Model.ExpectedWebhookUrl')">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <div class="small text-muted">
+                    Add this URL in the PayPal REST app webhook settings, then copy PayPal's webhook ID into
+                    <span class="font-monospace">PayPal__WebhookId</span>.
+                </div>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Environment</h5>
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">ASP.NET environment</span>
+                    <span class="fw-semibold">@Model.EnvironmentName</span>
+                </div>
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">PayPal base URL</span>
+                    <span class="fw-semibold small text-end">@Model.BaseUrl</span>
+                </div>
+                <div class="d-flex justify-content-between py-2">
+                    <span class="text-muted">Active packages</span>
+                    <span class="fw-semibold">@Model.ActivePackageCount</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-1">Package PayPal Plans</h5>
+            <div class="text-muted small">Active paid packages need monthly and annual PayPal plan IDs before subscribers can use recurring checkout.</div>
+        </div>
+        <span class="badge bg-light text-dark">@Model.Packages.Count packages</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Package</th>
+                        <th>Status</th>
+                        <th>Monthly</th>
+                        <th>Annual</th>
+                        <th>Setup Fee</th>
+                        <th>Monthly Plan ID</th>
+                        <th>Annual Plan ID</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var package in Model.Packages)
+                {
+                    <tr>
+                        <td class="fw-semibold">@package.PackageName</td>
+                        <td>
+                            <span class="badge @(package.IsActive ? "bg-success" : "bg-secondary")">
+                                @(package.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+                        <td>$@package.MonthlyPrice.ToString("N2")</td>
+                        <td>$@package.AnnualPrice.ToString("N2")</td>
+                        <td>$@package.SetupFee.ToString("N2")</td>
+                        <td class="small font-monospace">
+                            @if (package.NeedsMonthlyPlan)
+                            {
+                                <span class="badge bg-warning text-dark">Missing</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@(string.IsNullOrWhiteSpace(package.MonthlyPlanId) ? "-" : package.MonthlyPlanId)</span>
+                            }
+                        </td>
+                        <td class="small font-monospace">
+                            @if (package.NeedsAnnualPlan)
+                            {
+                                <span class="badge bg-warning text-dark">Missing</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@(string.IsNullOrWhiteSpace(package.AnnualPlanId) ? "-" : package.AnnualPlanId)</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a href="/Packages/Edit/@package.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
