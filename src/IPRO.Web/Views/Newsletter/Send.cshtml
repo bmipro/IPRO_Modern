@@ -6,6 +6,8 @@
     var subscriberCount = (int)(ViewBag.SubscriberCount ?? 0);
     var agentTimeZoneLabel = ViewBag.AgentTimeZoneLabel as string ?? "Eastern";
     var agentNow = ViewBag.AgentNow as DateTime? ?? DateTime.Now;
+    var scheduledAtValue = (Model.ScheduledAt ?? agentNow.AddMinutes(5)).ToString("yyyy-MM-ddTHH:mm");
+    var scheduledMinValue = agentNow.ToString("yyyy-MM-ddTHH:mm");
 }
 
 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -110,7 +112,7 @@
 
           <div class="mt-3">
             <label class="form-label fw-semibold">Scheduled Date & Time</label>
-            <input asp-for="ScheduledAt" type="datetime-local" class="form-control" min="@agentNow.ToString("yyyy-MM-ddTHH:mm")" />
+            <input id="scheduledAtInput" name="ScheduledAt" type="datetime-local" class="form-control" value="@scheduledAtValue" min="@scheduledMinValue" @(Model.SendNow ? "disabled" : "") />
             <span asp-validation-for="ScheduledAt" class="text-danger small"></span>
             <div class="form-text">Only required when scheduling for later.</div>
           </div>
@@ -169,3 +171,19 @@
     font-size: .92rem;
   }
 </style>
+
+<script>
+  (() => {
+    const sendNow = document.getElementById('sendNow');
+    const sendLater = document.getElementById('sendLater');
+    const scheduledAt = document.getElementById('scheduledAtInput');
+
+    const syncScheduledInput = () => {
+      scheduledAt.disabled = sendNow.checked;
+    };
+
+    sendNow.addEventListener('change', syncScheduledInput);
+    sendLater.addEventListener('change', syncScheduledInput);
+    syncScheduledInput();
+  })();
+</script>
