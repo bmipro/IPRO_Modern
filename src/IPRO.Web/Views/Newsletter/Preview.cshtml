@@ -9,6 +9,9 @@
     var deliveredCount = recipients.Count(r => r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
     var openedCount = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
     var failedCount = recipients.Count(r => r.Status is IPRO.Entities.NewsLetterRecipientStatus.Bounced or IPRO.Entities.NewsLetterRecipientStatus.Failed or IPRO.Entities.NewsLetterRecipientStatus.Dropped);
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
+    var agentTimeZoneLabel = ViewBag.AgentTimeZoneLabel as string ?? "Eastern";
+    var agentNow = ViewBag.AgentNow as DateTime? ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, agentTimeZone);
 }
 
 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -106,7 +109,7 @@
         </div>
         <div class="d-flex justify-content-between py-2">
           <span class="text-muted">Created</span>
-          <strong>@Model.CreatedAt.ToString("MMM d, yyyy")</strong>
+          <strong>@IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(Model.CreatedAt, agentTimeZone).ToString("MMM d, yyyy")</strong>
         </div>
         <a href="/Newsletter/Edit/@Model.Id" class="btn btn-outline-primary w-100 mt-3"><i class="fas fa-edit me-1"></i>Make Changes</a>
       </div>
@@ -124,7 +127,8 @@
             <input type="hidden" name="id" value="@Model.Id" />
             <div class="mb-3">
               <label class="form-label small fw-semibold">Send Date & Time</label>
-              <input type="datetime-local" name="scheduledAt" class="form-control" required min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+              <input type="datetime-local" name="scheduledAt" class="form-control" required min="@agentNow.ToString("yyyy-MM-ddTHH:mm")" />
+              <div class="form-text">Times are interpreted as @agentTimeZoneLabel time.</div>
             </div>
             <button type="submit" class="btn btn-warning w-100"><i class="fas fa-clock me-1"></i>Schedule Send</button>
           </form>
@@ -174,9 +178,9 @@
               <td class="fw-semibold">@(string.IsNullOrWhiteSpace(recipient.RecipientName) ? "-" : recipient.RecipientName)</td>
               <td><a href="mailto:@recipient.Email">@recipient.Email</a></td>
               <td><span class="badge @statusClass">@recipient.Status</span></td>
-              <td class="small text-muted">@(recipient.SentAt?.ToString("MMM d, h:mm tt") ?? "-")</td>
-              <td class="small text-muted">@(recipient.DeliveredAt?.ToString("MMM d, h:mm tt") ?? "-")</td>
-              <td class="small text-muted">@(recipient.OpenedAt?.ToString("MMM d, h:mm tt") ?? "-")</td>
+              <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.SentAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>
+              <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.DeliveredAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>
+              <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.OpenedAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>
               <td class="small text-muted tracking-issue">@(string.IsNullOrWhiteSpace(recipient.FailureReason) ? "-" : recipient.FailureReason)</td>
             </tr>
           }

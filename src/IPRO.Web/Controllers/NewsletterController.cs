@@ -2,7 +2,9 @@ using System.Security.Claims;
 using System.Net;
 using System.Text.Json;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,10 +16,11 @@ public class NewsletterController : Controller
     private readonly INewsLetterService _newsletters;
     private readonly IClientService _clients;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IUnitOfWork _uow;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; }
 
-    public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _newsletters.GetByAgentAsync(AgentId)); }
+    public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
     {
         var gate = await RequireNewsletterAccessAsync();
@@ -95,7 +98,16 @@ public class NewsletterController : Controller
         return View(nl);
     }
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Schedule(int id, DateTime scheduledAt) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await _newsletters.ScheduleAsync(id, scheduledAt); TempData["Success"] = "Newsletter scheduled!"; return RedirectToAction(nameof(Index)); }
+    public async Task<IActionResult> Schedule(int id, DateTime scheduledAt)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var agentTimeZone = await GetAgentTimeZoneAsync();
+        await _newsletters.ScheduleAsync(id, AgentTimeZoneHelper.ToUtc(scheduledAt, agentTimeZone));
+        TempData["Success"] = $"Newsletter scheduled for {scheduledAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
+        return RedirectToAction(nameof(Index));
+    }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddArticle(NewsLetterArticle article) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await _newsletters.AddArticleAsync(article); return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId }); }
     public async Task<IActionResult> Subscribers() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _clients.GetNewsletterSubscribersAsync(AgentId)); }
@@ -134,6 +146,21 @@ public class NewsletterController : Controller
     {
         var subscribers = await _clients.GetNewsletterSubscribersAsync(AgentId);
         ViewBag.SubscriberCount = subscribers.Count();
+        await LoadAgentTimeZoneAsync();
+    }
+
+    private async Task LoadAgentTimeZoneAsync()
+    {
+        var timeZone = await GetAgentTimeZoneAsync();
+        ViewBag.AgentTimeZone = timeZone;
+        ViewBag.AgentTimeZoneLabel = GetShortTimeZoneLabel(timeZone);
+        ViewBag.AgentNow = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, timeZone);
+    }
+
+    private async Task<string> GetAgentTimeZoneAsync()
+    {
+        var agent = await _uow.AgentUsers.GetByIdAsync(AgentId);
+        return AgentTimeZoneHelper.Normalize(agent?.TimeZone);
     }
 
     private async Task<IActionResult?> RequireNewsletterAccessAsync()
@@ -224,4 +251,14 @@ public class NewsletterController : Controller
             ? DateTimeOffset.FromUnixTimeSeconds(parsed).UtcDateTime
             : null;
     }
+
+    private static string GetShortTimeZoneLabel(string timeZone) => timeZone switch
+    {
+        "(GMT-06:00) Central Time (US & Canada)" => "Central",
+        "(GMT-07:00) Mountain Time (US & Canada)" => "Mountain",
+        "(GMT-08:00) Pacific Time (US & Canada)" => "Pacific",
+        "(GMT-04:00) Atlantic Time (Canada)" => "Atlantic",
+        "(GMT-03:30) Newfoundland" => "Newfoundland",
+        _ => "Eastern"
+    };
 }

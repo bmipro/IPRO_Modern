@@ -1,6 +1,7 @@
 @model IPRO.Web.Models.AgentProfileViewModel
 @{
     ViewData["Title"] = "My Profile";
+    var timeZones = (ViewBag.TimeZones as IEnumerable<string>) ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.Options;
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -112,7 +113,13 @@
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Time Zone</label>
-              <input asp-for="TimeZone" class="form-control" maxlength="120" />
+              <select asp-for="TimeZone" class="form-select">
+                @foreach (var zone in timeZones)
+                {
+                  <option value="@zone">@zone</option>
+                }
+              </select>
+              <div class="form-text">Schedules and reminders use this time zone.</div>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@
         : "ONLINE SUBSCRIPTION AGREEMENT";
     var verificationDisplayCode = ViewBag.VerificationCode as string ?? "0000";
     var packages = ((ViewBag.Packages as IEnumerable<IPRO.Entities.BillingRule>) ?? Enumerable.Empty<IPRO.Entities.BillingRule>()).ToList();
+    var timeZones = (ViewBag.TimeZones as IEnumerable<string>) ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.Options;
 }
 <!DOCTYPE html>
 <html>
@@ -167,12 +168,10 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
     <div class="form-row">
       <label>Time Zone:</label>
       <select asp-for="TimeZone" class="wide">
-        <option value="(GMT-05:00) Eastern Time (US & Canada)">(GMT-05:00) Eastern Time (US & Canada)</option>
-        <option value="(GMT-06:00) Central Time (US & Canada)">(GMT-06:00) Central Time (US & Canada)</option>
-        <option value="(GMT-07:00) Mountain Time (US & Canada)">(GMT-07:00) Mountain Time (US & Canada)</option>
-        <option value="(GMT-08:00) Pacific Time (US & Canada)">(GMT-08:00) Pacific Time (US & Canada)</option>
-        <option value="(GMT-04:00) Atlantic Time (Canada)">(GMT-04:00) Atlantic Time (Canada)</option>
-        <option value="(GMT-03:30) Newfoundland">(GMT-03:30) Newfoundland</option>
+        @foreach (var zone in timeZones)
+        {
+          <option value="@zone">@zone</option>
+        }
       </select>
     </div>
 

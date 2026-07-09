@@ -1,5 +1,8 @@
 @model IEnumerable<IPRO.Entities.NewsLetter>
-@{ ViewData["Title"] = "Newsletters"; }
+@{
+    ViewData["Title"] = "Newsletters";
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
+}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
@@ -36,9 +39,9 @@ else
           </div>
           <h6 class="fw-bold mb-1">@nl.Subject</h6>
           @if (nl.Status == IPRO.Entities.NewsLetterStatus.Sent)
-          { <small class="text-muted"><i class="fas fa-paper-plane me-1"></i>Sent to @nl.TotalSent recipients on @nl.SentAt?.ToString("MMM d")</small> }
+          { <small class="text-muted"><i class="fas fa-paper-plane me-1"></i>Sent to @nl.TotalSent recipients on @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(nl.SentAt, agentTimeZone)?.ToString("MMM d")</small> }
           @if (nl.Status == IPRO.Entities.NewsLetterStatus.Scheduled)
-          { <small class="text-muted"><i class="fas fa-clock me-1"></i>Scheduled for @nl.ScheduledAt?.ToString("MMM d, h:mm tt")</small> }
+          { <small class="text-muted"><i class="fas fa-clock me-1"></i>Scheduled for @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(nl.ScheduledAt, agentTimeZone)?.ToString("MMM d, h:mm tt") @ViewBag.AgentTimeZoneLabel</small> }
         </div>
         <div class="card-footer bg-white border-0 px-4 pb-3 d-flex gap-2">
           <a href="/Newsletter/Preview/@nl.Id" class="btn btn-sm btn-primary flex-grow-1"><i class="fas fa-eye me-1"></i>Preview</a>

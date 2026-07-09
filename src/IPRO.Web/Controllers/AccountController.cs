@@ -5,6 +5,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Email;
+using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
@@ -175,6 +176,7 @@ public class AccountController : Controller
         if (agent == null) return RedirectToAction(nameof(Login));
 
         var package = agent.PackageId > 0 ? await _uow.BillingRules.GetByIdAsync(agent.PackageId) : null;
+        LoadTimeZoneOptions();
         return View(ToProfileViewModel(agent, package?.PackageName ?? ""));
     }
 
@@ -210,6 +212,7 @@ public class AccountController : Controller
             model.UserName = agent.UserName;
             model.DomainName = agent.DomainName;
             model.PackageName = package?.PackageName ?? "";
+            LoadTimeZoneOptions();
             return View(model);
         }
 
@@ -289,6 +292,12 @@ public class AccountController : Controller
             .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
             .ThenBy(p => p.PackageName)
             .ToList();
+        LoadTimeZoneOptions();
+    }
+
+    private void LoadTimeZoneOptions()
+    {
+        ViewBag.TimeZones = AgentTimeZoneHelper.Options;
     }
 
     private static int GetPackageRank(BillingRule package) => package.PackageName switch
@@ -434,7 +443,7 @@ public class AccountController : Controller
         model.Province = model.Province?.Trim() ?? "";
         model.PostalCode = model.PostalCode?.Trim() ?? "";
         model.Country = model.Country?.Trim() ?? "";
-        model.TimeZone = model.TimeZone?.Trim() ?? "";
+        model.TimeZone = AgentTimeZoneHelper.Normalize(model.TimeZone);
         model.Phone = model.Phone?.Trim() ?? "";
         model.BusinessFax = model.BusinessFax?.Trim() ?? "";
         model.CellPhone = model.CellPhone?.Trim() ?? "";
@@ -454,7 +463,7 @@ public class AccountController : Controller
         model.Province = model.Province?.Trim() ?? "";
         model.PostalCode = model.PostalCode?.Trim() ?? "";
         model.Country = model.Country?.Trim() ?? "";
-        model.TimeZone = model.TimeZone?.Trim() ?? "";
+        model.TimeZone = AgentTimeZoneHelper.Normalize(model.TimeZone);
         model.Phone = model.Phone?.Trim() ?? "";
         model.BusinessFax = model.BusinessFax?.Trim() ?? "";
         model.CellPhone = model.CellPhone?.Trim() ?? "";
