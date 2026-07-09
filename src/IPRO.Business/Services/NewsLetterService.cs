@@ -45,7 +45,7 @@ public class NewsLetterService : INewsLetterService
         }
     }
 
-    public async Task<NewsLetterSend?> ScheduleSendAsync(int newsletterId, int agentId, DateTime scheduledAt, NewsLetterAudienceType audienceType = NewsLetterAudienceType.AllSubscribers)
+    public async Task<NewsLetterSend?> ScheduleSendAsync(int newsletterId, int agentId, DateTime scheduledAt, NewsLetterAudienceType audienceType = NewsLetterAudienceType.AllSubscribers, int? clientCategoryId = null, int? clientId = null)
     {
         var nl = await _uow.NewsLetters.GetByIdAsync(newsletterId);
         if (nl == null || nl.AgentUserId != agentId)
@@ -58,7 +58,9 @@ public class NewsLetterService : INewsLetterService
             NewsLetterId = newsletterId,
             AgentUserId = agentId,
             AudienceType = audienceType,
-            AudienceLabel = GetAudienceLabel(audienceType),
+            AudienceLabel = await GetAudienceLabelAsync(audienceType, agentId, clientCategoryId, clientId),
+            ClientCategoryId = audienceType == NewsLetterAudienceType.AccountType ? clientCategoryId : null,
+            ClientId = audienceType == NewsLetterAudienceType.IndividualClient ? clientId : null,
             Status = NewsLetterSendStatus.Scheduled,
             ScheduledAt = scheduledAt,
             CreatedAt = DateTime.UtcNow
@@ -198,11 +200,33 @@ public class NewsLetterService : INewsLetterService
         if (article != null) { _uow.NewsLetterArticles.Remove(article); await _uow.SaveChangesAsync(); }
     }
 
-    private static string GetAudienceLabel(NewsLetterAudienceType audienceType) => audienceType switch
+    private async Task<string> GetAudienceLabelAsync(NewsLetterAudienceType audienceType, int agentId, int? clientCategoryId, int? clientId)
     {
-        NewsLetterAudienceType.AccountType => "Selected account type",
-        NewsLetterAudienceType.SelectedClients => "Selected clients",
-        NewsLetterAudienceType.IndividualClient => "Individual client",
-        _ => "All newsletter subscribers"
-    };
+        if (audienceType == NewsLetterAudienceType.AccountType && clientCategoryId.HasValue)
+        {
+            var category = await _uow.ClientCategories.GetByIdAsync(clientCategoryId.Value);
+            if (category != null && category.AgentUserId == agentId)
+            {
+                return $"Account type: {category.Name}";
+            }
+        }
+
+        if (audienceType == NewsLetterAudienceType.IndividualClient && clientId.HasValue)
+        {
+            var client = await _uow.Clients.GetByIdAsync(clientId.Value);
+            if (client != null && client.AgentUserId == agentId)
+            {
+                var name = $"{client.FirstName} {client.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(name) ? client.Email : name;
+            }
+        }
+
+        return audienceType switch
+        {
+            NewsLetterAudienceType.AccountType => "Selected account type",
+            NewsLetterAudienceType.SelectedClients => "Selected clients",
+            NewsLetterAudienceType.IndividualClient => "Individual client",
+            _ => "All newsletter subscribers"
+        };
+    }
 }

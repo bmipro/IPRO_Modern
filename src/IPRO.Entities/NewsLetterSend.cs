@@ -24,6 +24,8 @@ public class NewsLetterSend
     public int AgentUserId { get; set; }
     public NewsLetterAudienceType AudienceType { get; set; } = NewsLetterAudienceType.AllSubscribers;
     public string AudienceLabel { get; set; } = "All newsletter subscribers";
+    public int? ClientCategoryId { get; set; }
+    public int? ClientId { get; set; }
     public NewsLetterSendStatus Status { get; set; } = NewsLetterSendStatus.Scheduled;
     public DateTime ScheduledAt { get; set; }
     public DateTime? SentAt { get; set; }
@@ -34,5 +36,7 @@ public class NewsLetterSend
 
     public NewsLetter NewsLetter { get; set; } = null!;
     public AgentUser AgentUser { get; set; } = null!;
+    public ClientCategory? ClientCategory { get; set; }
+    public Client? Client { get; set; }
     public ICollection<NewsLetterRecipient> Recipients { get; set; } = new List<NewsLetterRecipient>();
 }

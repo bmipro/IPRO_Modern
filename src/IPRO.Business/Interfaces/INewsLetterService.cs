@@ -10,7 +10,7 @@ public interface INewsLetterService
     Task UpdateAsync(NewsLetter newsletter);
     Task DeleteAsync(int id);
     Task ScheduleAsync(int id, DateTime scheduledAt);
-    Task<NewsLetterSend?> ScheduleSendAsync(int newsletterId, int agentId, DateTime scheduledAt, NewsLetterAudienceType audienceType = NewsLetterAudienceType.AllSubscribers);
+    Task<NewsLetterSend?> ScheduleSendAsync(int newsletterId, int agentId, DateTime scheduledAt, NewsLetterAudienceType audienceType = NewsLetterAudienceType.AllSubscribers, int? clientCategoryId = null, int? clientId = null);
     Task MarkAsSentAsync(int id, int totalSent);
     Task<IEnumerable<NewsLetterRecipient>> GetRecipientsAsync(int newsletterId);
     Task<IEnumerable<NewsLetterRecipient>> GetRecipientsForSendAsync(int sendId);

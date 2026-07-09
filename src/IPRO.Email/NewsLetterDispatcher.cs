@@ -1,5 +1,7 @@
 using IPRO.DataAccess.Repositories;
+using IPRO.DataAccess;
 using IPRO.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace IPRO.Email;
@@ -7,12 +9,14 @@ namespace IPRO.Email;
 public class NewsLetterDispatcher
 {
     private readonly IUnitOfWork _uow;
+    private readonly IPRODbContext _db;
     private readonly IEmailService _email;
     private readonly ILogger<NewsLetterDispatcher> _logger;
 
-    public NewsLetterDispatcher(IUnitOfWork uow, IEmailService email, ILogger<NewsLetterDispatcher> logger)
+    public NewsLetterDispatcher(IUnitOfWork uow, IPRODbContext db, IEmailService email, ILogger<NewsLetterDispatcher> logger)
     {
         _uow = uow;
+        _db = db;
         _email = email;
         _logger = logger;
     }
@@ -48,9 +52,7 @@ public class NewsLetterDispatcher
         _uow.NewsLetterSends.Update(send);
         await _uow.SaveChangesAsync();
 
-        var subscribers = (await _uow.Clients.FindAsync(c =>
-            c.AgentUserId == send.AgentUserId && c.IsNewsletterSubscribed))
-            .ToList();
+        var subscribers = await GetAudienceClientsAsync(send);
 
         var recipients = subscribers
             .Where(c => !string.IsNullOrWhiteSpace(c.Email))
@@ -112,6 +114,24 @@ public class NewsLetterDispatcher
 
         _logger.LogInformation("Newsletter send {SendId} for newsletter {NewsletterId} dispatched to {Count} recipients. Success: {Success}",
             send.Id, newsletter.Id, recipients.Count, sentCount > 0);
+    }
+
+    private async Task<List<Client>> GetAudienceClientsAsync(NewsLetterSend send)
+    {
+        var query = _db.Clients
+            .Include(c => c.Categories)
+            .Where(c => c.AgentUserId == send.AgentUserId);
+
+        query = send.AudienceType switch
+        {
+            NewsLetterAudienceType.AccountType when send.ClientCategoryId.HasValue =>
+                query.Where(c => c.Categories.Any(cat => cat.Id == send.ClientCategoryId.Value)),
+            NewsLetterAudienceType.IndividualClient when send.ClientId.HasValue =>
+                query.Where(c => c.Id == send.ClientId.Value),
+            _ => query.Where(c => c.IsNewsletterSubscribed)
+        };
+
+        return await query.ToListAsync();
     }
 
     public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName)

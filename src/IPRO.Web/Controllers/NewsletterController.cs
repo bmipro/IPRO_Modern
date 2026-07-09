@@ -5,6 +5,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Web.Infrastructure;
+using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -102,6 +103,62 @@ public class NewsletterController : Controller
             : Enumerable.Empty<NewsLetterRecipient>();
         return View(nl);
     }
+    public async Task<IActionResult> Send(int id)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var nl = await _newsletters.GetByIdAsync(id);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
+        await LoadSendContextAsync();
+        return View(new NewsLetterSendViewModel
+        {
+            NewsLetterId = nl.Id,
+            Subject = nl.Subject,
+            SendNow = true,
+            ScheduledAt = ViewBag.AgentNow is DateTime now ? now.AddMinutes(5) : DateTime.Now.AddMinutes(5)
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Send(NewsLetterSendViewModel model)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var nl = await _newsletters.GetByIdAsync(model.NewsLetterId);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
+        model.Subject = nl.Subject;
+        ValidateSendRequest(model);
+        if (!ModelState.IsValid)
+        {
+            await LoadSendContextAsync();
+            return View(model);
+        }
+
+        var agentTimeZone = await GetAgentTimeZoneAsync();
+        var localSendAt = model.SendNow
+            ? AgentTimeZoneHelper.FromUtc(DateTime.UtcNow.AddMinutes(1), agentTimeZone)
+            : model.ScheduledAt!.Value;
+
+        var send = await _newsletters.ScheduleSendAsync(
+            model.NewsLetterId,
+            AgentId,
+            AgentTimeZoneHelper.ToUtc(localSendAt, agentTimeZone),
+            model.AudienceType,
+            model.ClientCategoryId,
+            model.ClientId);
+
+        TempData["Success"] = send == null
+            ? "Newsletter could not be scheduled."
+            : model.SendNow
+                ? "Newsletter is queued to send now."
+                : $"Newsletter send scheduled for {localSendAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
+        return RedirectToAction(nameof(Preview), new { id = model.NewsLetterId });
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Schedule(int id, DateTime scheduledAt)
     {
@@ -134,7 +191,7 @@ public class NewsletterController : Controller
 
         foreach (var item in events.EnumerateArray())
         {
-            var recipientId = ReadInt(item, "newsletter_recipient_id");
+            var recipientId = ReadCustomInt(item, "newsletter_recipient_id");
             if (recipientId <= 0) continue;
 
             var eventName = ReadString(item, "event");
@@ -157,6 +214,18 @@ public class NewsletterController : Controller
         var subscribers = await _clients.GetNewsletterSubscribersAsync(AgentId);
         ViewBag.SubscriberCount = subscribers.Count();
         await LoadAgentTimeZoneAsync();
+    }
+
+    private async Task LoadSendContextAsync()
+    {
+        await LoadNewsletterContextAsync();
+        ViewBag.AccountTypes = (await _uow.ClientCategories.FindAsync(c => c.AgentUserId == AgentId))
+            .OrderBy(c => c.Name)
+            .ToList();
+        ViewBag.Clients = (await _uow.Clients.FindAsync(c => c.AgentUserId == AgentId && !string.IsNullOrWhiteSpace(c.Email)))
+            .OrderBy(c => c.LastName)
+            .ThenBy(c => c.FirstName)
+            .ToList();
     }
 
     private async Task LoadAgentTimeZoneAsync()
@@ -222,6 +291,24 @@ public class NewsletterController : Controller
         }
     }
 
+    private void ValidateSendRequest(NewsLetterSendViewModel model)
+    {
+        if (model.AudienceType == NewsLetterAudienceType.AccountType && !model.ClientCategoryId.HasValue)
+        {
+            ModelState.AddModelError(nameof(model.ClientCategoryId), "Choose an account type.");
+        }
+
+        if (model.AudienceType == NewsLetterAudienceType.IndividualClient && !model.ClientId.HasValue)
+        {
+            ModelState.AddModelError(nameof(model.ClientId), "Choose a client.");
+        }
+
+        if (!model.SendNow && !model.ScheduledAt.HasValue)
+        {
+            ModelState.AddModelError(nameof(model.ScheduledAt), "Choose a send date and time.");
+        }
+    }
+
     private static string ConvertPlainTextToHtml(string text)
     {
         var paragraphs = text
@@ -248,6 +335,25 @@ public class NewsletterController : Controller
         if (!element.TryGetProperty(name, out var value)) return 0;
         if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
         return int.TryParse(value.ToString(), out var parsed) ? parsed : 0;
+    }
+
+    private static int ReadCustomInt(JsonElement element, string name)
+    {
+        var direct = ReadInt(element, name);
+        if (direct > 0) return direct;
+
+        foreach (var containerName in new[] { "custom_args", "unique_args", "smtp-id" })
+        {
+            if (!element.TryGetProperty(containerName, out var container) || container.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var nested = ReadInt(container, name);
+            if (nested > 0) return nested;
+        }
+
+        return 0;
     }
 
     private static DateTime? ReadUnixTimestamp(JsonElement element, string name)

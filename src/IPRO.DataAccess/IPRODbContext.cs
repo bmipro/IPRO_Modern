@@ -250,6 +250,8 @@ public class IPRODbContext : DbContext
         modelBuilder.Entity<NewsLetterSend>(e =>
         {
             e.HasIndex(s => new { s.AgentUserId, s.ScheduledAt });
+            e.HasIndex(s => s.ClientCategoryId);
+            e.HasIndex(s => s.ClientId);
             e.Property(s => s.AudienceLabel).HasMaxLength(200).IsRequired();
 
             e.HasOne(s => s.NewsLetter)
@@ -261,6 +263,16 @@ public class IPRODbContext : DbContext
              .WithMany()
              .HasForeignKey(s => s.AgentUserId)
              .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(s => s.ClientCategory)
+             .WithMany()
+             .HasForeignKey(s => s.ClientCategoryId)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne(s => s.Client)
+             .WithMany()
+             .HasForeignKey(s => s.ClientId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // DripCampaign → Steps
