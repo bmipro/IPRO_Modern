@@ -60,6 +60,9 @@
                         <i class="fas fa-user-circle me-1"></i>@User.FindFirst("FullName")?.Value
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="/Account/Profile"><i class="fas fa-id-card me-2"></i>My Profile</a></li>
+                        <li><a class="dropdown-item" href="/Account/ChangePassword"><i class="fas fa-key me-2"></i>Change Password</a></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="/Account/Logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                     </ul>
                 </li>

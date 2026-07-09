@@ -168,6 +168,80 @@ public class AccountController : Controller
     public IActionResult ChangePassword() => View();
 
     [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> Profile()
+    {
+        var agent = await GetCurrentAgentAsync();
+        if (agent == null) return RedirectToAction(nameof(Login));
+
+        var package = agent.PackageId > 0 ? await _uow.BillingRules.GetByIdAsync(agent.PackageId) : null;
+        return View(ToProfileViewModel(agent, package?.PackageName ?? ""));
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Profile(AgentProfileViewModel model)
+    {
+        var agent = await GetCurrentAgentAsync();
+        if (agent == null) return RedirectToAction(nameof(Login));
+
+        NormalizeProfile(model);
+        if (string.IsNullOrWhiteSpace(model.FirstName)) ModelState.AddModelError("", "First name is required.");
+        if (string.IsNullOrWhiteSpace(model.LastName)) ModelState.AddModelError("", "Last name is required.");
+        if (string.IsNullOrWhiteSpace(model.Email)) ModelState.AddModelError("", "Email is required.");
+        if (string.IsNullOrWhiteSpace(model.CompanyName)) ModelState.AddModelError("", "Company name is required.");
+        if (string.IsNullOrWhiteSpace(model.City)) ModelState.AddModelError("", "City is required.");
+        if (string.IsNullOrWhiteSpace(model.Province)) ModelState.AddModelError("", "Province/state is required.");
+        if (string.IsNullOrWhiteSpace(model.PostalCode)) ModelState.AddModelError("", "Postal code is required.");
+        if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
+        if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
+        if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
+
+        var emailOwner = await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == model.Email && u.Id != agent.Id);
+        if (emailOwner != null)
+        {
+            ModelState.AddModelError("", "Another account already uses that email address.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var package = agent.PackageId > 0 ? await _uow.BillingRules.GetByIdAsync(agent.PackageId) : null;
+            model.Id = agent.Id;
+            model.UserName = agent.UserName;
+            model.DomainName = agent.DomainName;
+            model.PackageName = package?.PackageName ?? "";
+            return View(model);
+        }
+
+        agent.FirstName = model.FirstName;
+        agent.LastName = model.LastName;
+        agent.Email = model.Email;
+        agent.Designation = model.Designation ?? "";
+        agent.CompanyName = model.CompanyName;
+        agent.CompanyAddress = model.CompanyAddress ?? "";
+        agent.City = model.City;
+        agent.Province = model.Province;
+        agent.PostalCode = model.PostalCode;
+        agent.Country = model.Country;
+        agent.TimeZone = model.TimeZone ?? "";
+        agent.Phone = model.Phone;
+        agent.BusinessFax = model.BusinessFax ?? "";
+        agent.CellPhone = model.CellPhone ?? "";
+        agent.BusinessType = model.BusinessType;
+        agent.PromotionCode = model.PromotionCode ?? "";
+
+        await _agents.UpdateAsync(agent);
+        await SignInAgentAsync(agent, new AuthenticationProperties
+        {
+            IsPersistent = false,
+            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+        });
+
+        TempData["Success"] = "Profile updated.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Authorize]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword(string newPassword, string confirmPassword)
     {
@@ -318,7 +392,57 @@ public class AccountController : Controller
         IsActive = true
     };
 
+    private async Task<AgentUser?> GetCurrentAgentAsync()
+    {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(idValue, out var id) ? await _agents.GetByIdAsync(id) : null;
+    }
+
+    private static AgentProfileViewModel ToProfileViewModel(AgentUser agent, string packageName) => new()
+    {
+        Id = agent.Id,
+        UserName = agent.UserName,
+        DomainName = agent.DomainName,
+        PackageName = packageName,
+        FirstName = agent.FirstName,
+        LastName = agent.LastName,
+        Email = agent.Email,
+        Designation = agent.Designation,
+        CompanyName = agent.CompanyName,
+        CompanyAddress = agent.CompanyAddress,
+        City = agent.City,
+        Province = agent.Province,
+        PostalCode = agent.PostalCode,
+        Country = agent.Country,
+        TimeZone = agent.TimeZone,
+        Phone = agent.Phone,
+        BusinessFax = agent.BusinessFax,
+        CellPhone = agent.CellPhone,
+        BusinessType = agent.BusinessType,
+        PromotionCode = agent.PromotionCode
+    };
+
     private static void NormalizeRegistration(AgentRegistrationViewModel model)
+    {
+        model.FirstName = model.FirstName?.Trim() ?? "";
+        model.LastName = model.LastName?.Trim() ?? "";
+        model.Email = (model.Email?.Trim() ?? "").ToLowerInvariant();
+        model.Designation = model.Designation?.Trim() ?? "";
+        model.CompanyName = model.CompanyName?.Trim() ?? "";
+        model.CompanyAddress = model.CompanyAddress?.Trim() ?? "";
+        model.City = model.City?.Trim() ?? "";
+        model.Province = model.Province?.Trim() ?? "";
+        model.PostalCode = model.PostalCode?.Trim() ?? "";
+        model.Country = model.Country?.Trim() ?? "";
+        model.TimeZone = model.TimeZone?.Trim() ?? "";
+        model.Phone = model.Phone?.Trim() ?? "";
+        model.BusinessFax = model.BusinessFax?.Trim() ?? "";
+        model.CellPhone = model.CellPhone?.Trim() ?? "";
+        model.BusinessType = model.BusinessType?.Trim() ?? "";
+        model.PromotionCode = model.PromotionCode?.Trim() ?? "";
+    }
+
+    private static void NormalizeProfile(AgentProfileViewModel model)
     {
         model.FirstName = model.FirstName?.Trim() ?? "";
         model.LastName = model.LastName?.Trim() ?? "";

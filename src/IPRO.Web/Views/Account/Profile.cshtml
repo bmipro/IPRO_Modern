@@ -1,0 +1,151 @@
+@model IPRO.Web.Models.AgentProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-id-card me-2 text-primary"></i>My Profile</h2>
+    <div class="text-muted">Keep your contact, company, and billing address details current.</div>
+  </div>
+  <a href="/Dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+</div>
+
+@if (!ViewData.ModelState.IsValid)
+{
+  <div class="alert alert-danger">@Html.ValidationSummary()</div>
+}
+
+<form asp-action="Profile" method="post">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id" />
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3">Account</h5>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <input asp-for="UserName" class="form-control" readonly />
+            <div class="form-text">Usernames are managed by IPRO Admin.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Temporary Website Domain</label>
+            <input asp-for="DomainName" class="form-control" readonly />
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-semibold">Current Package</label>
+            <input asp-for="PackageName" class="form-control" readonly />
+            <div class="form-text"><a href="/Billing">Manage billing and package changes</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3">Login Email</h5>
+          <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+          <input asp-for="Email" type="email" class="form-control" maxlength="200" required />
+          <div class="form-text">Invoices and system messages use this email.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3">Contact Information</h5>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+              <input asp-for="FirstName" class="form-control" maxlength="80" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
+              <input asp-for="LastName" class="form-control" maxlength="80" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Designation</label>
+              <input asp-for="Designation" class="form-control" maxlength="80" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Business Type <span class="text-danger">*</span></label>
+              <select asp-for="BusinessType" class="form-select" required>
+                <option value="">Click here</option>
+                <option>Accountants</option>
+                <option>Insurance / Financial</option>
+                <option>Mortgage</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3">Company Details</h5>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
+              <input asp-for="CompanyName" class="form-control" maxlength="150" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Company Address</label>
+              <input asp-for="CompanyAddress" class="form-control" maxlength="200" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">City <span class="text-danger">*</span></label>
+              <input asp-for="City" class="form-control" maxlength="80" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Province/State <span class="text-danger">*</span></label>
+              <input asp-for="Province" class="form-control" maxlength="80" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Postal Code <span class="text-danger">*</span></label>
+              <input asp-for="PostalCode" class="form-control" maxlength="20" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Country <span class="text-danger">*</span></label>
+              <input asp-for="Country" class="form-control" maxlength="80" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Time Zone</label>
+              <input asp-for="TimeZone" class="form-control" maxlength="120" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3">Phone</h5>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Business Phone <span class="text-danger">*</span></label>
+              <input asp-for="Phone" class="form-control" maxlength="40" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fax</label>
+              <input asp-for="BusinessFax" class="form-control" maxlength="40" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Mobile</label>
+              <input asp-for="CellPhone" class="form-control" maxlength="40" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Promotion Code</label>
+              <input asp-for="PromotionCode" class="form-control" maxlength="80" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2">
+        <a href="/Dashboard" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Profile</button>
+      </div>
+    </div>
+  </div>
+</form>
