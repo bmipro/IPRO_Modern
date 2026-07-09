@@ -68,6 +68,7 @@ public class ClientsController : Controller
         ViewBag.Newsletter = newsletter;
         ViewBag.TotalCount = await _clients.GetCountAsync(AgentId);
         ViewBag.ContactLimit = await GetContactLimitStatusAsync();
+        ViewBag.ImportAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.OutlookImport);
         ViewBag.AccountTypes = await _db.ClientCategories
             .Where(c => c.AgentUserId == AgentId)
             .OrderBy(c => c.Name)
@@ -476,6 +477,13 @@ public class ClientsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ImportCsv(IFormFile file)
     {
+        var importAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.OutlookImport);
+        if (!importAccess.IsIncluded)
+        {
+            TempData["Error"] = importAccess.UpgradeMessage;
+            return RedirectToAction(nameof(Index));
+        }
+
         if (file == null || file.Length == 0)
         { TempData["Error"] = "Please select a CSV file."; return RedirectToAction(nameof(Index)); }
 
