@@ -216,8 +216,14 @@
     }
 
     @@media print {
-      body { background: #fff; }
+      body {
+        background: #fff;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+
       .toolbar { display: none; }
+
       .invoice {
         border: none;
         border-radius: 0;
@@ -225,12 +231,102 @@
         margin: 0;
         max-width: none;
         min-height: auto;
+        overflow: visible;
       }
+
       .header {
+        grid-template-columns: 1.15fr .85fr;
+        gap: 16px;
+        padding: 20px 26px;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
-      @@page { margin: .5in; }
+
+      .brand {
+        font-size: 22px;
+        margin-bottom: 4px;
+      }
+
+      .brand-subtitle {
+        font-size: 11px;
+      }
+
+      .invoice-title h1 {
+        font-size: 30px;
+        margin-bottom: 8px;
+      }
+
+      .status {
+        font-size: 10px;
+        padding: 4px 10px;
+      }
+
+      .content {
+        padding: 20px 26px 18px;
+      }
+
+      .meta-grid {
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .panel {
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+
+      .label,
+      th {
+        font-size: 10px;
+        letter-spacing: .06em;
+      }
+
+      .value {
+        font-size: 13px;
+      }
+
+      .muted {
+        font-size: 11px;
+      }
+
+      table {
+        margin-top: 6px;
+        page-break-inside: avoid;
+      }
+
+      th {
+        padding: 8px 0;
+      }
+
+      td {
+        padding: 9px 0;
+      }
+
+      .totals {
+        margin-top: 12px;
+        width: 320px;
+        page-break-inside: avoid;
+      }
+
+      .total-row {
+        padding: 6px 0;
+      }
+
+      .grand-total {
+        font-size: 18px;
+      }
+
+      .footer {
+        font-size: 10px;
+        margin-top: 14px;
+        padding-top: 10px;
+        page-break-inside: avoid;
+      }
+
+      @@page {
+        size: Letter;
+        margin: .28in;
+      }
     }
 
     @@media (max-width: 720px) {
