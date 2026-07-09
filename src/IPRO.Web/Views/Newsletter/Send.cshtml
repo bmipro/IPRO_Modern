@@ -138,20 +138,29 @@
     border-radius: 12px;
     padding: 16px 18px;
     background: #fff;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 12px;
+    align-items: start;
   }
 
   .audience-option .form-check-input,
   .timing-option .form-check-input {
     margin-top: .25rem;
-    margin-right: .75rem;
   }
 
   .audience-option label,
   .timing-option label {
-    display: inline-flex;
+    display: flex;
     flex-direction: column;
     gap: 4px;
-    max-width: calc(100% - 34px);
+    min-width: 0;
+  }
+
+  .audience-option .form-select,
+  .audience-option .text-danger {
+    grid-column: 2;
   }
 
   .audience-option span,
