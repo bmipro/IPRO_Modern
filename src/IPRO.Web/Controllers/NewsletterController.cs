@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
+using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
@@ -18,8 +19,9 @@ public class NewsletterController : Controller
     private readonly IClientService _clients;
     private readonly IPackageEntitlementService _entitlements;
     private readonly IUnitOfWork _uow;
+    private readonly NewsLetterDispatcher _dispatcher;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, NewsLetterDispatcher dispatcher) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _dispatcher = dispatcher; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
@@ -151,10 +153,15 @@ public class NewsletterController : Controller
             model.ClientCategoryId,
             model.ClientId);
 
+        if (send != null && model.SendNow)
+        {
+            await _dispatcher.DispatchSendAsync(send.Id);
+        }
+
         TempData["Success"] = send == null
             ? "Newsletter could not be scheduled."
             : model.SendNow
-                ? "Newsletter is queued to send now."
+                ? "Newsletter sent."
                 : $"Newsletter send scheduled for {localSendAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
         return RedirectToAction(nameof(Preview), new { id = model.NewsLetterId });
     }
