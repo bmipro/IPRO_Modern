@@ -33,6 +33,12 @@ public class SendGridEmailService : IEmailService
                 subject, textBody ?? string.Empty, htmlBody);
             msg.SetReplyTo(new EmailAddress(_settings.ReplyToEmail));
             var response = await client.SendEmailAsync(msg);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Body.ReadAsStringAsync();
+                _logger.LogWarning("SendGrid rejected email to {Email}. Status: {StatusCode}. Body: {Body}", toEmail, response.StatusCode, body);
+            }
+
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -58,6 +64,12 @@ public class SendGridEmailService : IEmailService
             var msg = MailHelper.CreateSingleEmailToMultipleRecipients(
                 from, tos, subject, textBody ?? string.Empty, htmlBody);
             var response = await client.SendEmailAsync(msg);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Body.ReadAsStringAsync();
+                _logger.LogWarning("SendGrid rejected bulk email to {Count} recipients. Status: {StatusCode}. Body: {Body}", recipients.Count(), response.StatusCode, body);
+            }
+
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -86,6 +98,12 @@ public class SendGridEmailService : IEmailService
             msg.AddTo(new EmailAddress(toEmail, toName));
             msg.SetTemplateData(templateData);
             var response = await client.SendEmailAsync(msg);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Body.ReadAsStringAsync();
+                _logger.LogWarning("SendGrid rejected template email {TemplateId} to {Email}. Status: {StatusCode}. Body: {Body}", templateId, toEmail, response.StatusCode, body);
+            }
+
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)

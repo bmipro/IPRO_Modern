@@ -15,6 +15,7 @@ public interface IBillingService
     Task<int> NotifyBillingIssuesAsync();
     Task<bool> HandleWebhookAsync(string eventType, string payload, PayPalWebhookHeaders headers, decimal amount);
     Task<PayPalPlanSyncResult> SyncPayPalPlansAsync(int billingRuleId);
+    Task<BillingChangeResult> EmailPaidInvoiceAsync(int invoiceId, bool force = false);
     Task<List<IPRO.Entities.Invoice>> GetInvoicesAsync(int userId);
     Task<IPRO.Entities.Invoice> GenerateInvoiceAsync(int userId, decimal amount, string description);
     Task<List<IPRO.Entities.BillingRule>> GetPackagesAsync();

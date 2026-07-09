@@ -613,6 +613,14 @@ public class PayPalBillingService : IBillingService
         }
     }
 
+    public async Task<BillingChangeResult> EmailPaidInvoiceAsync(int invoiceId, bool force = false)
+    {
+        var sent = await SendPaidInvoiceEmailAsync(invoiceId, force);
+        return sent
+            ? new BillingChangeResult { Success = true, Message = "Invoice email sent." }
+            : BillingChangeResult.Failed("Invoice email could not be sent. Check SendGrid settings, sender verification, or application logs.");
+    }
+
     private async Task<bool> HandleSubscriptionActivatedWebhookAsync(string subscriptionId)
     {
         if (string.IsNullOrWhiteSpace(subscriptionId))
@@ -1337,27 +1345,27 @@ public class PayPalBillingService : IBillingService
         """;
     }
 
-    private async Task SendPaidInvoiceEmailAsync(int invoiceId)
+    private async Task<bool> SendPaidInvoiceEmailAsync(int invoiceId, bool force = false)
     {
         var alreadySent = await _uow.OperateLogs.ExistsAsync(l =>
             l.Module == "Billing" &&
             l.Action == "InvoiceEmail" &&
             l.Description == $"Invoice:{invoiceId}");
-        if (alreadySent)
+        if (alreadySent && !force)
         {
-            return;
+            return true;
         }
 
         var invoice = await _uow.Invoices.GetByIdAsync(invoiceId);
         if (invoice == null || !invoice.IsPaid)
         {
-            return;
+            return false;
         }
 
         var agent = await _uow.AgentUsers.GetByIdAsync(invoice.AgentUserId);
         if (agent == null || string.IsNullOrWhiteSpace(agent.Email))
         {
-            return;
+            return false;
         }
 
         var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
@@ -1378,7 +1386,16 @@ public class PayPalBillingService : IBillingService
         var sent = await _email.SendAsync(agent.Email, fullName, $"IPRO invoice {invoice.InvoiceNumber}", html, text);
         if (!sent)
         {
-            return;
+            await _uow.OperateLogs.AddAsync(new OperateLog
+            {
+                AgentUserId = agent.Id,
+                Module = "Billing",
+                Action = "InvoiceEmailFailed",
+                Description = $"Invoice:{invoiceId}:Email:{agent.Email}",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _uow.SaveChangesAsync();
+            return false;
         }
 
         await _uow.OperateLogs.AddAsync(new OperateLog
@@ -1390,6 +1407,7 @@ public class PayPalBillingService : IBillingService
             CreatedAt = DateTime.UtcNow
         });
         await _uow.SaveChangesAsync();
+        return true;
     }
 
     private string BuildPaidInvoiceEmailHtml(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, AgentUser agent, string fullName, string packageName)

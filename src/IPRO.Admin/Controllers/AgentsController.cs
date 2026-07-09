@@ -1,5 +1,6 @@
 using IPRO.Business.Interfaces;
 using IPRO.Admin.Models;
+using IPRO.Billing;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Utility;
@@ -16,12 +17,13 @@ public class AgentsController : Controller
     private readonly IWebsiteService _websites;
     private readonly IUnitOfWork _uow;
     private readonly IPleskHostingService _plesk;
+    private readonly IBillingService _billing;
     private readonly IPasswordHasher<AgentUser> _hasher;
     private readonly ILogger<AgentsController> _logger;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _hasher = hasher; _logger = logger; }
+        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger)
+    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; }
 
     public async Task<IActionResult> Index(string? search, string? status, int page = 1)
     {
@@ -143,6 +145,23 @@ public class AgentsController : Controller
         await LogAsync(id, "ResetPassword", "Temporary password reset by Super Admin");
 
         TempData["Success"] = $"Temporary password for {agent.UserName} reset to: {temporaryPassword}";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> EmailInvoice(int id, int invoiceId)
+    {
+        var invoice = await _uow.Invoices.GetByIdAsync(invoiceId);
+        if (invoice == null || invoice.AgentUserId != id)
+        {
+            return NotFound();
+        }
+
+        var result = await _billing.EmailPaidInvoiceAsync(invoiceId, force: true);
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? $"Invoice {invoice.InvoiceNumber} emailed to the agent's current email address."
+            : result.Message;
+
         return RedirectToAction(nameof(Details), new { id });
     }
 

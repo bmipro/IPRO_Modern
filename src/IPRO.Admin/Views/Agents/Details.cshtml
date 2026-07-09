@@ -149,7 +149,7 @@
                 @if (invoices != null && invoices.Any())
                 {
                     <table class="table table-sm align-middle mb-0">
-                        <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th><th>PayPal</th></tr></thead>
+                        <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th><th>PayPal</th><th></th></tr></thead>
                         <tbody>
                         @foreach (var inv in invoices)
                         {
@@ -159,6 +159,17 @@
                                 <td class="fw-semibold text-success">$@inv.Total.ToString("N2")</td>
                                 <td><span class="badge @(inv.IsPaid ? "bg-success" : inv.Billing?.Status == IPRO.Entities.BillingStatus.Failed ? "bg-danger" : "bg-warning text-dark")">@(inv.IsPaid ? "Paid" : inv.Billing?.Status == IPRO.Entities.BillingStatus.Failed ? "Failed" : "Unpaid")</span></td>
                                 <td class="small font-monospace text-muted">@(string.IsNullOrWhiteSpace(inv.PayPalTransactionId) ? "-" : inv.PayPalTransactionId)</td>
+                                <td class="text-end">
+                                    @if (inv.IsPaid)
+                                    {
+                                        <form asp-action="EmailInvoice" asp-route-id="@Model.Id" asp-route-invoiceId="@inv.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-envelope me-1"></i>Email
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
                             </tr>
                         }
                         </tbody>
