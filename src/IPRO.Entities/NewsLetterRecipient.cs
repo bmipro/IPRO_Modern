@@ -18,6 +18,7 @@ public class NewsLetterRecipient
 {
     public int Id { get; set; }
     public int NewsLetterId { get; set; }
+    public int? NewsLetterSendId { get; set; }
     public int? ClientId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string RecipientName { get; set; } = string.Empty;
@@ -35,5 +36,6 @@ public class NewsLetterRecipient
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public NewsLetter NewsLetter { get; set; } = null!;
+    public NewsLetterSend? NewsLetterSend { get; set; }
     public Client? Client { get; set; }
 }

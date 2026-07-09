@@ -41,11 +41,38 @@ public class NewsLetterService : INewsLetterService
         var nl = await _uow.NewsLetters.GetByIdAsync(id);
         if (nl != null)
         {
-            nl.Status = NewsLetterStatus.Scheduled;
-            nl.ScheduledAt = scheduledAt;
-            _uow.NewsLetters.Update(nl);
-            await _uow.SaveChangesAsync();
+            await ScheduleSendAsync(id, nl.AgentUserId, scheduledAt);
         }
+    }
+
+    public async Task<NewsLetterSend?> ScheduleSendAsync(int newsletterId, int agentId, DateTime scheduledAt, NewsLetterAudienceType audienceType = NewsLetterAudienceType.AllSubscribers)
+    {
+        var nl = await _uow.NewsLetters.GetByIdAsync(newsletterId);
+        if (nl == null || nl.AgentUserId != agentId)
+        {
+            return null;
+        }
+
+        var send = new NewsLetterSend
+        {
+            NewsLetterId = newsletterId,
+            AgentUserId = agentId,
+            AudienceType = audienceType,
+            AudienceLabel = GetAudienceLabel(audienceType),
+            Status = NewsLetterSendStatus.Scheduled,
+            ScheduledAt = scheduledAt,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _uow.NewsLetterSends.AddAsync(send);
+
+        nl.Status = NewsLetterStatus.Draft;
+        nl.ScheduledAt = null;
+        nl.SentAt = null;
+        _uow.NewsLetters.Update(nl);
+
+        await _uow.SaveChangesAsync();
+        return send;
     }
 
     public async Task MarkAsSentAsync(int id, int totalSent)
@@ -63,6 +90,12 @@ public class NewsLetterService : INewsLetterService
 
     public Task<IEnumerable<NewsLetterRecipient>> GetRecipientsAsync(int newsletterId) =>
         _uow.NewsLetterRecipients.FindAsync(r => r.NewsLetterId == newsletterId);
+
+    public Task<IEnumerable<NewsLetterRecipient>> GetRecipientsForSendAsync(int sendId) =>
+        _uow.NewsLetterRecipients.FindAsync(r => r.NewsLetterSendId == sendId);
+
+    public Task<IEnumerable<NewsLetterSend>> GetSendsAsync(int newsletterId) =>
+        _uow.NewsLetterSends.FindAsync(s => s.NewsLetterId == newsletterId);
 
     public async Task RecordRecipientEventAsync(int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt)
     {
@@ -124,13 +157,27 @@ public class NewsLetterService : INewsLetterService
 
         _uow.NewsLetterRecipients.Update(recipient);
 
-        var newsletter = await _uow.NewsLetters.GetByIdAsync(recipient.NewsLetterId);
-        if (newsletter != null)
+        if (recipient.NewsLetterSendId.HasValue)
         {
-            var recipients = (await _uow.NewsLetterRecipients.FindAsync(r => r.NewsLetterId == recipient.NewsLetterId)).ToList();
-            newsletter.TotalSent = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
-            newsletter.TotalOpened = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
-            _uow.NewsLetters.Update(newsletter);
+            var send = await _uow.NewsLetterSends.GetByIdAsync(recipient.NewsLetterSendId.Value);
+            if (send != null)
+            {
+                var recipients = (await _uow.NewsLetterRecipients.FindAsync(r => r.NewsLetterSendId == send.Id)).ToList();
+                send.TotalSent = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+                send.TotalOpened = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+                _uow.NewsLetterSends.Update(send);
+            }
+        }
+        else
+        {
+            var newsletter = await _uow.NewsLetters.GetByIdAsync(recipient.NewsLetterId);
+            if (newsletter != null)
+            {
+                var recipients = (await _uow.NewsLetterRecipients.FindAsync(r => r.NewsLetterId == recipient.NewsLetterId)).ToList();
+                newsletter.TotalSent = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+                newsletter.TotalOpened = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+                _uow.NewsLetters.Update(newsletter);
+            }
         }
 
         await _uow.SaveChangesAsync();
@@ -150,4 +197,12 @@ public class NewsLetterService : INewsLetterService
         var article = await _uow.NewsLetterArticles.GetByIdAsync(articleId);
         if (article != null) { _uow.NewsLetterArticles.Remove(article); await _uow.SaveChangesAsync(); }
     }
+
+    private static string GetAudienceLabel(NewsLetterAudienceType audienceType) => audienceType switch
+    {
+        NewsLetterAudienceType.AccountType => "Selected account type",
+        NewsLetterAudienceType.SelectedClients => "Selected clients",
+        NewsLetterAudienceType.IndividualClient => "Individual client",
+        _ => "All newsletter subscribers"
+    };
 }

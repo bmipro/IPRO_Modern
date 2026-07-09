@@ -20,14 +20,36 @@ public class NewsLetterDispatcher
     public async Task DispatchAsync(int newsletterId)
     {
         var newsletter = await _uow.NewsLetters.GetByIdAsync(newsletterId);
-        if (newsletter == null || newsletter.Status != NewsLetterStatus.Scheduled) return;
+        if (newsletter == null) return;
 
-        newsletter.Status = NewsLetterStatus.Sending;
-        _uow.NewsLetters.Update(newsletter);
+        var send = (await _uow.NewsLetterSends.FindAsync(s =>
+                s.NewsLetterId == newsletterId &&
+                s.Status == NewsLetterSendStatus.Scheduled))
+            .OrderBy(s => s.ScheduledAt)
+            .FirstOrDefault();
+
+        if (send == null)
+        {
+            return;
+        }
+
+        await DispatchSendAsync(send.Id);
+    }
+
+    public async Task DispatchSendAsync(int sendId)
+    {
+        var send = await _uow.NewsLetterSends.GetByIdAsync(sendId);
+        if (send == null || send.Status != NewsLetterSendStatus.Scheduled) return;
+
+        var newsletter = await _uow.NewsLetters.GetByIdAsync(send.NewsLetterId);
+        if (newsletter == null) return;
+
+        send.Status = NewsLetterSendStatus.Sending;
+        _uow.NewsLetterSends.Update(send);
         await _uow.SaveChangesAsync();
 
         var subscribers = (await _uow.Clients.FindAsync(c =>
-            c.AgentUserId == newsletter.AgentUserId && c.IsNewsletterSubscribed))
+            c.AgentUserId == send.AgentUserId && c.IsNewsletterSubscribed))
             .ToList();
 
         var recipients = subscribers
@@ -35,6 +57,7 @@ public class NewsLetterDispatcher
             .Select(c => new NewsLetterRecipient
             {
                 NewsLetterId = newsletter.Id,
+                NewsLetterSendId = send.Id,
                 ClientId = c.Id,
                 Email = c.Email.Trim().ToLowerInvariant(),
                 RecipientName = $"{c.FirstName} {c.LastName}".Trim(),
@@ -42,9 +65,9 @@ public class NewsLetterDispatcher
             })
             .ToList();
 
-        newsletter.TotalRecipients = recipients.Count;
+        send.TotalRecipients = recipients.Count;
         await _uow.NewsLetterRecipients.AddRangeAsync(recipients);
-        _uow.NewsLetters.Update(newsletter);
+        _uow.NewsLetterSends.Update(send);
         await _uow.SaveChangesAsync();
 
         var sentCount = 0;
@@ -60,9 +83,10 @@ public class NewsLetterDispatcher
                 {
                     ["ipro_entity"] = "newsletter",
                     ["newsletter_id"] = newsletter.Id.ToString(),
+                    ["newsletter_send_id"] = send.Id.ToString(),
                     ["newsletter_recipient_id"] = recipient.Id.ToString(),
                     ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
-                    ["agent_user_id"] = newsletter.AgentUserId.ToString()
+                    ["agent_user_id"] = send.AgentUserId.ToString()
                 });
 
             recipient.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
@@ -80,14 +104,14 @@ public class NewsLetterDispatcher
             }
         }
 
-        newsletter.Status = sentCount > 0 ? NewsLetterStatus.Sent : NewsLetterStatus.Cancelled;
-        newsletter.SentAt = DateTime.UtcNow;
-        newsletter.TotalSent = sentCount;
-        _uow.NewsLetters.Update(newsletter);
+        send.Status = sentCount > 0 ? NewsLetterSendStatus.Sent : NewsLetterSendStatus.Cancelled;
+        send.SentAt = DateTime.UtcNow;
+        send.TotalSent = sentCount;
+        _uow.NewsLetterSends.Update(send);
         await _uow.SaveChangesAsync();
 
-        _logger.LogInformation("Newsletter {Id} dispatched to {Count} recipients. Success: {Success}",
-            newsletterId, recipients.Count, sentCount > 0);
+        _logger.LogInformation("Newsletter send {SendId} for newsletter {NewsletterId} dispatched to {Count} recipients. Success: {Success}",
+            send.Id, newsletter.Id, recipients.Count, sentCount > 0);
     }
 
     public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName)

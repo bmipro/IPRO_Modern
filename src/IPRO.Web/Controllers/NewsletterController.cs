@@ -95,6 +95,11 @@ public class NewsletterController : Controller
 
         await LoadNewsletterContextAsync();
         ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
+        var sends = (await _newsletters.GetSendsAsync(id)).OrderByDescending(s => s.ScheduledAt).ToList();
+        ViewBag.Sends = sends;
+        ViewBag.Recipients = sends.Any()
+            ? await _newsletters.GetRecipientsForSendAsync(sends.First().Id)
+            : Enumerable.Empty<NewsLetterRecipient>();
         return View(nl);
     }
     [HttpPost, ValidateAntiForgeryToken]
@@ -103,10 +108,15 @@ public class NewsletterController : Controller
         var gate = await RequireNewsletterAccessAsync();
         if (gate != null) return gate;
 
+        var nl = await _newsletters.GetByIdAsync(id);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
         var agentTimeZone = await GetAgentTimeZoneAsync();
-        await _newsletters.ScheduleAsync(id, AgentTimeZoneHelper.ToUtc(scheduledAt, agentTimeZone));
-        TempData["Success"] = $"Newsletter scheduled for {scheduledAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
-        return RedirectToAction(nameof(Index));
+        var send = await _newsletters.ScheduleSendAsync(id, AgentId, AgentTimeZoneHelper.ToUtc(scheduledAt, agentTimeZone));
+        TempData["Success"] = send == null
+            ? "Newsletter could not be scheduled."
+            : $"Newsletter send scheduled for {scheduledAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
+        return RedirectToAction(nameof(Preview), new { id });
     }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddArticle(NewsLetterArticle article) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await _newsletters.AddArticleAsync(article); return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId }); }
@@ -188,6 +198,7 @@ public class NewsletterController : Controller
             nameof(NewsLetter.TextBody),
             nameof(NewsLetter.AgentUser),
             nameof(NewsLetter.Articles),
+            nameof(NewsLetter.Sends),
             nameof(NewsLetter.AgentUserId),
             nameof(NewsLetter.Status),
             nameof(NewsLetter.ScheduledAt),

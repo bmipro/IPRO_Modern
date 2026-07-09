@@ -28,6 +28,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<SubscriptionChange>? _subscriptionChanges;
     private IRepository<NewsLetter>? _newsLetters;
     private IRepository<NewsLetterArticle>? _newsLetterArticles;
+    private IRepository<NewsLetterSend>? _newsLetterSends;
     private IRepository<NewsLetterRecipient>? _newsLetterRecipients;
     private IRepository<DripCampaign>? _dripCampaigns;
     private IRepository<DripCampaignStep>? _dripCampaignSteps;
@@ -58,6 +59,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     public IRepository<SubscriptionChange> SubscriptionChanges => _subscriptionChanges ??= new Repository<SubscriptionChange>(_context);
     public IRepository<NewsLetter> NewsLetters => _newsLetters ??= new Repository<NewsLetter>(_context);
     public IRepository<NewsLetterArticle> NewsLetterArticles => _newsLetterArticles ??= new Repository<NewsLetterArticle>(_context);
+    public IRepository<NewsLetterSend> NewsLetterSends => _newsLetterSends ??= new Repository<NewsLetterSend>(_context);
     public IRepository<NewsLetterRecipient> NewsLetterRecipients => _newsLetterRecipients ??= new Repository<NewsLetterRecipient>(_context);
     public IRepository<DripCampaign> DripCampaigns => _dripCampaigns ??= new Repository<DripCampaign>(_context);
     public IRepository<DripCampaignStep> DripCampaignSteps => _dripCampaignSteps ??= new Repository<DripCampaignStep>(_context);

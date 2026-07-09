@@ -18,14 +18,14 @@ public class NewsLetterDispatchJob
 
     public async Task RunAsync()
     {
-        var due = await _uow.NewsLetters.FindAsync(n =>
-            n.Status == NewsLetterStatus.Scheduled &&
-            n.ScheduledAt <= DateTime.UtcNow);
+        var due = await _uow.NewsLetterSends.FindAsync(s =>
+            s.Status == NewsLetterSendStatus.Scheduled &&
+            s.ScheduledAt <= DateTime.UtcNow);
 
-        foreach (var nl in due)
+        foreach (var send in due)
         {
-            _logger.LogInformation("Dispatching newsletter {Id}: {Subject}", nl.Id, nl.Subject);
-            await _dispatcher.DispatchAsync(nl.Id);
+            _logger.LogInformation("Dispatching newsletter send {SendId} for newsletter {NewsletterId}", send.Id, send.NewsLetterId);
+            await _dispatcher.DispatchSendAsync(send.Id);
         }
     }
 }

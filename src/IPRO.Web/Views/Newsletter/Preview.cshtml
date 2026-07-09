@@ -2,9 +2,11 @@
 @{
     ViewData["Title"] = "Preview Newsletter";
     var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>;
+    var sends = (ViewBag.Sends as IEnumerable<IPRO.Entities.NewsLetterSend> ?? Enumerable.Empty<IPRO.Entities.NewsLetterSend>()).OrderByDescending(s => s.ScheduledAt).ToList();
+    var latestSend = sends.FirstOrDefault();
     var recipients = (ViewBag.Recipients as IEnumerable<IPRO.Entities.NewsLetterRecipient> ?? Enumerable.Empty<IPRO.Entities.NewsLetterRecipient>()).ToList();
     var subscriberCount = (int)(ViewBag.SubscriberCount ?? 0);
-    var canSchedule = Model.Status != IPRO.Entities.NewsLetterStatus.Sent;
+    var canSchedule = true;
     var sentCount = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
     var deliveredCount = recipients.Count(r => r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
     var openedCount = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
@@ -24,7 +26,7 @@
     </nav>
     <div class="d-flex align-items-center gap-3">
       <h2 class="fw-bold mb-0"><i class="fas fa-eye me-2 text-primary"></i>Preview Newsletter</h2>
-      <span class="badge bg-@(Model.Status == IPRO.Entities.NewsLetterStatus.Sent ? "success" : Model.Status == IPRO.Entities.NewsLetterStatus.Scheduled ? "warning text-dark" : "secondary") fs-6">@Model.Status</span>
+      <span class="badge bg-primary fs-6">Reusable Content</span>
     </div>
   </div>
   <div class="d-flex gap-2">
@@ -37,9 +39,9 @@
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-0 p-4 pb-0">
-        <div class="small text-uppercase text-muted fw-bold mb-2">Email preview</div>
+        <div class="small text-uppercase text-muted fw-bold mb-2">Reusable email preview</div>
         <h4 class="fw-bold mb-1">@Model.Subject</h4>
-        <div class="text-muted small">To: @subscriberCount newsletter subscriber@(subscriberCount == 1 ? "" : "s")</div>
+        <div class="text-muted small">Ready to send to @subscriberCount newsletter subscriber@(subscriberCount == 1 ? "" : "s"), groups, or selected clients as we expand targeting.</div>
       </div>
       <div class="card-body p-4">
         <div class="newsletter-preview-shell">
@@ -104,8 +106,12 @@
           <strong>@failedCount</strong>
         </div>
         <div class="d-flex justify-content-between py-2 border-bottom">
-          <span class="text-muted">Status</span>
-          <strong>@Model.Status</strong>
+          <span class="text-muted">Send runs</span>
+          <strong>@sends.Count</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Latest send</span>
+          <strong>@(latestSend == null ? "-" : latestSend.Status.ToString())</strong>
         </div>
         <div class="d-flex justify-content-between py-2">
           <span class="text-muted">Created</span>
@@ -117,7 +123,7 @@
 
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-0 pt-4 px-4">
-        <h5 class="fw-bold mb-0"><i class="fas fa-calendar me-2 text-warning"></i>Schedule send</h5>
+        <h5 class="fw-bold mb-0"><i class="fas fa-calendar me-2 text-warning"></i>Send this newsletter</h5>
       </div>
       <div class="card-body px-4 pb-4">
         @if (canSchedule)
@@ -130,24 +136,67 @@
               <input type="datetime-local" name="scheduledAt" class="form-control" required min="@agentNow.ToString("yyyy-MM-ddTHH:mm")" />
               <div class="form-text">Times are interpreted as @agentTimeZoneLabel time.</div>
             </div>
-            <button type="submit" class="btn btn-warning w-100"><i class="fas fa-clock me-1"></i>Schedule Send</button>
+            <button type="submit" class="btn btn-warning w-100"><i class="fas fa-clock me-1"></i>Schedule New Send</button>
           </form>
-        }
-        else
-        {
-          <div class="alert alert-success mb-0">This newsletter has already been sent.</div>
         }
       </div>
     </div>
   </div>
 </div>
 
+@if (sends.Any())
+{
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-white border-0 p-4 pb-0">
+      <h5 class="fw-bold mb-1"><i class="fas fa-history me-2 text-primary"></i>Send History</h5>
+      <div class="text-muted small">The same newsletter content can be reused; each send run keeps its own schedule, audience, and tracking.</div>
+    </div>
+    <div class="card-body p-4">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Scheduled</th>
+              <th>Audience</th>
+              <th>Status</th>
+              <th>Recipients</th>
+              <th>Sent</th>
+              <th>Opened</th>
+            </tr>
+          </thead>
+          <tbody>
+          @foreach (var send in sends)
+          {
+            var sendStatusClass = send.Status switch
+            {
+                IPRO.Entities.NewsLetterSendStatus.Sent => "bg-success",
+                IPRO.Entities.NewsLetterSendStatus.Sending => "bg-info",
+                IPRO.Entities.NewsLetterSendStatus.Scheduled => "bg-warning text-dark",
+                IPRO.Entities.NewsLetterSendStatus.Failed => "bg-danger",
+                _ => "bg-secondary"
+            };
+            <tr>
+              <td class="fw-semibold">@IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(send.ScheduledAt, agentTimeZone).ToString("MMM d, yyyy h:mm tt")</td>
+              <td>@send.AudienceLabel</td>
+              <td><span class="badge @sendStatusClass">@send.Status</span></td>
+              <td>@send.TotalRecipients</td>
+              <td>@send.TotalSent</td>
+              <td>@send.TotalOpened</td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
+
 @if (recipients.Any())
 {
   <div class="card border-0 shadow-sm mt-4">
     <div class="card-header bg-white border-0 p-4 pb-0">
-      <h5 class="fw-bold mb-1"><i class="fas fa-chart-line me-2 text-info"></i>Delivery Tracking</h5>
-      <div class="text-muted small">Recipient-level sent, delivered, read, and failure status.</div>
+      <h5 class="fw-bold mb-1"><i class="fas fa-chart-line me-2 text-info"></i>Latest Send Delivery Tracking</h5>
+      <div class="text-muted small">Recipient-level sent, delivered, read, and failure status for the most recent send run.</div>
     </div>
     <div class="card-body p-4">
       <div class="table-responsive">

@@ -23,6 +23,7 @@ public class IPRODbContext : DbContext
     public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
     public DbSet<NewsLetter> NewsLetters => Set<NewsLetter>();
     public DbSet<NewsLetterArticle> NewsLetterArticles => Set<NewsLetterArticle>();
+    public DbSet<NewsLetterSend> NewsLetterSends => Set<NewsLetterSend>();
     public DbSet<NewsLetterRecipient> NewsLetterRecipients => Set<NewsLetterRecipient>();
     public DbSet<DripCampaign> DripCampaigns => Set<DripCampaign>();
     public DbSet<DripCampaignStep> DripCampaignSteps => Set<DripCampaignStep>();
@@ -222,6 +223,7 @@ public class IPRODbContext : DbContext
         modelBuilder.Entity<NewsLetterRecipient>(e =>
         {
             e.HasIndex(r => new { r.NewsLetterId, r.Email });
+            e.HasIndex(r => r.NewsLetterSendId);
             e.HasIndex(r => r.SendGridMessageId);
             e.Property(r => r.Email).HasMaxLength(200).IsRequired();
             e.Property(r => r.RecipientName).HasMaxLength(160);
@@ -234,10 +236,31 @@ public class IPRODbContext : DbContext
              .HasForeignKey(r => r.NewsLetterId)
              .OnDelete(DeleteBehavior.Cascade);
 
+            e.HasOne(r => r.NewsLetterSend)
+             .WithMany(s => s.Recipients)
+             .HasForeignKey(r => r.NewsLetterSendId)
+             .OnDelete(DeleteBehavior.SetNull);
+
             e.HasOne(r => r.Client)
              .WithMany()
              .HasForeignKey(r => r.ClientId)
              .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<NewsLetterSend>(e =>
+        {
+            e.HasIndex(s => new { s.AgentUserId, s.ScheduledAt });
+            e.Property(s => s.AudienceLabel).HasMaxLength(200).IsRequired();
+
+            e.HasOne(s => s.NewsLetter)
+             .WithMany(n => n.Sends)
+             .HasForeignKey(s => s.NewsLetterId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(s => s.AgentUser)
+             .WithMany()
+             .HasForeignKey(s => s.AgentUserId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // DripCampaign → Steps
