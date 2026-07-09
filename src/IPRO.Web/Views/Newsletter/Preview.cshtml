@@ -9,7 +9,13 @@
     var sentCount = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
     var deliveredCount = recipients.Count(r => r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
     var openedCount = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
-    var failedCount = recipients.Count(r => r.Status is IPRO.Entities.NewsLetterRecipientStatus.Bounced or IPRO.Entities.NewsLetterRecipientStatus.Failed or IPRO.Entities.NewsLetterRecipientStatus.Dropped);
+    var failedCount = recipients.Count(r =>
+        r.Status is IPRO.Entities.NewsLetterRecipientStatus.Bounced or IPRO.Entities.NewsLetterRecipientStatus.Failed or IPRO.Entities.NewsLetterRecipientStatus.Dropped ||
+        (!string.IsNullOrWhiteSpace(r.FailureReason) &&
+         r.Status == IPRO.Entities.NewsLetterRecipientStatus.Sent &&
+         !r.DeliveredAt.HasValue &&
+         !r.OpenedAt.HasValue &&
+         !r.ClickedAt.HasValue));
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     var agentTimeZoneLabel = ViewBag.AgentTimeZoneLabel as string ?? "Eastern";
     var agentNow = ViewBag.AgentNow as DateTime? ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, agentTimeZone);
@@ -204,7 +210,17 @@
           <tbody>
           @foreach (var recipient in recipients.OrderBy(r => r.RecipientName).ThenBy(r => r.Email))
           {
-            var statusClass = recipient.Status switch
+            var effectiveStatus = recipient.Status;
+            if (!string.IsNullOrWhiteSpace(recipient.FailureReason) &&
+                recipient.Status == IPRO.Entities.NewsLetterRecipientStatus.Sent &&
+                !recipient.DeliveredAt.HasValue &&
+                !recipient.OpenedAt.HasValue &&
+                !recipient.ClickedAt.HasValue)
+            {
+                effectiveStatus = IPRO.Entities.NewsLetterRecipientStatus.Failed;
+            }
+
+            var statusClass = effectiveStatus switch
             {
                 IPRO.Entities.NewsLetterRecipientStatus.Opened or IPRO.Entities.NewsLetterRecipientStatus.Clicked => "bg-success",
                 IPRO.Entities.NewsLetterRecipientStatus.Delivered or IPRO.Entities.NewsLetterRecipientStatus.Sent => "bg-primary",
@@ -215,7 +231,7 @@
             <tr>
               <td class="fw-semibold">@(string.IsNullOrWhiteSpace(recipient.RecipientName) ? "-" : recipient.RecipientName)</td>
               <td><a href="mailto:@recipient.Email">@recipient.Email</a></td>
-              <td><span class="badge @statusClass">@recipient.Status</span></td>
+              <td><span class="badge @statusClass">@effectiveStatus</span></td>
               <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.SentAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>
               <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.DeliveredAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>
               <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.OpenedAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>

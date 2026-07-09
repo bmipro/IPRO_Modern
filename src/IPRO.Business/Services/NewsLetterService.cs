@@ -116,21 +116,36 @@ public class NewsLetterService : INewsLetterService
         {
             case "processed":
             case "sent":
-                recipient.Status = NewsLetterRecipientStatus.Sent;
+                if (!IsTerminalFailure(recipient.Status) && recipient.Status != NewsLetterRecipientStatus.Delivered && recipient.Status != NewsLetterRecipientStatus.Opened && recipient.Status != NewsLetterRecipientStatus.Clicked)
+                {
+                    recipient.Status = NewsLetterRecipientStatus.Sent;
+                }
                 recipient.SentAt ??= occurredAt;
                 break;
             case "delivered":
-                recipient.Status = NewsLetterRecipientStatus.Delivered;
+                if (!IsTerminalFailure(recipient.Status))
+                {
+                    recipient.Status = NewsLetterRecipientStatus.Delivered;
+                    recipient.FailureReason = string.Empty;
+                }
                 recipient.DeliveredAt ??= occurredAt;
                 break;
             case "open":
             case "opened":
-                recipient.Status = NewsLetterRecipientStatus.Opened;
+                if (!IsTerminalFailure(recipient.Status))
+                {
+                    recipient.Status = NewsLetterRecipientStatus.Opened;
+                    recipient.FailureReason = string.Empty;
+                }
                 recipient.OpenedAt ??= occurredAt;
                 break;
             case "click":
             case "clicked":
-                recipient.Status = NewsLetterRecipientStatus.Clicked;
+                if (!IsTerminalFailure(recipient.Status))
+                {
+                    recipient.Status = NewsLetterRecipientStatus.Clicked;
+                    recipient.FailureReason = string.Empty;
+                }
                 recipient.ClickedAt ??= occurredAt;
                 recipient.OpenedAt ??= occurredAt;
                 break;
@@ -229,4 +244,10 @@ public class NewsLetterService : INewsLetterService
             _ => "All newsletter subscribers"
         };
     }
+
+    private static bool IsTerminalFailure(NewsLetterRecipientStatus status) =>
+        status is NewsLetterRecipientStatus.Bounced
+            or NewsLetterRecipientStatus.Dropped
+            or NewsLetterRecipientStatus.Failed
+            or NewsLetterRecipientStatus.Unsubscribed;
 }
