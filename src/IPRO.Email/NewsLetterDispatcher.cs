@@ -2,7 +2,9 @@ using IPRO.DataAccess.Repositories;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace IPRO.Email;
 
@@ -11,13 +13,15 @@ public class NewsLetterDispatcher
     private readonly IUnitOfWork _uow;
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<NewsLetterDispatcher> _logger;
 
-    public NewsLetterDispatcher(IUnitOfWork uow, IPRODbContext db, IEmailService email, ILogger<NewsLetterDispatcher> logger)
+    public NewsLetterDispatcher(IUnitOfWork uow, IPRODbContext db, IEmailService email, IConfiguration configuration, ILogger<NewsLetterDispatcher> logger)
     {
         _uow = uow;
         _db = db;
         _email = email;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -63,7 +67,8 @@ public class NewsLetterDispatcher
                 ClientId = c.Id,
                 Email = c.Email.Trim().ToLowerInvariant(),
                 RecipientName = $"{c.FirstName} {c.LastName}".Trim(),
-                Status = NewsLetterRecipientStatus.Queued
+                Status = NewsLetterRecipientStatus.Queued,
+                UnsubscribeToken = Guid.NewGuid().ToString("N")
             })
             .ToList();
 
@@ -75,12 +80,13 @@ public class NewsLetterDispatcher
         var sentCount = 0;
         foreach (var recipient in recipients)
         {
+            var unsubscribeUrl = BuildUnsubscribeUrl(recipient.UnsubscribeToken);
             var result = await _email.SendDetailedAsync(
                 recipient.Email,
                 recipient.RecipientName,
                 newsletter.Subject,
-                newsletter.HtmlBody,
-                newsletter.TextBody,
+                AppendUnsubscribeHtml(newsletter.HtmlBody, unsubscribeUrl),
+                AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl),
                 new Dictionary<string, string>
                 {
                     ["ipro_entity"] = "newsletter",
@@ -114,6 +120,43 @@ public class NewsLetterDispatcher
 
         _logger.LogInformation("Newsletter send {SendId} for newsletter {NewsletterId} dispatched to {Count} recipients. Success: {Success}",
             send.Id, newsletter.Id, recipients.Count, sentCount > 0);
+    }
+
+    private string BuildUnsubscribeUrl(string token)
+    {
+        var baseUrl = _configuration["App:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("yourdomain.com", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = "https://ipro-prod-web.azurewebsites.net";
+        }
+
+        return $"{baseUrl.TrimEnd('/')}/Newsletter/Unsubscribe?token={WebUtility.UrlEncode(token)}";
+    }
+
+    private static string AppendUnsubscribeHtml(string htmlBody, string unsubscribeUrl)
+    {
+        var encodedUrl = WebUtility.HtmlEncode(unsubscribeUrl);
+        var footer = $"""
+            <div style="margin-top:32px;padding-top:16px;border-top:1px solid #dbe4f0;color:#64748b;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">
+              You are receiving this email because you are subscribed to updates from your IPRO adviser.
+              <br>
+              <a href="{encodedUrl}" style="color:#2563eb;">Unsubscribe from future newsletters</a>
+            </div>
+            """;
+
+        return $"{htmlBody}{Environment.NewLine}{footer}";
+    }
+
+    private static string AppendUnsubscribeText(string? textBody, string unsubscribeUrl)
+    {
+        return $"""
+            {textBody ?? string.Empty}
+
+            ---
+            You are receiving this email because you are subscribed to updates from your IPRO adviser.
+            Unsubscribe from future newsletters:
+            {unsubscribeUrl}
+            """;
     }
 
     private async Task<List<Client>> GetAudienceClientsAsync(NewsLetterSend send)

@@ -226,9 +226,11 @@ public class IPRODbContext : DbContext
             e.HasIndex(r => new { r.NewsLetterId, r.Email });
             e.HasIndex(r => r.NewsLetterSendId);
             e.HasIndex(r => r.SendGridMessageId);
+            e.HasIndex(r => r.UnsubscribeToken);
             e.Property(r => r.Email).HasMaxLength(200).IsRequired();
             e.Property(r => r.RecipientName).HasMaxLength(160);
             e.Property(r => r.SendGridMessageId).HasMaxLength(200);
+            e.Property(r => r.UnsubscribeToken).HasMaxLength(80);
             e.Property(r => r.LastEvent).HasMaxLength(80);
             e.Property(r => r.FailureReason).HasMaxLength(1000);
 

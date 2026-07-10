@@ -20,8 +20,9 @@ public class NewsletterController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IUnitOfWork _uow;
     private readonly NewsLetterDispatcher _dispatcher;
+    private readonly IEmailService _email;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, NewsLetterDispatcher dispatcher) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _dispatcher = dispatcher; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, NewsLetterDispatcher dispatcher, IEmailService email) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _dispatcher = dispatcher; _email = email; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
@@ -130,6 +131,77 @@ public class NewsletterController : Controller
             cancelled ? "Scheduled newsletter send cancelled." : "Scheduled newsletter send could not be cancelled.";
         return RedirectToAction(nameof(Preview), new { id = newsletterId });
     }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendTest(int id)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var nl = await _newsletters.GetByIdAsync(id);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
+        var agent = await _uow.AgentUsers.GetByIdAsync(AgentId);
+        if (agent == null || string.IsNullOrWhiteSpace(agent.Email))
+        {
+            TempData["Error"] = "Your agent profile does not have an email address for test sends.";
+            return RedirectToAction(nameof(Preview), new { id });
+        }
+
+        var htmlBody = $"""
+            <div style="margin-bottom:16px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e3a8a;font-family:Arial,sans-serif;">
+              <strong>Test send:</strong> This preview was sent only to you. No clients received it.
+            </div>
+            {nl.HtmlBody}
+            """;
+        var result = await _email.SendDetailedAsync(
+            agent.Email,
+            $"{agent.FirstName} {agent.LastName}".Trim(),
+            $"[TEST] {nl.Subject}",
+            htmlBody,
+            nl.TextBody);
+
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? $"Test newsletter sent to {agent.Email}."
+            : result.Message;
+        return RedirectToAction(nameof(Preview), new { id });
+    }
+
+    [AllowAnonymous]
+    public async Task<IActionResult> Unsubscribe(string token)
+    {
+        var recipient = string.IsNullOrWhiteSpace(token)
+            ? null
+            : (await _uow.NewsLetterRecipients.FindAsync(r => r.UnsubscribeToken == token.Trim())).FirstOrDefault();
+
+        if (recipient == null)
+        {
+            ViewBag.Success = false;
+            return View();
+        }
+
+        recipient.Status = NewsLetterRecipientStatus.Unsubscribed;
+        recipient.LastEvent = "unsubscribe";
+        recipient.UpdatedAt = DateTime.UtcNow;
+        _uow.NewsLetterRecipients.Update(recipient);
+
+        if (recipient.ClientId.HasValue)
+        {
+            var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
+            if (client != null)
+            {
+                client.IsNewsletterSubscribed = false;
+                client.UpdatedAt = DateTime.UtcNow;
+                _uow.Clients.Update(client);
+            }
+        }
+
+        await _uow.SaveChangesAsync();
+        ViewBag.Success = true;
+        ViewBag.Email = recipient.Email;
+        return View();
+    }
+
     public async Task<IActionResult> Send(int id)
     {
         var gate = await RequireNewsletterAccessAsync();

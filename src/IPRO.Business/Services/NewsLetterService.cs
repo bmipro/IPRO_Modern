@@ -221,6 +221,16 @@ public class NewsLetterService : INewsLetterService
             case "group_unsubscribe":
                 recipient.Status = NewsLetterRecipientStatus.Unsubscribed;
                 recipient.FailureReason = reason ?? recipient.FailureReason;
+                if (recipient.ClientId.HasValue)
+                {
+                    var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
+                    if (client != null)
+                    {
+                        client.IsNewsletterSubscribed = false;
+                        client.UpdatedAt = DateTime.UtcNow;
+                        _uow.Clients.Update(client);
+                    }
+                }
                 break;
         }
 
