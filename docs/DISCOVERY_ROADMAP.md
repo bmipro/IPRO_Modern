@@ -1,6 +1,6 @@
 # IPRO Modern Discovery Roadmap
 
-Last updated: 2026-07-06
+Last updated: 2026-07-10
 
 ## Current Priority
 
@@ -85,6 +85,14 @@ Deliverables:
 - Add/remove/edit newsletter articles cleanly.
 - Add reusable templates.
 - Confirm subscriber targeting.
+
+Possible later improvements:
+
+- Add a richer HTML editor with stronger formatting controls.
+- Add polished reusable newsletter templates.
+- Improve delivery reports with clearer sent, delivered, opened, clicked, bounced, and unsubscribed summaries.
+- Expand unsubscribe into full email preference management.
+- Reuse future website pages as newsletter or drip campaign content once page management exists.
 
 ### 5. Old-System Feature Mapping
 
