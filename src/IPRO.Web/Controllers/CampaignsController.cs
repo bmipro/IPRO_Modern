@@ -93,6 +93,10 @@ public class CampaignsController : Controller
                 .Where(c => c.AgentUserId == AgentId && !string.IsNullOrWhiteSpace(c.Email))
                 .OrderBy(c => c.LastName)
                 .ThenBy(c => c.FirstName)
+                .ToListAsync(),
+            Newsletters = await _db.NewsLetters
+                .Where(n => n.AgentUserId == AgentId)
+                .OrderByDescending(n => n.CreatedAt)
                 .ToListAsync()
         });
     }
@@ -131,6 +135,47 @@ public class CampaignsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddStepFromNewsletter(int id, int newsletterId, int delayDays)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (campaign == null) return NotFound();
+
+        var newsletter = await _db.NewsLetters.FirstOrDefaultAsync(n => n.Id == newsletterId && n.AgentUserId == AgentId);
+        if (newsletter == null) return NotFound();
+
+        var body = !string.IsNullOrWhiteSpace(newsletter.HtmlBody)
+            ? newsletter.HtmlBody
+            : ConvertPlainTextToHtml(newsletter.TextBody);
+
+        if (string.IsNullOrWhiteSpace(newsletter.Subject) || string.IsNullOrWhiteSpace(body))
+        {
+            TempData["Error"] = "That newsletter does not have enough content to use as a campaign step.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var nextOrder = await _db.DripCampaignSteps
+            .Where(s => s.DripCampaignId == id)
+            .Select(s => (int?)s.SortOrder)
+            .MaxAsync() ?? 0;
+
+        _db.DripCampaignSteps.Add(new DripCampaignStep
+        {
+            DripCampaignId = id,
+            Subject = newsletter.Subject.Trim(),
+            HtmlBody = body.Trim(),
+            DelayDays = Math.Max(0, delayDays),
+            SortOrder = nextOrder + 10
+        });
+
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"Newsletter \"{newsletter.Subject}\" added as a campaign step.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteStep(int id, int stepId)
     {
         var gate = await RequireCampaignAccessAsync();
@@ -147,6 +192,38 @@ public class CampaignsController : Controller
             TempData["Success"] = "Campaign step removed.";
         }
 
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReplaceStepWithNewsletter(int id, int stepId, int newsletterId, int delayDays)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (campaign == null) return NotFound();
+
+        var step = await _db.DripCampaignSteps.FirstOrDefaultAsync(s => s.Id == stepId && s.DripCampaignId == id);
+        var newsletter = await _db.NewsLetters.FirstOrDefaultAsync(n => n.Id == newsletterId && n.AgentUserId == AgentId);
+        if (step == null || newsletter == null) return NotFound();
+
+        var body = !string.IsNullOrWhiteSpace(newsletter.HtmlBody)
+            ? newsletter.HtmlBody
+            : ConvertPlainTextToHtml(newsletter.TextBody);
+
+        if (string.IsNullOrWhiteSpace(newsletter.Subject) || string.IsNullOrWhiteSpace(body))
+        {
+            TempData["Error"] = "That newsletter does not have enough content to use as a campaign step.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        step.Subject = newsletter.Subject.Trim();
+        step.HtmlBody = body.Trim();
+        step.DelayDays = Math.Max(0, delayDays);
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Campaign step replaced with newsletter content.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -307,6 +384,22 @@ public class CampaignsController : Controller
             })
             .OrderBy(c => c.Name)
             .ToListAsync();
+    }
+
+    private static string ConvertPlainTextToHtml(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+        var paragraphs = text
+            .Replace("\r\n", "\n")
+            .Split('\n', StringSplitOptions.TrimEntries);
+
+        return string.Join(
+            Environment.NewLine,
+            paragraphs.Select(line =>
+                string.IsNullOrWhiteSpace(line)
+                    ? "<br>"
+                    : $"<p>{System.Net.WebUtility.HtmlEncode(line)}</p>"));
     }
 
     private async Task<IActionResult?> RequireCampaignAccessAsync()

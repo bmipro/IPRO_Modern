@@ -24,4 +24,5 @@ public class CampaignDetailsViewModel
     public List<DripCampaignEnrollment> Enrollments { get; set; } = new();
     public List<CampaignGroupSummary> Groups { get; set; } = new();
     public List<Client> Clients { get; set; } = new();
+    public List<NewsLetter> Newsletters { get; set; } = new();
 }
