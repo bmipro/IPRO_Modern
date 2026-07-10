@@ -24,6 +24,44 @@ public class NewsLetterService : INewsLetterService
         return newsletter;
     }
 
+    public async Task<NewsLetter?> DuplicateAsync(int id, int agentId)
+    {
+        var source = await _uow.NewsLetters.GetByIdAsync(id);
+        if (source == null || source.AgentUserId != agentId)
+        {
+            return null;
+        }
+
+        var copy = new NewsLetter
+        {
+            AgentUserId = agentId,
+            Subject = $"{source.Subject} (copy)",
+            HtmlBody = source.HtmlBody,
+            TextBody = source.TextBody,
+            Status = NewsLetterStatus.Draft,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _uow.NewsLetters.AddAsync(copy);
+        await _uow.SaveChangesAsync();
+
+        var articles = await _uow.NewsLetterArticles.FindAsync(a => a.NewsLetterId == source.Id);
+        foreach (var article in articles)
+        {
+            await _uow.NewsLetterArticles.AddAsync(new NewsLetterArticle
+            {
+                NewsLetterId = copy.Id,
+                Title = article.Title,
+                Content = article.Content,
+                ImageUrl = article.ImageUrl,
+                SortOrder = article.SortOrder
+            });
+        }
+
+        await _uow.SaveChangesAsync();
+        return copy;
+    }
+
     public async Task UpdateAsync(NewsLetter newsletter)
     {
         _uow.NewsLetters.Update(newsletter);
@@ -75,6 +113,20 @@ public class NewsLetterService : INewsLetterService
 
         await _uow.SaveChangesAsync();
         return send;
+    }
+
+    public async Task<bool> CancelSendAsync(int sendId, int agentId)
+    {
+        var send = await _uow.NewsLetterSends.GetByIdAsync(sendId);
+        if (send == null || send.AgentUserId != agentId || send.Status != NewsLetterSendStatus.Scheduled)
+        {
+            return false;
+        }
+
+        send.Status = NewsLetterSendStatus.Cancelled;
+        _uow.NewsLetterSends.Update(send);
+        await _uow.SaveChangesAsync();
+        return true;
     }
 
     public async Task MarkAsSentAsync(int id, int totalSent)

@@ -38,10 +38,14 @@ else
           <h6 class="fw-bold mb-1">@nl.Subject</h6>
           <small class="text-muted"><i class="fas fa-repeat me-1"></i>Use this newsletter again whenever the audience or timing changes.</small>
         </div>
-        <div class="card-footer bg-white border-0 px-4 pb-3 d-flex gap-2">
+        <div class="card-footer bg-white border-0 px-4 pb-3 d-flex flex-wrap gap-2">
           <a href="/Newsletter/Preview/@nl.Id" class="btn btn-sm btn-primary flex-grow-1"><i class="fas fa-eye me-1"></i>Preview</a>
           <a href="/Newsletter/Edit/@nl.Id" class="btn btn-sm btn-outline-primary flex-grow-1"><i class="fas fa-edit me-1"></i>Edit</a>
           <a href="/Newsletter/Send/@nl.Id" class="btn btn-sm btn-success flex-grow-1"><i class="fas fa-paper-plane me-1"></i>Send</a>
+          <form asp-action="Duplicate" asp-route-id="@nl.Id" method="post" class="flex-grow-1">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="fas fa-copy me-1"></i>Duplicate</button>
+          </form>
         </div>
       </div>
     </div>

@@ -105,6 +105,31 @@ public class NewsletterController : Controller
             : Enumerable.Empty<NewsLetterRecipient>();
         return View(nl);
     }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Duplicate(int id)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var copy = await _newsletters.DuplicateAsync(id, AgentId);
+        if (copy == null) return NotFound();
+
+        TempData["Success"] = "Newsletter copied as a new reusable draft.";
+        return RedirectToAction(nameof(Edit), new { id = copy.Id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelSend(int id, int newsletterId)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var cancelled = await _newsletters.CancelSendAsync(id, AgentId);
+        TempData[cancelled ? "Success" : "Error"] =
+            cancelled ? "Scheduled newsletter send cancelled." : "Scheduled newsletter send could not be cancelled.";
+        return RedirectToAction(nameof(Preview), new { id = newsletterId });
+    }
     public async Task<IActionResult> Send(int id)
     {
         var gate = await RequireNewsletterAccessAsync();

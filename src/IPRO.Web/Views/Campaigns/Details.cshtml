@@ -1,0 +1,165 @@
+@model IPRO.Web.Models.CampaignDetailsViewModel
+@{
+    ViewData["Title"] = Model.Campaign.Name;
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="/Campaigns">Campaigns</a></li><li class="breadcrumb-item active">@Model.Campaign.Name</li></ol></nav>
+    <h2 class="fw-bold mb-1"><i class="fas fa-stream me-2 text-success"></i>@Model.Campaign.Name</h2>
+    <p class="text-muted mb-0">@Model.Campaign.Description</p>
+  </div>
+  <form asp-action="Toggle" asp-route-id="@Model.Campaign.Id" method="post">
+    @Html.AntiForgeryToken()
+    <button class="btn @(Model.Campaign.IsActive ? "btn-outline-warning" : "btn-success")" type="submit">
+      <i class="fas @(Model.Campaign.IsActive ? "fa-pause" : "fa-play") me-1"></i>@(Model.Campaign.IsActive ? "Pause" : "Activate")
+    </button>
+  </form>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 p-4 pb-0">
+        <h5 class="fw-bold mb-1"><i class="fas fa-list-ol me-2 text-primary"></i>Email Steps</h5>
+        <div class="text-muted small">Step 1 can go immediately. Later steps wait the number of days you set.</div>
+      </div>
+      <div class="card-body p-4">
+        @if (!Model.Steps.Any())
+        {
+          <div class="alert alert-warning">Add at least one step before enrolling clients.</div>
+        }
+        else
+        {
+          <div class="list-group mb-4">
+          @for (var i = 0; i < Model.Steps.Count; i++)
+          {
+            var step = Model.Steps[i];
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="small text-uppercase text-muted fw-bold">Step @(i + 1) - @(step.DelayDays == 0 ? "send immediately" : $"wait {step.DelayDays} day{(step.DelayDays == 1 ? "" : "s")}")</div>
+                  <div class="fw-bold">@step.Subject</div>
+                  <div class="small text-muted text-truncate step-preview">@Html.Raw(System.Text.RegularExpressions.Regex.Replace(step.HtmlBody, "<.*?>", ""))</div>
+                </div>
+                <form asp-action="DeleteStep" asp-route-id="@Model.Campaign.Id" asp-route-stepId="@step.Id" method="post">
+                  @Html.AntiForgeryToken()
+                  <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-trash"></i></button>
+                </form>
+              </div>
+            </div>
+          }
+          </div>
+        }
+
+        <form asp-action="AddStep" asp-route-id="@Model.Campaign.Id" method="post">
+          @Html.AntiForgeryToken()
+          <h6 class="fw-bold mb-3">Add step</h6>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Subject</label>
+              <input name="subject" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Delay days</label>
+              <input name="delayDays" class="form-control" type="number" min="0" value="0" required />
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Email body</label>
+              <textarea name="htmlBody" class="form-control" rows="7" placeholder="<p>Write the email body here...</p>" required></textarea>
+            </div>
+          </div>
+          <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-plus me-1"></i>Add Step</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 p-4 pb-0">
+        <h5 class="fw-bold mb-1"><i class="fas fa-user-plus me-2 text-success"></i>Enroll Audience</h5>
+        <div class="text-muted small">Start this drip sequence for a whole account-type group or one client.</div>
+      </div>
+      <div class="card-body p-4">
+        <form asp-action="EnrollGroup" asp-route-id="@Model.Campaign.Id" method="post" class="mb-4">
+          @Html.AntiForgeryToken()
+          <label class="form-label fw-semibold">Account type / group</label>
+          <div class="input-group">
+            <select name="clientCategoryId" class="form-select" required>
+              <option value="">Choose group...</option>
+              @foreach (var group in Model.Groups)
+              {
+                <option value="@group.Id">@group.Name (@group.ClientCount)</option>
+              }
+            </select>
+            <button class="btn btn-success" type="submit">Enroll Group</button>
+          </div>
+        </form>
+
+        <form asp-action="EnrollClient" asp-route-id="@Model.Campaign.Id" method="post">
+          @Html.AntiForgeryToken()
+          <label class="form-label fw-semibold">Individual client</label>
+          <div class="input-group">
+            <select name="clientId" class="form-select" required>
+              <option value="">Choose client...</option>
+              @foreach (var client in Model.Clients)
+              {
+                <option value="@client.Id">@($"{client.LastName}, {client.FirstName}".Trim(' ', ',')) - @client.Email</option>
+              }
+            </select>
+            <button class="btn btn-outline-success" type="submit">Enroll</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 p-4 pb-0">
+        <h5 class="fw-bold mb-1"><i class="fas fa-users me-2 text-info"></i>Recent Enrollments</h5>
+      </div>
+      <div class="card-body p-4">
+        @if (!Model.Enrollments.Any())
+        {
+          <div class="text-muted">No clients enrolled yet.</div>
+        }
+        else
+        {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead><tr><th>Client</th><th>Next</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+              @foreach (var enrollment in Model.Enrollments)
+              {
+                <tr>
+                  <td>
+                    <div class="fw-semibold">@enrollment.Client.FirstName @enrollment.Client.LastName</div>
+                    <div class="small text-muted">@enrollment.Client.Email</div>
+                  </td>
+                  <td>Step @(enrollment.NextStepIndex + 1)</td>
+                  <td><span class="badge @(enrollment.Status == IPRO.Entities.DripCampaignEnrollmentStatus.Active ? "bg-success" : "bg-secondary")">@enrollment.Status</span></td>
+                  <td class="text-end">
+                    @if (enrollment.Status == IPRO.Entities.DripCampaignEnrollmentStatus.Active)
+                    {
+                      <form asp-action="CancelEnrollment" asp-route-id="@Model.Campaign.Id" asp-route-enrollmentId="@enrollment.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Stop</button>
+                      </form>
+                    }
+                  </td>
+                </tr>
+              }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .step-preview {
+    max-width: 520px;
+  }
+</style>

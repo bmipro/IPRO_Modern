@@ -27,6 +27,7 @@ public class IPRODbContext : DbContext
     public DbSet<NewsLetterRecipient> NewsLetterRecipients => Set<NewsLetterRecipient>();
     public DbSet<DripCampaign> DripCampaigns => Set<DripCampaign>();
     public DbSet<DripCampaignStep> DripCampaignSteps => Set<DripCampaignStep>();
+    public DbSet<DripCampaignEnrollment> DripCampaignEnrollments => Set<DripCampaignEnrollment>();
     public DbSet<Scheduler> Schedulers => Set<Scheduler>();
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
@@ -282,6 +283,33 @@ public class IPRODbContext : DbContext
              .WithOne(s => s.DripCampaign)
              .HasForeignKey(s => s.DripCampaignId)
              .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(d => d.Enrollments)
+             .WithOne(s => s.DripCampaign)
+             .HasForeignKey(s => s.DripCampaignId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DripCampaignEnrollment>(e =>
+        {
+            e.HasIndex(x => new { x.AgentUserId, x.Status, x.NextSendAt });
+            e.HasIndex(x => new { x.DripCampaignId, x.ClientId, x.Status });
+            e.Property(x => x.LastError).HasMaxLength(1000);
+
+            e.HasOne(x => x.AgentUser)
+             .WithMany()
+             .HasForeignKey(x => x.AgentUserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.Client)
+             .WithMany()
+             .HasForeignKey(x => x.ClientId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.ClientCategory)
+             .WithMany()
+             .HasForeignKey(x => x.ClientCategoryId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // BillingRule

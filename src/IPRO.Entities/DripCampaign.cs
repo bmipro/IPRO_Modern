@@ -10,4 +10,5 @@ public class DripCampaign
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<DripCampaignStep> Steps { get; set; } = new List<DripCampaignStep>();
+    public ICollection<DripCampaignEnrollment> Enrollments { get; set; } = new List<DripCampaignEnrollment>();
 }
