@@ -1,4 +1,5 @@
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 
@@ -48,4 +49,19 @@ public class WebsiteService : IWebsiteService
 
     public Task<WebsiteTemplate?> GetTemplateByIdAsync(int id) =>
         _uow.WebsiteTemplates.GetByIdAsync(id);
+
+    public async Task<WebsiteTemplate> EnsureDefaultTemplateAsync()
+    {
+        var activeTemplates = await GetTemplatesAsync();
+        var activeTemplate = activeTemplates.FirstOrDefault();
+        if (activeTemplate != null)
+        {
+            return activeTemplate;
+        }
+
+        var template = WebsiteTemplateSeeder.CreateDefaultTemplate();
+        await _uow.WebsiteTemplates.AddAsync(template);
+        await _uow.SaveChangesAsync();
+        return template;
+    }
 }

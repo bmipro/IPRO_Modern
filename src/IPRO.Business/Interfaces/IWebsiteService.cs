@@ -12,4 +12,5 @@ public interface IWebsiteService
     Task UnpublishAsync(int agentId);
     Task<IEnumerable<WebsiteTemplate>> GetTemplatesAsync();
     Task<WebsiteTemplate?> GetTemplateByIdAsync(int id);
+    Task<WebsiteTemplate> EnsureDefaultTemplateAsync();
 }

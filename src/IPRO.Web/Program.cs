@@ -148,6 +148,7 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
+    await WebsiteTemplateSeeder.SeedAsync(db);
 }
 
 app.Run();

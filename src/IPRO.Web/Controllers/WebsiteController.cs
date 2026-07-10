@@ -45,6 +45,10 @@ public class WebsiteController : Controller
         {
             model.TemplateId = templates.First().Id;
         }
+        else if (model.TemplateId <= 0)
+        {
+            model.TemplateId = (await _websites.EnsureDefaultTemplateAsync()).Id;
+        }
 
         var existing = await _websites.GetByAgentIdAsync(AgentId);
         if (logo != null && logo.Length > 0)
@@ -78,7 +82,34 @@ public class WebsiteController : Controller
         return RedirectToAction(nameof(Index));
     }
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Publish() { var gate = await RequireWebsiteAccessAsync(); if (gate != null) return gate; await _websites.PublishAsync(AgentId); TempData["Success"] = "Your website is now live!"; return RedirectToAction(nameof(Index)); }
+    public async Task<IActionResult> Publish()
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+
+        var existing = await _websites.GetByAgentIdAsync(AgentId);
+        if (existing == null)
+        {
+            var agent = await _agents.GetByIdAsync(AgentId);
+            var template = await _websites.EnsureDefaultTemplateAsync();
+            await _websites.CreateAsync(new AgentWebsite
+            {
+                AgentUserId = AgentId,
+                TemplateId = template.Id,
+                SiteTitle = BuildDefaultSiteTitle(agent),
+                TagLine = "Professional service and client support.",
+                ThemeColor = "#1457d9",
+                IsPublished = true
+            });
+        }
+        else
+        {
+            await _websites.PublishAsync(AgentId);
+        }
+
+        TempData["Success"] = "Your website is now live!";
+        return RedirectToAction(nameof(Index));
+    }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Unpublish() { var gate = await RequireWebsiteAccessAsync(); if (gate != null) return gate; await _websites.UnpublishAsync(AgentId); TempData["Warning"] = "Website taken offline."; return RedirectToAction(nameof(Index)); }
 
@@ -112,5 +143,16 @@ public class WebsiteController : Controller
         }
 
         return value.Trim().Trim('.');
+    }
+
+    private static string BuildDefaultSiteTitle(AgentUser? agent)
+    {
+        if (agent == null) return "IPRO Advisers";
+
+        var fullName = string.Join(" ", new[] { agent.FirstName, agent.LastName }
+            .Where(part => !string.IsNullOrWhiteSpace(part)))
+            .Trim();
+
+        return string.IsNullOrWhiteSpace(fullName) ? agent.CompanyName : fullName;
     }
 }
