@@ -100,6 +100,15 @@ app.UseSecurityHeaders();
 app.UseIpRateLimiting(); 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.Use(async (context, next) =>
+{
+    if (ShouldRouteToPublicWebsite(context, app.Configuration))
+    {
+        context.Request.Path = "/PublicWebsite";
+    }
+
+    await next();
+});
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
@@ -142,3 +151,39 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration)
+{
+    if (!HttpMethods.IsGet(context.Request.Method)) return false;
+    if (context.Request.Path.HasValue && context.Request.Path.Value != "/") return false;
+
+    var host = context.Request.Host.Host.Trim().Trim('.').ToLowerInvariant();
+    if (string.IsNullOrWhiteSpace(host)) return false;
+    if (host is "localhost" or "127.0.0.1" or "::1") return false;
+    if (host.EndsWith(".azurewebsites.net", StringComparison.OrdinalIgnoreCase)) return false;
+
+    var adminDomain = configuration["App:AdminDomain"]?.Trim().Trim('.').ToLowerInvariant();
+    if (!string.IsNullOrWhiteSpace(adminDomain) && host == adminDomain) return false;
+    if (host.StartsWith("admin.", StringComparison.OrdinalIgnoreCase)) return false;
+
+    var platformDomains = (configuration["App:PlatformDomains"] ?? "")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(d => d.Trim().Trim('.').ToLowerInvariant())
+        .Where(d => !string.IsNullOrWhiteSpace(d))
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    if (platformDomains.Contains(host)) return false;
+
+    var baseUrl = configuration["App:BaseUrl"];
+    if (Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) &&
+        string.Equals(host, uri.Host, StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
+
+    var temporaryRoot = (configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com")
+        .Trim()
+        .Trim('.')
+        .ToLowerInvariant();
+
+    return host.EndsWith("." + temporaryRoot, StringComparison.OrdinalIgnoreCase) || !platformDomains.Contains(host);
+}

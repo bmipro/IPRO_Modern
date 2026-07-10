@@ -13,20 +13,67 @@ public class WebsiteController : Controller
     private readonly IWebsiteService _websites;
     private readonly IBlobStorageService _blob;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IAgentService _agents;
+    private readonly IConfiguration _configuration;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public WebsiteController(IWebsiteService websites, IBlobStorageService blob, IPackageEntitlementService entitlements) { _websites = websites; _blob = blob; _entitlements = entitlements; }
+    public WebsiteController(IWebsiteService websites, IBlobStorageService blob, IPackageEntitlementService entitlements, IAgentService agents, IConfiguration configuration)
+    {
+        _websites = websites;
+        _blob = blob;
+        _entitlements = entitlements;
+        _agents = agents;
+        _configuration = configuration;
+    }
 
-    public async Task<IActionResult> Index() { var gate = await RequireWebsiteAccessAsync(); if (gate != null) return gate; ViewBag.Templates = await _websites.GetTemplatesAsync(); return View(await _websites.GetByAgentIdAsync(AgentId)); }
+    public async Task<IActionResult> Index()
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+
+        await LoadWebsiteContextAsync();
+        return View(await _websites.GetByAgentIdAsync(AgentId));
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(AgentWebsite model, IFormFile? logo)
     {
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
+
+        var templates = (await _websites.GetTemplatesAsync()).ToList();
+        if (model.TemplateId <= 0 && templates.Any())
+        {
+            model.TemplateId = templates.First().Id;
+        }
+
         var existing = await _websites.GetByAgentIdAsync(AgentId);
-        if (logo != null && logo.Length > 0) { using var s = logo.OpenReadStream(); model.LogoUrl = await _blob.UploadAsync(s, logo.FileName, "agent-logos", logo.ContentType); }
-        if (existing == null) { model.AgentUserId = AgentId; await _websites.CreateAsync(model); }
-        else { existing.SiteTitle = model.SiteTitle; existing.TagLine = model.TagLine; existing.ThemeColor = model.ThemeColor; existing.TemplateId = model.TemplateId; existing.CustomDomain = model.CustomDomain; if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl; await _websites.UpdateAsync(existing); }
+        if (logo != null && logo.Length > 0)
+        {
+            using var s = logo.OpenReadStream();
+            model.LogoUrl = await _blob.UploadAsync(s, logo.FileName, "agent-logos", logo.ContentType);
+        }
+
+        model.CustomDomain = NormalizeDomain(model.CustomDomain);
+        model.SiteTitle = model.SiteTitle?.Trim() ?? string.Empty;
+        model.TagLine = model.TagLine?.Trim() ?? string.Empty;
+        model.ThemeColor = string.IsNullOrWhiteSpace(model.ThemeColor) ? "#1457d9" : model.ThemeColor.Trim();
+
+        if (existing == null)
+        {
+            model.AgentUserId = AgentId;
+            await _websites.CreateAsync(model);
+        }
+        else
+        {
+            existing.SiteTitle = model.SiteTitle;
+            existing.TagLine = model.TagLine;
+            existing.ThemeColor = model.ThemeColor;
+            existing.TemplateId = model.TemplateId;
+            existing.CustomDomain = model.CustomDomain;
+            if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl;
+            await _websites.UpdateAsync(existing);
+        }
+
         TempData["Success"] = "Website settings saved!";
         return RedirectToAction(nameof(Index));
     }
@@ -41,5 +88,29 @@ public class WebsiteController : Controller
         if (access.IsIncluded) return null;
         TempData["Error"] = access.UpgradeMessage;
         return RedirectToAction("Index", "Billing");
+    }
+
+    private async Task LoadWebsiteContextAsync()
+    {
+        var agent = await _agents.GetByIdAsync(AgentId);
+        ViewBag.Templates = await _websites.GetTemplatesAsync();
+        ViewBag.TemporaryDomain = agent?.DomainName ?? string.Empty;
+        ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
+        ViewBag.WebsiteDnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net";
+    }
+
+    private static string NormalizeDomain(string? domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain)) return string.Empty;
+
+        var value = domain.Trim().ToLowerInvariant();
+        value = value.Replace("https://", string.Empty).Replace("http://", string.Empty);
+        var slashIndex = value.IndexOf('/');
+        if (slashIndex >= 0)
+        {
+            value = value[..slashIndex];
+        }
+
+        return value.Trim().Trim('.');
     }
 }

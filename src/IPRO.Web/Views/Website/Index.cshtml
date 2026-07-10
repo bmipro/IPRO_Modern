@@ -1,0 +1,187 @@
+@model IPRO.Entities.AgentWebsite?
+@{
+    ViewData["Title"] = "My Website";
+    var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.WebsiteTemplate> ?? Enumerable.Empty<IPRO.Entities.WebsiteTemplate>()).ToList();
+    var temporaryDomain = ViewBag.TemporaryDomain as string ?? "";
+    var temporaryRootDomain = ViewBag.TemporaryRootDomain as string ?? "247advisers.com";
+    var dnsTarget = ViewBag.WebsiteDnsTarget as string ?? "ipro-prod-web.azurewebsites.net";
+    var siteTitle = Model?.SiteTitle ?? "";
+    var tagLine = Model?.TagLine ?? "";
+    var customDomain = Model?.CustomDomain ?? "";
+    var themeColor = string.IsNullOrWhiteSpace(Model?.ThemeColor) ? "#1457d9" : Model!.ThemeColor;
+    var selectedTemplateId = Model?.TemplateId ?? templates.FirstOrDefault()?.Id ?? 0;
+    var isPublished = Model?.IsPublished == true;
+    var liveDomain = string.IsNullOrWhiteSpace(customDomain) ? temporaryDomain : customDomain;
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-globe me-2 text-primary"></i>My Website</h2>
+    <div class="text-muted">Manage your temporary website and custom domain setup.</div>
+  </div>
+  <div class="d-flex gap-2">
+    @if (!string.IsNullOrWhiteSpace(liveDomain))
+    {
+      <a href="https://@liveDomain" target="_blank" class="btn btn-outline-primary"><i class="fas fa-up-right-from-square me-1"></i>Open Website</a>
+    }
+    @if (Model != null)
+    {
+      @if (isPublished)
+      {
+        <form asp-action="Unpublish" method="post">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn btn-outline-warning"><i class="fas fa-pause me-1"></i>Take Offline</button>
+        </form>
+      }
+      else
+      {
+        <form asp-action="Publish" method="post">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn btn-success"><i class="fas fa-rocket me-1"></i>Publish</button>
+        </form>
+      }
+    }
+  </div>
+</div>
+
+<div class="alert @(isPublished ? "alert-success" : "alert-warning") border-0 shadow-sm mb-4">
+  <div class="d-flex align-items-start gap-3">
+    <i class="fas @(isPublished ? "fa-circle-check" : "fa-circle-info") fs-4 mt-1"></i>
+    <div>
+      <strong>@(isPublished ? "Your website is published." : "Your website is not published yet.")</strong>
+      <div class="small mt-1">
+        Temporary domain:
+        @if (!string.IsNullOrWhiteSpace(temporaryDomain))
+        {
+          <a href="https://@temporaryDomain" target="_blank" class="alert-link">@temporaryDomain</a>
+        }
+        else
+        {
+          <span class="text-muted">not assigned</span>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="fw-bold mb-0"><i class="fas fa-paintbrush me-2 text-primary"></i>Website Settings</h5>
+      </div>
+      <div class="card-body p-4">
+        <form asp-action="Save" method="post" enctype="multipart/form-data">
+          @Html.AntiForgeryToken()
+          @if (Model != null)
+          {
+            <input type="hidden" name="Id" value="@Model.Id" />
+          }
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Site Title</label>
+              <input name="SiteTitle" class="form-control" value="@siteTitle" placeholder="John Smith Insurance Adviser" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Theme Color</label>
+              <div class="input-group">
+                <input name="ThemeColor" id="ThemeColor" type="color" class="form-control form-control-color" value="@themeColor" style="width:64px" />
+                <input id="themeHex" type="text" class="form-control" value="@themeColor" readonly />
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Tagline</label>
+              <input name="TagLine" class="form-control" value="@tagLine" placeholder="Helping families and businesses plan with confidence" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Temporary Website Domain</label>
+              <input class="form-control" value="@temporaryDomain" readonly />
+              <div class="form-text">This domain is assigned automatically at registration.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Custom Domain</label>
+              <input name="CustomDomain" class="form-control" value="@customDomain" placeholder="www.yourdomain.com" />
+              <div class="form-text">Optional for Phase 1. Add it here after DNS is ready.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Logo</label>
+              <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/svg+xml" />
+              @if (!string.IsNullOrWhiteSpace(Model?.LogoUrl))
+              {
+                <div class="mt-2 d-flex align-items-center gap-2">
+                  <img src="@Model.LogoUrl" style="height:42px;max-width:180px;object-fit:contain" alt="Current logo" />
+                  <span class="small text-muted">Current logo</span>
+                </div>
+              }
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Template</label>
+              <select name="TemplateId" class="form-select">
+                @foreach (var template in templates)
+                {
+                  <option value="@template.Id" selected="@(template.Id == selectedTemplateId)">@template.Name</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i>Save Website Settings</button>
+            @if (Model != null && !isPublished)
+            {
+              <button type="submit" formaction="/Website/Publish" formmethod="post" class="btn btn-success btn-lg"><i class="fas fa-rocket me-2"></i>Publish</button>
+            }
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-3"><i class="fas fa-route me-2 text-primary"></i>Phase 1 Domain Setup</h5>
+        <div class="small text-muted mb-3">For GoDaddy or another registrar, keep nameservers as-is and add DNS records.</div>
+
+        <div class="border rounded-3 p-3 mb-3">
+          <div class="fw-bold mb-2">Temporary websites</div>
+          <div class="small text-muted mb-2">Add this once on @temporaryRootDomain:</div>
+          <div class="bg-light rounded p-3 font-monospace small">
+            CNAME&nbsp;&nbsp;*&nbsp;&nbsp;@dnsTarget
+          </div>
+        </div>
+
+        <div class="border rounded-3 p-3">
+          <div class="fw-bold mb-2">Custom agent domain</div>
+          <div class="small text-muted mb-2">For a domain like www.mragent.com:</div>
+          <div class="bg-light rounded p-3 font-monospace small">
+            CNAME&nbsp;&nbsp;www&nbsp;&nbsp;@dnsTarget
+          </div>
+          <div class="small text-muted mt-2">Apex/root domains may need registrar forwarding or an A/ALIAS option depending on provider support.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-3"><i class="fas fa-list-check me-2 text-success"></i>Checklist</h5>
+        <ul class="list-unstyled small mb-0">
+          <li class="mb-2 @(string.IsNullOrWhiteSpace(siteTitle) ? "text-muted" : "text-success")"><i class="fas @(string.IsNullOrWhiteSpace(siteTitle) ? "fa-circle" : "fa-circle-check") me-2"></i>Site title set</li>
+          <li class="mb-2 @(selectedTemplateId <= 0 ? "text-muted" : "text-success")"><i class="fas @(selectedTemplateId <= 0 ? "fa-circle" : "fa-circle-check") me-2"></i>Template selected</li>
+          <li class="mb-2 @(string.IsNullOrWhiteSpace(temporaryDomain) ? "text-muted" : "text-success")"><i class="fas @(string.IsNullOrWhiteSpace(temporaryDomain) ? "fa-circle" : "fa-circle-check") me-2"></i>Temporary domain assigned</li>
+          <li class="mb-2 @(isPublished ? "text-success" : "text-muted")"><i class="fas @(isPublished ? "fa-circle-check" : "fa-circle") me-2"></i>Website published</li>
+          <li class="@(string.IsNullOrWhiteSpace(customDomain) ? "text-muted" : "text-success")"><i class="fas @(string.IsNullOrWhiteSpace(customDomain) ? "fa-circle" : "fa-circle-check") me-2"></i>Custom domain requested</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+<script>
+document.getElementById('ThemeColor')?.addEventListener('input', function () {
+  document.getElementById('themeHex').value = this.value;
+});
+</script>
+}

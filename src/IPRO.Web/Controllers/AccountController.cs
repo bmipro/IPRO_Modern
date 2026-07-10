@@ -344,11 +344,11 @@ public class AccountController : Controller
     private async Task<string> GenerateUniqueDomainAsync(string userName)
     {
         var baseName = NormalizeIdentifier(userName);
-        var candidate = $"{baseName}.247Advisers.com";
+        var candidate = $"{baseName}.247advisers.com";
         var suffix = 1;
         while (await _agents.DomainExistsAsync(candidate))
         {
-            candidate = $"{baseName}{suffix}.247Advisers.com";
+            candidate = $"{baseName}{suffix}.247advisers.com";
             suffix++;
         }
         return candidate;
