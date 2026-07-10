@@ -151,6 +151,33 @@ public class CampaignsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStep(int id, int stepId, string subject, string htmlBody, int delayDays)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (campaign == null) return NotFound();
+
+        var step = await _db.DripCampaignSteps.FirstOrDefaultAsync(s => s.Id == stepId && s.DripCampaignId == id);
+        if (step == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(htmlBody))
+        {
+            TempData["Error"] = "Step subject and body are required.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        step.Subject = subject.Trim();
+        step.HtmlBody = htmlBody.Trim();
+        step.DelayDays = Math.Max(0, delayDays);
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Campaign step updated.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> EnrollGroup(int id, int clientCategoryId)
     {
         var gate = await RequireCampaignAccessAsync();
