@@ -1,6 +1,7 @@
 @model IPRO.Entities.WebsiteTemplate
 @{
     ViewData["Title"] = Model.Id == 0 ? "Create Website Template" : "Edit Website Template";
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model);
 }
 
 <div class="mb-4">
@@ -11,7 +12,7 @@
     </ol>
   </nav>
   <h4 class="fw-bold mb-1">@ViewData["Title"]</h4>
-  <div class="text-muted">Use template keys to connect a database template to a public website renderer.</div>
+  <div class="text-muted">Create reusable website designs by choosing a renderer, palette, and font style.</div>
 </div>
 
 <form method="post" action="/WebsiteTemplates/Edit">
@@ -34,7 +35,7 @@
         <div class="col-md-6">
           <label asp-for="TemplateKey" class="form-label fw-semibold">Template Key</label>
           <input asp-for="TemplateKey" class="form-control" placeholder="classic-sidebar" />
-          <div class="form-text">Known renderers: modern-professional, classic-sidebar. Reusing one creates a named variant of that renderer.</div>
+          <div class="form-text">Use a unique key for each design, such as modern-professional-blue or classic-sidebar-green.</div>
         </div>
         <div class="col-12">
           <label asp-for="Description" class="form-label fw-semibold">Description</label>
@@ -50,9 +51,48 @@
           <div class="form-text">Leave blank until we add template preview screenshots.</div>
         </div>
         <div class="col-12">
-          <label asp-for="LayoutJson" class="form-label fw-semibold">Layout JSON</label>
-          <textarea asp-for="LayoutJson" class="form-control font-monospace" rows="6"></textarea>
-          <div class="form-text">Reserved for deeper layout/content-block configuration.</div>
+          <div class="border rounded-3 p-3 bg-light">
+            <div class="fw-bold mb-3"><i class="fas fa-sliders me-2 text-primary"></i>Design Preset</div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Renderer</label>
+                <select id="templateRenderer" class="form-select">
+                  <option value="modern-professional" selected="@(design.Renderer == "modern-professional")">Modern Professional</option>
+                  <option value="classic-sidebar" selected="@(design.Renderer == "classic-sidebar")">Classic Sidebar</option>
+                </select>
+                <div class="form-text">Renderer controls the broad page layout.</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Accent Color</label>
+                <input id="accentColor" type="color" class="form-control form-control-color w-100" value="@design.AccentColor" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Background</label>
+                <input id="backgroundColor" type="color" class="form-control form-control-color w-100" value="@design.BackgroundColor" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Font</label>
+                <select id="fontFamily" class="form-select">
+                  <option value="Arial, Helvetica, sans-serif" selected="@(design.FontFamily.Contains("Arial"))">Clean Sans</option>
+                  <option value="Georgia, 'Times New Roman', serif" selected="@(design.FontFamily.Contains("Georgia"))">Editorial Serif</option>
+                  <option value="'Segoe UI', Arial, Helvetica, sans-serif" selected="@(design.FontFamily.Contains("Segoe"))">Modern UI</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Hero Style</label>
+                <select id="heroStyle" class="form-select">
+                  <option value="gradient" selected="@(design.HeroStyle == "gradient")">Gradient</option>
+                  <option value="clean" selected="@(design.HeroStyle == "clean")">Clean</option>
+                  <option value="classic" selected="@(design.HeroStyle == "classic")">Classic</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <label asp-for="LayoutJson" class="form-label fw-semibold">Layout JSON <span class="text-muted fw-normal">(advanced)</span></label>
+          <textarea asp-for="LayoutJson" id="LayoutJson" class="form-control font-monospace" rows="7"></textarea>
+          <div class="form-text">This is generated from the design preset above. Advanced users can adjust it directly.</div>
         </div>
         <div class="col-md-6">
           <div class="form-check form-switch">
@@ -75,3 +115,28 @@
     <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>Save Template</button>
   </div>
 </form>
+
+@section Scripts {
+<script>
+function syncTemplateJson() {
+  const payload = {
+    renderer: document.getElementById('templateRenderer')?.value || 'modern-professional',
+    accentColor: document.getElementById('accentColor')?.value || '#1457d9',
+    backgroundColor: document.getElementById('backgroundColor')?.value || '#f4f7fb',
+    fontFamily: document.getElementById('fontFamily')?.value || 'Arial, Helvetica, sans-serif',
+    heroStyle: document.getElementById('heroStyle')?.value || 'gradient'
+  };
+  const target = document.getElementById('LayoutJson');
+  if (target) {
+    target.value = JSON.stringify(payload, null, 2);
+  }
+}
+
+['templateRenderer', 'accentColor', 'backgroundColor', 'fontFamily', 'heroStyle'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', syncTemplateJson);
+  document.getElementById(id)?.addEventListener('input', syncTemplateJson);
+});
+
+document.querySelector('form[action="/WebsiteTemplates/Edit"]')?.addEventListener('submit', syncTemplateJson);
+</script>
+}

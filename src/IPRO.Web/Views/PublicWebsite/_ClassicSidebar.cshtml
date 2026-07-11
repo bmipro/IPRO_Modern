@@ -6,7 +6,10 @@
     var tagline = string.IsNullOrWhiteSpace(Model.TagLine)
         ? "Helpful advice, timely updates, and professional service."
         : Model.TagLine;
-    var theme = string.IsNullOrWhiteSpace(Model.ThemeColor) ? "#1457d9" : Model.ThemeColor;
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Template, Model.ThemeColor);
+    var theme = design.AccentColor;
+    var background = design.BackgroundColor;
+    var fontFamily = design.FontFamily;
     var company = string.IsNullOrWhiteSpace(agent.CompanyName) ? "IPRO Advisers" : agent.CompanyName;
 }
 <!DOCTYPE html>
@@ -29,9 +32,9 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: #eef3f9;
+      background: @background;
       color: var(--ink);
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: @fontFamily;
     }
     .classic-shell {
       width: min(1120px, calc(100% - 32px));

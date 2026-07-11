@@ -10,8 +10,11 @@
     var customDomain = Model?.CustomDomain ?? "";
     var themeColor = string.IsNullOrWhiteSpace(Model?.ThemeColor) ? "#1457d9" : Model!.ThemeColor;
     var selectedTemplateId = Model?.TemplateId ?? templates.FirstOrDefault()?.Id ?? 0;
+    var selectedTemplate = templates.FirstOrDefault(t => t.Id == selectedTemplateId);
+    var selectedDesign = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(selectedTemplate, themeColor);
     var isPublished = Model?.IsPublished == true;
     var liveDomain = string.IsNullOrWhiteSpace(customDomain) ? temporaryDomain : customDomain;
+    var templateDesigns = templates.ToDictionary(t => t.Id, t => IPRO.Entities.WebsiteTemplateDesign.FromTemplate(t));
 }
 
 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -86,9 +89,10 @@
             <div class="col-md-6">
               <label class="form-label fw-semibold">Theme Color</label>
               <div class="input-group">
-                <input name="ThemeColor" id="ThemeColor" type="color" class="form-control form-control-color" value="@themeColor" style="width:64px" />
-                <input id="themeHex" type="text" class="form-control" value="@themeColor" readonly />
+                <input name="ThemeColor" id="ThemeColor" type="color" class="form-control form-control-color" value="@selectedDesign.AccentColor" style="width:64px" />
+                <input id="themeHex" type="text" class="form-control" value="@selectedDesign.AccentColor" readonly />
               </div>
+              <div class="form-text">Changing the template applies that template's starter color. You can still fine-tune it.</div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Tagline</label>
@@ -117,12 +121,22 @@
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Template</label>
-              <select name="TemplateId" class="form-select">
+              <select name="TemplateId" id="TemplateId" class="form-select">
                 @foreach (var template in templates)
                 {
-                  <option value="@template.Id" selected="@(template.Id == selectedTemplateId)">@template.Name</option>
+                  var design = templateDesigns[template.Id];
+                  <option value="@template.Id"
+                          data-accent="@design.AccentColor"
+                          data-renderer="@design.Renderer"
+                          selected="@(template.Id == selectedTemplateId)">
+                    @template.Name - @(design.Renderer == "classic-sidebar" ? "Classic" : "Modern")
+                  </option>
                 }
               </select>
+              @if (selectedTemplate != null)
+              {
+                <div class="form-text">Selected: @selectedTemplate.Description</div>
+              }
             </div>
           </div>
 
@@ -182,6 +196,16 @@
 <script>
 document.getElementById('ThemeColor')?.addEventListener('input', function () {
   document.getElementById('themeHex').value = this.value;
+});
+document.getElementById('TemplateId')?.addEventListener('change', function () {
+  const selected = this.options[this.selectedIndex];
+  const accent = selected?.dataset?.accent;
+  const color = document.getElementById('ThemeColor');
+  const hex = document.getElementById('themeHex');
+  if (accent && color && hex) {
+    color.value = accent;
+    hex.value = accent;
+  }
 });
 </script>
 }

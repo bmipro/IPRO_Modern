@@ -26,9 +26,19 @@ public class WebsiteTemplatesController : Controller
     {
         return View("Edit", new WebsiteTemplate
         {
-            TemplateKey = "new-template",
+            TemplateKey = "modern-professional-blue",
+            Name = "Modern Professional - Blue",
+            Description = "Clean modern website with a blue professional palette.",
             IsActive = true,
-            LayoutJson = "{}"
+            LayoutJson = """
+            {
+              "renderer": "modern-professional",
+              "accentColor": "#1457d9",
+              "backgroundColor": "#f4f7fb",
+              "fontFamily": "Arial, Helvetica, sans-serif",
+              "heroStyle": "gradient"
+            }
+            """
         });
     }
 
@@ -62,7 +72,7 @@ public class WebsiteTemplatesController : Controller
         var allTemplates = await _uow.WebsiteTemplates.GetAllAsync();
         if (allTemplates.Any(t => t.Id != model.Id && string.Equals(t.TemplateKey, model.TemplateKey, StringComparison.OrdinalIgnoreCase)))
         {
-            ModelState.AddModelError(nameof(model.TemplateKey), "Another template already uses this key.");
+            ModelState.AddModelError(nameof(model.TemplateKey), "Another template already uses this key. Use a unique key such as modern-professional-blue or classic-sidebar-green.");
         }
 
         if (!ModelState.IsValid)

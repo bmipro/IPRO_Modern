@@ -7,7 +7,10 @@
     var tagline = string.IsNullOrWhiteSpace(Model.TagLine)
         ? "Professional advice, practical service, and a better way to stay connected."
         : Model.TagLine;
-    var theme = string.IsNullOrWhiteSpace(Model.ThemeColor) ? "#1457d9" : Model.ThemeColor;
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Template, Model.ThemeColor);
+    var theme = design.AccentColor;
+    var background = design.BackgroundColor;
+    var fontFamily = design.FontFamily;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -26,8 +29,8 @@
     body {
       margin: 0;
       color: #111827;
-      background: #f4f7fb;
-      font-family: Arial, Helvetica, sans-serif;
+      background: @background;
+      font-family: @fontFamily;
     }
     .site-hero {
       min-height: 72vh;

@@ -1,9 +1,9 @@
 @model IPRO.Entities.AgentWebsite
 @{
     Layout = null;
-    var templateKey = Model.Template?.TemplateKey?.Trim().ToLowerInvariant() ?? "modern-professional";
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Template, Model.ThemeColor);
 }
-@if (templateKey == "classic-sidebar")
+@if (design.Renderer == "classic-sidebar")
 {
     @await Html.PartialAsync("_ClassicSidebar", Model)
 }
