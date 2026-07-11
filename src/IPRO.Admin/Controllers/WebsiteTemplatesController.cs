@@ -1,3 +1,4 @@
+using IPRO.Admin.Models;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -17,8 +18,8 @@ public class WebsiteTemplatesController : Controller
 
     public async Task<IActionResult> Index()
     {
-        var templates = await _uow.WebsiteTemplates.GetAllAsync();
-        return View(templates.OrderByDescending(t => t.IsDefault).ThenBy(t => t.Name));
+        var usage = await BuildUsageAsync();
+        return View(usage.OrderByDescending(t => t.Template.IsDefault).ThenBy(t => t.Template.Name));
     }
 
     public async Task<IActionResult> Create()
@@ -116,6 +117,84 @@ public class WebsiteTemplatesController : Controller
         await _uow.SaveChangesAsync();
         TempData["Success"] = $"{selected.Name} is now the default website template.";
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var template = await _uow.WebsiteTemplates.GetByIdAsync(id);
+        if (template == null) return NotFound();
+
+        var usage = (await BuildUsageAsync()).FirstOrDefault(t => t.Template.Id == id);
+        if (usage == null)
+        {
+            TempData["Error"] = "Template usage could not be checked. Please try again.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (template.IsDefault)
+        {
+            TempData["Error"] = $"{template.Name} is the global default template. Choose another default before deleting it.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (usage.IsInUse)
+        {
+            var agentPreview = usage.AgentNames.Any()
+                ? $" Agents using it: {string.Join(", ", usage.AgentNames.Take(5))}{(usage.AgentNames.Count > 5 ? ", ..." : "")}."
+                : string.Empty;
+            var packagePreview = usage.PackageNames.Any()
+                ? $" Packages using it as default: {string.Join(", ", usage.PackageNames.Take(5))}{(usage.PackageNames.Count > 5 ? ", ..." : "")}."
+                : string.Empty;
+
+            TempData["Error"] =
+                $"{template.Name} cannot be deleted yet. It is used by {usage.WebsiteCount} agent website(s) and {usage.PackageDefaultCount} package default(s)." +
+                $"{agentPreview}{packagePreview} Move those agents/packages to another template first.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        _uow.WebsiteTemplates.Remove(template);
+        await _uow.SaveChangesAsync();
+        TempData["Success"] = $"{template.Name} was deleted.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<List<WebsiteTemplateUsageViewModel>> BuildUsageAsync()
+    {
+        var templates = (await _uow.WebsiteTemplates.GetAllAsync()).ToList();
+        var websites = (await _uow.AgentWebsites.GetAllAsync()).ToList();
+        var agents = (await _uow.AgentUsers.GetAllAsync()).ToDictionary(a => a.Id);
+        var packages = (await _uow.BillingRules.GetAllAsync()).ToList();
+
+        return templates.Select(template =>
+        {
+            var templateWebsites = websites.Where(w => w.TemplateId == template.Id).ToList();
+            var templatePackages = packages
+                .Where(p => p.DefaultWebsiteTemplateId == template.Id)
+                .ToList();
+
+            return new WebsiteTemplateUsageViewModel
+            {
+                Template = template,
+                WebsiteCount = templateWebsites.Count,
+                PublishedWebsiteCount = templateWebsites.Count(w => w.IsPublished),
+                PackageDefaultCount = templatePackages.Count,
+                AgentNames = templateWebsites
+                    .Select(w => agents.TryGetValue(w.AgentUserId, out var agent)
+                        ? $"{agent.FirstName} {agent.LastName}".Trim()
+                        : $"Agent #{w.AgentUserId}")
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name)
+                    .ToList(),
+                PackageNames = templatePackages
+                    .Select(p => p.PackageName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name)
+                    .ToList()
+            };
+        }).ToList();
     }
 
     private async Task ClearOtherDefaultsAsync(int modelId, string templateKey)
