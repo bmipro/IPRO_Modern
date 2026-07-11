@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Web.Controllers;
 
@@ -15,14 +17,16 @@ public class WebsiteController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IAgentService _agents;
     private readonly IConfiguration _configuration;
+    private readonly IPRODbContext _db;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public WebsiteController(IWebsiteService websites, IBlobStorageService blob, IPackageEntitlementService entitlements, IAgentService agents, IConfiguration configuration)
+    public WebsiteController(IWebsiteService websites, IBlobStorageService blob, IPackageEntitlementService entitlements, IAgentService agents, IConfiguration configuration, IPRODbContext db)
     {
         _websites = websites;
         _blob = blob;
         _entitlements = entitlements;
         _agents = agents;
         _configuration = configuration;
+        _db = db;
     }
 
     public async Task<IActionResult> Index()
@@ -58,10 +62,17 @@ public class WebsiteController : Controller
         model.TagLine = model.TagLine?.Trim() ?? string.Empty;
         model.ThemeColor = string.IsNullOrWhiteSpace(model.ThemeColor) ? "#1457d9" : model.ThemeColor.Trim();
 
+        if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
+            await _db.AgentDomains.AnyAsync(d => d.DomainName == model.CustomDomain && d.AgentUserId != AgentId))
+        {
+            TempData["Error"] = "That custom domain is already connected to another IPRO account.";
+            return RedirectToAction(nameof(Index));
+        }
+
         if (existing == null)
         {
             model.AgentUserId = AgentId;
-            await _websites.CreateAsync(model);
+            existing = await _websites.CreateAsync(model);
         }
         else
         {
@@ -72,6 +83,11 @@ public class WebsiteController : Controller
             existing.CustomDomain = model.CustomDomain;
             if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl;
             await _websites.UpdateAsync(existing);
+        }
+
+        if (existing != null)
+        {
+            await SyncPrimaryDomainAsync(existing, model.CustomDomain);
         }
 
         TempData["Success"] = "Website settings saved!";
@@ -124,6 +140,90 @@ public class WebsiteController : Controller
         ViewBag.TemporaryDomain = agent?.DomainName ?? string.Empty;
         ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
         ViewBag.WebsiteDnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net";
+        ViewBag.PrimaryDomain = await _db.AgentDomains
+            .AsNoTracking()
+            .Where(d => d.AgentUserId == AgentId && d.IsPrimary)
+            .OrderByDescending(d => d.UpdatedAt)
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task SyncPrimaryDomainAsync(AgentWebsite website, string customDomain)
+    {
+        var currentPrimary = await _db.AgentDomains
+            .Where(d => d.AgentUserId == AgentId && d.IsPrimary)
+            .OrderByDescending(d => d.UpdatedAt)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrWhiteSpace(customDomain))
+        {
+            if (currentPrimary != null)
+            {
+                currentPrimary.IsPrimary = false;
+                currentPrimary.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+            }
+
+            return;
+        }
+
+        var domainParts = BuildDomainParts(customDomain);
+        var dnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net";
+        var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.DomainName == customDomain);
+        if (domain == null)
+        {
+            domain = new AgentDomain
+            {
+                AgentUserId = AgentId,
+                AgentWebsiteId = website.Id,
+                DomainName = customDomain,
+                RootDomain = domainParts.Root,
+                WwwDomain = domainParts.Www,
+                DnsTarget = dnsTarget,
+                DnsStatus = AgentDomainStatus.PendingDns,
+                AzureBindingStatus = AgentDomainStatus.BindingPending,
+                SslStatus = AgentDomainStatus.BindingPending,
+                IsPrimary = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.AgentDomains.Add(domain);
+        }
+        else
+        {
+            domain.AgentUserId = AgentId;
+            domain.AgentWebsiteId = website.Id;
+            domain.RootDomain = domainParts.Root;
+            domain.WwwDomain = domainParts.Www;
+            domain.DnsTarget = dnsTarget;
+            domain.IsPrimary = true;
+            domain.UpdatedAt = DateTime.UtcNow;
+            if (domain.DnsStatus == AgentDomainStatus.Failed)
+            {
+                domain.DnsStatus = AgentDomainStatus.PendingDns;
+            }
+        }
+
+        var otherPrimaries = await _db.AgentDomains
+            .Where(d => d.AgentUserId == AgentId && d.Id != domain.Id && d.IsPrimary)
+            .ToListAsync();
+        foreach (var other in otherPrimaries)
+        {
+            other.IsPrimary = false;
+            other.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    private static (string Root, string Www) BuildDomainParts(string domain)
+    {
+        if (domain.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+        {
+            var root = domain[4..];
+            return (root, domain);
+        }
+
+        return (domain, ShouldUseWwwHost(domain) ? "www." + domain : domain);
     }
 
     private static string NormalizeDomain(string? domain)

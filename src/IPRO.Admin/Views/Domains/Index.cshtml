@@ -1,0 +1,103 @@
+@model IReadOnlyList<IPRO.Admin.Models.AgentDomainViewModel>
+@{
+    ViewData["Title"] = "Domain Automation";
+    string Badge(string status) => status switch
+    {
+        IPRO.Entities.AgentDomainStatus.Bound => "bg-success",
+        IPRO.Entities.AgentDomainStatus.DnsReady => "bg-info text-dark",
+        IPRO.Entities.AgentDomainStatus.PendingDns => "bg-warning text-dark",
+        IPRO.Entities.AgentDomainStatus.Failed => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-network-wired me-2 text-primary"></i>Domain Automation</h2>
+    <div class="text-muted">Track custom agent domains from DNS setup through Azure binding and SSL.</div>
+  </div>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm">
+  <div class="fw-semibold mb-1">Automation phase 1</div>
+  <div>
+    Agents can enter a root or www domain. IPRO stores the www host, checks DNS every 15 minutes, and shows when Azure binding is needed.
+    The next phase will use Azure API credentials to create the custom-domain binding automatically.
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Agent</th>
+          <th>DNS</th>
+          <th>Azure</th>
+          <th>SSL</th>
+          <th>Last Check</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      @if (!Model.Any())
+      {
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">No custom domain requests yet.</td>
+        </tr>
+      }
+      @foreach (var item in Model)
+      {
+        var domain = item.Domain;
+        <tr>
+          <td>
+            <div class="fw-bold">@domain.DomainName</div>
+            <div class="small text-muted">CNAME www -> @domain.DnsTarget</div>
+            @if (!string.IsNullOrWhiteSpace(item.TemporaryDomain))
+            {
+              <div class="small text-muted">Temp: @item.TemporaryDomain</div>
+            }
+          </td>
+          <td>
+            <div class="fw-semibold">@(string.IsNullOrWhiteSpace(item.AgentName) ? $"Agent #{domain.AgentUserId}" : item.AgentName)</div>
+            <div class="small text-muted">@item.AgentEmail</div>
+          </td>
+          <td><span class="badge @Badge(domain.DnsStatus)">@domain.DnsStatus</span></td>
+          <td><span class="badge @Badge(domain.AzureBindingStatus)">@domain.AzureBindingStatus</span></td>
+          <td><span class="badge @Badge(domain.SslStatus)">@domain.SslStatus</span></td>
+          <td>
+            @if (domain.LastCheckedAt.HasValue)
+            {
+              <span>@domain.LastCheckedAt.Value.ToLocalTime().ToString("MMM d, h:mm tt")</span>
+            }
+            else
+            {
+              <span class="text-muted">Not checked yet</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(domain.LastError))
+            {
+              <div class="small text-danger">@domain.LastError</div>
+            }
+          </td>
+          <td>
+            <div class="d-flex gap-2">
+              <form method="post" action="/Domains/Reset/@domain.Id">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-outline-primary" type="submit">Recheck</button>
+              </form>
+              @if (domain.AzureBindingStatus != IPRO.Entities.AgentDomainStatus.Bound)
+              {
+                <form method="post" action="/Domains/MarkBound/@domain.Id">
+                  @Html.AntiForgeryToken()
+                  <button class="btn btn-sm btn-success" type="submit">Mark Bound</button>
+                </form>
+              }
+            </div>
+          </td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  </div>
+</div>

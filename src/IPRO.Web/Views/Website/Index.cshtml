@@ -14,6 +14,11 @@
     var isPublished = Model?.IsPublished == true;
     var liveDomain = string.IsNullOrWhiteSpace(customDomain) ? temporaryDomain : customDomain;
     var templateDesigns = templates.ToDictionary(t => t.Id, t => IPRO.Entities.WebsiteTemplateDesign.FromTemplate(t));
+    var primaryDomain = ViewBag.PrimaryDomain as IPRO.Entities.AgentDomain;
+    var hasCustomDomain = !string.IsNullOrWhiteSpace(customDomain);
+    var dnsReady = primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
+    var bindingReady = primaryDomain?.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
+    var sslReady = primaryDomain?.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
 }
 
 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -165,6 +170,32 @@
           </div>
           <div class="small text-muted mt-2">If the agent enters mragent.com, we will save it as www.mragent.com. Forward the root domain to www when the registrar supports forwarding.</div>
         </div>
+        @if (primaryDomain != null)
+        {
+          <div class="border rounded-3 p-3 mt-3">
+            <div class="fw-bold mb-2">Domain automation status</div>
+            <div class="d-flex justify-content-between small mb-2">
+              <span>DNS check</span>
+              <span class="badge @(dnsReady ? "bg-success" : "bg-warning text-dark")">@primaryDomain.DnsStatus</span>
+            </div>
+            <div class="d-flex justify-content-between small mb-2">
+              <span>Azure binding</span>
+              <span class="badge @(bindingReady ? "bg-success" : "bg-secondary")">@primaryDomain.AzureBindingStatus</span>
+            </div>
+            <div class="d-flex justify-content-between small mb-2">
+              <span>SSL</span>
+              <span class="badge @(sslReady ? "bg-success" : "bg-secondary")">@primaryDomain.SslStatus</span>
+            </div>
+            @if (primaryDomain.LastCheckedAt.HasValue)
+            {
+              <div class="small text-muted">Last checked: @primaryDomain.LastCheckedAt.Value.ToLocalTime().ToString("MMM d, h:mm tt")</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(primaryDomain.LastError))
+            {
+              <div class="small text-danger mt-2">@primaryDomain.LastError</div>
+            }
+          </div>
+        }
       </div>
     </div>
 
@@ -176,7 +207,9 @@
           <li class="mb-2 @(selectedTemplateId <= 0 ? "text-muted" : "text-success")"><i class="fas @(selectedTemplateId <= 0 ? "fa-circle" : "fa-circle-check") me-2"></i>Template selected</li>
           <li class="mb-2 @(string.IsNullOrWhiteSpace(temporaryDomain) ? "text-muted" : "text-success")"><i class="fas @(string.IsNullOrWhiteSpace(temporaryDomain) ? "fa-circle" : "fa-circle-check") me-2"></i>Temporary domain assigned</li>
           <li class="mb-2 @(isPublished ? "text-success" : "text-muted")"><i class="fas @(isPublished ? "fa-circle-check" : "fa-circle") me-2"></i>Website published</li>
-          <li class="@(string.IsNullOrWhiteSpace(customDomain) ? "text-muted" : "text-success")"><i class="fas @(string.IsNullOrWhiteSpace(customDomain) ? "fa-circle" : "fa-circle-check") me-2"></i>Custom domain requested</li>
+          <li class="mb-2 @(hasCustomDomain ? "text-success" : "text-muted")"><i class="fas @(hasCustomDomain ? "fa-circle-check" : "fa-circle") me-2"></i>Custom domain requested</li>
+          <li class="mb-2 @(dnsReady ? "text-success" : "text-muted")"><i class="fas @(dnsReady ? "fa-circle-check" : "fa-circle") me-2"></i>DNS detected</li>
+          <li class="@(bindingReady ? "text-success" : "text-muted")"><i class="fas @(bindingReady ? "fa-circle-check" : "fa-circle") me-2"></i>Azure domain binding complete</li>
         </ul>
       </div>
     </div>

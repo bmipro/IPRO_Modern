@@ -15,4 +15,5 @@ public class AgentWebsite
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;
     public WebsiteTemplate Template { get; set; } = null!;
+    public ICollection<AgentDomain> Domains { get; set; } = new List<AgentDomain>();
 }

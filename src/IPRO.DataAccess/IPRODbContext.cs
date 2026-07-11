@@ -9,6 +9,7 @@ public class IPRODbContext : DbContext
 
     public DbSet<AgentUser> AgentUsers => Set<AgentUser>();
     public DbSet<AgentWebsite> AgentWebsites => Set<AgentWebsite>();
+    public DbSet<AgentDomain> AgentDomains => Set<AgentDomain>();
     public DbSet<WebsiteTemplate> WebsiteTemplates => Set<WebsiteTemplate>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientCategory> ClientCategories => Set<ClientCategory>();
@@ -78,6 +79,30 @@ public class IPRODbContext : DbContext
              .WithMany(t => t.Websites)
              .HasForeignKey(w => w.TemplateId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AgentDomain>(e =>
+        {
+            e.HasIndex(d => d.DomainName).IsUnique();
+            e.HasIndex(d => new { d.AgentUserId, d.IsPrimary });
+            e.Property(d => d.DomainName).HasMaxLength(255).IsRequired();
+            e.Property(d => d.RootDomain).HasMaxLength(255);
+            e.Property(d => d.WwwDomain).HasMaxLength(255);
+            e.Property(d => d.DnsTarget).HasMaxLength(255);
+            e.Property(d => d.DnsStatus).HasMaxLength(40).IsRequired();
+            e.Property(d => d.AzureBindingStatus).HasMaxLength(40).IsRequired();
+            e.Property(d => d.SslStatus).HasMaxLength(40).IsRequired();
+            e.Property(d => d.LastError).HasMaxLength(1000);
+
+            e.HasOne(d => d.AgentUser)
+             .WithMany()
+             .HasForeignKey(d => d.AgentUserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(d => d.AgentWebsite)
+             .WithMany(w => w.Domains)
+             .HasForeignKey(d => d.AgentWebsiteId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Client → AgentUser
