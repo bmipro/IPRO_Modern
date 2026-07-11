@@ -87,6 +87,26 @@
                 </select>
               </div>
             </div>
+            <div class="template-builder-preview mt-3 @(design.Renderer == "classic-sidebar" ? "is-classic" : "")" id="templateBuilderPreview"
+                 style="--builder-accent:@design.AccentColor;--builder-bg:@design.BackgroundColor;--builder-font:@design.FontFamily">
+              <div class="template-builder-preview__nav">
+                <strong>Agent Business</strong>
+                <span>Home</span><span>Services</span><span>About</span><span>Contact</span>
+              </div>
+              <div class="template-builder-preview__body">
+                <aside>
+                  <strong>Agent Business</strong>
+                  <span>Home</span><span>Services</span><span>About</span><span>Contact</span>
+                </aside>
+                <section>
+                  <small>TRUSTED LOCAL PROFESSIONAL</small>
+                  <h3>A website designed around your business</h3>
+                  <p>Clear services, helpful content, and a direct path for clients to connect.</p>
+                  <b>Get started</b>
+                </section>
+              </div>
+            </div>
+            <div class="form-text mt-2">Live preview of the selected renderer, palette, font, and hero style.</div>
           </div>
         </div>
         <div class="col-12">
@@ -116,8 +136,40 @@
   </div>
 </form>
 
+<style>
+.template-builder-preview { overflow: hidden; min-height: 280px; border: 1px solid #d6deea; border-radius: 8px; background: var(--builder-bg); color: #182236; font-family: var(--builder-font); }
+.template-builder-preview__nav { display: flex; align-items: center; gap: 20px; min-height: 52px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5eaf1; font-size: 13px; }
+.template-builder-preview__nav strong { margin-right: auto; color: var(--builder-accent); font-size: 16px; }
+.template-builder-preview__body { min-height: 228px; }
+.template-builder-preview__body aside { display: none; }
+.template-builder-preview__body section { min-height: 228px; padding: 38px; background: linear-gradient(135deg, color-mix(in srgb, var(--builder-accent) 14%, #fff), var(--builder-bg)); }
+.template-builder-preview__body small { color: var(--builder-accent); font-weight: 700; }
+.template-builder-preview__body h3 { max-width: 560px; margin: 8px 0; font-size: 29px; }
+.template-builder-preview__body p { max-width: 600px; color: #58657b; }
+.template-builder-preview__body b { display: inline-block; margin-top: 6px; padding: 8px 14px; border-radius: 5px; background: var(--builder-accent); color: #fff; font-size: 13px; }
+.template-builder-preview.is-classic .template-builder-preview__nav { display: none; }
+.template-builder-preview.is-classic .template-builder-preview__body { display: grid; grid-template-columns: 175px 1fr; }
+.template-builder-preview.is-classic .template-builder-preview__body aside { display: flex; flex-direction: column; gap: 15px; padding: 24px; background: var(--builder-accent); color: #fff; font-size: 13px; }
+.template-builder-preview.is-classic .template-builder-preview__body aside strong { margin-bottom: 12px; font-size: 16px; }
+.template-builder-preview.is-classic .template-builder-preview__body section { background: var(--builder-bg); }
+@@media (max-width: 700px) {
+  .template-builder-preview__nav span { display: none; }
+  .template-builder-preview.is-classic .template-builder-preview__body { grid-template-columns: 110px 1fr; }
+  .template-builder-preview__body section { padding: 24px; }
+}
+</style>
+
 @section Scripts {
 <script>
+function updateTemplatePreview() {
+  const preview = document.getElementById('templateBuilderPreview');
+  if (!preview) return;
+  const renderer = document.getElementById('templateRenderer')?.value || 'modern-professional';
+  preview.classList.toggle('is-classic', renderer === 'classic-sidebar');
+  preview.style.setProperty('--builder-accent', document.getElementById('accentColor')?.value || '#1457d9');
+  preview.style.setProperty('--builder-bg', document.getElementById('backgroundColor')?.value || '#f4f7fb');
+  preview.style.setProperty('--builder-font', document.getElementById('fontFamily')?.value || 'Arial, Helvetica, sans-serif');
+}
 function syncTemplateJson() {
   const payload = {
     renderer: document.getElementById('templateRenderer')?.value || 'modern-professional',
@@ -130,6 +182,7 @@ function syncTemplateJson() {
   if (target) {
     target.value = JSON.stringify(payload, null, 2);
   }
+  updateTemplatePreview();
 }
 
 ['templateRenderer', 'accentColor', 'backgroundColor', 'fontFamily', 'heroStyle'].forEach(id => {
@@ -138,5 +191,6 @@ function syncTemplateJson() {
 });
 
 document.querySelector('form[action="/WebsiteTemplates/Edit"]')?.addEventListener('submit', syncTemplateJson);
+updateTemplatePreview();
 </script>
 }

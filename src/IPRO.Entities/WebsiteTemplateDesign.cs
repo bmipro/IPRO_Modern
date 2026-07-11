@@ -58,6 +58,12 @@ public class WebsiteTemplateDesign
             // A bad JSON value should not take down a public website. The admin UI validates and rewrites this later.
         }
 
+        // An agent's saved theme color is an intentional per-site override of the template preset.
+        if (!string.IsNullOrWhiteSpace(fallbackAccent))
+        {
+            design.AccentColor = NormalizeColor(fallbackAccent, design.AccentColor);
+        }
+
         return design;
     }
 

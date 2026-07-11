@@ -29,10 +29,9 @@ public class DomainAutomationJob
     public async Task RunAsync()
     {
         var domains = await _db.AgentDomains
-            .Where(d => d.IsPrimary &&
-                        (d.DnsStatus != AgentDomainStatus.Bound ||
+            .Where(d => d.DnsStatus != AgentDomainStatus.Bound ||
                          d.AzureBindingStatus != AgentDomainStatus.Bound ||
-                         d.SslStatus != AgentDomainStatus.Bound))
+                         d.SslStatus != AgentDomainStatus.Bound)
             .OrderBy(d => d.LastCheckedAt ?? d.CreatedAt)
             .Take(50)
             .ToListAsync();
@@ -57,7 +56,7 @@ public class DomainAutomationJob
             if (addresses.Length == 0)
             {
                 domain.DnsStatus = AgentDomainStatus.PendingDns;
-                domain.LastError = "DNS has not resolved yet.";
+                domain.LastError = "Waiting for DNS propagation. IPRO will check again automatically within 5 minutes.";
                 return;
             }
 
@@ -67,7 +66,7 @@ public class DomainAutomationJob
         catch (Exception ex)
         {
             domain.DnsStatus = AgentDomainStatus.PendingDns;
-            domain.LastError = "DNS has not resolved yet. Confirm the CNAME points to " + domain.DnsTarget + ".";
+            domain.LastError = "Waiting for DNS propagation. Confirm the CNAME points to " + domain.DnsTarget + "; IPRO will check again automatically within 5 minutes.";
             _logger.LogInformation(ex, "DNS check failed for custom domain {Domain}", domain.DomainName);
         }
     }

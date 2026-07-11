@@ -98,8 +98,8 @@
             <div class="col-md-6">
               <label class="form-label fw-semibold">Theme Color</label>
               <div class="input-group">
-                <input name="ThemeColor" id="ThemeColor" type="color" class="form-control form-control-color" value="@selectedDesign.AccentColor" style="width:64px" />
-                <input id="themeHex" type="text" class="form-control" value="@selectedDesign.AccentColor" readonly />
+                <input name="ThemeColor" id="ThemeColor" type="color" class="form-control form-control-color" value="@themeColor" style="width:64px" />
+                <input id="themeHex" type="text" class="form-control" value="@themeColor" readonly />
               </div>
               <div class="form-text">Changing the template applies that template's starter color. You can still fine-tune it.</div>
             </div>
@@ -136,7 +136,11 @@
                   var design = templateDesigns[template.Id];
                   <option value="@template.Id"
                           data-accent="@design.AccentColor"
+                          data-background="@design.BackgroundColor"
+                          data-font="@design.FontFamily"
+                          data-hero="@design.HeroStyle"
                           data-renderer="@design.Renderer"
+                          data-description="@template.Description"
                           selected="@(template.Id == selectedTemplateId)">
                     @template.Name - @(design.Renderer == "classic-sidebar" ? "Classic" : "Modern")
                   </option>
@@ -144,8 +148,29 @@
               </select>
               @if (selectedTemplate != null)
               {
-                <div class="form-text">Selected: @selectedTemplate.Description</div>
+                <div class="form-text" id="selectedTemplateDescription">Selected: @selectedTemplate.Description</div>
               }
+            </div>
+            <div class="col-12">
+              <div class="website-template-preview" id="websiteTemplatePreview"
+                   style="--preview-accent:@themeColor;--preview-bg:@selectedDesign.BackgroundColor;--preview-font:@selectedDesign.FontFamily">
+                <div class="website-template-preview__nav">
+                  <strong id="previewSiteTitle">@(string.IsNullOrWhiteSpace(siteTitle) ? "Your Business" : siteTitle)</strong>
+                  <span>About</span><span>Services</span><span>Contact</span>
+                </div>
+                <div class="website-template-preview__hero">
+                  <div>
+                    <span class="website-template-preview__eyebrow">Professional service</span>
+                    <h3 id="previewHeadline">@(string.IsNullOrWhiteSpace(siteTitle) ? "Welcome to your website" : siteTitle)</h3>
+                    <p id="previewTagline">@(string.IsNullOrWhiteSpace(tagLine) ? "Helping clients move forward with confidence." : tagLine)</p>
+                    <span class="website-template-preview__button">Get in touch</span>
+                  </div>
+                  <div class="website-template-preview__services" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="form-text">Live design preview. Your published content will replace these sample navigation and service blocks.</div>
             </div>
           </div>
 
@@ -209,14 +234,15 @@
           {
             var domainDnsReady = domain.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || domain.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
             var domainBindingReady = domain.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
+            var domainDnsLabel = domainDnsReady ? "Ready" : "Waiting for DNS propagation";
             <div class="border rounded-3 p-2 mb-2">
               <div class="d-flex justify-content-between gap-2">
                 <div>
                   <div class="fw-semibold">@domain.DomainName @(domain.IsPrimary ? Html.Raw("<span class=\"badge bg-primary ms-1\">Primary</span>") : "")</div>
-                  <div class="small text-muted">DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domain.DnsStatus</span> · Azure: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@domain.AzureBindingStatus</span></div>
+                  <div class="small text-muted">DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span> &middot; Azure: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@domain.AzureBindingStatus</span></div>
                   @if (!string.IsNullOrWhiteSpace(domain.LastError))
                   {
-                    <div class="small text-danger">@domain.LastError</div>
+                    <div class="small @(domainDnsReady ? "text-danger" : "text-muted")">@domain.LastError</div>
                   }
                 </div>
                 <div class="d-flex gap-1 align-items-start">
@@ -242,7 +268,7 @@
             <div class="fw-bold mb-2">Domain automation status</div>
             <div class="d-flex justify-content-between small mb-2">
               <span>DNS check</span>
-              <span class="badge @(dnsReady ? "bg-success" : "bg-warning text-dark")">@primaryDomain.DnsStatus</span>
+              <span class="badge @(dnsReady ? "bg-success" : "bg-warning text-dark")">@(dnsReady ? "Ready" : "Waiting for DNS")</span>
             </div>
             <div class="d-flex justify-content-between small mb-2">
               <span>Azure binding</span>
@@ -258,7 +284,7 @@
             }
             @if (!string.IsNullOrWhiteSpace(primaryDomain.LastError))
             {
-              <div class="small text-danger mt-2">@primaryDomain.LastError</div>
+              <div class="small @(dnsReady ? "text-danger" : "text-muted") mt-2">@primaryDomain.LastError</div>
             }
           </div>
         }
@@ -282,20 +308,86 @@
   </div>
 </div>
 
+<style>
+.website-template-preview {
+  overflow: hidden;
+  min-height: 250px;
+  border: 1px solid #dce3ec;
+  border-radius: 8px;
+  background: var(--preview-bg);
+  color: #172033;
+  font-family: var(--preview-font);
+}
+.website-template-preview__nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 54px;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8edf3;
+  font-size: 13px;
+}
+.website-template-preview__nav strong { margin-right: auto; color: var(--preview-accent); font-size: 16px; }
+.website-template-preview__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(180px, .65fr);
+  gap: 28px;
+  align-items: center;
+  min-height: 196px;
+  padding: 28px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--preview-accent) 13%, #fff), var(--preview-bg));
+}
+.website-template-preview__hero h3 { margin: 7px 0; font-size: 27px; }
+.website-template-preview__hero p { margin: 0 0 17px; color: #536078; }
+.website-template-preview__eyebrow { color: var(--preview-accent); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.website-template-preview__button { display: inline-block; padding: 8px 14px; border-radius: 5px; background: var(--preview-accent); color: #fff; font-size: 13px; font-weight: 700; }
+.website-template-preview__services { display: grid; gap: 10px; }
+.website-template-preview__services span { display: block; height: 42px; border-left: 4px solid var(--preview-accent); border-radius: 5px; background: #fff; box-shadow: 0 5px 16px rgba(30, 45, 70, .08); }
+@@media (max-width: 767px) {
+  .website-template-preview__nav span { display: none; }
+  .website-template-preview__hero { grid-template-columns: 1fr; }
+  .website-template-preview__services { display: none; }
+}
+</style>
+
 @section Scripts {
 <script>
+function updateWebsitePreview() {
+  const preview = document.getElementById('websiteTemplatePreview');
+  const color = document.getElementById('ThemeColor');
+  const title = document.querySelector('[name="SiteTitle"]');
+  const tagline = document.querySelector('[name="TagLine"]');
+  if (!preview || !color) return;
+  preview.style.setProperty('--preview-accent', color.value);
+  document.getElementById('previewSiteTitle').textContent = title?.value || 'Your Business';
+  document.getElementById('previewHeadline').textContent = title?.value || 'Welcome to your website';
+  document.getElementById('previewTagline').textContent = tagline?.value || 'Helping clients move forward with confidence.';
+}
 document.getElementById('ThemeColor')?.addEventListener('input', function () {
   document.getElementById('themeHex').value = this.value;
+  updateWebsitePreview();
 });
+document.querySelector('[name="SiteTitle"]')?.addEventListener('input', updateWebsitePreview);
+document.querySelector('[name="TagLine"]')?.addEventListener('input', updateWebsitePreview);
 document.getElementById('TemplateId')?.addEventListener('change', function () {
   const selected = this.options[this.selectedIndex];
   const accent = selected?.dataset?.accent;
   const color = document.getElementById('ThemeColor');
   const hex = document.getElementById('themeHex');
+  const preview = document.getElementById('websiteTemplatePreview');
   if (accent && color && hex) {
     color.value = accent;
     hex.value = accent;
   }
+  if (preview) {
+    preview.style.setProperty('--preview-bg', selected?.dataset?.background || '#f4f7fb');
+    preview.style.setProperty('--preview-font', selected?.dataset?.font || 'Arial, Helvetica, sans-serif');
+  }
+  const description = document.getElementById('selectedTemplateDescription');
+  if (description) description.textContent = `Selected: ${selected?.dataset?.description || ''}`;
+  updateWebsitePreview();
 });
+updateWebsitePreview();
 </script>
 }
