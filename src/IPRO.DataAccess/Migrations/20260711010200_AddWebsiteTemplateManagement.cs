@@ -12,7 +12,7 @@ namespace IPRO.DataAccess.Migrations
         {
             migrationBuilder.Sql(AddColumnIfMissingSql(
                 "BusinessType",
-                "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NOT NULL"));
+                "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL"));
 
             migrationBuilder.Sql(AddColumnIfMissingSql(
                 "IsDefault",

@@ -21,6 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
              ?? throw new InvalidOperationException("ConnectionString 'DefaultConnection' not found.");
+connStr = EnsureMySqlMigrationOptions(connStr);
 
 builder.Services.AddDbContext<IPRODbContext>(o =>
     o.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
@@ -187,4 +188,11 @@ static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration confi
         .ToLowerInvariant();
 
     return host.EndsWith("." + temporaryRoot, StringComparison.OrdinalIgnoreCase) || !platformDomains.Contains(host);
+}
+
+static string EnsureMySqlMigrationOptions(string connectionString)
+{
+    return connectionString.Contains("Allow User Variables", StringComparison.OrdinalIgnoreCase)
+        ? connectionString
+        : connectionString.TrimEnd(';') + ";Allow User Variables=True";
 }

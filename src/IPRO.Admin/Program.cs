@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")!;
+connStr = EnsureMySqlMigrationOptions(connStr);
 
 builder.Services.AddDbContext<IPRODbContext>(o =>
     o.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
@@ -85,3 +86,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+static string EnsureMySqlMigrationOptions(string connectionString)
+{
+    return connectionString.Contains("Allow User Variables", StringComparison.OrdinalIgnoreCase)
+        ? connectionString
+        : connectionString.TrimEnd(';') + ";Allow User Variables=True";
+}
