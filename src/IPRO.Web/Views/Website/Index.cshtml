@@ -3,7 +3,6 @@
     ViewData["Title"] = "My Website";
     var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.WebsiteTemplate> ?? Enumerable.Empty<IPRO.Entities.WebsiteTemplate>()).ToList();
     var temporaryDomain = ViewBag.TemporaryDomain as string ?? "";
-    var temporaryRootDomain = ViewBag.TemporaryRootDomain as string ?? "247advisers.com";
     var dnsTarget = ViewBag.WebsiteDnsTarget as string ?? "ipro-prod-web.azurewebsites.net";
     var siteTitle = Model?.SiteTitle ?? "";
     var tagLine = Model?.TagLine ?? "";
@@ -20,7 +19,7 @@
 <div class="d-flex justify-content-between align-items-start mb-4">
   <div>
     <h2 class="fw-bold mb-1"><i class="fas fa-globe me-2 text-primary"></i>My Website</h2>
-    <div class="text-muted">Manage your temporary website and custom domain setup.</div>
+    <div class="text-muted">Manage your website design, publishing, and custom domain setup.</div>
   </div>
   <div class="d-flex gap-2">
     @if (!string.IsNullOrWhiteSpace(liveDomain))
@@ -155,16 +154,8 @@
   <div class="col-xl-4">
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-4">
-        <h5 class="fw-bold mb-3"><i class="fas fa-route me-2 text-primary"></i>Phase 1 Domain Setup</h5>
-        <div class="small text-muted mb-3">For GoDaddy or another registrar, keep nameservers as-is and add DNS records.</div>
-
-        <div class="border rounded-3 p-3 mb-3">
-          <div class="fw-bold mb-2">Temporary websites</div>
-          <div class="small text-muted mb-2">Add this once on @temporaryRootDomain:</div>
-          <div class="bg-light rounded p-3 font-monospace small">
-            CNAME&nbsp;&nbsp;*&nbsp;&nbsp;@dnsTarget
-          </div>
-        </div>
+        <h5 class="fw-bold mb-3"><i class="fas fa-route me-2 text-primary"></i>Custom Domain Setup</h5>
+        <div class="small text-muted mb-3">For GoDaddy or another registrar, keep nameservers as-is and add a DNS record for your own domain.</div>
 
         <div class="border rounded-3 p-3">
           <div class="fw-bold mb-2">Custom agent domain</div>
