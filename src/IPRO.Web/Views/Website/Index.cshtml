@@ -104,8 +104,8 @@
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Custom Domain</label>
-              <input name="CustomDomain" class="form-control" value="@customDomain" placeholder="www.yourdomain.com" />
-              <div class="form-text">Optional for Phase 1. Add it here after DNS is ready.</div>
+              <input name="CustomDomain" class="form-control" value="@customDomain" placeholder="yourdomain.com or www.yourdomain.com" />
+              <div class="form-text">Enter the root or www version. We will use the www host for DNS and routing.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Logo</label>
@@ -155,7 +155,7 @@
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-4">
         <h5 class="fw-bold mb-3"><i class="fas fa-route me-2 text-primary"></i>Custom Domain Setup</h5>
-        <div class="small text-muted mb-3">For GoDaddy or another registrar, keep nameservers as-is and add a DNS record for your own domain.</div>
+        <div class="small text-muted mb-3">For GoDaddy or another registrar, keep nameservers as-is and add DNS for the www host. Root domains can forward to www.</div>
 
         <div class="border rounded-3 p-3">
           <div class="fw-bold mb-2">Custom agent domain</div>
@@ -163,7 +163,7 @@
           <div class="bg-light rounded p-3 font-monospace small">
             CNAME&nbsp;&nbsp;www&nbsp;&nbsp;@dnsTarget
           </div>
-          <div class="small text-muted mt-2">Apex/root domains may need registrar forwarding or an A/ALIAS option depending on provider support.</div>
+          <div class="small text-muted mt-2">If the agent enters mragent.com, we will save it as www.mragent.com. Forward the root domain to www when the registrar supports forwarding.</div>
         </div>
       </div>
     </div>

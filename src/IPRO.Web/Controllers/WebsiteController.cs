@@ -132,13 +132,32 @@ public class WebsiteController : Controller
 
         var value = domain.Trim().ToLowerInvariant();
         value = value.Replace("https://", string.Empty).Replace("http://", string.Empty);
-        var slashIndex = value.IndexOf('/');
-        if (slashIndex >= 0)
+        foreach (var separator in new[] { '/', '?', '#' })
         {
-            value = value[..slashIndex];
+            var index = value.IndexOf(separator);
+            if (index >= 0)
+            {
+                value = value[..index];
+            }
         }
 
-        return value.Trim().Trim('.');
+        value = value.Trim().Trim('.');
+        var portIndex = value.IndexOf(':');
+        if (portIndex >= 0)
+        {
+            value = value[..portIndex];
+        }
+
+        return ShouldUseWwwHost(value) ? "www." + value : value;
+    }
+
+    private static bool ShouldUseWwwHost(string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain)) return false;
+        if (domain.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) return false;
+
+        var labels = domain.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return labels.Length == 2;
     }
 
     private static string BuildDefaultSiteTitle(AgentUser? agent)

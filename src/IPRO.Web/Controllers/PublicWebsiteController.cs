@@ -23,12 +23,14 @@ public class PublicWebsiteController : Controller
             return NotFound();
         }
 
+        var hostMatches = BuildHostMatches(host);
         var website = await _db.AgentWebsites
             .Include(w => w.AgentUser)
             .Include(w => w.Template)
             .FirstOrDefaultAsync(w =>
                 w.IsPublished &&
-                (w.CustomDomain.ToLower() == host || w.AgentUser.DomainName.ToLower() == host));
+                (hostMatches.Contains(w.CustomDomain.ToLower()) ||
+                 hostMatches.Contains(w.AgentUser.DomainName.ToLower())));
 
         if (website == null)
         {
@@ -42,5 +44,21 @@ public class PublicWebsiteController : Controller
     {
         if (string.IsNullOrWhiteSpace(host)) return string.Empty;
         return host.Trim().Trim('.').ToLowerInvariant();
+    }
+
+    private static string[] BuildHostMatches(string host)
+    {
+        var matches = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { host };
+
+        if (host.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+        {
+            matches.Add(host[4..]);
+        }
+        else
+        {
+            matches.Add("www." + host);
+        }
+
+        return matches.ToArray();
     }
 }
