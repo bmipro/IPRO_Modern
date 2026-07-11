@@ -100,6 +100,7 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     await db.Database.OpenConnectionAsync();
     try
     {
+        await EnsureAgentDomainSchemaAsync(db);
         await EnsureWebsiteTemplateColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
         await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureWebsiteTemplateColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
@@ -111,6 +112,44 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureAgentDomainSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `AgentDomains` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `AgentWebsiteId` int NOT NULL,
+    `DomainName` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `RootDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `WwwDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `DnsTarget` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `DnsStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+    `AzureBindingStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+    `SslStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+    `IsPrimary` tinyint(1) NOT NULL,
+    `LastCheckedAt` datetime(6) NULL,
+    `LastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await EnsureTableColumnAsync(db, "AgentDomains", "AgentUserId", "ALTER TABLE `AgentDomains` ADD COLUMN `AgentUserId` int NOT NULL DEFAULT 0");
+    await EnsureTableColumnAsync(db, "AgentDomains", "AgentWebsiteId", "ALTER TABLE `AgentDomains` ADD COLUMN `AgentWebsiteId` int NOT NULL DEFAULT 0");
+    await EnsureTableColumnAsync(db, "AgentDomains", "DomainName", "ALTER TABLE `AgentDomains` ADD COLUMN `DomainName` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    await EnsureTableColumnAsync(db, "AgentDomains", "RootDomain", "ALTER TABLE `AgentDomains` ADD COLUMN `RootDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    await EnsureTableColumnAsync(db, "AgentDomains", "WwwDomain", "ALTER TABLE `AgentDomains` ADD COLUMN `WwwDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    await EnsureTableColumnAsync(db, "AgentDomains", "DnsTarget", "ALTER TABLE `AgentDomains` ADD COLUMN `DnsTarget` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    await EnsureTableColumnAsync(db, "AgentDomains", "DnsStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `DnsStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'PendingDns'");
+    await EnsureTableColumnAsync(db, "AgentDomains", "AzureBindingStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `AzureBindingStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'BindingPending'");
+    await EnsureTableColumnAsync(db, "AgentDomains", "SslStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `SslStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'BindingPending'");
+    await EnsureTableColumnAsync(db, "AgentDomains", "IsPrimary", "ALTER TABLE `AgentDomains` ADD COLUMN `IsPrimary` tinyint(1) NOT NULL DEFAULT TRUE");
+    await EnsureTableColumnAsync(db, "AgentDomains", "LastCheckedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `LastCheckedAt` datetime(6) NULL");
+    await EnsureTableColumnAsync(db, "AgentDomains", "LastError", "ALTER TABLE `AgentDomains` ADD COLUMN `LastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    await EnsureTableColumnAsync(db, "AgentDomains", "CreatedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+    await EnsureTableColumnAsync(db, "AgentDomains", "UpdatedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `UpdatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
 }
 
 static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)
