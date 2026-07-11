@@ -72,4 +72,23 @@ public class WebsiteService : IWebsiteService
         await _uow.SaveChangesAsync();
         return template;
     }
+
+    public async Task<WebsiteTemplate> EnsureDefaultTemplateForPackageAsync(int? packageId)
+    {
+        if (packageId.HasValue && packageId.Value > 0)
+        {
+            var package = await _uow.BillingRules.GetByIdAsync(packageId.Value);
+            if (package?.DefaultWebsiteTemplateId is > 0)
+            {
+                var packageTemplate = await _uow.WebsiteTemplates.FirstOrDefaultAsync(t =>
+                    t.Id == package.DefaultWebsiteTemplateId.Value && t.IsActive);
+                if (packageTemplate != null)
+                {
+                    return packageTemplate;
+                }
+            }
+        }
+
+        return await EnsureDefaultTemplateAsync();
+    }
 }

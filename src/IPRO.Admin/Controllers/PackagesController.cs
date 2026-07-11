@@ -24,6 +24,8 @@ public class PackagesController : Controller
     {
         var packages = (await _uow.BillingRules.GetAllAsync()).ToList();
         var features = (await _uow.PackageFeatures.GetAllAsync()).ToList();
+        var templates = (await _uow.WebsiteTemplates.GetAllAsync())
+            .ToDictionary(t => t.Id, t => t.Name);
 
         var model = packages
             .OrderBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
@@ -42,6 +44,10 @@ public class PackagesController : Controller
                 DomainsLimit = FormatFeatureLimit(features.FirstOrDefault(f =>
                     f.BillingRuleId == p.Id &&
                     string.Equals(f.FeatureCode, PackageFeatureCodes.MultiDomainSupport, StringComparison.OrdinalIgnoreCase))),
+                DefaultWebsiteTemplateName = p.DefaultWebsiteTemplateId.HasValue &&
+                    templates.TryGetValue(p.DefaultWebsiteTemplateId.Value, out var templateName)
+                        ? templateName
+                        : "Global default",
                 IsActive = p.IsActive
             })
             .ToList();
@@ -58,6 +64,7 @@ public class PackagesController : Controller
         if (!ModelState.IsValid)
         {
             await EnsureFeatureRowsAsync(model);
+            await LoadWebsiteTemplatesAsync();
             return View(model);
         }
 
@@ -86,6 +93,7 @@ public class PackagesController : Controller
         if (!ModelState.IsValid)
         {
             await EnsureFeatureRowsAsync(model);
+            await LoadWebsiteTemplatesAsync();
             return View(model);
         }
 
@@ -125,6 +133,8 @@ public class PackagesController : Controller
 
     private async Task<PackageEditViewModel> BuildPackageModelAsync(BillingRule rule)
     {
+        await LoadWebsiteTemplatesAsync();
+
         var features = rule.Id == 0
             ? await BuildDefaultFeatureRowsAsync()
             : await BuildExistingFeatureRowsAsync(rule.Id);
@@ -142,6 +152,7 @@ public class PackagesController : Controller
             PayPalAnnualPlanId = rule.PayPalAnnualPlanId,
             MaxClients = rule.MaxClients,
             MaxNewsletters = rule.MaxNewsletters == 0 ? null : rule.MaxNewsletters,
+            DefaultWebsiteTemplateId = rule.DefaultWebsiteTemplateId,
             IsActive = rule.IsActive,
             Features = features
         };
@@ -258,7 +269,16 @@ public class PackagesController : Controller
         rule.PayPalAnnualPlanId = model.PayPalAnnualPlanId ?? string.Empty;
         rule.MaxClients = ResolveMaxClients(model);
         rule.MaxNewsletters = model.MaxNewsletters ?? 0;
+        rule.DefaultWebsiteTemplateId = model.DefaultWebsiteTemplateId > 0 ? model.DefaultWebsiteTemplateId : null;
         rule.IsActive = model.IsActive;
+    }
+
+    private async Task LoadWebsiteTemplatesAsync()
+    {
+        ViewBag.WebsiteTemplates = (await _uow.WebsiteTemplates.FindAsync(t => t.IsActive))
+            .OrderByDescending(t => t.IsDefault)
+            .ThenBy(t => t.Name)
+            .ToList();
     }
 
     private static int ResolveMaxClients(PackageEditViewModel model)

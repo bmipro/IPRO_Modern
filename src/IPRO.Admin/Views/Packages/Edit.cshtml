@@ -1,5 +1,8 @@
 @model IPRO.Admin.Models.PackageEditViewModel
-@{ ViewData["Title"] = "Edit Package"; }
+@{
+  ViewData["Title"] = "Edit Package";
+  var websiteTemplates = ViewBag.WebsiteTemplates as IEnumerable<IPRO.Entities.WebsiteTemplate> ?? Enumerable.Empty<IPRO.Entities.WebsiteTemplate>();
+}
 
 <div class="mb-4">
   <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Packages">Packages</a></li><li class="breadcrumb-item active">Edit</li></ol></nav>
@@ -26,6 +29,17 @@
   <input type="hidden" asp-for="MaxClients"/>
   <div class="row g-3 mb-3">
     <div class="col-md-6"><label class="form-label fw-semibold">Max Newsletters/year</label><input asp-for="MaxNewsletters" type="number" class="form-control" placeholder="blank if not limited"/></div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">Default Website Template</label>
+      <select asp-for="DefaultWebsiteTemplateId" class="form-select">
+        <option value="">Use global default template</option>
+        @foreach (var template in websiteTemplates)
+        {
+          <option value="@template.Id">@template.Name@(template.IsDefault ? " (global default)" : "")</option>
+        }
+      </select>
+      <div class="form-text">New agent websites on this package will start with this template.</div>
+    </div>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-6"><label class="form-label fw-semibold">PayPal Monthly Plan ID</label><input asp-for="PayPalMonthlyPlanId" class="form-control"/></div>

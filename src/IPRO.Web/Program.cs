@@ -203,9 +203,10 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     await db.Database.OpenConnectionAsync();
     try
     {
-        await EnsureColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
-        await EnsureColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
-        await EnsureColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
+        await EnsureWebsiteTemplateColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
+        await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
+        await EnsureWebsiteTemplateColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
+        await EnsureTableColumnAsync(db, "BillingRules", "DefaultWebsiteTemplateId", "ALTER TABLE `BillingRules` ADD COLUMN `DefaultWebsiteTemplateId` int NULL");
         await db.Database.ExecuteSqlRawAsync("UPDATE `WebsiteTemplates` SET `BusinessType` = '' WHERE `BusinessType` IS NULL");
         await db.Database.ExecuteSqlRawAsync("UPDATE `WebsiteTemplates` SET `TemplateKey` = CONCAT('template-', `Id`) WHERE `TemplateKey` IS NULL OR `TemplateKey` = ''");
     }
@@ -215,15 +216,25 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     }
 }
 
-static async Task EnsureColumnAsync(IPRODbContext db, string columnName, string alterSql)
+static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)
+{
+    await EnsureTableColumnAsync(db, "WebsiteTemplates", columnName, alterSql);
+}
+
+static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)
 {
     await using var command = db.Database.GetDbConnection().CreateCommand();
     command.CommandText = @"
 SELECT COUNT(1)
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
-  AND TABLE_NAME = 'WebsiteTemplates'
+  AND TABLE_NAME = @tableName
   AND COLUMN_NAME = @columnName";
+
+    var tableParameter = command.CreateParameter();
+    tableParameter.ParameterName = "@tableName";
+    tableParameter.Value = tableName;
+    command.Parameters.Add(tableParameter);
 
     var parameter = command.CreateParameter();
     parameter.ParameterName = "@columnName";

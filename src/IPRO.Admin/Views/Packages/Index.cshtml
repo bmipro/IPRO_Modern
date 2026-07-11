@@ -9,7 +9,7 @@
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>Package</th><th>Monthly</th><th>Annual</th><th>Setup</th><th>Contacts</th><th>Domains</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Package</th><th>Monthly</th><th>Annual</th><th>Setup</th><th>Contacts</th><th>Domains</th><th>Default Template</th><th>Status</th><th></th></tr></thead>
       <tbody>
       @foreach (var p in Model)
       {
@@ -23,6 +23,7 @@
           <td>$@p.SetupFee.ToString("N2")</td>
           <td>@p.ContactsLimit</td>
           <td>@p.DomainsLimit</td>
+          <td>@p.DefaultWebsiteTemplateName</td>
           <td>
             <form asp-action="Toggle" asp-route-id="@p.Id" method="post">
               @Html.AntiForgeryToken()
@@ -35,7 +36,7 @@
         </tr>
       }
       @if (!Model.Any())
-      { <tr><td colspan="8" class="text-center py-4 text-muted">No packages yet. <a href="/Packages/Create">Create one.</a></td></tr> }
+      { <tr><td colspan="9" class="text-center py-4 text-muted">No packages yet. <a href="/Packages/Create">Create one.</a></td></tr> }
       </tbody>
     </table>
   </div>

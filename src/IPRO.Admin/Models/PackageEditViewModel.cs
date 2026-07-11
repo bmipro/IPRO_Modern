@@ -21,6 +21,7 @@ public class PackageEditViewModel
     public string? PayPalAnnualPlanId { get; set; }
     public int MaxClients { get; set; } = 500;
     public int? MaxNewsletters { get; set; } = 12;
+    public int? DefaultWebsiteTemplateId { get; set; }
     public bool IsActive { get; set; } = true;
     public List<PackageFeatureEditViewModel> Features { get; set; } = new();
 }
@@ -46,5 +47,6 @@ public class PackageListViewModel
     public decimal SetupFee { get; set; }
     public string ContactsLimit { get; set; } = string.Empty;
     public string DomainsLimit { get; set; } = string.Empty;
+    public string DefaultWebsiteTemplateName { get; set; } = string.Empty;
     public bool IsActive { get; set; }
 }

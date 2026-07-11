@@ -40,14 +40,10 @@ public class WebsiteController : Controller
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
-        var templates = (await _websites.GetTemplatesAsync()).ToList();
-        if (model.TemplateId <= 0 && templates.Any())
+        if (model.TemplateId <= 0)
         {
-            model.TemplateId = templates.First().Id;
-        }
-        else if (model.TemplateId <= 0)
-        {
-            model.TemplateId = (await _websites.EnsureDefaultTemplateAsync()).Id;
+            var agent = await _agents.GetByIdAsync(AgentId);
+            model.TemplateId = (await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId)).Id;
         }
 
         var existing = await _websites.GetByAgentIdAsync(AgentId);
@@ -91,7 +87,7 @@ public class WebsiteController : Controller
         if (existing == null)
         {
             var agent = await _agents.GetByIdAsync(AgentId);
-            var template = await _websites.EnsureDefaultTemplateAsync();
+            var template = await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId);
             await _websites.CreateAsync(new AgentWebsite
             {
                 AgentUserId = AgentId,

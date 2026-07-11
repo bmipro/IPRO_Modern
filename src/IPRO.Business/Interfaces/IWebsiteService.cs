@@ -13,4 +13,5 @@ public interface IWebsiteService
     Task<IEnumerable<WebsiteTemplate>> GetTemplatesAsync();
     Task<WebsiteTemplate?> GetTemplateByIdAsync(int id);
     Task<WebsiteTemplate> EnsureDefaultTemplateAsync();
+    Task<WebsiteTemplate> EnsureDefaultTemplateForPackageAsync(int? packageId);
 }
