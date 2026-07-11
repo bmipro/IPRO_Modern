@@ -1,0 +1,324 @@
+@model IPRO.Entities.AgentWebsite
+@{
+    var agent = Model.AgentUser;
+    var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+    var title = string.IsNullOrWhiteSpace(Model.SiteTitle) ? fullName : Model.SiteTitle;
+    var tagline = string.IsNullOrWhiteSpace(Model.TagLine)
+        ? "Helpful advice, timely updates, and professional service."
+        : Model.TagLine;
+    var theme = string.IsNullOrWhiteSpace(Model.ThemeColor) ? "#1457d9" : Model.ThemeColor;
+    var company = string.IsNullOrWhiteSpace(agent.CompanyName) ? "IPRO Advisers" : agent.CompanyName;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>@title</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --site-theme: @theme;
+      --site-theme-deep: color-mix(in srgb, var(--site-theme) 70%, #111827);
+      --site-theme-soft: color-mix(in srgb, var(--site-theme) 10%, #ffffff);
+      --ink: #162033;
+      --muted: #607089;
+      --line: #d8e1ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #eef3f9;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .classic-shell {
+      width: min(1120px, calc(100% - 32px));
+      margin: 24px auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: 0 20px 48px rgba(14, 33, 66, .12);
+    }
+    .classic-top {
+      background: linear-gradient(90deg, var(--site-theme-deep), var(--site-theme));
+      color: #fff;
+      padding: 12px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .classic-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      font-weight: 800;
+    }
+    .classic-brand img {
+      max-width: 210px;
+      max-height: 54px;
+      object-fit: contain;
+      background: rgba(255,255,255,.92);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .classic-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .classic-nav a {
+      color: #fff;
+      text-decoration: none;
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .classic-nav a:hover { background: rgba(255,255,255,.16); }
+    .classic-banner {
+      min-height: 230px;
+      display: flex;
+      align-items: center;
+      padding: 34px;
+      background:
+        linear-gradient(110deg, rgba(255,255,255,.95), rgba(255,255,255,.78)),
+        linear-gradient(135deg, var(--site-theme-soft), #ffffff);
+      border-bottom: 1px solid var(--line);
+    }
+    .classic-banner-inner {
+      width: min(760px, 100%);
+    }
+    .classic-kicker {
+      color: var(--site-theme);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .classic-title {
+      font-size: clamp(34px, 6vw, 58px);
+      line-height: 1;
+      font-weight: 900;
+      margin: 0 0 14px;
+    }
+    .classic-tagline {
+      max-width: 680px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .classic-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 0;
+    }
+    .classic-main {
+      padding: 32px 34px 42px;
+    }
+    .classic-sidebar {
+      border-left: 1px solid var(--line);
+      background: #f8fbff;
+      padding: 28px 24px;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 900;
+      margin: 0 0 12px;
+    }
+    .lead-copy {
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.65;
+      max-width: 720px;
+    }
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 26px;
+    }
+    .service-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      background: #fff;
+    }
+    .service-item i {
+      color: var(--site-theme);
+      margin-right: 8px;
+    }
+    .profile-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+    .profile-name {
+      font-weight: 900;
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+    .profile-meta {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .side-link {
+      display: block;
+      text-decoration: none;
+      color: var(--ink);
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+    }
+    .side-link i {
+      color: var(--site-theme);
+      width: 20px;
+    }
+    .contact-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 44px;
+      border-radius: 6px;
+      background: var(--site-theme);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 800;
+    }
+    .contact-button:hover {
+      color: #fff;
+      background: var(--site-theme-deep);
+    }
+    .classic-footer {
+      border-top: 1px solid var(--line);
+      padding: 18px 34px;
+      color: var(--muted);
+      font-size: 14px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+    @@media (max-width: 860px) {
+      .classic-shell {
+        width: 100%;
+        margin: 0;
+        border-left: 0;
+        border-right: 0;
+      }
+      .classic-body {
+        grid-template-columns: 1fr;
+      }
+      .classic-sidebar {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+      .service-grid {
+        grid-template-columns: 1fr;
+      }
+      .classic-banner,
+      .classic-main,
+      .classic-footer {
+        padding-left: 22px;
+        padding-right: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="classic-shell">
+    <header class="classic-top">
+      <div class="classic-brand">
+        @if (!string.IsNullOrWhiteSpace(Model.LogoUrl))
+        {
+          <img src="@Model.LogoUrl" alt="@company logo" />
+        }
+        else
+        {
+          <span>@company</span>
+        }
+      </div>
+      <nav class="classic-nav" aria-label="Main navigation">
+        <a href="#"><i class="fas fa-house me-1"></i>Home</a>
+        <a href="#services"><i class="fas fa-briefcase me-1"></i>Services</a>
+        <a href="#contact"><i class="fas fa-envelope me-1"></i>Contact</a>
+      </nav>
+    </header>
+
+    <section class="classic-banner">
+      <div class="classic-banner-inner">
+        <div class="classic-kicker">@company</div>
+        <h1 class="classic-title">@title</h1>
+        <p class="classic-tagline">@tagline</p>
+      </div>
+    </section>
+
+    <div class="classic-body">
+      <main class="classic-main">
+        <section>
+          <h2 class="section-title">Welcome</h2>
+          <p class="lead-copy">
+            @company provides a connected online home for clients to learn, request information,
+            and stay in touch. This template keeps the familiar classic adviser layout while giving
+            it a cleaner modern presentation.
+          </p>
+        </section>
+
+        <section id="services" class="mt-4">
+          <h2 class="section-title">Services</h2>
+          <div class="service-grid">
+            <div class="service-item"><i class="fas fa-check-circle"></i>Professional guidance and updates</div>
+            <div class="service-item"><i class="fas fa-calendar-check"></i>Appointments and follow-up reminders</div>
+            <div class="service-item"><i class="fas fa-envelope-open-text"></i>Newsletter and client communication</div>
+            <div class="service-item"><i class="fas fa-shield-halved"></i>Organized client relationship support</div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="classic-sidebar" id="contact">
+        <div class="profile-box">
+          <div class="profile-name">@fullName</div>
+          @if (!string.IsNullOrWhiteSpace(agent.Designation))
+          {
+            <div class="profile-meta">@agent.Designation</div>
+          }
+          <div class="profile-meta mt-2">@company</div>
+          <div class="profile-meta">@agent.City, @agent.Province</div>
+        </div>
+
+        <div class="profile-box">
+          <a class="side-link" href="#"><i class="fas fa-newspaper"></i>Latest News</a>
+          <a class="side-link" href="#"><i class="fas fa-calculator"></i>Tools & Resources</a>
+          <a class="side-link" href="#"><i class="fas fa-comments"></i>Client Support</a>
+        </div>
+
+        <div class="profile-box">
+          <h2 class="h6 fw-bold mb-3">Contact</h2>
+          @if (!string.IsNullOrWhiteSpace(agent.Phone))
+          {
+            <div class="profile-meta mb-2"><i class="fas fa-phone me-2"></i>@agent.Phone</div>
+          }
+          @if (!string.IsNullOrWhiteSpace(agent.Email))
+          {
+            <a class="contact-button" href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>Email @fullName</a>
+          }
+        </div>
+      </aside>
+    </div>
+
+    <footer class="classic-footer">
+      <span>&copy; @DateTime.Now.Year @company</span>
+      <span>Powered by IPRO Advisers</span>
+    </footer>
+  </div>
+</body>
+</html>

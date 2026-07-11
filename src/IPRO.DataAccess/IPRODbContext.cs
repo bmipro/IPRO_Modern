@@ -343,5 +343,15 @@ public class IPRODbContext : DbContext
             e.Property(t => t.TaxLabel).HasMaxLength(80).IsRequired();
             e.Property(t => t.Rate).HasPrecision(7, 5);
         });
+
+        modelBuilder.Entity<WebsiteTemplate>(e =>
+        {
+            e.HasIndex(t => t.TemplateKey).IsUnique();
+            e.Property(t => t.TemplateKey).HasMaxLength(80).IsRequired();
+            e.Property(t => t.Name).HasMaxLength(120).IsRequired();
+            e.Property(t => t.Description).HasMaxLength(500);
+            e.Property(t => t.BusinessType).HasMaxLength(80);
+            e.Property(t => t.PreviewImageUrl).HasMaxLength(500);
+        });
     }
 }

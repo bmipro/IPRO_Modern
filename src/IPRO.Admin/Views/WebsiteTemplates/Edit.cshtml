@@ -1,0 +1,76 @@
+@model IPRO.Entities.WebsiteTemplate
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Create Website Template" : "Edit Website Template";
+}
+
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/WebsiteTemplates">Website Templates</a></li>
+      <li class="breadcrumb-item active">@(Model.Id == 0 ? "Create" : "Edit")</li>
+    </ol>
+  </nav>
+  <h4 class="fw-bold mb-1">@ViewData["Title"]</h4>
+  <div class="text-muted">Use template keys to connect a database template to a public website renderer.</div>
+</div>
+
+<form method="post" action="/WebsiteTemplates/Edit">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id" />
+  <input type="hidden" asp-for="CreatedAt" />
+
+  @if (!ViewData.ModelState.IsValid)
+  {
+    <div class="alert alert-danger" asp-validation-summary="All"></div>
+  }
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label asp-for="Name" class="form-label fw-semibold">Template Name</label>
+          <input asp-for="Name" class="form-control" />
+        </div>
+        <div class="col-md-6">
+          <label asp-for="TemplateKey" class="form-label fw-semibold">Template Key</label>
+          <input asp-for="TemplateKey" class="form-control" placeholder="classic-sidebar" />
+          <div class="form-text">Known renderers: modern-professional, classic-sidebar.</div>
+        </div>
+        <div class="col-12">
+          <label asp-for="Description" class="form-label fw-semibold">Description</label>
+          <input asp-for="Description" class="form-control" />
+        </div>
+        <div class="col-md-6">
+          <label asp-for="BusinessType" class="form-label fw-semibold">Vertical / Business Type</label>
+          <input asp-for="BusinessType" class="form-control" placeholder="Insurance / Financial, Accountants, or blank for all" />
+        </div>
+        <div class="col-md-6">
+          <label asp-for="PreviewImageUrl" class="form-label fw-semibold">Preview Image URL</label>
+          <input asp-for="PreviewImageUrl" class="form-control" />
+        </div>
+        <div class="col-12">
+          <label asp-for="LayoutJson" class="form-label fw-semibold">Layout JSON</label>
+          <textarea asp-for="LayoutJson" class="form-control font-monospace" rows="6"></textarea>
+          <div class="form-text">Reserved for deeper layout/content-block configuration.</div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check form-switch">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label asp-for="IsActive" class="form-check-label fw-semibold">Template is active</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check form-switch">
+            <input asp-for="IsDefault" class="form-check-input" />
+            <label asp-for="IsDefault" class="form-check-label fw-semibold">Use as default template</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between mt-4">
+    <a href="/WebsiteTemplates" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>Save Template</button>
+  </div>
+</form>

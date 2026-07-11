@@ -44,8 +44,13 @@ public class WebsiteService : IWebsiteService
         if (site != null) { site.IsPublished = false; site.UpdatedAt = DateTime.UtcNow; _uow.AgentWebsites.Update(site); await _uow.SaveChangesAsync(); }
     }
 
-    public Task<IEnumerable<WebsiteTemplate>> GetTemplatesAsync() =>
-        _uow.WebsiteTemplates.FindAsync(t => t.IsActive);
+    public async Task<IEnumerable<WebsiteTemplate>> GetTemplatesAsync()
+    {
+        var templates = await _uow.WebsiteTemplates.FindAsync(t => t.IsActive);
+        return templates
+            .OrderByDescending(t => t.IsDefault)
+            .ThenBy(t => t.Name);
+    }
 
     public Task<WebsiteTemplate?> GetTemplateByIdAsync(int id) =>
         _uow.WebsiteTemplates.GetByIdAsync(id);
@@ -53,7 +58,10 @@ public class WebsiteService : IWebsiteService
     public async Task<WebsiteTemplate> EnsureDefaultTemplateAsync()
     {
         var activeTemplates = await GetTemplatesAsync();
-        var activeTemplate = activeTemplates.FirstOrDefault();
+        var activeTemplate = activeTemplates
+            .OrderByDescending(t => t.IsDefault)
+            .ThenBy(t => t.Name)
+            .FirstOrDefault();
         if (activeTemplate != null)
         {
             return activeTemplate;
