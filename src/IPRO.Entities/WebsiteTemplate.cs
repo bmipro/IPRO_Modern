@@ -7,7 +7,7 @@ public class WebsiteTemplate
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string BusinessType { get; set; } = string.Empty;
-    public string PreviewImageUrl { get; set; } = string.Empty;
+    public string? PreviewImageUrl { get; set; }
     public string LayoutJson { get; set; } = "{}";
     public bool IsActive { get; set; } = true;
     public bool IsDefault { get; set; }

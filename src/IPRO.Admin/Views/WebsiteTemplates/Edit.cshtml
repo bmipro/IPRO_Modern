@@ -34,7 +34,7 @@
         <div class="col-md-6">
           <label asp-for="TemplateKey" class="form-label fw-semibold">Template Key</label>
           <input asp-for="TemplateKey" class="form-control" placeholder="classic-sidebar" />
-          <div class="form-text">Known renderers: modern-professional, classic-sidebar.</div>
+          <div class="form-text">Known renderers: modern-professional, classic-sidebar. Reusing one creates a named variant of that renderer.</div>
         </div>
         <div class="col-12">
           <label asp-for="Description" class="form-label fw-semibold">Description</label>
@@ -45,8 +45,9 @@
           <input asp-for="BusinessType" class="form-control" placeholder="Insurance / Financial, Accountants, or blank for all" />
         </div>
         <div class="col-md-6">
-          <label asp-for="PreviewImageUrl" class="form-label fw-semibold">Preview Image URL</label>
+          <label asp-for="PreviewImageUrl" class="form-label fw-semibold">Preview Image URL <span class="text-muted fw-normal">(optional)</span></label>
           <input asp-for="PreviewImageUrl" class="form-control" />
+          <div class="form-text">Leave blank until we add template preview screenshots.</div>
         </div>
         <div class="col-12">
           <label asp-for="LayoutJson" class="form-label fw-semibold">Layout JSON</label>
