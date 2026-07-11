@@ -146,6 +146,7 @@ RecurringJob.AddOrUpdate<SubscriptionBillingJob>("subscription-billing", job => 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
+    await EnsureWebsiteTemplateSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -195,4 +196,43 @@ static string EnsureMySqlMigrationOptions(string connectionString)
     return connectionString.Contains("Allow User Variables", StringComparison.OrdinalIgnoreCase)
         ? connectionString
         : connectionString.TrimEnd(';') + ";Allow User Variables=True";
+}
+
+static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
+{
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
+        await EnsureColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
+        await EnsureColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
+        await db.Database.ExecuteSqlRawAsync("UPDATE `WebsiteTemplates` SET `BusinessType` = '' WHERE `BusinessType` IS NULL");
+        await db.Database.ExecuteSqlRawAsync("UPDATE `WebsiteTemplates` SET `TemplateKey` = CONCAT('template-', `Id`) WHERE `TemplateKey` IS NULL OR `TemplateKey` = ''");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureColumnAsync(IPRODbContext db, string columnName, string alterSql)
+{
+    await using var command = db.Database.GetDbConnection().CreateCommand();
+    command.CommandText = @"
+SELECT COUNT(1)
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'WebsiteTemplates'
+  AND COLUMN_NAME = @columnName";
+
+    var parameter = command.CreateParameter();
+    parameter.ParameterName = "@columnName";
+    parameter.Value = columnName;
+    command.Parameters.Add(parameter);
+
+    var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+    if (!exists)
+    {
+        await db.Database.ExecuteSqlRawAsync(alterSql);
+    }
 }
