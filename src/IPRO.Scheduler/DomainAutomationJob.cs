@@ -1,6 +1,7 @@
 using System.Net;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Utility;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -10,12 +11,18 @@ public class DomainAutomationJob
 {
     private readonly IPRODbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IAzureDomainAutomationService _azureDomains;
     private readonly ILogger<DomainAutomationJob> _logger;
 
-    public DomainAutomationJob(IPRODbContext db, IHttpClientFactory httpClientFactory, ILogger<DomainAutomationJob> logger)
+    public DomainAutomationJob(
+        IPRODbContext db,
+        IHttpClientFactory httpClientFactory,
+        IAzureDomainAutomationService azureDomains,
+        ILogger<DomainAutomationJob> logger)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
+        _azureDomains = azureDomains;
         _logger = logger;
     }
 
@@ -23,8 +30,9 @@ public class DomainAutomationJob
     {
         var domains = await _db.AgentDomains
             .Where(d => d.IsPrimary &&
-                        d.DnsStatus != AgentDomainStatus.Bound &&
-                        d.AzureBindingStatus != AgentDomainStatus.Bound)
+                        (d.DnsStatus != AgentDomainStatus.Bound ||
+                         d.AzureBindingStatus != AgentDomainStatus.Bound ||
+                         d.SslStatus != AgentDomainStatus.Bound))
             .OrderBy(d => d.LastCheckedAt ?? d.CreatedAt)
             .Take(50)
             .ToListAsync();
@@ -54,7 +62,7 @@ public class DomainAutomationJob
             }
 
             domain.DnsStatus = AgentDomainStatus.DnsReady;
-            await CheckAzureBindingAsync(domain);
+            await EnsureAzureBindingAsync(domain);
         }
         catch (Exception ex)
         {
@@ -62,6 +70,33 @@ public class DomainAutomationJob
             domain.LastError = "DNS has not resolved yet. Confirm the CNAME points to " + domain.DnsTarget + ".";
             _logger.LogInformation(ex, "DNS check failed for custom domain {Domain}", domain.DomainName);
         }
+    }
+
+    private async Task EnsureAzureBindingAsync(AgentDomain domain)
+    {
+        if (domain.AzureBindingStatus != AgentDomainStatus.Bound ||
+            (_azureDomains.IsConfigured && domain.SslStatus != AgentDomainStatus.Bound))
+        {
+            var result = await _azureDomains.EnsureDomainAsync(domain.DomainName);
+            if (result.Success)
+            {
+                domain.DnsStatus = AgentDomainStatus.Bound;
+                domain.AzureBindingStatus = AgentDomainStatus.Bound;
+                domain.SslStatus = result.SslBound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending;
+                domain.LastError = result.SslBound ? string.Empty : result.Message;
+                return;
+            }
+
+            if (_azureDomains.IsConfigured)
+            {
+                domain.AzureBindingStatus = AgentDomainStatus.Failed;
+                domain.SslStatus = AgentDomainStatus.BindingPending;
+                domain.LastError = result.Message;
+                return;
+            }
+        }
+
+        await CheckAzureBindingAsync(domain);
     }
 
     private async Task CheckAzureBindingAsync(AgentDomain domain)
@@ -84,6 +119,7 @@ public class DomainAutomationJob
 
             domain.AzureBindingStatus = AgentDomainStatus.Bound;
             domain.SslStatus = AgentDomainStatus.Bound;
+            domain.DnsStatus = AgentDomainStatus.Bound;
             domain.LastError = string.Empty;
         }
         catch (Exception ex)

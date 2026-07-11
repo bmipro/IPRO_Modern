@@ -1,6 +1,7 @@
 @model IReadOnlyList<IPRO.Admin.Models.AgentDomainViewModel>
 @{
     ViewData["Title"] = "Domain Automation";
+    var azureOptions = ViewBag.AzureDomainAutomation as IPRO.Utility.AzureDomainAutomationOptions ?? new IPRO.Utility.AzureDomainAutomationOptions();
     string Badge(string status) => status switch
     {
         IPRO.Entities.AgentDomainStatus.Bound => "bg-success",
@@ -19,10 +20,56 @@
 </div>
 
 <div class="alert alert-info border-0 shadow-sm">
-  <div class="fw-semibold mb-1">Automation phase 1</div>
+  <div class="fw-semibold mb-1">Automation status</div>
   <div>
-    Agents can enter a root or www domain. IPRO stores the www host, checks DNS every 15 minutes, and shows when Azure binding is needed.
-    The next phase will use Azure API credentials to create the custom-domain binding automatically.
+    Agents can enter a root or www domain. IPRO stores the www host, checks DNS every 15 minutes, and can create the Azure custom-domain binding automatically once Azure settings are configured.
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3">
+      <div>
+        <h5 class="fw-bold mb-1"><i class="fab fa-microsoft me-2 text-primary"></i>Azure App Service Automation</h5>
+        <div class="text-muted">These values are read from Azure app settings. Secrets are masked by design.</div>
+      </div>
+      <span class="badge @(azureOptions.HasRequiredBindingSettings ? "bg-success" : "bg-warning text-dark")">
+        @(azureOptions.HasRequiredBindingSettings ? "Ready" : "Needs settings")
+      </span>
+    </div>
+    <div class="table-responsive mt-3">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Setting</th>
+            <th>Status</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>AzureDomainAutomation__Enabled</code></td>
+            <td><span class="badge @(azureOptions.Enabled ? "bg-success" : "bg-secondary")">@(azureOptions.Enabled ? "true" : "false")</span></td>
+            <td>Turns automatic Azure binding on.</td>
+          </tr>
+          <tr>
+            <td><code>TenantId</code>, <code>ClientId</code>, <code>ClientSecret</code></td>
+            <td><span class="badge @(!string.IsNullOrWhiteSpace(azureOptions.TenantId) && !string.IsNullOrWhiteSpace(azureOptions.ClientId) && !string.IsNullOrWhiteSpace(azureOptions.ClientSecret) ? "bg-success" : "bg-danger")">API credentials</span></td>
+            <td>Service principal used to call Azure management APIs.</td>
+          </tr>
+          <tr>
+            <td><code>SubscriptionId</code>, <code>ResourceGroup</code>, <code>WebAppName</code></td>
+            <td><span class="badge @(!string.IsNullOrWhiteSpace(azureOptions.SubscriptionId) && !string.IsNullOrWhiteSpace(azureOptions.ResourceGroup) && !string.IsNullOrWhiteSpace(azureOptions.WebAppName) ? "bg-success" : "bg-danger")">Target app</span></td>
+            <td>Points automation to the web app that serves agent websites.</td>
+          </tr>
+          <tr>
+            <td><code>AppServicePlanResourceId</code>, <code>Location</code></td>
+            <td><span class="badge @(azureOptions.HasRequiredCertificateSettings ? "bg-success" : "bg-secondary")">SSL settings</span></td>
+            <td>Needed only when creating App Service Managed Certificates automatically.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

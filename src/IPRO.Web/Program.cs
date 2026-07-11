@@ -53,6 +53,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.AddScoped<NewsLetterDispatcher>();
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
+builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
@@ -61,6 +62,7 @@ builder.Services.AddSingleton<ITenantResolver>(_ =>
     new DomainTenantResolver(builder.Configuration["App:AdminDomain"]?? "admin.iprosystem.com"));
 builder.Services.AddHttpClient("plesk");
 builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
+builder.Services.AddScoped<IAzureDomainAutomationService, AzureDomainAutomationService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
    .AddCookie(o =>
     {

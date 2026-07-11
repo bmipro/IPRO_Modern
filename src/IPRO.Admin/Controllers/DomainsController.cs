@@ -1,9 +1,11 @@
 using IPRO.Admin.Models;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace IPRO.Admin.Controllers;
 
@@ -11,10 +13,12 @@ namespace IPRO.Admin.Controllers;
 public class DomainsController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly AzureDomainAutomationOptions _azureOptions;
 
-    public DomainsController(IPRODbContext db)
+    public DomainsController(IPRODbContext db, IOptions<AzureDomainAutomationOptions> azureOptions)
     {
         _db = db;
+        _azureOptions = azureOptions.Value;
     }
 
     public async Task<IActionResult> Index()
@@ -36,6 +40,7 @@ public class DomainsController : Controller
             TemporaryDomain = d.AgentUser.DomainName
         }).ToList();
 
+        ViewBag.AzureDomainAutomation = _azureOptions;
         return View(model);
     }
 

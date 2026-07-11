@@ -27,11 +27,13 @@ builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
+builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("plesk");
 builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
+builder.Services.AddScoped<IAzureDomainAutomationService, AzureDomainAutomationService>();
 
 // ── Auth ──────────────────────────────────────────────────
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
