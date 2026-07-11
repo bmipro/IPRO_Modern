@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace IPRO.Admin.Controllers;
 
@@ -14,11 +15,19 @@ public class DomainsController : Controller
 {
     private readonly IPRODbContext _db;
     private readonly AzureDomainAutomationOptions _azureOptions;
+    private readonly IAzureDomainAutomationService _azureDomains;
+    private readonly ILogger<DomainsController> _logger;
 
-    public DomainsController(IPRODbContext db, IOptions<AzureDomainAutomationOptions> azureOptions)
+    public DomainsController(
+        IPRODbContext db,
+        IOptions<AzureDomainAutomationOptions> azureOptions,
+        IAzureDomainAutomationService azureDomains,
+        ILogger<DomainsController> logger)
     {
         _db = db;
         _azureOptions = azureOptions.Value;
+        _azureDomains = azureDomains;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -64,15 +73,56 @@ public class DomainsController : Controller
     public async Task<IActionResult> Reset(int id)
     {
         var domain = await _db.AgentDomains.GetRequiredAsync(id);
-        domain.DnsStatus = AgentDomainStatus.PendingDns;
-        domain.AzureBindingStatus = AgentDomainStatus.BindingPending;
-        domain.SslStatus = AgentDomainStatus.BindingPending;
-        domain.LastError = string.Empty;
-        domain.LastCheckedAt = null;
+        domain.LastCheckedAt = DateTime.UtcNow;
         domain.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
 
-        TempData["Success"] = $"{domain.DomainName} queued for another domain check.";
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(domain.DomainName);
+            if (addresses.Length == 0)
+            {
+                domain.DnsStatus = AgentDomainStatus.PendingDns;
+                domain.AzureBindingStatus = AgentDomainStatus.BindingPending;
+                domain.SslStatus = AgentDomainStatus.BindingPending;
+                domain.LastError = "DNS has not resolved yet.";
+                TempData["Error"] = $"{domain.DomainName} DNS has not resolved yet.";
+            }
+            else
+            {
+                domain.DnsStatus = AgentDomainStatus.DnsReady;
+                domain.LastError = string.Empty;
+
+                var result = await _azureDomains.EnsureDomainAsync(domain.DomainName);
+                if (result.Success)
+                {
+                    domain.DnsStatus = AgentDomainStatus.Bound;
+                    domain.AzureBindingStatus = AgentDomainStatus.Bound;
+                    domain.SslStatus = result.SslBound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending;
+                    domain.LastError = result.SslBound ? string.Empty : result.Message;
+                    TempData["Success"] = result.SslBound
+                        ? $"{domain.DomainName} is bound in Azure and SSL is ready."
+                        : $"{domain.DomainName} is bound in Azure. SSL is still pending.";
+                }
+                else
+                {
+                    domain.AzureBindingStatus = _azureDomains.IsConfigured ? AgentDomainStatus.Failed : AgentDomainStatus.BindingPending;
+                    domain.SslStatus = AgentDomainStatus.BindingPending;
+                    domain.LastError = result.Message;
+                    TempData["Error"] = result.Message;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            domain.DnsStatus = AgentDomainStatus.PendingDns;
+            domain.AzureBindingStatus = AgentDomainStatus.BindingPending;
+            domain.SslStatus = AgentDomainStatus.BindingPending;
+            domain.LastError = "DNS has not resolved yet. Confirm the CNAME points to " + domain.DnsTarget + ".";
+            TempData["Error"] = domain.LastError;
+            _logger.LogInformation(ex, "Manual domain check failed for {Domain}", domain.DomainName);
+        }
+
+        await _db.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }
 }
