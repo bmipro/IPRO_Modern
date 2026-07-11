@@ -142,6 +142,11 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
 
         using var response = await SendManagementAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
         using var json = JsonDocument.Parse(body);
         if (json.RootElement.TryGetProperty("properties", out var properties) &&
             properties.TryGetProperty("thumbprint", out var thumbprint) &&
