@@ -2,6 +2,7 @@ using IPRO.DataAccess;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using IPRO.Web.Models;
 
 namespace IPRO.Web.Controllers;
 
@@ -16,6 +17,16 @@ public class PublicWebsiteController : Controller
     }
 
     public async Task<IActionResult> Index()
+    {
+        return await RenderPageAsync(null);
+    }
+
+    public async Task<IActionResult> Page(string slug)
+    {
+        return await RenderPageAsync(slug);
+    }
+
+    private async Task<IActionResult> RenderPageAsync(string? slug)
     {
         var host = NormalizeHost(Request.Host.Host);
         if (string.IsNullOrWhiteSpace(host))
@@ -35,7 +46,7 @@ public class PublicWebsiteController : Controller
 
         if (domainMatch?.AgentWebsite != null)
         {
-            return View(domainMatch.AgentWebsite);
+            return await BuildWebsiteViewAsync(domainMatch.AgentWebsite, slug);
         }
 
         var website = await _db.AgentWebsites
@@ -51,7 +62,35 @@ public class PublicWebsiteController : Controller
             return View("NotFound", host);
         }
 
-        return View(website);
+        return await BuildWebsiteViewAsync(website, slug);
+    }
+
+    private async Task<IActionResult> BuildWebsiteViewAsync(IPRO.Entities.AgentWebsite website, string? slug)
+    {
+        var pages = await _db.WebsitePages
+            .AsNoTracking()
+            .Where(p => p.AgentWebsiteId == website.Id && p.IsPublished)
+            .Include(p => p.Blocks)
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Title)
+            .ToListAsync();
+
+        IPRO.Entities.WebsitePage? currentPage = null;
+        if (pages.Count > 0)
+        {
+            var normalizedSlug = NormalizeSlug(slug);
+            currentPage = string.IsNullOrWhiteSpace(normalizedSlug)
+                ? pages.FirstOrDefault(p => p.IsHomePage) ?? pages[0]
+                : pages.FirstOrDefault(p => string.Equals(p.Slug, normalizedSlug, StringComparison.OrdinalIgnoreCase));
+            if (currentPage == null) return View("NotFound", Request.Host.Host);
+        }
+
+        return View("Index", new PublicWebsiteViewModel
+        {
+            Website = website,
+            Pages = pages,
+            CurrentPage = currentPage
+        });
     }
 
     private static string NormalizeHost(string? host)
@@ -74,5 +113,11 @@ public class PublicWebsiteController : Controller
         }
 
         return matches.ToArray();
+    }
+
+    private static string NormalizeSlug(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        return value.Trim().Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToLowerInvariant() ?? string.Empty;
     }
 }

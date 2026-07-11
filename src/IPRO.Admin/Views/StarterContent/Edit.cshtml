@@ -1,0 +1,32 @@
+@model IPRO.Admin.Models.StarterPageEditViewModel
+@{
+  var starterPage = Model.Page;
+  var isNew = starterPage.Id == 0;
+  ViewData["Title"] = isNew ? "Create Starter Page" : $"Edit Starter Page: {starterPage.Title}";
+}
+
+<div class="mb-4"><div class="small text-muted mb-1"><a href="/StarterContent">Starter Content</a> / @(isNew ? "Create" : "Edit")</div><h3 class="fw-bold mb-1">@ViewData["Title"]</h3><div class="text-muted">Business type content takes priority over the generic All set. A package-specific page takes priority over an all-package page.</div></div>
+
+<form method="post" action="/StarterContent/SavePage" class="card border-0 shadow-sm mb-4">
+  @Html.AntiForgeryToken()<input type="hidden" name="id" value="@starterPage.Id" />
+  <div class="card-body p-4"><div class="row g-3">
+    <div class="col-md-4"><label class="form-label fw-semibold">Business Type</label><input name="businessType" value="@starterPage.BusinessType" class="form-control" placeholder="All or Insurance / Financial" required /></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Package Override</label><select name="billingRuleId" class="form-select"><option value="">All packages</option>@foreach(var package in Model.Packages){<option value="@package.Id" selected="@(starterPage.BillingRuleId == package.Id)">@package.PackageName</option>}</select></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Page Title</label><input name="title" value="@starterPage.Title" class="form-control" required /></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">URL Slug</label><input name="slug" value="@starterPage.Slug" class="form-control" /></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Navigation Label</label><input name="navigationLabel" value="@starterPage.NavigationLabel" class="form-control" /></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">SEO Title</label><input name="metaTitle" value="@starterPage.MetaTitle" class="form-control" /></div>
+    <div class="col-12"><label class="form-label fw-semibold">SEO Description</label><input name="metaDescription" value="@starterPage.MetaDescription" maxlength="320" class="form-control" /></div>
+    <div class="col-12 d-flex gap-4"><div class="form-check form-switch"><input name="isHomePage" value="true" type="checkbox" class="form-check-input" checked="@starterPage.IsHomePage" /><label class="form-check-label">Home page</label></div><div class="form-check form-switch"><input name="showInNavigation" value="true" type="checkbox" class="form-check-input" checked="@starterPage.ShowInNavigation" /><label class="form-check-label">Show in navigation</label></div><div class="form-check form-switch"><input name="isActive" value="true" type="checkbox" class="form-check-input" checked="@starterPage.IsActive" /><label class="form-check-label">Active</label></div></div>
+  </div></div>
+  <div class="card-footer bg-white border-0 px-4 pb-4"><button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Starter Page</button></div>
+</form>
+
+@if (!isNew)
+{
+  <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h4 class="fw-bold mb-1">Starter Blocks</h4><div class="text-muted small">These blocks are copied into the agent's editable page.</div></div><form method="post" action="/StarterContent/AddBlock" class="d-flex gap-2">@Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@starterPage.Id" /><select name="blockType" class="form-select">@foreach(var type in Model.BlockTypes){<option value="@type">@System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")</option>}</select><button class="btn btn-primary text-nowrap"><i class="fas fa-plus me-1"></i>Add Block</button></form></div>
+  @foreach (var block in starterPage.Blocks.OrderBy(b => b.SortOrder))
+  {
+    <section class="card border-0 shadow-sm mb-3"><div class="card-header bg-white d-flex justify-content-between align-items-center"><div><span class="badge bg-primary-subtle text-primary me-2">@System.Text.RegularExpressions.Regex.Replace(block.BlockType, "([a-z])([A-Z])", "$1 $2")</span><strong>@block.Heading</strong></div><form method="post" action="/StarterContent/DeleteBlock/@block.Id" onsubmit="return confirm('Remove this starter block?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form></div><form method="post" action="/StarterContent/UpdateBlock" class="card-body p-4">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@block.Id" /><div class="row g-3"><div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div><div class="col-md-6"><label class="form-label fw-semibold">Supporting Line</label><input name="subheading" value="@block.Subheading" class="form-control" /></div><div class="col-12"><label class="form-label fw-semibold">Body / Items</label><textarea name="body" rows="4" class="form-control">@block.Body</textarea></div><div class="col-md-6"><label class="form-label fw-semibold">Image URL</label><input name="imageUrl" value="@block.ImageUrl" class="form-control" /></div><div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div><div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" /></div><div class="col-12 d-flex justify-content-between"><div class="form-check form-switch"><input name="isVisible" value="true" type="checkbox" class="form-check-input" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><button class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div></div></form></section>
+  }
+}

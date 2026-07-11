@@ -107,7 +107,16 @@ app.Use(async (context, next) =>
 {
     if (ShouldRouteToPublicWebsite(context, app.Configuration))
     {
-        context.Request.Path = "/PublicWebsite";
+        var requestedPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(requestedPath))
+        {
+            context.Request.Path = "/PublicWebsite";
+        }
+        else
+        {
+            context.Request.Path = "/PublicWebsite/Page";
+            context.Request.QueryString = QueryString.Create("slug", requestedPath);
+        }
     }
 
     await next();
@@ -150,10 +159,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
     await EnsureWebsiteTemplateSchemaAsync(db);
+    await WebsiteContentSchema.EnsureAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
     await WebsiteTemplateSeeder.SeedAsync(db);
+    await WebsiteStarterContentSeeder.SeedAsync(db);
 }
 
 app.Run();
@@ -161,7 +172,7 @@ app.Run();
 static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration)
 {
     if (!HttpMethods.IsGet(context.Request.Method)) return false;
-    if (context.Request.Path.HasValue && context.Request.Path.Value != "/") return false;
+    if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return false;
 
     var host = context.Request.Host.Host.Trim().Trim('.').ToLowerInvariant();
     if (string.IsNullOrWhiteSpace(host)) return false;

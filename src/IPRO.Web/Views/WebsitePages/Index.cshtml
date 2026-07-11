@@ -1,0 +1,58 @@
+@model IEnumerable<IPRO.Entities.WebsitePage>
+@{
+    ViewData["Title"] = "Website Pages";
+    var pages = Model.ToList();
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <div class="small text-muted mb-1"><a href="/Website">My Website</a> / Pages</div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-file-lines me-2 text-primary"></i>Website Pages</h2>
+    <div class="text-muted">Manage page content, navigation order, and publishing without changing your template.</div>
+  </div>
+  <a href="/WebsitePages/Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Page</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr><th style="width:90px">Order</th><th>Page</th><th>URL</th><th>Navigation</th><th>Status</th><th class="text-end">Actions</th></tr>
+      </thead>
+      <tbody>
+      @foreach (var sitePage in pages)
+      {
+        <tr>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <form method="post" action="/WebsitePages/MovePage/@sitePage.Id"><input type="hidden" name="direction" value="up" />@Html.AntiForgeryToken()<button class="btn btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button></form>
+              <form method="post" action="/WebsitePages/MovePage/@sitePage.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
+            </div>
+          </td>
+          <td>
+            <div class="fw-bold">@sitePage.Title @(sitePage.IsHomePage ? Html.Raw("<span class=\"badge bg-primary ms-1\">Home</span>") : "")</div>
+            <div class="small text-muted">@sitePage.Blocks.Count content block(s)</div>
+          </td>
+          <td><code>/@(sitePage.IsHomePage ? "" : sitePage.Slug)</code></td>
+          <td>@(sitePage.ShowInNavigation ? sitePage.NavigationLabel : "Hidden")</td>
+          <td><span class="badge @(sitePage.IsPublished ? "bg-success" : "bg-secondary")">@(sitePage.IsPublished ? "Published" : "Draft")</span></td>
+          <td class="text-end">
+            <div class="d-flex flex-wrap justify-content-end gap-1">
+              <a href="/WebsitePages/Edit/@sitePage.Id" class="btn btn-sm btn-outline-primary"><i class="fas fa-pen me-1"></i>Edit</a>
+              <form method="post" action="/WebsitePages/Duplicate/@sitePage.Id">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary"><i class="fas fa-copy me-1"></i>Duplicate</button></form>
+              @if (!sitePage.IsHomePage)
+              {
+                <form method="post" action="/WebsitePages/Delete/@sitePage.Id" onsubmit="return confirm('Delete @sitePage.Title and all of its content blocks?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form>
+              }
+            </div>
+          </td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="alert alert-light border mt-3 mb-0">
+  <i class="fas fa-circle-info me-2 text-primary"></i>Changing templates will not remove or rewrite these pages. Your content and navigation remain intact.
+</div>

@@ -1,7 +1,7 @@
-@model IPRO.Entities.AgentWebsite
+@model IPRO.Web.Models.PublicWebsiteViewModel
 @{
     Layout = null;
-    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Template, Model.ThemeColor);
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Website.Template, Model.Website.ThemeColor);
 }
 @if (design.Renderer == "classic-sidebar")
 {

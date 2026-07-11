@@ -1,13 +1,14 @@
-@model IPRO.Entities.AgentWebsite
+@model IPRO.Web.Models.PublicWebsiteViewModel
 @{
-    var agent = Model.AgentUser;
-    var title = string.IsNullOrWhiteSpace(Model.SiteTitle)
+    var website = Model.Website;
+    var agent = website.AgentUser;
+    var title = string.IsNullOrWhiteSpace(website.SiteTitle)
         ? $"{agent.FirstName} {agent.LastName}".Trim()
-        : Model.SiteTitle;
-    var tagline = string.IsNullOrWhiteSpace(Model.TagLine)
+        : website.SiteTitle;
+    var tagline = string.IsNullOrWhiteSpace(website.TagLine)
         ? "Professional advice, practical service, and a better way to stay connected."
-        : Model.TagLine;
-    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Template, Model.ThemeColor);
+        : website.TagLine;
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, website.ThemeColor);
     var theme = design.AccentColor;
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
@@ -97,15 +98,26 @@
     }
     .contact-link:hover { color: #dbeafe; }
   </style>
+  @await Html.PartialAsync("_ManagedPageStyles")
 </head>
 <body>
+  @if (Model.Pages.Any())
+  {
+    @await Html.PartialAsync("_PublicNavigation", Model)
+  }
+  @if (Model.CurrentPage != null)
+  {
+    @await Html.PartialAsync("_ManagedPage", Model)
+  }
+  else
+  {
   <main class="site-hero">
     <div class="container py-5">
       <div class="row align-items-center g-5">
         <div class="col-lg-7">
-          @if (!string.IsNullOrWhiteSpace(Model.LogoUrl))
+          @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
           {
-            <img src="@Model.LogoUrl" class="site-logo" alt="@title logo" />
+            <img src="@website.LogoUrl" class="site-logo" alt="@title logo" />
           }
           <div class="text-uppercase fw-bold mb-3 brand-eyebrow" style="letter-spacing:.08em;">@agent.CompanyName</div>
           <h1 class="display-4 fw-bold mb-3">@title</h1>
@@ -164,5 +176,6 @@
       </div>
     </div>
   </section>
+  }
 </body>
 </html>

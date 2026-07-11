@@ -1,12 +1,13 @@
-@model IPRO.Entities.AgentWebsite
+@model IPRO.Web.Models.PublicWebsiteViewModel
 @{
-    var agent = Model.AgentUser;
+    var website = Model.Website;
+    var agent = website.AgentUser;
     var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
-    var title = string.IsNullOrWhiteSpace(Model.SiteTitle) ? fullName : Model.SiteTitle;
-    var tagline = string.IsNullOrWhiteSpace(Model.TagLine)
+    var title = string.IsNullOrWhiteSpace(website.SiteTitle) ? fullName : website.SiteTitle;
+    var tagline = string.IsNullOrWhiteSpace(website.TagLine)
         ? "Helpful advice, timely updates, and professional service."
-        : Model.TagLine;
-    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Template, Model.ThemeColor);
+        : website.TagLine;
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, website.ThemeColor);
     var theme = design.AccentColor;
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
@@ -237,14 +238,25 @@
       }
     }
   </style>
+  @await Html.PartialAsync("_ManagedPageStyles")
 </head>
 <body>
+  @if (Model.Pages.Any())
+  {
+    @await Html.PartialAsync("_PublicNavigation", Model)
+  }
+  @if (Model.CurrentPage != null)
+  {
+    @await Html.PartialAsync("_ManagedPage", Model)
+  }
+  else
+  {
   <div class="classic-shell">
     <header class="classic-top">
       <div class="classic-brand">
-        @if (!string.IsNullOrWhiteSpace(Model.LogoUrl))
+        @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
         {
-          <img src="@Model.LogoUrl" alt="@company logo" />
+          <img src="@website.LogoUrl" alt="@company logo" />
         }
         else
         {
@@ -324,5 +336,6 @@
       <span>Powered by IPRO Advisers</span>
     </footer>
   </div>
+  }
 </body>
 </html>

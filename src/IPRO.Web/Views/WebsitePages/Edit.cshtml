@@ -1,0 +1,77 @@
+@model IPRO.Web.Models.WebsitePageEditViewModel
+@{
+    var sitePage = Model.Page;
+    var isNew = sitePage.Id == 0;
+    ViewData["Title"] = isNew ? "Create Website Page" : $"Edit {sitePage.Title}";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <div class="small text-muted mb-1"><a href="/Website">My Website</a> / <a href="/WebsitePages">Pages</a> / @(isNew ? "Create" : "Edit")</div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-file-pen me-2 text-primary"></i>@ViewData["Title"]</h2>
+    <div class="text-muted">Page settings control navigation and search details. Content blocks build the page itself.</div>
+  </div>
+  <a href="/WebsitePages" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>All Pages</a>
+</div>
+
+<form method="post" action="/WebsitePages/SavePage" class="card border-0 shadow-sm mb-4">
+  @Html.AntiForgeryToken()
+  <input type="hidden" name="id" value="@sitePage.Id" />
+  <div class="card-body p-4">
+    <h5 class="fw-bold mb-3">Page Settings</h5>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-semibold">Page Title</label><input name="title" value="@sitePage.Title" class="form-control" required /></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">URL Slug</label><div class="input-group"><span class="input-group-text">/</span><input name="slug" value="@sitePage.Slug" class="form-control" placeholder="services" /></div></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Navigation Label</label><input name="navigationLabel" value="@sitePage.NavigationLabel" class="form-control" placeholder="Defaults to page title" /></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Parent Menu</label><select name="parentPageId" class="form-select"><option value="">Top level</option>@foreach (var parent in Model.AvailableParents){<option value="@parent.Id" selected="@(sitePage.ParentPageId == parent.Id)">@parent.NavigationLabel</option>}</select></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Browser/SEO Title</label><input name="metaTitle" value="@sitePage.MetaTitle" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Search Description</label><input name="metaDescription" value="@sitePage.MetaDescription" maxlength="320" class="form-control" /></div>
+      <div class="col-12 d-flex flex-wrap gap-4">
+        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="showInNavigation" value="true" checked="@sitePage.ShowInNavigation" /><label class="form-check-label fw-semibold">Show in navigation</label></div>
+        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isPublished" value="true" checked="@sitePage.IsPublished" /><label class="form-check-label fw-semibold">Published</label></div>
+        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isHomePage" value="true" checked="@sitePage.IsHomePage" /><label class="form-check-label fw-semibold">Use as home page</label></div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer bg-white border-0 px-4 pb-4"><button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Page Settings</button></div>
+</form>
+
+@if (!isNew)
+{
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div><h4 class="fw-bold mb-1">Content Blocks</h4><div class="text-muted small">Blocks appear from top to bottom in this order.</div></div>
+    <form method="post" action="/WebsitePages/AddBlock" class="d-flex gap-2">
+      @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" />
+      <select name="blockType" class="form-select">
+        @foreach (var type in Model.BlockTypes){<option value="@type">@System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")</option>}
+      </select>
+      <button class="btn btn-primary text-nowrap"><i class="fas fa-plus me-1"></i>Add Block</button>
+    </form>
+  </div>
+
+  @foreach (var block in sitePage.Blocks.OrderBy(b => b.SortOrder))
+  {
+    <section class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 py-3">
+        <div><span class="badge bg-primary-subtle text-primary me-2">@System.Text.RegularExpressions.Regex.Replace(block.BlockType, "([a-z])([A-Z])", "$1 $2")</span><span class="fw-bold">@(string.IsNullOrWhiteSpace(block.Heading) ? "Untitled block" : block.Heading)</span></div>
+        <div class="d-flex gap-1">
+          <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="up" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button></form>
+          <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
+          <form method="post" action="/WebsitePages/DeleteBlock/@block.Id" onsubmit="return confirm('Remove this content block?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Remove"><i class="fas fa-trash"></i></button></form>
+        </div>
+      </div>
+      <form method="post" action="/WebsitePages/UpdateBlock" class="card-body p-4">
+        @Html.AntiForgeryToken()<input type="hidden" name="id" value="@block.Id" />
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Supporting Line</label><input name="subheading" value="@block.Subheading" class="form-control" /></div>
+          <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.Testimonials ? "Items (one per line)" : "Body")</label><textarea name="body" class="form-control" rows="4">@block.Body</textarea></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Image URL <span class="text-muted fw-normal">(optional)</span></label><input name="imageUrl" value="@block.ImageUrl" class="form-control" /></div>
+          <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
+          <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
+          <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><button class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div>
+        </div>
+      </form>
+    </section>
+  }
+}

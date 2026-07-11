@@ -16,4 +16,5 @@ public class AgentWebsite
     public AgentUser AgentUser { get; set; } = null!;
     public WebsiteTemplate Template { get; set; } = null!;
     public ICollection<AgentDomain> Domains { get; set; } = new List<AgentDomain>();
+    public ICollection<WebsitePage> Pages { get; set; } = new List<WebsitePage>();
 }

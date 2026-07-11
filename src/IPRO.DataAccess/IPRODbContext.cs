@@ -11,6 +11,10 @@ public class IPRODbContext : DbContext
     public DbSet<AgentWebsite> AgentWebsites => Set<AgentWebsite>();
     public DbSet<AgentDomain> AgentDomains => Set<AgentDomain>();
     public DbSet<WebsiteTemplate> WebsiteTemplates => Set<WebsiteTemplate>();
+    public DbSet<WebsitePage> WebsitePages => Set<WebsitePage>();
+    public DbSet<WebsiteContentBlock> WebsiteContentBlocks => Set<WebsiteContentBlock>();
+    public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
+    public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientCategory> ClientCategories => Set<ClientCategory>();
     public DbSet<ClientComment> ClientComments => Set<ClientComment>();
@@ -106,6 +110,67 @@ public class IPRODbContext : DbContext
         });
 
         // Client → AgentUser
+        modelBuilder.Entity<WebsitePage>(e =>
+        {
+            e.HasIndex(p => new { p.AgentWebsiteId, p.Slug }).IsUnique();
+            e.Property(p => p.Title).HasMaxLength(160).IsRequired();
+            e.Property(p => p.Slug).HasMaxLength(120).IsRequired();
+            e.Property(p => p.NavigationLabel).HasMaxLength(100).IsRequired();
+            e.Property(p => p.MetaTitle).HasMaxLength(180);
+            e.Property(p => p.MetaDescription).HasMaxLength(320);
+            e.HasOne(p => p.AgentWebsite)
+             .WithMany(w => w.Pages)
+             .HasForeignKey(p => p.AgentWebsiteId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.ParentPage)
+             .WithMany(p => p.ChildPages)
+             .HasForeignKey(p => p.ParentPageId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WebsiteContentBlock>(e =>
+        {
+            e.Property(b => b.BlockType).HasMaxLength(40).IsRequired();
+            e.Property(b => b.Heading).HasMaxLength(220);
+            e.Property(b => b.Subheading).HasMaxLength(500);
+            e.Property(b => b.ImageUrl).HasMaxLength(1000);
+            e.Property(b => b.ButtonText).HasMaxLength(100);
+            e.Property(b => b.ButtonUrl).HasMaxLength(1000);
+            e.HasOne(b => b.WebsitePage)
+             .WithMany(p => p.Blocks)
+             .HasForeignKey(b => b.WebsitePageId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WebsiteStarterPage>(e =>
+        {
+            e.HasIndex(p => new { p.BusinessType, p.BillingRuleId, p.Slug }).IsUnique();
+            e.Property(p => p.BusinessType).HasMaxLength(80).IsRequired();
+            e.Property(p => p.Title).HasMaxLength(160).IsRequired();
+            e.Property(p => p.Slug).HasMaxLength(120).IsRequired();
+            e.Property(p => p.NavigationLabel).HasMaxLength(100).IsRequired();
+            e.Property(p => p.MetaTitle).HasMaxLength(180);
+            e.Property(p => p.MetaDescription).HasMaxLength(320);
+            e.HasOne(p => p.BillingRule)
+             .WithMany()
+             .HasForeignKey(p => p.BillingRuleId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WebsiteStarterBlock>(e =>
+        {
+            e.Property(b => b.BlockType).HasMaxLength(40).IsRequired();
+            e.Property(b => b.Heading).HasMaxLength(220);
+            e.Property(b => b.Subheading).HasMaxLength(500);
+            e.Property(b => b.ImageUrl).HasMaxLength(1000);
+            e.Property(b => b.ButtonText).HasMaxLength(100);
+            e.Property(b => b.ButtonUrl).HasMaxLength(1000);
+            e.HasOne(b => b.WebsiteStarterPage)
+             .WithMany(p => p.Blocks)
+             .HasForeignKey(b => b.WebsiteStarterPageId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<Client>(e =>
         {
             e.Property(c => c.FirstName).HasMaxLength(80).IsRequired();

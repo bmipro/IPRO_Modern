@@ -82,10 +82,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
     await EnsureWebsiteTemplateSchemaAsync(db);
+    await WebsiteContentSchema.EnsureAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
     await WebsiteTemplateSeeder.SeedAsync(db);
+    await WebsiteStarterContentSeeder.SeedAsync(db);
 }
 
 app.Run();
