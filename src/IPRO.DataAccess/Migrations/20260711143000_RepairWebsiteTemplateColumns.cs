@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace IPRO.DataAccess.Migrations
 {
     /// <inheritdoc />
+    [Migration("20260711143000_RepairWebsiteTemplateColumns")]
     public partial class RepairWebsiteTemplateColumns : Migration
     {
         /// <inheritdoc />

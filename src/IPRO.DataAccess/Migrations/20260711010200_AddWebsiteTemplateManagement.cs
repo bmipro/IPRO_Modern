@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace IPRO.DataAccess.Migrations
 {
     /// <inheritdoc />
+    [Migration("20260711010200_AddWebsiteTemplateManagement")]
     public partial class AddWebsiteTemplateManagement : Migration
     {
         /// <inheritdoc />
