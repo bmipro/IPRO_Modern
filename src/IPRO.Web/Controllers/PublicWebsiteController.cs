@@ -24,6 +24,20 @@ public class PublicWebsiteController : Controller
         }
 
         var hostMatches = BuildHostMatches(host);
+        var domainMatch = await _db.AgentDomains
+            .Include(d => d.AgentWebsite)
+                .ThenInclude(w => w.AgentUser)
+            .Include(d => d.AgentWebsite)
+                .ThenInclude(w => w.Template)
+            .FirstOrDefaultAsync(d =>
+                hostMatches.Contains(d.DomainName.ToLower()) &&
+                d.AgentWebsite.IsPublished);
+
+        if (domainMatch?.AgentWebsite != null)
+        {
+            return View(domainMatch.AgentWebsite);
+        }
+
         var website = await _db.AgentWebsites
             .Include(w => w.AgentUser)
             .Include(w => w.Template)

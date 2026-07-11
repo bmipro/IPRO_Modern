@@ -69,6 +69,25 @@ public class WebsiteController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
+            existing?.CustomDomain != model.CustomDomain &&
+            !await _db.AgentDomains.AnyAsync(d => d.AgentUserId == AgentId && d.DomainName == model.CustomDomain))
+        {
+            var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.MultiDomainSupport);
+            var currentCount = await _db.AgentDomains.CountAsync(d => d.AgentUserId == AgentId);
+            if (!access.IsIncluded)
+            {
+                TempData["Error"] = access.UpgradeMessage;
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (access.LimitValue.HasValue && access.LimitValue.Value >= 0 && currentCount >= access.LimitValue.Value)
+            {
+                TempData["Error"] = $"Your current package allows {access.LimitValue.Value} custom domain(s). Remove one or upgrade before adding another.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         if (existing == null)
         {
             model.AgentUserId = AgentId;
@@ -145,6 +164,150 @@ public class WebsiteController : Controller
             .Where(d => d.AgentUserId == AgentId && d.IsPrimary)
             .OrderByDescending(d => d.UpdatedAt)
             .FirstOrDefaultAsync();
+        ViewBag.AgentDomains = await _db.AgentDomains
+            .AsNoTracking()
+            .Where(d => d.AgentUserId == AgentId)
+            .OrderByDescending(d => d.IsPrimary)
+            .ThenBy(d => d.DomainName)
+            .ToListAsync();
+        ViewBag.DomainAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.MultiDomainSupport);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddDomain(string domainName)
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+
+        var normalized = NormalizeDomain(domainName);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            TempData["Error"] = "Enter a valid domain name.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var existingWebsite = await _websites.GetByAgentIdAsync(AgentId);
+        if (existingWebsite == null)
+        {
+            TempData["Error"] = "Save your website settings before adding custom domains.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.MultiDomainSupport);
+        if (!access.IsIncluded)
+        {
+            TempData["Error"] = access.UpgradeMessage;
+            return RedirectToAction(nameof(Index));
+        }
+
+        var currentCount = await _db.AgentDomains.CountAsync(d => d.AgentUserId == AgentId);
+        if (access.LimitValue.HasValue && access.LimitValue.Value >= 0 && currentCount >= access.LimitValue.Value)
+        {
+            TempData["Error"] = $"Your current package allows {access.LimitValue.Value} custom domain(s). Upgrade to add more.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (await _db.AgentDomains.AnyAsync(d => d.DomainName == normalized))
+        {
+            TempData["Error"] = "That custom domain is already connected to an IPRO account.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var parts = BuildDomainParts(normalized);
+        _db.AgentDomains.Add(new AgentDomain
+        {
+            AgentUserId = AgentId,
+            AgentWebsiteId = existingWebsite.Id,
+            DomainName = normalized,
+            RootDomain = parts.Root,
+            WwwDomain = parts.Www,
+            DnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net",
+            DnsStatus = AgentDomainStatus.PendingDns,
+            AzureBindingStatus = AgentDomainStatus.BindingPending,
+            SslStatus = AgentDomainStatus.BindingPending,
+            IsPrimary = currentCount == 0,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        if (currentCount == 0)
+        {
+            existingWebsite.CustomDomain = normalized;
+            await _websites.UpdateAsync(existingWebsite);
+        }
+
+        TempData["Success"] = $"{normalized} was added to your domain queue.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveDomain(int id)
+    {
+        var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
+        if (domain == null)
+        {
+            TempData["Error"] = "That domain could not be found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var wasPrimary = domain.IsPrimary;
+        _db.AgentDomains.Remove(domain);
+        await _db.SaveChangesAsync();
+
+        var website = await _websites.GetByAgentIdAsync(AgentId);
+        if (website != null && wasPrimary)
+        {
+            var next = await _db.AgentDomains
+                .Where(d => d.AgentUserId == AgentId)
+                .OrderBy(d => d.DomainName)
+                .FirstOrDefaultAsync();
+            if (next != null)
+            {
+                next.IsPrimary = true;
+                next.UpdatedAt = DateTime.UtcNow;
+                website.CustomDomain = next.DomainName;
+            }
+            else
+            {
+                website.CustomDomain = string.Empty;
+            }
+
+            await _db.SaveChangesAsync();
+            await _websites.UpdateAsync(website);
+        }
+
+        TempData["Success"] = $"{domain.DomainName} was removed.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetPrimaryDomain(int id)
+    {
+        var selected = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
+        if (selected == null)
+        {
+            TempData["Error"] = "That domain could not be found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var domains = await _db.AgentDomains.Where(d => d.AgentUserId == AgentId).ToListAsync();
+        foreach (var domain in domains)
+        {
+            domain.IsPrimary = domain.Id == selected.Id;
+            domain.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var website = await _websites.GetByAgentIdAsync(AgentId);
+        if (website != null)
+        {
+            website.CustomDomain = selected.DomainName;
+            await _websites.UpdateAsync(website);
+        }
+
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"{selected.DomainName} is now your primary custom domain.";
+        return RedirectToAction(nameof(Index));
     }
 
     private async Task SyncPrimaryDomainAsync(AgentWebsite website, string customDomain)

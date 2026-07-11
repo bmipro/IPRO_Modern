@@ -15,6 +15,11 @@
     var liveDomain = string.IsNullOrWhiteSpace(customDomain) ? temporaryDomain : customDomain;
     var templateDesigns = templates.ToDictionary(t => t.Id, t => IPRO.Entities.WebsiteTemplateDesign.FromTemplate(t));
     var primaryDomain = ViewBag.PrimaryDomain as IPRO.Entities.AgentDomain;
+    var agentDomains = (ViewBag.AgentDomains as IEnumerable<IPRO.Entities.AgentDomain> ?? Enumerable.Empty<IPRO.Entities.AgentDomain>()).ToList();
+    var domainAccess = ViewBag.DomainAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+    var domainLimit = domainAccess?.LimitValue;
+    var domainLimitText = domainLimit == -1 ? "Unlimited" : (domainLimit?.ToString() ?? "Not available");
+    var canAddDomain = domainAccess?.IsIncluded == true && (domainLimit == -1 || agentDomains.Count < (domainLimit ?? 0));
     var hasCustomDomain = !string.IsNullOrWhiteSpace(customDomain);
     var dnsReady = primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var bindingReady = primaryDomain?.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
@@ -110,7 +115,7 @@
             <div class="col-md-6">
               <label class="form-label fw-semibold">Custom Domain</label>
               <input name="CustomDomain" class="form-control" value="@customDomain" placeholder="yourdomain.com or www.yourdomain.com" />
-              <div class="form-text">Enter the root or www version. We will use the www host for DNS and routing.</div>
+              <div class="form-text">This is your primary custom domain. Add extra domains from the domain manager below.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Logo</label>
@@ -169,6 +174,67 @@
             CNAME&nbsp;&nbsp;www&nbsp;&nbsp;@dnsTarget
           </div>
           <div class="small text-muted mt-2">If the agent enters mragent.com, we will save it as www.mragent.com. Forward the root domain to www when the registrar supports forwarding.</div>
+        </div>
+        <div class="border rounded-3 p-3 mt-3">
+          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+              <div class="fw-bold">Domain manager</div>
+              <div class="small text-muted">Package allowance: @domainLimitText domain(s)</div>
+            </div>
+            <span class="badge bg-light text-dark">@agentDomains.Count used</span>
+          </div>
+
+          <form method="post" action="/Website/AddDomain" class="mb-3">
+            @Html.AntiForgeryToken()
+            <label class="form-label small fw-semibold">Add another domain</label>
+            <div class="input-group">
+              <input name="domainName" class="form-control" placeholder="example.com or www.example.com" @(canAddDomain ? "" : "disabled") />
+              <button class="btn btn-outline-primary" type="submit" @(canAddDomain ? "" : "disabled")>Add</button>
+            </div>
+            @if (domainAccess?.IsIncluded != true)
+            {
+              <div class="form-text text-danger">@domainAccess?.UpgradeMessage</div>
+            }
+            else if (!canAddDomain)
+            {
+              <div class="form-text text-danger">Your package domain limit has been reached.</div>
+            }
+          </form>
+
+          @if (!agentDomains.Any())
+          {
+            <div class="text-muted small">No custom domains have been added yet.</div>
+          }
+          @foreach (var domain in agentDomains)
+          {
+            var domainDnsReady = domain.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || domain.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
+            var domainBindingReady = domain.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
+            <div class="border rounded-3 p-2 mb-2">
+              <div class="d-flex justify-content-between gap-2">
+                <div>
+                  <div class="fw-semibold">@domain.DomainName @(domain.IsPrimary ? Html.Raw("<span class=\"badge bg-primary ms-1\">Primary</span>") : "")</div>
+                  <div class="small text-muted">DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domain.DnsStatus</span> · Azure: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@domain.AzureBindingStatus</span></div>
+                  @if (!string.IsNullOrWhiteSpace(domain.LastError))
+                  {
+                    <div class="small text-danger">@domain.LastError</div>
+                  }
+                </div>
+                <div class="d-flex gap-1 align-items-start">
+                  @if (!domain.IsPrimary)
+                  {
+                    <form method="post" action="/Website/SetPrimaryDomain/@domain.Id">
+                      @Html.AntiForgeryToken()
+                      <button class="btn btn-sm btn-outline-primary" type="submit">Primary</button>
+                    </form>
+                  }
+                  <form method="post" action="/Website/RemoveDomain/@domain.Id" onsubmit="return confirm('Remove @domain.DomainName from this website?');">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          }
         </div>
         @if (primaryDomain != null)
         {
