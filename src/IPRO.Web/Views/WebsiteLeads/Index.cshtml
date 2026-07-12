@@ -1,0 +1,141 @@
+@model IReadOnlyCollection<IPRO.Entities.WebsiteLead>
+@{
+    ViewData["Title"] = "Website Leads";
+    var status = (string)(ViewBag.Status ?? "all");
+    var search = ViewBag.Search as string;
+    var page = (int)(ViewBag.Page ?? 1);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var totalCount = (int)(ViewBag.TotalCount ?? 0);
+    var unreadCount = (int)(ViewBag.UnreadCount ?? 0);
+    var newCount = (int)(ViewBag.NewCount ?? 0);
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
+    string StatusClass(string value) => value switch
+    {
+        IPRO.Entities.WebsiteLeadStatuses.Contacted => "bg-success-subtle text-success",
+        IPRO.Entities.WebsiteLeadStatuses.Dismissed => "bg-light text-muted",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="fas fa-inbox me-2 text-primary"></i>Website Leads</h2>
+        <div class="text-muted">Contact requests and newsletter signups captured from your website.</div>
+    </div>
+    @if (unreadCount > 0)
+    {
+        <form asp-action="MarkAllRead" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <button class="btn btn-outline-primary"><i class="fas fa-check-double me-1"></i>Mark all read</button>
+        </form>
+    }
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">All captured</div><div class="h3 fw-bold mb-0">@totalCount</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Unread</div><div class="h3 fw-bold text-primary mb-0">@unreadCount</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Needs follow-up</div><div class="h3 fw-bold text-warning mb-0">@newCount</div></div></div></div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <div class="btn-group flex-wrap" role="group">
+                <a class="btn @FilterClass("all")" href="/WebsiteLeads?status=all">All</a>
+                <a class="btn @FilterClass("unread")" href="/WebsiteLeads?status=unread">Unread</a>
+                <a class="btn @FilterClass("new")" href="/WebsiteLeads?status=new">New</a>
+                <a class="btn @FilterClass("contacted")" href="/WebsiteLeads?status=contacted">Contacted</a>
+                <a class="btn @FilterClass("dismissed")" href="/WebsiteLeads?status=dismissed">Dismissed</a>
+            </div>
+            <form method="get" class="d-flex gap-2">
+                <input type="hidden" name="status" value="@status" />
+                <input class="form-control" type="search" name="search" value="@search" placeholder="Search name, email, message..." />
+                <button class="btn btn-primary" title="Search"><i class="fas fa-search"></i></button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="vstack gap-3">
+@foreach (var lead in Model)
+{
+    <article class="card border-0 shadow-sm @(!lead.IsRead ? "lead-unread" : "")">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        @if (!lead.IsRead) { <span class="badge bg-primary">Unread</span> }
+                        <span class="badge @StatusClass(lead.Status)">@lead.Status</span>
+                        <span class="badge bg-info-subtle text-info-emphasis">@(lead.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter ? "Newsletter signup" : "Contact request")</span>
+                    </div>
+                    <h5 class="fw-bold mb-1">@lead.FirstName @lead.LastName</h5>
+                    <div class="d-flex gap-3 flex-wrap small">
+                        <a href="mailto:@lead.Email"><i class="fas fa-envelope me-1"></i>@lead.Email</a>
+                        @if (!string.IsNullOrWhiteSpace(lead.Phone)) { <a href="tel:@lead.Phone"><i class="fas fa-phone me-1"></i>@lead.Phone</a> }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(lead.Message))
+                    {
+                        <div class="lead-message mt-3">@lead.Message</div>
+                    }
+                    <div class="small text-muted mt-3">
+                        <span>@lead.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span>
+                        @if (!string.IsNullOrWhiteSpace(lead.SourceDomain)) { <span> · @lead.SourceDomain</span> }
+                        @if (lead.WebsitePage != null) { <span> · Page: @lead.WebsitePage.Title</span> }
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    @if (lead.ClientId.HasValue)
+                    {
+                        <a class="btn btn-outline-primary" href="/Clients/Details/@lead.ClientId"><i class="fas fa-address-card me-1"></i>Open CRM Contact</a>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning-subtle text-warning-emphasis align-self-center" title="The package contact limit prevented creating a CRM contact.">Saved as lead only</span>
+                    }
+                    @if (lead.Status != IPRO.Entities.WebsiteLeadStatuses.Contacted)
+                    {
+                        <form asp-action="SetStatus" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@lead.Id" />
+                            <input type="hidden" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Contacted" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button class="btn btn-success"><i class="fas fa-check me-1"></i>Contacted</button>
+                        </form>
+                    }
+                    @if (lead.Status != IPRO.Entities.WebsiteLeadStatuses.Dismissed)
+                    {
+                        <form asp-action="SetStatus" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@lead.Id" />
+                            <input type="hidden" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Dismissed" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button class="btn btn-outline-secondary" title="Dismiss"><i class="fas fa-archive"></i></button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </article>
+}
+@if (!Model.Any())
+{
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-5 text-muted"><i class="fas fa-inbox fa-3x opacity-25 d-block mb-3"></i>No website leads match this view.</div></div>
+}
+</div>
+
+@if (totalPages > 1)
+{
+    <nav class="mt-4"><ul class="pagination justify-content-center">
+        @for (var i = 1; i <= totalPages; i++)
+        {
+            <li class="page-item @(i == page ? "active" : "")"><a class="page-link" href="?status=@status&search=@Uri.EscapeDataString(search ?? "")&page=@i">@i</a></li>
+        }
+    </ul></nav>
+}
+
+<style>
+    .lead-unread{border-left:4px solid #0d6efd!important}
+    .lead-message{white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:12px;max-width:900px}
+</style>

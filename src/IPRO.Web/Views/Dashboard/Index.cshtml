@@ -4,6 +4,9 @@
     var overdueCount = (int)(ViewBag.OverdueFollowUpCount ?? 0);
     var todayCount = (int)(ViewBag.TodayFollowUpCount ?? 0);
     var upcomingCount = (int)(ViewBag.UpcomingFollowUpCount ?? 0);
+    var websiteLeads = (ViewBag.WebsiteLeads as IEnumerable<IPRO.Entities.WebsiteLead>) ?? Enumerable.Empty<IPRO.Entities.WebsiteLead>();
+    var unreadWebsiteLeadCount = (int)(ViewBag.UnreadWebsiteLeadCount ?? 0);
+    var newWebsiteLeadCount = (int)(ViewBag.NewWebsiteLeadCount ?? 0);
     var featureAccess = ViewBag.FeatureAccess as IDictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>
         ?? new Dictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>();
 
@@ -26,6 +29,14 @@
     <div class="text-muted">Here is what needs attention today.</div>
   </div>
 </div>
+
+@if (newWebsiteLeadCount > 0)
+{
+  <div class="alert alert-primary border-0 shadow-sm d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+    <div><i class="fas fa-inbox me-2"></i><strong>@newWebsiteLeadCount website lead@(newWebsiteLeadCount == 1 ? "" : "s") need follow-up.</strong> @unreadWebsiteLeadCount unread.</div>
+    <a href="/WebsiteLeads?status=new" class="btn btn-primary btn-sm">Open Lead Inbox</a>
+  </div>
+}
 
 <div class="row g-4 mb-4">
   <div class="col-md-3">
@@ -68,6 +79,26 @@
 
 <div class="row g-4">
   <div class="col-lg-8">
+    @if (websiteLeads.Any())
+    {
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center gap-2">
+        <h5 class="fw-bold mb-0"><i class="fas fa-globe me-2 text-primary"></i>New Website Leads</h5>
+        <a href="/WebsiteLeads" class="btn btn-sm btn-outline-primary">View all</a>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <div class="list-group list-group-flush">
+        @foreach (var lead in websiteLeads)
+        {
+          <a href="/WebsiteLeads?status=new" class="list-group-item list-group-item-action px-0 d-flex justify-content-between gap-3">
+            <div><strong>@lead.FirstName @lead.LastName</strong><div class="small text-muted">@lead.Email · @(lead.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter ? "Newsletter signup" : "Contact request")</div></div>
+            <small class="text-muted text-nowrap">@lead.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt")</small>
+          </a>
+        }
+        </div>
+      </div>
+    </div>
+    }
     <div id="followups" class="card border-0 shadow-sm">
       <div class="card-header bg-white border-0 pt-4 px-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -130,6 +161,7 @@
           <a href="/Clients/Create" class="btn btn-light text-start"><i class="fas fa-user-plus me-2 text-primary"></i>Add New Client</a>
           <a href="/Clients" class="btn btn-light text-start"><i class="fas fa-search me-2 text-primary"></i>Search Clients</a>
           <a href="/Clients/FollowUps?status=open" class="btn btn-light text-start"><i class="fas fa-list-check me-2 text-primary"></i>Follow-up Queue</a>
+          <a href="/WebsiteLeads" class="btn btn-light text-start"><i class="fas fa-inbox me-2 text-primary"></i>Website Leads @if(unreadWebsiteLeadCount > 0){<span class="badge bg-primary float-end">@unreadWebsiteLeadCount</span>}</a>
           <a href="/Clients/Calendar" class="btn btn-light text-start" @Html.Raw(LockedAttributes(IPRO.Entities.PackageFeatureCodes.CalendarScheduler))><i class="fas fa-calendar-alt me-2 text-primary"></i>Follow-up Calendar</a>
           <a href="/Newsletter/Create" class="btn btn-light text-start" @Html.Raw(LockedAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-paper-plane me-2 text-success"></i>Create Newsletter</a>
           <a href="/Billing" class="btn btn-light text-start"><i class="fas fa-credit-card me-2 text-secondary"></i>Billing</a>

@@ -16,6 +16,7 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteMediaAsset> WebsiteMediaAssets => Set<WebsiteMediaAsset>();
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
+    public DbSet<WebsiteLead> WebsiteLeads => Set<WebsiteLead>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientCategory> ClientCategories => Set<ClientCategory>();
     public DbSet<ClientComment> ClientComments => Set<ClientComment>();
@@ -152,6 +153,26 @@ public class IPRODbContext : DbContext
              .WithMany(w => w.MediaAssets)
              .HasForeignKey(a => a.AgentWebsiteId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WebsiteLead>(e =>
+        {
+            e.HasIndex(l => new { l.AgentUserId, l.IsRead, l.Status });
+            e.Property(l => l.SubmissionType).HasMaxLength(30).IsRequired();
+            e.Property(l => l.FirstName).HasMaxLength(80).IsRequired();
+            e.Property(l => l.LastName).HasMaxLength(80);
+            e.Property(l => l.Email).HasMaxLength(200).IsRequired();
+            e.Property(l => l.Phone).HasMaxLength(40);
+            e.Property(l => l.SourceDomain).HasMaxLength(255);
+            e.Property(l => l.SourcePage).HasMaxLength(500);
+            e.Property(l => l.Referrer).HasMaxLength(1000);
+            e.Property(l => l.IpAddress).HasMaxLength(64);
+            e.Property(l => l.Status).HasMaxLength(30).IsRequired();
+            e.Property(l => l.ProcessingNote).HasMaxLength(500);
+            e.HasOne(l => l.AgentUser).WithMany().HasForeignKey(l => l.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(l => l.AgentWebsite).WithMany().HasForeignKey(l => l.AgentWebsiteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(l => l.WebsitePage).WithMany().HasForeignKey(l => l.WebsitePageId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(l => l.Client).WithMany().HasForeignKey(l => l.ClientId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<WebsiteStarterPage>(e =>

@@ -69,6 +69,42 @@ CREATE TABLE IF NOT EXISTS `WebsiteMediaAssets` (
 """);
 
         await db.Database.ExecuteSqlRawAsync("""
+CREATE TABLE IF NOT EXISTS `WebsiteLeads` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `AgentUserId` int NOT NULL,
+  `AgentWebsiteId` int NOT NULL,
+  `WebsitePageId` int NULL,
+  `ClientId` int NULL,
+  `SubmissionType` varchar(30) CHARACTER SET utf8mb4 NOT NULL,
+  `FirstName` varchar(80) CHARACTER SET utf8mb4 NOT NULL,
+  `LastName` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `Email` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+  `Phone` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `Message` longtext CHARACTER SET utf8mb4 NOT NULL,
+  `SourceDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `SourcePage` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `Referrer` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `IpAddress` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `ConsentGiven` tinyint(1) NOT NULL DEFAULT FALSE,
+  `IsRead` tinyint(1) NOT NULL DEFAULT FALSE,
+  `ReadAt` datetime(6) NULL,
+  `Status` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'New',
+  `ProcessingNote` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `UpdatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`Id`),
+  KEY `IX_WebsiteLeads_AgentUserId_IsRead_Status` (`AgentUserId`,`IsRead`,`Status`),
+  KEY `IX_WebsiteLeads_AgentWebsiteId` (`AgentWebsiteId`),
+  KEY `IX_WebsiteLeads_WebsitePageId` (`WebsitePageId`),
+  KEY `IX_WebsiteLeads_ClientId` (`ClientId`),
+  CONSTRAINT `FK_WebsiteLeads_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_WebsiteLeads_AgentWebsites_AgentWebsiteId` FOREIGN KEY (`AgentWebsiteId`) REFERENCES `AgentWebsites` (`Id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_WebsiteLeads_WebsitePages_WebsitePageId` FOREIGN KEY (`WebsitePageId`) REFERENCES `WebsitePages` (`Id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_WebsiteLeads_Clients_ClientId` FOREIGN KEY (`ClientId`) REFERENCES `Clients` (`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+""");
+
+        await db.Database.ExecuteSqlRawAsync("""
 CREATE TABLE IF NOT EXISTS `WebsiteStarterPages` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `BillingRuleId` int NULL,

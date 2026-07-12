@@ -45,6 +45,16 @@ public class DashboardController : Controller
             .ThenBy(f => f.Client.LastName)
             .Take(8)
             .ToListAsync();
+        ViewBag.UnreadWebsiteLeadCount = await _db.WebsiteLeads
+            .CountAsync(x => x.AgentUserId == agentId && !x.IsRead);
+        ViewBag.NewWebsiteLeadCount = await _db.WebsiteLeads
+            .CountAsync(x => x.AgentUserId == agentId && x.Status == WebsiteLeadStatuses.New);
+        ViewBag.WebsiteLeads = await _db.WebsiteLeads
+            .AsNoTracking()
+            .Where(x => x.AgentUserId == agentId && x.Status == WebsiteLeadStatuses.New)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(5)
+            .ToListAsync();
         return View();
     }
 
