@@ -193,7 +193,7 @@
                       <h6>@template.Name</h6>
                       <p>@familyCopy</p>
                       <div class="d-flex gap-2 mt-auto">
-                        <a href="/Website/PreviewTemplate?templateId=@template.Id" target="_blank" class="btn btn-sm btn-outline-primary template-preview-action"><i class="fas fa-eye me-1"></i>Preview</a>
+                        <a href="/Website/PreviewTemplate?templateId=@template.Id&useDefaults=true" target="_blank" class="btn btn-sm btn-outline-primary template-preview-action"><i class="fas fa-eye me-1"></i>Preview</a>
                         <button type="button" class="btn btn-sm @(template.Id == selectedTemplateId ? "btn-primary" : "btn-outline-secondary") template-select-action" data-select-template="@template.Id">@(template.Id == selectedTemplateId ? "Current design" : "Choose design")</button>
                       </div>
                     </div>
@@ -202,10 +202,7 @@
               </div>
               <div class="template-selection-bar mt-3">
                 <div><span class="text-muted small">Chosen design</span><strong id="selectedTemplateName">@(selectedTemplate?.Name ?? "Choose a design")</strong><span class="small text-muted" id="selectedTemplateDescription">@(selectedTemplate?.Description ?? "")</span></div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="true" name="applyTemplateDefaults" id="applyTemplateDefaults" />
-                  <label class="form-check-label small" for="applyTemplateDefaults">Also apply its suggested color</label>
-                </div>
+                <div class="template-color-note"><i class="fas fa-palette me-2"></i>The design color is applied when selected. Fine-tune it above afterward.</div>
               </div>
             </div>
             <div class="col-12">
@@ -396,6 +393,7 @@
 .template-choice__body p { color:#637188; font-size:13px; line-height:1.45; }
 .template-selection-bar { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:13px 15px; border:1px solid #dbe3ed; border-radius:8px; background:#f7f9fc; }
 .template-selection-bar strong,.template-selection-bar span { display:block; }
+.template-color-note { max-width:330px; color:#52627a; font-size:12px; line-height:1.45; }
 .website-template-preview {
   overflow: hidden;
   min-height: 250px;
@@ -464,9 +462,8 @@ function updateWebsitePreview() {
 function updateTemplatePreviewLink() {
   const select = document.getElementById('TemplateId');
   const link = document.getElementById('previewSelectedTemplate');
-  const defaults = document.getElementById('applyTemplateDefaults');
   if (!select || !link) return;
-  link.href = `/Website/PreviewTemplate?templateId=${encodeURIComponent(select.value)}&useDefaults=${defaults?.checked === true}`;
+  link.href = `/Website/PreviewTemplate?templateId=${encodeURIComponent(select.value)}&useDefaults=true`;
 }
 document.getElementById('ThemeColor')?.addEventListener('input', function () {
   document.getElementById('themeHex').value = this.value;
@@ -476,14 +473,7 @@ document.querySelector('[name="SiteTitle"]')?.addEventListener('input', updateWe
 document.querySelector('[name="TagLine"]')?.addEventListener('input', updateWebsitePreview);
 document.getElementById('TemplateId')?.addEventListener('change', function () {
   const selected = this.options[this.selectedIndex];
-  const accent = selected?.dataset?.accent;
-  const color = document.getElementById('ThemeColor');
-  const hex = document.getElementById('themeHex');
   const preview = document.getElementById('websiteTemplatePreview');
-  if (document.getElementById('applyTemplateDefaults')?.checked && accent && color && hex) {
-    color.value = accent;
-    hex.value = accent;
-  }
   if (preview) {
     preview.style.setProperty('--preview-bg', selected?.dataset?.background || '#f4f7fb');
     preview.style.setProperty('--preview-font', selected?.dataset?.font || 'Arial, Helvetica, sans-serif');
@@ -511,20 +501,18 @@ document.getElementById('TemplateId')?.addEventListener('change', function () {
   updateWebsitePreview();
   updateTemplatePreviewLink();
 });
-document.getElementById('applyTemplateDefaults')?.addEventListener('change', function () {
-  const select = document.getElementById('TemplateId');
-  const selected = select?.options[select.selectedIndex];
-  if (this.checked && selected?.dataset?.accent) {
-    document.getElementById('ThemeColor').value = selected.dataset.accent;
-    document.getElementById('themeHex').value = selected.dataset.accent;
-    updateWebsitePreview();
-  }
-  updateTemplatePreviewLink();
-});
 function chooseTemplate(id) {
   const select = document.getElementById('TemplateId');
   if (!select) return;
   select.value = String(id);
+  const selected = select.options[select.selectedIndex];
+  const accent = selected?.dataset?.accent;
+  const color = document.getElementById('ThemeColor');
+  const hex = document.getElementById('themeHex');
+  if (accent && color && hex) {
+    color.value = accent;
+    hex.value = accent;
+  }
   select.dispatchEvent(new Event('change'));
   document.getElementById('selectedTemplateName')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
