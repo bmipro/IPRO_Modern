@@ -140,9 +140,9 @@
                 </div>
               }
             </div>
-            <div class="col-md-6">
+            <div class="col-12">
               <label class="form-label fw-semibold">Template</label>
-              <select name="TemplateId" id="TemplateId" class="form-select">
+              <select name="TemplateId" id="TemplateId" class="d-none" aria-hidden="true">
                 @foreach (var template in templates)
                 {
                   var design = templateDesigns[template.Id];
@@ -158,19 +158,53 @@
                           data-button="@design.ButtonStyle"
                           data-description="@template.Description"
                           selected="@(template.Id == selectedTemplateId)">
-                    @template.Name - @(design.Renderer == "classic-sidebar" ? "Classic" : design.Renderer == "editorial-visual" ? "Editorial" : "Modern")
+                    @template.Name
                   </option>
                 }
               </select>
-              @if (selectedTemplate != null)
-              {
-                <div class="form-text" id="selectedTemplateDescription">Selected: @selectedTemplate.Description</div>
-              }
-              <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
-                <a id="previewSelectedTemplate" href="/Website/PreviewTemplate?templateId=@selectedTemplateId" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye me-1"></i>Preview with my content</a>
+              <div class="template-gallery mt-2" role="radiogroup" aria-label="Website design">
+                @foreach (var template in templates)
+                {
+                  var design = templateDesigns[template.Id];
+                  var familyName = design.Renderer == "classic-sidebar" ? "Classic Sidebar" : design.Renderer == "editorial-visual" ? "Editorial Visual" : "Modern Professional";
+                  var familyCopy = design.Renderer == "classic-sidebar"
+                    ? "Traditional adviser layout with a persistent profile, practical navigation, and an easy reading column."
+                    : design.Renderer == "editorial-visual"
+                      ? "Image-led storytelling, expressive typography, and spacious asymmetric sections."
+                      : "Confident split hero, clear service cards, and conversion-focused calls to action.";
+                  <article class="template-choice @(template.Id == selectedTemplateId ? "is-selected" : "")"
+                           data-template-card="@template.Id"
+                           style="--choice-accent:@design.AccentColor;--choice-bg:@design.BackgroundColor"
+                           role="radio" aria-checked="@(template.Id == selectedTemplateId ? "true" : "false")" tabindex="0">
+                    <div class="template-choice__visual family-@design.Renderer">
+                      @if (!string.IsNullOrWhiteSpace(template.PreviewImageUrl))
+                      {
+                        <img src="@template.PreviewImageUrl" alt="@template.Name preview" />
+                      }
+                      else
+                      {
+                        <div class="template-choice__mini-nav"><span></span><i></i><i></i><i></i></div>
+                        <div class="template-choice__mini-body"><strong>A better digital presence</strong><span></span><span></span><b></b></div>
+                      }
+                      <span class="template-choice__selected"><i class="fas fa-check me-1"></i>Selected</span>
+                    </div>
+                    <div class="template-choice__body">
+                      <div class="template-choice__family">@familyName</div>
+                      <h6>@template.Name</h6>
+                      <p>@familyCopy</p>
+                      <div class="d-flex gap-2 mt-auto">
+                        <a href="/Website/PreviewTemplate?templateId=@template.Id" target="_blank" class="btn btn-sm btn-outline-primary template-preview-action"><i class="fas fa-eye me-1"></i>Preview</a>
+                        <button type="button" class="btn btn-sm @(template.Id == selectedTemplateId ? "btn-primary" : "btn-outline-secondary") template-select-action" data-select-template="@template.Id">@(template.Id == selectedTemplateId ? "Current design" : "Choose design")</button>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+              <div class="template-selection-bar mt-3">
+                <div><span class="text-muted small">Chosen design</span><strong id="selectedTemplateName">@(selectedTemplate?.Name ?? "Choose a design")</strong><span class="small text-muted" id="selectedTemplateDescription">@(selectedTemplate?.Description ?? "")</span></div>
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" value="true" name="applyTemplateDefaults" id="applyTemplateDefaults" />
-                  <label class="form-check-label small" for="applyTemplateDefaults">Apply this template's starter color</label>
+                  <label class="form-check-label small" for="applyTemplateDefaults">Also apply its suggested color</label>
                 </div>
               </div>
             </div>
@@ -193,7 +227,10 @@
                   </div>
                 </div>
               </div>
-              <div class="form-text">Live design preview. Your published content will replace these sample navigation and service blocks.</div>
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                <div class="form-text mt-0">Quick style preview. Use the full preview above to see your real pages and content.</div>
+                <a id="previewSelectedTemplate" href="/Website/PreviewTemplate?templateId=@selectedTemplateId" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-up-right-from-square me-1"></i>Open full preview</a>
+              </div>
             </div>
           </div>
 
@@ -332,6 +369,33 @@
 </div>
 
 <style>
+.template-gallery { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.template-choice { display:flex; flex-direction:column; min-width:0; overflow:hidden; border:2px solid #dbe3ed; border-radius:8px; background:#fff; cursor:pointer; transition:border-color .15s ease,box-shadow .15s ease; }
+.template-choice:hover { border-color:#9cb8e8; box-shadow:0 10px 26px rgba(18,48,92,.1); }
+.template-choice.is-selected { border-color:#1769e8; box-shadow:0 0 0 3px rgba(23,105,232,.12); }
+.template-choice__visual { position:relative; height:176px; overflow:hidden; background:var(--choice-bg); border-bottom:1px solid #e1e7ef; }
+.template-choice__visual img { width:100%; height:100%; object-fit:cover; }
+.template-choice__mini-nav { display:flex; align-items:center; gap:8px; height:34px; padding:0 13px; background:#fff; border-bottom:1px solid #e5eaf0; }
+.template-choice__mini-nav span { width:42px; height:7px; margin-right:auto; border-radius:3px; background:var(--choice-accent); }
+.template-choice__mini-nav i { width:20px; height:4px; background:#29364b; }
+.template-choice__mini-body { height:142px; padding:26px 20px; background:linear-gradient(120deg,#fff 0 58%,var(--choice-accent) 58% 100%); }
+.template-choice__mini-body strong { display:block; max-width:150px; color:#172033; font-size:16px; line-height:1.15; }
+.template-choice__mini-body span { display:block; width:42%; height:5px; margin-top:9px; background:#bec8d6; }
+.template-choice__mini-body b { display:block; width:54px; height:18px; margin-top:16px; border-radius:3px; background:var(--choice-accent); }
+.template-choice__visual.family-classic-sidebar .template-choice__mini-nav { width:34%; height:100%; float:left; flex-direction:column; align-items:stretch; padding:18px 11px; background:#17243b; }
+.template-choice__visual.family-classic-sidebar .template-choice__mini-nav span { width:100%; margin:0 0 16px; }
+.template-choice__visual.family-classic-sidebar .template-choice__mini-nav i { width:100%; background:#fff; opacity:.65; }
+.template-choice__visual.family-classic-sidebar .template-choice__mini-body { margin-left:34%; height:100%; background:#f6f8fb; padding-top:34px; }
+.template-choice__visual.family-editorial-visual .template-choice__mini-body { background:linear-gradient(90deg,#fff 0 48%,var(--choice-accent) 48% 100%); padding:32px 18px; }
+.template-choice__visual.family-editorial-visual .template-choice__mini-body strong { font-family:Georgia,serif; font-size:20px; }
+.template-choice__selected { display:none; position:absolute; top:10px; right:10px; padding:5px 8px; border-radius:4px; background:#1769e8; color:#fff; font-size:11px; font-weight:800; }
+.template-choice.is-selected .template-choice__selected { display:block; }
+.template-choice__body { display:flex; flex:1; flex-direction:column; padding:16px; }
+.template-choice__family { color:#1769e8; font-size:11px; font-weight:800; text-transform:uppercase; }
+.template-choice__body h6 { margin:5px 0 7px; font-weight:800; }
+.template-choice__body p { color:#637188; font-size:13px; line-height:1.45; }
+.template-selection-bar { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:13px 15px; border:1px solid #dbe3ed; border-radius:8px; background:#f7f9fc; }
+.template-selection-bar strong,.template-selection-bar span { display:block; }
 .website-template-preview {
   overflow: hidden;
   min-height: 250px;
@@ -376,6 +440,8 @@
 .website-template-preview.buttons-square .website-template-preview__button { border-radius: 2px; }
 .website-template-preview.buttons-pill .website-template-preview__button { border-radius: 999px; }
 @@media (max-width: 767px) {
+  .template-gallery { grid-template-columns:1fr; }
+  .template-selection-bar { align-items:flex-start; flex-direction:column; }
   .website-template-preview__nav span { display: none; }
   .website-template-preview__hero { grid-template-columns: 1fr; }
   .website-template-preview__services { display: none; }
@@ -428,7 +494,20 @@ document.getElementById('TemplateId')?.addEventListener('change', function () {
     preview.classList.toggle('buttons-pill', selected?.dataset?.button === 'pill');
   }
   const description = document.getElementById('selectedTemplateDescription');
-  if (description) description.textContent = `Selected: ${selected?.dataset?.description || ''}`;
+  const name = document.getElementById('selectedTemplateName');
+  if (description) description.textContent = selected?.dataset?.description || '';
+  if (name) name.textContent = selected?.textContent?.trim() || 'Choose a design';
+  document.querySelectorAll('[data-template-card]').forEach(card => {
+    const active = card.dataset.templateCard === this.value;
+    card.classList.toggle('is-selected', active);
+    card.setAttribute('aria-checked', active ? 'true' : 'false');
+    const button = card.querySelector('.template-select-action');
+    if (button) {
+      button.textContent = active ? 'Current design' : 'Choose design';
+      button.classList.toggle('btn-primary', active);
+      button.classList.toggle('btn-outline-secondary', !active);
+    }
+  });
   updateWebsitePreview();
   updateTemplatePreviewLink();
 });
@@ -441,6 +520,26 @@ document.getElementById('applyTemplateDefaults')?.addEventListener('change', fun
     updateWebsitePreview();
   }
   updateTemplatePreviewLink();
+});
+function chooseTemplate(id) {
+  const select = document.getElementById('TemplateId');
+  if (!select) return;
+  select.value = String(id);
+  select.dispatchEvent(new Event('change'));
+  document.getElementById('selectedTemplateName')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+document.querySelectorAll('[data-select-template]').forEach(button => button.addEventListener('click', event => {
+  event.stopPropagation();
+  chooseTemplate(button.dataset.selectTemplate);
+}));
+document.querySelectorAll('[data-template-card]').forEach(card => {
+  card.addEventListener('click', event => {
+    if (event.target.closest('.template-preview-action')) return;
+    chooseTemplate(card.dataset.templateCard);
+  });
+  card.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); chooseTemplate(card.dataset.templateCard); }
+  });
 });
 updateWebsitePreview();
 document.getElementById('TemplateId')?.dispatchEvent(new Event('change'));

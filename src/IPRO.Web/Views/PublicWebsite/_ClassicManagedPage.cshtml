@@ -1,0 +1,39 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    var agent = Model.Website.AgentUser;
+    var blocks = Model.CurrentPage?.Blocks.Where(b => b.IsVisible).OrderBy(b => b.SortOrder).ToList() ?? new();
+    var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+}
+<style>
+  .classic-managed { width:min(1160px,calc(100% - 32px)); margin:28px auto; border:1px solid var(--line); background:#fff; box-shadow:0 18px 44px rgba(14,33,66,.1); }
+  .classic-managed__grid { display:grid; grid-template-columns:260px minmax(0,1fr); }
+  .classic-managed__side { padding:32px 24px; background:var(--site-theme-deep); color:#fff; }
+  .classic-managed__side h2 { font-size:24px; margin:0 0 6px; }
+  .classic-managed__side p { color:#c7d2e5; }
+  .classic-managed__side a { display:block; color:#fff; text-decoration:none; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.16); }
+  .classic-managed__content { min-width:0; }
+  .classic-managed .cp-section { padding:54px 48px; border-bottom:1px solid var(--line); }
+  .classic-managed .cp-hero { background:var(--site-theme-soft); }
+  .classic-managed .cp-hero h1 { font-size:52px; line-height:1.05; font-family:Georgia,serif; color:#17223a; }
+  .classic-managed .cp-kicker { color:var(--site-theme); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+  .classic-managed .cp-copy { color:var(--muted); font-size:17px; line-height:1.7; max-width:720px; }
+  .classic-managed .cp-button { display:inline-block; margin-top:18px; padding:12px 18px; border-radius:var(--button-radius); color:#fff; background:var(--site-theme); text-decoration:none; font-weight:800; }
+  .classic-managed .cp-list { margin:24px 0 0; padding:0; list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:0 28px; }
+  .classic-managed .cp-list li { padding:13px 0; border-bottom:1px solid var(--line); font-weight:700; }
+  .classic-managed .cp-list i { color:var(--site-theme); width:24px; }
+  .classic-managed .cp-quote { border-left:4px solid var(--site-theme); padding:18px 20px; margin:18px 0; background:#f7f9fc; font-family:Georgia,serif; }
+  .classic-managed .cp-image { width:100%; max-height:420px; object-fit:cover; margin-top:24px; border:1px solid var(--line); }
+  .classic-managed .cp-cta { background:#f7f9fc; }
+  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed__grid{grid-template-columns:1fr}.classic-managed__side{padding:24px}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list{grid-template-columns:1fr}}
+</style>
+<main class="classic-managed"><div class="classic-managed__grid"><aside class="classic-managed__side"><h2>@fullName</h2><p>@agent.Designation</p><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>Email me</a>}<div class="mt-4 small">Professional guidance and dependable client service.</div></aside><div class="classic-managed__content">
+@foreach(var block in blocks)
+{
+  if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero){<section class="cp-section cp-hero"><div class="cp-kicker">@agent.CompanyName</div><h1>@block.Heading</h1><p class="cp-copy">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText</a>}@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img class="cp-image" src="@block.ImageUrl" alt="" />}</section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="cp-section"><div class="cp-kicker">Services</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><ul class="cp-list">@foreach(var item in items){<li><i class="fas fa-check-circle"></i>@item</li>}</ul></section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="cp-section"><div class="cp-kicker">Testimonials</div><h2 class="h2 fw-bold">@block.Heading</h2>@foreach(var item in items){<blockquote class="cp-quote">&ldquo;@item&rdquo;</blockquote>}</section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){<section class="cp-section"><div class="cp-kicker">Contact</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><p class="cp-copy">@block.Body</p><a class="cp-button" href="mailto:@agent.Email">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Send an email":block.ButtonText)</a></section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction || block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="cp-section cp-cta"><div class="cp-kicker">Stay connected</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><a class="cp-button" href="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup ? $"mailto:{agent.Email}?subject=Newsletter subscription request" : (string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl))">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Get in touch":block.ButtonText)</a></section>}
+  else{<section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2><div class="cp-copy">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img class="cp-image" src="@block.ImageUrl" alt="" />}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"#":block.ButtonUrl)">@block.ButtonText</a>}</section>}
+}
+</div></div></main>

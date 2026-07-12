@@ -1,0 +1,58 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    var agent = Model.Website.AgentUser;
+    var blocks = Model.CurrentPage?.Blocks.Where(b => b.IsVisible).OrderBy(b => b.SortOrder).ToList() ?? new();
+}
+<style>
+  .modern-page { background:#fff; }
+  .modern-page .mp-section { padding:var(--section-space) 24px; border-bottom:1px solid #e3eaf3; }
+  .modern-page .mp-inner { width:min(1120px, 100%); margin:0 auto; }
+  .modern-page .mp-kicker { color:var(--site-theme); font:800 12px/1.3 Arial,sans-serif; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px; }
+  .modern-page h1,.modern-page h2 { color:#0c1933; font-weight:850; letter-spacing:0; }
+  .modern-page .mp-lead { max-width:720px; color:#5b6b82; font-size:18px; line-height:1.65; }
+  .modern-page .mp-hero { min-height:630px; display:flex; align-items:center; color:#fff; border:0; background:linear-gradient(115deg,#07142f 0%,#07142f 48%,var(--site-theme) 100%); }
+  .modern-page .mp-hero-grid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr); gap:64px; align-items:center; }
+  .modern-page .mp-hero h1 { color:#fff; font-size:64px; line-height:1.02; max-width:760px; }
+  .modern-page .mp-hero .mp-lead { color:#dbe6fb; font-size:21px; }
+  .modern-page .mp-hero-media { min-height:390px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); display:flex; align-items:flex-end; }
+  .modern-page .mp-hero-media img { width:100%; height:100%; min-height:390px; object-fit:cover; }
+  .modern-page .mp-hero-mark { padding:30px; font-size:82px; color:rgba(255,255,255,.72); }
+  .modern-page .mp-button { display:inline-flex; align-items:center; min-height:48px; margin-top:20px; padding:0 22px; border-radius:var(--button-radius); background:var(--site-theme); color:#fff; text-decoration:none; font-family:Arial,sans-serif; font-weight:800; }
+  .modern-page .mp-hero .mp-button { background:#fff; color:#07142f; }
+  .modern-page .mp-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:30px; }
+  .modern-page .mp-card { min-height:148px; padding:24px; border:1px solid #dce5f1; border-radius:8px; background:#fff; box-shadow:0 12px 30px rgba(15,35,70,.06); }
+  .modern-page .mp-card i { color:var(--site-theme); margin-bottom:16px; }
+  .modern-page .mp-alt { background:#f3f7fc; }
+  .modern-page .mp-split { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,.8fr); gap:56px; align-items:center; }
+  .modern-page .mp-split img { width:100%; max-height:460px; object-fit:cover; border-radius:8px; }
+  .modern-page .mp-cta { background:var(--site-theme); color:#fff; border:0; }
+  .modern-page .mp-cta h2,.modern-page .mp-cta .mp-lead { color:#fff; }
+  .modern-page .mp-contact-card { padding:28px; border-radius:8px; background:#fff; color:#17223a; }
+  @@media(max-width:820px){.modern-page .mp-hero-grid,.modern-page .mp-split{grid-template-columns:1fr;gap:32px}.modern-page .mp-hero{min-height:0}.modern-page .mp-hero h1{font-size:44px}.modern-page .mp-grid{grid-template-columns:1fr}.modern-page .mp-hero-media{min-height:240px}.modern-page .mp-hero-media img{min-height:240px}}
+</style>
+<main class="modern-page">
+@foreach (var block in blocks)
+{
+  if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
+  {
+    <section class="mp-section mp-hero"><div class="mp-inner mp-hero-grid"><div><div class="mp-kicker" style="color:#cbd9f5">@agent.CompanyName</div><h1>@block.Heading</h1><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText <i class="fas fa-arrow-right ms-2"></i></a>}</div><div class="mp-hero-media">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" />}else{<i class="fas fa-compass mp-hero-mark"></i>}</div></div></section>
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services || block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
+  {
+    var items = block.Body.Split(new[]{'\r','\n'}, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services ? "Services" : "Client stories")</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><div class="mp-grid">@foreach(var item in items){<div class="mp-card"><i class="fas @(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services ? "fa-circle-check" : "fa-quote-left")"></i><div class="fw-bold">@item</div></div>}</div></div></section>
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction || block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup)
+  {
+    <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div><a class="mp-button" style="background:#fff;color:#17223a" href="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup ? $"mailto:{agent.Email}?subject=Newsletter subscription request" : (string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl))">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a></div></div></section>
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm)
+  {
+    <section class="mp-section mp-alt"><div class="mp-inner mp-split"><div><div class="mp-kicker">Contact</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><p>@block.Body</p></div><div class="mp-contact-card"><strong class="fs-4">@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div class="text-muted mt-1">@agent.CompanyName</div>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<div class="mt-4"><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a class="mp-button" href="mailto:@agent.Email">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Send an email" : block.ButtonText)</a>}</div></div></section>
+  }
+  else
+  {
+    <section class="mp-section"><div class="mp-inner mp-split"><div><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2><div class="mp-lead">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "#" : block.ButtonUrl)">@block.ButtonText</a>}</div>@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" />}</div></section>
+  }
+}
+</main>
