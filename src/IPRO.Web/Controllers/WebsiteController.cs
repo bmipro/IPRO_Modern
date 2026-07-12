@@ -162,7 +162,6 @@ public class WebsiteController : Controller
         var website = await _db.AgentWebsites
             .AsNoTracking()
             .Include(w => w.AgentUser)
-            .Include(w => w.Template)
             .FirstOrDefaultAsync(w => w.AgentUserId == AgentId);
         var template = await _db.WebsiteTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == templateId && t.IsActive);
         if (website == null || template == null) return NotFound();
@@ -175,14 +174,47 @@ public class WebsiteController : Controller
             .ThenBy(p => p.Title)
             .ToListAsync();
 
-        website.Template = template;
-        website.TemplateId = template.Id;
-        if (useDefaults) website.ThemeColor = WebsiteTemplateDesign.FromTemplate(template).AccentColor;
+        foreach (var page in pages)
+        {
+            page.Title ??= string.Empty;
+            page.NavigationLabel ??= string.Empty;
+            page.Slug ??= string.Empty;
+            foreach (var block in page.Blocks)
+            {
+                block.Heading ??= string.Empty;
+                block.Subheading ??= string.Empty;
+                block.Body ??= string.Empty;
+                block.ImageUrl ??= string.Empty;
+                block.ButtonText ??= string.Empty;
+                block.ButtonUrl ??= string.Empty;
+                block.SettingsJson ??= "{}";
+            }
+        }
+
+        var previewWebsite = new AgentWebsite
+        {
+            Id = website.Id,
+            AgentUserId = website.AgentUserId,
+            TemplateId = template.Id,
+            CustomDomain = website.CustomDomain ?? string.Empty,
+            SiteTitle = website.SiteTitle ?? string.Empty,
+            TagLine = website.TagLine ?? string.Empty,
+            LogoUrl = website.LogoUrl ?? string.Empty,
+            ThemeColor = useDefaults
+                ? WebsiteTemplateDesign.FromTemplate(template).AccentColor
+                : website.ThemeColor,
+            HeaderSettingsJson = string.IsNullOrWhiteSpace(website.HeaderSettingsJson) ? "{}" : website.HeaderSettingsJson,
+            IsPublished = website.IsPublished,
+            CreatedAt = website.CreatedAt,
+            UpdatedAt = website.UpdatedAt,
+            AgentUser = website.AgentUser,
+            Template = template
+        };
         ViewBag.IsTemplatePreview = true;
 
         return View("~/Views/PublicWebsite/Index.cshtml", new IPRO.Web.Models.PublicWebsiteViewModel
         {
-            Website = website,
+            Website = previewWebsite,
             Pages = pages,
             CurrentPage = pages.FirstOrDefault(p => p.IsHomePage) ?? pages.FirstOrDefault()
         });
