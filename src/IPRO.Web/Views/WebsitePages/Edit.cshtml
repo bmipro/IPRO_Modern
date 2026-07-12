@@ -72,10 +72,33 @@
       }
       <details class="starter-banner-library mt-4">
         <summary><i class="fas fa-wand-magic-sparkles me-2 text-primary"></i><strong>Browse shared starter banners</strong><span class="text-muted ms-2">@Model.StarterBanners.Count reusable images</span></summary>
+        @if (sitePage.Blocks.Any())
+        {
+          <div class="starter-banner-toolbar mt-3">
+            <div>
+              <label for="starterBannerTarget" class="form-label small fw-semibold mb-1">Apply selected banner to</label>
+              <select id="starterBannerTarget" class="form-select form-select-sm">
+                @foreach (var targetBlock in sitePage.Blocks.OrderByDescending(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero).ThenBy(b => b.SortOrder))
+                {
+                  <option value="@targetBlock.Id">@System.Text.RegularExpressions.Regex.Replace(targetBlock.BlockType, "([a-z])([A-Z])", "$1 $2") - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
+                }
+              </select>
+            </div>
+            <div id="starterBannerStatus" class="small text-muted" role="status">Choose a destination, then click a banner below.</div>
+          </div>
+        }
+        else
+        {
+          <div class="alert alert-info mt-3 mb-0">Add a content block first, then you can apply a starter banner to it.</div>
+        }
         <div class="starter-banner-grid mt-3">
           @foreach (var banner in Model.StarterBanners)
           {
-            <figure><img src="@banner.Url" alt="@banner.Name" loading="lazy" /><figcaption><strong>@banner.Name</strong><span>@banner.Category</span></figcaption></figure>
+            <button type="button" class="starter-banner-choice" data-banner-url="@banner.Url" data-banner-name="@banner.Name" disabled="@(!sitePage.Blocks.Any())">
+              <img src="@banner.Url" alt="@banner.Name" loading="lazy" />
+              <span class="starter-banner-caption"><strong>@banner.Name</strong><span>@banner.Category</span></span>
+              <span class="starter-banner-use"><i class="fas fa-check me-1"></i>Use this banner</span>
+            </button>
           }
         </div>
       </details>
@@ -113,7 +136,7 @@
           <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.Testimonials ? "Items (one per line)" : "Body")</label><textarea name="body" class="form-control" rows="4">@block.Body</textarea></div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
-            <select name="imageUrl" class="form-select">
+            <select name="imageUrl" class="form-select" data-block-id="@block.Id">
               <option value="">No image</option>
               @if (!string.IsNullOrWhiteSpace(block.ImageUrl) && !Model.MediaAssets.Any(a => a.BlobUrl == block.ImageUrl) && !Model.StarterBanners.Any(a => a.Url == block.ImageUrl))
               {
@@ -158,7 +181,23 @@
     </section>
   }
 }
-<style>.banner-controls{padding:18px;border:1px solid #d8e3f0;border-radius:8px;background:#f7faff}.starter-banner-library summary{cursor:pointer;list-style:none}.starter-banner-library summary::-webkit-details-marker{display:none}.starter-banner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.starter-banner-grid figure{margin:0}.starter-banner-grid img{display:block;width:100%;aspect-ratio:3.6/1;object-fit:cover;border-radius:6px}.starter-banner-grid figcaption{display:flex;justify-content:space-between;gap:8px;padding-top:6px;font-size:12px}.starter-banner-grid figcaption span{color:#64748b}@@media(max-width:800px){.starter-banner-grid{grid-template-columns:1fr}.starter-banner-grid figcaption{font-size:11px}}</style>
+<style>
+.banner-controls{padding:18px;border:1px solid #d8e3f0;border-radius:8px;background:#f7faff}
+.starter-banner-library summary{cursor:pointer;list-style:none}
+.starter-banner-library summary::-webkit-details-marker{display:none}
+.starter-banner-toolbar{display:grid;grid-template-columns:minmax(260px,430px) 1fr;gap:18px;align-items:end;padding:14px;border:1px solid #d8e3f0;border-radius:7px;background:#f7faff}
+.starter-banner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.starter-banner-choice{position:relative;overflow:hidden;margin:0;padding:0;border:2px solid transparent;border-radius:7px;background:#fff;text-align:left;box-shadow:0 4px 14px rgba(27,45,75,.08);transition:border-color .15s ease,transform .15s ease,box-shadow .15s ease}
+.starter-banner-choice:not(:disabled):hover,.starter-banner-choice:focus-visible{border-color:#0d6efd;transform:translateY(-1px);box-shadow:0 8px 22px rgba(13,110,253,.16);outline:0}
+.starter-banner-choice.is-selected{border-color:#198754;box-shadow:0 0 0 3px rgba(25,135,84,.14)}
+.starter-banner-choice:disabled{opacity:.55}
+.starter-banner-choice img{display:block;width:100%;aspect-ratio:3.6/1;object-fit:cover}
+.starter-banner-caption{display:flex;justify-content:space-between;gap:8px;padding:9px 10px 30px;font-size:12px}
+.starter-banner-caption span{color:#64748b}
+.starter-banner-use{position:absolute;right:8px;bottom:7px;color:#0d6efd;font-size:11px;font-weight:700}
+.starter-banner-choice.is-selected .starter-banner-use{color:#198754}
+@@media(max-width:800px){.starter-banner-toolbar{grid-template-columns:1fr}.starter-banner-grid{grid-template-columns:1fr}.starter-banner-caption{font-size:11px}}
+</style>
 <script>
 document.querySelectorAll('select[name="imageUrl"]').forEach(select => {
   select.addEventListener('change', () => {
@@ -166,6 +205,29 @@ document.querySelectorAll('select[name="imageUrl"]').forEach(select => {
     if (!preview) return;
     preview.src = select.value;
     preview.classList.toggle('d-none', !select.value);
+  });
+});
+
+document.querySelectorAll('.starter-banner-choice').forEach(button => {
+  button.addEventListener('click', () => {
+    const targetPicker = document.getElementById('starterBannerTarget');
+    const status = document.getElementById('starterBannerStatus');
+    if (!targetPicker) return;
+
+    const imageSelect = document.querySelector(`select[name="imageUrl"][data-block-id="${targetPicker.value}"]`);
+    if (!imageSelect) {
+      if (status) status.textContent = 'That destination block could not be found. Refresh this page and try again.';
+      return;
+    }
+
+    imageSelect.value = button.dataset.bannerUrl || '';
+    imageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelectorAll('.starter-banner-choice').forEach(choice => choice.classList.remove('is-selected'));
+    button.classList.add('is-selected');
+
+    const blockCard = imageSelect.closest('.card');
+    if (status) status.innerHTML = `<strong>${button.dataset.bannerName}</strong> is selected. Click <strong>Save Block</strong> in the destination block to keep it.`;
+    if (blockCard) blockCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 });
 </script>
