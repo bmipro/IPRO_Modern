@@ -105,6 +105,25 @@ CREATE TABLE IF NOT EXISTS `WebsiteLeads` (
 """);
 
         await db.Database.ExecuteSqlRawAsync("""
+CREATE TABLE IF NOT EXISTS `WebsitePageViews` (
+  `Id` bigint NOT NULL AUTO_INCREMENT,
+  `AgentWebsiteId` int NOT NULL,
+  `WebsitePageId` int NULL,
+  `SourceDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+  `Path` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+  `ReferrerHost` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `VisitorHash` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+  `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`Id`),
+  KEY `IX_WebsitePageViews_AgentWebsiteId_CreatedAt` (`AgentWebsiteId`,`CreatedAt`),
+  KEY `IX_WebsitePageViews_AgentWebsiteId_VisitorHash_CreatedAt` (`AgentWebsiteId`,`VisitorHash`,`CreatedAt`),
+  KEY `IX_WebsitePageViews_WebsitePageId` (`WebsitePageId`),
+  CONSTRAINT `FK_WebsitePageViews_AgentWebsites_AgentWebsiteId` FOREIGN KEY (`AgentWebsiteId`) REFERENCES `AgentWebsites` (`Id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_WebsitePageViews_WebsitePages_WebsitePageId` FOREIGN KEY (`WebsitePageId`) REFERENCES `WebsitePages` (`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+""");
+
+        await db.Database.ExecuteSqlRawAsync("""
 CREATE TABLE IF NOT EXISTS `WebsiteStarterPages` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `BillingRuleId` int NULL,

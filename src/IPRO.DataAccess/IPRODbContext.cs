@@ -17,6 +17,7 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<WebsiteLead> WebsiteLeads => Set<WebsiteLead>();
+    public DbSet<WebsitePageView> WebsitePageViews => Set<WebsitePageView>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientCategory> ClientCategories => Set<ClientCategory>();
     public DbSet<ClientComment> ClientComments => Set<ClientComment>();
@@ -173,6 +174,18 @@ public class IPRODbContext : DbContext
             e.HasOne(l => l.AgentWebsite).WithMany().HasForeignKey(l => l.AgentWebsiteId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(l => l.WebsitePage).WithMany().HasForeignKey(l => l.WebsitePageId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(l => l.Client).WithMany().HasForeignKey(l => l.ClientId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WebsitePageView>(e =>
+        {
+            e.HasIndex(v => new { v.AgentWebsiteId, v.CreatedAt });
+            e.HasIndex(v => new { v.AgentWebsiteId, v.VisitorHash, v.CreatedAt });
+            e.Property(v => v.SourceDomain).HasMaxLength(255).IsRequired();
+            e.Property(v => v.Path).HasMaxLength(500).IsRequired();
+            e.Property(v => v.ReferrerHost).HasMaxLength(255);
+            e.Property(v => v.VisitorHash).HasMaxLength(64).IsRequired();
+            e.HasOne(v => v.AgentWebsite).WithMany().HasForeignKey(v => v.AgentWebsiteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(v => v.WebsitePage).WithMany().HasForeignKey(v => v.WebsitePageId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<WebsiteStarterPage>(e =>

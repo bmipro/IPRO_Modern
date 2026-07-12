@@ -10,7 +10,8 @@
             IPRO.Entities.PackageFeatureCodes.CalendarScheduler,
             IPRO.Entities.PackageFeatureCodes.Newsletters,
             IPRO.Entities.PackageFeatureCodes.MarketingCampaign,
-            IPRO.Entities.PackageFeatureCodes.InstantWebsite
+            IPRO.Entities.PackageFeatureCodes.InstantWebsite,
+            IPRO.Entities.PackageFeatureCodes.VisitorTracking
         })
         {
             navAccess[featureCode] = await PackageEntitlements.GetAccessAsync(layoutAgentId, featureCode);
@@ -55,6 +56,7 @@
                 <li class="nav-item"><a class="nav-link" href="/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign))><i class="fas fa-bullhorn me-1"></i>Campaigns</a></li>
                 <li class="nav-item"><a class="nav-link" href="/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite))><i class="fas fa-globe me-1"></i>My Website</a></li>
                 <li class="nav-item"><a class="nav-link" href="/WebsiteLeads"><i class="fas fa-inbox me-1"></i>Website Leads</a></li>
+                <li class="nav-item"><a class="nav-link" href="/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking))><i class="fas fa-chart-line me-1"></i>Analytics</a></li>
                 <li class="nav-item"><a class="nav-link" href="/Billing"><i class="fas fa-credit-card me-1"></i>Billing</a></li>
             </ul>
             <ul class="navbar-nav">

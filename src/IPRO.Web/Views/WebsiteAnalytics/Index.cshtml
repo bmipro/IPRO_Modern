@@ -1,0 +1,88 @@
+@model IPRO.Web.Models.WebsiteAnalyticsViewModel
+@{
+    ViewData["Title"] = "Website Analytics";
+    var maxDailyViews = Math.Max(1, Model.DailyViews.Select(point => point.Views).DefaultIfEmpty(0).Max());
+    string ChangeClass() => Model.ViewChangePercent < 0 ? "text-danger" : "text-success";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-chart-line me-2 text-primary"></i>Website Analytics</h2>
+    <div class="text-muted">Understand which pages attract visitors and turn attention into leads.</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/Website" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>My Website</a>
+    <div class="btn-group" role="group" aria-label="Analytics period">
+      @foreach (var period in new[] { 7, 30, 90 })
+      {
+        <a href="?days=@period" class="btn @(Model.PeriodDays == period ? "btn-primary" : "btn-outline-primary")">@period days</a>
+      }
+    </div>
+  </div>
+</div>
+
+<section class="analytics-metrics mb-4" aria-label="Website performance summary">
+  <div><span>Page views</span><strong>@Model.TotalViews.ToString("N0")</strong><small class="@ChangeClass()">@(Model.ViewChangePercent >= 0 ? "+" : "")@Model.ViewChangePercent% vs prior period</small></div>
+  <div><span>Unique visitors</span><strong>@Model.UniqueVisitors.ToString("N0")</strong><small>Monthly privacy-safe estimate</small></div>
+  <div><span>Website leads</span><strong>@Model.Leads.ToString("N0")</strong><small>Forms and newsletter signups</small></div>
+  <div><span>Conversion rate</span><strong>@Model.ConversionRate%</strong><small>Leads divided by page views</small></div>
+</section>
+
+<section class="analytics-panel mb-4">
+  <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+    <div><h5 class="fw-bold mb-1">Traffic trend</h5><div class="small text-muted">Daily page views during the selected period</div></div>
+  </div>
+  @if (Model.DailyViews.Any())
+  {
+    <div class="analytics-chart" role="img" aria-label="Daily website page views">
+      @foreach (var point in Model.DailyViews)
+      {
+        var height = Math.Max(4m, point.Views * 100m / maxDailyViews);
+        <div class="analytics-bar-wrap" title="@point.Date.ToString("MMM d"): @point.Views views, @point.Visitors visitors">
+          <div class="analytics-bar" style="height:@height.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+          <span>@point.Date.ToString(Model.PeriodDays <= 7 ? "ddd" : "M/d")</span>
+        </div>
+      }
+    </div>
+  }
+  else
+  {
+    <div class="analytics-empty"><i class="fas fa-chart-column"></i><strong>Analytics starts with the next real visitor</strong><span>Preview visits and common search/social bots are excluded.</span></div>
+  }
+</section>
+
+<div class="row g-4">
+  <div class="col-xl-6">
+    <section class="analytics-panel h-100">
+      <h5 class="fw-bold mb-1">Popular pages</h5>
+      <div class="small text-muted mb-3">Pages ranked by total views</div>
+      @await Html.PartialAsync("_BreakdownTable", Model.TopPages, new ViewDataDictionary(ViewData) { ["FirstColumn"] = "Page" })
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="analytics-panel h-100">
+      <h5 class="fw-bold mb-1">Traffic sources</h5>
+      <div class="small text-muted mb-3">External sites that referred visitors</div>
+      @await Html.PartialAsync("_BreakdownTable", Model.Referrers, new ViewDataDictionary(ViewData) { ["FirstColumn"] = "Source" })
+    </section>
+  </div>
+  <div class="col-12">
+    <section class="analytics-panel">
+      <h5 class="fw-bold mb-1">Domains</h5>
+      <div class="small text-muted mb-3">Traffic across the temporary site and every connected custom domain</div>
+      @await Html.PartialAsync("_BreakdownTable", Model.Domains, new ViewDataDictionary(ViewData) { ["FirstColumn"] = "Domain" })
+    </section>
+  </div>
+</div>
+
+<style>
+  .analytics-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fff;border:1px solid #dfe6ef;border-radius:6px;overflow:hidden}
+  .analytics-metrics>div{padding:20px;border-right:1px solid #e7ecf2;min-width:0}.analytics-metrics>div:last-child{border-right:0}
+  .analytics-metrics span,.analytics-metrics small{display:block;color:#64748b}.analytics-metrics strong{display:block;font-size:2rem;line-height:1.2;margin:6px 0;color:#17223a}
+  .analytics-panel{background:#fff;border:1px solid #dfe6ef;border-radius:6px;padding:22px}
+  .analytics-chart{height:260px;display:flex;align-items:flex-end;gap:6px;border-bottom:1px solid #cbd5e1;padding:12px 4px 0;overflow-x:auto}
+  .analytics-bar-wrap{height:100%;min-width:24px;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px}.analytics-bar{width:min(30px,80%);background:#1769ff;border-radius:4px 4px 0 0;min-height:4px}.analytics-bar-wrap span{font-size:.72rem;color:#64748b;white-space:nowrap}
+  .analytics-empty{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#64748b;gap:8px;text-align:center}.analytics-empty i{font-size:2.4rem;color:#cbd5e1}
+  @@media(max-width:900px){.analytics-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-metrics>div:nth-child(2){border-right:0}.analytics-metrics>div:nth-child(-n+2){border-bottom:1px solid #e7ecf2}}
+  @@media(max-width:520px){.analytics-metrics{grid-template-columns:1fr}.analytics-metrics>div{border-right:0!important;border-bottom:1px solid #e7ecf2}.analytics-metrics>div:last-child{border-bottom:0}}
+</style>

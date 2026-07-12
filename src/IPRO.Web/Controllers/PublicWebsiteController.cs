@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using IPRO.Web.Models;
 using System.Net;
 using System.Security;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace IPRO.Web.Controllers;
@@ -256,12 +257,58 @@ public class PublicWebsiteController : Controller
             if (currentPage == null) return View("NotFound", Request.Host.Host);
         }
 
+        await TrackPageViewAsync(website, currentPage);
+
         return View("Index", new PublicWebsiteViewModel
         {
             Website = website,
             Pages = pages,
             CurrentPage = currentPage
         });
+    }
+
+    private async Task TrackPageViewAsync(AgentWebsite website, WebsitePage? page)
+    {
+        try
+        {
+            if (string.Equals(Request.Headers["DNT"], "1", StringComparison.Ordinal)) return;
+
+            var userAgent = Request.Headers["User-Agent"].ToString();
+            if (string.IsNullOrWhiteSpace(userAgent) || IsLikelyBot(userAgent)) return;
+
+            var ipAddress = GetRequestIpAddress();
+            var monthScope = DateTime.UtcNow.ToString("yyyy-MM");
+            var visitorInput = $"{website.Id}|{monthScope}|{ipAddress}|{userAgent}";
+            var visitorHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(visitorInput)));
+            var referrerHost = string.Empty;
+            if (Uri.TryCreate(Request.Headers.Referer.ToString(), UriKind.Absolute, out var referrer) &&
+                !string.Equals(NormalizeHost(referrer.Host), NormalizeHost(Request.Host.Host), StringComparison.OrdinalIgnoreCase))
+            {
+                referrerHost = NormalizeHost(referrer.Host);
+            }
+
+            _db.WebsitePageViews.Add(new WebsitePageView
+            {
+                AgentWebsiteId = website.Id,
+                WebsitePageId = page?.Id,
+                SourceDomain = Truncate(NormalizeHost(Request.Host.Host), 255),
+                Path = page == null || page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}",
+                ReferrerHost = Truncate(referrerHost, 255),
+                VisitorHash = visitorHash,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Public website analytics could not record a view for website {WebsiteId}.", website.Id);
+        }
+    }
+
+    private static bool IsLikelyBot(string userAgent)
+    {
+        string[] markers = ["bot", "crawler", "spider", "slurp", "preview", "facebookexternalhit", "whatsapp", "headless"];
+        return markers.Any(marker => userAgent.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string NormalizeHost(string? host)

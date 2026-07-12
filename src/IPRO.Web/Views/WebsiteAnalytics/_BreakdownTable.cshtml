@@ -1,0 +1,19 @@
+@model IReadOnlyCollection<IPRO.Web.Models.WebsiteAnalyticsBreakdown>
+@{
+    var firstColumn = ViewData["FirstColumn"] as string ?? "Item";
+}
+<div class="table-responsive">
+  <table class="table align-middle mb-0">
+    <thead><tr><th>@firstColumn</th><th class="text-end">Views</th><th class="text-end">Visitors</th></tr></thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+      <tr><td class="fw-semibold text-break">@item.Label</td><td class="text-end">@item.Views.ToString("N0")</td><td class="text-end">@item.Visitors.ToString("N0")</td></tr>
+    }
+    @if (!Model.Any())
+    {
+      <tr><td colspan="3" class="text-center text-muted py-4">No data in this period.</td></tr>
+    }
+    </tbody>
+  </table>
+</div>

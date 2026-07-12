@@ -79,6 +79,17 @@ Only one page can be the home page.
 
 IPRO automatically provides canonical URLs, search-engine instructions, social-sharing metadata, structured business data, `robots.txt`, and a host-specific `sitemap.xml`. The first visible block image is used as the social-sharing image, with the website logo as fallback.
 
+## Review Website Analytics
+
+1. Open **Analytics** from the Agent Portal navigation.
+2. Choose a **7**, **30**, or **90 day** reporting period.
+3. Review page views, estimated unique visitors, website leads, and conversion rate.
+4. Use **Popular pages** to identify content attracting the most attention.
+5. Use **Traffic sources** to see external sites sending visitors.
+6. Use **Domains** to compare the temporary domain with connected custom domains.
+
+Analytics excludes common bots, social preview tools, template previews, and browsers that send the `Do Not Track` signal. IPRO stores a one-way, monthly visitor identifier instead of the raw visitor IP address. Website analytics is controlled by the package's **Detailed visitor/hits tracking system** function; agents without access see the normal package-upgrade prompt.
+
 ## Add a Page to the Menu
 
 1. Edit the page and enable **Show in navigation**.
