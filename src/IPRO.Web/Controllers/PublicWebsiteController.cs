@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using IPRO.Web.Models;
 using System.Net;
+using System.Security;
+using System.Text;
 
 namespace IPRO.Web.Controllers;
 
@@ -36,6 +38,43 @@ public class PublicWebsiteController : Controller
     public async Task<IActionResult> Page(string slug)
     {
         return await RenderPageAsync(slug);
+    }
+
+    [HttpGet("/robots.txt")]
+    public async Task<IActionResult> Robots()
+    {
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        if (website == null) return NotFound();
+        var origin = $"{Request.Scheme}://{Request.Host}";
+        return Content($"User-agent: *\nAllow: /\nSitemap: {origin}/sitemap.xml\n", "text/plain", Encoding.UTF8);
+    }
+
+    [HttpGet("/sitemap.xml")]
+    public async Task<IActionResult> Sitemap()
+    {
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        if (website == null) return NotFound();
+
+        var pages = await _db.WebsitePages
+            .AsNoTracking()
+            .Where(p => p.AgentWebsiteId == website.Id && p.IsPublished)
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Title)
+            .ToListAsync();
+        var origin = $"{Request.Scheme}://{Request.Host}";
+        var urls = pages.Select(page => new
+        {
+            Location = origin + (page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}"),
+            page.UpdatedAt
+        });
+        var xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+        foreach (var url in urls)
+        {
+            xml.Append("  <url><loc>").Append(SecurityElement.Escape(url.Location)).Append("</loc><lastmod>")
+                .Append(url.UpdatedAt.ToString("yyyy-MM-dd")).Append("</lastmod></url>\n");
+        }
+        xml.Append("</urlset>");
+        return Content(xml.ToString(), "application/xml", Encoding.UTF8);
     }
 
     [HttpPost, ValidateAntiForgeryToken]

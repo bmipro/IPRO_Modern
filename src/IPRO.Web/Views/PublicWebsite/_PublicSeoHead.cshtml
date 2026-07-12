@@ -1,0 +1,70 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@using System.Text.Json
+@{
+    var website = Model.Website;
+    var agent = website.AgentUser;
+    var page = Model.CurrentPage;
+    var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
+    var siteName = string.IsNullOrWhiteSpace(website.SiteTitle) ? agentName : website.SiteTitle;
+    var pageTitle = !string.IsNullOrWhiteSpace(page?.MetaTitle)
+        ? page.MetaTitle
+        : page != null && !page.IsHomePage
+            ? $"{page.Title} | {siteName}"
+            : siteName;
+    var description = !string.IsNullOrWhiteSpace(page?.MetaDescription)
+        ? page.MetaDescription
+        : !string.IsNullOrWhiteSpace(website.TagLine)
+            ? website.TagLine
+            : $"Learn more about {siteName} and the professional services available.";
+    var publicPath = page == null || page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}";
+    var origin = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var canonicalUrl = origin + publicPath;
+    var imagePath = page?.Blocks.OrderBy(b => b.SortOrder).Select(b => b.ImageUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
+    imagePath = string.IsNullOrWhiteSpace(imagePath) ? website.LogoUrl : imagePath;
+    var imageUrl = string.IsNullOrWhiteSpace(imagePath)
+        ? string.Empty
+        : Uri.TryCreate(imagePath, UriKind.Absolute, out var absoluteImage)
+            ? absoluteImage.ToString()
+            : origin + (imagePath.StartsWith('/') ? imagePath : "/" + imagePath);
+    var structuredData = new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "ProfessionalService",
+        ["name"] = siteName,
+        ["url"] = canonicalUrl,
+        ["description"] = description,
+        ["email"] = agent.Email,
+        ["telephone"] = agent.Phone,
+        ["image"] = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl,
+        ["address"] = new Dictionary<string, object?>
+        {
+            ["@type"] = "PostalAddress",
+            ["streetAddress"] = agent.CompanyAddress,
+            ["addressLocality"] = agent.City,
+            ["addressRegion"] = agent.Province,
+            ["postalCode"] = agent.PostalCode,
+            ["addressCountry"] = agent.Country
+        }
+    };
+}
+<title>@pageTitle</title>
+<meta name="description" content="@description" />
+<meta name="robots" content="@(ViewBag.IsTemplatePreview == true ? "noindex,nofollow" : "index,follow,max-image-preview:large")" />
+<link rel="canonical" href="@canonicalUrl" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="@siteName" />
+<meta property="og:title" content="@pageTitle" />
+<meta property="og:description" content="@description" />
+<meta property="og:url" content="@canonicalUrl" />
+@if (!string.IsNullOrWhiteSpace(imageUrl))
+{
+  <meta property="og:image" content="@imageUrl" />
+}
+<meta name="twitter:card" content="@(string.IsNullOrWhiteSpace(imageUrl) ? "summary" : "summary_large_image")" />
+<meta name="twitter:title" content="@pageTitle" />
+<meta name="twitter:description" content="@description" />
+@if (!string.IsNullOrWhiteSpace(imageUrl))
+{
+  <meta name="twitter:image" content="@imageUrl" />
+}
+<script type="application/ld+json">@Html.Raw(JsonSerializer.Serialize(structuredData, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }))</script>

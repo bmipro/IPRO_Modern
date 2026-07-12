@@ -69,6 +69,16 @@ From **Manage Pages**:
 
 Only one page can be the home page.
 
+## Configure Page SEO and Social Sharing
+
+1. Edit the page.
+2. Enter a concise **Browser/SEO Title**. Include the service and location when appropriate.
+3. Enter a useful **Search Description** of roughly 120 to 160 characters.
+4. Save page settings.
+5. Confirm the public page title and description in the browser source or an SEO testing tool.
+
+IPRO automatically provides canonical URLs, search-engine instructions, social-sharing metadata, structured business data, `robots.txt`, and a host-specific `sitemap.xml`. The first visible block image is used as the social-sharing image, with the website logo as fallback.
+
 ## Add a Page to the Menu
 
 1. Edit the page and enable **Show in navigation**.
@@ -153,4 +163,3 @@ Hero blocks include additional controls:
 - Overlay strength
 
 Save the block after changing presentation controls.
-
