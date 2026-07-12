@@ -49,6 +49,21 @@
           <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Upload Image</button>
         </form>
       </div>
+      @if (sitePage.Blocks.Any())
+      {
+        <div class="image-library-toolbar mb-3">
+          <div>
+            <label for="uploadedImageTarget" class="form-label small fw-semibold mb-1">Apply uploaded image to</label>
+            <select id="uploadedImageTarget" class="form-select form-select-sm">
+              @foreach (var targetBlock in sitePage.Blocks.OrderByDescending(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero).ThenBy(b => b.SortOrder))
+              {
+                <option value="@targetBlock.Id">@System.Text.RegularExpressions.Regex.Replace(targetBlock.BlockType, "([a-z])([A-Z])", "$1 $2") - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
+              }
+            </select>
+          </div>
+          <div id="uploadedImageStatus" class="small text-muted" role="status">Choose a destination, then click <strong>Use this image</strong>.</div>
+        </div>
+      }
       @if (Model.MediaAssets.Any())
       {
         <div class="row g-3">
@@ -58,6 +73,10 @@
               <div class="border rounded p-2 h-100">
                 <img src="@asset.BlobUrl" alt="" class="w-100 rounded mb-2" style="aspect-ratio:16/10;object-fit:cover" />
                 <div class="small text-truncate mb-2" title="@asset.OriginalFileName">@asset.OriginalFileName</div>
+                @if (sitePage.Blocks.Any())
+                {
+                  <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2 uploaded-image-choice" data-image-url="@asset.BlobUrl" data-image-name="@asset.OriginalFileName"><i class="fas fa-check me-1"></i>Use this image</button>
+                }
                 <form method="post" action="/WebsitePages/DeleteImage/@asset.Id" onsubmit="return confirm('Remove this image from the library and any content blocks using it?');">
                   @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" /><button class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash me-1"></i>Remove</button>
                 </form>
@@ -183,6 +202,7 @@
 }
 <style>
 .banner-controls{padding:18px;border:1px solid #d8e3f0;border-radius:8px;background:#f7faff}
+.image-library-toolbar{display:grid;grid-template-columns:minmax(260px,430px) 1fr;gap:18px;align-items:end;padding:14px;border:1px solid #d8e3f0;border-radius:7px;background:#f7faff}
 .starter-banner-library summary{cursor:pointer;list-style:none}
 .starter-banner-library summary::-webkit-details-marker{display:none}
 .starter-banner-toolbar{display:grid;grid-template-columns:minmax(260px,430px) 1fr;gap:18px;align-items:end;padding:14px;border:1px solid #d8e3f0;border-radius:7px;background:#f7faff}
@@ -196,7 +216,7 @@
 .starter-banner-caption span{color:#64748b}
 .starter-banner-use{position:absolute;right:8px;bottom:7px;color:#0d6efd;font-size:11px;font-weight:700}
 .starter-banner-choice.is-selected .starter-banner-use{color:#198754}
-@@media(max-width:800px){.starter-banner-toolbar{grid-template-columns:1fr}.starter-banner-grid{grid-template-columns:1fr}.starter-banner-caption{font-size:11px}}
+@@media(max-width:800px){.image-library-toolbar,.starter-banner-toolbar{grid-template-columns:1fr}.starter-banner-grid{grid-template-columns:1fr}.starter-banner-caption{font-size:11px}}
 </style>
 <script>
 document.querySelectorAll('select[name="imageUrl"]').forEach(select => {
@@ -227,6 +247,33 @@ document.querySelectorAll('.starter-banner-choice').forEach(button => {
 
     const blockCard = imageSelect.closest('.card');
     if (status) status.innerHTML = `<strong>${button.dataset.bannerName}</strong> is selected. Click <strong>Save Block</strong> in the destination block to keep it.`;
+    if (blockCard) blockCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+});
+
+document.querySelectorAll('.uploaded-image-choice').forEach(button => {
+  button.addEventListener('click', () => {
+    const targetPicker = document.getElementById('uploadedImageTarget');
+    const status = document.getElementById('uploadedImageStatus');
+    if (!targetPicker) return;
+
+    const imageSelect = document.querySelector(`select[name="imageUrl"][data-block-id="${targetPicker.value}"]`);
+    if (!imageSelect) {
+      if (status) status.textContent = 'That destination block could not be found. Refresh this page and try again.';
+      return;
+    }
+
+    imageSelect.value = button.dataset.imageUrl || '';
+    imageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelectorAll('.uploaded-image-choice').forEach(choice => {
+      choice.classList.remove('btn-primary');
+      choice.classList.add('btn-outline-primary');
+    });
+    button.classList.remove('btn-outline-primary');
+    button.classList.add('btn-primary');
+
+    const blockCard = imageSelect.closest('.card');
+    if (status) status.innerHTML = `<strong>${button.dataset.imageName}</strong> is selected. Click <strong>Save Block</strong> in the destination block to publish it.`;
     if (blockCard) blockCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 });
