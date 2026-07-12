@@ -13,6 +13,7 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteTemplate> WebsiteTemplates => Set<WebsiteTemplate>();
     public DbSet<WebsitePage> WebsitePages => Set<WebsitePage>();
     public DbSet<WebsiteContentBlock> WebsiteContentBlocks => Set<WebsiteContentBlock>();
+    public DbSet<WebsiteMediaAsset> WebsiteMediaAssets => Set<WebsiteMediaAsset>();
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<Client> Clients => Set<Client>();
@@ -139,6 +140,17 @@ public class IPRODbContext : DbContext
             e.HasOne(b => b.WebsitePage)
              .WithMany(p => p.Blocks)
              .HasForeignKey(b => b.WebsitePageId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WebsiteMediaAsset>(e =>
+        {
+            e.Property(a => a.OriginalFileName).HasMaxLength(255).IsRequired();
+            e.Property(a => a.BlobUrl).HasMaxLength(1000).IsRequired();
+            e.Property(a => a.ContentType).HasMaxLength(100).IsRequired();
+            e.HasOne(a => a.AgentWebsite)
+             .WithMany(w => w.MediaAssets)
+             .HasForeignKey(a => a.AgentWebsiteId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

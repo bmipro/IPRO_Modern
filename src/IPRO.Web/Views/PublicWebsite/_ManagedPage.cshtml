@@ -7,7 +7,7 @@
 {
   if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
   {
-    <section class="managed-block managed-hero"><div class="managed-inner"><div class="managed-eyebrow">@agent.CompanyName</div><h1 class="managed-title">@block.Heading</h1><p class="managed-subheading">@block.Subheading</p>@if (!string.IsNullOrWhiteSpace(block.Body)){<p class="managed-copy">@block.Body</p>}@if (!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="managed-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText</a>}</div></section>
+    <section class="managed-block managed-hero"><div class="managed-inner managed-hero__layout"><div><div class="managed-eyebrow">@agent.CompanyName</div><h1 class="managed-title">@block.Heading</h1><p class="managed-subheading">@block.Subheading</p>@if (!string.IsNullOrWhiteSpace(block.Body)){<p class="managed-copy">@block.Body</p>}@if (!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="managed-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText</a>}</div>@if (!string.IsNullOrWhiteSpace(block.ImageUrl)){<img class="managed-hero__image" src="@block.ImageUrl" alt="" />}</div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services)
   {
@@ -16,7 +16,7 @@
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
   {
-    <section class="managed-block managed-cta"><div class="managed-inner"><h2 class="h1 fw-bold">@block.Heading</h2><p class="managed-subheading">@block.Subheading</p>@if (!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="managed-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText</a>}</div></section>
+    <section class="managed-block managed-cta"><div class="managed-inner"><h2 class="h1 fw-bold">@block.Heading</h2><p class="managed-subheading">@block.Subheading</p>@if (!string.IsNullOrWhiteSpace(block.Body)){<p class="managed-copy">@block.Body</p>}@if (!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="managed-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText</a>}</div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm)
   {

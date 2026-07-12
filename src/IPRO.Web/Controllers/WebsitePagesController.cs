@@ -4,6 +4,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Web.Models;
+using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,12 +16,14 @@ public class WebsitePagesController : Controller
 {
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IBlobStorageService _blob;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public WebsitePagesController(IPRODbContext db, IPackageEntitlementService entitlements)
+    public WebsitePagesController(IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob)
     {
         _db = db;
         _entitlements = entitlements;
+        _blob = blob;
     }
 
     public async Task<IActionResult> Index()
@@ -54,7 +57,8 @@ public class WebsitePagesController : Controller
         return View("Edit", new WebsitePageEditViewModel
         {
             Page = new WebsitePage { AgentWebsiteId = website.Id, IsPublished = false, ShowInNavigation = true, SortOrder = nextOrder },
-            AvailableParents = await GetParentChoicesAsync(website.Id, 0)
+            AvailableParents = await GetParentChoicesAsync(website.Id, 0),
+            MediaAssets = await GetMediaAssetsAsync(website.Id)
         });
     }
 
@@ -66,8 +70,81 @@ public class WebsitePagesController : Controller
         return View(new WebsitePageEditViewModel
         {
             Page = page,
-            AvailableParents = await GetParentChoicesAsync(page.AgentWebsiteId, page.Id)
+            AvailableParents = await GetParentChoicesAsync(page.AgentWebsiteId, page.Id),
+            MediaAssets = await GetMediaAssetsAsync(page.AgentWebsiteId)
         });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [RequestSizeLimit(8 * 1024 * 1024)]
+    public async Task<IActionResult> UploadImage(int pageId, IFormFile? image)
+    {
+        var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == pageId);
+        if (page == null) return NotFound();
+        if (image == null || image.Length == 0)
+        {
+            TempData["Error"] = "Choose an image to upload.";
+            return RedirectToAction(nameof(Edit), new { id = pageId });
+        }
+        if (image.Length > 8 * 1024 * 1024)
+        {
+            TempData["Error"] = "Images must be 8 MB or smaller.";
+            return RedirectToAction(nameof(Edit), new { id = pageId });
+        }
+
+        var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
+        var expectedContentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => string.Empty
+        };
+        if (string.IsNullOrEmpty(expectedContentType) ||
+            !string.Equals(image.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed.";
+            return RedirectToAction(nameof(Edit), new { id = pageId });
+        }
+
+        await using var stream = image.OpenReadStream();
+        if (!await HasValidImageSignatureAsync(stream, extension))
+        {
+            TempData["Error"] = "That file does not contain a valid supported image.";
+            return RedirectToAction(nameof(Edit), new { id = pageId });
+        }
+        stream.Position = 0;
+        var url = await _blob.UploadAsync(stream, image.FileName, "website-media", expectedContentType);
+        _db.WebsiteMediaAssets.Add(new WebsiteMediaAsset
+        {
+            AgentWebsiteId = page.AgentWebsiteId,
+            OriginalFileName = Path.GetFileName(image.FileName),
+            BlobUrl = url,
+            ContentType = expectedContentType,
+            FileSize = image.Length
+        });
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Image uploaded and added to your media library.";
+        return RedirectToAction(nameof(Edit), new { id = pageId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteImage(int id, int pageId)
+    {
+        var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == pageId);
+        if (page == null) return NotFound();
+        var asset = await _db.WebsiteMediaAssets.FirstOrDefaultAsync(a => a.Id == id && a.AgentWebsiteId == page.AgentWebsiteId);
+        if (asset == null) return NotFound();
+        var blocks = await _db.WebsiteContentBlocks
+            .Where(b => b.WebsitePage.AgentWebsiteId == page.AgentWebsiteId && b.ImageUrl == asset.BlobUrl)
+            .ToListAsync();
+        foreach (var block in blocks) block.ImageUrl = string.Empty;
+        await _blob.DeleteAsync(asset.BlobUrl);
+        _db.WebsiteMediaAssets.Remove(asset);
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Image removed from the media library.";
+        return RedirectToAction(nameof(Edit), new { id = pageId });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -304,6 +381,24 @@ public class WebsitePagesController : Controller
     private async Task<List<WebsitePage>> GetParentChoicesAsync(int websiteId, int excludedId) => await _db.WebsitePages
         .AsNoTracking().Where(p => p.AgentWebsiteId == websiteId && p.Id != excludedId && p.ParentPageId == null)
         .OrderBy(p => p.SortOrder).ToListAsync();
+
+    private Task<List<WebsiteMediaAsset>> GetMediaAssetsAsync(int websiteId) => _db.WebsiteMediaAssets
+        .AsNoTracking().Where(a => a.AgentWebsiteId == websiteId).OrderByDescending(a => a.CreatedAt).ToListAsync();
+
+    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
+    {
+        var header = new byte[12];
+        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
+        if (read < 6) return false;
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
+            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
+            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
+            _ => false
+        };
+    }
 
     private async Task<IActionResult?> RequireWebsiteAccessAsync()
     {

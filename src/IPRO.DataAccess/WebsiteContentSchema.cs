@@ -54,6 +54,21 @@ CREATE TABLE IF NOT EXISTS `WebsiteContentBlocks` (
 """);
 
         await db.Database.ExecuteSqlRawAsync("""
+CREATE TABLE IF NOT EXISTS `WebsiteMediaAssets` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `AgentWebsiteId` int NOT NULL,
+  `OriginalFileName` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+  `BlobUrl` varchar(1000) CHARACTER SET utf8mb4 NOT NULL,
+  `ContentType` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+  `FileSize` bigint NOT NULL,
+  `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`Id`),
+  KEY `IX_WebsiteMediaAssets_AgentWebsiteId` (`AgentWebsiteId`),
+  CONSTRAINT `FK_WebsiteMediaAssets_AgentWebsites_AgentWebsiteId` FOREIGN KEY (`AgentWebsiteId`) REFERENCES `AgentWebsites` (`Id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+""");
+
+        await db.Database.ExecuteSqlRawAsync("""
 CREATE TABLE IF NOT EXISTS `WebsiteStarterPages` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `BillingRuleId` int NULL,

@@ -88,6 +88,5 @@ After the template migration:
 
 - submit public contact forms directly into CRM leads
 - store newsletter signups as subscriber records
-- support hero/banner image rendering
 - provision starter pages during registration
 - add a dedicated drag-and-drop navigation manager

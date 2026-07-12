@@ -38,6 +38,41 @@
 
 @if (!isNew)
 {
+  <section class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div><h4 class="fw-bold mb-1"><i class="fas fa-images me-2 text-primary"></i>Image Library</h4><div class="text-muted small">Upload an image once, then select it in any content block.</div></div>
+        <form method="post" action="/WebsitePages/UploadImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="pageId" value="@sitePage.Id" />
+          <div><label class="form-label small fw-semibold mb-1">JPG, PNG, GIF, or WebP (maximum 8 MB)</label><input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
+          <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Upload Image</button>
+        </form>
+      </div>
+      @if (Model.MediaAssets.Any())
+      {
+        <div class="row g-3">
+          @foreach (var asset in Model.MediaAssets)
+          {
+            <div class="col-6 col-md-4 col-xl-3">
+              <div class="border rounded p-2 h-100">
+                <img src="@asset.BlobUrl" alt="" class="w-100 rounded mb-2" style="aspect-ratio:16/10;object-fit:cover" />
+                <div class="small text-truncate mb-2" title="@asset.OriginalFileName">@asset.OriginalFileName</div>
+                <form method="post" action="/WebsitePages/DeleteImage/@asset.Id" onsubmit="return confirm('Remove this image from the library and any content blocks using it?');">
+                  @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" /><button class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash me-1"></i>Remove</button>
+                </form>
+              </div>
+            </div>
+          }
+        </div>
+      }
+      else
+      {
+        <div class="border rounded p-4 text-center text-muted"><i class="fas fa-image me-2"></i>No website images uploaded yet.</div>
+      }
+    </div>
+  </section>
+
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
     <div><h4 class="fw-bold mb-1">Content Blocks</h4><div class="text-muted small">Blocks appear from top to bottom in this order.</div></div>
     <form method="post" action="/WebsitePages/AddBlock" class="d-flex gap-2">
@@ -66,7 +101,24 @@
           <div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div>
           <div class="col-md-6"><label class="form-label fw-semibold">Supporting Line</label><input name="subheading" value="@block.Subheading" class="form-control" /></div>
           <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.Testimonials ? "Items (one per line)" : "Body")</label><textarea name="body" class="form-control" rows="4">@block.Body</textarea></div>
-          <div class="col-md-6"><label class="form-label fw-semibold">Image URL <span class="text-muted fw-normal">(optional)</span></label><input name="imageUrl" value="@block.ImageUrl" class="form-control" /></div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
+            <select name="imageUrl" class="form-select">
+              <option value="">No image</option>
+              @if (!string.IsNullOrWhiteSpace(block.ImageUrl) && !Model.MediaAssets.Any(a => a.BlobUrl == block.ImageUrl))
+              {
+                <option value="@block.ImageUrl" selected>Current external image</option>
+              }
+              @foreach (var asset in Model.MediaAssets)
+              {
+                <option value="@asset.BlobUrl" selected="@(asset.BlobUrl == block.ImageUrl)">@asset.OriginalFileName</option>
+              }
+            </select>
+            @if (!string.IsNullOrWhiteSpace(block.ImageUrl))
+            {
+              <img src="@block.ImageUrl" alt="" class="rounded mt-2" style="width:120px;height:72px;object-fit:cover" />
+            }
+          </div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
           <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><button class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div>
