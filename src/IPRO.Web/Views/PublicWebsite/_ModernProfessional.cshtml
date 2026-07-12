@@ -24,8 +24,8 @@
   <style>
     :root {
       --site-theme: @theme;
-      --site-theme-deep: color-mix(in srgb, var(--site-theme) 70%, #07142f);
-      --site-theme-soft: color-mix(in srgb, var(--site-theme) 12%, #ffffff);
+      --site-theme-deep: #07142f;
+      --site-theme-soft: #eef4ff;
     }
     body {
       margin: 0;
@@ -38,9 +38,9 @@
       display: flex;
       align-items: center;
       background:
-        linear-gradient(110deg, rgba(8, 21, 48, .92), color-mix(in srgb, var(--site-theme) 84%, transparent)),
+        linear-gradient(110deg, rgba(8, 21, 48, .94), rgba(8, 21, 48, .2)),
         radial-gradient(circle at 80% 20%, rgba(255,255,255,.18), transparent 28%),
-        linear-gradient(135deg, var(--site-theme-deep), var(--site-theme));
+        linear-gradient(135deg, var(--site-theme-deep), var(--site-theme, #1457d9));
       color: #fff;
     }
     .site-logo {
@@ -65,13 +65,13 @@
       border-top: 1px solid #dbe4f0;
     }
     .brand-eyebrow {
-      color: color-mix(in srgb, var(--site-theme) 18%, #ffffff);
+      color: #e5edff;
     }
     .btn-theme {
-      background: var(--site-theme);
-      border-color: var(--site-theme);
+      background: var(--site-theme, #1457d9);
+      border-color: var(--site-theme, #1457d9);
       color: #fff;
-      box-shadow: 0 12px 26px color-mix(in srgb, var(--site-theme) 26%, transparent);
+      box-shadow: 0 12px 26px rgba(0,0,0,.2);
     }
     .btn-theme:hover {
       background: var(--site-theme-deep);
@@ -87,10 +87,10 @@
       color: var(--site-theme-deep);
     }
     .feature-check {
-      color: color-mix(in srgb, var(--site-theme) 20%, #ffffff);
+      color: #e5edff;
     }
     .section-band a {
-      color: var(--site-theme);
+      color: var(--site-theme, #1457d9);
     }
     .contact-link {
       color: #fff;
