@@ -70,6 +70,15 @@
       {
         <div class="border rounded p-4 text-center text-muted"><i class="fas fa-image me-2"></i>No website images uploaded yet.</div>
       }
+      <details class="starter-banner-library mt-4">
+        <summary><i class="fas fa-wand-magic-sparkles me-2 text-primary"></i><strong>Browse shared starter banners</strong><span class="text-muted ms-2">@Model.StarterBanners.Count reusable images</span></summary>
+        <div class="starter-banner-grid mt-3">
+          @foreach (var banner in Model.StarterBanners)
+          {
+            <figure><img src="@banner.Url" alt="@banner.Name" loading="lazy" /><figcaption><strong>@banner.Name</strong><span>@banner.Category</span></figcaption></figure>
+          }
+        </div>
+      </details>
     </div>
   </section>
 
@@ -106,19 +115,30 @@
             <label class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
             <select name="imageUrl" class="form-select">
               <option value="">No image</option>
-              @if (!string.IsNullOrWhiteSpace(block.ImageUrl) && !Model.MediaAssets.Any(a => a.BlobUrl == block.ImageUrl))
+              @if (!string.IsNullOrWhiteSpace(block.ImageUrl) && !Model.MediaAssets.Any(a => a.BlobUrl == block.ImageUrl) && !Model.StarterBanners.Any(a => a.Url == block.ImageUrl))
               {
                 <option value="@block.ImageUrl" selected>Current external image</option>
               }
+              @foreach (var category in Model.StarterBanners.GroupBy(b => b.Category))
+              {
+                <optgroup label="Starter: @category.Key">
+                  @foreach (var banner in category)
+                  {
+                    <option value="@banner.Url" selected="@(banner.Url == block.ImageUrl)">@banner.Name</option>
+                  }
+                </optgroup>
+              }
+              @if (Model.MediaAssets.Any())
+              {
+                <optgroup label="My uploaded images">
               @foreach (var asset in Model.MediaAssets)
               {
                 <option value="@asset.BlobUrl" selected="@(asset.BlobUrl == block.ImageUrl)">@asset.OriginalFileName</option>
               }
+                </optgroup>
+              }
             </select>
-            @if (!string.IsNullOrWhiteSpace(block.ImageUrl))
-            {
-              <img src="@block.ImageUrl" alt="" class="rounded mt-2" style="width:120px;height:72px;object-fit:cover" />
-            }
+            <img src="@block.ImageUrl" alt="" class="rounded mt-2 block-image-preview @(string.IsNullOrWhiteSpace(block.ImageUrl) ? "d-none" : "")" style="width:180px;height:74px;object-fit:cover" />
           </div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
@@ -138,4 +158,14 @@
     </section>
   }
 }
-<style>.banner-controls{padding:18px;border:1px solid #d8e3f0;border-radius:8px;background:#f7faff}</style>
+<style>.banner-controls{padding:18px;border:1px solid #d8e3f0;border-radius:8px;background:#f7faff}.starter-banner-library summary{cursor:pointer;list-style:none}.starter-banner-library summary::-webkit-details-marker{display:none}.starter-banner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.starter-banner-grid figure{margin:0}.starter-banner-grid img{display:block;width:100%;aspect-ratio:3.6/1;object-fit:cover;border-radius:6px}.starter-banner-grid figcaption{display:flex;justify-content:space-between;gap:8px;padding-top:6px;font-size:12px}.starter-banner-grid figcaption span{color:#64748b}@@media(max-width:800px){.starter-banner-grid{grid-template-columns:1fr}.starter-banner-grid figcaption{font-size:11px}}</style>
+<script>
+document.querySelectorAll('select[name="imageUrl"]').forEach(select => {
+  select.addEventListener('change', () => {
+    const preview = select.parentElement.querySelector('.block-image-preview');
+    if (!preview) return;
+    preview.src = select.value;
+    preview.classList.toggle('d-none', !select.value);
+  });
+});
+</script>
