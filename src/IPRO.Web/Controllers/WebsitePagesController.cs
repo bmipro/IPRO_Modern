@@ -569,7 +569,18 @@ public class WebsitePagesController : Controller
         return string.IsNullOrWhiteSpace(slug) ? "page" : slug;
     }
 
-    private static string NormalizeUrl(string? value) => Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri.ToString() : string.Empty;
+    private static string NormalizeUrl(string? value)
+    {
+        value = value?.Trim() ?? string.Empty;
+        if (value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https"
+            ? uri.ToString()
+            : string.Empty;
+    }
     private static string NormalizeLink(string? value)
     {
         value = value?.Trim() ?? string.Empty;
