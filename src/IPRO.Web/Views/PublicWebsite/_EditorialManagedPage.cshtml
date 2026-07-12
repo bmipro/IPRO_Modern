@@ -16,6 +16,19 @@
   .editorial-page .ep-hero h1 { font-size:76px; line-height:.98; margin:18px 0 24px; }
   .editorial-page .ep-hero-visual { min-height:540px; background:var(--site-theme); overflow:hidden; display:flex; align-items:center; justify-content:center; }
   .editorial-page .ep-hero-visual img { width:100%; height:100%; object-fit:cover; }
+  .editorial-page .ep-hero.layout-image-left .ep-hero-visual { order:-1; }
+  .editorial-page .ep-hero.layout-centered { grid-template-columns:1fr; text-align:center; }
+  .editorial-page .ep-hero.layout-centered .ep-hero-copy { align-items:center; }
+  .editorial-page .ep-hero.layout-centered .ep-hero-visual { min-height:360px; }
+  .editorial-page .ep-hero.align-center .ep-hero-copy { text-align:center; align-items:center; }
+  .editorial-page .ep-hero.height-compact,.editorial-page .ep-hero.layout-compact { min-height:420px; }
+  .editorial-page .ep-hero.height-tall { min-height:860px; }
+  .editorial-page .ep-hero.layout-compact { grid-template-columns:1fr; }
+  .editorial-page .ep-hero.layout-compact .ep-hero-visual { display:none; }
+  .editorial-page .ep-hero.layout-full-image { position:relative; isolation:isolate; display:flex; align-items:center; color:#fff; background:#211e1a; }
+  .editorial-page .ep-hero.layout-full-image .ep-hero-copy { position:relative; z-index:2; width:min(900px,100%); }
+  .editorial-page .ep-hero.layout-full-image h1,.editorial-page .ep-hero.layout-full-image .ep-copy { color:#fff; }
+  .editorial-page .ep-hero.layout-full-image .ep-hero-visual { position:absolute; inset:0; z-index:-1; width:100%; height:100%; min-height:0; opacity:var(--hero-image-opacity,.45); }
   .editorial-page .ep-hero-visual i { color:rgba(255,255,255,.72); font-size:120px; }
   .editorial-page .ep-button { display:inline-flex; align-self:flex-start; margin-top:22px; padding:13px 20px; border-radius:var(--button-radius); background:var(--site-theme); color:#fff; text-decoration:none; font-family:Arial,sans-serif; font-weight:800; }
   .editorial-page .ep-feature { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr); gap:90px; align-items:start; border-top:1px solid #d9d3c9; }
@@ -36,7 +49,15 @@
 @foreach(var block in blocks)
 {
   index++;
-  if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero){<section class="ep-hero"><div class="ep-hero-copy"><div class="ep-kicker">@agent.CompanyName</div><h1>@block.Heading</h1><p class="ep-copy">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@block.ButtonText</a>}</div><div class="ep-hero-visual">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" />}else{<i class="fas fa-arrow-trend-up"></i>}</div></section>}
+  if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
+  {
+    var hero = IPRO.Entities.WebsiteHeroSettings.FromJson(block.SettingsJson);
+    var imageOpacity = Math.Clamp((100 - hero.OverlayStrength) / 100.0, .15, .9).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    <section class="ep-hero layout-@hero.Layout align-@hero.TextAlignment height-@hero.Height" style="--hero-image-opacity:@imageOpacity">
+      <div class="ep-hero-copy"><div class="ep-kicker">@agent.CompanyName</div><h1>@block.Heading</h1><p class="ep-copy">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@block.ButtonText</a>}</div>
+      <div class="ep-hero-visual">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" style="object-position:@hero.ImagePosition" />}else{<i class="fas fa-arrow-trend-up"></i>}</div>
+    </section>
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="ep-section"><div class="ep-inner ep-feature @(index%2==0?"reverse":"")"><div class="ep-heading"><div class="ep-kicker">Services</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p></div><div class="ep-list">@for(var i=0;i<items.Length;i++){<div class="ep-list-item"><span>@((i+1).ToString("00"))</span>@items[i]</div>}</div></div></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="ep-section"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker">Perspectives</div><h2>@block.Heading</h2></div><div>@foreach(var item in items){<blockquote class="ep-quote">&ldquo;@item&rdquo;</blockquote>}</div></div></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction || block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="ep-section ep-cta"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2></div><div><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p><a class="ep-button" href="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup ? $"mailto:{agent.Email}?subject=Newsletter subscription request" : (string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl))">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Connect":block.ButtonText)</a></div></div></section>}

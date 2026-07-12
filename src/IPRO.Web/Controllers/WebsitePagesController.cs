@@ -62,6 +62,104 @@ public class WebsitePagesController : Controller
         });
     }
 
+    public async Task<IActionResult> Navigation()
+    {
+        var access = await RequireWebsiteAccessAsync();
+        if (access != null) return access;
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        await EnsureStarterPagesAsync(website);
+        return View(new WebsiteNavigationViewModel
+        {
+            Website = website,
+            Header = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson),
+            Pages = await _db.WebsitePages.AsNoTracking().Where(p => p.AgentWebsiteId == website.Id)
+                .OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToListAsync()
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveHeader(string style, string logoPosition, string logoSize,
+        bool sticky, bool showPhone, bool showEmail, string buttonText, string buttonUrl)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var settings = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
+        settings.Style = new[] { "standard", "compact", "transparent" }.Contains(style) ? style : "standard";
+        settings.LogoPosition = logoPosition == "center" ? "center" : "left";
+        settings.LogoSize = new[] { "small", "medium", "large" }.Contains(logoSize) ? logoSize : "medium";
+        settings.Sticky = sticky;
+        settings.ShowPhone = showPhone;
+        settings.ShowEmail = showEmail;
+        settings.ButtonText = buttonText?.Trim() ?? string.Empty;
+        settings.ButtonUrl = NormalizeLink(buttonUrl);
+        website.HeaderSettingsJson = settings.ToJson();
+        website.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Header settings saved.";
+        return RedirectToAction(nameof(Navigation));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveNavigationItem(int id, string navigationLabel, int? parentPageId, bool showInNavigation)
+    {
+        var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == id);
+        if (page == null) return NotFound();
+        page.NavigationLabel = string.IsNullOrWhiteSpace(navigationLabel) ? page.Title : navigationLabel.Trim();
+        page.ShowInNavigation = showInNavigation;
+        page.ParentPageId = !page.IsHomePage && parentPageId.HasValue && parentPageId != page.Id &&
+            await _db.WebsitePages.AnyAsync(p => p.Id == parentPageId && p.AgentWebsiteId == page.AgentWebsiteId && p.ParentPageId == null)
+            ? parentPageId : null;
+        page.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"Navigation settings saved for {page.Title}.";
+        return RedirectToAction(nameof(Navigation));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> MoveNavigationItem(int id, string direction)
+    {
+        var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == id);
+        if (page == null) return NotFound();
+        var pages = await _db.WebsitePages.Where(p => p.AgentWebsiteId == page.AgentWebsiteId && p.ParentPageId == page.ParentPageId)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Id).ToListAsync();
+        MoveItem(pages, page, direction, p => p.SortOrder, (p, value) => p.SortOrder = value);
+        await _db.SaveChangesAsync();
+        return RedirectToAction(nameof(Navigation));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddCustomLink(string label, string url)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var normalized = NormalizeUrl(url);
+        if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(normalized))
+        {
+            TempData["Error"] = "Enter a label and a complete http or https URL.";
+            return RedirectToAction(nameof(Navigation));
+        }
+        var settings = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
+        settings.CustomLinks.Add(new WebsiteCustomNavigationLink { Label = label.Trim(), Url = normalized, SortOrder = settings.CustomLinks.Count });
+        website.HeaderSettingsJson = settings.ToJson();
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Custom navigation link added.";
+        return RedirectToAction(nameof(Navigation));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCustomLink(string id)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var settings = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
+        settings.CustomLinks.RemoveAll(link => link.Id == id);
+        website.HeaderSettingsJson = settings.ToJson();
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Custom navigation link removed.";
+        return RedirectToAction(nameof(Navigation));
+    }
+
     public async Task<IActionResult> Edit(int id)
     {
         var page = await OwnedPages().Include(p => p.Blocks).FirstOrDefaultAsync(p => p.Id == id);
@@ -284,7 +382,9 @@ public class WebsitePagesController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateBlock(int id, string heading, string subheading, string body,
-        string imageUrl, string buttonText, string buttonUrl, bool isVisible)
+        string imageUrl, string buttonText, string buttonUrl, bool isVisible,
+        string heroLayout = "split", string imagePosition = "center", string textAlignment = "left",
+        string bannerHeight = "standard", int overlayStrength = 45)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -297,6 +397,17 @@ public class WebsitePagesController : Controller
         block.ButtonText = buttonText?.Trim() ?? string.Empty;
         block.ButtonUrl = NormalizeLink(buttonUrl);
         block.IsVisible = isVisible;
+        if (block.BlockType == WebsiteBlockTypes.Hero)
+        {
+            block.SettingsJson = new WebsiteHeroSettings
+            {
+                Layout = heroLayout,
+                ImagePosition = imagePosition,
+                TextAlignment = textAlignment,
+                Height = bannerHeight,
+                OverlayStrength = overlayStrength
+            }.ToJson();
+        }
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";

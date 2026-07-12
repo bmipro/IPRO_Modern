@@ -16,6 +16,22 @@
   .modern-page .mp-hero .mp-lead { color:#dbe6fb; font-size:21px; }
   .modern-page .mp-hero-media { min-height:390px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); display:flex; align-items:flex-end; }
   .modern-page .mp-hero-media img { width:100%; height:100%; min-height:390px; object-fit:cover; }
+  .modern-page .mp-hero.layout-image-left .mp-hero-media { order:-1; }
+  .modern-page .mp-hero.layout-centered .mp-hero-grid { grid-template-columns:1fr; text-align:center; }
+  .modern-page .mp-hero.layout-centered .mp-lead { margin-left:auto; margin-right:auto; }
+  .modern-page .mp-hero.layout-centered .mp-hero-media { width:min(780px,100%); margin:0 auto; }
+  .modern-page .mp-hero.align-center .mp-hero-copy { text-align:center; }
+  .modern-page .mp-hero.align-center .mp-lead { margin-left:auto; margin-right:auto; }
+  .modern-page .mp-hero.height-compact { min-height:430px; }
+  .modern-page .mp-hero.height-tall { min-height:780px; }
+  .modern-page .mp-hero.layout-compact { min-height:380px; }
+  .modern-page .mp-hero.layout-compact .mp-hero-grid { grid-template-columns:1fr; }
+  .modern-page .mp-hero.layout-compact .mp-hero-media { display:none; }
+  .modern-page .mp-hero.layout-full-image { position:relative; isolation:isolate; }
+  .modern-page .mp-hero.layout-full-image .mp-hero-grid { grid-template-columns:1fr; }
+  .modern-page .mp-hero.layout-full-image .mp-hero-copy { position:relative; z-index:2; width:min(760px,100%); }
+  .modern-page .mp-hero.layout-full-image .mp-hero-media { position:absolute; inset:0; z-index:-1; min-height:0; border:0; border-radius:0; opacity:var(--hero-image-opacity,.5); }
+  .modern-page .mp-hero.layout-full-image .mp-hero-media img { min-height:100%; }
   .modern-page .mp-hero-mark { padding:30px; font-size:82px; color:rgba(255,255,255,.72); }
   .modern-page .mp-button { display:inline-flex; align-items:center; min-height:48px; margin-top:20px; padding:0 22px; border-radius:var(--button-radius); background:var(--site-theme); color:#fff; text-decoration:none; font-family:Arial,sans-serif; font-weight:800; }
   .modern-page .mp-hero .mp-button { background:#fff; color:#07142f; }
@@ -35,7 +51,14 @@
 {
   if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
   {
-    <section class="mp-section mp-hero"><div class="mp-inner mp-hero-grid"><div><div class="mp-kicker" style="color:#cbd9f5">@agent.CompanyName</div><h1>@block.Heading</h1><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText <i class="fas fa-arrow-right ms-2"></i></a>}</div><div class="mp-hero-media">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" />}else{<i class="fas fa-compass mp-hero-mark"></i>}</div></div></section>
+    var hero = IPRO.Entities.WebsiteHeroSettings.FromJson(block.SettingsJson);
+    var imageOpacity = Math.Clamp((100 - hero.OverlayStrength) / 100.0, .15, .9).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    <section class="mp-section mp-hero layout-@hero.Layout align-@hero.TextAlignment height-@hero.Height" style="--hero-image-opacity:@imageOpacity">
+      <div class="mp-inner mp-hero-grid">
+        <div class="mp-hero-copy"><div class="mp-kicker" style="color:#cbd9f5">@agent.CompanyName</div><h1>@block.Heading</h1><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText <i class="fas fa-arrow-right ms-2"></i></a>}</div>
+        <div class="mp-hero-media">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" style="object-position:@hero.ImagePosition" />}else{<i class="fas fa-compass mp-hero-mark"></i>}</div>
+      </div>
+    </section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services || block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
   {

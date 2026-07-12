@@ -14,6 +14,21 @@
   .classic-managed__content { min-width:0; }
   .classic-managed .cp-section { padding:54px 48px; border-bottom:1px solid var(--line); }
   .classic-managed .cp-hero { background:var(--site-theme-soft); }
+  .classic-managed .cp-hero { position:relative; overflow:hidden; min-height:430px; display:flex; flex-direction:column; justify-content:center; }
+  .classic-managed .cp-hero-copy { position:relative; z-index:2; }
+  .classic-managed .cp-hero.align-center .cp-hero-copy { text-align:center; }
+  .classic-managed .cp-hero.align-center .cp-copy { margin-left:auto; margin-right:auto; }
+  .classic-managed .cp-hero.height-compact,.classic-managed .cp-hero.layout-compact { min-height:300px; }
+  .classic-managed .cp-hero.height-tall { min-height:620px; }
+  .classic-managed .cp-hero.layout-image-left,.classic-managed .cp-hero.layout-split { display:grid; grid-template-columns:minmax(240px,.8fr) minmax(0,1.2fr); gap:32px; align-items:center; }
+  .classic-managed .cp-hero.layout-split .cp-hero-image { order:2; }
+  .classic-managed .cp-hero.layout-image-left .cp-hero-image { order:-1; }
+  .classic-managed .cp-hero.layout-centered .cp-hero-copy { text-align:center; }
+  .classic-managed .cp-hero.layout-centered .cp-copy { margin-left:auto; margin-right:auto; }
+  .classic-managed .cp-hero.layout-full-image { color:#fff; background:#17223a; }
+  .classic-managed .cp-hero.layout-full-image h1,.classic-managed .cp-hero.layout-full-image .cp-copy { color:#fff; }
+  .classic-managed .cp-hero.layout-full-image .cp-hero-image { position:absolute; inset:0; width:100%; height:100%; max-height:none; margin:0; border:0; opacity:var(--hero-image-opacity,.45); }
+  .classic-managed .cp-hero.layout-compact .cp-hero-image { display:none; }
   .classic-managed .cp-hero h1 { font-size:52px; line-height:1.05; font-family:Georgia,serif; color:#17223a; }
   .classic-managed .cp-kicker { color:var(--site-theme); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
   .classic-managed .cp-copy { color:var(--muted); font-size:17px; line-height:1.7; max-width:720px; }
@@ -29,7 +44,15 @@
 <main class="classic-managed"><div class="classic-managed__grid"><aside class="classic-managed__side"><h2>@fullName</h2><p>@agent.Designation</p><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>Email me</a>}<div class="mt-4 small">Professional guidance and dependable client service.</div></aside><div class="classic-managed__content">
 @foreach(var block in blocks)
 {
-  if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero){<section class="cp-section cp-hero"><div class="cp-kicker">@agent.CompanyName</div><h1>@block.Heading</h1><p class="cp-copy">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText</a>}@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img class="cp-image" src="@block.ImageUrl" alt="" />}</section>}
+  if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
+  {
+    var hero = IPRO.Entities.WebsiteHeroSettings.FromJson(block.SettingsJson);
+    var imageOpacity = Math.Clamp((100 - hero.OverlayStrength) / 100.0, .15, .9).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    <section class="cp-section cp-hero layout-@hero.Layout align-@hero.TextAlignment height-@hero.Height" style="--hero-image-opacity:@imageOpacity">
+      <div class="cp-hero-copy"><div class="cp-kicker">@agent.CompanyName</div><h1>@block.Heading</h1><p class="cp-copy">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText</a>}</div>
+      @if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img class="cp-image cp-hero-image" src="@block.ImageUrl" alt="" style="object-position:@hero.ImagePosition" />}
+    </section>
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="cp-section"><div class="cp-kicker">Services</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><ul class="cp-list">@foreach(var item in items){<li><i class="fas fa-check-circle"></i>@item</li>}</ul></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="cp-section"><div class="cp-kicker">Testimonials</div><h2 class="h2 fw-bold">@block.Heading</h2>@foreach(var item in items){<blockquote class="cp-quote">&ldquo;@item&rdquo;</blockquote>}</section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){<section class="cp-section"><div class="cp-kicker">Contact</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><p class="cp-copy">@block.Body</p><a class="cp-button" href="mailto:@agent.Email">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Send an email":block.ButtonText)</a></section>}
