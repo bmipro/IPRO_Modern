@@ -58,6 +58,7 @@ public class WebsiteTemplatesController : Controller
         model.BusinessType = model.BusinessType?.Trim() ?? string.Empty;
         model.PreviewImageUrl = model.PreviewImageUrl?.Trim() ?? string.Empty;
         model.LayoutJson = string.IsNullOrWhiteSpace(model.LayoutJson) ? "{}" : model.LayoutJson.Trim();
+        model.LayoutJson = WebsiteTemplateDesign.FromTemplate(model).ToLayoutJson();
 
         if (string.IsNullOrWhiteSpace(model.TemplateKey))
         {
@@ -67,6 +68,11 @@ public class WebsiteTemplatesController : Controller
         if (string.IsNullOrWhiteSpace(model.Name))
         {
             ModelState.AddModelError(nameof(model.Name), "Template name is required.");
+        }
+
+        if (model.IsDefault && !model.IsActive)
+        {
+            ModelState.AddModelError(nameof(model.IsActive), "A default template must remain active.");
         }
 
         var allTemplates = await _uow.WebsiteTemplates.GetAllAsync();
@@ -103,7 +109,7 @@ public class WebsiteTemplatesController : Controller
 
         if (model.IsDefault)
         {
-            await ClearOtherDefaultsAsync(model.Id, model.TemplateKey);
+            await ClearOtherDefaultsAsync(model.Id, model.TemplateKey, model.BusinessType);
         }
 
         await _uow.SaveChangesAsync();
@@ -117,15 +123,89 @@ public class WebsiteTemplatesController : Controller
         var templates = await _uow.WebsiteTemplates.GetAllAsync();
         var selected = templates.FirstOrDefault(t => t.Id == id);
         if (selected == null) return NotFound();
+        if (!selected.IsActive)
+        {
+            TempData["Error"] = "Restore this template before making it a default.";
+            return RedirectToAction(nameof(Index));
+        }
 
-        foreach (var template in templates)
+        var selectedBusinessType = selected.BusinessType?.Trim() ?? string.Empty;
+        foreach (var template in templates.Where(t => string.Equals(t.BusinessType?.Trim() ?? string.Empty, selectedBusinessType, StringComparison.OrdinalIgnoreCase)))
         {
             template.IsDefault = template.Id == id;
             _uow.WebsiteTemplates.Update(template);
         }
 
         await _uow.SaveChangesAsync();
-        TempData["Success"] = $"{selected.Name} is now the default website template.";
+        TempData["Success"] = $"{selected.Name} is now the default website template for {(string.IsNullOrWhiteSpace(selectedBusinessType) ? "all businesses" : selectedBusinessType)}.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Duplicate(int id)
+    {
+        var source = await _uow.WebsiteTemplates.GetByIdAsync(id);
+        if (source == null) return NotFound();
+
+        var templates = (await _uow.WebsiteTemplates.GetAllAsync()).ToList();
+        var design = WebsiteTemplateDesign.FromTemplate(source);
+        design.Version++;
+        var baseKey = source.TemplateKey;
+        var candidateKey = $"{baseKey}-v{design.Version}";
+        var suffix = 2;
+        while (templates.Any(t => string.Equals(t.TemplateKey, candidateKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            candidateKey = $"{baseKey}-v{design.Version}-{suffix++}";
+        }
+
+        var duplicate = new WebsiteTemplate
+        {
+            TemplateKey = candidateKey,
+            Name = $"{source.Name} v{design.Version}",
+            Description = source.Description,
+            BusinessType = source.BusinessType,
+            PreviewImageUrl = source.PreviewImageUrl,
+            LayoutJson = design.ToLayoutJson(),
+            IsActive = false,
+            IsDefault = false,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _uow.WebsiteTemplates.AddAsync(duplicate);
+        await _uow.SaveChangesAsync();
+        TempData["Success"] = $"{duplicate.Name} was created as an inactive draft. Review and activate it when ready.";
+        return RedirectToAction(nameof(Edit), new { id = duplicate.Id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Retire(int id)
+    {
+        var template = await _uow.WebsiteTemplates.GetByIdAsync(id);
+        if (template == null) return NotFound();
+        if (template.IsDefault)
+        {
+            TempData["Error"] = "Choose another default for this business type before retiring this template.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var usage = (await BuildUsageAsync()).First(t => t.Template.Id == id);
+        template.IsActive = false;
+        _uow.WebsiteTemplates.Update(template);
+        await _uow.SaveChangesAsync();
+        TempData["Success"] = usage.WebsiteCount > 0
+            ? $"{template.Name} was retired. {usage.WebsiteCount} agent(s) still using it will see a migration notice; their websites remain online."
+            : $"{template.Name} was retired.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Restore(int id)
+    {
+        var template = await _uow.WebsiteTemplates.GetByIdAsync(id);
+        if (template == null) return NotFound();
+        template.IsActive = true;
+        _uow.WebsiteTemplates.Update(template);
+        await _uow.SaveChangesAsync();
+        TempData["Success"] = $"{template.Name} is active again.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -207,10 +287,14 @@ public class WebsiteTemplatesController : Controller
         }).ToList();
     }
 
-    private async Task ClearOtherDefaultsAsync(int modelId, string templateKey)
+    private async Task ClearOtherDefaultsAsync(int modelId, string templateKey, string? selectedBusinessType)
     {
         var templates = await _uow.WebsiteTemplates.GetAllAsync();
-        foreach (var template in templates.Where(t => t.Id != modelId && !string.Equals(t.TemplateKey, templateKey, StringComparison.OrdinalIgnoreCase)))
+        var businessType = selectedBusinessType?.Trim() ?? string.Empty;
+        foreach (var template in templates.Where(t =>
+                     t.Id != modelId &&
+                     !string.Equals(t.TemplateKey, templateKey, StringComparison.OrdinalIgnoreCase) &&
+                     string.Equals(t.BusinessType?.Trim() ?? string.Empty, businessType, StringComparison.OrdinalIgnoreCase)))
         {
             if (!template.IsDefault) continue;
             template.IsDefault = false;

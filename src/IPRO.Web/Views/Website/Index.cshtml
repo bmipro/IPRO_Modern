@@ -24,6 +24,7 @@
     var dnsReady = primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var bindingReady = primaryDomain?.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var sslReady = primaryDomain?.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
+    var templateRetired = ViewBag.TemplateRetired == true;
 }
 
 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -76,6 +77,16 @@
     </div>
   </div>
 </div>
+
+@if (templateRetired)
+{
+  <div class="alert alert-warning border-0 shadow-sm mb-4">
+    <div class="d-flex gap-3 align-items-start">
+      <i class="fas fa-triangle-exclamation fs-4 mt-1"></i>
+      <div><strong>Your current template has been retired.</strong><div class="small mt-1">Your website remains online and unchanged. Preview and select an active template when you are ready to move.</div></div>
+    </div>
+  </div>
+}
 
 <div class="row g-4">
   <div class="col-xl-8">
@@ -141,9 +152,13 @@
                           data-font="@design.FontFamily"
                           data-hero="@design.HeroStyle"
                           data-renderer="@design.Renderer"
+                          data-header="@design.HeaderStyle"
+                          data-layout="@design.HeroLayout"
+                          data-spacing="@design.SectionSpacing"
+                          data-button="@design.ButtonStyle"
                           data-description="@template.Description"
                           selected="@(template.Id == selectedTemplateId)">
-                    @template.Name - @(design.Renderer == "classic-sidebar" ? "Classic" : "Modern")
+                    @template.Name - @(design.Renderer == "classic-sidebar" ? "Classic" : design.Renderer == "editorial-visual" ? "Editorial" : "Modern")
                   </option>
                 }
               </select>
@@ -151,6 +166,13 @@
               {
                 <div class="form-text" id="selectedTemplateDescription">Selected: @selectedTemplate.Description</div>
               }
+              <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
+                <a id="previewSelectedTemplate" href="/Website/PreviewTemplate?templateId=@selectedTemplateId" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye me-1"></i>Preview with my content</a>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="true" name="applyTemplateDefaults" id="applyTemplateDefaults" />
+                  <label class="form-check-label small" for="applyTemplateDefaults">Apply this template's starter color</label>
+                </div>
+              </div>
             </div>
             <div class="col-12">
               <div class="website-template-preview" id="websiteTemplatePreview"
@@ -337,7 +359,7 @@
   align-items: center;
   min-height: 196px;
   padding: 28px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--preview-accent) 13%, #fff), var(--preview-bg));
+  background: linear-gradient(135deg, #fff, var(--preview-bg));
 }
 .website-template-preview__hero h3 { margin: 7px 0; font-size: 27px; }
 .website-template-preview__hero p { margin: 0 0 17px; color: #536078; }
@@ -345,6 +367,14 @@
 .website-template-preview__button { display: inline-block; padding: 8px 14px; border-radius: 5px; background: var(--preview-accent); color: #fff; font-size: 13px; font-weight: 700; }
 .website-template-preview__services { display: grid; gap: 10px; }
 .website-template-preview__services span { display: block; height: 42px; border-left: 4px solid var(--preview-accent); border-radius: 5px; background: #fff; box-shadow: 0 5px 16px rgba(30, 45, 70, .08); }
+.website-template-preview.is-classic .website-template-preview__nav { background: var(--preview-accent); color: #fff; }
+.website-template-preview.is-classic .website-template-preview__nav strong { color: #fff; }
+.website-template-preview.is-editorial .website-template-preview__hero { grid-template-columns: .9fr 1.1fr; background: linear-gradient(135deg, #211d19 0 42%, #fff 42% 100%); }
+.website-template-preview.is-editorial .website-template-preview__hero > div:first-child { grid-column: 2; }
+.website-template-preview.is-centered .website-template-preview__hero { grid-template-columns: 1fr; text-align: center; }
+.website-template-preview.is-centered .website-template-preview__services { display: none; }
+.website-template-preview.buttons-square .website-template-preview__button { border-radius: 2px; }
+.website-template-preview.buttons-pill .website-template-preview__button { border-radius: 999px; }
 @@media (max-width: 767px) {
   .website-template-preview__nav span { display: none; }
   .website-template-preview__hero { grid-template-columns: 1fr; }
@@ -365,6 +395,13 @@ function updateWebsitePreview() {
   document.getElementById('previewHeadline').textContent = title?.value || 'Welcome to your website';
   document.getElementById('previewTagline').textContent = tagline?.value || 'Helping clients move forward with confidence.';
 }
+function updateTemplatePreviewLink() {
+  const select = document.getElementById('TemplateId');
+  const link = document.getElementById('previewSelectedTemplate');
+  const defaults = document.getElementById('applyTemplateDefaults');
+  if (!select || !link) return;
+  link.href = `/Website/PreviewTemplate?templateId=${encodeURIComponent(select.value)}&useDefaults=${defaults?.checked === true}`;
+}
 document.getElementById('ThemeColor')?.addEventListener('input', function () {
   document.getElementById('themeHex').value = this.value;
   updateWebsitePreview();
@@ -377,18 +414,35 @@ document.getElementById('TemplateId')?.addEventListener('change', function () {
   const color = document.getElementById('ThemeColor');
   const hex = document.getElementById('themeHex');
   const preview = document.getElementById('websiteTemplatePreview');
-  if (accent && color && hex) {
+  if (document.getElementById('applyTemplateDefaults')?.checked && accent && color && hex) {
     color.value = accent;
     hex.value = accent;
   }
   if (preview) {
     preview.style.setProperty('--preview-bg', selected?.dataset?.background || '#f4f7fb');
     preview.style.setProperty('--preview-font', selected?.dataset?.font || 'Arial, Helvetica, sans-serif');
+    preview.classList.toggle('is-classic', selected?.dataset?.renderer === 'classic-sidebar');
+    preview.classList.toggle('is-editorial', selected?.dataset?.renderer === 'editorial-visual');
+    preview.classList.toggle('is-centered', selected?.dataset?.layout === 'centered');
+    preview.classList.toggle('buttons-square', selected?.dataset?.button === 'square');
+    preview.classList.toggle('buttons-pill', selected?.dataset?.button === 'pill');
   }
   const description = document.getElementById('selectedTemplateDescription');
   if (description) description.textContent = `Selected: ${selected?.dataset?.description || ''}`;
   updateWebsitePreview();
+  updateTemplatePreviewLink();
+});
+document.getElementById('applyTemplateDefaults')?.addEventListener('change', function () {
+  const select = document.getElementById('TemplateId');
+  const selected = select?.options[select.selectedIndex];
+  if (this.checked && selected?.dataset?.accent) {
+    document.getElementById('ThemeColor').value = selected.dataset.accent;
+    document.getElementById('themeHex').value = selected.dataset.accent;
+    updateWebsitePreview();
+  }
+  updateTemplatePreviewLink();
 });
 updateWebsitePreview();
+document.getElementById('TemplateId')?.dispatchEvent(new Event('change'));
 </script>
 }

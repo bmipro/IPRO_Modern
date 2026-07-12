@@ -12,6 +12,8 @@
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
     var company = string.IsNullOrWhiteSpace(agent.CompanyName) ? "IPRO Advisers" : agent.CompanyName;
+    var sectionSpace = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px";
+    var buttonRadius = design.ButtonStyle == "square" ? "2px" : design.ButtonStyle == "pill" ? "999px" : "7px";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -29,6 +31,8 @@
       --ink: #162033;
       --muted: #607089;
       --line: #d8e1ee;
+      --section-space: @sectionSpace;
+      --button-radius: @buttonRadius;
     }
     * { box-sizing: border-box; }
     body {
@@ -240,7 +244,11 @@
   </style>
   @await Html.PartialAsync("_ManagedPageStyles")
 </head>
-<body>
+<body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle">
+  @if (ViewBag.IsTemplatePreview == true)
+  {
+    <div class="template-preview-banner"><i class="fas fa-eye me-2"></i>Template preview using your current pages and content. Nothing has been changed.</div>
+  }
   @if (Model.Pages.Any())
   {
     @await Html.PartialAsync("_PublicNavigation", Model)

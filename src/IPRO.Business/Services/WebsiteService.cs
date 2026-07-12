@@ -55,10 +55,19 @@ public class WebsiteService : IWebsiteService
     public Task<WebsiteTemplate?> GetTemplateByIdAsync(int id) =>
         _uow.WebsiteTemplates.GetByIdAsync(id);
 
-    public async Task<WebsiteTemplate> EnsureDefaultTemplateAsync()
+    public async Task<WebsiteTemplate> EnsureDefaultTemplateAsync(string? businessType = null)
     {
         var activeTemplates = await GetTemplatesAsync();
+        var normalizedBusinessType = businessType?.Trim() ?? string.Empty;
         var activeTemplate = activeTemplates
+            .Where(t => t.IsDefault && string.Equals(t.BusinessType?.Trim(), normalizedBusinessType, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(t => t.Name)
+            .FirstOrDefault()
+            ?? activeTemplates
+            .Where(t => t.IsDefault && string.IsNullOrWhiteSpace(t.BusinessType))
+            .OrderBy(t => t.Name)
+            .FirstOrDefault()
+            ?? activeTemplates
             .OrderByDescending(t => t.IsDefault)
             .ThenBy(t => t.Name)
             .FirstOrDefault();
@@ -73,7 +82,7 @@ public class WebsiteService : IWebsiteService
         return template;
     }
 
-    public async Task<WebsiteTemplate> EnsureDefaultTemplateForPackageAsync(int? packageId)
+    public async Task<WebsiteTemplate> EnsureDefaultTemplateForPackageAsync(int? packageId, string? businessType = null)
     {
         if (packageId.HasValue && packageId.Value > 0)
         {
@@ -89,6 +98,6 @@ public class WebsiteService : IWebsiteService
             }
         }
 
-        return await EnsureDefaultTemplateAsync();
+        return await EnsureDefaultTemplateAsync(businessType);
     }
 }

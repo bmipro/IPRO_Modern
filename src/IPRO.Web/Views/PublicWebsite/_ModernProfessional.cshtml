@@ -12,6 +12,8 @@
     var theme = design.AccentColor;
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
+    var sectionSpace = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px";
+    var buttonRadius = design.ButtonStyle == "square" ? "2px" : design.ButtonStyle == "pill" ? "999px" : "7px";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -26,6 +28,8 @@
       --site-theme: @theme;
       --site-theme-deep: #07142f;
       --site-theme-soft: #eef4ff;
+      --section-space: @sectionSpace;
+      --button-radius: @buttonRadius;
     }
     body {
       margin: 0;
@@ -100,7 +104,11 @@
   </style>
   @await Html.PartialAsync("_ManagedPageStyles")
 </head>
-<body>
+<body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle">
+  @if (ViewBag.IsTemplatePreview == true)
+  {
+    <div class="template-preview-banner"><i class="fas fa-eye me-2"></i>Template preview using your current pages and content. Nothing has been changed.</div>
+  }
   @if (Model.Pages.Any())
   {
     @await Html.PartialAsync("_PublicNavigation", Model)

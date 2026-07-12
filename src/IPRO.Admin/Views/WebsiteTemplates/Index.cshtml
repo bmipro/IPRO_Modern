@@ -44,10 +44,16 @@
       @foreach (var item in Model)
       {
         var template = item.Template;
+        var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(template);
         <tr>
           <td>
-            <div class="fw-bold">@template.Name</div>
-            <div class="small text-muted">@template.Description</div>
+            <div class="d-flex align-items-start gap-2">
+              @if (!string.IsNullOrWhiteSpace(template.PreviewImageUrl))
+              {
+                <img src="@template.PreviewImageUrl" alt="" style="width:72px;height:48px;object-fit:cover;border-radius:5px" />
+              }
+              <div><div class="fw-bold">@template.Name</div><div class="small text-muted">@template.Description</div></div>
+            </div>
             @if (item.AgentNames.Any())
             {
               <div class="small text-muted mt-1">
@@ -63,7 +69,7 @@
               </div>
             }
           </td>
-          <td><code>@template.TemplateKey</code></td>
+          <td><code>@template.TemplateKey</code><div class="small text-muted mt-1">@design.Renderer · v@design.Version</div></td>
           <td>@(string.IsNullOrWhiteSpace(template.BusinessType) ? "All" : template.BusinessType)</td>
           <td>
             <div class="fw-semibold">@item.WebsiteCount agent site@(item.WebsiteCount == 1 ? "" : "s")</div>
@@ -71,14 +77,14 @@
             <div class="small text-muted">@item.PackageDefaultCount package default@(item.PackageDefaultCount == 1 ? "" : "s")</div>
           </td>
           <td>
-            <span class="badge @(template.IsActive ? "bg-success" : "bg-secondary")">@(template.IsActive ? "Active" : "Inactive")</span>
+            <span class="badge @(template.IsActive ? "bg-success" : "bg-secondary")">@(template.IsActive ? "Active" : "Retired")</span>
           </td>
           <td>
             @if (template.IsDefault)
             {
               <span class="badge bg-primary">Default</span>
             }
-            else
+            else if (template.IsActive)
             {
               <form method="post" action="/WebsiteTemplates/SetDefault/@template.Id" class="d-inline">
                 @Html.AntiForgeryToken()
@@ -88,6 +94,24 @@
           </td>
           <td class="text-end">
             <a href="/WebsiteTemplates/Edit/@template.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+            <form method="post" action="/WebsiteTemplates/Duplicate/@template.Id" class="d-inline">
+              @Html.AntiForgeryToken()
+              <button class="btn btn-sm btn-outline-secondary" type="submit" title="Create a new editable version"><i class="fas fa-copy"></i></button>
+            </form>
+            @if (template.IsActive)
+            {
+              <form method="post" action="/WebsiteTemplates/Retire/@template.Id" class="d-inline" onsubmit="return confirm('Retire @template.Name? @item.WebsiteCount agent site(s) currently use it. Existing sites remain online and those agents will be prompted to choose another template.');">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-outline-warning" type="submit" title="Retire template"><i class="fas fa-box-archive"></i></button>
+              </form>
+            }
+            else
+            {
+              <form method="post" action="/WebsiteTemplates/Restore/@template.Id" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-outline-success" type="submit" title="Restore template"><i class="fas fa-rotate-left"></i></button>
+              </form>
+            }
             <form method="post" action="/WebsiteTemplates/Delete/@template.Id" class="d-inline" onsubmit="return confirm('Delete this template? This is only allowed when no agents or packages use it.');">
               @Html.AntiForgeryToken()
               <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>

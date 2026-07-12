@@ -34,12 +34,13 @@ public class WebsiteController : Controller
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
-        await LoadWebsiteContextAsync();
-        return View(await _websites.GetByAgentIdAsync(AgentId));
+        var website = await _websites.GetByAgentIdAsync(AgentId);
+        await LoadWebsiteContextAsync(website?.TemplateId);
+        return View(website);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Save(AgentWebsite model, IFormFile? logo)
+    public async Task<IActionResult> Save(AgentWebsite model, IFormFile? logo, bool applyTemplateDefaults = false)
     {
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
@@ -47,10 +48,16 @@ public class WebsiteController : Controller
         if (model.TemplateId <= 0)
         {
             var agent = await _agents.GetByIdAsync(AgentId);
-            model.TemplateId = (await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId)).Id;
+            model.TemplateId = (await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId, agent?.BusinessType)).Id;
         }
 
         var existing = await _websites.GetByAgentIdAsync(AgentId);
+        var selectedTemplate = await _db.WebsiteTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == model.TemplateId);
+        if (selectedTemplate == null || (!selectedTemplate.IsActive && existing?.TemplateId != selectedTemplate.Id))
+        {
+            TempData["Error"] = "That website template is no longer available. Choose another active template.";
+            return RedirectToAction(nameof(Index));
+        }
         if (logo != null && logo.Length > 0)
         {
             using var s = logo.OpenReadStream();
@@ -60,7 +67,9 @@ public class WebsiteController : Controller
         model.CustomDomain = NormalizeDomain(model.CustomDomain);
         model.SiteTitle = model.SiteTitle?.Trim() ?? string.Empty;
         model.TagLine = model.TagLine?.Trim() ?? string.Empty;
-        model.ThemeColor = string.IsNullOrWhiteSpace(model.ThemeColor) ? "#1457d9" : model.ThemeColor.Trim();
+        model.ThemeColor = applyTemplateDefaults
+            ? WebsiteTemplateDesign.FromTemplate(selectedTemplate).AccentColor
+            : NormalizeThemeColor(model.ThemeColor);
 
         if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
             await _db.AgentDomains.AnyAsync(d => d.DomainName == model.CustomDomain && d.AgentUserId != AgentId))
@@ -122,7 +131,7 @@ public class WebsiteController : Controller
         if (existing == null)
         {
             var agent = await _agents.GetByIdAsync(AgentId);
-            var template = await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId);
+            var template = await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId, agent?.BusinessType);
             await _websites.CreateAsync(new AgentWebsite
             {
                 AgentUserId = AgentId,
@@ -144,6 +153,41 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Unpublish() { var gate = await RequireWebsiteAccessAsync(); if (gate != null) return gate; await _websites.UnpublishAsync(AgentId); TempData["Warning"] = "Website taken offline."; return RedirectToAction(nameof(Index)); }
 
+    [HttpGet]
+    public async Task<IActionResult> PreviewTemplate(int templateId, bool useDefaults = false)
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+
+        var website = await _db.AgentWebsites
+            .AsNoTracking()
+            .Include(w => w.AgentUser)
+            .Include(w => w.Template)
+            .FirstOrDefaultAsync(w => w.AgentUserId == AgentId);
+        var template = await _db.WebsiteTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == templateId && t.IsActive);
+        if (website == null || template == null) return NotFound();
+
+        var pages = await _db.WebsitePages
+            .AsNoTracking()
+            .Where(p => p.AgentWebsiteId == website.Id && p.IsPublished)
+            .Include(p => p.Blocks)
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Title)
+            .ToListAsync();
+
+        website.Template = template;
+        website.TemplateId = template.Id;
+        if (useDefaults) website.ThemeColor = WebsiteTemplateDesign.FromTemplate(template).AccentColor;
+        ViewBag.IsTemplatePreview = true;
+
+        return View("~/Views/PublicWebsite/Index.cshtml", new IPRO.Web.Models.PublicWebsiteViewModel
+        {
+            Website = website,
+            Pages = pages,
+            CurrentPage = pages.FirstOrDefault(p => p.IsHomePage) ?? pages.FirstOrDefault()
+        });
+    }
+
     private async Task<IActionResult?> RequireWebsiteAccessAsync()
     {
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.InstantWebsite);
@@ -152,10 +196,17 @@ public class WebsiteController : Controller
         return RedirectToAction("Index", "Billing");
     }
 
-    private async Task LoadWebsiteContextAsync()
+    private async Task LoadWebsiteContextAsync(int? selectedTemplateId)
     {
         var agent = await _agents.GetByIdAsync(AgentId);
-        ViewBag.Templates = await _websites.GetTemplatesAsync();
+        ViewBag.Templates = await _db.WebsiteTemplates
+            .AsNoTracking()
+            .Where(t => t.IsActive || t.Id == selectedTemplateId)
+            .OrderByDescending(t => t.IsDefault)
+            .ThenBy(t => t.Name)
+            .ToListAsync();
+        ViewBag.TemplateRetired = selectedTemplateId.HasValue && await _db.WebsiteTemplates
+            .AnyAsync(t => t.Id == selectedTemplateId.Value && !t.IsActive);
         ViewBag.TemporaryDomain = agent?.DomainName ?? string.Empty;
         ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
         ViewBag.WebsiteDnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net";
@@ -171,6 +222,14 @@ public class WebsiteController : Controller
             .ThenBy(d => d.DomainName)
             .ToListAsync();
         ViewBag.DomainAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.MultiDomainSupport);
+    }
+
+    private static string NormalizeThemeColor(string? value)
+    {
+        var color = value?.Trim() ?? string.Empty;
+        return color.Length == 7 && color[0] == '#' && color.Skip(1).All(Uri.IsHexDigit)
+            ? color
+            : "#1457d9";
     }
 
     [HttpPost, ValidateAntiForgeryToken]

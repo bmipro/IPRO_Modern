@@ -7,6 +7,10 @@
 {
     @await Html.PartialAsync("_ClassicSidebar", Model)
 }
+else if (design.Renderer == "editorial-visual")
+{
+    @await Html.PartialAsync("_EditorialVisual", Model)
+}
 else
 {
     @await Html.PartialAsync("_ModernProfessional", Model)

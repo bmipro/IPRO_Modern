@@ -1,0 +1,88 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    var website = Model.Website;
+    var agent = website.AgentUser;
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, website.ThemeColor);
+    var title = string.IsNullOrWhiteSpace(website.SiteTitle)
+        ? $"{agent.FirstName} {agent.LastName}".Trim()
+        : website.SiteTitle;
+    var tagline = string.IsNullOrWhiteSpace(website.TagLine)
+        ? "Ideas, guidance, and practical service for the moments that matter."
+        : website.TagLine;
+    var sectionSpace = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px";
+    var buttonRadius = design.ButtonStyle == "square" ? "2px" : design.ButtonStyle == "pill" ? "999px" : "7px";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>@title</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --site-theme: @design.AccentColor;
+      --site-theme-deep: #241f1a;
+      --site-theme-soft: #f1ece3;
+      --section-space: @sectionSpace;
+      --button-radius: @buttonRadius;
+      --ink: #211e1a;
+      --muted: #6f685f;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: @design.BackgroundColor; font-family: @design.FontFamily; }
+    .editorial-intro { min-height: 72vh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(340px, .95fr); background: #fff; }
+    .editorial-intro__content { display: flex; flex-direction: column; justify-content: center; padding: clamp(54px, 8vw, 120px); }
+    .editorial-intro__visual { min-height: 480px; background: linear-gradient(145deg, var(--site-theme-deep), var(--site-theme, #b42318)); }
+    .editorial-logo { display: block; max-width: 260px; max-height: 72px; margin-bottom: 38px; object-fit: contain; }
+    .editorial-kicker { color: var(--site-theme, #b42318); font: 800 12px/1.3 Arial, sans-serif; text-transform: uppercase; letter-spacing: .12em; }
+    .editorial-intro h1 { max-width: 760px; margin: 14px 0 20px; font-size: clamp(44px, 6.5vw, 88px); line-height: .98; }
+    .editorial-intro p { max-width: 640px; color: var(--muted); font-size: 20px; line-height: 1.65; }
+    .editorial-link { display: inline-flex; align-self: flex-start; margin-top: 18px; padding: 12px 20px; border-radius: var(--button-radius); background: var(--site-theme, #b42318); color: #fff; text-decoration: none; font-family: Arial, sans-serif; font-weight: 800; }
+    .header-dark .public-site-header { background: var(--site-theme-deep); border-color: rgba(255,255,255,.12); }
+    .header-dark .public-site-nav a, .header-dark .public-site-brand { color: #fff; }
+    .header-overlay .public-site-header { position: absolute; z-index: 30; width: 100%; background: rgba(255,255,255,.92); }
+    .hero-centered .managed-hero__layout { grid-template-columns: 1fr; text-align: center; }
+    .hero-centered .managed-hero__layout > div { margin: 0 auto; }
+    .hero-centered .managed-hero__image { margin: 0 auto; max-width: 760px; }
+    .hero-image-left .managed-hero__image { order: -1; }
+    @@media (max-width: 800px) {
+      .editorial-intro { grid-template-columns: 1fr; }
+      .editorial-intro__visual { min-height: 260px; order: -1; }
+      .editorial-intro__content { padding: 48px 24px; }
+    }
+  </style>
+  @await Html.PartialAsync("_ManagedPageStyles")
+</head>
+<body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle">
+  @if (ViewBag.IsTemplatePreview == true)
+  {
+    <div class="template-preview-banner"><i class="fas fa-eye me-2"></i>Template preview using your current pages and content. Nothing has been changed.</div>
+  }
+  @if (Model.Pages.Any())
+  {
+    @await Html.PartialAsync("_PublicNavigation", Model)
+  }
+  @if (Model.CurrentPage != null)
+  {
+    @await Html.PartialAsync("_ManagedPage", Model)
+  }
+  else
+  {
+    <main class="editorial-intro">
+      <div class="editorial-intro__content">
+        @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
+        {
+          <img src="@website.LogoUrl" class="editorial-logo" alt="@title logo" />
+        }
+        <div class="editorial-kicker">@agent.CompanyName</div>
+        <h1>@title</h1>
+        <p>@tagline</p>
+        <a class="editorial-link" href="mailto:@agent.Email">Start a conversation</a>
+      </div>
+      <div class="editorial-intro__visual" aria-hidden="true"></div>
+    </main>
+  }
+</body>
+</html>
