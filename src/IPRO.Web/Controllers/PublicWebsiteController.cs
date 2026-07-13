@@ -236,8 +236,35 @@ public class PublicWebsiteController : Controller
         var domainMatch = await _db.AgentDomains
             .Include(d => d.AgentWebsite).ThenInclude(w => w.AgentUser)
             .Include(d => d.AgentWebsite).ThenInclude(w => w.Template)
-            .FirstOrDefaultAsync(d => hostMatches.Contains(d.DomainName.ToLower()) && d.AgentWebsite.IsPublished);
-        if (domainMatch?.AgentWebsite != null) return domainMatch.AgentWebsite;
+            .FirstOrDefaultAsync(d =>
+                hostMatches.Contains(d.DomainName.ToLower()) ||
+                hostMatches.Contains(d.RootDomain.ToLower()) ||
+                hostMatches.Contains(d.WwwDomain.ToLower()));
+
+        if (domainMatch?.AgentWebsite?.IsPublished == true)
+        {
+            return domainMatch.AgentWebsite;
+        }
+
+        if (domainMatch != null)
+        {
+            var websiteQuery = _db.AgentWebsites
+                .Include(w => w.AgentUser)
+                .Include(w => w.Template)
+                .Where(w => w.IsPublished);
+
+            if (domainMatch.AgentWebsiteId > 0)
+            {
+                var websiteById = await websiteQuery.FirstOrDefaultAsync(w => w.Id == domainMatch.AgentWebsiteId);
+                if (websiteById != null) return websiteById;
+            }
+
+            if (domainMatch.AgentUserId > 0)
+            {
+                var websiteByAgent = await websiteQuery.FirstOrDefaultAsync(w => w.AgentUserId == domainMatch.AgentUserId);
+                if (websiteByAgent != null) return websiteByAgent;
+            }
+        }
 
         return await _db.AgentWebsites
             .Include(w => w.AgentUser)

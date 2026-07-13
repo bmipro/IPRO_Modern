@@ -108,7 +108,19 @@ app.Use(async (context, next) =>
     if (ShouldRouteToPublicWebsite(context, app.Configuration))
     {
         var requestedPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(requestedPath))
+        if (requestedPath.Equals("PublicWebsite", StringComparison.OrdinalIgnoreCase) ||
+            requestedPath.Equals("PublicWebsite/Page", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Request.Path = "/PublicWebsite";
+            context.Request.QueryString = QueryString.Empty;
+        }
+        else if (requestedPath.StartsWith("PublicWebsite/Page/", StringComparison.OrdinalIgnoreCase))
+        {
+            var publicSlug = requestedPath["PublicWebsite/Page/".Length..];
+            context.Request.Path = "/PublicWebsite/Page";
+            context.Request.QueryString = QueryString.Create("slug", publicSlug);
+        }
+        else if (string.IsNullOrWhiteSpace(requestedPath))
         {
             context.Request.Path = "/PublicWebsite";
         }
