@@ -1,9 +1,16 @@
 @model IPRO.Web.Models.WebsiteLeadFormViewModel
+@using Microsoft.AspNetCore.DataProtection
+@inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
 @{
     var isNewsletter = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter;
     var formId = $"website-lead-{Guid.NewGuid():N}";
     var submitted = Context.Request.Query["submitted"].ToString();
     var expectedResult = Model.SubmissionType.ToLowerInvariant();
+    var captchaLeft = Random.Shared.Next(2, 10);
+    var captchaRight = Random.Shared.Next(2, 10);
+    var captchaToken = DataProtectionProvider
+        .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
+        .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
 }
 <div class="website-lead-form-shell">
   @if (submitted == expectedResult)
@@ -22,6 +29,7 @@
       <input type="hidden" name="PageId" value="@Model.PageId" />
       <input type="hidden" name="ReturnPath" value="@Context.Request.Path" />
       <input type="hidden" name="FormStartedAt" value="@DateTimeOffset.UtcNow.ToUnixTimeSeconds()" />
+      <input type="hidden" name="CaptchaToken" value="@captchaToken" />
       <div class="website-lead-honeypot" aria-hidden="true"><label>Website<input name="Website" tabindex="-1" autocomplete="off" /></label></div>
       <div class="website-lead-grid">
         <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
@@ -36,6 +44,13 @@
           <label class="website-lead-full"><span>How can we help?</span><textarea name="Message" maxlength="4000" rows="4"></textarea></label>
         }
       </div>
+      <label class="website-lead-captcha">
+        <span>Security check *</span>
+        <span class="website-lead-captcha-row">
+          <span class="website-lead-captcha-question">What is @captchaLeft + @captchaRight?</span>
+          <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
+        </span>
+      </label>
       <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : "I agree that this adviser may use my information to respond to this request.")</span></label>
       <button type="submit" class="website-lead-submit"><i class="fas @(isNewsletter ? "fa-envelope" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : "Send message")</button>
     </form>
@@ -49,6 +64,9 @@
   .website-lead-form input:not([type=checkbox]),.website-lead-form textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#17223a;font:400 15px/1.4 Arial,sans-serif;}
   .website-lead-form input:focus,.website-lead-form textarea:focus{outline:3px solid color-mix(in srgb,var(--site-theme,#1457d9) 20%,transparent);border-color:var(--site-theme,#1457d9);}
   .website-lead-full{grid-column:1/-1;}
+  .website-lead-captcha-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .website-lead-captcha-question{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:6px;background:color-mix(in srgb,var(--site-theme,#1457d9) 10%,#fff);border:1px solid color-mix(in srgb,var(--site-theme,#1457d9) 30%,#cbd5e1);font:800 14px Arial,sans-serif;color:#17223a;}
+  .website-lead-captcha input{max-width:110px;}
   .website-lead-consent{display:flex!important;grid-template-columns:auto 1fr!important;align-items:start;gap:9px!important;font-weight:400!important;}
   .website-lead-consent input{margin-top:3px;}
   .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:0;border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:#fff;font:800 14px Arial,sans-serif;}

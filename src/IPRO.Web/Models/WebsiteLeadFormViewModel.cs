@@ -28,4 +28,6 @@ public class WebsiteLeadFormViewModel
 
     public string Website { get; set; } = string.Empty;
     public long FormStartedAt { get; set; }
+    public string CaptchaToken { get; set; } = string.Empty;
+    public string CaptchaAnswer { get; set; } = string.Empty;
 }

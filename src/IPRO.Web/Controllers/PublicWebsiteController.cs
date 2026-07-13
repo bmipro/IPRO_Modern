@@ -3,6 +3,7 @@ using IPRO.Business.Interfaces;
 using IPRO.Email;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using IPRO.Web.Models;
@@ -21,14 +22,16 @@ public class PublicWebsiteController : Controller
     private readonly IEmailService _email;
     private readonly ILogger<PublicWebsiteController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IDataProtector _captchaProtector;
 
-    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration)
+    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider)
     {
         _db = db;
         _entitlements = entitlements;
         _email = email;
         _logger = logger;
         _configuration = configuration;
+        _captchaProtector = dataProtectionProvider.CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1");
     }
 
     public async Task<IActionResult> Index()
@@ -91,6 +94,12 @@ public class PublicWebsiteController : Controller
         if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
         {
             TempData["PublicFormError"] = "Please refresh the page and try the form again.";
+            return LocalRedirect(returnPath);
+        }
+
+        if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
+        {
+            TempData["PublicFormError"] = "Please complete the security check and try again.";
             return LocalRedirect(returnPath);
         }
 
@@ -376,6 +385,34 @@ public class PublicWebsiteController : Controller
     {
         var forwarded = Request.Headers["X-Forwarded-For"].ToString().Split(',').FirstOrDefault()?.Trim();
         return string.IsNullOrWhiteSpace(forwarded) ? HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty : forwarded;
+    }
+
+    private bool IsCaptchaValid(string? token, string? answer)
+    {
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(answer))
+        {
+            return false;
+        }
+
+        try
+        {
+            var payload = _captchaProtector.Unprotect(token);
+            var parts = payload.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 2 ||
+                !int.TryParse(parts[0], out var expected) ||
+                !long.TryParse(parts[1], out var issuedAt) ||
+                !int.TryParse(answer.Trim(), out var actual))
+            {
+                return false;
+            }
+
+            var age = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - issuedAt;
+            return age >= 0 && age <= 1800 && actual == expected;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string NormalizeReturnPath(string? value)
