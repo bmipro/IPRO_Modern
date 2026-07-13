@@ -15,6 +15,17 @@
 
 Changing templates preserves pages and content. Templates change layout, typography, navigation, spacing, and presentation.
 
+## Preview a Template
+
+1. Open **My Website**.
+2. Choose a template from the template list.
+3. Click **Preview** before saving.
+4. Review the desktop and mobile feel, including header, hero/banner, page spacing, buttons, and footer.
+5. Close the preview if it is not the right fit.
+6. Save website settings only when the selected template should become live.
+
+Previewing a template should not overwrite page content. It only shows how the current pages would look with that template.
+
 ## Change the Theme Color
 
 1. Choose a color using the color control.
@@ -28,6 +39,8 @@ Changing templates preserves pages and content. Templates change layout, typogra
 2. Choose a supported image file.
 3. Save website settings.
 4. Confirm the transparent background and sizing on the public website.
+
+Use PNG or WebP when the logo needs a transparent background. If a logo appears on a grey or white box, confirm the uploaded file is actually transparent and not a flattened image with a solid background.
 
 ## Publish or Take the Website Offline
 
@@ -147,6 +160,8 @@ Use the arrows to reorder blocks and the trash icon to remove one.
 5. Confirm the image appears in the block's image selector and preview.
 6. Click **Save Block**.
 
+Selecting a banner stages it inside the destination block. The banner is not saved until **Save Block** is clicked.
+
 ## Upload and Use an Image
 
 1. Edit a page.
@@ -158,6 +173,31 @@ Use the arrows to reorder blocks and the trash icon to remove one.
 7. Click **Save Block**.
 
 An image can be removed from the library. Blocks using that image are cleared to prevent broken links.
+
+Uploaded images are limited to image formats such as JPG, JPEG, PNG, GIF, and WebP. Non-image files should be rejected.
+
+## Preview a Page
+
+1. Open **My Website**.
+2. Click **Manage Pages**.
+3. Edit the page.
+4. Save page settings and any changed blocks.
+5. Use the page preview or open the public website link.
+6. Confirm the page uses the same selected template, header, navigation, logo, and footer as the home page.
+
+All public pages should render from the same website template. If one page looks different from the others, check that the page is published and that its content blocks have been saved.
+
+## Troubleshoot Image Selection
+
+If an image does not appear after saving:
+
+1. Confirm the correct destination block was selected before clicking **Use this image** or choosing a starter banner.
+2. Confirm the image appears in the block's **Image** selector.
+3. Click **Save Block** on that same block.
+4. Refresh the edit page and verify the image is still selected.
+5. Open the public website or page preview.
+
+The page-level **Save Page Settings** button saves page title, URL slug, navigation label, SEO fields, and published flags. It does not save content block images; use **Save Block** for block content.
 
 ## Configure a Hero Banner
 

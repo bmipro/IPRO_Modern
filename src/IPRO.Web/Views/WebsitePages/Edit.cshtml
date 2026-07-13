@@ -156,7 +156,7 @@
           <div class="col-md-6">
             <label class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
             <select name="imageUrl" class="form-select" data-block-id="@block.Id">
-              <option value="">No image</option>
+              <option value="" selected="@(string.IsNullOrWhiteSpace(block.ImageUrl) ? "selected" : null)">No image</option>
               @if (!string.IsNullOrWhiteSpace(block.ImageUrl) && !Model.MediaAssets.Any(a => a.BlobUrl == block.ImageUrl) && !Model.StarterBanners.Any(a => a.Url == block.ImageUrl))
               {
                 <option value="@block.ImageUrl" selected>Current external image</option>
@@ -166,17 +166,17 @@
                 <optgroup label="Starter: @category.Key">
                   @foreach (var banner in category)
                   {
-                    <option value="@banner.Url" selected="@(banner.Url == block.ImageUrl)">@banner.Name</option>
+                    <option value="@banner.Url" selected="@(banner.Url == block.ImageUrl ? "selected" : null)">@banner.Name</option>
                   }
                 </optgroup>
               }
               @if (Model.MediaAssets.Any())
               {
                 <optgroup label="My uploaded images">
-              @foreach (var asset in Model.MediaAssets)
-              {
-                <option value="@asset.BlobUrl" selected="@(asset.BlobUrl == block.ImageUrl)">@asset.OriginalFileName</option>
-              }
+                  @foreach (var asset in Model.MediaAssets)
+                  {
+                    <option value="@asset.BlobUrl" selected="@(asset.BlobUrl == block.ImageUrl ? "selected" : null)">@asset.OriginalFileName</option>
+                  }
                 </optgroup>
               }
             </select>
@@ -228,6 +228,19 @@ document.querySelectorAll('select[name="imageUrl"]').forEach(select => {
   });
 });
 
+function chooseBlockImage(select, url, label) {
+  const normalized = url || '';
+  if (normalized && !Array.from(select.options).some(option => option.value === normalized)) {
+    select.add(new Option(label || 'Selected image', normalized, true, true));
+  }
+
+  Array.from(select.options).forEach(option => {
+    option.selected = option.value === normalized;
+  });
+  select.value = normalized;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 document.querySelectorAll('.starter-banner-choice').forEach(button => {
   button.addEventListener('click', () => {
     const targetPicker = document.getElementById('starterBannerTarget');
@@ -240,8 +253,7 @@ document.querySelectorAll('.starter-banner-choice').forEach(button => {
       return;
     }
 
-    imageSelect.value = button.dataset.bannerUrl || '';
-    imageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    chooseBlockImage(imageSelect, button.dataset.bannerUrl || '', button.dataset.bannerName || 'Selected starter banner');
     document.querySelectorAll('.starter-banner-choice').forEach(choice => choice.classList.remove('is-selected'));
     button.classList.add('is-selected');
 
@@ -263,8 +275,7 @@ document.querySelectorAll('.uploaded-image-choice').forEach(button => {
       return;
     }
 
-    imageSelect.value = button.dataset.imageUrl || '';
-    imageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    chooseBlockImage(imageSelect, button.dataset.imageUrl || '', button.dataset.imageName || 'Selected image');
     document.querySelectorAll('.uploaded-image-choice').forEach(choice => {
       choice.classList.remove('btn-primary');
       choice.classList.add('btn-outline-primary');

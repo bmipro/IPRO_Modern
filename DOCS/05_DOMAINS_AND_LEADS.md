@@ -52,13 +52,25 @@ Super Admin monitors this under **Domains**. Azure service-principal settings an
 
 ## Add a Contact Form to a Website Page
 
-1. Open **My Website → Manage Pages**.
-2. Edit the desired page.
-3. Add a **Contact Form** content block.
-4. Enter its heading and supporting content.
-5. Save the block.
+1. Open **My Website**.
+2. Click **Manage Pages**.
+3. Edit the desired page.
+4. Add a **Contact Form** content block.
+5. Enter its heading and supporting content.
+6. Save the block.
 
-Public visitors provide name, email, optional phone/message, and consent.
+Public visitors provide name, email, optional phone/message, captcha answer, and consent.
+
+## Contact Form Captcha
+
+Each public contact form and newsletter signup form includes a lightweight math captcha.
+
+1. The visitor solves the displayed math question.
+2. The answer is checked before IPRO creates a lead or CRM contact.
+3. Refreshing the page generates a new challenge.
+4. Expired or incorrect captcha answers stop the submission.
+
+The captcha token is protected by the application and expires after a short period. This helps reduce automated spam without forcing visitors through a third-party challenge.
 
 ## Add Newsletter Signup to a Page
 
@@ -73,13 +85,28 @@ A successful signup updates or creates the CRM client and enables newsletter sub
 
 Public submissions are handled as follows:
 
-1. Basic bot and duplicate protection is applied.
+1. Basic bot, captcha, and duplicate protection is applied.
 2. The submission is always saved as a website lead.
 3. If the email already exists, that CRM contact is updated.
 4. If it does not exist and the package has contact capacity, a CRM contact is created.
 5. If the package contact limit is reached, the lead remains available without losing the submission. The lead card shows the processing note so the agent knows why it was not added to CRM.
 6. A timeline note is added to connected CRM contacts.
 7. The agent receives an email notification when email delivery is configured.
+
+Website Leads is the source of truth. Email is only a notification, so a lead is not lost if SendGrid, sender verification, or a mailbox provider delays or rejects the message.
+
+## Contact Form Email Notifications
+
+When a visitor submits a contact form, IPRO saves the lead first and then attempts to email the agent.
+
+If the notification does not arrive:
+
+1. Open **Website Leads** and confirm the lead was saved.
+2. Check the agent email address under the agent profile.
+3. In Super Admin, review **Email Setup**.
+4. Confirm Azure has the SendGrid app setting configured.
+5. Confirm the SendGrid sender identity is verified.
+6. Check SendGrid Activity for deferred, bounced, blocked, or spam-rejected messages.
 
 ## Review Website Leads
 
