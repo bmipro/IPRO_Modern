@@ -91,7 +91,7 @@
         @foreach (var lead in websiteLeads)
         {
           <a href="/WebsiteLeads?status=new" class="list-group-item list-group-item-action px-0 d-flex justify-content-between gap-3">
-            <div><strong>@lead.FirstName @lead.LastName</strong><div class="small text-muted">@lead.Email · @(lead.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter ? "Newsletter signup" : "Contact request")</div></div>
+            <div><strong>@lead.FirstName @lead.LastName</strong><div class="small text-muted">@lead.Email - @(lead.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter ? "Newsletter signup" : "Contact request")</div></div>
             <small class="text-muted text-nowrap">@lead.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt")</small>
           </a>
         }

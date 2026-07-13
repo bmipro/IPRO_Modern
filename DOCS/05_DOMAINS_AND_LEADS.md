@@ -77,7 +77,7 @@ Public submissions are handled as follows:
 2. The submission is always saved as a website lead.
 3. If the email already exists, that CRM contact is updated.
 4. If it does not exist and the package has contact capacity, a CRM contact is created.
-5. If the package contact limit is reached, the lead remains available without losing the submission.
+5. If the package contact limit is reached, the lead remains available without losing the submission. The lead card shows the processing note so the agent knows why it was not added to CRM.
 6. A timeline note is added to connected CRM contacts.
 7. The agent receives an email notification when email delivery is configured.
 
@@ -87,9 +87,9 @@ Public submissions are handled as follows:
 2. Filter by all, unread, new, contacted, or dismissed.
 3. Search by name, email, message, or source.
 4. Open the connected CRM contact when available.
-5. Mark the lead **Contacted** after responding.
-6. Dismiss irrelevant leads.
-7. Use **Mark all read** when appropriate.
+5. Use **Plan Follow-up** to schedule the next action for connected CRM contacts.
+6. Mark the lead **Contacted** after responding.
+7. Dismiss irrelevant leads.
+8. Use **Mark all read** when appropriate.
 
 The dashboard displays new and unread lead counts.
-
