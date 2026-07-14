@@ -286,12 +286,21 @@ public class AccountController : Controller
 
     private async Task LoadActivePackagesAsync()
     {
-        var packages = await _uow.BillingRules.FindAsync(p => p.IsActive);
-        ViewBag.Packages = packages
-            .OrderBy(GetPackageRank)
-            .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
-            .ThenBy(p => p.PackageName)
-            .ToList();
+        try
+        {
+            var packages = await _uow.BillingRules.FindAsync(p => p.IsActive);
+            ViewBag.Packages = packages
+                .OrderBy(GetPackageRank)
+                .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
+                .ThenBy(p => p.PackageName)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to load active registration packages.");
+            ViewBag.Packages = new List<BillingRule>();
+        }
+
         LoadTimeZoneOptions();
     }
 

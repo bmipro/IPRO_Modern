@@ -230,10 +230,10 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     try
     {
         await EnsureAgentDomainSchemaAsync(db);
+        await EnsureBillingRuleSchemaAsync(db);
         await EnsureWebsiteTemplateColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
         await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureWebsiteTemplateColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
-        await EnsureTableColumnAsync(db, "BillingRules", "DefaultWebsiteTemplateId", "ALTER TABLE `BillingRules` ADD COLUMN `DefaultWebsiteTemplateId` int NULL");
         await EnsureTableColumnAsync(db, "AgentWebsites", "HeaderSettingsJson", "ALTER TABLE `AgentWebsites` ADD COLUMN `HeaderSettingsJson` longtext CHARACTER SET utf8mb4 NULL");
         await db.Database.ExecuteSqlRawAsync(
             "UPDATE `AgentWebsites` SET `HeaderSettingsJson` = {0} WHERE `HeaderSettingsJson` IS NULL OR `HeaderSettingsJson` = ''",
@@ -245,6 +245,21 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureBillingRuleSchemaAsync(IPRODbContext db)
+{
+    await EnsureTableColumnAsync(db, "BillingRules", "MonthlyPrice", "ALTER TABLE `BillingRules` ADD COLUMN `MonthlyPrice` decimal(10,2) NOT NULL DEFAULT 0");
+    await EnsureTableColumnAsync(db, "BillingRules", "QuarterlyPrice", "ALTER TABLE `BillingRules` ADD COLUMN `QuarterlyPrice` decimal(10,2) NOT NULL DEFAULT 0");
+    await EnsureTableColumnAsync(db, "BillingRules", "AnnualPrice", "ALTER TABLE `BillingRules` ADD COLUMN `AnnualPrice` decimal(10,2) NOT NULL DEFAULT 0");
+    await EnsureTableColumnAsync(db, "BillingRules", "SetupFee", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFee` decimal(10,2) NOT NULL DEFAULT 0");
+    await EnsureTableColumnAsync(db, "BillingRules", "PayPalMonthlyPlanId", "ALTER TABLE `BillingRules` ADD COLUMN `PayPalMonthlyPlanId` longtext CHARACTER SET utf8mb4 NULL");
+    await EnsureTableColumnAsync(db, "BillingRules", "PayPalAnnualPlanId", "ALTER TABLE `BillingRules` ADD COLUMN `PayPalAnnualPlanId` longtext CHARACTER SET utf8mb4 NULL");
+    await EnsureTableColumnAsync(db, "BillingRules", "MaxClients", "ALTER TABLE `BillingRules` ADD COLUMN `MaxClients` int NOT NULL DEFAULT 500");
+    await EnsureTableColumnAsync(db, "BillingRules", "MaxNewsletters", "ALTER TABLE `BillingRules` ADD COLUMN `MaxNewsletters` int NOT NULL DEFAULT 12");
+    await EnsureTableColumnAsync(db, "BillingRules", "DefaultWebsiteTemplateId", "ALTER TABLE `BillingRules` ADD COLUMN `DefaultWebsiteTemplateId` int NULL");
+    await EnsureTableColumnAsync(db, "BillingRules", "IsActive", "ALTER TABLE `BillingRules` ADD COLUMN `IsActive` tinyint(1) NOT NULL DEFAULT TRUE");
+    await EnsureTableColumnAsync(db, "BillingRules", "CreatedAt", "ALTER TABLE `BillingRules` ADD COLUMN `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
 }
 
 static async Task EnsureAgentDomainSchemaAsync(IPRODbContext db)
