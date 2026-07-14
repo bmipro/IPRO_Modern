@@ -61,7 +61,7 @@
 
 @if (!isNew)
 {
-  <form id="applyImageToBlockForm" method="post" action="/WebsitePages/ApplyImageToBlock" class="d-none">
+  <form id="applyImageToBlockForm" method="post" action='@Url.Action("ApplyImageToBlock", "WebsitePages")' class="d-none">
     @Html.AntiForgeryToken()
     <input type="hidden" name="pageId" value="@sitePage.Id" />
     <input type="hidden" name="blockId" value="" />
@@ -273,9 +273,10 @@ function chooseBlockImage(select, url, label) {
   return true;
 }
 
-function submitBlockImage(targetPickerId, imageUrl, button) {
+async function submitBlockImage(targetPickerId, imageUrl, button) {
   const targetPicker = document.getElementById(targetPickerId);
   const form = document.getElementById('applyImageToBlockForm');
+  const status = document.getElementById(targetPickerId === 'starterBannerTarget' ? 'starterBannerStatus' : 'uploadedImageStatus');
   if (!targetPicker || !form) return false;
 
   if (!targetPicker.value) {
@@ -293,20 +294,55 @@ function submitBlockImage(targetPickerId, imageUrl, button) {
   const label = button?.dataset.bannerName || button?.dataset.imageName || 'Selected image';
   chooseBlockImage(imageSelect, selectedImageUrl, label);
 
-  form.querySelector('input[name="blockId"]').value = targetPicker.value;
-  form.querySelector('input[name="imageUrl"]').value = selectedImageUrl;
+  const pageId = form.querySelector('input[name="pageId"]')?.value || '';
+  const blockId = targetPicker.value;
+  const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+  const body = new URLSearchParams();
+  body.set('pageId', pageId);
+  body.set('blockId', blockId);
+  body.set('imageUrl', selectedImageUrl);
+  body.set('__RequestVerificationToken', token);
 
+  const originalHtml = button?.innerHTML || '';
   if (button) {
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
   }
 
-  form.submit();
-  return true;
+  try {
+    const response = await fetch(form.action, {
+      method: 'POST',
+      body,
+      credentials: 'same-origin',
+      redirect: 'follow',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'RequestVerificationToken': token
+      }
+    });
+
+    if (response.ok) {
+      window.location.assign(response.url || `/WebsitePages/Edit/${pageId}`);
+      return true;
+    }
+  } catch (error) {
+    console.error('Image apply failed', error);
+  }
+
+  if (status) {
+    status.textContent = 'The image could not be saved. Refresh this page and try again.';
+  }
+  if (button) {
+    button.disabled = false;
+    button.innerHTML = originalHtml;
+  }
+  return false;
 }
 
 document.querySelectorAll('.starter-banner-choice').forEach(button => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
     const targetPicker = document.getElementById('starterBannerTarget');
     const status = document.getElementById('starterBannerStatus');
     if (!targetPicker) return;
@@ -322,12 +358,14 @@ document.querySelectorAll('.starter-banner-choice').forEach(button => {
     button.classList.add('is-selected');
 
     if (status) status.innerHTML = `<strong>${button.dataset.bannerName}</strong> is being saved to the selected block.`;
-    submitBlockImage('starterBannerTarget', button.dataset.bannerUrl || '', button);
+    void submitBlockImage('starterBannerTarget', button.dataset.bannerUrl || '', button);
   });
 });
 
 document.querySelectorAll('.uploaded-image-choice').forEach(button => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
     const targetPicker = document.getElementById('uploadedImageTarget');
     const status = document.getElementById('uploadedImageStatus');
     if (!targetPicker) return;
@@ -347,7 +385,7 @@ document.querySelectorAll('.uploaded-image-choice').forEach(button => {
     button.classList.add('btn-primary');
 
     if (status) status.innerHTML = `<strong>${button.dataset.imageName}</strong> is being saved to the selected block.`;
-    submitBlockImage('uploadedImageTarget', button.dataset.imageUrl || '', button);
+    void submitBlockImage('uploadedImageTarget', button.dataset.imageUrl || '', button);
   });
 });
 </script>

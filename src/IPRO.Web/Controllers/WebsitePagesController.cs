@@ -414,6 +414,18 @@ public class WebsitePagesController : Controller
         return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
     }
 
+    [HttpGet]
+    public IActionResult ApplyImageToBlock(int? pageId)
+    {
+        TempData["Error"] = "Choose an image from the page editor, select a destination block, then click Use this image.";
+        if (pageId.GetValueOrDefault() > 0)
+        {
+            return RedirectToAction(nameof(Edit), new { id = pageId.Value });
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ApplyImageToBlock(int pageId, int blockId, string imageUrl)
     {
