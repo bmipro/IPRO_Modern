@@ -415,6 +415,24 @@ public class WebsitePagesController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApplyImageToBlock(int pageId, int blockId, string imageUrl)
+    {
+        var block = await _db.WebsiteContentBlocks
+            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
+            .FirstOrDefaultAsync(b => b.Id == blockId
+                && b.WebsitePageId == pageId
+                && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
+        if (block == null) return NotFound();
+
+        block.ImageUrl = NormalizeUrl(imageUrl);
+        block.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Image applied to content block.";
+        return RedirectToAction(nameof(Edit), new { id = pageId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteBlock(int id)
     {
         var block = await _db.WebsiteContentBlocks

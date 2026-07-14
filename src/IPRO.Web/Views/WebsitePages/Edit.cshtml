@@ -38,6 +38,12 @@
 
 @if (!isNew)
 {
+  <form id="applyImageToBlockForm" method="post" action="/WebsitePages/ApplyImageToBlock" class="d-none">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="pageId" value="@sitePage.Id" />
+    <input type="hidden" name="blockId" value="" />
+    <input type="hidden" name="imageUrl" value="" />
+  </form>
   <section class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
@@ -61,7 +67,7 @@
               }
             </select>
           </div>
-          <div id="uploadedImageStatus" class="small text-muted" role="status">Choose a destination, then click <strong>Use this image</strong>.</div>
+          <div id="uploadedImageStatus" class="small text-muted" role="status">Choose a destination, then click <strong>Use this image</strong>. It saves to that block immediately.</div>
         </div>
       }
       @if (Model.MediaAssets.Any())
@@ -72,7 +78,7 @@
             <div class="col-6 col-md-4 col-xl-3">
               <div class="border rounded p-2 h-100">
                 <img src="@asset.BlobUrl" alt="" class="w-100 rounded mb-2" style="aspect-ratio:16/10;object-fit:cover" />
-                <div class="small text-truncate mb-2" title="@asset.OriginalFileName">@asset.OriginalFileName</div>
+              <div class="small text-truncate mb-2" title="@asset.OriginalFileName">@asset.OriginalFileName</div>
                 @if (sitePage.Blocks.Any())
                 {
                   <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2 uploaded-image-choice" data-image-url="@asset.BlobUrl" data-image-name="@asset.OriginalFileName"><i class="fas fa-check me-1"></i>Use this image</button>
@@ -103,7 +109,7 @@
                 }
               </select>
             </div>
-            <div id="starterBannerStatus" class="small text-muted" role="status">Choose a destination, then click a banner below.</div>
+            <div id="starterBannerStatus" class="small text-muted" role="status">Choose a destination, then click a banner below. It saves to that block immediately.</div>
           </div>
         }
         else
@@ -241,6 +247,28 @@ function chooseBlockImage(select, url, label) {
   select.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+function submitBlockImage(targetPickerId, imageUrl, button) {
+  const targetPicker = document.getElementById(targetPickerId);
+  const form = document.getElementById('applyImageToBlockForm');
+  if (!targetPicker || !form) return false;
+
+  if (!targetPicker.value) {
+    alert('Choose a destination block first.');
+    return false;
+  }
+
+  form.querySelector('input[name="blockId"]').value = targetPicker.value;
+  form.querySelector('input[name="imageUrl"]').value = imageUrl || '';
+
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+  }
+
+  form.submit();
+  return true;
+}
+
 document.querySelectorAll('.starter-banner-choice').forEach(button => {
   button.addEventListener('click', () => {
     const targetPicker = document.getElementById('starterBannerTarget');
@@ -257,9 +285,8 @@ document.querySelectorAll('.starter-banner-choice').forEach(button => {
     document.querySelectorAll('.starter-banner-choice').forEach(choice => choice.classList.remove('is-selected'));
     button.classList.add('is-selected');
 
-    const blockCard = imageSelect.closest('.card');
-    if (status) status.innerHTML = `<strong>${button.dataset.bannerName}</strong> is selected. Click <strong>Save Block</strong> in the destination block to keep it.`;
-    if (blockCard) blockCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (status) status.innerHTML = `<strong>${button.dataset.bannerName}</strong> is being saved to the selected block.`;
+    submitBlockImage('starterBannerTarget', button.dataset.bannerUrl || '', button);
   });
 });
 
@@ -283,9 +310,8 @@ document.querySelectorAll('.uploaded-image-choice').forEach(button => {
     button.classList.remove('btn-outline-primary');
     button.classList.add('btn-primary');
 
-    const blockCard = imageSelect.closest('.card');
-    if (status) status.innerHTML = `<strong>${button.dataset.imageName}</strong> is selected. Click <strong>Save Block</strong> in the destination block to publish it.`;
-    if (blockCard) blockCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (status) status.innerHTML = `<strong>${button.dataset.imageName}</strong> is being saved to the selected block.`;
+    submitBlockImage('uploadedImageTarget', button.dataset.imageUrl || '', button);
   });
 });
 </script>
