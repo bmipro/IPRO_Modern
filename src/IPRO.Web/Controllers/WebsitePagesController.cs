@@ -247,13 +247,16 @@ public class WebsitePagesController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SavePage(int id, string title, string slug, string navigationLabel,
-        string metaTitle, string metaDescription, int? parentPageId, bool showInNavigation, bool isPublished, bool isHomePage)
+        string metaTitle, string metaDescription, int? parentPageId, bool showInNavigation, bool isPublished, bool isHomePage,
+        string starterPreset = "blank")
     {
         var website = await GetWebsiteAsync();
         if (website == null) return RedirectToAction("Index", "Website");
 
         var page = id == 0 ? null : await OwnedPages().FirstOrDefaultAsync(p => p.Id == id);
         if (id != 0 && page == null) return NotFound();
+        var isNewPage = page is null;
+        starterPreset = WebsitePageStarterPresetCatalog.IsKnown(starterPreset) ? starterPreset : "blank";
 
         title = title?.Trim() ?? string.Empty;
         slug = NormalizeSlug(string.IsNullOrWhiteSpace(slug) ? title : slug);
@@ -305,7 +308,17 @@ public class WebsitePagesController : Controller
         }
 
         await _db.SaveChangesAsync();
-        if (!await _db.WebsiteContentBlocks.AnyAsync(b => b.WebsitePageId == page.Id))
+        if (isNewPage)
+        {
+            var starterBlockTypes = GetStarterBlockTypes(starterPreset, isHomePage);
+            for (var index = 0; index < starterBlockTypes.Length; index++)
+            {
+                _db.WebsiteContentBlocks.Add(NewBlock(page.Id, starterBlockTypes[index], index));
+            }
+
+            await _db.SaveChangesAsync();
+        }
+        else if (!await _db.WebsiteContentBlocks.AnyAsync(b => b.WebsitePageId == page.Id))
         {
             _db.WebsiteContentBlocks.Add(NewBlock(page.Id, isHomePage ? WebsiteBlockTypes.Hero : WebsiteBlockTypes.Text, 0));
             await _db.SaveChangesAsync();
@@ -556,6 +569,18 @@ public class WebsitePagesController : Controller
         var suffix = 2;
         while (await _db.WebsitePages.AnyAsync(p => p.AgentWebsiteId == websiteId && p.Slug == slug)) slug = $"{baseSlug}-{suffix++}";
         return slug;
+    }
+
+    private static string[] GetStarterBlockTypes(string starterPreset, bool isHomePage)
+    {
+        return starterPreset.ToLowerInvariant() switch
+        {
+            "about" => new[] { WebsiteBlockTypes.Text, WebsiteBlockTypes.Testimonials, WebsiteBlockTypes.CallToAction },
+            "services" => new[] { WebsiteBlockTypes.Hero, WebsiteBlockTypes.Services, WebsiteBlockTypes.CallToAction },
+            "contact" => new[] { WebsiteBlockTypes.Hero, WebsiteBlockTypes.ContactForm },
+            "landing" => new[] { WebsiteBlockTypes.Hero, WebsiteBlockTypes.Services, WebsiteBlockTypes.Testimonials, WebsiteBlockTypes.CallToAction },
+            _ => new[] { isHomePage ? WebsiteBlockTypes.Hero : WebsiteBlockTypes.Text }
+        };
     }
 
     private static WebsiteContentBlock NewBlock(int pageId, string type, int order) => new()
