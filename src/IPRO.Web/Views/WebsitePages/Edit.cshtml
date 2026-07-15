@@ -44,7 +44,7 @@
     <h5 class="fw-bold mb-3">Page Settings</h5>
     <div class="row g-3">
       <div class="col-md-6"><label class="form-label fw-semibold">Page Title</label><input name="title" value="@sitePage.Title" class="form-control" required /></div>
-      <div class="col-md-6"><label class="form-label fw-semibold">URL Slug</label><div class="input-group"><span class="input-group-text">/</span><input name="slug" value="@sitePage.Slug" class="form-control" placeholder="services" /></div></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Page Address</label><div class="input-group"><span class="input-group-text">/</span><input name="slug" value="@sitePage.Slug" class="form-control" placeholder="services" /></div></div>
                 <div class="col-md-6"><label class="form-label fw-semibold">Navigation Label</label><input name="navigationLabel" value="@sitePage.NavigationLabel" class="form-control" placeholder="Defaults to page title" /></div>
                 <div class="col-md-6"><label class="form-label fw-semibold">Parent Menu</label><select name="parentPageId" class="form-select"><option value="">Top level</option>@foreach (var parent in Model.AvailableParents){<option value="@parent.Id" selected="@(sitePage.ParentPageId == parent.Id)">@parent.NavigationLabel</option>}</select></div>
                 @if (isNew)
