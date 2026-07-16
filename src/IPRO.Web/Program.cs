@@ -318,8 +318,16 @@ static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string colu
 
 static async Task EnsureWebsiteLeadSchemaAsync(IPRODbContext db)
 {
-    await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationSent", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationSent` tinyint(1) NOT NULL DEFAULT TRUE");
-    await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationError", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationError` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationSent", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationSent` tinyint(1) NOT NULL DEFAULT TRUE");
+        await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationError", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationError` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
 }
 
 static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)
