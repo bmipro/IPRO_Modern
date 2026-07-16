@@ -13,7 +13,7 @@
     <div class="col-md-4"><label class="form-label fw-semibold">Business Type</label><input name="businessType" value="@starterPage.BusinessType" class="form-control" placeholder="All or Insurance / Financial" required /></div>
     <div class="col-md-4"><label class="form-label fw-semibold">Package Override</label><select name="billingRuleId" class="form-select"><option value="">All packages</option>@foreach(var package in Model.Packages){<option value="@package.Id" selected="@(starterPage.BillingRuleId == package.Id)">@package.PackageName</option>}</select></div>
     <div class="col-md-4"><label class="form-label fw-semibold">Page Title</label><input name="title" value="@starterPage.Title" class="form-control" required /></div>
-    <div class="col-md-4"><label class="form-label fw-semibold">URL Slug</label><input name="slug" value="@starterPage.Slug" class="form-control" /></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">Page Address</label><input name="slug" value="@starterPage.Slug" class="form-control" placeholder="about or services" /><div class="form-text">The public page link, such as /about or /services.</div></div>
     <div class="col-md-4"><label class="form-label fw-semibold">Navigation Label</label><input name="navigationLabel" value="@starterPage.NavigationLabel" class="form-control" /></div>
     <div class="col-md-4"><label class="form-label fw-semibold">SEO Title</label><input name="metaTitle" value="@starterPage.MetaTitle" class="form-control" /></div>
     <div class="col-12"><label class="form-label fw-semibold">SEO Description</label><input name="metaDescription" value="@starterPage.MetaDescription" maxlength="320" class="form-control" /></div>
