@@ -305,6 +305,7 @@ async function submitBlockImage(targetPickerId, imageUrl, button) {
 
   const imageSelect = document.querySelector(`select[name="imageUrl"][data-block-id="${targetPicker.value}"]`);
   const label = button?.dataset.bannerName || button?.dataset.imageName || 'Selected image';
+  const previousValue = imageSelect ? imageSelect.value : '';
   chooseBlockImage(imageSelect, selectedImageUrl, label);
 
   const pageId = form.querySelector('input[name="pageId"]')?.value || '';
@@ -327,7 +328,6 @@ async function submitBlockImage(targetPickerId, imageUrl, button) {
       method: 'POST',
       body,
       credentials: 'same-origin',
-      redirect: 'follow',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         'RequestVerificationToken': token
@@ -335,13 +335,21 @@ async function submitBlockImage(targetPickerId, imageUrl, button) {
     });
 
     if (response.ok) {
-      window.location.assign(response.url || `/WebsitePages/Edit/${pageId}`);
+      if (status) {
+        status.innerHTML = `<strong>${label}</strong> saved to this block.`;
+      }
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = originalHtml;
+      }
       return true;
     }
   } catch (error) {
     console.error('Image apply failed', error);
   }
 
+  // The save failed: roll back the optimistic selection so the UI matches what's actually persisted.
+  chooseBlockImage(imageSelect, previousValue, 'Previous image');
   if (status) {
     status.textContent = 'The image could not be saved. Refresh this page and try again.';
   }

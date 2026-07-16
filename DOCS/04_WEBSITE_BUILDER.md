@@ -174,10 +174,9 @@ Use the arrows to reorder blocks and the trash icon to remove one.
 2. Expand **Browse shared starter banners**.
 3. Select the destination block.
 4. Click the desired banner.
-5. Confirm the image appears in the block's image selector and preview.
-6. Click **Save Block**.
+5. Confirm the confirmation message and the block's image preview update.
 
-Selecting a banner stages it inside the destination block. The banner is not saved until **Save Block** is clicked.
+Selecting a banner saves it to the destination block immediately; there is no separate save step for the image itself. Any other unsaved changes in that block's other fields (heading, body, buttons, hero settings) still require clicking **Save Block**.
 
 ## Upload and Use an Image
 
@@ -186,10 +185,9 @@ Selecting a banner stages it inside the destination block. The banner is not sav
 3. Click **Upload Image**.
 4. Select the destination block.
 5. Click **Use this image** beneath the uploaded image.
-6. Confirm it appears in the block image selector.
-7. Click **Save Block**.
+6. Confirm the confirmation message and the block's image preview update.
 
-An image can be removed from the library. Blocks using that image are cleared to prevent broken links.
+The image saves to the destination block immediately; there is no separate save step for the image itself. Any other unsaved changes in that block's other fields still require clicking **Save Block**. An image can be removed from the library. Blocks using that image are cleared to prevent broken links.
 
 Uploaded images are limited to image formats such as JPG, JPEG, PNG, GIF, and WebP. Non-image files should be rejected.
 
@@ -206,15 +204,14 @@ All public pages should render from the same website template. If one page looks
 
 ## Troubleshoot Image Selection
 
-If an image does not appear after saving:
+If an image does not appear after selecting it:
 
-1. Confirm the correct destination block was selected before clicking **Use this image** or choosing a starter banner.
-2. Confirm the image appears in the block's **Image** selector.
-3. Click **Save Block** on that same block.
-4. Refresh the edit page and verify the image is still selected.
-5. Open the public website or page preview.
+1. Confirm the correct destination block was selected in the "Apply to" dropdown before clicking **Use this image** or choosing a starter banner.
+2. Watch for the confirmation message and the block's image preview updating — the image saves immediately, no separate save step is needed for it.
+3. If a "could not be saved" message appears, refresh the edit page and try again.
+4. Open the public website or page preview.
 
-The page-level **Save Page Settings** button saves page title, URL slug, navigation label, SEO fields, and published flags. It does not save content block images; use **Save Block** for block content.
+The page-level **Save Page Settings** button saves page title, URL slug, navigation label, SEO fields, and published flags. **Save Block** saves a block's heading, body, buttons, and other fields, but not its image — image selection saves itself the moment you click it.
 
 ## Configure a Hero Banner
 

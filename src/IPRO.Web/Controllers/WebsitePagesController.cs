@@ -553,8 +553,7 @@ public class WebsitePagesController : Controller
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        TempData["Success"] = "Image applied to content block.";
-        return RedirectToAction(nameof(Edit), new { id = pageId });
+        return NoContent();
     }
 
     [HttpPost, ValidateAntiForgeryToken]

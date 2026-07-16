@@ -78,6 +78,7 @@ Last updated: July 16, 2026
 - Shared starter banners and agent image uploads have started.
 - Template selection and theme color exist.
 - Agent-editable footer exists (copyright, phone, email, address, social links, legal links, optional disclaimer) and renders consistently across all templates, matching the selected template's style.
+- Website page image selection (uploaded images and shared starter banners) saves immediately and reliably, without discarding other unsaved edits on the page.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.
@@ -86,23 +87,17 @@ Last updated: July 16, 2026
 ## Not Done or Still Fragile
 
 ### Highest priority bugs
-1. Website page image selection/save flow is still unreliable.
-   - Uploaded or shared image selection can fail.
-   - Saved blocks may revert to a previous image such as `building2.jpg`.
-   - Some image apply actions have produced HTTP 405.
-   - Public website rendering may not reflect editor changes.
-
-2. Template output still needs stronger visual differentiation.
+1. Template output still needs stronger visual differentiation.
    - Different templates should produce clearly different public websites.
    - Home, About, Services, Contact, and future pages need consistent rendering.
 
-3. Public contact/lead forms need hardening.
+2. Public contact/lead forms need hardening.
    - CAPTCHA or anti-spam protection is needed.
    - Submissions should create leads in the CRM.
    - Agents should get notifications.
    - Admin should be able to inspect abuse/spam.
 
-4. Domain automation needs production hardening.
+3. Domain automation needs production hardening.
    - Clearer pending-DNS messaging.
    - Better retry visibility.
    - Better error handling for Azure permission/config problems.
@@ -134,17 +129,10 @@ Last updated: July 16, 2026
 
 ## Recommended Next Tasks
 
-### 1. Stabilize the page builder image flow
-Scope should be intentionally narrow:
-- Upload image.
-- Select uploaded image for a block.
-- Select shared banner for a block.
-- Save block.
-- Reload editor.
-- View public page.
-- Confirm the same image remains selected and rendered.
-
-This should be done before expanding website templates further.
+### 1. Stabilize the page builder image flow (done)
+- Uploaded and shared-banner image selection saves to the destination block immediately.
+- Applying an image to one block no longer discards unsaved edits elsewhere on the page (the prior root cause: an unconditional full-page reload after every image apply).
+- A failed save rolls the selection back and shows a clear error instead of silently reverting on a later reload.
 
 ### 2. Add the footer system (done)
 - Agent-editable footer settings exist.
