@@ -17,6 +17,7 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<WebsiteLead> WebsiteLeads => Set<WebsiteLead>();
+    public DbSet<WebsiteSpamAttempt> WebsiteSpamAttempts => Set<WebsiteSpamAttempt>();
     public DbSet<WebsitePageView> WebsitePageViews => Set<WebsitePageView>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientCategory> ClientCategories => Set<ClientCategory>();

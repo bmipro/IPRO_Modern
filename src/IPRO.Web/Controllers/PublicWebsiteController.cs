@@ -85,28 +85,31 @@ public class PublicWebsiteController : Controller
     public async Task<IActionResult> SubmitLead(WebsiteLeadFormViewModel model)
     {
         var returnPath = NormalizeReturnPath(model.ReturnPath);
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        if (website == null)
+        {
+            return NotFound();
+        }
+
         if (!string.IsNullOrWhiteSpace(model.Website))
         {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, returnPath);
             return LocalRedirect(AddResult(returnPath, "submitted", "true"));
         }
 
         var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
         if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
         {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
             TempData["PublicFormError"] = "Please refresh the page and try the form again.";
             return LocalRedirect(returnPath);
         }
 
         if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
         {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Captcha, returnPath);
             TempData["PublicFormError"] = "Please complete the security check and try again.";
             return LocalRedirect(returnPath);
-        }
-
-        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
-        if (website == null)
-        {
-            return NotFound();
         }
 
         var submissionType = string.Equals(model.SubmissionType, WebsiteLeadTypes.Newsletter, StringComparison.OrdinalIgnoreCase)
@@ -392,12 +395,35 @@ public class PublicWebsiteController : Controller
                   </div>
                 </div>
                 """;
-            await _email.SendAsync(website.AgentUser.Email, $"{website.AgentUser.FirstName} {website.AgentUser.LastName}".Trim(), $"New website lead: {lead.FirstName} {lead.LastName}".Trim(), html);
+            var result = await _email.SendDetailedAsync(website.AgentUser.Email, $"{website.AgentUser.FirstName} {website.AgentUser.LastName}".Trim(), $"New website lead: {lead.FirstName} {lead.LastName}".Trim(), html);
+            lead.NotificationSent = result.Success;
+            lead.NotificationError = result.Success ? string.Empty : Truncate(result.Message, 500);
         }
         catch (Exception ex)
         {
+            lead.NotificationSent = false;
+            lead.NotificationError = Truncate(ex.Message, 500);
             _logger.LogWarning(ex, "Website lead {LeadId} was saved but the agent notification failed.", lead.Id);
         }
+        finally
+        {
+            await _db.SaveChangesAsync();
+        }
+    }
+
+    private async Task RecordSpamAttemptAsync(AgentWebsite website, string reason, string sourcePage)
+    {
+        _db.WebsiteSpamAttempts.Add(new WebsiteSpamAttempt
+        {
+            AgentUserId = website.AgentUserId,
+            AgentWebsiteId = website.Id,
+            Reason = reason,
+            SourceDomain = NormalizeHost(Request.Host.Host),
+            SourcePage = Truncate(sourcePage, 500),
+            IpAddress = Truncate(GetRequestIpAddress(), 64),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
     }
 
     private string GetAgentPortalBaseUrl()

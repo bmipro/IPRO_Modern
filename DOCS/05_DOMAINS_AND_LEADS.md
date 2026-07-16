@@ -97,16 +97,22 @@ Website Leads is the source of truth. Email is only a notification, so a lead is
 
 ## Contact Form Email Notifications
 
-When a visitor submits a contact form, IPRO saves the lead first and then attempts to email the agent.
+When a visitor submits a contact form, IPRO saves the lead first and then attempts to email the agent. Each lead records whether that notification actually succeeded.
 
-If the notification does not arrive:
+If a lead in **Website Leads** shows a **notification not delivered** note:
 
-1. Open **Website Leads** and confirm the lead was saved.
+1. Confirm the lead was saved — it always is, independent of email delivery.
 2. Check the agent email address under the agent profile.
 3. In Super Admin, review **Email Setup**.
 4. Confirm Azure has the SendGrid app setting configured.
 5. Confirm the SendGrid sender identity is verified.
 6. Check SendGrid Activity for deferred, bounced, blocked, or spam-rejected messages.
+
+Super Admin can also review notification delivery and blocked spam/bot attempts across every agent from the **Website Leads** screen in the Super Admin Manual.
+
+## Anti-Spam Protection
+
+Public contact and newsletter forms include a math captcha, a hidden honeypot field, and a minimum-fill-time check. A submission that fails any of these is never shown to the visitor as an error beyond a generic message, and no lead is created — but IPRO records the blocked attempt (reason, domain, page, and IP address only, never the submitted name/email/message) so Super Admin can review volume and patterns. The public contact form endpoint also has a dedicated rate limit separate from ordinary page browsing.
 
 ## Review Website Leads
 

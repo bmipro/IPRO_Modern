@@ -53,6 +53,9 @@
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Domains" ? "active" : "")" href="/Domains">
             <i class="fas fa-network-wired"></i>Domains
         </a>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "WebsiteLeads" ? "active" : "")" href="/WebsiteLeads">
+            <i class="fas fa-inbox"></i>Website Leads
+        </a>
         <div class="nav-section">Billing</div>
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Packages" ? "active" : "")" href="/Packages">
             <i class="fas fa-box"></i>Packages

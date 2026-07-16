@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS `WebsiteLeads` (
   `ReadAt` datetime(6) NULL,
   `Status` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'New',
   `ProcessingNote` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `NotificationSent` tinyint(1) NOT NULL DEFAULT TRUE,
+  `NotificationError` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
   `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `UpdatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`Id`),
@@ -101,6 +103,24 @@ CREATE TABLE IF NOT EXISTS `WebsiteLeads` (
   CONSTRAINT `FK_WebsiteLeads_AgentWebsites_AgentWebsiteId` FOREIGN KEY (`AgentWebsiteId`) REFERENCES `AgentWebsites` (`Id`) ON DELETE CASCADE,
   CONSTRAINT `FK_WebsiteLeads_WebsitePages_WebsitePageId` FOREIGN KEY (`WebsitePageId`) REFERENCES `WebsitePages` (`Id`) ON DELETE SET NULL,
   CONSTRAINT `FK_WebsiteLeads_Clients_ClientId` FOREIGN KEY (`ClientId`) REFERENCES `Clients` (`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+""");
+
+        await db.Database.ExecuteSqlRawAsync("""
+CREATE TABLE IF NOT EXISTS `WebsiteSpamAttempts` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `AgentUserId` int NOT NULL,
+  `AgentWebsiteId` int NOT NULL,
+  `Reason` varchar(30) CHARACTER SET utf8mb4 NOT NULL,
+  `SourceDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `SourcePage` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `IpAddress` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`Id`),
+  KEY `IX_WebsiteSpamAttempts_AgentUserId_CreatedAt` (`AgentUserId`,`CreatedAt`),
+  KEY `IX_WebsiteSpamAttempts_AgentWebsiteId` (`AgentWebsiteId`),
+  CONSTRAINT `FK_WebsiteSpamAttempts_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_WebsiteSpamAttempts_AgentWebsites_AgentWebsiteId` FOREIGN KEY (`AgentWebsiteId`) REFERENCES `AgentWebsites` (`Id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """);
 

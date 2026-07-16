@@ -80,6 +80,7 @@ Last updated: July 16, 2026
 - Agent-editable footer exists (copyright, phone, email, address, social links, legal links, optional disclaimer) and renders consistently across all templates, matching the selected template's style.
 - Website page image selection (uploaded images and shared starter banners) saves immediately and reliably, without discarding other unsaved edits on the page.
 - Super Admin sets default font family, heading font size, and body font size per template; agents can override all three from My Website. The hero/banner title keeps its own template-authored display size regardless of this setting.
+- Public contact/lead forms are hardened: each lead records whether the agent notification email actually delivered (visible to agents and Super Admin), blocked honeypot/timing/captcha attempts are logged (reason, domain, IP only, never submitted content) and reviewable cross-agent in a new Super Admin Website Leads screen, and the public lead endpoint has its own dedicated rate limit.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.
@@ -92,13 +93,7 @@ Last updated: July 16, 2026
    - Different templates should produce clearly different public websites.
    - Home, About, Services, Contact, and future pages need consistent rendering.
 
-2. Public contact/lead forms need hardening.
-   - CAPTCHA or anti-spam protection is needed.
-   - Submissions should create leads in the CRM.
-   - Agents should get notifications.
-   - Admin should be able to inspect abuse/spam.
-
-3. Domain automation needs production hardening.
+2. Domain automation needs production hardening.
    - Clearer pending-DNS messaging.
    - Better retry visibility.
    - Better error handling for Azure permission/config problems.
@@ -141,11 +136,12 @@ Last updated: July 16, 2026
 - Includes copyright, contact information, social links, legal links, and optional disclaimer.
 - Footer style follows the selected template.
 
-### 3. Harden public contact forms
-- Add CAPTCHA or a simpler anti-spam challenge.
-- Save submissions as website leads.
-- Notify the agent.
-- Add a Website Leads section in the agent portal.
+### 3. Harden public contact forms (done)
+- CAPTCHA, honeypot, and timing checks already existed and are unchanged for visitors.
+- Notification delivery is now tracked per lead (visible to agents and Super Admin) instead of silently failing.
+- Blocked honeypot/timing/captcha attempts are now logged (reason, domain, IP only) instead of leaving no trace.
+- A new Super Admin Website Leads screen gives cross-agent visibility into leads and blocked attempts.
+- The public lead endpoint has a dedicated rate limit separate from ordinary page browsing.
 
 ### 4. Improve template governance
 - Show how many agents use each template.

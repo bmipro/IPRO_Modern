@@ -83,6 +83,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
     await EnsureWebsiteTemplateSchemaAsync(db);
     await WebsiteContentSchema.EnsureAsync(db);
+    await EnsureWebsiteLeadSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -173,6 +174,12 @@ CREATE TABLE IF NOT EXISTS `AgentDomains` (
 static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)
 {
     await EnsureTableColumnAsync(db, "WebsiteTemplates", columnName, alterSql);
+}
+
+static async Task EnsureWebsiteLeadSchemaAsync(IPRODbContext db)
+{
+    await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationSent", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationSent` tinyint(1) NOT NULL DEFAULT TRUE");
+    await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationError", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationError` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
 }
 
 static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)

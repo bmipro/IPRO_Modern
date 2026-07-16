@@ -141,6 +141,13 @@ New agents receive matching starter pages based on business type/package. Agents
 
 Automation settings require valid tenant ID, client ID, client secret, subscription ID, resource group, web app, App Service plan resource ID, and location.
 
+## Review Website Leads and Blocked Attempts
+
+1. Select **Website Leads**.
+2. Use the **Leads** tab to review public website submissions across every agent, including whether the agent notification email was delivered. Filter to notification-not-delivered leads to spot email delivery problems early.
+3. Use the **Blocked Attempts** tab to review submissions stopped by the honeypot, timing check, or captcha before they became leads. Filter by reason, domain, or IP address to spot abuse patterns.
+4. Blocked attempts store only the reason, domain, page, and IP address — never the submitted name, email, or message.
+
 ## Reports
 
 Use the reporting screens to review:
