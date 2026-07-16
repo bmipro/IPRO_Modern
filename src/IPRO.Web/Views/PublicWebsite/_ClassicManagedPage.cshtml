@@ -39,8 +39,19 @@
   .classic-managed .cp-list i { color:var(--site-theme); width:24px; }
   .classic-managed .cp-quote { border-left:4px solid var(--site-theme); padding:18px 20px; margin:18px 0; background:#f7f9fc; font-family:Georgia,serif; }
   .classic-managed .cp-image { width:100%; max-height:420px; object-fit:cover; margin-top:24px; border:1px solid var(--line); }
-  .classic-managed .cp-cta { background:#f7f9fc; }
-  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed__grid{grid-template-columns:1fr}.classic-managed__side{padding:24px}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list{grid-template-columns:1fr}}
+  .classic-managed .cp-cta-band { background:linear-gradient(120deg, var(--site-theme-deep), var(--site-theme)); color:#fff; text-align:center; }
+  .classic-managed .cp-cta-band .cp-kicker { color:#fff; opacity:.85; }
+  .classic-managed .cp-cta-band h2 { color:#fff; }
+  .classic-managed .cp-cta-band .cp-copy { color:rgba(255,255,255,.86); margin-left:auto; margin-right:auto; }
+  .classic-managed .cp-cta-band .cp-button { background:#fff; color:var(--site-theme-deep); }
+  .classic-managed .cp-contact-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,.85fr); gap:36px; align-items:start; }
+  .classic-managed .cp-contact-mini { margin-top:20px; padding:16px 18px; border:1px solid var(--line); border-radius:8px; background:#f8fbff; }
+  .classic-managed .cp-contact-mini a { display:block; color:var(--ink); text-decoration:none; padding:6px 0; font-weight:700; }
+  .classic-managed .cp-contact-mini a i { color:var(--site-theme); width:20px; }
+  .classic-managed .cp-contact-card { border:1px solid var(--line); border-radius:8px; background:#fff; box-shadow:0 12px 30px rgba(14,33,66,.08); padding:24px; }
+  .classic-managed .cp-text-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(240px,.9fr); gap:32px; align-items:center; }
+  .classic-managed .cp-text-grid .cp-image { margin-top:0; }
+  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed__grid{grid-template-columns:1fr}.classic-managed__side{padding:24px}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list{grid-template-columns:1fr}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid{grid-template-columns:1fr}}
 </style>
 <main class="classic-managed"><div class="classic-managed__grid"><aside class="classic-managed__side"><h2>@fullName</h2><p>@agent.Designation</p><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>Email me</a>}<div class="mt-4 small">Professional guidance and dependable client service.</div></aside><div class="classic-managed__content">
 @foreach(var block in blocks)
@@ -56,8 +67,25 @@
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="cp-section"><div class="cp-kicker">Services</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><ul class="cp-list">@foreach(var item in items){<li><i class="fas fa-check-circle"></i>@item</li>}</ul></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="cp-section"><div class="cp-kicker">Testimonials</div><h2 class="h2 fw-bold">@block.Heading</h2>@foreach(var item in items){<blockquote class="cp-quote">&ldquo;@item&rdquo;</blockquote>}</section>}
-  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){<section class="cp-section"><div class="cp-kicker">Contact</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><p class="cp-copy">@block.Body</p>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</section>}
-  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction || block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="cp-section cp-cta"><div class="cp-kicker">Stay connected</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p>@if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })}else{<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Get in touch":block.ButtonText)</a>}</section>}
-  else{<section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2><div class="cp-copy">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img class="cp-image" src="@block.ImageUrl" alt="" />}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"#":block.ButtonUrl)">@block.ButtonText</a>}</section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){<section class="cp-section"><div class="cp-contact-grid"><div><div class="cp-kicker">Contact</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><p class="cp-copy">@block.Body</p><div class="cp-contact-mini">@if(!string.IsNullOrWhiteSpace(agent.Phone)){<a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>@agent.Email</a>}</div></div><div class="cp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction || block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="cp-section cp-cta-band"><div class="cp-kicker">Stay connected</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p>@if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })}else{<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Get in touch":block.ButtonText)</a>}</section>}
+  else
+  {
+    var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);
+    <section class="cp-section">
+      @if (hasImage)
+      {
+        <div class="cp-text-grid">
+          <div><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2><div class="cp-copy">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"#":block.ButtonUrl)">@block.ButtonText</a>}</div>
+          <img class="cp-image" src="@block.ImageUrl" alt="" />
+        </div>
+      }
+      else
+      {
+        <div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2><div class="cp-copy">@block.Body</div>
+        @if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"#":block.ButtonUrl)">@block.ButtonText</a>}
+      }
+    </section>
+  }
 }
 </div></div></main>
