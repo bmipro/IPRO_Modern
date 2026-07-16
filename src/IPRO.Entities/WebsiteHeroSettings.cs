@@ -20,7 +20,7 @@ public class WebsiteHeroSettings
             value.ImagePosition = Normalize(value.ImagePosition, new[] { "center", "left", "right", "top", "bottom" }, "center");
             value.TextAlignment = Normalize(value.TextAlignment, new[] { "left", "center" }, "left");
             value.Height = Normalize(value.Height, new[] { "compact", "standard", "tall" }, "standard");
-            value.OverlayStrength = Math.Clamp(value.OverlayStrength, 10, 85);
+            value.OverlayStrength = Math.Clamp(value.OverlayStrength, 0, 85);
             return value;
         }
         catch (JsonException) { return new(); }
