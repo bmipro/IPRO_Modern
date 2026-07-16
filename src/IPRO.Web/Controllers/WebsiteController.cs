@@ -52,7 +52,6 @@ public class WebsiteController : Controller
         }
 
         var existing = await _websites.GetByAgentIdAsync(AgentId);
-        var templateChanged = existing is not null && existing.TemplateId != model.TemplateId;
         var selectedTemplate = await _db.WebsiteTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == model.TemplateId);
         if (selectedTemplate == null || (!selectedTemplate.IsActive && existing?.TemplateId != selectedTemplate.Id))
         {
@@ -68,11 +67,11 @@ public class WebsiteController : Controller
         model.CustomDomain = NormalizeDomain(model.CustomDomain);
         model.SiteTitle = model.SiteTitle?.Trim() ?? string.Empty;
         model.TagLine = model.TagLine?.Trim() ?? string.Empty;
-        model.ThemeColor = applyTemplateDefaults || existing is null || templateChanged
+        model.ThemeColor = applyTemplateDefaults || existing is null
             ? WebsiteTemplateDesign.FromTemplate(selectedTemplate).AccentColor
             : NormalizeThemeColor(model.ThemeColor);
 
-        if (applyTemplateDefaults || existing is null || templateChanged)
+        if (applyTemplateDefaults || existing is null)
         {
             model.FontFamilyOverride = string.Empty;
             model.HeadingFontSizeOverride = 0;

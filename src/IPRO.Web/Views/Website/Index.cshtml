@@ -132,7 +132,7 @@
                 <input name="ThemeColor" id="ThemeColor" type="color" class="form-control form-control-color" value="@themeColor" style="width:64px" />
                 <input id="themeHex" type="text" class="form-control" value="@themeColor" readonly />
               </div>
-              <div class="form-text">Changing the template applies that template's starter color. You can still fine-tune it.</div>
+              <div class="form-text">Your color and style choices stay in place when you switch templates. Use <strong>Reset to Template Defaults</strong> below if you want this template's suggested look instead.</div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Tagline</label>
@@ -275,7 +275,7 @@
               </div>
               <div class="template-selection-bar mt-3">
                 <div><span class="text-muted small">Chosen design</span><strong id="selectedTemplateName">@(selectedTemplate?.Name ?? "Choose a design")</strong><span class="small text-muted" id="selectedTemplateDescription">@(selectedTemplate?.Description ?? "")</span></div>
-                <div class="template-color-note"><i class="fas fa-palette me-2"></i>The design color is applied when selected. Fine-tune it above afterward.</div>
+                <div class="template-color-note"><i class="fas fa-palette me-2"></i>Your current colors and styles stay in place when you choose a different design. Use <strong>Reset to Template Defaults</strong> below to apply this design's suggested look instead.</div>
               </div>
             </div>
             <div class="col-12">
@@ -306,6 +306,7 @@
 
           <div class="d-flex gap-2 mt-4">
             <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i>Save Website Settings</button>
+            <button type="submit" name="applyTemplateDefaults" value="true" class="btn btn-outline-secondary btn-lg" onclick="return confirm('Replace your theme color, font, background, button style, section spacing, and hero style with this template\'s suggested defaults?');"><i class="fas fa-rotate-left me-2"></i>Reset to Template Defaults</button>
             @if (Model != null && !isPublished)
             {
               <button type="submit" formaction="/Website/Publish" formmethod="post" class="btn btn-success btn-lg"><i class="fas fa-rocket me-2"></i>Publish</button>

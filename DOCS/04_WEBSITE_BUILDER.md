@@ -11,9 +11,8 @@
 2. Select a template.
 3. Preview it before applying.
 4. Save website settings.
-5. The template's starter color is applied when selected. The agent may then customize the theme color.
 
-Changing templates preserves pages and content. Templates change layout, typography, navigation, spacing, and presentation.
+Changing templates preserves pages and content. Templates change layout, typography, navigation, spacing, and presentation. Your theme color, font, background color, button style, section spacing, and hero style stay exactly as you set them when you switch templates — only fields you have never customized pick up the new template's defaults automatically. Use **Reset to Template Defaults** if you want the new template's full suggested look instead.
 
 ## Preview a Template
 
@@ -40,7 +39,7 @@ Previewing a template should not overwrite page content. It only shows how the c
 3. Enter a **Heading Font Size** and **Body Font Size** in pixels, or leave them matching the template default.
 4. Click **Save Website Settings**.
 
-Font and size changes apply to section headings (such as Services, Testimonials, and Contact) and body text throughout the site. The large hero/banner title keeps the selected template's own display size and is not affected. Selecting a different template resets these back to that template's defaults; save again afterward to keep a custom font or size.
+Font and size changes apply to section headings (such as Services, Testimonials, and Contact) and body text throughout the site. The large hero/banner title keeps the selected template's own display size and is not affected. These choices are kept when you switch templates; use **Reset to Template Defaults** if you want the new template's own font and size instead.
 
 ## Change Background, Buttons, Spacing, and Hero Style
 
@@ -51,7 +50,15 @@ Font and size changes apply to section headings (such as Services, Testimonials,
 5. Choose a **Hero Style** (Gradient, Clean, or Classic) to change the background treatment behind the hero banner, or leave it set to **Match template default**.
 6. Click **Save Website Settings**.
 
-These settings apply across the whole site. Selecting a different template resets all of them back to that template's defaults, the same way Theme Color and Font resets work.
+These settings apply across the whole site and are kept when you switch templates, the same way Theme Color and Font are kept.
+
+## Reset to Template Defaults
+
+1. Open **My Website**.
+2. Click **Reset to Template Defaults**.
+3. Confirm the prompt.
+
+This replaces your Theme Color, Font, Background Color, Button Style, Section Spacing, and Hero Style with the currently selected template's suggested defaults. It does not change your pages, content blocks, logo, site title, tagline, or domains.
 
 ## Upload a Logo
 
