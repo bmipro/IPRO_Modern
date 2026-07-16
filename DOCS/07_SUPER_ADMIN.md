@@ -117,7 +117,7 @@ Tax changes apply to future invoice calculations.
 
 1. Select **Templates**.
 2. Create, edit, duplicate, retire, restore, or set a default template.
-3. Configure template family, colors, typography (including font family, heading font size, and body font size), header, hero, spacing, buttons, and preview image.
+3. Configure template family, colors (click a **Color Palette** swatch for a quick, coordinated accent and background, or set them individually), typography (including font family, heading font size, and body font size), header, hero, spacing, buttons, and preview image.
 4. Set defaults by business type when appropriate.
 
 Heading and body font size set the default for section headings and body text across an agent's site; agents may override both from their own **My Website** settings. The hero/banner title keeps its own large display size regardless of this setting. Background color, button style, section spacing, and hero style also set real per-template defaults that agents may override individually; Hero Style (Gradient, Clean, or Classic) changes the background treatment behind the hero banner. The template list shows usage. A template in use should be retired and agents notified before deletion.

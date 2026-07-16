@@ -27,10 +27,12 @@ Previewing a template should not overwrite page content. It only shows how the c
 
 ## Change the Theme Color
 
-1. Choose a color using the color control.
+1. Click a **Color Palette** swatch for a quick, coordinated theme and background color, or choose a color using the color control directly.
 2. Confirm the hexadecimal value beside it.
 3. Click **Save Website Settings**.
 4. Refresh the public website to confirm the color.
+
+A palette sets both Theme Color and Background Color at once. The color controls remain fully editable afterward for fine-tuning.
 
 ## Change the Font and Text Size
 

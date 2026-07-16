@@ -126,6 +126,20 @@
               <label class="form-label fw-semibold">Site Title</label>
               <input name="SiteTitle" class="form-control" value="@siteTitle" placeholder="John Smith Insurance Adviser" required />
             </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Color Palettes</label>
+              <div class="palette-picker" role="group" aria-label="Color palettes">
+                <button type="button" class="palette-swatch" data-accent="#1457d9" data-background="#f4f7fb" style="--swatch-accent:#1457d9;--swatch-bg:#f4f7fb" title="Ocean Blue" aria-label="Ocean Blue"></button>
+                <button type="button" class="palette-swatch" data-accent="#d9541f" data-background="#fdf6f0" style="--swatch-accent:#d9541f;--swatch-bg:#fdf6f0" title="Sunset Orange" aria-label="Sunset Orange"></button>
+                <button type="button" class="palette-swatch" data-accent="#1f7a4d" data-background="#f2f8f4" style="--swatch-accent:#1f7a4d;--swatch-bg:#f2f8f4" title="Forest Green" aria-label="Forest Green"></button>
+                <button type="button" class="palette-swatch" data-accent="#4b5563" data-background="#f5f6f7" style="--swatch-accent:#4b5563;--swatch-bg:#f5f6f7" title="Slate Gray" aria-label="Slate Gray"></button>
+                <button type="button" class="palette-swatch" data-accent="#7a1f3d" data-background="#faf3f5" style="--swatch-accent:#7a1f3d;--swatch-bg:#faf3f5" title="Burgundy" aria-label="Burgundy"></button>
+                <button type="button" class="palette-swatch" data-accent="#5b2f9e" data-background="#f6f3fb" style="--swatch-accent:#5b2f9e;--swatch-bg:#f6f3fb" title="Royal Purple" aria-label="Royal Purple"></button>
+                <button type="button" class="palette-swatch" data-accent="#b8892b" data-background="#f8f6f0" style="--swatch-accent:#b8892b;--swatch-bg:#f8f6f0" title="Amber Gold" aria-label="Amber Gold"></button>
+                <button type="button" class="palette-swatch" data-accent="#0f8c8c" data-background="#f0f9f9" style="--swatch-accent:#0f8c8c;--swatch-bg:#f0f9f9" title="Teal" aria-label="Teal"></button>
+              </div>
+              <div class="form-text">Click a palette to set both colors at once, then fine-tune below if needed.</div>
+            </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Theme Color</label>
               <div class="input-group">
@@ -160,7 +174,7 @@
             <div class="col-md-3">
               <label class="form-label fw-semibold">Background Color</label>
               <div class="input-group">
-                <input name="BackgroundColorOverride" type="color" class="form-control form-control-color" value="@(string.IsNullOrWhiteSpace(backgroundColorOverride) ? selectedDesign.BackgroundColor : backgroundColorOverride)" style="width:64px" />
+                <input name="BackgroundColorOverride" id="BackgroundColorOverride" type="color" class="form-control form-control-color" value="@(string.IsNullOrWhiteSpace(backgroundColorOverride) ? selectedDesign.BackgroundColor : backgroundColorOverride)" style="width:64px" />
               </div>
               <div class="form-text">Page background behind your content.</div>
             </div>
@@ -440,6 +454,9 @@
 </div>
 
 <style>
+.palette-picker { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:4px; }
+.palette-swatch { width:34px; height:34px; padding:0; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #d6deea; cursor:pointer; background:linear-gradient(135deg, var(--swatch-accent) 50%, var(--swatch-bg) 50%); }
+.palette-swatch:hover, .palette-swatch:focus-visible { box-shadow:0 0 0 2px var(--swatch-accent); outline:0; }
 .template-gallery { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .template-choice { display:flex; flex-direction:column; min-width:0; overflow:hidden; border:2px solid #dbe3ed; border-radius:8px; background:#fff; cursor:pointer; transition:border-color .15s ease,box-shadow .15s ease; }
 .template-choice:hover { border-color:#9cb8e8; box-shadow:0 10px 26px rgba(18,48,92,.1); }
@@ -525,10 +542,12 @@
 function updateWebsitePreview() {
   const preview = document.getElementById('websiteTemplatePreview');
   const color = document.getElementById('ThemeColor');
+  const background = document.getElementById('BackgroundColorOverride');
   const title = document.querySelector('[name="SiteTitle"]');
   const tagline = document.querySelector('[name="TagLine"]');
   if (!preview || !color) return;
   preview.style.setProperty('--preview-accent', color.value);
+  if (background?.value) preview.style.setProperty('--preview-bg', background.value);
   document.getElementById('previewSiteTitle').textContent = title?.value || 'Your Business';
   document.getElementById('previewHeadline').textContent = title?.value || 'Welcome to your website';
   document.getElementById('previewTagline').textContent = tagline?.value || 'Helping clients move forward with confidence.';
@@ -542,6 +561,18 @@ function updateTemplatePreviewLink() {
 document.getElementById('ThemeColor')?.addEventListener('input', function () {
   document.getElementById('themeHex').value = this.value;
   updateWebsitePreview();
+});
+document.getElementById('BackgroundColorOverride')?.addEventListener('input', updateWebsitePreview);
+document.querySelectorAll('.palette-swatch').forEach(swatch => {
+  swatch.addEventListener('click', () => {
+    const color = document.getElementById('ThemeColor');
+    const hex = document.getElementById('themeHex');
+    const background = document.getElementById('BackgroundColorOverride');
+    if (color) color.value = swatch.dataset.accent;
+    if (hex) hex.value = swatch.dataset.accent;
+    if (background) background.value = swatch.dataset.background;
+    updateWebsitePreview();
+  });
 });
 document.querySelector('[name="SiteTitle"]')?.addEventListener('input', updateWebsitePreview);
 document.querySelector('[name="TagLine"]')?.addEventListener('input', updateWebsitePreview);
