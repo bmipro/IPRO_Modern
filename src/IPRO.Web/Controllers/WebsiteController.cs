@@ -72,6 +72,19 @@ public class WebsiteController : Controller
             ? WebsiteTemplateDesign.FromTemplate(selectedTemplate).AccentColor
             : NormalizeThemeColor(model.ThemeColor);
 
+        if (applyTemplateDefaults || existing is null || templateChanged)
+        {
+            model.FontFamilyOverride = string.Empty;
+            model.HeadingFontSizeOverride = 0;
+            model.BodyFontSizeOverride = 0;
+        }
+        else
+        {
+            model.FontFamilyOverride = model.FontFamilyOverride?.Trim() ?? string.Empty;
+            model.HeadingFontSizeOverride = NormalizeFontSize(model.HeadingFontSizeOverride, 14, 40);
+            model.BodyFontSizeOverride = NormalizeFontSize(model.BodyFontSizeOverride, 12, 24);
+        }
+
         if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
             await _db.AgentDomains.AnyAsync(d => d.DomainName == model.CustomDomain && d.AgentUserId != AgentId))
         {
@@ -108,6 +121,9 @@ public class WebsiteController : Controller
             existing.SiteTitle = model.SiteTitle;
             existing.TagLine = model.TagLine;
             existing.ThemeColor = model.ThemeColor;
+            existing.FontFamilyOverride = model.FontFamilyOverride;
+            existing.HeadingFontSizeOverride = model.HeadingFontSizeOverride;
+            existing.BodyFontSizeOverride = model.BodyFontSizeOverride;
             existing.TemplateId = model.TemplateId;
             existing.CustomDomain = model.CustomDomain;
             if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl;
@@ -204,6 +220,9 @@ public class WebsiteController : Controller
             ThemeColor = useDefaults
                 ? WebsiteTemplateDesign.FromTemplate(template).AccentColor
                 : website.ThemeColor,
+            FontFamilyOverride = useDefaults ? string.Empty : website.FontFamilyOverride,
+            HeadingFontSizeOverride = useDefaults ? 0 : website.HeadingFontSizeOverride,
+            BodyFontSizeOverride = useDefaults ? 0 : website.BodyFontSizeOverride,
             HeaderSettingsJson = string.IsNullOrWhiteSpace(website.HeaderSettingsJson) ? "{}" : website.HeaderSettingsJson,
             FooterSettingsJson = string.IsNullOrWhiteSpace(website.FooterSettingsJson) ? "{}" : website.FooterSettingsJson,
             IsPublished = website.IsPublished,
@@ -264,6 +283,11 @@ public class WebsiteController : Controller
         return color.Length == 7 && color[0] == '#' && color.Skip(1).All(Uri.IsHexDigit)
             ? color
             : "#1457d9";
+    }
+
+    private static int NormalizeFontSize(int value, int min, int max)
+    {
+        return value <= 0 ? 0 : Math.Clamp(value, min, max);
     }
 
     [HttpPost, ValidateAntiForgeryToken]

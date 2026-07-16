@@ -33,6 +33,15 @@ Previewing a template should not overwrite page content. It only shows how the c
 3. Click **Save Website Settings**.
 4. Refresh the public website to confirm the color.
 
+## Change the Font and Text Size
+
+1. Open **My Website**.
+2. Choose a **Font Family**, or leave it set to **Match template default**.
+3. Enter a **Heading Font Size** and **Body Font Size** in pixels, or leave them matching the template default.
+4. Click **Save Website Settings**.
+
+Font and size changes apply to section headings (such as Services, Testimonials, and Contact) and body text throughout the site. The large hero/banner title keeps the selected template's own display size and is not affected. Selecting a different template resets these back to that template's defaults; save again afterward to keep a custom font or size.
+
 ## Upload a Logo
 
 1. Open **My Website**.
@@ -221,7 +230,7 @@ Hero blocks include additional controls:
 - Image left/text right
 - Centered
 - Full background image
-- Compact page banner
+- No Banner (a slim, text-only banner with no image)
 - Compact, standard, or tall height
 - Text alignment
 - Image focal position

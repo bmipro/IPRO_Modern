@@ -8,7 +8,8 @@
     var tagline = string.IsNullOrWhiteSpace(website.TagLine)
         ? "Professional advice, practical service, and a better way to stay connected."
         : website.TagLine;
-    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, website.ThemeColor);
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, website.ThemeColor,
+        website.FontFamilyOverride, website.HeadingFontSizeOverride, website.BodyFontSizeOverride);
     var theme = design.AccentColor;
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
@@ -30,6 +31,8 @@
       --site-theme-soft: #eef4ff;
       --section-space: @sectionSpace;
       --button-radius: @buttonRadius;
+      --heading-font-size: @(design.HeadingFontSize)px;
+      --body-font-size: @(design.BodyFontSize)px;
     }
     body {
       margin: 0;

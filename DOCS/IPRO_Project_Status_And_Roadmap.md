@@ -79,6 +79,7 @@ Last updated: July 16, 2026
 - Template selection and theme color exist.
 - Agent-editable footer exists (copyright, phone, email, address, social links, legal links, optional disclaimer) and renders consistently across all templates, matching the selected template's style.
 - Website page image selection (uploaded images and shared starter banners) saves immediately and reliably, without discarding other unsaved edits on the page.
+- Super Admin sets default font family, heading font size, and body font size per template; agents can override all three from My Website. The hero/banner title keeps its own template-authored display size regardless of this setting.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.

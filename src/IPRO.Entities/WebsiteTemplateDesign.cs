@@ -8,6 +8,8 @@ public class WebsiteTemplateDesign
     public string AccentColor { get; set; } = "#1457d9";
     public string BackgroundColor { get; set; } = "#f4f7fb";
     public string FontFamily { get; set; } = "Arial, Helvetica, sans-serif";
+    public int HeadingFontSize { get; set; } = 22;
+    public int BodyFontSize { get; set; } = 17;
     public string HeroStyle { get; set; } = "gradient";
     public string HeaderStyle { get; set; } = "light";
     public string HeroLayout { get; set; } = "split";
@@ -15,7 +17,8 @@ public class WebsiteTemplateDesign
     public string ButtonStyle { get; set; } = "soft";
     public int Version { get; set; } = 1;
 
-    public static WebsiteTemplateDesign FromTemplate(WebsiteTemplate? template, string? fallbackAccent = null)
+    public static WebsiteTemplateDesign FromTemplate(WebsiteTemplate? template, string? fallbackAccent = null,
+        string? fallbackFontFamily = null, int? fallbackHeadingFontSize = null, int? fallbackBodyFontSize = null)
     {
         var design = new WebsiteTemplateDesign
         {
@@ -51,6 +54,20 @@ public class WebsiteTemplateDesign
             if (TryGetString(root, "fontFamily", out var fontFamily) && !string.IsNullOrWhiteSpace(fontFamily))
             {
                 design.FontFamily = fontFamily.Trim();
+            }
+
+            if (root.TryGetProperty("headingFontSize", out var headingSizeElement) &&
+                headingSizeElement.ValueKind == JsonValueKind.Number &&
+                headingSizeElement.TryGetInt32(out var headingSize))
+            {
+                design.HeadingFontSize = Math.Clamp(headingSize, 14, 40);
+            }
+
+            if (root.TryGetProperty("bodyFontSize", out var bodySizeElement) &&
+                bodySizeElement.ValueKind == JsonValueKind.Number &&
+                bodySizeElement.TryGetInt32(out var bodySize))
+            {
+                design.BodyFontSize = Math.Clamp(bodySize, 12, 24);
             }
 
             if (TryGetString(root, "heroStyle", out var heroStyle) && !string.IsNullOrWhiteSpace(heroStyle))
@@ -96,6 +113,22 @@ public class WebsiteTemplateDesign
             design.AccentColor = NormalizeColor(fallbackAccent, design.AccentColor);
         }
 
+        // An agent's saved font choices are intentional per-site overrides of the template preset.
+        if (!string.IsNullOrWhiteSpace(fallbackFontFamily))
+        {
+            design.FontFamily = fallbackFontFamily.Trim();
+        }
+
+        if (fallbackHeadingFontSize is > 0)
+        {
+            design.HeadingFontSize = Math.Clamp(fallbackHeadingFontSize.Value, 14, 40);
+        }
+
+        if (fallbackBodyFontSize is > 0)
+        {
+            design.BodyFontSize = Math.Clamp(fallbackBodyFontSize.Value, 12, 24);
+        }
+
         return design;
     }
 
@@ -105,6 +138,8 @@ public class WebsiteTemplateDesign
         accentColor = AccentColor,
         backgroundColor = BackgroundColor,
         fontFamily = FontFamily,
+        headingFontSize = HeadingFontSize,
+        bodyFontSize = BodyFontSize,
         heroStyle = HeroStyle,
         headerStyle = HeaderStyle,
         heroLayout = HeroLayout,

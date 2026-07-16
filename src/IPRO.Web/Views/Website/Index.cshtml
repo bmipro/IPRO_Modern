@@ -10,7 +10,11 @@
     var themeColor = string.IsNullOrWhiteSpace(Model?.ThemeColor) ? "#1457d9" : Model!.ThemeColor;
     var selectedTemplateId = Model?.TemplateId ?? templates.FirstOrDefault()?.Id ?? 0;
     var selectedTemplate = templates.FirstOrDefault(t => t.Id == selectedTemplateId);
-    var selectedDesign = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(selectedTemplate, themeColor);
+    var fontFamilyOverride = Model?.FontFamilyOverride ?? "";
+    var headingFontSizeOverride = Model?.HeadingFontSizeOverride ?? 0;
+    var bodyFontSizeOverride = Model?.BodyFontSizeOverride ?? 0;
+    var selectedDesign = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(selectedTemplate, themeColor,
+        fontFamilyOverride, headingFontSizeOverride, bodyFontSizeOverride);
     var isPublished = Model?.IsPublished == true;
     var liveDomain = string.IsNullOrWhiteSpace(customDomain) ? temporaryDomain : customDomain;
     var templateDesigns = templates.ToDictionary(t => t.Id, t => IPRO.Entities.WebsiteTemplateDesign.FromTemplate(t));
@@ -120,6 +124,25 @@
             <div class="col-12">
               <label class="form-label fw-semibold">Tagline</label>
               <input name="TagLine" class="form-control" value="@tagLine" placeholder="Helping families and businesses plan with confidence" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Font Family</label>
+              <select name="FontFamilyOverride" class="form-select">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(fontFamilyOverride) ? "selected" : null)">Match template default</option>
+                <option value="Arial, Helvetica, sans-serif" selected="@(fontFamilyOverride.Contains("Arial") ? "selected" : null)">Clean Sans</option>
+                <option value="Georgia, 'Times New Roman', serif" selected="@(fontFamilyOverride.Contains("Georgia") ? "selected" : null)">Editorial Serif</option>
+                <option value="'Segoe UI', Arial, Helvetica, sans-serif" selected="@(fontFamilyOverride.Contains("Segoe") ? "selected" : null)">Modern UI</option>
+                <option value="'Times New Roman', Times, serif" selected="@(fontFamilyOverride.Contains("Times New Roman") ? "selected" : null)">Times New Roman</option>
+              </select>
+              <div class="form-text">Applies to section headings and body text, not the hero banner title.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Heading Font Size (px)</label>
+              <input name="HeadingFontSizeOverride" type="number" min="14" max="40" class="form-control" value="@(headingFontSizeOverride > 0 ? headingFontSizeOverride : selectedDesign.HeadingFontSize)" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Body Font Size (px)</label>
+              <input name="BodyFontSizeOverride" type="number" min="12" max="24" class="form-control" value="@(bodyFontSizeOverride > 0 ? bodyFontSizeOverride : selectedDesign.BodyFontSize)" />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Temporary Website Domain</label>
