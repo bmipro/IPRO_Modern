@@ -1,0 +1,59 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    var website = Model.Website;
+    var agent = website.AgentUser;
+    var footer = IPRO.Entities.WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+    var fallbackName = string.IsNullOrWhiteSpace(website.SiteTitle)
+        ? (string.IsNullOrWhiteSpace(agent.CompanyName) ? $"{agent.FirstName} {agent.LastName}".Trim() : agent.CompanyName)
+        : website.SiteTitle;
+    var copyrightName = string.IsNullOrWhiteSpace(footer.CopyrightText) ? fallbackName : footer.CopyrightText;
+    var platformIcons = new Dictionary<string, string>
+    {
+        ["facebook"] = "fa-facebook",
+        ["linkedin"] = "fa-linkedin",
+        ["instagram"] = "fa-instagram",
+        ["twitter-x"] = "fa-x-twitter",
+        ["youtube"] = "fa-youtube"
+    };
+}
+<div class="public-footer__copyright">&copy; @DateTime.UtcNow.Year @copyrightName</div>
+@if (!string.IsNullOrWhiteSpace(footer.Phone) || !string.IsNullOrWhiteSpace(footer.Email) || !string.IsNullOrWhiteSpace(footer.Address))
+{
+  <div class="public-footer__contact">
+    @if (!string.IsNullOrWhiteSpace(footer.Phone))
+    {
+      <a href="tel:@footer.Phone"><i class="fas fa-phone"></i><span>@footer.Phone</span></a>
+    }
+    @if (!string.IsNullOrWhiteSpace(footer.Email))
+    {
+      <a href="mailto:@footer.Email"><i class="fas fa-envelope"></i><span>@footer.Email</span></a>
+    }
+    @if (!string.IsNullOrWhiteSpace(footer.Address))
+    {
+      <span><i class="fas fa-location-dot"></i><span>@footer.Address</span></span>
+    }
+  </div>
+}
+@if (footer.SocialLinks.Any())
+{
+  <div class="public-footer__social">
+    @foreach (var link in footer.SocialLinks.OrderBy(l => l.SortOrder))
+    {
+      var iconClass = platformIcons.TryGetValue(link.Platform, out var icon) ? icon : "fa-link";
+      <a href="@link.Url" target="_blank" rel="noopener noreferrer" aria-label="@link.Platform"><i class="fab @iconClass"></i></a>
+    }
+  </div>
+}
+@if (footer.LegalLinks.Any())
+{
+  <div class="public-footer__legal">
+    @foreach (var link in footer.LegalLinks.OrderBy(l => l.SortOrder))
+    {
+      <a href="@link.Url">@link.Label</a>
+    }
+  </div>
+}
+@if (footer.ShowDisclaimer && !string.IsNullOrWhiteSpace(footer.DisclaimerText))
+{
+  <div class="public-footer__disclaimer">@footer.DisclaimerText</div>
+}

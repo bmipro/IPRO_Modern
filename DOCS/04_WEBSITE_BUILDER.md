@@ -130,6 +130,23 @@ Analytics excludes common bots, social preview tools, template previews, and bro
 5. Add an optional header button and link.
 6. Click **Save Header**.
 
+## Configure the Footer
+
+1. Open **My Website**.
+2. Click **Footer**.
+3. Enter copyright text, phone, email, and address. Leave any field blank to omit it from the footer.
+4. Add social links by choosing a platform and pasting the profile URL.
+5. Add legal links such as Privacy Policy or Terms of Service.
+6. Optionally enable the disclaimer and enter its text.
+7. Click **Save Footer**.
+
+The footer appears on every published page across all templates, including the temporary domain and any connected custom domains. Footer style automatically matches the selected template; no separate footer design controls are needed.
+
+### Troubleshooting
+
+- If a footer field does not appear on the public site, confirm it was saved from **Footer** and not left blank.
+- The disclaimer only appears when **Show disclaimer** is enabled and disclaimer text is entered.
+
 ## Add a Content Block
 
 1. Edit a page.

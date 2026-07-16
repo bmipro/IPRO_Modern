@@ -205,6 +205,7 @@ public class WebsiteController : Controller
                 ? WebsiteTemplateDesign.FromTemplate(template).AccentColor
                 : website.ThemeColor,
             HeaderSettingsJson = string.IsNullOrWhiteSpace(website.HeaderSettingsJson) ? "{}" : website.HeaderSettingsJson,
+            FooterSettingsJson = string.IsNullOrWhiteSpace(website.FooterSettingsJson) ? "{}" : website.FooterSettingsJson,
             IsPublished = website.IsPublished,
             CreatedAt = website.CreatedAt,
             UpdatedAt = website.UpdatedAt,

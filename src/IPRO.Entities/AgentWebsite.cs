@@ -11,6 +11,7 @@ public class AgentWebsite
     public string LogoUrl { get; set; } = string.Empty;
     public string ThemeColor { get; set; } = "#003366";
     public string HeaderSettingsJson { get; set; } = "{}";
+    public string FooterSettingsJson { get; set; } = "{}";
     public bool IsPublished { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

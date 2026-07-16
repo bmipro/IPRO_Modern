@@ -1,0 +1,20 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+<footer class="editorial-footer">
+  <div class="editorial-footer__inner">
+    @await Html.PartialAsync("_PublicFooterContent", Model)
+  </div>
+</footer>
+<style>
+  .editorial-footer { border-top: 1px solid rgba(0,0,0,.08); padding: 32px 0; }
+  .editorial-footer__inner { max-width: 1160px; margin: 0 auto; padding: 0 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; color: var(--muted, #6f685f); font-size: 14px; }
+  .editorial-footer__inner .public-footer__copyright { font-weight: 700; color: var(--ink, #211e1a); }
+  .editorial-footer__inner .public-footer__contact { display: flex; flex-wrap: wrap; gap: 16px; }
+  .editorial-footer__inner .public-footer__contact a { color: var(--muted, #6f685f); text-decoration: none; }
+  .editorial-footer__inner .public-footer__contact i { color: var(--site-theme, #b42318); margin-right: 6px; }
+  .editorial-footer__inner .public-footer__social { display: flex; gap: 12px; }
+  .editorial-footer__inner .public-footer__social a { color: var(--muted, #6f685f); }
+  .editorial-footer__inner .public-footer__legal { display: flex; flex-wrap: wrap; gap: 14px; }
+  .editorial-footer__inner .public-footer__legal a { color: var(--muted, #6f685f); text-decoration: none; }
+  .editorial-footer__inner .public-footer__legal a:hover { text-decoration: underline; }
+  .editorial-footer__inner .public-footer__disclaimer { width: 100%; font-size: 12px; }
+</style>

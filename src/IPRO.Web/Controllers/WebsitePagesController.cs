@@ -160,6 +160,106 @@ public class WebsitePagesController : Controller
         return RedirectToAction(nameof(Navigation));
     }
 
+    public async Task<IActionResult> Footer()
+    {
+        var access = await RequireWebsiteAccessAsync();
+        if (access != null) return access;
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        return View(new WebsiteFooterViewModel
+        {
+            Website = website,
+            Footer = WebsiteFooterSettings.FromJson(website.FooterSettingsJson)
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveFooter(string copyrightText, string phone, string email, string address,
+        bool showDisclaimer, string disclaimerText)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+        settings.CopyrightText = copyrightText?.Trim() ?? string.Empty;
+        settings.Phone = phone?.Trim() ?? string.Empty;
+        settings.Email = email?.Trim() ?? string.Empty;
+        settings.Address = address?.Trim() ?? string.Empty;
+        settings.ShowDisclaimer = showDisclaimer;
+        settings.DisclaimerText = disclaimerText?.Trim() ?? string.Empty;
+        website.FooterSettingsJson = settings.ToJson();
+        website.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Footer settings saved.";
+        return RedirectToAction(nameof(Footer));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddSocialLink(string platform, string url)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var normalized = NormalizeUrl(url);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            TempData["Error"] = "Enter a complete http or https URL.";
+            return RedirectToAction(nameof(Footer));
+        }
+        var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+        var normalizedPlatform = WebsiteFooterSettings.KnownPlatforms.Contains(platform, StringComparer.OrdinalIgnoreCase)
+            ? platform.ToLowerInvariant()
+            : "other";
+        settings.SocialLinks.Add(new WebsiteSocialLink { Platform = normalizedPlatform, Url = normalized, SortOrder = settings.SocialLinks.Count });
+        website.FooterSettingsJson = settings.ToJson();
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Social link added.";
+        return RedirectToAction(nameof(Footer));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSocialLink(string id)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+        settings.SocialLinks.RemoveAll(link => link.Id == id);
+        website.FooterSettingsJson = settings.ToJson();
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Social link removed.";
+        return RedirectToAction(nameof(Footer));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddLegalLink(string label, string url)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var normalized = NormalizeUrl(url);
+        if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(normalized))
+        {
+            TempData["Error"] = "Enter a label and a complete http or https URL.";
+            return RedirectToAction(nameof(Footer));
+        }
+        var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+        settings.LegalLinks.Add(new WebsiteFooterLink { Label = label.Trim(), Url = normalized, SortOrder = settings.LegalLinks.Count });
+        website.FooterSettingsJson = settings.ToJson();
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Legal link added.";
+        return RedirectToAction(nameof(Footer));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteLegalLink(string id)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+        settings.LegalLinks.RemoveAll(link => link.Id == id);
+        website.FooterSettingsJson = settings.ToJson();
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Legal link removed.";
+        return RedirectToAction(nameof(Footer));
+    }
+
     public async Task<IActionResult> Edit(int id)
     {
         var page = await OwnedPages().Include(p => p.Blocks).FirstOrDefaultAsync(p => p.Id == id);

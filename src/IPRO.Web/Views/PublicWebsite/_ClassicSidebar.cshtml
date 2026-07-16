@@ -338,12 +338,8 @@
         </div>
       </aside>
     </div>
-
-    <footer class="classic-footer">
-      <span>&copy; @DateTime.Now.Year @company</span>
-      <span>Powered by IPRO Advisers</span>
-    </footer>
   </div>
   }
+  @await Html.PartialAsync("_ClassicFooter", Model)
 </body>
 </html>

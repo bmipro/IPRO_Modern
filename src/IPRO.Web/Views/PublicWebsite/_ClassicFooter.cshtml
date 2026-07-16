@@ -1,0 +1,20 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+<div class="classic-footer-wrap">
+  <footer class="classic-footer">
+    @await Html.PartialAsync("_PublicFooterContent", Model)
+  </footer>
+</div>
+<style>
+  .classic-footer-wrap { width: min(1160px, calc(100% - 32px)); margin: 0 auto 24px; }
+  .classic-footer { background: #fff; border: 1px solid var(--line); }
+  .classic-footer .public-footer__copyright { font-weight: 700; }
+  .classic-footer .public-footer__contact { display: flex; flex-wrap: wrap; gap: 14px; }
+  .classic-footer .public-footer__contact a { color: var(--muted, #607089); text-decoration: none; }
+  .classic-footer .public-footer__contact i { color: var(--site-theme, #1457d9); margin-right: 6px; }
+  .classic-footer .public-footer__social { display: flex; gap: 12px; }
+  .classic-footer .public-footer__social a { color: var(--muted, #607089); }
+  .classic-footer .public-footer__legal { display: flex; flex-wrap: wrap; gap: 14px; }
+  .classic-footer .public-footer__legal a { color: var(--muted, #607089); text-decoration: none; }
+  .classic-footer .public-footer__legal a:hover { text-decoration: underline; }
+  .classic-footer .public-footer__disclaimer { width: 100%; font-size: 12px; color: var(--muted, #607089); }
+</style>

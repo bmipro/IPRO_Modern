@@ -1,0 +1,73 @@
+@model IPRO.Web.Models.WebsiteFooterViewModel
+@{
+  ViewData["Title"] = "Footer";
+  var platformLabels = new Dictionary<string, string>
+  {
+    ["facebook"] = "Facebook",
+    ["linkedin"] = "LinkedIn",
+    ["instagram"] = "Instagram",
+    ["twitter-x"] = "Twitter / X",
+    ["youtube"] = "YouTube",
+    ["other"] = "Other"
+  };
+}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div><div class="small text-muted mb-1"><a href="/Website">My Website</a> / Footer</div><h2 class="fw-bold mb-1"><i class="fas fa-shoe-prints me-2 text-primary"></i>Footer</h2><div class="text-muted">Copyright, contact details, social links, and legal links shown at the bottom of every page.</div></div>
+  <div class="d-flex gap-2"><a href="/WebsitePages/Navigation" class="btn btn-outline-secondary"><i class="fas fa-bars-staggered me-1"></i>Header & Menu</a><a href="/Website" class="btn btn-outline-primary"><i class="fas fa-arrow-left me-1"></i>Website Settings</a></div>
+</div>
+
+<form method="post" action="/WebsitePages/SaveFooter" class="card border-0 shadow-sm mb-4">
+  @Html.AntiForgeryToken()
+  <div class="card-body p-4">
+    <div class="mb-4"><h4 class="fw-bold mb-1">Copyright & Contact</h4><div class="text-muted small">Leave a field blank to omit it from the footer.</div></div>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-semibold">Copyright Text</label><input name="copyrightText" value="@Model.Footer.CopyrightText" class="form-control" placeholder="Your Company Name" /></div>
+      <div class="col-md-3"><label class="form-label fw-semibold">Phone</label><input name="phone" value="@Model.Footer.Phone" class="form-control" placeholder="(555) 123-4567" /></div>
+      <div class="col-md-3"><label class="form-label fw-semibold">Email</label><input name="email" type="email" value="@Model.Footer.Email" class="form-control" placeholder="you@example.com" /></div>
+      <div class="col-md-12"><label class="form-label fw-semibold">Address</label><input name="address" value="@Model.Footer.Address" class="form-control" placeholder="123 Main Street, City, Province" /></div>
+      <div class="col-12">
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="showDisclaimer" name="showDisclaimer" value="true" checked="@Model.Footer.ShowDisclaimer"><label class="form-check-label fw-semibold" for="showDisclaimer">Show disclaimer</label></div>
+        <textarea name="disclaimerText" class="form-control" rows="2" placeholder="Optional disclaimer text shown in the footer.">@Model.Footer.DisclaimerText</textarea>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer bg-white border-0 px-4 pb-4"><button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Footer</button></div>
+</form>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <h4 class="fw-bold mb-1">Social Links</h4><div class="text-muted small mb-3">Add links to your social media profiles.</div>
+    <form method="post" action="/WebsitePages/AddSocialLink" class="row g-2 align-items-end mb-3">
+      @Html.AntiForgeryToken()
+      <div class="col-md-4"><label class="form-label small fw-semibold">Platform</label><select name="platform" class="form-select">@foreach (var platform in platformLabels) { <option value="@platform.Key">@platform.Value</option> }</select></div>
+      <div class="col-md-6"><label class="form-label small fw-semibold">Profile URL</label><input name="url" type="url" class="form-control" placeholder="https://facebook.com/yourpage" required /></div>
+      <div class="col-md-2"><button class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>Add</button></div>
+    </form>
+    @foreach (var link in Model.Footer.SocialLinks.OrderBy(l => l.SortOrder))
+    {
+      <div class="d-flex align-items-center justify-content-between gap-3 border-top py-3">
+        <div><strong>@(platformLabels.TryGetValue(link.Platform, out var label) ? label : link.Platform)</strong><div class="small text-muted text-break">@link.Url</div></div>
+        <form method="post" action="/WebsitePages/DeleteSocialLink" onsubmit="return confirm('Remove this social link?');">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form>
+      </div>
+    }
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <h4 class="fw-bold mb-1">Legal Links</h4><div class="text-muted small mb-3">Add links such as Privacy Policy or Terms of Service.</div>
+    <form method="post" action="/WebsitePages/AddLegalLink" class="row g-2 align-items-end mb-3">
+      @Html.AntiForgeryToken()
+      <div class="col-md-4"><label class="form-label small fw-semibold">Label</label><input name="label" class="form-control" placeholder="Privacy Policy" required /></div>
+      <div class="col-md-6"><label class="form-label small fw-semibold">Complete URL</label><input name="url" type="url" class="form-control" placeholder="https://example.com/privacy" required /></div>
+      <div class="col-md-2"><button class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>Add</button></div>
+    </form>
+    @foreach (var link in Model.Footer.LegalLinks.OrderBy(l => l.SortOrder))
+    {
+      <div class="d-flex align-items-center justify-content-between gap-3 border-top py-3">
+        <div><strong>@link.Label</strong><div class="small text-muted text-break">@link.Url</div></div>
+        <form method="post" action="/WebsitePages/DeleteLegalLink" onsubmit="return confirm('Remove this legal link?');">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form>
+      </div>
+    }
+  </div>
+</div>
