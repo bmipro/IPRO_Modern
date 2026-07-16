@@ -47,7 +47,21 @@
   .modern-page .mp-cta { background:var(--site-theme); color:#fff; border:0; }
   .modern-page .mp-cta h2,.modern-page .mp-cta .mp-lead { color:#fff; }
   .modern-page .mp-contact-card { padding:28px; border-radius:8px; background:#fff; color:#17223a; }
-  @@media(max-width:820px){.modern-page .mp-hero-grid,.modern-page .mp-split{grid-template-columns:1fr;gap:32px}.modern-page .mp-hero{min-height:0}.modern-page .mp-hero h1{font-size:44px}.modern-page .mp-grid{grid-template-columns:1fr}.modern-page .mp-hero-media{min-height:240px}.modern-page .mp-hero-media img{min-height:240px}}
+  .modern-page .mp-simple-list { list-style:none; padding:0; margin:24px 0 0; max-width:640px; }
+  .modern-page .mp-simple-list li { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid #dce5f1; font-weight:700; }
+  .modern-page .mp-simple-list i { color:var(--site-theme); }
+  .modern-page .mp-icon-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; margin-top:30px; text-align:center; }
+  .modern-page .mp-icon-grid i { font-size:34px; color:var(--site-theme); margin-bottom:14px; }
+  .modern-page .mp-featured-quote { max-width:760px; margin:30px auto 0; text-align:center; font-size:24px; line-height:1.5; color:#17223a; }
+  .modern-page .mp-featured-quote i { display:block; font-size:30px; color:var(--site-theme); margin-bottom:16px; }
+  .modern-page .mp-quote-list { display:grid; gap:0; max-width:760px; margin-top:24px; }
+  .modern-page .mp-quote-row { display:flex; gap:14px; padding:16px 0; border-bottom:1px solid #dce5f1; }
+  .modern-page .mp-quote-row i { color:var(--site-theme); }
+  .modern-page .mp-cta-banner .mp-inner { text-align:center; }
+  .modern-page .mp-cta-banner .mp-lead { margin-left:auto; margin-right:auto; }
+  .modern-page .mp-cta-card { max-width:820px; margin:0 auto; padding:44px; border-radius:12px; border:1px solid #dce5f1; box-shadow:0 12px 30px rgba(15,35,70,.06); text-align:center; }
+  .modern-page .mp-cta-card .mp-lead { margin-left:auto; margin-right:auto; }
+  @@media(max-width:820px){.modern-page .mp-hero-grid,.modern-page .mp-split{grid-template-columns:1fr;gap:32px}.modern-page .mp-hero{min-height:0}.modern-page .mp-hero h1{font-size:44px}.modern-page .mp-grid,.modern-page .mp-icon-grid{grid-template-columns:1fr}.modern-page .mp-hero-media{min-height:240px}.modern-page .mp-hero-media img{min-height:240px}}
 </style>
 <main class="modern-page">
 @foreach (var block in blocks)
@@ -63,14 +77,60 @@
       </div>
     </section>
   }
-  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services || block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services)
   {
     var items = block.Body.Split(new[]{'\r','\n'}, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services ? "Services" : "Client stories")</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><div class="mp-grid">@foreach(var item in items){<div class="mp-card"><i class="fas @(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services ? "fa-circle-check" : "fa-quote-left")"></i><div class="fw-bold">@item</div></div>}</div></div></section>
+    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">Services</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>
+      @if(block.LayoutVariant == "list")
+      {
+        <ul class="mp-simple-list">@foreach(var item in items){<li><i class="fas fa-circle-check"></i>@item</li>}</ul>
+      }
+      else if(block.LayoutVariant == "icons")
+      {
+        <div class="mp-icon-grid">@foreach(var item in items){<div><i class="fas fa-circle-check"></i><div class="fw-bold">@item</div></div>}</div>
+      }
+      else
+      {
+        <div class="mp-grid">@foreach(var item in items){<div class="mp-card"><i class="fas fa-circle-check"></i><div class="fw-bold">@item</div></div>}</div>
+      }
+    </div></section>
   }
-  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction || block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup)
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
   {
-    <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div>@if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })}else{<a class="mp-button" style="background:#fff;color:#17223a" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a>}</div></div></section>
+    var items = block.Body.Split(new[]{'\r','\n'}, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">Client stories</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>
+      @if(block.LayoutVariant == "featured" && items.Length > 0)
+      {
+        <blockquote class="mp-featured-quote"><i class="fas fa-quote-left"></i><p>@items[0]</p></blockquote>
+      }
+      else if(block.LayoutVariant == "list")
+      {
+        <div class="mp-quote-list">@foreach(var item in items){<div class="mp-quote-row"><i class="fas fa-quote-left"></i><div>@item</div></div>}</div>
+      }
+      else
+      {
+        <div class="mp-grid">@foreach(var item in items){<div class="mp-card"><i class="fas fa-quote-left"></i><div class="fw-bold">@item</div></div>}</div>
+      }
+    </div></section>
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
+  {
+    if(block.LayoutVariant == "banner")
+    {
+      <section class="mp-section mp-cta mp-cta-banner"><div class="mp-inner"><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}<a class="mp-button" style="background:#fff;color:#17223a" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a></div></section>
+    }
+    else if(block.LayoutVariant == "card")
+    {
+      <section class="mp-section"><div class="mp-inner"><div class="mp-cta-card"><div class="mp-kicker">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a></div></div></section>
+    }
+    else
+    {
+      <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div><a class="mp-button" style="background:#fff;color:#17223a" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a></div></div></section>
+    }
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup)
+  {
+    <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })</div></div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm)
   {

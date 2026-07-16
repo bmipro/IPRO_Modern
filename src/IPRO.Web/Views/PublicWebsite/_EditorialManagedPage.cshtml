@@ -45,7 +45,17 @@
   .editorial-page .ep-cta { background:#241f1a; color:#fff; }
   .editorial-page .ep-cta .ep-copy { color:#d8d0c5; }
   .editorial-page .ep-contact { display:grid; grid-template-columns:1fr 1fr; gap:80px; }
-  @@media(max-width:820px){.editorial-page .ep-section{padding:64px 24px}.editorial-page .ep-hero{grid-template-columns:1fr}.editorial-page .ep-hero-copy{padding:60px 24px}.editorial-page .ep-hero h1{font-size:48px}.editorial-page .ep-hero-visual{min-height:280px;order:-1}.editorial-page .ep-feature,.editorial-page .ep-feature.reverse,.editorial-page .ep-contact{grid-template-columns:1fr;gap:30px}.editorial-page .ep-feature.reverse .ep-heading{order:0}}
+  .editorial-page .ep-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+  .editorial-page .ep-service-card { padding:24px; border:1px solid #d9d3c9; }
+  .editorial-page .ep-service-card i { color:var(--site-theme); margin-bottom:12px; display:block; font-size:20px; }
+  .editorial-page .ep-icon-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+  .editorial-page .ep-icon-row > div { text-align:center; }
+  .editorial-page .ep-icon-row i { font-size:30px; color:var(--site-theme); margin-bottom:10px; display:block; }
+  .editorial-page .ep-featured-quote { font:italic 32px/1.5 Georgia,serif; max-width:820px; border-bottom:0; }
+  .editorial-page .ep-cta-banner .ep-inner { text-align:center; }
+  .editorial-page .ep-cta-banner .ep-copy { margin-left:auto; margin-right:auto; }
+  .editorial-page .ep-cta-card { max-width:760px; margin:0 auto; padding:44px; border:1px solid #3a342c; text-align:center; }
+  @@media(max-width:820px){.editorial-page .ep-section{padding:64px 24px}.editorial-page .ep-hero{grid-template-columns:1fr}.editorial-page .ep-hero-copy{padding:60px 24px}.editorial-page .ep-hero h1{font-size:48px}.editorial-page .ep-hero-visual{min-height:280px;order:-1}.editorial-page .ep-feature,.editorial-page .ep-feature.reverse,.editorial-page .ep-contact,.editorial-page .ep-card-grid,.editorial-page .ep-icon-row{grid-template-columns:1fr;gap:30px}.editorial-page .ep-feature.reverse .ep-heading{order:0}}
 </style>
 <main class="editorial-page">
 @foreach(var block in blocks)
@@ -60,9 +70,58 @@
       <div class="ep-hero-visual">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" style="object-position:@hero.ImagePosition" />}else{<i class="fas fa-arrow-trend-up"></i>}</div>
     </section>
   }
-  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="ep-section"><div class="ep-inner ep-feature @(index%2==0?"reverse":"")"><div class="ep-heading"><div class="ep-kicker">Services</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p></div><div class="ep-list">@for(var i=0;i<items.Length;i++){<div class="ep-list-item"><span>@((i+1).ToString("00"))</span>@items[i]</div>}</div></div></section>}
-  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials){var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);<section class="ep-section"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker">Perspectives</div><h2>@block.Heading</h2></div><div>@foreach(var item in items){<blockquote class="ep-quote">&ldquo;@item&rdquo;</blockquote>}</div></div></section>}
-  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction || block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="ep-section ep-cta"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2></div><div><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p>@if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })}else{<a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Connect":block.ButtonText)</a>}</div></div></section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services)
+  {
+    var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+    <section class="ep-section"><div class="ep-inner ep-feature @(index%2==0?"reverse":"")"><div class="ep-heading"><div class="ep-kicker">Services</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p></div>
+      @if(block.LayoutVariant == "cards")
+      {
+        <div class="ep-card-grid">@foreach(var item in items){<div class="ep-service-card"><i class="fas fa-check"></i><div>@item</div></div>}</div>
+      }
+      else if(block.LayoutVariant == "icons")
+      {
+        <div class="ep-icon-row">@foreach(var item in items){<div><i class="fas fa-check"></i><div>@item</div></div>}</div>
+      }
+      else
+      {
+        <div class="ep-list">@for(var i=0;i<items.Length;i++){<div class="ep-list-item"><span>@((i+1).ToString("00"))</span>@items[i]</div>}</div>
+      }
+    </div></section>
+  }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
+  {
+    var items=block.Body.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+    <section class="ep-section"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker">Perspectives</div><h2>@block.Heading</h2></div>
+      @if(block.LayoutVariant == "grid")
+      {
+        <div class="ep-card-grid">@foreach(var item in items){<div class="ep-service-card"><i class="fas fa-quote-left"></i><div>@item</div></div>}</div>
+      }
+      else if(block.LayoutVariant == "featured" && items.Length > 0)
+      {
+        <blockquote class="ep-quote ep-featured-quote">&ldquo;@items[0]&rdquo;</blockquote>
+      }
+      else
+      {
+        <div>@foreach(var item in items){<blockquote class="ep-quote">&ldquo;@item&rdquo;</blockquote>}</div>
+      }
+    </div></section>
+  }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
+  {
+    if(block.LayoutVariant == "banner")
+    {
+      <section class="ep-section ep-cta ep-cta-banner"><div class="ep-inner"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p><a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Connect":block.ButtonText)</a></div></section>
+    }
+    else if(block.LayoutVariant == "card")
+    {
+      <section class="ep-section ep-cta"><div class="ep-inner"><div class="ep-cta-card"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p><a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Connect":block.ButtonText)</a></div></div></section>
+    }
+    else
+    {
+      <section class="ep-section ep-cta"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2></div><div><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p><a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText)?"Connect":block.ButtonText)</a></div></div></section>
+    }
+  }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="ep-section ep-cta"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2></div><div><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })</div></div></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){<section class="ep-section"><div class="ep-inner ep-contact"><div class="ep-heading"><div class="ep-kicker">Contact</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p><h3>@($"{agent.FirstName} {agent.LastName}".Trim())</h3><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<p><a href="tel:@agent.Phone">@agent.Phone</a></p>}</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>}
   else{<section class="ep-section"><div class="ep-inner ep-feature @(index%2==0?"reverse":"")"><div class="ep-heading"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2></div><div><div class="ep-copy">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img class="ep-image" src="@block.ImageUrl" alt="" />}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"#":block.ButtonUrl)">@block.ButtonText</a>}</div></div></section>}
 }

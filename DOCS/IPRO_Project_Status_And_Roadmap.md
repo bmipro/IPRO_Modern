@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: July 16, 2026
+Last updated: July 16, 2026 (evening)
 
 ## What Is Working
 
@@ -82,6 +82,7 @@ Last updated: July 16, 2026
 - Super Admin sets default font family, heading font size, and body font size per template; agents can override all three from My Website. The hero/banner title keeps its own template-authored display size regardless of this setting.
 - Public contact/lead forms are hardened: each lead records whether the agent notification email actually delivered (visible to agents and Super Admin), blocked honeypot/timing/captcha attempts are logged (reason, domain, IP only, never submitted content) and reviewable cross-agent in a new Super Admin Website Leads screen, and the public lead endpoint has its own dedicated rate limit.
 - Template output is more differentiated: Classic Sidebar's Call to Action, Contact, and generic Text blocks now use distinct grid/card/band layouts instead of one flat stack. Hero Style (Gradient/Clean/Classic) now has a real, visible effect on all 3 templates (it was previously a no-op). Agents can now also override Background Color, Button Style, and Section Spacing per site, in addition to Theme Color and Font. Design customizations are kept when switching templates instead of resetting automatically; a "Reset to Template Defaults" action is available when a full reset is wanted. Curated color palette swatches (in both Super Admin templates and agent My Website) set a coordinated theme/background color pair in one click.
+- Services, Testimonials, and Call to Action blocks each support an independent per-block **Layout** choice (Services: Cards/List/Icons; Testimonials: Grid/Featured Quote/List; Call to Action: Banner/Card/Split) on top of whichever template family the site uses, giving agents block-level mix-and-match beyond template and color choices.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.

@@ -197,6 +197,16 @@ Available block types include:
 
 Use the arrows to reorder blocks and the trash icon to remove one.
 
+## Change a Block's Layout
+
+Services, Testimonials, and Call to Action blocks offer a **Layout** dropdown independent of your selected template:
+
+- **Services**: Cards, List, or Icons.
+- **Testimonials**: Grid, Featured Quote, or List.
+- **Call to Action**: Banner, Card, or Split.
+
+Leave **Match template default** to use the arrangement your selected template normally uses for that block type. Changing the layout only affects that one block; other blocks and pages are unaffected. Save the block after changing its layout.
+
 ## Choose a Shared Starter Banner
 
 1. Edit a page.

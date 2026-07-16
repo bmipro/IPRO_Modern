@@ -28,6 +28,7 @@ public class WebsiteContentBlock
     public string ButtonText { get; set; } = string.Empty;
     public string ButtonUrl { get; set; } = string.Empty;
     public string SettingsJson { get; set; } = "{}";
+    public string LayoutVariant { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public bool IsVisible { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

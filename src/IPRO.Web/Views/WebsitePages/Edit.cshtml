@@ -226,6 +226,34 @@
           </div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.Testimonials or IPRO.Entities.WebsiteBlockTypes.CallToAction)
+          {
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Layout</label>
+              <select name="layoutVariant" class="form-select">
+                <option value="" selected="@(string.IsNullOrEmpty(block.LayoutVariant) ? "selected" : null)">Match template default</option>
+                @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services)
+                {
+                  <option value="cards" selected="@(block.LayoutVariant == "cards" ? "selected" : null)">Cards</option>
+                  <option value="list" selected="@(block.LayoutVariant == "list" ? "selected" : null)">List</option>
+                  <option value="icons" selected="@(block.LayoutVariant == "icons" ? "selected" : null)">Icons</option>
+                }
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
+                {
+                  <option value="grid" selected="@(block.LayoutVariant == "grid" ? "selected" : null)">Grid</option>
+                  <option value="featured" selected="@(block.LayoutVariant == "featured" ? "selected" : null)">Featured quote</option>
+                  <option value="list" selected="@(block.LayoutVariant == "list" ? "selected" : null)">List</option>
+                }
+                else
+                {
+                  <option value="banner" selected="@(block.LayoutVariant == "banner" ? "selected" : null)">Banner</option>
+                  <option value="card" selected="@(block.LayoutVariant == "card" ? "selected" : null)">Card</option>
+                  <option value="split" selected="@(block.LayoutVariant == "split" ? "selected" : null)">Split</option>
+                }
+              </select>
+              <div class="form-text">Changes how this block's items are arranged. Leave as default to match your template's usual style.</div>
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
           {
             <div class="col-12"><div class="banner-controls"><div class="d-flex align-items-center gap-2 mb-3"><i class="fas fa-panorama text-primary"></i><strong>Banner Presentation</strong><span class="small text-muted">Changes layout only; your content stays intact.</span></div><div class="row g-3">

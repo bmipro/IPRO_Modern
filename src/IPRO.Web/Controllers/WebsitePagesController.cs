@@ -497,7 +497,7 @@ public class WebsitePagesController : Controller
     public async Task<IActionResult> UpdateBlock(int id, string heading, string subheading, string body,
         string imageUrl, string buttonText, string buttonUrl, bool isVisible,
         string heroLayout = "split", string imagePosition = "center", string textAlignment = "left",
-        string bannerHeight = "standard", int overlayStrength = 45)
+        string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "")
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -510,6 +510,7 @@ public class WebsitePagesController : Controller
         block.ButtonText = buttonText?.Trim() ?? string.Empty;
         block.ButtonUrl = NormalizeLink(buttonUrl);
         block.IsVisible = isVisible;
+        block.LayoutVariant = WebsiteBlockLayoutVariants.Normalize(block.BlockType, layoutVariant);
         if (block.BlockType == WebsiteBlockTypes.Hero)
         {
             block.SettingsJson = new WebsiteHeroSettings
@@ -704,7 +705,7 @@ public class WebsitePagesController : Controller
     {
         BlockType = b.BlockType, Heading = b.Heading, Subheading = b.Subheading, Body = b.Body,
         ImageUrl = b.ImageUrl, ButtonText = b.ButtonText, ButtonUrl = b.ButtonUrl,
-        SettingsJson = b.SettingsJson, SortOrder = b.SortOrder, IsVisible = b.IsVisible
+        SettingsJson = b.SettingsJson, LayoutVariant = b.LayoutVariant, SortOrder = b.SortOrder, IsVisible = b.IsVisible
     };
 
     private static void MoveItem<T>(List<T> items, T item, string direction, Func<T, int> getOrder, Action<T, int> setOrder)

@@ -173,6 +173,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureWebsiteTemplateSchemaAsync(db);
     await WebsiteContentSchema.EnsureAsync(db);
     await EnsureWebsiteLeadSchemaAsync(db);
+    await EnsureWebsiteContentBlockSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -339,6 +340,19 @@ static async Task EnsureWebsiteLeadSchemaAsync(IPRODbContext db)
     {
         await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationSent", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationSent` tinyint(1) NOT NULL DEFAULT TRUE");
         await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationError", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationError` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureWebsiteContentBlockSchemaAsync(IPRODbContext db)
+{
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "WebsiteContentBlocks", "LayoutVariant", "ALTER TABLE `WebsiteContentBlocks` ADD COLUMN `LayoutVariant` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     }
     finally
     {
