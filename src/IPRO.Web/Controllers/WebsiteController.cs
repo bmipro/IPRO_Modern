@@ -77,12 +77,20 @@ public class WebsiteController : Controller
             model.FontFamilyOverride = string.Empty;
             model.HeadingFontSizeOverride = 0;
             model.BodyFontSizeOverride = 0;
+            model.BackgroundColorOverride = string.Empty;
+            model.ButtonStyleOverride = string.Empty;
+            model.SectionSpacingOverride = string.Empty;
+            model.HeroStyleOverride = string.Empty;
         }
         else
         {
             model.FontFamilyOverride = model.FontFamilyOverride?.Trim() ?? string.Empty;
             model.HeadingFontSizeOverride = NormalizeFontSize(model.HeadingFontSizeOverride, 14, 40);
             model.BodyFontSizeOverride = NormalizeFontSize(model.BodyFontSizeOverride, 12, 24);
+            model.BackgroundColorOverride = NormalizeOptionalColor(model.BackgroundColorOverride);
+            model.ButtonStyleOverride = NormalizeOptionalOption(model.ButtonStyleOverride, "square", "soft", "pill");
+            model.SectionSpacingOverride = NormalizeOptionalOption(model.SectionSpacingOverride, "compact", "comfortable", "spacious");
+            model.HeroStyleOverride = NormalizeOptionalOption(model.HeroStyleOverride, "gradient", "clean", "classic");
         }
 
         if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
@@ -124,6 +132,10 @@ public class WebsiteController : Controller
             existing.FontFamilyOverride = model.FontFamilyOverride;
             existing.HeadingFontSizeOverride = model.HeadingFontSizeOverride;
             existing.BodyFontSizeOverride = model.BodyFontSizeOverride;
+            existing.BackgroundColorOverride = model.BackgroundColorOverride;
+            existing.ButtonStyleOverride = model.ButtonStyleOverride;
+            existing.SectionSpacingOverride = model.SectionSpacingOverride;
+            existing.HeroStyleOverride = model.HeroStyleOverride;
             existing.TemplateId = model.TemplateId;
             existing.CustomDomain = model.CustomDomain;
             if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl;
@@ -223,6 +235,10 @@ public class WebsiteController : Controller
             FontFamilyOverride = useDefaults ? string.Empty : website.FontFamilyOverride,
             HeadingFontSizeOverride = useDefaults ? 0 : website.HeadingFontSizeOverride,
             BodyFontSizeOverride = useDefaults ? 0 : website.BodyFontSizeOverride,
+            BackgroundColorOverride = useDefaults ? string.Empty : website.BackgroundColorOverride,
+            ButtonStyleOverride = useDefaults ? string.Empty : website.ButtonStyleOverride,
+            SectionSpacingOverride = useDefaults ? string.Empty : website.SectionSpacingOverride,
+            HeroStyleOverride = useDefaults ? string.Empty : website.HeroStyleOverride,
             HeaderSettingsJson = string.IsNullOrWhiteSpace(website.HeaderSettingsJson) ? "{}" : website.HeaderSettingsJson,
             FooterSettingsJson = string.IsNullOrWhiteSpace(website.FooterSettingsJson) ? "{}" : website.FooterSettingsJson,
             IsPublished = website.IsPublished,
@@ -288,6 +304,18 @@ public class WebsiteController : Controller
     private static int NormalizeFontSize(int value, int min, int max)
     {
         return value <= 0 ? 0 : Math.Clamp(value, min, max);
+    }
+
+    private static string NormalizeOptionalColor(string? value)
+    {
+        var color = value?.Trim() ?? string.Empty;
+        return color.Length == 7 && color[0] == '#' && color.Skip(1).All(Uri.IsHexDigit) ? color : string.Empty;
+    }
+
+    private static string NormalizeOptionalOption(string? value, params string[] allowed)
+    {
+        var normalized = value?.Trim().ToLowerInvariant() ?? string.Empty;
+        return allowed.Contains(normalized) ? normalized : string.Empty;
     }
 
     [HttpPost, ValidateAntiForgeryToken]

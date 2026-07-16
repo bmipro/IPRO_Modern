@@ -2,8 +2,17 @@
 @{
     var website = Model.Website;
     var agent = website.AgentUser;
-    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, website.ThemeColor,
-        website.FontFamilyOverride, website.HeadingFontSizeOverride, website.BodyFontSizeOverride);
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, new IPRO.Entities.AgentDesignOverrides
+    {
+        ThemeColor = website.ThemeColor,
+        FontFamily = website.FontFamilyOverride,
+        HeadingFontSize = website.HeadingFontSizeOverride,
+        BodyFontSize = website.BodyFontSizeOverride,
+        BackgroundColor = website.BackgroundColorOverride,
+        ButtonStyle = website.ButtonStyleOverride,
+        SectionSpacing = website.SectionSpacingOverride,
+        HeroStyle = website.HeroStyleOverride
+    });
     var title = string.IsNullOrWhiteSpace(website.SiteTitle)
         ? $"{agent.FirstName} {agent.LastName}".Trim()
         : website.SiteTitle;

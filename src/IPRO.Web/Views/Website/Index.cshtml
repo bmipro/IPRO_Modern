@@ -13,8 +13,21 @@
     var fontFamilyOverride = Model?.FontFamilyOverride ?? "";
     var headingFontSizeOverride = Model?.HeadingFontSizeOverride ?? 0;
     var bodyFontSizeOverride = Model?.BodyFontSizeOverride ?? 0;
-    var selectedDesign = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(selectedTemplate, themeColor,
-        fontFamilyOverride, headingFontSizeOverride, bodyFontSizeOverride);
+    var backgroundColorOverride = Model?.BackgroundColorOverride ?? "";
+    var buttonStyleOverride = Model?.ButtonStyleOverride ?? "";
+    var sectionSpacingOverride = Model?.SectionSpacingOverride ?? "";
+    var heroStyleOverride = Model?.HeroStyleOverride ?? "";
+    var selectedDesign = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(selectedTemplate, new IPRO.Entities.AgentDesignOverrides
+    {
+        ThemeColor = themeColor,
+        FontFamily = fontFamilyOverride,
+        HeadingFontSize = headingFontSizeOverride,
+        BodyFontSize = bodyFontSizeOverride,
+        BackgroundColor = backgroundColorOverride,
+        ButtonStyle = buttonStyleOverride,
+        SectionSpacing = sectionSpacingOverride,
+        HeroStyle = heroStyleOverride
+    });
     var isPublished = Model?.IsPublished == true;
     var liveDomain = string.IsNullOrWhiteSpace(customDomain) ? temporaryDomain : customDomain;
     var templateDesigns = templates.ToDictionary(t => t.Id, t => IPRO.Entities.WebsiteTemplateDesign.FromTemplate(t));
@@ -143,6 +156,41 @@
             <div class="col-md-4">
               <label class="form-label fw-semibold">Body Font Size (px)</label>
               <input name="BodyFontSizeOverride" type="number" min="12" max="24" class="form-control" value="@(bodyFontSizeOverride > 0 ? bodyFontSizeOverride : selectedDesign.BodyFontSize)" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Background Color</label>
+              <div class="input-group">
+                <input name="BackgroundColorOverride" type="color" class="form-control form-control-color" value="@(string.IsNullOrWhiteSpace(backgroundColorOverride) ? selectedDesign.BackgroundColor : backgroundColorOverride)" style="width:64px" />
+              </div>
+              <div class="form-text">Page background behind your content.</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Button Style</label>
+              <select name="ButtonStyleOverride" class="form-select">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(buttonStyleOverride) ? "selected" : null)">Match template default</option>
+                <option value="square" selected="@(buttonStyleOverride == "square" ? "selected" : null)">Square</option>
+                <option value="soft" selected="@(buttonStyleOverride == "soft" ? "selected" : null)">Soft corners</option>
+                <option value="pill" selected="@(buttonStyleOverride == "pill" ? "selected" : null)">Pill</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Section Spacing</label>
+              <select name="SectionSpacingOverride" class="form-select">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(sectionSpacingOverride) ? "selected" : null)">Match template default</option>
+                <option value="compact" selected="@(sectionSpacingOverride == "compact" ? "selected" : null)">Compact</option>
+                <option value="comfortable" selected="@(sectionSpacingOverride == "comfortable" ? "selected" : null)">Comfortable</option>
+                <option value="spacious" selected="@(sectionSpacingOverride == "spacious" ? "selected" : null)">Spacious</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Hero Style</label>
+              <select name="HeroStyleOverride" class="form-select">
+                <option value="" selected="@(string.IsNullOrWhiteSpace(heroStyleOverride) ? "selected" : null)">Match template default</option>
+                <option value="gradient" selected="@(heroStyleOverride == "gradient" ? "selected" : null)">Gradient</option>
+                <option value="clean" selected="@(heroStyleOverride == "clean" ? "selected" : null)">Clean</option>
+                <option value="classic" selected="@(heroStyleOverride == "classic" ? "selected" : null)">Classic</option>
+              </select>
+              <div class="form-text">Background treatment behind your hero banner.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Temporary Website Domain</label>

@@ -12,9 +12,11 @@
   .classic-managed__side p { color:#c7d2e5; }
   .classic-managed__side a { display:block; color:#fff; text-decoration:none; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.16); }
   .classic-managed__content { min-width:0; }
-  .classic-managed .cp-section { padding:54px 48px; border-bottom:1px solid var(--line); }
+  .classic-managed .cp-section { padding:var(--section-space, 54px) 48px; border-bottom:1px solid var(--line); }
   .classic-managed .cp-hero { background:var(--site-theme-soft); }
   .classic-managed .cp-hero { position:relative; overflow:hidden; min-height:430px; display:flex; flex-direction:column; justify-content:center; }
+  body.hero-style-clean .classic-managed .cp-hero { background:#fff; }
+  body.hero-style-classic .classic-managed .cp-hero { background:var(--site-theme-soft); border-top:6px solid var(--site-theme); }
   .classic-managed .cp-hero-copy { position:relative; z-index:2; }
   .classic-managed .cp-hero.align-center .cp-hero-copy { text-align:center; }
   .classic-managed .cp-hero.align-center .cp-copy { margin-left:auto; margin-right:auto; }

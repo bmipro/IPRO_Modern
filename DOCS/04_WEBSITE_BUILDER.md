@@ -42,6 +42,17 @@ Previewing a template should not overwrite page content. It only shows how the c
 
 Font and size changes apply to section headings (such as Services, Testimonials, and Contact) and body text throughout the site. The large hero/banner title keeps the selected template's own display size and is not affected. Selecting a different template resets these back to that template's defaults; save again afterward to keep a custom font or size.
 
+## Change Background, Buttons, Spacing, and Hero Style
+
+1. Open **My Website**.
+2. Choose a **Background Color**, or leave it matching the template default.
+3. Choose a **Button Style** (Square, Soft corners, or Pill), or leave it set to **Match template default**.
+4. Choose a **Section Spacing** (Compact, Comfortable, or Spacious), or leave it set to **Match template default**.
+5. Choose a **Hero Style** (Gradient, Clean, or Classic) to change the background treatment behind the hero banner, or leave it set to **Match template default**.
+6. Click **Save Website Settings**.
+
+These settings apply across the whole site. Selecting a different template resets all of them back to that template's defaults, the same way Theme Color and Font resets work.
+
 ## Upload a Logo
 
 1. Open **My Website**.

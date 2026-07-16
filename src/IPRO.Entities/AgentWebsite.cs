@@ -13,6 +13,10 @@ public class AgentWebsite
     public string FontFamilyOverride { get; set; } = string.Empty;
     public int HeadingFontSizeOverride { get; set; }
     public int BodyFontSizeOverride { get; set; }
+    public string BackgroundColorOverride { get; set; } = string.Empty;
+    public string ButtonStyleOverride { get; set; } = string.Empty;
+    public string SectionSpacingOverride { get; set; } = string.Empty;
+    public string HeroStyleOverride { get; set; } = string.Empty;
     public string HeaderSettingsJson { get; set; } = "{}";
     public string FooterSettingsJson { get; set; } = "{}";
     public bool IsPublished { get; set; } = false;

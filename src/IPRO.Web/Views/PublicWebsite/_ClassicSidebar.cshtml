@@ -7,8 +7,17 @@
     var tagline = string.IsNullOrWhiteSpace(website.TagLine)
         ? "Helpful advice, timely updates, and professional service."
         : website.TagLine;
-    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, website.ThemeColor,
-        website.FontFamilyOverride, website.HeadingFontSizeOverride, website.BodyFontSizeOverride);
+    var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template, new IPRO.Entities.AgentDesignOverrides
+    {
+        ThemeColor = website.ThemeColor,
+        FontFamily = website.FontFamilyOverride,
+        HeadingFontSize = website.HeadingFontSizeOverride,
+        BodyFontSize = website.BodyFontSizeOverride,
+        BackgroundColor = website.BackgroundColorOverride,
+        ButtonStyle = website.ButtonStyleOverride,
+        SectionSpacing = website.SectionSpacingOverride,
+        HeroStyle = website.HeroStyleOverride
+    });
     var theme = design.AccentColor;
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;

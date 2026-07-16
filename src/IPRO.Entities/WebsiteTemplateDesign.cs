@@ -17,18 +17,16 @@ public class WebsiteTemplateDesign
     public string ButtonStyle { get; set; } = "soft";
     public int Version { get; set; } = 1;
 
-    public static WebsiteTemplateDesign FromTemplate(WebsiteTemplate? template, string? fallbackAccent = null,
-        string? fallbackFontFamily = null, int? fallbackHeadingFontSize = null, int? fallbackBodyFontSize = null)
+    public static WebsiteTemplateDesign FromTemplate(WebsiteTemplate? template, AgentDesignOverrides? overrides = null)
     {
         var design = new WebsiteTemplateDesign
         {
-            Renderer = NormalizeRenderer(template?.TemplateKey),
-            AccentColor = NormalizeColor(fallbackAccent, "#1457d9")
+            Renderer = NormalizeRenderer(template?.TemplateKey)
         };
 
         if (string.IsNullOrWhiteSpace(template?.LayoutJson))
         {
-            return design;
+            return ApplyOverrides(design, overrides);
         }
 
         try
@@ -107,26 +105,52 @@ public class WebsiteTemplateDesign
             // A bad JSON value should not take down a public website. The admin UI validates and rewrites this later.
         }
 
-        // An agent's saved theme color is an intentional per-site override of the template preset.
-        if (!string.IsNullOrWhiteSpace(fallbackAccent))
+        return ApplyOverrides(design, overrides);
+    }
+
+    // An agent's saved design choices are intentional per-site overrides of the template preset.
+    private static WebsiteTemplateDesign ApplyOverrides(WebsiteTemplateDesign design, AgentDesignOverrides? overrides)
+    {
+        if (overrides == null) return design;
+
+        if (!string.IsNullOrWhiteSpace(overrides.ThemeColor))
         {
-            design.AccentColor = NormalizeColor(fallbackAccent, design.AccentColor);
+            design.AccentColor = NormalizeColor(overrides.ThemeColor, design.AccentColor);
         }
 
-        // An agent's saved font choices are intentional per-site overrides of the template preset.
-        if (!string.IsNullOrWhiteSpace(fallbackFontFamily))
+        if (!string.IsNullOrWhiteSpace(overrides.FontFamily))
         {
-            design.FontFamily = fallbackFontFamily.Trim();
+            design.FontFamily = overrides.FontFamily.Trim();
         }
 
-        if (fallbackHeadingFontSize is > 0)
+        if (overrides.HeadingFontSize is > 0)
         {
-            design.HeadingFontSize = Math.Clamp(fallbackHeadingFontSize.Value, 14, 40);
+            design.HeadingFontSize = Math.Clamp(overrides.HeadingFontSize.Value, 14, 40);
         }
 
-        if (fallbackBodyFontSize is > 0)
+        if (overrides.BodyFontSize is > 0)
         {
-            design.BodyFontSize = Math.Clamp(fallbackBodyFontSize.Value, 12, 24);
+            design.BodyFontSize = Math.Clamp(overrides.BodyFontSize.Value, 12, 24);
+        }
+
+        if (!string.IsNullOrWhiteSpace(overrides.BackgroundColor))
+        {
+            design.BackgroundColor = NormalizeColor(overrides.BackgroundColor, design.BackgroundColor);
+        }
+
+        if (!string.IsNullOrWhiteSpace(overrides.ButtonStyle))
+        {
+            design.ButtonStyle = NormalizeOption(overrides.ButtonStyle, new[] { "square", "soft", "pill" }, design.ButtonStyle);
+        }
+
+        if (!string.IsNullOrWhiteSpace(overrides.SectionSpacing))
+        {
+            design.SectionSpacing = NormalizeOption(overrides.SectionSpacing, new[] { "compact", "comfortable", "spacious" }, design.SectionSpacing);
+        }
+
+        if (!string.IsNullOrWhiteSpace(overrides.HeroStyle))
+        {
+            design.HeroStyle = NormalizeOption(overrides.HeroStyle, new[] { "gradient", "clean", "classic" }, design.HeroStyle);
         }
 
         return design;
@@ -190,4 +214,16 @@ public class WebsiteTemplateDesign
 
         return fallback;
     }
+}
+
+public record AgentDesignOverrides
+{
+    public string? ThemeColor { get; init; }
+    public string? FontFamily { get; init; }
+    public int? HeadingFontSize { get; init; }
+    public int? BodyFontSize { get; init; }
+    public string? BackgroundColor { get; init; }
+    public string? ButtonStyle { get; init; }
+    public string? SectionSpacing { get; init; }
+    public string? HeroStyle { get; init; }
 }
