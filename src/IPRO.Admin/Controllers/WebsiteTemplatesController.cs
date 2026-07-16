@@ -1,5 +1,6 @@
 using IPRO.Admin.Models;
 using IPRO.DataAccess.Repositories;
+using IPRO.Email;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +11,14 @@ namespace IPRO.Admin.Controllers;
 public class WebsiteTemplatesController : Controller
 {
     private readonly IUnitOfWork _uow;
+    private readonly IEmailService _email;
+    private readonly ILogger<WebsiteTemplatesController> _logger;
 
-    public WebsiteTemplatesController(IUnitOfWork uow)
+    public WebsiteTemplatesController(IUnitOfWork uow, IEmailService email, ILogger<WebsiteTemplatesController> logger)
     {
         _uow = uow;
+        _email = email;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -191,10 +196,55 @@ public class WebsiteTemplatesController : Controller
         template.IsActive = false;
         _uow.WebsiteTemplates.Update(template);
         await _uow.SaveChangesAsync();
-        TempData["Success"] = usage.WebsiteCount > 0
-            ? $"{template.Name} was retired. {usage.WebsiteCount} agent(s) still using it will see a migration notice; their websites remain online."
-            : $"{template.Name} was retired.";
+
+        if (usage.WebsiteCount > 0)
+        {
+            var sent = await NotifyAffectedAgentsAsync(template);
+            TempData["Success"] = sent
+                ? $"{template.Name} was retired. {usage.WebsiteCount} agent(s) still using it were emailed and will also see a migration notice; their websites remain online."
+                : $"{template.Name} was retired. {usage.WebsiteCount} agent(s) still using it will see a migration notice; their websites remain online. The notification email could not be sent — check Email Setup.";
+        }
+        else
+        {
+            TempData["Success"] = $"{template.Name} was retired.";
+        }
+
         return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<bool> NotifyAffectedAgentsAsync(WebsiteTemplate template)
+    {
+        var affectedAgentIds = (await _uow.AgentWebsites.GetAllAsync())
+            .Where(w => w.TemplateId == template.Id)
+            .Select(w => w.AgentUserId)
+            .Distinct()
+            .ToList();
+        if (affectedAgentIds.Count == 0) return true;
+
+        var recipients = (await _uow.AgentUsers.GetAllAsync())
+            .Where(a => affectedAgentIds.Contains(a.Id) && !string.IsNullOrWhiteSpace(a.Email))
+            .Select(a => new EmailRecipient(a.Email, $"{a.FirstName} {a.LastName}".Trim()))
+            .ToList();
+        if (recipients.Count == 0) return true;
+
+        const string subject = "Your website template has been retired";
+        var html = $"""
+            <p>Hi there,</p>
+            <p>The website template you are currently using, <strong>{System.Net.WebUtility.HtmlEncode(template.Name)}</strong>, has been retired by 247Advisers.</p>
+            <p>Your website remains online and completely unchanged for now. Whenever you're ready, visit <strong>My Website</strong> in your agent portal to preview and switch to an active template. Your pages, content, and settings are kept when you switch.</p>
+            <p>&mdash; 247Advisers</p>
+            """;
+        var text = $"The website template you are currently using, {template.Name}, has been retired. Your website remains online and unchanged. Visit My Website in your agent portal to preview and switch to an active template whenever you're ready.";
+
+        try
+        {
+            return await _email.SendBulkAsync(recipients, subject, html, text);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send template retirement notice for template {TemplateId} to {Count} agents.", template.Id, recipients.Count);
+            return false;
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken]

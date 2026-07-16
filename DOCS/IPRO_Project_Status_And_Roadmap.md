@@ -83,6 +83,7 @@ Last updated: July 16, 2026 (evening)
 - Public contact/lead forms are hardened: each lead records whether the agent notification email actually delivered (visible to agents and Super Admin), blocked honeypot/timing/captcha attempts are logged (reason, domain, IP only, never submitted content) and reviewable cross-agent in a new Super Admin Website Leads screen, and the public lead endpoint has its own dedicated rate limit.
 - Template output is more differentiated: Classic Sidebar's Call to Action, Contact, and generic Text blocks now use distinct grid/card/band layouts instead of one flat stack. Hero Style (Gradient/Clean/Classic) now has a real, visible effect on all 3 templates (it was previously a no-op). Agents can now also override Background Color, Button Style, and Section Spacing per site, in addition to Theme Color and Font. Design customizations are kept when switching templates instead of resetting automatically; a "Reset to Template Defaults" action is available when a full reset is wanted. Curated color palette swatches (in both Super Admin templates and agent My Website) set a coordinated theme/background color pair in one click.
 - Services, Testimonials, and Call to Action blocks each support an independent per-block **Layout** choice (Services: Cards/List/Icons; Testimonials: Grid/Featured Quote/List; Call to Action: Banner/Card/Split) on top of whichever template family the site uses, giving agents block-level mix-and-match beyond template and color choices.
+- Template governance is complete: the Super Admin template list shows per-template agent/package usage, defaults are set per business type (not just one global default), duplicate creates a safe versioned draft, deletion is blocked while a template is in use, and retiring a template emails every affected agent (in addition to the existing in-app notice on their My Website page) while their site stays online unchanged.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.
@@ -106,12 +107,6 @@ Last updated: July 16, 2026 (evening)
 - Full website lead inbox.
 - Website analytics.
 - Better template preview before applying.
-- Template governance:
-  - usage count,
-  - default template by business type,
-  - duplicate/version templates,
-  - prevent deletion while in use,
-  - retirement/agent notification workflow.
 - Richer HTML/newsletter editor.
 - Better newsletter templates.
 - Automatic unsubscribe links and preferences.
@@ -145,12 +140,12 @@ Last updated: July 16, 2026 (evening)
 - A new Super Admin Website Leads screen gives cross-agent visibility into leads and blocked attempts.
 - The public lead endpoint has a dedicated rate limit separate from ordinary page browsing.
 
-### 4. Improve template governance
-- Show how many agents use each template.
-- Set default template by business type.
-- Prevent deleting templates in use.
-- Add duplicate/version workflow.
-- Add retire/notify workflow.
+### 4. Improve template governance (done)
+- Template list shows agent/package usage per template.
+- Default template is set per business type, not just one global default.
+- Duplicate creates a versioned draft for safe editing before activation.
+- Deleting a template in use is blocked with the affected agent/package names.
+- Retiring a template emails every affected agent and shows an in-app notice on their My Website page; their site stays online unchanged.
 
 ### 5. Build website analytics
 - Track page views.
