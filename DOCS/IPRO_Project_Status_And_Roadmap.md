@@ -68,6 +68,10 @@ Last updated: July 16, 2026 (evening)
 - Newsletter sends already generate a per-recipient unsubscribe link (token-based) that updates the client's newsletter-subscribed preference; this now applies consistently across all 3 audience choices (all subscribers, account type/group, and individual client) instead of only the default "all subscribers" audience.
 - Drip campaign emails now also include an unsubscribe link, scoped to that specific campaign enrollment — clicking it cancels only that campaign's sequence for that client, without affecting their newsletter subscription or other campaigns.
 
+### Website leads
+- The agent-facing Website Leads inbox already supported status filtering (all/unread/new/contacted/dismissed), search across name/email/phone/message/source, real pagination, CRM linking, and Plan Follow-up/Contacted/Dismiss/Mark-all-read actions — this was already complete, not a stub.
+- New this pass: a date-range filter, sort options (newest/oldest/by status), bulk actions (select individual leads or select-all, then bulk mark-contacted or bulk-dismiss), and CSV export of every lead matching the current filter/search/date range/sort (not just the current page).
+
 ### Website, domains, and templates
 - Agent website settings exist.
 - Temporary domain pattern exists, such as `FirstnameLastname.247Advisers.com`.
@@ -99,7 +103,6 @@ Last updated: July 16, 2026 (evening)
 ## Not Done or Still Fragile
 
 ### Important missing product pieces
-- Full website lead inbox.
 - Better template preview before applying.
 - Richer HTML/newsletter editor.
 - Better newsletter templates.
@@ -162,6 +165,9 @@ Last updated: July 16, 2026 (evening)
 ### 8. Close remaining unsubscribe gaps (done)
 - Account type/group and individual-client newsletter sends now respect the client's newsletter-subscribed preference, matching the "all subscribers" audience (previously only that default audience checked it).
 - Drip campaign emails now include a real unsubscribe link, scoped per campaign enrollment (clicking it cancels only that enrollment, leaving newsletter subscription and other campaigns untouched).
+
+### 9. Polish the website lead inbox (done)
+- The core inbox (status filters, unread tracking, search, pagination, CRM linking, follow-up actions) was already complete — this pass added a date-range filter, sort options, bulk mark-contacted/dismiss actions, and CSV export of every filtered/searched lead.
 
 ## Bigger Product Ideas
 

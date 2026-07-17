@@ -3,12 +3,16 @@
     ViewData["Title"] = "Website Leads";
     var status = (string)(ViewBag.Status ?? "all");
     var search = ViewBag.Search as string;
+    var fromDate = ViewBag.FromDate as string;
+    var toDate = ViewBag.ToDate as string;
+    var sort = (string)(ViewBag.Sort ?? "newest");
     var page = (int)(ViewBag.Page ?? 1);
     var totalPages = (int)(ViewBag.TotalPages ?? 1);
     var totalCount = (int)(ViewBag.TotalCount ?? 0);
     var unreadCount = (int)(ViewBag.UnreadCount ?? 0);
     var newCount = (int)(ViewBag.NewCount ?? 0);
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var exportUrl = $"/WebsiteLeads/Export?status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}&fromDate={Uri.EscapeDataString(fromDate ?? "")}&toDate={Uri.EscapeDataString(toDate ?? "")}&sort={Uri.EscapeDataString(sort)}";
     string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
     string StatusClass(string value) => value switch
     {
@@ -23,15 +27,23 @@
         <h2 class="fw-bold mb-1"><i class="fas fa-inbox me-2 text-primary"></i>Website Leads</h2>
         <div class="text-muted">Contact requests and newsletter signups captured from your website.</div>
     </div>
-    @if (unreadCount > 0)
-    {
-        <form asp-action="MarkAllRead" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="returnUrl" value="@returnUrl" />
-            <button class="btn btn-outline-primary"><i class="fas fa-check-double me-1"></i>Mark all read</button>
-        </form>
-    }
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-outline-secondary" href="@exportUrl"><i class="fas fa-file-csv me-1"></i>Export CSV</a>
+        @if (unreadCount > 0)
+        {
+            <form asp-action="MarkAllRead" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <button class="btn btn-outline-primary"><i class="fas fa-check-double me-1"></i>Mark all read</button>
+            </form>
+        }
+    </div>
 </div>
+
+<form id="bulkActionsForm" asp-action="BulkSetStatus" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="returnUrl" value="@returnUrl" />
+</form>
 
 <div class="row g-3 mb-4">
     <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">All captured</div><div class="h3 fw-bold mb-0">@totalCount</div></div></div></div>
@@ -41,7 +53,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
             <div class="btn-group flex-wrap" role="group">
                 <a class="btn @FilterClass("all")" href="/WebsiteLeads?status=all">All</a>
                 <a class="btn @FilterClass("unread")" href="/WebsiteLeads?status=unread">Unread</a>
@@ -49,12 +61,27 @@
                 <a class="btn @FilterClass("contacted")" href="/WebsiteLeads?status=contacted">Contacted</a>
                 <a class="btn @FilterClass("dismissed")" href="/WebsiteLeads?status=dismissed">Dismissed</a>
             </div>
-            <form method="get" class="d-flex gap-2">
-                <input type="hidden" name="status" value="@status" />
-                <input class="form-control" type="search" name="search" value="@search" placeholder="Search name, email, message..." />
-                <button class="btn btn-primary" title="Search"><i class="fas fa-search"></i></button>
-            </form>
+            <div class="d-flex align-items-center gap-2">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="selectAllLeads" onchange="document.querySelectorAll('input[name=ids]').forEach(cb => cb.checked = this.checked)" />
+                    <label class="form-check-label small" for="selectAllLeads">Select all</label>
+                </div>
+                <button type="submit" form="bulkActionsForm" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Contacted" class="btn btn-sm btn-outline-success"><i class="fas fa-check me-1"></i>Mark Selected Contacted</button>
+                <button type="submit" form="bulkActionsForm" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Dismissed" class="btn btn-sm btn-outline-secondary"><i class="fas fa-archive me-1"></i>Dismiss Selected</button>
+            </div>
         </div>
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+            <input type="hidden" name="status" value="@status" />
+            <input class="form-control" style="max-width:280px" type="search" name="search" value="@search" placeholder="Search name, email, phone, message..." />
+            <label class="small text-muted mb-0">From <input type="date" class="form-control form-control-sm d-inline-block" style="width:auto" name="fromDate" value="@fromDate" /></label>
+            <label class="small text-muted mb-0">To <input type="date" class="form-control form-control-sm d-inline-block" style="width:auto" name="toDate" value="@toDate" /></label>
+            <select class="form-select form-select-sm" style="width:auto" name="sort">
+                <option value="newest" selected="@(sort == "newest")">Newest first</option>
+                <option value="oldest" selected="@(sort == "oldest")">Oldest first</option>
+                <option value="status" selected="@(sort == "status")">By status</option>
+            </select>
+            <button class="btn btn-primary" title="Apply filters"><i class="fas fa-search"></i></button>
+        </form>
     </div>
 </div>
 
@@ -64,6 +91,10 @@
     <article class="card border-0 shadow-sm @(!lead.IsRead ? "lead-unread" : "")">
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div class="d-flex gap-3 flex-grow-1">
+                    <div class="form-check pt-1">
+                        <input class="form-check-input" type="checkbox" name="ids" value="@lead.Id" form="bulkActionsForm" aria-label="Select this lead" />
+                    </div>
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                         @if (!lead.IsRead) { <span class="badge bg-primary">Unread</span> }
@@ -92,6 +123,7 @@
                     {
                         <div class="lead-processing-note mt-3" title="@lead.NotificationError"><i class="fas fa-envelope-circle-check me-1"></i>Email notification for this lead could not be delivered. The lead was still saved &mdash; check your profile email and SendGrid setup.</div>
                     }
+                </div>
                 </div>
                 <div class="d-flex gap-2 flex-wrap justify-content-end">
                     @if (lead.ClientId.HasValue)
@@ -139,7 +171,7 @@
     <nav class="mt-4"><ul class="pagination justify-content-center">
         @for (var i = 1; i <= totalPages; i++)
         {
-            <li class="page-item @(i == page ? "active" : "")"><a class="page-link" href="?status=@status&search=@Uri.EscapeDataString(search ?? "")&page=@i">@i</a></li>
+            <li class="page-item @(i == page ? "active" : "")"><a class="page-link" href="?status=@status&search=@Uri.EscapeDataString(search ?? "")&fromDate=@Uri.EscapeDataString(fromDate ?? "")&toDate=@Uri.EscapeDataString(toDate ?? "")&sort=@sort&page=@i">@i</a></li>
         }
     </ul></nav>
 }

@@ -128,11 +128,19 @@ Public contact and newsletter forms include a math captcha, a hidden honeypot fi
 
 1. Select **Website Leads** in the Agent Portal.
 2. Filter by all, unread, new, contacted, or dismissed.
-3. Search by name, email, message, or source.
-4. Open the connected CRM contact when available.
-5. Use **Plan Follow-up** to schedule the next action for connected CRM contacts.
-6. Mark the lead **Contacted** after responding.
-7. Dismiss irrelevant leads.
-8. Use **Mark all read** when appropriate.
+3. Search by name, email, phone, message, or source.
+4. Narrow further with a **From**/**To** date range.
+5. Sort by newest first, oldest first, or by status.
+6. Open the connected CRM contact when available.
+7. Use **Plan Follow-up** to schedule the next action for connected CRM contacts.
+8. Mark the lead **Contacted** after responding.
+9. Dismiss irrelevant leads.
+10. Use **Mark all read** when appropriate.
 
 The dashboard displays new and unread lead counts.
+
+## Bulk Actions and Export
+
+1. Check the box beside each lead to act on, or use **Select all** to select every lead currently shown on the page.
+2. Click **Mark Selected Contacted** or **Dismiss Selected** to apply that status to every selected lead at once.
+3. Click **Export CSV** to download every lead matching the current filter, search, date range, and sort as a spreadsheet-ready file — not just the leads on the current page.
