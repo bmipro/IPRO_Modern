@@ -23,7 +23,6 @@ public class WebsiteLeadFormViewModel
     [StringLength(4000)]
     public string Message { get; set; } = string.Empty;
 
-    [Range(typeof(bool), "true", "true", ErrorMessage = "Please confirm that we may use your information to respond.")]
     public bool ConsentGiven { get; set; }
 
     public string HoneypotField { get; set; } = string.Empty;

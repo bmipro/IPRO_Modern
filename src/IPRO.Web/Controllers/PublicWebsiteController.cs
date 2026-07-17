@@ -126,6 +126,12 @@ public class PublicWebsiteController : Controller
 
         if (!ModelState.IsValid || !model.ConsentGiven)
         {
+            var invalidFields = ModelState
+                .Where(entry => entry.Value?.ValidationState == Microsoft.AspNetCore.Mvc.ModelBinding.ModelValidationState.Invalid)
+                .Select(entry => $"{entry.Key}: {string.Join("; ", entry.Value!.Errors.Select(e => e.ErrorMessage))}");
+            _logger.LogWarning(
+                "Public lead submission rejected by validation on {Domain}{Page}. ConsentGiven={ConsentGiven}. Invalid fields: {InvalidFields}",
+                NormalizeHost(Request.Host.Host), returnPath, model.ConsentGiven, string.Join(" | ", invalidFields));
             TempData["PublicFormError"] = "Please provide your name, a valid email address, and consent so the adviser can respond.";
             return LocalRedirect(returnPath);
         }
