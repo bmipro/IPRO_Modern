@@ -451,13 +451,7 @@ public class PublicWebsiteController : Controller
         await _db.SaveChangesAsync();
     }
 
-    private string GetAgentPortalBaseUrl()
-    {
-        var configured = _configuration["App:PortalBaseUrl"]?.Trim().TrimEnd('/');
-        return Uri.TryCreate(configured, UriKind.Absolute, out _) && !configured!.Contains("YOUR_", StringComparison.OrdinalIgnoreCase)
-            ? configured
-            : "https://ipro-prod-web.azurewebsites.net";
-    }
+    private string GetAgentPortalBaseUrl() => IPRO.Web.Infrastructure.PortalUrlHelper.GetAgentPortalBaseUrl(_configuration);
 
     private string GetRequestIpAddress()
     {

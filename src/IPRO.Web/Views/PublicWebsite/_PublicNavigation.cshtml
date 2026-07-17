@@ -1,9 +1,11 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
+@inject IConfiguration Configuration
 @{
     var website = Model.Website;
     var topPages = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
     var header = IPRO.Entities.WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
     var headerClasses = $"public-site-header style-{header.Style} logo-{header.LogoPosition} logo-size-{header.LogoSize}" + (header.Sticky ? " is-sticky" : "");
+    var agentLoginUrl = $"{IPRO.Web.Infrastructure.PortalUrlHelper.GetAgentPortalBaseUrl(Configuration)}/Account/Login";
 }
 <header class="@headerClasses">
   <div class="public-site-header__inner">
@@ -39,22 +41,20 @@
         <div class="public-site-nav__item"><a href="@link.Url">@link.Label</a></div>
       }
     </nav>
-    @if (header.ShowPhone || header.ShowEmail || !string.IsNullOrWhiteSpace(header.ButtonText))
-    {
-      <div class="public-site-actions">
-        @if (header.ShowPhone && !string.IsNullOrWhiteSpace(website.AgentUser.Phone))
-        {
-          <a class="public-site-action" href="tel:@website.AgentUser.Phone" aria-label="Call @website.AgentUser.Phone"><i class="fas fa-phone"></i><span>@website.AgentUser.Phone</span></a>
-        }
-        @if (header.ShowEmail && !string.IsNullOrWhiteSpace(website.AgentUser.Email))
-        {
-          <a class="public-site-action" href="mailto:@website.AgentUser.Email" aria-label="Email @website.AgentUser.Email"><i class="fas fa-envelope"></i><span>Email</span></a>
-        }
-        @if (!string.IsNullOrWhiteSpace(header.ButtonText))
-        {
-          <a class="public-site-cta" href="@(string.IsNullOrWhiteSpace(header.ButtonUrl) ? "/contact" : header.ButtonUrl)">@header.ButtonText</a>
-        }
-      </div>
-    }
+    <div class="public-site-actions">
+      @if (header.ShowPhone && !string.IsNullOrWhiteSpace(website.AgentUser.Phone))
+      {
+        <a class="public-site-action" href="tel:@website.AgentUser.Phone" aria-label="Call @website.AgentUser.Phone"><i class="fas fa-phone"></i><span>@website.AgentUser.Phone</span></a>
+      }
+      @if (header.ShowEmail && !string.IsNullOrWhiteSpace(website.AgentUser.Email))
+      {
+        <a class="public-site-action" href="mailto:@website.AgentUser.Email" aria-label="Email @website.AgentUser.Email"><i class="fas fa-envelope"></i><span>Email</span></a>
+      }
+      @if (!string.IsNullOrWhiteSpace(header.ButtonText))
+      {
+        <a class="public-site-cta" href="@(string.IsNullOrWhiteSpace(header.ButtonUrl) ? "/contact" : header.ButtonUrl)">@header.ButtonText</a>
+      }
+      <a class="public-site-action public-site-login" href="@agentLoginUrl" aria-label="Agent login" title="Agent login"><i class="fas fa-right-to-bracket"></i><span>Agent Login</span></a>
+    </div>
   </div>
 </header>
