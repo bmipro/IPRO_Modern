@@ -111,6 +111,24 @@ Select **PayPal Setup** to verify:
 
 Webhook URL: `https://ipro-prod-web.azurewebsites.net/Billing/Webhook`
 
+## Manage Promotion Codes
+
+1. Select **Promotion Codes**.
+2. Click **New Code** to create a discount code prospective agents can enter at signup.
+3. Set an optional expiry date and a maximum number of redemptions (blank means unlimited).
+4. Configure a **recurring price discount** (percent or flat amount off) and how long it lasts:
+   - Leave duration blank for a permanent discount.
+   - Set duration to `1` for a discount on the first billing cycle only, then full price.
+   - Set duration to any other number for that many discounted cycles, then full price.
+5. A code with a recurring discount must be restricted to one specific package — PayPal plans are package-specific, so there is no way to discount "any package" with one plan.
+6. Optionally add a **setup fee discount** (percent or flat amount off; 100% waives it completely). This does not require restricting the code to one package.
+7. Save. The first time the code is actually used, IPRO creates the matching PayPal plan automatically (in whichever mode — sandbox or live — PayPal is currently configured for) and reuses it for every later signup with that code.
+8. Open **Redemptions** on any code to see which agents used it, on which package, and the resulting discounted vs. original amounts.
+
+Editing a code's discount amount, duration, or restricted package after it has already been used clears its cached PayPal plan, so the next redemption creates a fresh plan matching the new terms — agents who already redeemed the old terms keep their existing subscription unchanged.
+
+Always verify a new promotion code against PayPal Sandbox before relying on it in live mode.
+
 ## Email Setup
 
 Select **Email Setup** to review SendGrid configuration, sender identity, event webhook information, and recent delivery events.

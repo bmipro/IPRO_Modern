@@ -181,6 +181,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureDripCampaignStepSendSchemaAsync(db);
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
     await EnsureSupportTicketSchemaAsync(db);
+    await EnsurePromotionCodeSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -480,6 +481,56 @@ CREATE TABLE IF NOT EXISTS `SupportTicketMessages` (
     `CreatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsurePromotionCodeSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PromotionCodes` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Code` varchar(60) CHARACTER SET utf8mb4 NOT NULL,
+    `Description` varchar(300) CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `ExpiresAt` datetime(6) NULL,
+    `MaxRedemptions` int NULL,
+    `RedemptionCount` int NOT NULL DEFAULT 0,
+    `RestrictedBillingRuleId` int NULL,
+    `RecurringDiscountType` int NOT NULL DEFAULT 0,
+    `RecurringDiscountValue` decimal(10,2) NOT NULL DEFAULT 0,
+    `RecurringDurationCycles` int NULL,
+    `SetupFeeDiscountType` int NOT NULL DEFAULT 0,
+    `SetupFeeDiscountValue` decimal(10,2) NOT NULL DEFAULT 0,
+    `PayPalPromoPlanIdMonthly` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `PayPalPromoPlanIdAnnual` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_PromotionCodes_Code` (`Code`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PromotionCodeRedemptions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `PromotionCodeId` int NOT NULL,
+    `AgentUserId` int NOT NULL,
+    `BillingRuleId` int NOT NULL,
+    `Period` int NOT NULL,
+    `OriginalRecurringAmount` decimal(10,2) NOT NULL DEFAULT 0,
+    `DiscountedRecurringAmount` decimal(10,2) NOT NULL DEFAULT 0,
+    `OriginalSetupFee` decimal(10,2) NOT NULL DEFAULT 0,
+    `DiscountedSetupFee` decimal(10,2) NOT NULL DEFAULT 0,
+    `RedeemedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "SubscriptionChanges", "PromotionCodeId", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `PromotionCodeId` int NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
 }
 
 static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)

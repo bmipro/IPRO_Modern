@@ -88,6 +88,29 @@ public class PayPalBillingService : IBillingService
         if (activeSubscription == null)
         {
             await CancelPendingChangesAsync(userId);
+
+            var agent = await _uow.AgentUsers.GetByIdAsync(userId);
+            var promo = await ValidatePromotionCodeAsync(agent?.PromotionCode, requestedPackage.Id);
+
+            decimal? overrideAmount = null;
+            string? overridePlanId = null;
+            decimal? overrideSetupFee = null;
+
+            if (promo != null)
+            {
+                if (promo.RecurringDiscountType != PromoDiscountType.None)
+                {
+                    overrideAmount = ComputeDiscountedAmount(GetAmount(requestedPackage, period), promo.RecurringDiscountType, promo.RecurringDiscountValue);
+                    overridePlanId = await GetOrCreatePromoPlanIdAsync(promo, requestedPackage, period);
+                }
+
+                if (promo.SetupFeeDiscountType != PromoDiscountType.None)
+                {
+                    overrideSetupFee = ComputeDiscountedAmount(requestedPackage.SetupFee, promo.SetupFeeDiscountType, promo.SetupFeeDiscountValue);
+                }
+            }
+
+            var effectiveAmount = overrideAmount ?? GetAmount(requestedPackage, period);
             return await BeginPaidChangeAsync(
                 userId,
                 null,
@@ -96,11 +119,15 @@ public class PayPalBillingService : IBillingService
                 SubscriptionChangeType.Subscribe,
                 DateTime.UtcNow,
                 0,
-                GetAmount(requestedPackage, period),
-                GetAmount(requestedPackage, period),
+                effectiveAmount,
+                effectiveAmount,
                 returnUrl,
                 cancelUrl,
-                includeSetupFee: true);
+                includeSetupFee: true,
+                overrideAmount: overrideAmount,
+                overridePlanId: overridePlanId,
+                overrideSetupFee: overrideSetupFee,
+                promotionCodeId: promo?.Id);
         }
 
         if (activeSubscription.BillingRuleId == requestedPackage.Id)
@@ -272,6 +299,11 @@ public class PayPalBillingService : IBillingService
             change.Status = SubscriptionChangeStatus.Applied;
             change.AppliedAt = now;
             _uow.SubscriptionChanges.Update(change);
+
+            if (change.PromotionCodeId.HasValue)
+            {
+                await RecordPromoRedemptionAsync(change.PromotionCodeId.Value, userId, billing, now);
+            }
         }
 
         await _uow.SaveChangesAsync();
@@ -797,7 +829,11 @@ public class PayPalBillingService : IBillingService
         string cancelUrl,
         int? currentBillingId = null,
         DateTime? nextBillingDate = null,
-        bool includeSetupFee = false)
+        bool includeSetupFee = false,
+        decimal? overrideAmount = null,
+        string? overridePlanId = null,
+        decimal? overrideSetupFee = null,
+        int? promotionCodeId = null)
     {
         if (!HasPayPalSettings())
         {
@@ -808,20 +844,20 @@ public class PayPalBillingService : IBillingService
         {
             AgentUserId = userId,
             BillingRuleId = requestedPackage.Id,
-            Amount = GetAmount(requestedPackage, period),
+            Amount = overrideAmount ?? GetAmount(requestedPackage, period),
             Currency = "CAD",
             Status = BillingStatus.Pending,
             Period = period,
             StartDate = effectiveDate,
             NextBillingDate = nextBillingDate ?? GetNextBillingDate(effectiveDate, period),
-            PayPalPlanId = GetPayPalPlanId(requestedPackage, period),
+            PayPalPlanId = overridePlanId ?? GetPayPalPlanId(requestedPackage, period),
             CreatedAt = DateTime.UtcNow
         };
 
         await _uow.Billings.AddAsync(billing);
         await _uow.SaveChangesAsync();
 
-        var setupFee = includeSetupFee ? requestedPackage.SetupFee : 0;
+        var setupFee = includeSetupFee ? (overrideSetupFee ?? requestedPackage.SetupFee) : 0;
         var invoice = await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, amountDue, setupFee, false);
 
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
@@ -830,6 +866,7 @@ public class PayPalBillingService : IBillingService
             CurrentBillingRuleId = currentPackage?.Id,
             RequestedBillingRuleId = requestedPackage.Id,
             BillingId = billing.Id,
+            PromotionCodeId = promotionCodeId,
             ChangeType = changeType,
             Status = SubscriptionChangeStatus.Pending,
             Period = period,
@@ -845,7 +882,7 @@ public class PayPalBillingService : IBillingService
             PayPalSubscriptionResult subscription;
             try
             {
-                subscription = await CreatePayPalSubscriptionAsync(invoice, requestedPackage, period, setupFee, returnUrl, cancelUrl);
+                subscription = await CreatePayPalSubscriptionAsync(invoice, requestedPackage, period, setupFee, returnUrl, cancelUrl, billing.PayPalPlanId);
             }
             catch (Exception ex)
             {
@@ -1555,9 +1592,9 @@ public class PayPalBillingService : IBillingService
         return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : ":" + uri.Port)}/Billing/Invoice/{invoiceId}";
     }
 
-    private async Task<PayPalSubscriptionResult> CreatePayPalSubscriptionAsync(IPRO.Entities.Invoice invoice, BillingRule package, BillingPeriod period, decimal setupFee, string returnUrl, string cancelUrl)
+    private async Task<PayPalSubscriptionResult> CreatePayPalSubscriptionAsync(IPRO.Entities.Invoice invoice, BillingRule package, BillingPeriod period, decimal setupFee, string returnUrl, string cancelUrl, string? planIdOverride = null)
     {
-        var planId = GetPayPalPlanId(package, period);
+        var planId = planIdOverride ?? GetPayPalPlanId(package, period);
         if (string.IsNullOrWhiteSpace(planId))
         {
             throw new InvalidOperationException("This package does not have a PayPal plan ID for the selected billing period.");
@@ -1720,6 +1757,159 @@ public class PayPalBillingService : IBillingService
 
         using var document = JsonDocument.Parse(json);
         return document.RootElement.GetProperty("id").GetString() ?? string.Empty;
+    }
+
+    public async Task<PromotionCode?> ValidatePromotionCodeAsync(string? code, int billingRuleId)
+    {
+        code = code?.Trim();
+        if (string.IsNullOrWhiteSpace(code)) return null;
+
+        var promo = await _uow.PromotionCodes.FirstOrDefaultAsync(p => p.Code.ToLower() == code.ToLower());
+        if (promo == null || !promo.IsActive) return null;
+        if (promo.ExpiresAt.HasValue && promo.ExpiresAt.Value < DateTime.UtcNow) return null;
+        if (promo.MaxRedemptions.HasValue && promo.RedemptionCount >= promo.MaxRedemptions.Value) return null;
+        if (promo.RecurringDiscountType != PromoDiscountType.None && promo.RestrictedBillingRuleId != billingRuleId) return null;
+
+        return promo;
+    }
+
+    private static decimal ComputeDiscountedAmount(decimal original, PromoDiscountType type, decimal value) => type switch
+    {
+        PromoDiscountType.PercentOff => Math.Max(0, Math.Round(original * (1 - value / 100m), 2)),
+        PromoDiscountType.FlatAmountOff => Math.Max(0, original - value),
+        _ => original
+    };
+
+    private async Task<string> GetOrCreatePromoPlanIdAsync(PromotionCode promo, BillingRule package, BillingPeriod period)
+    {
+        var cached = period == BillingPeriod.Annually ? promo.PayPalPromoPlanIdAnnual : promo.PayPalPromoPlanIdMonthly;
+        if (!string.IsNullOrWhiteSpace(cached))
+        {
+            return cached;
+        }
+
+        var fullAmount = GetAmount(package, period);
+        var discountedAmount = ComputeDiscountedAmount(fullAmount, promo.RecurringDiscountType, promo.RecurringDiscountValue);
+
+        var productId = await CreatePayPalProductAsync(package);
+        var planId = await CreatePromoPayPalPlanAsync(productId, package, period, discountedAmount, fullAmount, promo.RecurringDurationCycles);
+
+        if (period == BillingPeriod.Annually)
+        {
+            promo.PayPalPromoPlanIdAnnual = planId;
+        }
+        else
+        {
+            promo.PayPalPromoPlanIdMonthly = planId;
+        }
+        _uow.PromotionCodes.Update(promo);
+        await _uow.SaveChangesAsync();
+
+        return planId;
+    }
+
+    private async Task<string> CreatePromoPayPalPlanAsync(string productId, BillingRule package, BillingPeriod period, decimal discountedAmount, decimal fullAmount, int? durationCycles)
+    {
+        var accessToken = await GetPayPalAccessTokenAsync();
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        client.DefaultRequestHeaders.Add("Prefer", "return=representation");
+
+        var intervalUnit = period == BillingPeriod.Annually ? "YEAR" : "MONTH";
+        var periodName = period == BillingPeriod.Annually ? "Annual" : "Monthly";
+
+        var billingCycles = new List<object>();
+        if (durationCycles.HasValue)
+        {
+            billingCycles.Add(new
+            {
+                frequency = new { interval_unit = intervalUnit, interval_count = 1 },
+                tenure_type = "TRIAL",
+                sequence = 1,
+                total_cycles = durationCycles.Value,
+                pricing_scheme = new { fixed_price = new { value = discountedAmount.ToString("0.00"), currency_code = "CAD" } }
+            });
+            billingCycles.Add(new
+            {
+                frequency = new { interval_unit = intervalUnit, interval_count = 1 },
+                tenure_type = "REGULAR",
+                sequence = 2,
+                total_cycles = 0,
+                pricing_scheme = new { fixed_price = new { value = fullAmount.ToString("0.00"), currency_code = "CAD" } }
+            });
+        }
+        else
+        {
+            billingCycles.Add(new
+            {
+                frequency = new { interval_unit = intervalUnit, interval_count = 1 },
+                tenure_type = "REGULAR",
+                sequence = 1,
+                total_cycles = 0,
+                pricing_scheme = new { fixed_price = new { value = discountedAmount.ToString("0.00"), currency_code = "CAD" } }
+            });
+        }
+
+        var payload = new
+        {
+            product_id = productId,
+            name = $"{package.PackageName} {periodName} - Promo",
+            description = $"{package.PackageName} {periodName.ToLowerInvariant()} recurring subscription with promotion pricing",
+            status = "ACTIVE",
+            billing_cycles = billingCycles,
+            payment_preferences = new
+            {
+                auto_bill_outstanding = true,
+                setup_fee_failure_action = "CONTINUE",
+                payment_failure_threshold = 3
+            }
+        };
+
+        using var response = await client.PostAsync(
+            $"{_settings.BaseUrl}/v1/billing/plans",
+            new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json"));
+
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"PayPal promo plan creation failed: {json}");
+        }
+
+        using var promoDocument = JsonDocument.Parse(json);
+        return promoDocument.RootElement.GetProperty("id").GetString() ?? string.Empty;
+    }
+
+    private async Task RecordPromoRedemptionAsync(int promotionCodeId, int userId, IPRO.Entities.Billing billing, DateTime redeemedAt)
+    {
+        var promo = await _uow.PromotionCodes.GetByIdAsync(promotionCodeId);
+        if (promo == null) return;
+
+        var package = await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
+        if (package == null) return;
+
+        var fullAmount = GetAmount(package, billing.Period);
+        var discountedAmount = promo.RecurringDiscountType != PromoDiscountType.None
+            ? ComputeDiscountedAmount(fullAmount, promo.RecurringDiscountType, promo.RecurringDiscountValue)
+            : fullAmount;
+        var discountedSetupFee = promo.SetupFeeDiscountType != PromoDiscountType.None
+            ? ComputeDiscountedAmount(package.SetupFee, promo.SetupFeeDiscountType, promo.SetupFeeDiscountValue)
+            : package.SetupFee;
+
+        promo.RedemptionCount++;
+        _uow.PromotionCodes.Update(promo);
+
+        await _uow.PromotionCodeRedemptions.AddAsync(new PromotionCodeRedemption
+        {
+            PromotionCodeId = promotionCodeId,
+            AgentUserId = userId,
+            BillingRuleId = billing.BillingRuleId,
+            Period = billing.Period,
+            OriginalRecurringAmount = fullAmount,
+            DiscountedRecurringAmount = discountedAmount,
+            OriginalSetupFee = package.SetupFee,
+            DiscountedSetupFee = discountedSetupFee,
+            RedeemedAt = redeemedAt
+        });
     }
 
     private async Task<string> GetPayPalSubscriptionStatusAsync(string subscriptionId)

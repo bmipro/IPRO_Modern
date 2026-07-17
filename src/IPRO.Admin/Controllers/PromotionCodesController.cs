@@ -1,0 +1,140 @@
+using IPRO.DataAccess.Repositories;
+using IPRO.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace IPRO.Admin.Controllers;
+
+[Authorize(Policy = "SuperAdmin")]
+public class PromotionCodesController : Controller
+{
+    private readonly IUnitOfWork _uow;
+
+    public PromotionCodesController(IUnitOfWork uow)
+    {
+        _uow = uow;
+    }
+
+    public async Task<IActionResult> Index()
+    {
+        var codes = (await _uow.PromotionCodes.GetAllAsync()).ToList();
+        var packages = (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id, p => p.PackageName);
+        ViewBag.PackageNames = packages;
+        return View(codes.OrderByDescending(c => c.CreatedAt));
+    }
+
+    public async Task<IActionResult> Create()
+    {
+        ViewBag.Packages = (await _uow.BillingRules.GetAllAsync()).OrderBy(p => p.PackageName).ToList();
+        return View("Edit", new PromotionCode { IsActive = true });
+    }
+
+    public async Task<IActionResult> Edit(int id)
+    {
+        var code = await _uow.PromotionCodes.GetByIdAsync(id);
+        if (code == null) return NotFound();
+
+        ViewBag.Packages = (await _uow.BillingRules.GetAllAsync()).OrderBy(p => p.PackageName).ToList();
+        return View(code);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(PromotionCode model)
+    {
+        model.Code = model.Code?.Trim().ToUpperInvariant() ?? string.Empty;
+        model.Description = model.Description?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(model.Code))
+        {
+            ModelState.AddModelError(nameof(model.Code), "Code is required.");
+        }
+        else
+        {
+            var duplicate = await _uow.PromotionCodes.ExistsAsync(p => p.Id != model.Id && p.Code == model.Code);
+            if (duplicate)
+            {
+                ModelState.AddModelError(nameof(model.Code), "That code is already in use.");
+            }
+        }
+
+        if (model.RecurringDiscountType != PromoDiscountType.None && model.RestrictedBillingRuleId == null)
+        {
+            ModelState.AddModelError(nameof(model.RestrictedBillingRuleId), "A recurring-price discount must be restricted to one package (PayPal plans are package-specific).");
+        }
+
+        if (model.RecurringDiscountType != PromoDiscountType.None && model.RecurringDiscountValue <= 0)
+        {
+            ModelState.AddModelError(nameof(model.RecurringDiscountValue), "Enter a discount value greater than zero.");
+        }
+
+        if (model.SetupFeeDiscountType != PromoDiscountType.None && model.SetupFeeDiscountValue <= 0)
+        {
+            ModelState.AddModelError(nameof(model.SetupFeeDiscountValue), "Enter a setup fee discount value greater than zero.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            ViewBag.Packages = (await _uow.BillingRules.GetAllAsync()).OrderBy(p => p.PackageName).ToList();
+            return View(model);
+        }
+
+        if (model.Id == 0)
+        {
+            model.CreatedAt = DateTime.UtcNow;
+            await _uow.PromotionCodes.AddAsync(model);
+        }
+        else
+        {
+            var existing = await _uow.PromotionCodes.GetByIdAsync(model.Id);
+            if (existing == null) return NotFound();
+
+            var pricingChanged =
+                existing.RecurringDiscountType != model.RecurringDiscountType ||
+                existing.RecurringDiscountValue != model.RecurringDiscountValue ||
+                existing.RecurringDurationCycles != model.RecurringDurationCycles ||
+                existing.RestrictedBillingRuleId != model.RestrictedBillingRuleId;
+
+            existing.Code = model.Code;
+            existing.Description = model.Description;
+            existing.IsActive = model.IsActive;
+            existing.ExpiresAt = model.ExpiresAt;
+            existing.MaxRedemptions = model.MaxRedemptions;
+            existing.RestrictedBillingRuleId = model.RestrictedBillingRuleId;
+            existing.RecurringDiscountType = model.RecurringDiscountType;
+            existing.RecurringDiscountValue = model.RecurringDiscountValue;
+            existing.RecurringDurationCycles = model.RecurringDurationCycles;
+            existing.SetupFeeDiscountType = model.SetupFeeDiscountType;
+            existing.SetupFeeDiscountValue = model.SetupFeeDiscountValue;
+
+            if (pricingChanged)
+            {
+                // Cached PayPal plan ids no longer match the new pricing/duration; clear so a fresh plan is created next use.
+                existing.PayPalPromoPlanIdMonthly = string.Empty;
+                existing.PayPalPromoPlanIdAnnual = string.Empty;
+            }
+
+            _uow.PromotionCodes.Update(existing);
+        }
+
+        await _uow.SaveChangesAsync();
+        TempData["Success"] = "Promotion code saved.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> Redemptions(int id)
+    {
+        var code = await _uow.PromotionCodes.GetByIdAsync(id);
+        if (code == null) return NotFound();
+
+        var redemptions = (await _uow.PromotionCodeRedemptions.FindAsync(r => r.PromotionCodeId == id))
+            .OrderByDescending(r => r.RedeemedAt)
+            .ToList();
+        var agents = (await _uow.AgentUsers.GetAllAsync()).ToDictionary(a => a.Id);
+        var packageNames = (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id, p => p.PackageName);
+
+        ViewBag.Code = code;
+        ViewBag.Agents = agents;
+        ViewBag.PackageNames = packageNames;
+        return View(redemptions);
+    }
+}

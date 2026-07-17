@@ -39,6 +39,7 @@ Last updated: July 16, 2026 (evening)
 - Invoice numbers use the shorter `IPRO-YYYY-000001` style.
 - Invoice PDF/print view is one-page friendly.
 - Paid invoice email resend exists.
+- Promotion codes exist for signup, fully integrated with PayPal billing (not just cosmetic): Super Admin creates codes with a recurring-price discount (percent/flat, for N billing cycles or permanently) and/or a setup-fee discount. A recurring discount is implemented as a real, separate PayPal plan with PayPal's native multi-cycle pricing (a discounted cycle followed by a full-price cycle) — PayPal itself reverts the price automatically, IPRO never has to. Codes support expiry, redemption limits, and package restriction; redemptions are recorded (with original/discounted amounts) for reporting once a subscription actually activates, not merely when a code is entered.
 - Pending/unpaid checkout recovery exists.
 
 ### CRM and follow-ups
@@ -187,6 +188,12 @@ Last updated: July 16, 2026 (evening)
 - Agents open a ticket and reply within it; Super Admin/Support sees a cross-agent queue (status filter, search) and replies in the same thread; replying to a Resolved/Closed ticket reopens it automatically regardless of which side replies.
 - Agents are always emailed when Support replies; Support can optionally be emailed on new tickets/replies via `Support:NotificationEmail`, which degrades gracefully (ticket still saves) if unset.
 - Also added an always-visible **Agent Login** link to every page of every public website template, so agents (or anyone) can reach the portal sign-in page from a live site.
+
+### 12. Add promotion codes for signup, integrated with PayPal (done)
+- Super Admin creates discount codes with a recurring-price discount (percent/flat, permanent or for a set number of billing cycles) and/or a setup-fee discount, plus expiry, redemption limits, and package restriction.
+- Genuinely integrated with PayPal, not cosmetic: a recurring discount creates a real, separate PayPal plan using PayPal's native multi-cycle pricing, so PayPal itself reverts a temporary discount to full price automatically.
+- Codes are validated at registration (with a live price preview) and re-validated again when the agent actually subscribes, since the PayPal subscription isn't created until then; an expired/maxed-out code degrades to the normal price instead of blocking signup.
+- Redemptions are recorded only once a subscription actually activates (not merely when a code is entered), with original/discounted amounts for revenue-impact reporting.
 
 ## Bigger Product Ideas
 

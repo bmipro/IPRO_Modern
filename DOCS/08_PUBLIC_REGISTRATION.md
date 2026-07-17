@@ -7,12 +7,15 @@
 3. Enter company, location, and business phone information.
 4. Select a business type. The choice controls relevant starter content.
 5. Select an active package.
-6. Read the terms and conditions.
-7. Enter the changing verification code.
-8. Accept the terms.
-9. Submit registration.
+6. Optionally enter a **promotion code** and click **Apply** to see the resulting discount before submitting.
+7. Read the terms and conditions.
+8. Enter the changing verification code.
+9. Accept the terms.
+10. Submit registration.
 
 Optional information such as designation, company address, fax, and mobile phone may be left blank.
+
+A promotion code is checked against the selected package immediately (some codes only apply to one specific package) and again later when the agent first subscribes through Billing, since the actual PayPal subscription isn't created at registration time. If a code expires or reaches its redemption limit in between, the agent simply pays the normal price — registration itself is never blocked by an invalid or expired code.
 
 ## Automatic Account Setup
 

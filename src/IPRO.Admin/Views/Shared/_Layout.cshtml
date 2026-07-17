@@ -82,6 +82,9 @@
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "PayPalSetup" ? "active" : "")" href="/PayPalSetup">
               <i class="fab fa-paypal"></i>PayPal Setup
           </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "PromotionCodes" ? "active" : "")" href="/PromotionCodes">
+              <i class="fas fa-tags"></i>Promotion Codes
+          </a>
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "EmailSetup" ? "active" : "")" href="/EmailSetup">
               <i class="fas fa-envelope-circle-check"></i>Email Setup
           </a>

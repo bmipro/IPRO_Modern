@@ -10,6 +10,7 @@ public class SubscriptionChange
     public int? CurrentBillingRuleId { get; set; }
     public int RequestedBillingRuleId { get; set; }
     public int? BillingId { get; set; }
+    public int? PromotionCodeId { get; set; }
     public SubscriptionChangeType ChangeType { get; set; }
     public SubscriptionChangeStatus Status { get; set; } = SubscriptionChangeStatus.Pending;
     public BillingPeriod Period { get; set; } = BillingPeriod.Monthly;

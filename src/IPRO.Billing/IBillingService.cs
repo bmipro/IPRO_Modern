@@ -19,4 +19,5 @@ public interface IBillingService
     Task<List<IPRO.Entities.Invoice>> GetInvoicesAsync(int userId);
     Task<IPRO.Entities.Invoice> GenerateInvoiceAsync(int userId, decimal amount, string description);
     Task<List<IPRO.Entities.BillingRule>> GetPackagesAsync();
+    Task<IPRO.Entities.PromotionCode?> ValidatePromotionCodeAsync(string? code, int billingRuleId);
 }

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
@@ -20,13 +21,15 @@ public class AccountController : Controller
     private readonly IAgentService _agents;
     private readonly IEmailService _email;
     private readonly IUnitOfWork _uow;
+    private readonly IBillingService _billing;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, ILogger<AccountController> logger)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, ILogger<AccountController> logger)
     {
         _agents = agents;
         _email = email;
         _uow = uow;
+        _billing = billing;
         _logger = logger;
     }
 
@@ -88,6 +91,14 @@ public class AccountController : Controller
             ModelState.AddModelError("", "Verify code is incorrect.");
         }
         if (!acceptTerms) ModelState.AddModelError("", "You must accept the terms and conditions.");
+        if (!string.IsNullOrWhiteSpace(model.PromotionCode) && model.PackageId > 0)
+        {
+            var promo = await _billing.ValidatePromotionCodeAsync(model.PromotionCode, model.PackageId);
+            if (promo == null)
+            {
+                ModelState.AddModelError("", "That promotion code is not valid for the selected package, or has expired/reached its redemption limit.");
+            }
+        }
         if (!ModelState.IsValid)
         {
             SetRegistrationVerifyCode();
@@ -142,6 +153,49 @@ public class AccountController : Controller
         TempData["RegistrationDomain"] = agent.DomainName;
         HttpContext.Session.Remove(RegistrationVerifyCodeSessionKey);
         return RedirectToAction(nameof(RegisterSuccess));
+    }
+
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> ValidatePromoCode(string code, int packageId)
+    {
+        var package = await _uow.BillingRules.FirstOrDefaultAsync(p => p.Id == packageId && p.IsActive);
+        if (package == null)
+        {
+            return Json(new { valid = false, message = "Choose a valid package first." });
+        }
+
+        var promo = await _billing.ValidatePromotionCodeAsync(code, packageId);
+        if (promo == null)
+        {
+            return Json(new { valid = false, message = "That code is not valid for the selected package, or has expired/reached its redemption limit." });
+        }
+
+        var parts = new List<string>();
+        if (promo.RecurringDiscountType != PromoDiscountType.None)
+        {
+            var durationText = promo.RecurringDurationCycles == null
+                ? "for the life of your subscription"
+                : promo.RecurringDurationCycles == 1
+                    ? "on your first billing cycle only"
+                    : $"for your first {promo.RecurringDurationCycles} billing cycles";
+            var discountText = promo.RecurringDiscountType == PromoDiscountType.PercentOff
+                ? $"{promo.RecurringDiscountValue}% off"
+                : $"${promo.RecurringDiscountValue} off";
+            parts.Add($"{discountText} the recurring price {durationText}");
+        }
+        if (promo.SetupFeeDiscountType != PromoDiscountType.None)
+        {
+            var discountText = promo.SetupFeeDiscountType == PromoDiscountType.PercentOff
+                ? $"{promo.SetupFeeDiscountValue}% off"
+                : $"${promo.SetupFeeDiscountValue} off";
+            parts.Add($"{discountText} the setup fee");
+        }
+
+        var message = parts.Count == 0
+            ? "Code accepted."
+            : $"Code accepted: {string.Join(" and ", parts)}.";
+        return Json(new { valid = true, message });
     }
 
     [HttpGet]

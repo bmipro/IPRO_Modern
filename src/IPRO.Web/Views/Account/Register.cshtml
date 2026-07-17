@@ -199,13 +199,21 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
     </div>
     <div class="form-row">
       <label><span class="required">*</span>Packages:</label>
-      <select asp-for="PackageId" class="short" required>
+      <select asp-for="PackageId" id="packageSelect" class="short" required>
         <option value="">Click here</option>
         @foreach (var package in packages)
         {
           <option value="@package.Id">@package.PackageName</option>
         }
       </select>
+    </div>
+    <div class="form-row">
+      <label>Promotion Code:</label>
+      <span>
+        <input asp-for="PromotionCode" id="promoCodeInput" maxlength="60" autocomplete="off" placeholder="Optional" />
+        <button type="button" id="applyPromoCodeButton">Apply</button>
+        <div id="promoCodeResult" style="margin-top:6px;font-size:0.9em;"></div>
+      </span>
     </div>
 
     <div class="section">Terms and Verification</div>
@@ -243,5 +251,44 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
   </form>
   </div>
 </main>
+<script>
+(function () {
+  var button = document.getElementById('applyPromoCodeButton');
+  var input = document.getElementById('promoCodeInput');
+  var packageSelect = document.getElementById('packageSelect');
+  var result = document.getElementById('promoCodeResult');
+  if (!button || !input || !packageSelect || !result) return;
+
+  button.addEventListener('click', function () {
+    var code = input.value.trim();
+    var packageId = packageSelect.value;
+    if (!code) { result.textContent = ''; return; }
+    if (!packageId) { result.style.color = '#b91c1c'; result.textContent = 'Choose a package first.'; return; }
+
+    result.style.color = '#334155';
+    result.textContent = 'Checking...';
+
+    fetch('/Account/ValidatePromoCode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'code=' + encodeURIComponent(code) + '&packageId=' + encodeURIComponent(packageId)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.valid) {
+          result.style.color = '#166534';
+          result.textContent = data.message;
+        } else {
+          result.style.color = '#b91c1c';
+          result.textContent = data.message || 'That code is not valid for the selected package.';
+        }
+      })
+      .catch(function () {
+        result.style.color = '#b91c1c';
+        result.textContent = 'Could not check that code right now.';
+      });
+  });
+})();
+</script>
 </body>
 </html>
