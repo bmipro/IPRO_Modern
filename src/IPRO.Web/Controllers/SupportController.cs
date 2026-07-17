@@ -61,6 +61,7 @@ public class SupportController : Controller
         return View(tickets);
     }
 
+    [HttpGet("Support/Article/{slug}")]
     public IActionResult Article(string slug)
     {
         var article = HelpDocsService.FindArticle(slug);
