@@ -110,17 +110,17 @@ app.Use(async (context, next) =>
     {
         context.Items["IproPublicPath"] = context.Request.Path.Value is { Length: > 0 } rawPath ? rawPath : "/";
         var requestedPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
+        var existingQuery = context.Request.QueryString;
         if (requestedPath.Equals("PublicWebsite", StringComparison.OrdinalIgnoreCase) ||
             requestedPath.Equals("PublicWebsite/Page", StringComparison.OrdinalIgnoreCase))
         {
             context.Request.Path = "/PublicWebsite";
-            context.Request.QueryString = QueryString.Empty;
         }
         else if (requestedPath.StartsWith("PublicWebsite/Page/", StringComparison.OrdinalIgnoreCase))
         {
             var publicSlug = requestedPath["PublicWebsite/Page/".Length..];
             context.Request.Path = "/PublicWebsite/Page";
-            context.Request.QueryString = QueryString.Create("slug", publicSlug);
+            context.Request.QueryString = existingQuery.Add("slug", publicSlug);
         }
         else if (string.IsNullOrWhiteSpace(requestedPath))
         {
@@ -129,7 +129,7 @@ app.Use(async (context, next) =>
         else
         {
             context.Request.Path = "/PublicWebsite/Page";
-            context.Request.QueryString = QueryString.Create("slug", requestedPath);
+            context.Request.QueryString = existingQuery.Add("slug", requestedPath);
         }
     }
 
