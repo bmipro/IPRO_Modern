@@ -588,49 +588,8 @@ public class WebsitePagesController : Controller
 
     private Task<AgentWebsite?> GetWebsiteAsync() => _db.AgentWebsites.FirstOrDefaultAsync(w => w.AgentUserId == AgentId);
 
-    private async Task EnsureStarterPagesAsync(AgentWebsite website)
-    {
-        if (await _db.WebsitePages.AnyAsync(p => p.AgentWebsiteId == website.Id)) return;
-        var agent = await _db.AgentUsers.AsNoTracking().FirstAsync(a => a.Id == AgentId);
-        var candidates = await _db.WebsiteStarterPages
-            .AsNoTracking()
-            .Include(p => p.Blocks)
-            .Where(p => p.IsActive &&
-                        (p.BusinessType == agent.BusinessType || p.BusinessType == "All") &&
-                        (!p.BillingRuleId.HasValue || p.BillingRuleId == agent.PackageId))
-            .ToListAsync();
-        var selected = candidates
-            .GroupBy(p => p.Slug, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group
-                .OrderByDescending(p => p.BusinessType == agent.BusinessType)
-                .ThenByDescending(p => p.BillingRuleId == agent.PackageId)
-                .First())
-            .OrderBy(p => p.SortOrder)
-            .ToList();
-        foreach (var starter in selected)
-        {
-            _db.WebsitePages.Add(new WebsitePage
-            {
-                AgentWebsiteId = website.Id,
-                Title = starter.Title,
-                Slug = starter.Slug,
-                NavigationLabel = starter.NavigationLabel,
-                MetaTitle = starter.MetaTitle,
-                MetaDescription = starter.MetaDescription,
-                IsHomePage = starter.IsHomePage,
-                ShowInNavigation = starter.ShowInNavigation,
-                IsPublished = true,
-                SortOrder = starter.SortOrder,
-                Blocks = starter.Blocks.OrderBy(b => b.SortOrder).Select(b => new WebsiteContentBlock
-                {
-                    BlockType = b.BlockType, Heading = b.Heading, Subheading = b.Subheading, Body = b.Body,
-                    ImageUrl = b.ImageUrl, ButtonText = b.ButtonText, ButtonUrl = b.ButtonUrl,
-                    SettingsJson = b.SettingsJson, SortOrder = b.SortOrder, IsVisible = b.IsVisible
-                }).ToList()
-            });
-        }
-        await _db.SaveChangesAsync();
-    }
+    private Task EnsureStarterPagesAsync(AgentWebsite website) =>
+        IPRO.Web.Infrastructure.WebsiteStarterPagesHelper.EnsureStarterPagesAsync(_db, website, AgentId);
 
     private async Task<List<WebsitePage>> GetParentChoicesAsync(int websiteId, int excludedId) => await _db.WebsitePages
         .AsNoTracking().Where(p => p.AgentWebsiteId == websiteId && p.Id != excludedId && p.ParentPageId == null)

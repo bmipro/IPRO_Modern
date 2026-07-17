@@ -168,7 +168,7 @@ public class WebsiteController : Controller
         {
             var agent = await _agents.GetByIdAsync(AgentId);
             var template = await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId, agent?.BusinessType);
-            await _websites.CreateAsync(new AgentWebsite
+            existing = await _websites.CreateAsync(new AgentWebsite
             {
                 AgentUserId = AgentId,
                 TemplateId = template.Id,
@@ -182,6 +182,8 @@ public class WebsiteController : Controller
         {
             await _websites.PublishAsync(AgentId);
         }
+
+        await WebsiteStarterPagesHelper.EnsureStarterPagesAsync(_db, existing, AgentId);
 
         TempData["Success"] = "Your website is now live!";
         return RedirectToAction(nameof(Index));
