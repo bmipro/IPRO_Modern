@@ -57,22 +57,19 @@
     {
       <a href="https://@liveDomain" target="_blank" class="btn btn-outline-primary"><i class="fas fa-up-right-from-square me-1"></i>Open Website</a>
     }
-    @if (Model != null)
+    @if (isPublished)
     {
-      @if (isPublished)
-      {
-        <form asp-action="Unpublish" method="post">
-          @Html.AntiForgeryToken()
-          <button type="submit" class="btn btn-outline-warning"><i class="fas fa-pause me-1"></i>Take Offline</button>
-        </form>
-      }
-      else
-      {
-        <form asp-action="Publish" method="post">
-          @Html.AntiForgeryToken()
-          <button type="submit" class="btn btn-success"><i class="fas fa-rocket me-1"></i>Publish</button>
-        </form>
-      }
+      <form asp-action="Unpublish" method="post">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-outline-warning"><i class="fas fa-pause me-1"></i>Take Offline</button>
+      </form>
+    }
+    else
+    {
+      <form asp-action="Publish" method="post">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-success"><i class="fas fa-rocket me-1"></i>Publish</button>
+      </form>
     }
   </div>
 </div>
@@ -321,7 +318,7 @@
           <div class="d-flex gap-2 mt-4">
             <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i>Save Website Settings</button>
             <button type="submit" name="applyTemplateDefaults" value="true" class="btn btn-outline-secondary btn-lg" onclick="return confirm('Replace your theme color, font, background, button style, section spacing, and hero style with this template\'s suggested defaults?');"><i class="fas fa-rotate-left me-2"></i>Reset to Template Defaults</button>
-            @if (Model != null && !isPublished)
+            @if (!isPublished)
             {
               <button type="submit" formaction="/Website/Publish" formmethod="post" class="btn btn-success btn-lg"><i class="fas fa-rocket me-2"></i>Publish</button>
             }
