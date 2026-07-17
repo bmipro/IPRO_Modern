@@ -85,6 +85,8 @@ Last updated: July 16, 2026 (evening)
 - Services, Testimonials, and Call to Action blocks each support an independent per-block **Layout** choice (Services: Cards/List/Icons; Testimonials: Grid/Featured Quote/List; Call to Action: Banner/Card/Split) on top of whichever template family the site uses, giving agents block-level mix-and-match beyond template and color choices.
 - Template governance is complete: the Super Admin template list shows per-template agent/package usage, defaults are set per business type (not just one global default), duplicate creates a safe versioned draft, deletion is blocked while a template is in use, and retiring a template emails every affected agent (in addition to the existing in-app notice on their My Website page) while their site stays online unchanged.
 - Domain automation is hardened: failed domains back off and eventually pause automatic retries instead of retrying forever; agents can self-service retry a domain; agents see plain-language errors while Super Admin still sees the raw Azure/DNS detail; a missing Azure setting is named specifically; removing a domain requires typed confirmation and best-effort cleans up the Azure hostname binding/certificate; the root/apex domain's forwarding status is now tracked and shown (informational only); and the DNS/Azure-binding check logic is now one shared implementation instead of two drifted copies.
+- Website analytics exists and is fully functional: agents review 7/30/90-day page views, estimated unique visitors, leads, conversion rate, popular pages, traffic sources, and a per-domain breakdown from the Agent Portal's Analytics screen. Real-time page-view recording excludes common bots, social-preview fetchers, template previews, and visitors sending Do Not Track, and stores a one-way monthly-rotating visitor hash instead of a raw IP address. Gated by the package's "Detailed visitor/hits tracking system" feature.
+- Modern Professional and Editorial Visual's generic Text block now falls back to a full-width layout when a block has no image, instead of always reserving space for an image that isn't there. Modern's default Testimonials layout is now a simple quote list instead of reusing the same card-grid component as its own Services section, so the two sections no longer look identical on a Modern Professional site.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.
@@ -92,14 +94,8 @@ Last updated: July 16, 2026 (evening)
 
 ## Not Done or Still Fragile
 
-### Highest priority bugs
-1. Template output still needs stronger visual differentiation.
-   - Different templates should produce clearly different public websites.
-   - Home, About, Services, Contact, and future pages need consistent rendering.
-
 ### Important missing product pieces
 - Full website lead inbox.
-- Website analytics.
 - Better template preview before applying.
 - Richer HTML/newsletter editor.
 - Better newsletter templates.
@@ -149,12 +145,16 @@ Last updated: July 16, 2026 (evening)
 - The root/apex domain's DNS and www-forwarding status is now tracked and shown (informational only, never blocks the site) in both the agent and Super Admin views.
 - The DNS/Azure-binding check logic that the background job and Super Admin's Recheck action used to implement separately (and had drifted) is now a single shared service both call.
 
-### 6. Build website analytics
-- Track page views.
-- Track contact form submissions.
-- Track domain source.
-- Track newsletter/campaign source where possible.
-- Show analytics in the agent portal.
+### 6. Build website analytics (done)
+- Page views, estimated unique visitors, leads, and conversion rate are tracked and shown for 7/30/90-day periods.
+- Popular pages and traffic sources (referrers) are shown.
+- Domain source is tracked and comparable across an agent's temporary and custom domains.
+- Bots, social-preview fetchers, template previews, and Do Not Track visitors are excluded from tracking.
+- Gated by the package's visitor-tracking feature; shown in the agent portal's Analytics screen.
+
+### 7. Finish template visual differentiation (done)
+- Modern Professional and Editorial Visual's generic Text block now falls back to full-width when there's no image, instead of always reserving unused space for one.
+- Modern Professional's default Testimonials layout no longer reuses the same card-grid component as its own Services section.
 
 ## Bigger Product Ideas
 

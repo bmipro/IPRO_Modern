@@ -103,13 +103,13 @@
       {
         <blockquote class="mp-featured-quote"><i class="fas fa-quote-left"></i><p>@items[0]</p></blockquote>
       }
-      else if(block.LayoutVariant == "list")
+      else if(block.LayoutVariant == "grid")
       {
-        <div class="mp-quote-list">@foreach(var item in items){<div class="mp-quote-row"><i class="fas fa-quote-left"></i><div>@item</div></div>}</div>
+        <div class="mp-grid">@foreach(var item in items){<div class="mp-card"><i class="fas fa-quote-left"></i><div class="fw-bold">@item</div></div>}</div>
       }
       else
       {
-        <div class="mp-grid">@foreach(var item in items){<div class="mp-card"><i class="fas fa-quote-left"></i><div class="fw-bold">@item</div></div>}</div>
+        <div class="mp-quote-list">@foreach(var item in items){<div class="mp-quote-row"><i class="fas fa-quote-left"></i><div>@item</div></div>}</div>
       }
     </div></section>
   }
@@ -138,7 +138,15 @@
   }
   else
   {
-    <section class="mp-section"><div class="mp-inner mp-split"><div><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2><div class="mp-lead">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "#" : block.ButtonUrl)">@block.ButtonText</a>}</div>@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" />}</div></section>
+    var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);
+    if (hasImage)
+    {
+      <section class="mp-section"><div class="mp-inner mp-split"><div><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2><div class="mp-lead">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "#" : block.ButtonUrl)">@block.ButtonText</a>}</div><img src="@block.ImageUrl" alt="" /></div></section>
+    }
+    else
+    {
+      <section class="mp-section"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2><div class="mp-lead" style="max-width:820px">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "#" : block.ButtonUrl)">@block.ButtonText</a>}</div></section>
+    }
   }
 }
 </main>
