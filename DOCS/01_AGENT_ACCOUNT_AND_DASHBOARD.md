@@ -60,3 +60,13 @@ Use **Quick Actions** to:
 
 If a function is outside the active package, the link remains visible and displays an upgrade message.
 
+## Get Help or Contact Support
+
+1. Select **Support** in the top navigation.
+2. Browse **Help Documentation** for guides on clients, newsletters, the website builder, domains, and billing.
+3. Under **My Tickets**, click **New Ticket** to describe an issue and submit it to Support.
+4. Support replies appear in the same ticket thread; reply there to continue the conversation.
+5. Mark a ticket **Resolved** once your issue is handled. Replying to a resolved or closed ticket automatically reopens it.
+
+Support is available to every agent regardless of package.
+

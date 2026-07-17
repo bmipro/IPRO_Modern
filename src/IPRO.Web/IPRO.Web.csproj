@@ -8,8 +8,17 @@
   <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   <PackageReference Include="AspNetCoreRateLimit" />
   <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
+  <PackageReference Include="Markdig" />
   <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
   <ProjectReference Include="..\IPRO.Email\IPRO.Email.csproj" />
+</ItemGroup>
+<ItemGroup>
+  <EmbeddedResource Include="..\..\DOCS\01_AGENT_ACCOUNT_AND_DASHBOARD.md" LogicalName="HelpDocs.01_AGENT_ACCOUNT_AND_DASHBOARD.md" />
+  <EmbeddedResource Include="..\..\DOCS\02_CLIENTS_AND_FOLLOWUPS.md" LogicalName="HelpDocs.02_CLIENTS_AND_FOLLOWUPS.md" />
+  <EmbeddedResource Include="..\..\DOCS\03_NEWSLETTERS_AND_CAMPAIGNS.md" LogicalName="HelpDocs.03_NEWSLETTERS_AND_CAMPAIGNS.md" />
+  <EmbeddedResource Include="..\..\DOCS\04_WEBSITE_BUILDER.md" LogicalName="HelpDocs.04_WEBSITE_BUILDER.md" />
+  <EmbeddedResource Include="..\..\DOCS\05_DOMAINS_AND_LEADS.md" LogicalName="HelpDocs.05_DOMAINS_AND_LEADS.md" />
+  <EmbeddedResource Include="..\..\DOCS\06_BILLING_AND_INVOICES.md" LogicalName="HelpDocs.06_BILLING_AND_INVOICES.md" />
 </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />

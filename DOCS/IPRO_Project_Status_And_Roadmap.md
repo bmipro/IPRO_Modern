@@ -103,6 +103,9 @@ Last updated: July 16, 2026 (evening)
 - Modern Professional and Editorial Visual's generic Text block now falls back to a full-width layout when a block has no image, instead of always reserving space for an image that isn't there. Modern's default Testimonials layout is now a simple quote list instead of reusing the same card-grid component as its own Services section, so the two sections no longer look identical on a Modern Professional site.
 - Agents already had a genuine, non-destructive, real-content template preview before applying a template — this was previously misreported as missing. The actual gap (Super Admin's template editor only had a fake-content mock preview) is now closed too: Super Admin can preview a candidate template rendered against any real agent's actual pages/content via a signed, time-limited link, without saving or changing anything.
 
+### Agent support
+- A Support center exists in the Agent Portal: curated help documentation (rendered from the same manuals in `DOCS/`) plus a real two-way ticket system — agents open a ticket, Super Admin/Support replies in the same thread, and either side can reply again after a ticket is marked Resolved/Closed to reopen it automatically. Super Admin gets a cross-agent ticket queue (filter by status, search by subject/agent) mirroring the Website Leads screen's pattern. Agents are always emailed when Support replies; Support can optionally be emailed on new tickets/agent replies via a config setting.
+
 ### Documentation
 - `DOCS` exists as the project documentation area.
 - Some user-facing manuals have been started.
@@ -178,6 +181,12 @@ Last updated: July 16, 2026 (evening)
 - Drip campaign emails are now tracked (delivered/opened/clicked) the same way newsletter sends are; campaigns show a per-step Performance breakdown with rates; newsletter send history now shows rate percentages too; drip steps use the same rich editor as newsletters.
 - Admin role/security model: multiple named admin accounts (Super Admin / Support roles) replace the single hardcoded credential, gating was corrected where it was previously backwards, and login/admin-account changes are audit-logged.
 - Super Admin can now preview a candidate template against a real agent's actual site via a signed, time-limited link (previously only a fake-content mock).
+
+### 11. Add an agent support center (done)
+- New Support area in the Agent Portal: help documentation (curated from the existing `DOCS/` manuals) plus a real two-way ticket system, not just a contact form.
+- Agents open a ticket and reply within it; Super Admin/Support sees a cross-agent queue (status filter, search) and replies in the same thread; replying to a Resolved/Closed ticket reopens it automatically regardless of which side replies.
+- Agents are always emailed when Support replies; Support can optionally be emailed on new tickets/replies via `Support:NotificationEmail`, which degrades gracefully (ticket still saves) if unset.
+- Also added an always-visible **Agent Login** link to every page of every public website template, so agents (or anyone) can reach the portal sign-in page from a live site.
 
 ## Bigger Product Ideas
 

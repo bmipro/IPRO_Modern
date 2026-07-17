@@ -177,6 +177,16 @@ Super Admin always sees the real underlying Azure/DNS error text for a failed do
 3. Use the **Blocked Attempts** tab to review submissions stopped by the honeypot, timing check, or captcha before they became leads. Filter by reason, domain, or IP address to spot abuse patterns.
 4. Blocked attempts store only the reason, domain, page, and IP address — never the submitted name, email, or message.
 
+## Manage Support Tickets
+
+1. Select **Support Tickets**.
+2. Review the cross-agent ticket queue — filter by status (Open/In Progress/Resolved/Closed) or search by subject/agent name/email.
+3. Open a ticket to see the full message thread and reply. Replying automatically moves an Open ticket to In Progress, and reopens a Resolved/Closed ticket to Open.
+4. Change status manually from the dropdown on the ticket detail page.
+5. The agent is emailed automatically whenever Support replies.
+
+To be notified by email when an agent opens a new ticket or replies, set `Support:NotificationEmail` in the Web app's Azure App Settings. If it isn't set, tickets still save normally — the notification is just skipped.
+
 ## Reports
 
 Use the reporting screens to review:

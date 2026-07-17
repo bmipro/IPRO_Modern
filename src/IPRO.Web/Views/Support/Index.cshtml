@@ -1,0 +1,99 @@
+@model IEnumerable<IPRO.Entities.SupportTicket>
+@{
+    ViewData["Title"] = "Support";
+    var articles = (ViewBag.Articles as IEnumerable<IPRO.Web.Infrastructure.HelpArticle>) ?? Enumerable.Empty<IPRO.Web.Infrastructure.HelpArticle>();
+    string status = ViewBag.Status;
+}
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold"><i class="fas fa-life-ring me-2 text-primary"></i>Support</h2>
+  <div class="text-muted">Browse help documentation or reach out to support.</div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <h5 class="fw-bold mb-3"><i class="fas fa-book me-2 text-info"></i>Help Documentation</h5>
+    <div class="row g-3">
+      @foreach (var article in articles)
+      {
+        <div class="col-md-6 col-lg-4">
+          <a href="/Support/Article/@article.Slug" class="text-decoration-none">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="fw-semibold text-dark">@article.Title</div>
+              <div class="small text-primary mt-1">Read article <i class="fas fa-arrow-right ms-1"></i></div>
+            </div>
+          </a>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 p-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h5 class="fw-bold mb-0"><i class="fas fa-headset me-2 text-success"></i>My Tickets</h5>
+    <a href="/Support/Create" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>New Ticket</a>
+  </div>
+  <div class="card-body p-4">
+    <ul class="nav nav-pills mb-3">
+      @foreach (var (key, label) in new[] { ("all", "All"), ("open", "Open"), ("inprogress", "In Progress"), ("resolved", "Resolved"), ("closed", "Closed") })
+      {
+        <li class="nav-item">
+          <a class="nav-link @(status == key ? "active" : "")" href="/Support?status=@key">@label</a>
+        </li>
+      }
+    </ul>
+
+    @if (!Model.Any())
+    {
+      <div class="text-muted">No tickets here yet.</div>
+    }
+    else
+    {
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead><tr><th>Subject</th><th>Status</th><th>Last activity</th><th></th></tr></thead>
+          <tbody>
+          @foreach (var ticket in Model)
+          {
+            var statusClass = ticket.Status switch
+            {
+                IPRO.Entities.SupportTicketStatus.Open => "bg-warning text-dark",
+                IPRO.Entities.SupportTicketStatus.InProgress => "bg-info",
+                IPRO.Entities.SupportTicketStatus.Resolved => "bg-success",
+                _ => "bg-secondary"
+            };
+            <tr>
+              <td>
+                <a href="/Support/Details/@ticket.Id" class="fw-semibold text-decoration-none">@ticket.Subject</a>
+                @if (ticket.HasUnreadForAgent)
+                {
+                  <span class="badge bg-danger ms-1">New reply</span>
+                }
+              </td>
+              <td><span class="badge @statusClass">@ticket.Status</span></td>
+              <td class="small text-muted">@ticket.LastMessageAt.ToString("MMM d, yyyy h:mm tt")</td>
+              <td class="text-end"><a href="/Support/Details/@ticket.Id" class="btn btn-sm btn-outline-primary">Open</a></td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

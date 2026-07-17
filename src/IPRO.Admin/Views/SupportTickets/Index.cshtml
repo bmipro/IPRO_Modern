@@ -1,0 +1,96 @@
+@model IEnumerable<IPRO.Entities.SupportTicket>
+@{
+    ViewData["Title"] = "Support Tickets";
+    string status = ViewBag.Status;
+    string? search = ViewBag.Search;
+}
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-headset me-2 text-primary"></i>Support Tickets</h4>
+    <div class="text-muted">@ViewBag.TotalCount total &middot; @ViewBag.UnreadCount awaiting a reply</div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="status" class="form-select" onchange="this.form.submit()">
+          @foreach (var (key, label) in new[] { ("all", "All"), ("open", "Open"), ("inprogress", "In Progress"), ("resolved", "Resolved"), ("closed", "Closed") })
+          {
+            <option value="@key" selected="@(status == key)">@label</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-6">
+        <input type="text" name="search" class="form-control" placeholder="Search subject or agent..." value="@search" />
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+      </div>
+    </form>
+
+    @if (!Model.Any())
+    {
+      <div class="text-muted">No tickets match this filter.</div>
+    }
+    else
+    {
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead><tr><th>Subject</th><th>Agent</th><th>Status</th><th>Last activity</th><th></th></tr></thead>
+          <tbody>
+          @foreach (var ticket in Model)
+          {
+            var statusClass = ticket.Status switch
+            {
+                IPRO.Entities.SupportTicketStatus.Open => "bg-warning text-dark",
+                IPRO.Entities.SupportTicketStatus.InProgress => "bg-info",
+                IPRO.Entities.SupportTicketStatus.Resolved => "bg-success",
+                _ => "bg-secondary"
+            };
+            <tr>
+              <td>
+                <a href="/SupportTickets/Details/@ticket.Id" class="fw-semibold text-decoration-none">@ticket.Subject</a>
+                @if (ticket.HasUnreadForAdmin)
+                {
+                  <span class="badge bg-danger ms-1">Unread</span>
+                }
+              </td>
+              <td>
+                <div>@ticket.AgentUser.FirstName @ticket.AgentUser.LastName</div>
+                <div class="small text-muted">@ticket.AgentUser.Email</div>
+              </td>
+              <td><span class="badge @statusClass">@ticket.Status</span></td>
+              <td class="small text-muted">@ticket.LastMessageAt.ToString("MMM d, yyyy h:mm tt")</td>
+              <td class="text-end"><a href="/SupportTickets/Details/@ticket.Id" class="btn btn-sm btn-outline-primary">Open</a></td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
+      @if ((int)ViewBag.TotalPages > 1)
+      {
+        <nav>
+          <ul class="pagination">
+          @for (var p = 1; p <= (int)ViewBag.TotalPages; p++)
+          {
+            <li class="page-item @(p == (int)ViewBag.Page ? "active" : "")">
+              <a class="page-link" href="/SupportTickets?status=@status&search=@search&page=@p">@p</a>
+            </li>
+          }
+          </ul>
+        </nav>
+      }
+    }
+  </div>
+</div>

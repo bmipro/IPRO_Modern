@@ -93,6 +93,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureDripCampaignStepSendSchemaAsync(db);
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
     await EnsureAdminUserSchemaAsync(db, app.Configuration);
+    await EnsureSupportTicketSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -364,6 +365,34 @@ CREATE TABLE IF NOT EXISTS `AdminAuditLogEntries` (
     bootstrapUser.PasswordHash = new PasswordHasher<AdminUser>().HashPassword(bootstrapUser, bootstrapPassword);
     db.AdminUsers.Add(bootstrapUser);
     await db.SaveChangesAsync();
+}
+
+static async Task EnsureSupportTicketSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `SupportTickets` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `Status` int NOT NULL,
+    `HasUnreadForAgent` tinyint(1) NOT NULL DEFAULT FALSE,
+    `HasUnreadForAdmin` tinyint(1) NOT NULL DEFAULT TRUE,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    `LastMessageAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `SupportTicketMessages` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `SupportTicketId` int NOT NULL,
+    `IsFromAdmin` tinyint(1) NOT NULL DEFAULT FALSE,
+    `AuthorName` varchar(160) CHARACTER SET utf8mb4 NOT NULL,
+    `Body` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)

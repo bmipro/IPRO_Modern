@@ -1,0 +1,72 @@
+@model IPRO.Entities.SupportTicket
+@{
+    ViewData["Title"] = Model.Subject;
+    var statusClass = Model.Status switch
+    {
+        IPRO.Entities.SupportTicketStatus.Open => "bg-warning text-dark",
+        IPRO.Entities.SupportTicketStatus.InProgress => "bg-info",
+        IPRO.Entities.SupportTicketStatus.Resolved => "bg-success",
+        _ => "bg-secondary"
+    };
+}
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/SupportTickets">Support Tickets</a></li><li class="breadcrumb-item active">Ticket #@Model.Id</li></ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-1">@Model.Subject</h3>
+    <div class="text-muted small">@Model.AgentUser.FirstName @Model.AgentUser.LastName &middot; @Model.AgentUser.Email</div>
+  </div>
+  <form method="post" action="/SupportTickets/SetStatus/@Model.Id" class="d-flex gap-2 align-items-center">
+    @Html.AntiForgeryToken()
+    <span class="badge @statusClass">@Model.Status</span>
+    <select name="status" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+      @foreach (var s in Enum.GetValues<IPRO.Entities.SupportTicketStatus>())
+      {
+        <option value="@s" selected="@(Model.Status == s)">@s</option>
+      }
+    </select>
+  </form>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="vstack gap-3">
+      @foreach (var message in Model.Messages.OrderBy(m => m.CreatedAt))
+      {
+        <div class="rounded-3 p-3 @(message.IsFromAdmin ? "bg-light border-start border-4 border-primary" : "border")">
+          <div class="d-flex justify-content-between gap-2 flex-wrap mb-1">
+            <span class="fw-semibold small">@(message.IsFromAdmin ? $"{message.AuthorName} (Support)" : message.AuthorName)</span>
+            <span class="small text-muted">@message.CreatedAt.ToString("MMM d, yyyy h:mm tt")</span>
+          </div>
+          <div style="white-space:pre-wrap">@message.Body</div>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="card-footer bg-white border-0 p-4">
+    <form method="post" action="/SupportTickets/Reply/@Model.Id">
+      @Html.AntiForgeryToken()
+      <label class="form-label fw-semibold">Reply</label>
+      <textarea name="body" class="form-control mb-2" rows="4" required></textarea>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Send Reply</button>
+    </form>
+  </div>
+</div>

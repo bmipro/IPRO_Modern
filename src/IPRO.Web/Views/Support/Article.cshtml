@@ -1,0 +1,23 @@
+@{
+    var article = (IPRO.Web.Infrastructure.HelpArticle)ViewBag.Article;
+    ViewData["Title"] = article.Title;
+    var html = (string)ViewBag.Html;
+}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Support">Support</a></li><li class="breadcrumb-item active">@article.Title</li></ol>
+</nav>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4 help-article">
+    @Html.Raw(html)
+  </div>
+</div>
+
+<style>
+  .help-article h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: 1rem; }
+  .help-article h2 { font-size: 1.25rem; font-weight: 700; margin-top: 1.75rem; margin-bottom: .75rem; }
+  .help-article ol, .help-article ul { padding-left: 1.4rem; }
+  .help-article li { margin-bottom: .35rem; }
+  .help-article p { margin-bottom: .85rem; }
+</style>

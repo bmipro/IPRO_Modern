@@ -47,6 +47,8 @@ public class IPRODbContext : DbContext
     public DbSet<OperateLog> OperateLogs => Set<OperateLog>();
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<AdminAuditLogEntry> AdminAuditLogEntries => Set<AdminAuditLogEntry>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

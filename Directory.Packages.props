@@ -25,5 +25,6 @@
     <PackageVersion Include="SendGrid" Version="[9.28.1]" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="[8.0.0]" />
     <PackageVersion Include="PayPalCheckoutSdk" Version="[1.0.4]" />
+    <PackageVersion Include="Markdig" Version="[0.37.0]" />
   </ItemGroup>
 </Project>

@@ -59,6 +59,10 @@
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "WebsiteLeads" ? "active" : "")" href="/WebsiteLeads">
             <i class="fas fa-inbox"></i>Website Leads
         </a>
+        <div class="nav-section">Support</div>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "SupportTickets" ? "active" : "")" href="/SupportTickets">
+            <i class="fas fa-headset"></i>Support Tickets
+        </a>
         <div class="nav-section">Newsletters</div>
         @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
         {

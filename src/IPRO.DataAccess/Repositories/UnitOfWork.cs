@@ -42,6 +42,8 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<OperateLog>? _operateLogs;
     private IRepository<AdminUser>? _adminUsers;
     private IRepository<AdminAuditLogEntry>? _adminAuditLogEntries;
+    private IRepository<SupportTicket>? _supportTickets;
+    private IRepository<SupportTicketMessage>? _supportTicketMessages;
 
     public UnitOfWork(IPRODbContext context) // <-- CHANGED
     {
@@ -77,6 +79,8 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     public IRepository<OperateLog> OperateLogs => _operateLogs ??= new Repository<OperateLog>(_context);
     public IRepository<AdminUser> AdminUsers => _adminUsers ??= new Repository<AdminUser>(_context);
     public IRepository<AdminAuditLogEntry> AdminAuditLogEntries => _adminAuditLogEntries ??= new Repository<AdminAuditLogEntry>(_context);
+    public IRepository<SupportTicket> SupportTickets => _supportTickets ??= new Repository<SupportTicket>(_context);
+    public IRepository<SupportTicketMessage> SupportTicketMessages => _supportTicketMessages ??= new Repository<SupportTicketMessage>(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
         => _context.SaveChangesAsync(cancellationToken);

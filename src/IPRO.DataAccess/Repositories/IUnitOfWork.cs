@@ -37,6 +37,8 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<OperateLog> OperateLogs { get; }
     IRepository<AdminUser> AdminUsers { get; }
     IRepository<AdminAuditLogEntry> AdminAuditLogEntries { get; }
+    IRepository<SupportTicket> SupportTickets { get; }
+    IRepository<SupportTicketMessage> SupportTicketMessages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
