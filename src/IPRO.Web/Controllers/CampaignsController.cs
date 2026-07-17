@@ -74,13 +74,29 @@ public class CampaignsController : Controller
         var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
         if (campaign == null) return NotFound();
 
+        var steps = await _db.DripCampaignSteps
+            .Where(s => s.DripCampaignId == id)
+            .OrderBy(s => s.SortOrder)
+            .ToListAsync();
+
+        var stepIds = steps.Select(s => s.Id).ToList();
+        var stepPerformance = (await _db.DripCampaignStepSends
+                .Where(s => stepIds.Contains(s.DripCampaignStepId))
+                .ToListAsync())
+            .GroupBy(s => s.DripCampaignStepId)
+            .ToDictionary(g => g.Key, g => new CampaignStepPerformance
+            {
+                Sent = g.Count(s => s.SentAt.HasValue || s.DeliveredAt.HasValue || s.OpenedAt.HasValue || s.ClickedAt.HasValue),
+                Delivered = g.Count(s => s.DeliveredAt.HasValue),
+                Opened = g.Count(s => s.OpenedAt.HasValue),
+                Clicked = g.Count(s => s.ClickedAt.HasValue)
+            });
+
         return View(new CampaignDetailsViewModel
         {
             Campaign = campaign,
-            Steps = await _db.DripCampaignSteps
-                .Where(s => s.DripCampaignId == id)
-                .OrderBy(s => s.SortOrder)
-                .ToListAsync(),
+            Steps = steps,
+            StepPerformance = stepPerformance,
             Enrollments = await _db.DripCampaignEnrollments
                 .Include(e => e.Client)
                 .Include(e => e.ClientCategory)

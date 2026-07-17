@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize]
+[Authorize(Policy = "AdminAccess")]
 public class AgentsController : Controller
 {
     private readonly IAgentService _agents;

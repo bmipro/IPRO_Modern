@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize(Policy = "SuperAdmin")]
+[Authorize(Policy = "AdminAccess")]
 public class StarterContentController : Controller
 {
     private readonly IPRODbContext _db;

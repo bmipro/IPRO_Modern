@@ -25,4 +25,15 @@ public class CampaignDetailsViewModel
     public List<CampaignGroupSummary> Groups { get; set; } = new();
     public List<Client> Clients { get; set; } = new();
     public List<NewsLetter> Newsletters { get; set; } = new();
+    public Dictionary<int, CampaignStepPerformance> StepPerformance { get; set; } = new();
+}
+
+public class CampaignStepPerformance
+{
+    public int Sent { get; set; }
+    public int Delivered { get; set; }
+    public int Opened { get; set; }
+    public int Clicked { get; set; }
+    public double OpenRate => Sent == 0 ? 0 : Math.Round((double)Opened / Sent * 100, 1);
+    public double ClickRate => Sent == 0 ? 0 : Math.Round((double)Clicked / Sent * 100, 1);
 }

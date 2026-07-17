@@ -244,6 +244,7 @@ public class NewsLetterService : INewsLetterService
                 var recipients = (await _uow.NewsLetterRecipients.FindAsync(r => r.NewsLetterSendId == send.Id)).ToList();
                 send.TotalSent = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
                 send.TotalOpened = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+                send.TotalClicked = recipients.Count(r => r.ClickedAt.HasValue);
                 _uow.NewsLetterSends.Update(send);
             }
         }
@@ -255,10 +256,81 @@ public class NewsLetterService : INewsLetterService
                 var recipients = (await _uow.NewsLetterRecipients.FindAsync(r => r.NewsLetterId == recipient.NewsLetterId)).ToList();
                 newsletter.TotalSent = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
                 newsletter.TotalOpened = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
+                newsletter.TotalClicked = recipients.Count(r => r.ClickedAt.HasValue);
                 _uow.NewsLetters.Update(newsletter);
             }
         }
 
+        await _uow.SaveChangesAsync();
+    }
+
+    public async Task RecordDripStepEventAsync(int stepSendId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt)
+    {
+        var stepSend = await _uow.DripCampaignStepSends.GetByIdAsync(stepSendId);
+        if (stepSend == null) return;
+
+        var normalizedEvent = (eventName ?? string.Empty).Trim().ToLowerInvariant();
+        stepSend.UpdatedAt = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(providerMessageId))
+        {
+            stepSend.SendGridMessageId = providerMessageId;
+        }
+
+        switch (normalizedEvent)
+        {
+            case "processed":
+            case "sent":
+                if (!IsTerminalFailure(stepSend.Status) && stepSend.Status != NewsLetterRecipientStatus.Delivered && stepSend.Status != NewsLetterRecipientStatus.Opened && stepSend.Status != NewsLetterRecipientStatus.Clicked)
+                {
+                    stepSend.Status = NewsLetterRecipientStatus.Sent;
+                }
+                stepSend.SentAt ??= occurredAt;
+                break;
+            case "delivered":
+                if (!IsTerminalFailure(stepSend.Status))
+                {
+                    stepSend.Status = NewsLetterRecipientStatus.Delivered;
+                    stepSend.FailureReason = string.Empty;
+                }
+                stepSend.DeliveredAt ??= occurredAt;
+                break;
+            case "open":
+            case "opened":
+                if (!IsTerminalFailure(stepSend.Status))
+                {
+                    stepSend.Status = NewsLetterRecipientStatus.Opened;
+                    stepSend.FailureReason = string.Empty;
+                }
+                stepSend.OpenedAt ??= occurredAt;
+                break;
+            case "click":
+            case "clicked":
+                if (!IsTerminalFailure(stepSend.Status))
+                {
+                    stepSend.Status = NewsLetterRecipientStatus.Clicked;
+                    stepSend.FailureReason = string.Empty;
+                }
+                stepSend.ClickedAt ??= occurredAt;
+                stepSend.OpenedAt ??= occurredAt;
+                break;
+            case "bounce":
+            case "bounced":
+                stepSend.Status = NewsLetterRecipientStatus.Bounced;
+                stepSend.BouncedAt ??= occurredAt;
+                stepSend.FailureReason = reason ?? stepSend.FailureReason;
+                break;
+            case "dropped":
+                stepSend.Status = NewsLetterRecipientStatus.Dropped;
+                stepSend.FailedAt ??= occurredAt;
+                stepSend.FailureReason = reason ?? stepSend.FailureReason;
+                break;
+            case "deferred":
+                stepSend.Status = NewsLetterRecipientStatus.Deferred;
+                stepSend.FailureReason = reason ?? stepSend.FailureReason;
+                break;
+        }
+
+        _uow.DripCampaignStepSends.Update(stepSend);
         await _uow.SaveChangesAsync();
     }
 

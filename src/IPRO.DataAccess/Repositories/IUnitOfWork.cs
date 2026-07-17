@@ -25,14 +25,18 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<NewsLetterArticle> NewsLetterArticles { get; }
     IRepository<NewsLetterSend> NewsLetterSends { get; }
     IRepository<NewsLetterRecipient> NewsLetterRecipients { get; }
+    IRepository<NewsLetterTemplate> NewsLetterTemplates { get; }
     IRepository<DripCampaign> DripCampaigns { get; }
     IRepository<DripCampaignStep> DripCampaignSteps { get; }
+    IRepository<DripCampaignStepSend> DripCampaignStepSends { get; }
     IRepository<Scheduler> Schedulers { get; }
     IRepository<Article> Articles { get; }
     IRepository<Coupon> Coupons { get; }
     IRepository<CalendarEvent> CalendarEvents { get; }
     IRepository<Testimonial> Testimonials { get; }
     IRepository<OperateLog> OperateLogs { get; }
+    IRepository<AdminUser> AdminUsers { get; }
+    IRepository<AdminAuditLogEntry> AdminAuditLogEntries { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

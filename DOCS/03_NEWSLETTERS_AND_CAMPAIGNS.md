@@ -4,10 +4,13 @@
 
 1. Select **Newsletter** in the Agent Portal.
 2. Click **Create Newsletter**.
-3. Enter the subject line.
-4. Compose the HTML newsletter body in the editor.
-5. Add a plain-text version for email clients that do not display HTML.
-6. Save as a draft.
+3. Optionally choose **Start from a template** to pre-fill the subject and body from one of Super Admin's starter templates, or start blank.
+4. Enter the subject line.
+5. Compose the HTML newsletter body in the rich editor (formatting toolbar, or switch to raw HTML source).
+6. Add a plain-text version for email clients that do not display HTML.
+7. Save as a draft.
+
+Super Admin manages the library of starter templates agents can choose from (see `07_SUPER_ADMIN.md`).
 
 ## Edit, Duplicate, or Reuse a Newsletter
 
@@ -61,12 +64,11 @@ To stop a future send, open the newsletter's send history and select **Cancel** 
 
 ## Review Delivery Tracking
 
-Open the newsletter preview and review the latest send:
+Open the newsletter preview and review the send history, which now shows open rate and click rate percentages alongside the raw counts:
 
-- Sent
-- Delivered
-- Opened
-- Failed, deferred, bounced, or rejected
+- Recipients, sent, opened, and open rate
+- Clicked and click rate
+- Delivered, failed, deferred, bounced, or rejected (recipient-level detail below the send history table)
 - Provider response or issue
 
 SendGrid event webhooks update these results. Open tracking can be affected by privacy protection, image blocking, and email client behavior.
@@ -83,9 +85,11 @@ SendGrid event webhooks update these results. Open tracking can be affected by p
 1. Select **Campaigns**.
 2. Create a campaign name and description.
 3. Add steps in the order they should be sent.
-4. For each step, set the subject, content, and delay in days.
+4. For each step, set the subject, content (same rich editor used for newsletters), and delay in days.
 5. Alternatively, reuse an existing newsletter as a campaign step.
 6. Edit, replace, reorder, or delete steps as needed.
+
+Each campaign's **Performance** section shows sent, delivered, opened, and clicked counts plus open/click rate percentages per step, based on the same SendGrid delivery tracking used for newsletters.
 
 ## Enroll Recipients in a Campaign
 

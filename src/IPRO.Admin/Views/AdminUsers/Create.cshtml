@@ -1,0 +1,48 @@
+@model IPRO.Entities.AdminUser
+@{
+    ViewData["Title"] = "New Admin User";
+}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/AdminUsers">Admin Users</a></li><li class="breadcrumb-item active">New</li></ol>
+</nav>
+
+<div class="card border-0 shadow-sm" style="max-width:640px">
+  <div class="card-body p-4">
+    <form method="post" action="/AdminUsers/Create">
+      @Html.AntiForgeryToken()
+      <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Username</label>
+        <input asp-for="Username" class="form-control" autocomplete="off" />
+        <span asp-validation-for="Username" class="text-danger small"></span>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Full Name</label>
+        <input asp-for="FullName" class="form-control" />
+        <span asp-validation-for="FullName" class="text-danger small"></span>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Temporary Password</label>
+        <input name="password" type="password" class="form-control" autocomplete="new-password" />
+        <div class="form-text">At least 8 characters. Share this with the new admin securely; they cannot change it themselves yet.</div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Role</label>
+        <select asp-for="Role" class="form-select">
+          <option value="@IPRO.Entities.AdminRoles.Support">Support (day-to-day operations)</option>
+          <option value="@IPRO.Entities.AdminRoles.SuperAdmin">Super Admin (full access, including billing and platform settings)</option>
+        </select>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary px-4">Create Admin</button>
+        <a href="/AdminUsers" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>

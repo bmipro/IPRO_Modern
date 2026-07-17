@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize]
+[Authorize(Policy = "SuperAdmin")]
 public class EmailSetupController : Controller
 {
     private readonly IUnitOfWork _uow;

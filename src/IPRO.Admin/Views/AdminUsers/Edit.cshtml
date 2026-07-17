@@ -1,0 +1,69 @@
+@model IPRO.Entities.AdminUser
+@{
+    ViewData["Title"] = "Edit Admin User";
+}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/AdminUsers">Admin Users</a></li><li class="breadcrumb-item active">@Model.Username</li></ol>
+</nav>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">Account Details</h6>
+        <form method="post" action="/AdminUsers/Edit/@Model.Id">
+          @Html.AntiForgeryToken()
+          <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <input class="form-control" value="@Model.Username" disabled />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Full Name</label>
+            <input name="fullName" class="form-control" value="@Model.FullName" />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Role</label>
+            <select name="role" class="form-select">
+              <option value="@IPRO.Entities.AdminRoles.Support" selected="@(Model.Role == IPRO.Entities.AdminRoles.Support)">Support (day-to-day operations)</option>
+              <option value="@IPRO.Entities.AdminRoles.SuperAdmin" selected="@(Model.Role == IPRO.Entities.AdminRoles.SuperAdmin)">Super Admin (full access, including billing and platform settings)</option>
+            </select>
+          </div>
+
+          <div class="form-check form-switch mb-4">
+            <input name="isActive" type="checkbox" class="form-check-input" role="switch" value="true" checked="@Model.IsActive" />
+            <input type="hidden" name="isActive" value="false" />
+            <label class="form-check-label">Active</label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+            <a href="/AdminUsers" class="btn btn-outline-secondary">Back</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">Reset Password</h6>
+        <form method="post" action="/AdminUsers/ResetPassword/@Model.Id">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="id" value="@Model.Id" />
+          <div class="mb-3">
+            <label class="form-label fw-semibold">New Password</label>
+            <input name="newPassword" type="password" class="form-control" autocomplete="new-password" />
+            <div class="form-text">At least 8 characters. The admin will need this the next time they sign in.</div>
+          </div>
+          <button type="submit" class="btn btn-outline-warning">Reset Password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

@@ -15,6 +15,7 @@ public class NewsLetter
     public int TotalRecipients { get; set; }
     public int TotalSent { get; set; }
     public int TotalOpened { get; set; }
+    public int TotalClicked { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<NewsLetterArticle> Articles { get; set; } = new List<NewsLetterArticle>();

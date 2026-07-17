@@ -204,6 +204,47 @@
   </div>
 </form>
 
+@if (Model.Id != 0)
+{
+  var agents = (ViewBag.Agents as IEnumerable<IPRO.Entities.AgentUser>) ?? Enumerable.Empty<IPRO.Entities.AgentUser>();
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body p-4">
+      <h6 class="fw-bold mb-2"><i class="fas fa-eye me-2 text-primary"></i>Preview on an agent's real site</h6>
+      <p class="text-muted small">Opens this template rendered against a chosen agent's actual pages and content, exactly as their visitors would see it. Nothing is saved or changed.</p>
+      @if (!agents.Any())
+      {
+        <div class="alert alert-info mb-0">No agents to preview against yet.</div>
+      }
+      else
+      {
+        <form method="post" action="/WebsiteTemplates/PreviewOnAgent" target="_blank" class="row g-2 align-items-end">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="templateId" value="@Model.Id" />
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Agent</label>
+            <select name="agentUserId" class="form-select" required>
+              <option value="">Choose agent...</option>
+              @foreach (var agent in agents)
+              {
+                <option value="@agent.Id">@agent.FirstName @agent.LastName (@agent.Email)</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-3">
+            <div class="form-check">
+              <input type="checkbox" name="useDefaults" value="true" class="form-check-input" id="previewUseDefaults" />
+              <label class="form-check-label" for="previewUseDefaults">Use template defaults, not the agent's overrides</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <button type="submit" class="btn btn-outline-primary w-100"><i class="fas fa-external-link-alt me-1"></i>Preview</button>
+          </div>
+        </form>
+      }
+    </div>
+  </div>
+}
+
 <style>
 .palette-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
 .palette-swatch { width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #d6deea; cursor: pointer; background: linear-gradient(135deg, var(--swatch-accent) 50%, var(--swatch-bg) 50%); }

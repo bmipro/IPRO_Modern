@@ -26,6 +26,7 @@ Last updated: July 16, 2026 (evening)
 - Package feature limits are editable.
 - Package active/inactive status exists.
 - PayPal setup, email setup, tax rates, domain automation, templates, agents, revenue, and subscription sections exist.
+- Admin authentication and authorization is a real role model instead of a single hardcoded credential: multiple named admin accounts exist (created/edited/deactivated/password-reset from **Admin Users**), split across two roles (Super Admin: full access including billing/platform config; Support: day-to-day ops), and every login attempt plus admin-account change is written to an audit log. The original Azure-config credential is auto-migrated into the first Super Admin account on first startup, so nothing breaks on deploy. Fixes a prior inconsistency where some billing/platform screens (PayPal, Email, Packages, Tax Rates) were actually *less* protected than day-to-day ops screens.
 
 ### Billing and invoices
 - PayPal subscription checkout works in sandbox.
@@ -60,6 +61,9 @@ Last updated: July 16, 2026 (evening)
 - Open/failure tracking exists when SendGrid events are configured.
 - Test send exists.
 - Basic drip/campaign functionality exists.
+- Newsletters already have a genuine rich-text editor (toolbar plus HTML-source toggle) — this was previously misreported as missing.
+- Newsletter starter templates now exist: Super Admin manages a library of reusable starter content (seeded with 4 defaults on first startup), and agents can start a new newsletter from one instead of always starting blank.
+- Drip campaign emails are now tracked the same way newsletter sends are (delivered/opened/clicked per recipient via SendGrid events, previously completely untracked), and each campaign's Performance section shows per-step counts and open/click rate percentages. Newsletter send history also now shows open/click rate percentages, not just raw counts. Drip campaign steps use the same rich editor as newsletters instead of a plain textarea.
 
 ### Agent profile
 - Agents can edit their own profile/contact/business information from the agent portal.
@@ -97,6 +101,7 @@ Last updated: July 16, 2026 (evening)
 - Domain automation is hardened: failed domains back off and eventually pause automatic retries instead of retrying forever; agents can self-service retry a domain; agents see plain-language errors while Super Admin still sees the raw Azure/DNS detail; a missing Azure setting is named specifically; removing a domain requires typed confirmation and best-effort cleans up the Azure hostname binding/certificate; the root/apex domain's forwarding status is now tracked and shown (informational only); and the DNS/Azure-binding check logic is now one shared implementation instead of two drifted copies.
 - Website analytics exists and is fully functional: agents review 7/30/90-day page views, estimated unique visitors, leads, conversion rate, popular pages, traffic sources, and a per-domain breakdown from the Agent Portal's Analytics screen. Real-time page-view recording excludes common bots, social-preview fetchers, template previews, and visitors sending Do Not Track, and stores a one-way monthly-rotating visitor hash instead of a raw IP address. Gated by the package's "Detailed visitor/hits tracking system" feature.
 - Modern Professional and Editorial Visual's generic Text block now falls back to a full-width layout when a block has no image, instead of always reserving space for an image that isn't there. Modern's default Testimonials layout is now a simple quote list instead of reusing the same card-grid component as its own Services section, so the two sections no longer look identical on a Modern Professional site.
+- Agents already had a genuine, non-destructive, real-content template preview before applying a template — this was previously misreported as missing. The actual gap (Super Admin's template editor only had a fake-content mock preview) is now closed too: Super Admin can preview a candidate template rendered against any real agent's actual pages/content via a signed, time-limited link, without saving or changing anything.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.
@@ -105,18 +110,14 @@ Last updated: July 16, 2026 (evening)
 ## Not Done or Still Fragile
 
 ### Important missing product pieces
-- Better template preview before applying.
-- Richer HTML/newsletter editor.
-- Better newsletter templates.
-- Stronger campaign reporting.
 - Agent-side billing/invoicing system for their own clients.
 - Client portal.
 - Document upload/storage.
 - Appointment booking.
 - SMS reminders.
 - Social media posting/management.
-- More complete role/security model for admin users.
 - Formal backup/release checklist.
+- Broader admin audit logging (today's audit log covers login and admin-account changes only, not every action across every screen).
 
 ## Recommended Next Tasks
 
@@ -170,6 +171,13 @@ Last updated: July 16, 2026 (evening)
 
 ### 9. Polish the website lead inbox (done)
 - The core inbox (status filters, unread tracking, search, pagination, CRM linking, follow-up actions) was already complete — this pass added a date-range filter, sort options, bulk mark-contacted/dismiss actions, and CSV export of every filtered/searched lead.
+
+### 10. Close the roadmap's "named gaps" (done)
+- Verified all 4 items against actual code first: template preview and the rich HTML editor turned out to already be built (roadmap was stale); newsletter templates, campaign reporting, and the admin role model were real gaps.
+- Newsletter starter templates: Super Admin manages a seeded library; agents can start a newsletter from one.
+- Drip campaign emails are now tracked (delivered/opened/clicked) the same way newsletter sends are; campaigns show a per-step Performance breakdown with rates; newsletter send history now shows rate percentages too; drip steps use the same rich editor as newsletters.
+- Admin role/security model: multiple named admin accounts (Super Admin / Support roles) replace the single hardcoded credential, gating was corrected where it was previously backwards, and login/admin-account changes are audit-logged.
+- Super Admin can now preview a candidate template against a real agent's actual site via a signed, time-limited link (previously only a fake-content mock).
 
 ## Bigger Product Ideas
 

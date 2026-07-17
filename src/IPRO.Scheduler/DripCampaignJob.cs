@@ -63,7 +63,8 @@ public class DripCampaignJob
                     enrollment.NextStepIndex,
                     enrollment.Client.Email,
                     string.IsNullOrWhiteSpace(clientName) ? enrollment.Client.Email : clientName,
-                    enrollment.UnsubscribeToken);
+                    enrollment.UnsubscribeToken,
+                    enrollment.Id);
 
                 enrollment.LastSentAt = DateTime.UtcNow;
                 enrollment.LastError = string.Empty;

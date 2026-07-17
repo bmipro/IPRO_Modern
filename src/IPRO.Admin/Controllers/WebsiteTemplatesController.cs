@@ -2,6 +2,7 @@ using IPRO.Admin.Models;
 using IPRO.DataAccess.Repositories;
 using IPRO.Email;
 using IPRO.Entities;
+using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,12 +14,14 @@ public class WebsiteTemplatesController : Controller
     private readonly IUnitOfWork _uow;
     private readonly IEmailService _email;
     private readonly ILogger<WebsiteTemplatesController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public WebsiteTemplatesController(IUnitOfWork uow, IEmailService email, ILogger<WebsiteTemplatesController> logger)
+    public WebsiteTemplatesController(IUnitOfWork uow, IEmailService email, ILogger<WebsiteTemplatesController> logger, IConfiguration configuration)
     {
         _uow = uow;
         _email = email;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index()
@@ -51,7 +54,28 @@ public class WebsiteTemplatesController : Controller
     {
         var template = await _uow.WebsiteTemplates.GetByIdAsync(id);
         if (template == null) return NotFound();
+
+        ViewBag.Agents = (await _uow.AgentUsers.GetAllAsync())
+            .OrderBy(a => a.LastName)
+            .ThenBy(a => a.FirstName)
+            .ToList();
+
         return View(template);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public IActionResult PreviewOnAgent(int templateId, int agentUserId, bool useDefaults = false)
+    {
+        var secret = _configuration["AdminPreview:SharedSecret"];
+        if (string.IsNullOrWhiteSpace(secret) || secret.StartsWith("CHANGE_THIS", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Admin preview is not configured yet. Set AdminPreview:SharedSecret (matching value in both apps) in Azure App Settings.";
+            return RedirectToAction(nameof(Edit), new { id = templateId });
+        }
+
+        var token = AdminPreviewToken.Create(secret, agentUserId, templateId, useDefaults, TimeSpan.FromMinutes(10));
+        var baseUrl = (_configuration["App:PublicWebsiteBaseUrl"] ?? "https://ipro-prod-web.azurewebsites.net").TrimEnd('/');
+        return Redirect($"{baseUrl}/PublicWebsite/PreviewTemplateForAdmin?token={Uri.EscapeDataString(token)}");
     }
 
     [HttpPost, ValidateAntiForgeryToken]

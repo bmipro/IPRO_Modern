@@ -34,15 +34,19 @@ public class IPRODbContext : DbContext
     public DbSet<NewsLetterArticle> NewsLetterArticles => Set<NewsLetterArticle>();
     public DbSet<NewsLetterSend> NewsLetterSends => Set<NewsLetterSend>();
     public DbSet<NewsLetterRecipient> NewsLetterRecipients => Set<NewsLetterRecipient>();
+    public DbSet<NewsLetterTemplate> NewsLetterTemplates => Set<NewsLetterTemplate>();
     public DbSet<DripCampaign> DripCampaigns => Set<DripCampaign>();
     public DbSet<DripCampaignStep> DripCampaignSteps => Set<DripCampaignStep>();
     public DbSet<DripCampaignEnrollment> DripCampaignEnrollments => Set<DripCampaignEnrollment>();
+    public DbSet<DripCampaignStepSend> DripCampaignStepSends => Set<DripCampaignStepSend>();
     public DbSet<Scheduler> Schedulers => Set<Scheduler>();
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
     public DbSet<Testimonial> Testimonials => Set<Testimonial>();
     public DbSet<OperateLog> OperateLogs => Set<OperateLog>();
+    public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<AdminAuditLogEntry> AdminAuditLogEntries => Set<AdminAuditLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

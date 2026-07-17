@@ -44,6 +44,22 @@ public class PublicWebsiteController : Controller
         return await RenderPageAsync(slug);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> PreviewTemplateForAdmin(string token)
+    {
+        var sharedSecret = _configuration["AdminPreview:SharedSecret"];
+        if (!IPRO.Utility.AdminPreviewToken.TryValidate(token, sharedSecret, out var agentUserId, out var templateId, out var useDefaults))
+        {
+            return NotFound();
+        }
+
+        var model = await IPRO.Web.Infrastructure.TemplatePreviewBuilder.BuildAsync(_db, agentUserId, templateId, useDefaults);
+        if (model == null) return NotFound();
+
+        ViewBag.IsTemplatePreview = true;
+        return View("~/Views/PublicWebsite/Index.cshtml", model);
+    }
+
     [HttpGet("/robots.txt")]
     public async Task<IActionResult> Robots()
     {

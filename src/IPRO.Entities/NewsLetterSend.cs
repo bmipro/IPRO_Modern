@@ -32,6 +32,7 @@ public class NewsLetterSend
     public int TotalRecipients { get; set; }
     public int TotalSent { get; set; }
     public int TotalOpened { get; set; }
+    public int TotalClicked { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public NewsLetter NewsLetter { get; set; } = null!;

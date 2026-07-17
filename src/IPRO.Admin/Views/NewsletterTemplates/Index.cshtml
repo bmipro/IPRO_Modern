@@ -1,0 +1,80 @@
+@model IEnumerable<IPRO.Entities.NewsLetterTemplate>
+@{
+    ViewData["Title"] = "Newsletter Templates";
+}
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-envelope-open-text me-2 text-primary"></i>Newsletter Templates</h4>
+    <div class="text-muted">Starter content agents can pick from when composing a newsletter.</div>
+  </div>
+  <a href="/NewsletterTemplates/Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Template</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Template</th>
+          <th>Subject</th>
+          <th>Order</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      @foreach (var template in Model)
+      {
+        <tr>
+          <td>
+            <div class="fw-bold">@template.Name</div>
+            <div class="small text-muted">@template.Description</div>
+          </td>
+          <td>@template.Subject</td>
+          <td>@template.SortOrder</td>
+          <td>
+            <span class="badge @(template.IsActive ? "bg-success" : "bg-secondary")">@(template.IsActive ? "Active" : "Hidden")</span>
+          </td>
+          <td class="text-end">
+            <a href="/NewsletterTemplates/Edit/@template.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+            @if (template.IsActive)
+            {
+              <form method="post" action="/NewsletterTemplates/Deactivate/@template.Id" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-outline-warning" type="submit" title="Hide from agents"><i class="fas fa-eye-slash"></i></button>
+              </form>
+            }
+            else
+            {
+              <form method="post" action="/NewsletterTemplates/Restore/@template.Id" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-outline-success" type="submit" title="Show to agents"><i class="fas fa-eye"></i></button>
+              </form>
+            }
+            <form method="post" action="/NewsletterTemplates/Delete/@template.Id" class="d-inline" onsubmit="return confirm('Delete this template?');">
+              @Html.AntiForgeryToken()
+              <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  </div>
+</div>

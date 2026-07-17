@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize(Policy = "SuperAdmin")]
+[Authorize(Policy = "AdminAccess")]
 public class WebsiteLeadsController : Controller
 {
     private readonly IPRODbContext _db;

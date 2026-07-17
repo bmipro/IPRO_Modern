@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize]
+[Authorize(Policy = "AdminAccess")]
 public class AdminDashboardController : Controller
 {
     private readonly IAgentService _agents;

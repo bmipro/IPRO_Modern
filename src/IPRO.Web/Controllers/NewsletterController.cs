@@ -34,7 +34,25 @@ public class NewsletterController : Controller
         if (gate != null) return gate;
 
         await LoadNewsletterContextAsync();
+        await LoadTemplatePickerAsync();
         return View(new NewsLetter());
+    }
+    public async Task<IActionResult> CreateFromTemplate(int templateId)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+
+        var template = await _db.NewsLetterTemplates.FirstOrDefaultAsync(t => t.Id == templateId && t.IsActive);
+        if (template == null) return NotFound();
+
+        await LoadNewsletterContextAsync();
+        await LoadTemplatePickerAsync();
+        return View("Create", new NewsLetter
+        {
+            Subject = template.Subject,
+            HtmlBody = template.HtmlBody,
+            TextBody = template.TextBody
+        });
     }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(NewsLetter model)
@@ -47,6 +65,7 @@ public class NewsletterController : Controller
         if (!ModelState.IsValid)
         {
             await LoadNewsletterContextAsync();
+            await LoadTemplatePickerAsync();
             return View(model);
         }
 
@@ -317,9 +336,6 @@ public class NewsletterController : Controller
 
         foreach (var item in events.EnumerateArray())
         {
-            var recipientId = ReadCustomInt(item, "newsletter_recipient_id");
-            if (recipientId <= 0) continue;
-
             var eventName = ReadString(item, "event");
             var providerMessageId = ReadString(item, "sg_message_id");
             var reason = ReadString(item, "reason");
@@ -327,9 +343,20 @@ public class NewsletterController : Controller
             {
                 reason = ReadString(item, "response");
             }
-
             var occurredAt = ReadUnixTimestamp(item, "timestamp") ?? DateTime.UtcNow;
-            await _newsletters.RecordRecipientEventAsync(recipientId, eventName, providerMessageId, reason, occurredAt);
+
+            var recipientId = ReadCustomInt(item, "newsletter_recipient_id");
+            if (recipientId > 0)
+            {
+                await _newsletters.RecordRecipientEventAsync(recipientId, eventName, providerMessageId, reason, occurredAt);
+                continue;
+            }
+
+            var dripStepSendId = ReadCustomInt(item, "drip_step_send_id");
+            if (dripStepSendId > 0)
+            {
+                await _newsletters.RecordDripStepEventAsync(dripStepSendId, eventName, providerMessageId, reason, occurredAt);
+            }
         }
 
         return Ok();
@@ -340,6 +367,15 @@ public class NewsletterController : Controller
         var subscribers = await _clients.GetNewsletterSubscribersAsync(AgentId);
         ViewBag.SubscriberCount = subscribers.Count();
         await LoadAgentTimeZoneAsync();
+    }
+
+    private async Task LoadTemplatePickerAsync()
+    {
+        ViewBag.NewsletterTemplates = await _db.NewsLetterTemplates
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.SortOrder)
+            .ThenBy(t => t.Name)
+            .ToListAsync();
     }
 
     private async Task LoadSendContextAsync()

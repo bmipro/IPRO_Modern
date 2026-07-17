@@ -177,7 +177,7 @@ public class NewsLetterDispatcher
         return await query.ToListAsync();
     }
 
-    public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null)
+    public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null, int enrollmentId = 0)
     {
         var campaign = await _uow.DripCampaigns.GetByIdAsync(campaignId);
         if (campaign == null || !campaign.IsActive) return;
@@ -188,16 +188,45 @@ public class NewsLetterDispatcher
         if (stepIndex >= steps.Count) return;
         var step = steps[stepIndex];
 
+        var stepSend = new DripCampaignStepSend
+        {
+            DripCampaignEnrollmentId = enrollmentId,
+            DripCampaignStepId = step.Id,
+            StepIndex = stepIndex,
+            Email = toEmail.Trim().ToLowerInvariant(),
+            RecipientName = toName,
+            Status = NewsLetterRecipientStatus.Queued
+        };
+        _db.DripCampaignStepSends.Add(stepSend);
+        await _db.SaveChangesAsync();
+
+        var customArgs = new Dictionary<string, string>
+        {
+            ["ipro_entity"] = "drip_step",
+            ["drip_step_send_id"] = stepSend.Id.ToString(),
+            ["drip_campaign_id"] = campaignId.ToString(),
+            ["enrollment_id"] = enrollmentId.ToString()
+        };
+
+        EmailSendResult result;
         if (string.IsNullOrWhiteSpace(unsubscribeToken))
         {
-            await _email.SendAsync(toEmail, toName, step.Subject, step.HtmlBody);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, step.HtmlBody, customArgs: customArgs);
         }
         else
         {
             var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
-            await _email.SendAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(step.HtmlBody, unsubscribeUrl));
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(step.HtmlBody, unsubscribeUrl), customArgs: customArgs);
         }
 
-        _logger.LogInformation("Drip step {Step} of campaign {Campaign} sent to {Email}", stepIndex, campaignId, toEmail);
+        stepSend.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
+        stepSend.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
+        stepSend.SentAt = result.Success ? DateTime.UtcNow : null;
+        stepSend.FailedAt = result.Success ? null : DateTime.UtcNow;
+        stepSend.FailureReason = result.Success ? string.Empty : result.Message;
+        stepSend.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Drip step {Step} of campaign {Campaign} sent to {Email}. Success: {Success}", stepIndex, campaignId, toEmail, result.Success);
     }
 }

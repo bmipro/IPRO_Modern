@@ -177,6 +177,9 @@ using (var scope = app.Services.CreateScope())
     await EnsureWebsiteLeadSchemaAsync(db);
     await EnsureWebsiteContentBlockSchemaAsync(db);
     await EnsureDripCampaignEnrollmentSchemaAsync(db);
+    await EnsureNewsLetterTemplateSchemaAsync(db);
+    await EnsureDripCampaignStepSendSchemaAsync(db);
+    await EnsureNewsLetterClickTrackingSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -385,6 +388,64 @@ static async Task EnsureDripCampaignEnrollmentSchemaAsync(IPRODbContext db)
     try
     {
         await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "UnsubscribeToken", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `UnsubscribeToken` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureNewsLetterTemplateSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `NewsLetterTemplates` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Name` varchar(160) CHARACTER SET utf8mb4 NOT NULL,
+    `Description` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `HtmlBody` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `TextBody` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await NewsLetterTemplateSeeder.SeedAsync(db);
+}
+
+static async Task EnsureDripCampaignStepSendSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `DripCampaignStepSends` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `DripCampaignEnrollmentId` int NOT NULL,
+    `DripCampaignStepId` int NOT NULL,
+    `StepIndex` int NOT NULL,
+    `Email` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `RecipientName` varchar(160) CHARACTER SET utf8mb4 NOT NULL,
+    `Status` int NOT NULL,
+    `SendGridMessageId` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `FailureReason` varchar(1000) CHARACTER SET utf8mb4 NOT NULL,
+    `SentAt` datetime(6) NULL,
+    `DeliveredAt` datetime(6) NULL,
+    `OpenedAt` datetime(6) NULL,
+    `ClickedAt` datetime(6) NULL,
+    `BouncedAt` datetime(6) NULL,
+    `FailedAt` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureNewsLetterClickTrackingSchemaAsync(IPRODbContext db)
+{
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "NewsLetterSends", "TotalClicked", "ALTER TABLE `NewsLetterSends` ADD COLUMN `TotalClicked` int NOT NULL DEFAULT 0");
+        await EnsureTableColumnAsync(db, "NewsLetters", "TotalClicked", "ALTER TABLE `NewsLetters` ADD COLUMN `TotalClicked` int NOT NULL DEFAULT 0");
     }
     finally
     {

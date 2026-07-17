@@ -18,6 +18,7 @@ public interface INewsLetterService
     Task<IEnumerable<NewsLetterRecipient>> GetRecipientsForSendAsync(int sendId);
     Task<IEnumerable<NewsLetterSend>> GetSendsAsync(int newsletterId);
     Task RecordRecipientEventAsync(int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt);
+    Task RecordDripStepEventAsync(int stepSendId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt);
     Task<IEnumerable<NewsLetterArticle>> GetArticlesAsync(int newsletterId);
     Task AddArticleAsync(NewsLetterArticle article);
     Task RemoveArticleAsync(int articleId);

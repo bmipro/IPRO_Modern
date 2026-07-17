@@ -30,6 +30,7 @@ builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("Pay
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
+builder.Services.AddScoped<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("plesk");
 builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
@@ -52,6 +53,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization(o =>
 {
     o.AddPolicy("SuperAdmin", p => p.RequireClaim("Role", "SuperAdmin"));
+    o.AddPolicy("AdminAccess", p => p.RequireAuthenticatedUser());
 });
 
 // ── Rate Limiting ─────────────────────────────────────────
@@ -87,6 +89,10 @@ using (var scope = app.Services.CreateScope())
     await EnsureWebsiteLeadSchemaAsync(db);
     await EnsureWebsiteContentBlockSchemaAsync(db);
     await EnsureDripCampaignEnrollmentSchemaAsync(db);
+    await EnsureNewsLetterTemplateSchemaAsync(db);
+    await EnsureDripCampaignStepSendSchemaAsync(db);
+    await EnsureNewsLetterClickTrackingSchemaAsync(db);
+    await EnsureAdminUserSchemaAsync(db, app.Configuration);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -249,6 +255,115 @@ static async Task EnsureDripCampaignEnrollmentSchemaAsync(IPRODbContext db)
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureNewsLetterTemplateSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `NewsLetterTemplates` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Name` varchar(160) CHARACTER SET utf8mb4 NOT NULL,
+    `Description` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `HtmlBody` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `TextBody` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await NewsLetterTemplateSeeder.SeedAsync(db);
+}
+
+static async Task EnsureDripCampaignStepSendSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `DripCampaignStepSends` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `DripCampaignEnrollmentId` int NOT NULL,
+    `DripCampaignStepId` int NOT NULL,
+    `StepIndex` int NOT NULL,
+    `Email` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `RecipientName` varchar(160) CHARACTER SET utf8mb4 NOT NULL,
+    `Status` int NOT NULL,
+    `SendGridMessageId` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `FailureReason` varchar(1000) CHARACTER SET utf8mb4 NOT NULL,
+    `SentAt` datetime(6) NULL,
+    `DeliveredAt` datetime(6) NULL,
+    `OpenedAt` datetime(6) NULL,
+    `ClickedAt` datetime(6) NULL,
+    `BouncedAt` datetime(6) NULL,
+    `FailedAt` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureNewsLetterClickTrackingSchemaAsync(IPRODbContext db)
+{
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "NewsLetterSends", "TotalClicked", "ALTER TABLE `NewsLetterSends` ADD COLUMN `TotalClicked` int NOT NULL DEFAULT 0");
+        await EnsureTableColumnAsync(db, "NewsLetters", "TotalClicked", "ALTER TABLE `NewsLetters` ADD COLUMN `TotalClicked` int NOT NULL DEFAULT 0");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureAdminUserSchemaAsync(IPRODbContext db, IConfiguration configuration)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `AdminUsers` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Username` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+    `PasswordHash` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `FullName` varchar(160) CHARACTER SET utf8mb4 NOT NULL,
+    `Role` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `CreatedAt` datetime(6) NOT NULL,
+    `LastLoginAt` datetime(6) NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `AdminAuditLogEntries` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AdminUserId` int NOT NULL,
+    `AdminUsername` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+    `Action` varchar(80) CHARACTER SET utf8mb4 NOT NULL,
+    `Details` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    if (await db.AdminUsers.AnyAsync())
+    {
+        return;
+    }
+
+    var bootstrapUsername = configuration["Admin:Username"];
+    var bootstrapPassword = configuration["Admin:Password"];
+    if (string.IsNullOrWhiteSpace(bootstrapUsername) || string.IsNullOrWhiteSpace(bootstrapPassword))
+    {
+        return;
+    }
+
+    var bootstrapUser = new AdminUser
+    {
+        Username = bootstrapUsername,
+        FullName = "System Administrator",
+        Role = AdminRoles.SuperAdmin,
+        IsActive = true,
+        CreatedAt = DateTime.UtcNow
+    };
+    bootstrapUser.PasswordHash = new PasswordHasher<AdminUser>().HashPassword(bootstrapUser, bootstrapPassword);
+    db.AdminUsers.Add(bootstrapUser);
+    await db.SaveChangesAsync();
 }
 
 static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)

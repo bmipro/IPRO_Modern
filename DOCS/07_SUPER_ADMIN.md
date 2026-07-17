@@ -3,10 +3,22 @@
 ## Sign In
 
 1. Open the Super Admin Portal.
-2. Enter the configured Admin username and password.
+2. Enter an admin username and password.
 3. Sign in.
 
-Admin credentials are stored in Azure application settings and should not be shared.
+The original Azure-application-settings admin credential is automatically created as the first **Super Admin** account the first time the app starts. From then on, admin sign-in is checked against the **Admin Users** list (see below), not the Azure setting directly — additional admin accounts can be created from within the portal. Every login attempt (success or failure) and every admin-account change is written to an audit log.
+
+## Manage Admin Users and Roles
+
+1. Select **Admin Users** (Super Admin only).
+2. **New Admin** creates an account with a username, full name, temporary password, and role.
+3. Two roles exist:
+   - **Super Admin** — full access, including Packages, Tax Rates, PayPal Setup, Email Setup, Website Templates, Newsletter Templates, and Admin Users itself.
+   - **Support** — day-to-day operations: Agents, Domains, Starter Content, Website Leads, and Reports. Billing/platform configuration screens are not accessible and return "Access Denied."
+4. **Edit** an account to change its full name, role, or active status. An admin cannot deactivate their own account.
+5. **Reset Password** sets a new password for an account; share it with that admin securely.
+
+The audit log (visible in the database, not yet a dedicated screen) records login success/failure and every admin-account change (create, edit, role change, deactivate, password reset) with the acting admin's username and a timestamp. It does not yet cover every action across every screen — that is a larger effort for a future pass.
 
 ## Dashboard
 
@@ -123,6 +135,17 @@ Tax changes apply to future invoice calculations.
 Heading and body font size set the default for section headings and body text across an agent's site; agents may override both from their own **My Website** settings. The hero/banner title keeps its own large display size regardless of this setting. Background color, button style, section spacing, and hero style also set real per-template defaults that agents may override individually; Hero Style (Gradient, Clean, or Classic) changes the background treatment behind the hero banner.
 
 The template list shows how many agent sites and package defaults use each template, and the "Make default" action is scoped per business type/vertical, not just one global default. **Duplicate** creates an inactive `v2`/`v3` draft for safely testing changes before activating. **Delete** is blocked with the affected agent/package names whenever a template is still in use. **Retire** deactivates a template (existing sites stay online, unchanged) and emails every affected agent that their template was retired and they can switch whenever they're ready from **My Website**; those agents also see an in-app "Your current template has been retired" notice on that page until they switch. Retiring is blocked if the template is currently a business-type default — choose another default first.
+
+From an existing template's edit screen, **Preview on an agent's real site** opens the candidate template rendered against a chosen agent's actual pages and content in a new tab — nothing is saved or changed. This requires `AdminPreview:SharedSecret` to be set to the same value in both the Web and Admin apps' Azure App Settings; until then the button shows a configuration warning instead of a broken link.
+
+## Manage Newsletter Templates
+
+1. Select **Newsletter Templates**.
+2. Create, edit, hide (deactivate), or delete a starter template agents can use when composing a newsletter.
+3. Set the default subject, HTML body (same rich editor agents use), plain-text body, and sort order.
+4. Hidden templates stay in the list here but no longer appear in the agent-facing picker.
+
+A handful of starter templates (announcement, market update, thank-you note, seasonal greeting) are seeded automatically the first time the app starts, so agents never see a completely empty list.
 
 ## Manage Vertical Starter Content
 

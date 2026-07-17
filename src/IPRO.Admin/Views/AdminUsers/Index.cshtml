@@ -1,0 +1,59 @@
+@model IEnumerable<IPRO.Entities.AdminUser>
+@{
+    ViewData["Title"] = "Admin Users";
+}
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-user-shield me-2 text-primary"></i>Admin Users</h4>
+    <div class="text-muted">Accounts that can sign in to this Super Admin panel.</div>
+  </div>
+  <a href="/AdminUsers/Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Admin</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Full Name</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Last Login</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      @foreach (var user in Model)
+      {
+        <tr>
+          <td>@user.Username</td>
+          <td>@user.FullName</td>
+          <td><span class="badge @(user.Role == "SuperAdmin" ? "bg-primary" : "bg-info text-dark")">@user.Role</span></td>
+          <td><span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">@(user.IsActive ? "Active" : "Deactivated")</span></td>
+          <td class="small text-muted">@(user.LastLoginAt?.ToString("MMM d, yyyy h:mm tt") ?? "Never")</td>
+          <td class="text-end">
+            <a href="/AdminUsers/Edit/@user.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+          </td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  </div>
+</div>

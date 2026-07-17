@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize(Policy = "SuperAdmin")]
+[Authorize(Policy = "AdminAccess")]
 public class DomainsController : Controller
 {
     private readonly IPRODbContext _db;

@@ -1,0 +1,175 @@
+@model string
+@{
+    var editorId = ViewData["EditorId"]?.ToString() ?? "richEditor";
+    var fieldName = ViewData["FieldName"]?.ToString() ?? "Content";
+    var height = ViewData["Height"]?.ToString() ?? "400";
+    var toolbarMode = ViewData["Toolbar"]?.ToString() ?? "full";
+    var visualId = $"{editorId}-visual";
+    var toolbarId = $"{editorId}-toolbar";
+    var sourceId = $"{editorId}-source";
+    var showFullToolbar = toolbarMode == "full";
+}
+
+<div class="ipro-rich-editor" data-editor-root="@editorId">
+    <div id="@toolbarId" class="ipro-rich-toolbar" role="toolbar" aria-label="Rich text editor toolbar">
+        <button type="button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+        <button type="button" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+        <button type="button" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+        <span class="ipro-toolbar-separator"></span>
+        <button type="button" data-command="insertUnorderedList" title="Bulleted list"><i class="fas fa-list-ul"></i></button>
+        <button type="button" data-command="insertOrderedList" title="Numbered list"><i class="fas fa-list-ol"></i></button>
+        @if (showFullToolbar)
+        {
+            <span class="ipro-toolbar-separator"></span>
+            <button type="button" data-command="justifyLeft" title="Align left"><i class="fas fa-align-left"></i></button>
+            <button type="button" data-command="justifyCenter" title="Align center"><i class="fas fa-align-center"></i></button>
+            <button type="button" data-command="justifyRight" title="Align right"><i class="fas fa-align-right"></i></button>
+            <span class="ipro-toolbar-separator"></span>
+            <button type="button" data-command="createLink" title="Insert link"><i class="fas fa-link"></i></button>
+            <button type="button" data-command="removeFormat" title="Clear formatting"><i class="fas fa-eraser"></i></button>
+        }
+        <span class="ipro-toolbar-spacer"></span>
+        <button type="button" data-command="toggleSource" title="HTML source"><i class="fas fa-code"></i></button>
+    </div>
+    <div id="@visualId" class="ipro-rich-surface" contenteditable="true" style="min-height:@(height)px">@Html.Raw(Model ?? string.Empty)</div>
+    <textarea id="@sourceId" class="form-control ipro-rich-source d-none" rows="10">@Model</textarea>
+    <textarea id="@editorId" name="@fieldName" class="d-none" data-custom-rich-editor="true">@Model</textarea>
+</div>
+
+<style>
+    .ipro-rich-editor {
+        border: 1px solid #d5deea;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, .03);
+    }
+    .ipro-rich-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px;
+        border-bottom: 1px solid #e5eaf2;
+        background: #f8fafc;
+    }
+    .ipro-rich-toolbar button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 32px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        background: transparent;
+        color: #334155;
+    }
+    .ipro-rich-toolbar button:hover,
+    .ipro-rich-toolbar button.active {
+        border-color: #c9d8ef;
+        background: #eaf2ff;
+        color: #0d6efd;
+    }
+    .ipro-toolbar-separator {
+        width: 1px;
+        height: 24px;
+        margin: 0 4px;
+        background: #dbe3ef;
+    }
+    .ipro-toolbar-spacer {
+        flex: 1;
+    }
+    .ipro-rich-surface {
+        padding: 16px;
+        outline: none;
+        overflow: auto;
+        line-height: 1.55;
+        color: #172033;
+    }
+    .ipro-rich-surface:focus {
+        box-shadow: inset 0 0 0 3px rgba(13, 110, 253, .12);
+    }
+    .ipro-rich-surface p {
+        margin: 0 0 .85rem;
+    }
+    .ipro-rich-source {
+        border: 0;
+        border-radius: 0;
+        min-height: 220px;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: .9rem;
+    }
+</style>
+
+<script>
+(function () {
+    const hidden = document.getElementById('@editorId');
+    const visual = document.getElementById('@visualId');
+    const source = document.getElementById('@sourceId');
+    const toolbar = document.getElementById('@toolbarId');
+    if (!hidden || !visual || !source || !toolbar) return;
+
+    function syncFromVisual() {
+        hidden.value = visual.innerHTML.trim();
+        source.value = hidden.value;
+    }
+
+    function syncFromSource() {
+        hidden.value = source.value.trim();
+        visual.innerHTML = hidden.value;
+    }
+
+    function toggleSource() {
+        if (source.classList.contains('d-none')) {
+            syncFromVisual();
+            visual.classList.add('d-none');
+            source.classList.remove('d-none');
+        } else {
+            syncFromSource();
+            source.classList.add('d-none');
+            visual.classList.remove('d-none');
+            visual.focus();
+        }
+    }
+
+    toolbar.addEventListener('click', function (event) {
+        const button = event.target.closest('button[data-command]');
+        if (!button) return;
+
+        event.preventDefault();
+        const command = button.dataset.command;
+        if (command === 'toggleSource') {
+            toggleSource();
+            return;
+        }
+
+        if (!source.classList.contains('d-none')) {
+            syncFromSource();
+            source.classList.add('d-none');
+            visual.classList.remove('d-none');
+        }
+
+        visual.focus();
+        if (command === 'createLink') {
+            const url = prompt('Enter the link URL');
+            if (url) document.execCommand(command, false, url);
+        } else {
+            document.execCommand(command, false, null);
+        }
+        syncFromVisual();
+    });
+
+    visual.addEventListener('input', syncFromVisual);
+    source.addEventListener('input', syncFromSource);
+
+    document.addEventListener('submit', function (event) {
+        const form = event.target;
+        if (!form || !form.contains(hidden)) return;
+
+        if (source.classList.contains('d-none')) {
+            syncFromVisual();
+        } else {
+            syncFromSource();
+        }
+    }, true);
+})();
+</script>

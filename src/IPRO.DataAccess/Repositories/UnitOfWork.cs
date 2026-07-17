@@ -30,14 +30,18 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<NewsLetterArticle>? _newsLetterArticles;
     private IRepository<NewsLetterSend>? _newsLetterSends;
     private IRepository<NewsLetterRecipient>? _newsLetterRecipients;
+    private IRepository<NewsLetterTemplate>? _newsLetterTemplates;
     private IRepository<DripCampaign>? _dripCampaigns;
     private IRepository<DripCampaignStep>? _dripCampaignSteps;
+    private IRepository<DripCampaignStepSend>? _dripCampaignStepSends;
     private IRepository<Scheduler>? _schedulers;
     private IRepository<Article>? _articles;
     private IRepository<Coupon>? _coupons;
     private IRepository<CalendarEvent>? _calendarEvents;
     private IRepository<Testimonial>? _testimonials;
     private IRepository<OperateLog>? _operateLogs;
+    private IRepository<AdminUser>? _adminUsers;
+    private IRepository<AdminAuditLogEntry>? _adminAuditLogEntries;
 
     public UnitOfWork(IPRODbContext context) // <-- CHANGED
     {
@@ -61,14 +65,18 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     public IRepository<NewsLetterArticle> NewsLetterArticles => _newsLetterArticles ??= new Repository<NewsLetterArticle>(_context);
     public IRepository<NewsLetterSend> NewsLetterSends => _newsLetterSends ??= new Repository<NewsLetterSend>(_context);
     public IRepository<NewsLetterRecipient> NewsLetterRecipients => _newsLetterRecipients ??= new Repository<NewsLetterRecipient>(_context);
+    public IRepository<NewsLetterTemplate> NewsLetterTemplates => _newsLetterTemplates ??= new Repository<NewsLetterTemplate>(_context);
     public IRepository<DripCampaign> DripCampaigns => _dripCampaigns ??= new Repository<DripCampaign>(_context);
     public IRepository<DripCampaignStep> DripCampaignSteps => _dripCampaignSteps ??= new Repository<DripCampaignStep>(_context);
+    public IRepository<DripCampaignStepSend> DripCampaignStepSends => _dripCampaignStepSends ??= new Repository<DripCampaignStepSend>(_context);
     public IRepository<Scheduler> Schedulers => _schedulers ??= new Repository<Scheduler>(_context);
     public IRepository<Article> Articles => _articles ??= new Repository<Article>(_context);
     public IRepository<Coupon> Coupons => _coupons ??= new Repository<Coupon>(_context);
     public IRepository<CalendarEvent> CalendarEvents => _calendarEvents ??= new Repository<CalendarEvent>(_context);
     public IRepository<Testimonial> Testimonials => _testimonials ??= new Repository<Testimonial>(_context);
     public IRepository<OperateLog> OperateLogs => _operateLogs ??= new Repository<OperateLog>(_context);
+    public IRepository<AdminUser> AdminUsers => _adminUsers ??= new Repository<AdminUser>(_context);
+    public IRepository<AdminAuditLogEntry> AdminAuditLogEntries => _adminAuditLogEntries ??= new Repository<AdminAuditLogEntry>(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
         => _context.SaveChangesAsync(cancellationToken);

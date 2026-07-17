@@ -66,7 +66,9 @@
                     </div>
                     <div class="col-12">
                       <label class="form-label fw-semibold">Email body</label>
-                      <textarea name="htmlBody" class="form-control campaign-step-editor" rows="7" required>@step.HtmlBody</textarea>
+                      @await Html.PartialAsync("_RichEditor", step.HtmlBody ?? string.Empty, new ViewDataDictionary(ViewData) {
+                          { "EditorId", $"stepBody{step.Id}" }, { "FieldName", "htmlBody" }, { "Height", "220" }, { "Toolbar", "simple" }
+                      })
                     </div>
                   </div>
                   <div class="d-flex justify-content-end gap-2 mt-3">
@@ -136,7 +138,9 @@
                 </div>
                 <div class="col-12">
                   <label class="form-label fw-semibold">Email body</label>
-                  <textarea name="htmlBody" class="form-control" rows="7" placeholder="<p>Write the email body here...</p>" required></textarea>
+                  @await Html.PartialAsync("_RichEditor", string.Empty, new ViewDataDictionary(ViewData) {
+                      { "EditorId", "newStepBody" }, { "FieldName", "htmlBody" }, { "Height", "220" }, { "Toolbar", "simple" }
+                  })
                 </div>
               </div>
               <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-plus me-1"></i>Add Step</button>
@@ -175,6 +179,39 @@
         </div>
       </div>
     </div>
+
+    @if (Model.Steps.Any())
+    {
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 p-4 pb-0">
+          <h5 class="fw-bold mb-1"><i class="fas fa-chart-line me-2 text-info"></i>Performance</h5>
+          <div class="text-muted small">Delivery and engagement per step, based on tracked SendGrid events.</div>
+        </div>
+        <div class="card-body p-4">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead><tr><th>Step</th><th>Sent</th><th>Delivered</th><th>Opened</th><th>Open Rate</th><th>Clicked</th><th>Click Rate</th></tr></thead>
+              <tbody>
+              @for (var i = 0; i < Model.Steps.Count; i++)
+              {
+                var step = Model.Steps[i];
+                var perf = Model.StepPerformance.TryGetValue(step.Id, out var p) ? p : new IPRO.Web.Models.CampaignStepPerformance();
+                <tr>
+                  <td>Step @(i + 1)</td>
+                  <td>@perf.Sent</td>
+                  <td>@perf.Delivered</td>
+                  <td>@perf.Opened</td>
+                  <td>@perf.OpenRate%</td>
+                  <td>@perf.Clicked</td>
+                  <td>@perf.ClickRate%</td>
+                </tr>
+              }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
   </div>
 
   <div class="col-lg-5">
@@ -263,10 +300,5 @@
 <style>
   .step-preview {
     max-width: 520px;
-  }
-
-  .campaign-step-editor {
-    font-family: Consolas, "Courier New", monospace;
-    font-size: .92rem;
   }
 </style>

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize]
+[Authorize(Policy = "SuperAdmin")]
 public class PackagesController : Controller
 {
     private const int Unlimited = -1;
