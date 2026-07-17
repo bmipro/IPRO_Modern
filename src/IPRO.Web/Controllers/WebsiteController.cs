@@ -18,8 +18,12 @@ public class WebsiteController : Controller
     private readonly IAgentService _agents;
     private readonly IConfiguration _configuration;
     private readonly IPRODbContext _db;
+    private readonly IDomainCheckService _domainCheck;
+    private readonly IAzureDomainAutomationService _azureDomains;
+    private readonly ILogger<WebsiteController> _logger;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public WebsiteController(IWebsiteService websites, IBlobStorageService blob, IPackageEntitlementService entitlements, IAgentService agents, IConfiguration configuration, IPRODbContext db)
+    public WebsiteController(IWebsiteService websites, IBlobStorageService blob, IPackageEntitlementService entitlements, IAgentService agents, IConfiguration configuration, IPRODbContext db,
+        IDomainCheckService domainCheck, IAzureDomainAutomationService azureDomains, ILogger<WebsiteController> logger)
     {
         _websites = websites;
         _blob = blob;
@@ -27,6 +31,9 @@ public class WebsiteController : Controller
         _agents = agents;
         _configuration = configuration;
         _db = db;
+        _domainCheck = domainCheck;
+        _azureDomains = azureDomains;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -386,7 +393,7 @@ public class WebsiteController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveDomain(int id)
+    public async Task<IActionResult> RemoveDomain(int id, string confirmDomainName)
     {
         var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
         if (domain == null)
@@ -395,6 +402,13 @@ public class WebsiteController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        if (!string.Equals(confirmDomainName?.Trim(), domain.DomainName, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Type the exact domain name to confirm removal.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var domainNameForCleanup = domain.DomainName;
         var wasPrimary = domain.IsPrimary;
         _db.AgentDomains.Remove(domain);
         await _db.SaveChangesAsync();
@@ -421,7 +435,41 @@ public class WebsiteController : Controller
             await _websites.UpdateAsync(website);
         }
 
-        TempData["Success"] = $"{domain.DomainName} was removed.";
+        try
+        {
+            await _azureDomains.RemoveDomainAsync(domainNameForCleanup);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Best-effort Azure cleanup failed for {Domain} after removal", domainNameForCleanup);
+        }
+
+        TempData["Success"] = $"{domainNameForCleanup} was removed.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RetryDomain(int id)
+    {
+        var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
+        if (domain == null)
+        {
+            TempData["Error"] = "That domain could not be found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var cooldown = TimeSpan.FromMinutes(2);
+        if (domain.LastCheckedAt.HasValue && DateTime.UtcNow - domain.LastCheckedAt.Value < cooldown)
+        {
+            TempData["Error"] = "Please wait a couple of minutes before rechecking this domain again.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var bound = await _domainCheck.CheckAsync(domain);
+        await _db.SaveChangesAsync();
+        TempData[bound ? "Success" : "Error"] = bound
+            ? $"{domain.DomainName} is bound."
+            : DomainErrorTranslator.ToAgentMessage(domain.LastError);
         return RedirectToAction(nameof(Index));
     }
 

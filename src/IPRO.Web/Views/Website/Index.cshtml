@@ -387,7 +387,11 @@
                   <div class="small text-muted">DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span> &middot; Azure: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@domain.AzureBindingStatus</span></div>
                   @if (!string.IsNullOrWhiteSpace(domain.LastError))
                   {
-                    <div class="small @(domainDnsReady ? "text-danger" : "text-muted")">@domain.LastError</div>
+                    <div class="small @(domainDnsReady ? "text-danger" : "text-muted")">@IPRO.Utility.DomainErrorTranslator.ToAgentMessage(domain.LastError)</div>
+                  }
+                  @if (!string.IsNullOrWhiteSpace(domain.RootDomain) && !string.Equals(domain.RootDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase))
+                  {
+                    <div class="small mt-1">Root domain (@domain.RootDomain): <span class="badge @(domain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(domain.RootRedirectsToWww ? "Forwarding OK" : "Not forwarding")</span></div>
                   }
                 </div>
                 <div class="d-flex gap-1 align-items-start">
@@ -398,9 +402,28 @@
                       <button class="btn btn-sm btn-outline-primary" type="submit">Primary</button>
                     </form>
                   }
-                  <form method="post" action="/Website/RemoveDomain/@domain.Id" onsubmit="return confirm('Remove @domain.DomainName from this website?');">
+                  <form method="post" action="/Website/RetryDomain/@domain.Id">
                     @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Recheck this domain now">Retry</button>
+                  </form>
+                  <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeDomainModal-@domain.Id">Remove</button>
+                </div>
+              </div>
+            </div>
+            <div class="modal fade" id="removeDomainModal-@domain.Id" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <form method="post" action="/Website/RemoveDomain/@domain.Id">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header"><h5 class="modal-title">Remove @domain.DomainName?</h5></div>
+                    <div class="modal-body">
+                      <p class="text-danger small">This cannot be undone. Type <strong>@domain.DomainName</strong> to confirm.</p>
+                      <input type="text" name="confirmDomainName" class="form-control" required autocomplete="off" />
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-danger">Remove Domain</button>
+                    </div>
                   </form>
                 </div>
               </div>
@@ -423,13 +446,24 @@
               <span>SSL</span>
               <span class="badge @(sslReady ? "bg-success" : "bg-secondary")">@primaryDomain.SslStatus</span>
             </div>
+            @if (!string.IsNullOrWhiteSpace(primaryDomain.RootDomain) && !string.Equals(primaryDomain.RootDomain, primaryDomain.DomainName, StringComparison.OrdinalIgnoreCase))
+            {
+              <div class="d-flex justify-content-between small mb-2">
+                <span>Root domain (@primaryDomain.RootDomain)</span>
+                <span class="badge @(primaryDomain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(primaryDomain.RootRedirectsToWww ? "Forwarding OK" : "Not forwarding")</span>
+              </div>
+              @if (!string.IsNullOrWhiteSpace(primaryDomain.RootLastError))
+              {
+                <div class="small text-muted mb-2">@primaryDomain.RootLastError</div>
+              }
+            }
             @if (primaryDomain.LastCheckedAt.HasValue)
             {
               <div class="small text-muted">Last checked: @primaryDomain.LastCheckedAt.Value.ToLocalTime().ToString("MMM d, h:mm tt")</div>
             }
             @if (!string.IsNullOrWhiteSpace(primaryDomain.LastError))
             {
-              <div class="small @(dnsReady ? "text-danger" : "text-muted") mt-2">@primaryDomain.LastError</div>
+              <div class="small @(dnsReady ? "text-danger" : "text-muted") mt-2">@IPRO.Utility.DomainErrorTranslator.ToAgentMessage(primaryDomain.LastError)</div>
             }
           </div>
         }

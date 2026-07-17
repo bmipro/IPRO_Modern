@@ -28,4 +28,17 @@ public class AzureDomainAutomationOptions
         CreateManagedCertificate &&
         !string.IsNullOrWhiteSpace(AppServicePlanResourceId) &&
         !string.IsNullOrWhiteSpace(Location);
+
+    public string MissingBindingSettingsSummary()
+    {
+        var missing = new List<string>();
+        if (!Enabled) missing.Add("Enabled");
+        if (string.IsNullOrWhiteSpace(TenantId)) missing.Add("TenantId");
+        if (string.IsNullOrWhiteSpace(ClientId)) missing.Add("ClientId");
+        if (string.IsNullOrWhiteSpace(ClientSecret)) missing.Add("ClientSecret");
+        if (string.IsNullOrWhiteSpace(SubscriptionId)) missing.Add("SubscriptionId");
+        if (string.IsNullOrWhiteSpace(ResourceGroup)) missing.Add("ResourceGroup");
+        if (string.IsNullOrWhiteSpace(WebAppName)) missing.Add("WebAppName");
+        return missing.Count == 0 ? string.Empty : string.Join(", ", missing);
+    }
 }

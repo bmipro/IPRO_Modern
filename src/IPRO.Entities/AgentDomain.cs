@@ -7,6 +7,7 @@ public static class AgentDomainStatus
     public const string BindingPending = "BindingPending";
     public const string Bound = "Bound";
     public const string Failed = "Failed";
+    public const string NotConfigured = "NotConfigured";
 }
 
 public class AgentDomain
@@ -24,6 +25,14 @@ public class AgentDomain
     public bool IsPrimary { get; set; } = true;
     public DateTime? LastCheckedAt { get; set; }
     public string LastError { get; set; } = string.Empty;
+    public int RetryCount { get; set; }
+    public DateTime? LastFailedAt { get; set; }
+    public DateTime? NextRetryAt { get; set; }
+    public bool AutoRetryExhausted { get; set; }
+    public string RootDnsStatus { get; set; } = AgentDomainStatus.PendingDns;
+    public bool RootRedirectsToWww { get; set; }
+    public DateTime? RootLastCheckedAt { get; set; }
+    public string RootLastError { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;

@@ -84,6 +84,7 @@ Last updated: July 16, 2026 (evening)
 - Template output is more differentiated: Classic Sidebar's Call to Action, Contact, and generic Text blocks now use distinct grid/card/band layouts instead of one flat stack. Hero Style (Gradient/Clean/Classic) now has a real, visible effect on all 3 templates (it was previously a no-op). Agents can now also override Background Color, Button Style, and Section Spacing per site, in addition to Theme Color and Font. Design customizations are kept when switching templates instead of resetting automatically; a "Reset to Template Defaults" action is available when a full reset is wanted. Curated color palette swatches (in both Super Admin templates and agent My Website) set a coordinated theme/background color pair in one click.
 - Services, Testimonials, and Call to Action blocks each support an independent per-block **Layout** choice (Services: Cards/List/Icons; Testimonials: Grid/Featured Quote/List; Call to Action: Banner/Card/Split) on top of whichever template family the site uses, giving agents block-level mix-and-match beyond template and color choices.
 - Template governance is complete: the Super Admin template list shows per-template agent/package usage, defaults are set per business type (not just one global default), duplicate creates a safe versioned draft, deletion is blocked while a template is in use, and retiring a template emails every affected agent (in addition to the existing in-app notice on their My Website page) while their site stays online unchanged.
+- Domain automation is hardened: failed domains back off and eventually pause automatic retries instead of retrying forever; agents can self-service retry a domain; agents see plain-language errors while Super Admin still sees the raw Azure/DNS detail; a missing Azure setting is named specifically; removing a domain requires typed confirmation and best-effort cleans up the Azure hostname binding/certificate; the root/apex domain's forwarding status is now tracked and shown (informational only); and the DNS/Azure-binding check logic is now one shared implementation instead of two drifted copies.
 
 ### Documentation
 - `DOCS` exists as the project documentation area.
@@ -95,13 +96,6 @@ Last updated: July 16, 2026 (evening)
 1. Template output still needs stronger visual differentiation.
    - Different templates should produce clearly different public websites.
    - Home, About, Services, Contact, and future pages need consistent rendering.
-
-2. Domain automation needs production hardening.
-   - Clearer pending-DNS messaging.
-   - Better retry visibility.
-   - Better error handling for Azure permission/config problems.
-   - Safer remove/retry workflow.
-   - Consistent root-domain and `www` guidance.
 
 ### Important missing product pieces
 - Full website lead inbox.
@@ -147,7 +141,15 @@ Last updated: July 16, 2026 (evening)
 - Deleting a template in use is blocked with the affected agent/package names.
 - Retiring a template emails every affected agent and shows an in-app notice on their My Website page; their site stays online unchanged.
 
-### 5. Build website analytics
+### 5. Harden domain automation (done)
+- Failed domains no longer retry forever: automatic background checking backs off over time and eventually pauses after repeated failures, tracked per domain.
+- Agents can click **Retry** to recheck a domain themselves (roughly every 2 minutes), instead of only Super Admin being able to force a recheck.
+- Agents see plain-language error messages instead of raw Azure error text; Super Admin still sees the real underlying error for diagnosis. A missing Azure configuration setting is named specifically instead of a vague "settings incomplete" message.
+- Removing a domain requires typing the exact domain name to confirm, and best-effort removes the corresponding Azure hostname binding/certificate instead of leaving it orphaned.
+- The root/apex domain's DNS and www-forwarding status is now tracked and shown (informational only, never blocks the site) in both the agent and Super Admin views.
+- The DNS/Azure-binding check logic that the background job and Super Admin's Recheck action used to implement separately (and had drifted) is now a single shared service both call.
+
+### 6. Build website analytics
 - Track page views.
 - Track contact form submissions.
 - Track domain source.

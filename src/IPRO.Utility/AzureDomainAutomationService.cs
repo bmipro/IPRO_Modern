@@ -41,7 +41,7 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
 
         if (!_options.HasRequiredBindingSettings)
         {
-            return AzureDomainAutomationResult.Skipped("Azure domain automation settings are incomplete.");
+            return AzureDomainAutomationResult.Skipped($"Azure domain automation settings are incomplete. Missing: {_options.MissingBindingSettingsSummary()}.");
         }
 
         try
@@ -84,6 +84,49 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         {
             _logger.LogWarning(ex, "Azure domain automation failed for {HostName}", hostName);
             return AzureDomainAutomationResult.Failed("Azure automation failed: " + ex.Message);
+        }
+    }
+
+    public async Task<AzureDomainAutomationResult> RemoveDomainAsync(string hostName, CancellationToken cancellationToken = default)
+    {
+        hostName = (hostName ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(hostName))
+        {
+            return AzureDomainAutomationResult.Skipped("Domain name is missing.");
+        }
+
+        if (!_options.HasRequiredBindingSettings)
+        {
+            return AzureDomainAutomationResult.Skipped($"Azure domain automation settings are incomplete. Missing: {_options.MissingBindingSettingsSummary()}.");
+        }
+
+        try
+        {
+            var bindingUri = ManagementUri(
+                $"subscriptions/{_options.SubscriptionId}/resourceGroups/{_options.ResourceGroup}/providers/Microsoft.Web/sites/{_options.WebAppName}/hostNameBindings/{Uri.EscapeDataString(hostName)}");
+            using var bindingRequest = new HttpRequestMessage(HttpMethod.Delete, bindingUri);
+            await SendManagementDeleteAsync(bindingRequest, cancellationToken);
+
+            if (_options.HasRequiredCertificateSettings)
+            {
+                var certificateName = "managed-" + hostName.Replace(".", "-", StringComparison.OrdinalIgnoreCase);
+                if (certificateName.Length > 80)
+                {
+                    certificateName = certificateName[..80];
+                }
+
+                var certUri = ManagementUri(
+                    $"subscriptions/{_options.SubscriptionId}/resourceGroups/{_options.ResourceGroup}/providers/Microsoft.Web/certificates/{Uri.EscapeDataString(certificateName)}");
+                using var certRequest = new HttpRequestMessage(HttpMethod.Delete, certUri);
+                await SendManagementDeleteAsync(certRequest, cancellationToken);
+            }
+
+            return new AzureDomainAutomationResult { Success = true, Message = "Azure hostname binding removed." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Azure domain cleanup failed for {HostName}", hostName);
+            return AzureDomainAutomationResult.Failed("Azure cleanup failed: " + ex.Message);
         }
     }
 
@@ -173,6 +216,22 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         }
 
         return response;
+    }
+
+    private async Task SendManagementDeleteAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var token = await GetAccessTokenAsync(cancellationToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var client = _httpClientFactory.CreateClient();
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new InvalidOperationException($"{(int)response.StatusCode} {response.ReasonPhrase}: {ExtractAzureError(body)}");
     }
 
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)

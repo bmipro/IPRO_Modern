@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.Net;
 
 namespace IPRO.Admin.Controllers;
 
@@ -16,17 +15,20 @@ public class DomainsController : Controller
     private readonly IPRODbContext _db;
     private readonly AzureDomainAutomationOptions _azureOptions;
     private readonly IAzureDomainAutomationService _azureDomains;
+    private readonly IDomainCheckService _domainCheck;
     private readonly ILogger<DomainsController> _logger;
 
     public DomainsController(
         IPRODbContext db,
         IOptions<AzureDomainAutomationOptions> azureOptions,
         IAzureDomainAutomationService azureDomains,
+        IDomainCheckService domainCheck,
         ILogger<DomainsController> logger)
     {
         _db = db;
         _azureOptions = azureOptions.Value;
         _azureDomains = azureDomains;
+        _domainCheck = domainCheck;
         _logger = logger;
     }
 
@@ -73,56 +75,24 @@ public class DomainsController : Controller
     public async Task<IActionResult> Reset(int id)
     {
         var domain = await _db.AgentDomains.GetRequiredAsync(id);
-        domain.LastCheckedAt = DateTime.UtcNow;
-        domain.UpdatedAt = DateTime.UtcNow;
-
-        try
-        {
-            var addresses = await Dns.GetHostAddressesAsync(domain.DomainName);
-            if (addresses.Length == 0)
-            {
-                domain.DnsStatus = AgentDomainStatus.PendingDns;
-                domain.AzureBindingStatus = AgentDomainStatus.BindingPending;
-                domain.SslStatus = AgentDomainStatus.BindingPending;
-                domain.LastError = "DNS has not resolved yet.";
-                TempData["Error"] = $"{domain.DomainName} DNS has not resolved yet.";
-            }
-            else
-            {
-                domain.DnsStatus = AgentDomainStatus.DnsReady;
-                domain.LastError = string.Empty;
-
-                var result = await _azureDomains.EnsureDomainAsync(domain.DomainName);
-                if (result.Success)
-                {
-                    domain.DnsStatus = AgentDomainStatus.Bound;
-                    domain.AzureBindingStatus = AgentDomainStatus.Bound;
-                    domain.SslStatus = result.SslBound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending;
-                    domain.LastError = result.SslBound ? string.Empty : result.Message;
-                    TempData["Success"] = result.SslBound
-                        ? $"{domain.DomainName} is bound in Azure and SSL is ready."
-                        : $"{domain.DomainName} is bound in Azure. SSL is still pending.";
-                }
-                else
-                {
-                    domain.AzureBindingStatus = _azureDomains.IsConfigured ? AgentDomainStatus.Failed : AgentDomainStatus.BindingPending;
-                    domain.SslStatus = AgentDomainStatus.BindingPending;
-                    domain.LastError = result.Message;
-                    TempData["Error"] = result.Message;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            domain.DnsStatus = AgentDomainStatus.PendingDns;
-            domain.AzureBindingStatus = AgentDomainStatus.BindingPending;
-            domain.SslStatus = AgentDomainStatus.BindingPending;
-            domain.LastError = "DNS has not resolved yet. Confirm the CNAME points to " + domain.DnsTarget + ".";
-            TempData["Error"] = domain.LastError;
-            _logger.LogInformation(ex, "Manual domain check failed for {Domain}", domain.DomainName);
-        }
-
+        await _domainCheck.CheckAsync(domain);
         await _db.SaveChangesAsync();
+
+        if (domain.DnsStatus == AgentDomainStatus.PendingDns)
+        {
+            TempData["Error"] = domain.LastError;
+        }
+        else if (domain.AzureBindingStatus == AgentDomainStatus.Bound)
+        {
+            TempData["Success"] = domain.SslStatus == AgentDomainStatus.Bound
+                ? $"{domain.DomainName} is bound in Azure and SSL is ready."
+                : $"{domain.DomainName} is bound in Azure. SSL is still pending.";
+        }
+        else
+        {
+            TempData["Error"] = domain.LastError;
+        }
+
         return RedirectToAction(nameof(Index));
     }
 }

@@ -34,6 +34,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("plesk");
 builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
 builder.Services.AddScoped<IAzureDomainAutomationService, AzureDomainAutomationService>();
+builder.Services.AddScoped<IDomainCheckService, DomainCheckService>();
 
 // ── Auth ──────────────────────────────────────────────────
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -167,6 +168,14 @@ CREATE TABLE IF NOT EXISTS `AgentDomains` (
     `IsPrimary` tinyint(1) NOT NULL,
     `LastCheckedAt` datetime(6) NULL,
     `LastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL,
+    `RetryCount` int NOT NULL DEFAULT 0,
+    `LastFailedAt` datetime(6) NULL,
+    `NextRetryAt` datetime(6) NULL,
+    `AutoRetryExhausted` tinyint(1) NOT NULL DEFAULT FALSE,
+    `RootDnsStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'PendingDns',
+    `RootRedirectsToWww` tinyint(1) NOT NULL DEFAULT FALSE,
+    `RootLastCheckedAt` datetime(6) NULL,
+    `RootLastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
     `CreatedAt` datetime(6) NOT NULL,
     `UpdatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`)
@@ -186,6 +195,14 @@ CREATE TABLE IF NOT EXISTS `AgentDomains` (
     await EnsureTableColumnAsync(db, "AgentDomains", "LastError", "ALTER TABLE `AgentDomains` ADD COLUMN `LastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     await EnsureTableColumnAsync(db, "AgentDomains", "CreatedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
     await EnsureTableColumnAsync(db, "AgentDomains", "UpdatedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `UpdatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+    await EnsureTableColumnAsync(db, "AgentDomains", "RetryCount", "ALTER TABLE `AgentDomains` ADD COLUMN `RetryCount` int NOT NULL DEFAULT 0");
+    await EnsureTableColumnAsync(db, "AgentDomains", "LastFailedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `LastFailedAt` datetime(6) NULL");
+    await EnsureTableColumnAsync(db, "AgentDomains", "NextRetryAt", "ALTER TABLE `AgentDomains` ADD COLUMN `NextRetryAt` datetime(6) NULL");
+    await EnsureTableColumnAsync(db, "AgentDomains", "AutoRetryExhausted", "ALTER TABLE `AgentDomains` ADD COLUMN `AutoRetryExhausted` tinyint(1) NOT NULL DEFAULT FALSE");
+    await EnsureTableColumnAsync(db, "AgentDomains", "RootDnsStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootDnsStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'PendingDns'");
+    await EnsureTableColumnAsync(db, "AgentDomains", "RootRedirectsToWww", "ALTER TABLE `AgentDomains` ADD COLUMN `RootRedirectsToWww` tinyint(1) NOT NULL DEFAULT FALSE");
+    await EnsureTableColumnAsync(db, "AgentDomains", "RootLastCheckedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootLastCheckedAt` datetime(6) NULL");
+    await EnsureTableColumnAsync(db, "AgentDomains", "RootLastError", "ALTER TABLE `AgentDomains` ADD COLUMN `RootLastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
 }
 
 static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)

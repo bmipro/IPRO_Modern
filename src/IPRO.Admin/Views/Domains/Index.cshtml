@@ -105,6 +105,14 @@
             {
               <div class="small text-muted">Temp: @item.TemporaryDomain</div>
             }
+            @if (!string.IsNullOrWhiteSpace(domain.RootDomain) && !string.Equals(domain.RootDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase))
+            {
+              <div class="small mt-1">Root (@domain.RootDomain): <span class="badge @(domain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(domain.RootRedirectsToWww ? "Forwarding OK" : "Not forwarding")</span></div>
+            }
+            @if (domain.AutoRetryExhausted)
+            {
+              <div class="small mt-1"><span class="badge bg-secondary">Auto-retry paused (@domain.RetryCount attempts)</span></div>
+            }
           </td>
           <td>
             <div class="fw-semibold">@(string.IsNullOrWhiteSpace(item.AgentName) ? $"Agent #{domain.AgentUserId}" : item.AgentName)</div>

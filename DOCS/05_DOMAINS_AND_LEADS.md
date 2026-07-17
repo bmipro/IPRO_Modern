@@ -16,10 +16,10 @@ The agent should not alter temporary-domain DNS records.
    - Type: `CNAME`
    - Name/Host: `www`
    - Value: `ipro-prod-web.azurewebsites.net`
-6. Forward the root domain to the `www` domain using a permanent redirect when the registrar supports it.
+6. Forward the root domain to the `www` domain using a permanent redirect when the registrar supports it. IPRO now automatically checks whether the root domain resolves and actually forwards to the `www` address, and shows this as a separate, informational-only status — it never blocks the site from working, since only the `www` host is what IPRO actually binds and serves.
 7. Wait for DNS propagation.
 
-IPRO checks pending domains automatically. Super Admin can also select **Recheck**.
+IPRO checks pending domains automatically. Agents can also click **Retry** beside a domain to recheck it immediately (about every 2 minutes at most). Super Admin can also select **Recheck**.
 
 ## Domain Statuses
 
@@ -27,7 +27,17 @@ IPRO checks pending domains automatically. Super Admin can also select **Recheck
 - **DnsReady**: DNS points to the expected Azure hostname.
 - **BindingPending**: Azure binding or certificate work is in progress.
 - **Bound**: DNS, Azure custom-domain binding, and SSL are ready.
-- **Failed**: Review the displayed Azure or DNS error, correct it, and recheck.
+- **Failed**: Review the displayed error, correct it, and recheck. Agents see a plain-language version of the error; Super Admin sees the underlying Azure/DNS detail for real diagnosis.
+- **NotConfigured** (root/apex domain only): the bare domain does not resolve or does not forward to the `www` address yet. This is informational only and does not affect the `www` site.
+
+## Retry a Domain Check
+
+1. Open **My Website**.
+2. Beside any domain in **Domain manager**, click **Retry**.
+3. IPRO immediately rechecks DNS and Azure binding for that domain.
+4. Retry is limited to about once every 2 minutes per domain to prevent overload.
+
+IPRO's automatic background check backs off over time for a domain that keeps failing (checking less often, then eventually pausing automatic checks after a long stretch of failures). Retry always works regardless of how long automatic checking has been paused — clicking it re-arms automatic checking once the domain succeeds.
 
 ## Add Multiple Domains
 
@@ -35,7 +45,7 @@ IPRO checks pending domains automatically. Super Admin can also select **Recheck
 2. Add each domain from **Domain Manager**.
 3. Configure the `www` CNAME at each registrar.
 4. Select **Primary** beside the preferred domain.
-5. Remove unused domains with **Remove**.
+5. Remove unused domains with **Remove** — type the exact domain name to confirm, since this cannot be undone.
 
 All bound domains display the same agent website and selected content.
 

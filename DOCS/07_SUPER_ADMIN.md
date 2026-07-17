@@ -141,7 +141,11 @@ New agents receive matching starter pages based on business type/package. Agents
 3. Click **Recheck** after DNS or Azure permissions are corrected.
 4. Use **Mark Bound** only when the Azure domain and SSL binding have been independently confirmed.
 
-Automation settings require valid tenant ID, client ID, client secret, subscription ID, resource group, web app, App Service plan resource ID, and location.
+Automation settings require valid tenant ID, client ID, client secret, subscription ID, resource group, web app, App Service plan resource ID, and location. If a required setting is missing, the domain's error message names exactly which setting is blank.
+
+Each domain row also shows the root/apex domain's forwarding status when it differs from the `www` host (informational only — it never blocks the site). A domain that has failed repeatedly shows an "Auto-retry paused" badge once IPRO's background job stops automatically rechecking it; **Recheck** still works normally on a paused domain and resumes automatic checking if it succeeds.
+
+Super Admin always sees the real underlying Azure/DNS error text for a failed domain (unlike the agent-facing view, which shows a plain-language translation) — use this for actual diagnosis.
 
 ## Review Website Leads and Blocked Attempts
 
