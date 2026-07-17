@@ -1,7 +1,9 @@
 @model string
+@inject IConfiguration Configuration
 @{
     Layout = null;
     var host = Model ?? "this domain";
+    var loginUrl = $"{IPRO.Web.Infrastructure.PortalUrlHelper.GetAgentPortalBaseUrl(Configuration)}/Account/Login";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -32,7 +34,8 @@
   <main class="notice text-center">
     <div class="text-primary fw-bold text-uppercase mb-2" style="letter-spacing:.08em;">IPRO Advisers</div>
     <h1 class="h3 fw-bold">Website not published yet</h1>
-    <p class="text-muted mb-0">The domain <strong>@host</strong> is connected, but the agent website is not published or could not be found.</p>
+    <p class="text-muted mb-3">The domain <strong>@host</strong> is connected, but the agent website is not published or could not be found.</p>
+    <p class="mb-0">If this is your website, <a href="@loginUrl">sign in to the agent portal</a> and click <strong>Publish</strong> under My Website to make it live.</p>
   </main>
 </body>
 </html>
