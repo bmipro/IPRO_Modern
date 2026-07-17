@@ -361,7 +361,8 @@ public class CampaignsController : Controller
                 Status = DripCampaignEnrollmentStatus.Active,
                 NextStepIndex = 0,
                 StartedAt = DateTime.UtcNow,
-                NextSendAt = DateTime.UtcNow.AddDays(Math.Max(0, firstStep.DelayDays))
+                NextSendAt = DateTime.UtcNow.AddDays(Math.Max(0, firstStep.DelayDays)),
+                UnsubscribeToken = Guid.NewGuid().ToString("N")
             })
             .ToList();
 

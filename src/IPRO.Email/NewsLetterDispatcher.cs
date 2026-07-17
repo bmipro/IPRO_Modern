@@ -163,7 +163,7 @@ public class NewsLetterDispatcher
     {
         var query = _db.Clients
             .Include(c => c.Categories)
-            .Where(c => c.AgentUserId == send.AgentUserId);
+            .Where(c => c.AgentUserId == send.AgentUserId && c.IsNewsletterSubscribed);
 
         query = send.AudienceType switch
         {
@@ -171,13 +171,13 @@ public class NewsLetterDispatcher
                 query.Where(c => c.Categories.Any(cat => cat.Id == send.ClientCategoryId.Value)),
             NewsLetterAudienceType.IndividualClient when send.ClientId.HasValue =>
                 query.Where(c => c.Id == send.ClientId.Value),
-            _ => query.Where(c => c.IsNewsletterSubscribed)
+            _ => query
         };
 
         return await query.ToListAsync();
     }
 
-    public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName)
+    public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null)
     {
         var campaign = await _uow.DripCampaigns.GetByIdAsync(campaignId);
         if (campaign == null || !campaign.IsActive) return;
@@ -188,7 +188,16 @@ public class NewsLetterDispatcher
         if (stepIndex >= steps.Count) return;
         var step = steps[stepIndex];
 
-        await _email.SendAsync(toEmail, toName, step.Subject, step.HtmlBody);
+        if (string.IsNullOrWhiteSpace(unsubscribeToken))
+        {
+            await _email.SendAsync(toEmail, toName, step.Subject, step.HtmlBody);
+        }
+        else
+        {
+            var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
+            await _email.SendAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(step.HtmlBody, unsubscribeUrl));
+        }
+
         _logger.LogInformation("Drip step {Step} of campaign {Campaign} sent to {Email}", stepIndex, campaignId, toEmail);
     }
 }

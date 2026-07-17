@@ -2,6 +2,8 @@
     Layout = null;
     var success = ViewBag.Success as bool? == true;
     var email = ViewBag.Email as string ?? "";
+    var channel = ViewBag.Channel as string ?? "newsletter";
+    var channelLabel = channel == "series" ? "this email series" : "newsletter emails";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -34,7 +36,7 @@
       {
         <div class="display-6 text-success mb-3"><i class="fas fa-circle-check"></i></div>
         <h1 class="h3 fw-bold">You have been unsubscribed</h1>
-        <p class="text-muted mb-0">@email will no longer receive newsletter emails from this IPRO adviser.</p>
+        <p class="text-muted mb-0">@email will no longer receive @channelLabel from this IPRO adviser.</p>
       }
       else
       {

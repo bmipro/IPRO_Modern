@@ -52,12 +52,18 @@ public class DripCampaignJob
                     continue;
                 }
 
+                if (string.IsNullOrWhiteSpace(enrollment.UnsubscribeToken))
+                {
+                    enrollment.UnsubscribeToken = Guid.NewGuid().ToString("N");
+                }
+
                 var clientName = $"{enrollment.Client.FirstName} {enrollment.Client.LastName}".Trim();
                 await _dispatcher.DispatchDripStepAsync(
                     enrollment.DripCampaignId,
                     enrollment.NextStepIndex,
                     enrollment.Client.Email,
-                    string.IsNullOrWhiteSpace(clientName) ? enrollment.Client.Email : clientName);
+                    string.IsNullOrWhiteSpace(clientName) ? enrollment.Client.Email : clientName,
+                    enrollment.UnsubscribeToken);
 
                 enrollment.LastSentAt = DateTime.UtcNow;
                 enrollment.LastError = string.Empty;

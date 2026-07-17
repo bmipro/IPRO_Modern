@@ -86,6 +86,7 @@ using (var scope = app.Services.CreateScope())
     await WebsiteContentSchema.EnsureAsync(db);
     await EnsureWebsiteLeadSchemaAsync(db);
     await EnsureWebsiteContentBlockSchemaAsync(db);
+    await EnsureDripCampaignEnrollmentSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -230,6 +231,19 @@ static async Task EnsureWebsiteContentBlockSchemaAsync(IPRODbContext db)
     try
     {
         await EnsureTableColumnAsync(db, "WebsiteContentBlocks", "LayoutVariant", "ALTER TABLE `WebsiteContentBlocks` ADD COLUMN `LayoutVariant` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureDripCampaignEnrollmentSchemaAsync(IPRODbContext db)
+{
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "UnsubscribeToken", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `UnsubscribeToken` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     }
     finally
     {

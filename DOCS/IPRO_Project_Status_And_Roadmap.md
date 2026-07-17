@@ -64,6 +64,10 @@ Last updated: July 16, 2026 (evening)
 ### Agent profile
 - Agents can edit their own profile/contact/business information from the agent portal.
 
+### Newsletter and campaign unsubscribe
+- Newsletter sends already generate a per-recipient unsubscribe link (token-based) that updates the client's newsletter-subscribed preference; this now applies consistently across all 3 audience choices (all subscribers, account type/group, and individual client) instead of only the default "all subscribers" audience.
+- Drip campaign emails now also include an unsubscribe link, scoped to that specific campaign enrollment — clicking it cancels only that campaign's sequence for that client, without affecting their newsletter subscription or other campaigns.
+
 ### Website, domains, and templates
 - Agent website settings exist.
 - Temporary domain pattern exists, such as `FirstnameLastname.247Advisers.com`.
@@ -99,7 +103,6 @@ Last updated: July 16, 2026 (evening)
 - Better template preview before applying.
 - Richer HTML/newsletter editor.
 - Better newsletter templates.
-- Automatic unsubscribe links and preferences.
 - Stronger campaign reporting.
 - Agent-side billing/invoicing system for their own clients.
 - Client portal.
@@ -155,6 +158,10 @@ Last updated: July 16, 2026 (evening)
 ### 7. Finish template visual differentiation (done)
 - Modern Professional and Editorial Visual's generic Text block now falls back to full-width when there's no image, instead of always reserving unused space for one.
 - Modern Professional's default Testimonials layout no longer reuses the same card-grid component as its own Services section.
+
+### 8. Close remaining unsubscribe gaps (done)
+- Account type/group and individual-client newsletter sends now respect the client's newsletter-subscribed preference, matching the "all subscribers" audience (previously only that default audience checked it).
+- Drip campaign emails now include a real unsubscribe link, scoped per campaign enrollment (clicking it cancels only that enrollment, leaving newsletter subscription and other campaigns untouched).
 
 ## Bigger Product Ideas
 

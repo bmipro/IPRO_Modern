@@ -23,6 +23,7 @@ public class DripCampaignEnrollment
     public DateTime? CancelledAt { get; set; }
     public DateTime? LastSentAt { get; set; }
     public string LastError { get; set; } = string.Empty;
+    public string UnsubscribeToken { get; set; } = string.Empty;
 
     public AgentUser AgentUser { get; set; } = null!;
     public DripCampaign DripCampaign { get; set; } = null!;

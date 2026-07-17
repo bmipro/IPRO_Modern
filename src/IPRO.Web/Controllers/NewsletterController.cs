@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Net;
 using System.Text.Json;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Email;
 using IPRO.Entities;
@@ -9,6 +10,7 @@ using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Web.Controllers;
 
@@ -19,10 +21,11 @@ public class NewsletterController : Controller
     private readonly IClientService _clients;
     private readonly IPackageEntitlementService _entitlements;
     private readonly IUnitOfWork _uow;
+    private readonly IPRODbContext _db;
     private readonly NewsLetterDispatcher _dispatcher;
     private readonly IEmailService _email;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, NewsLetterDispatcher dispatcher, IEmailService email) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _dispatcher = dispatcher; _email = email; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
@@ -170,35 +173,54 @@ public class NewsletterController : Controller
     [AllowAnonymous]
     public async Task<IActionResult> Unsubscribe(string token)
     {
-        var recipient = string.IsNullOrWhiteSpace(token)
-            ? null
-            : (await _uow.NewsLetterRecipients.FindAsync(r => r.UnsubscribeToken == token.Trim())).FirstOrDefault();
-
-        if (recipient == null)
+        var trimmedToken = token?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmedToken))
         {
             ViewBag.Success = false;
             return View();
         }
 
-        recipient.Status = NewsLetterRecipientStatus.Unsubscribed;
-        recipient.LastEvent = "unsubscribe";
-        recipient.UpdatedAt = DateTime.UtcNow;
-        _uow.NewsLetterRecipients.Update(recipient);
-
-        if (recipient.ClientId.HasValue)
+        var recipient = (await _uow.NewsLetterRecipients.FindAsync(r => r.UnsubscribeToken == trimmedToken)).FirstOrDefault();
+        if (recipient != null)
         {
-            var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
-            if (client != null)
+            recipient.Status = NewsLetterRecipientStatus.Unsubscribed;
+            recipient.LastEvent = "unsubscribe";
+            recipient.UpdatedAt = DateTime.UtcNow;
+            _uow.NewsLetterRecipients.Update(recipient);
+
+            if (recipient.ClientId.HasValue)
             {
-                client.IsNewsletterSubscribed = false;
-                client.UpdatedAt = DateTime.UtcNow;
-                _uow.Clients.Update(client);
+                var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
+                if (client != null)
+                {
+                    client.IsNewsletterSubscribed = false;
+                    client.UpdatedAt = DateTime.UtcNow;
+                    _uow.Clients.Update(client);
+                }
             }
+
+            await _uow.SaveChangesAsync();
+            ViewBag.Success = true;
+            ViewBag.Email = recipient.Email;
+            ViewBag.Channel = "newsletter";
+            return View();
         }
 
-        await _uow.SaveChangesAsync();
-        ViewBag.Success = true;
-        ViewBag.Email = recipient.Email;
+        var enrollment = await _db.DripCampaignEnrollments.FirstOrDefaultAsync(e => e.UnsubscribeToken == trimmedToken);
+        if (enrollment != null)
+        {
+            enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+            enrollment.CancelledAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == enrollment.ClientId);
+            ViewBag.Success = true;
+            ViewBag.Email = client?.Email ?? string.Empty;
+            ViewBag.Channel = "series";
+            return View();
+        }
+
+        ViewBag.Success = false;
         return View();
     }
 

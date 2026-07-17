@@ -38,10 +38,10 @@ The newsletter is reusable. Each send creates a separate send record with its ow
 Click **Send** and choose one audience:
 
 - **All newsletter subscribers** sends to all opted-in clients.
-- **Account type / group** sends to clients assigned to one account type.
-- **One individual client** sends to a selected client.
+- **Account type / group** sends to opted-in clients assigned to one account type.
+- **One individual client** sends to that client only if they are currently opted in.
 
-Only clients with usable email addresses are included.
+Only clients with usable email addresses are included. All three audience choices respect each client's **Newsletter subscribed** setting on their client profile — a client who has unsubscribed (or was never opted in) is skipped by every audience type, not just "All newsletter subscribers."
 
 ## Send Now
 
@@ -96,4 +96,6 @@ SendGrid event webhooks update these results. Open tracking can be affected by p
 5. Cancel an enrollment if the client should stop receiving the sequence.
 
 Campaign access is controlled by package features.
+
+Every drip campaign email includes an unsubscribe link scoped to that specific campaign. If a client clicks it, only their enrollment in that one campaign is cancelled (their status changes to **Cancelled** and future steps stop) — it does not affect their newsletter subscription or any other campaign they may be enrolled in.
 
