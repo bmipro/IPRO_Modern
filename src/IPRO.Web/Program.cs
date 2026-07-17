@@ -84,7 +84,9 @@ builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounte
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddInMemoryRateLimiting();
-builder.Services.AddControllersWithViews(); 
+builder.Services.AddControllersWithViews();
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.Razor.RazorViewEngineOptions>(o =>
+    o.ViewLocationExpanders.Add(new IPRO.Web.Infrastructure.PublicWebsiteViewLocationExpander()));
 builder.Services.AddSession(o => 
 { 
     o.IdleTimeout = TimeSpan.FromMinutes(30); 
