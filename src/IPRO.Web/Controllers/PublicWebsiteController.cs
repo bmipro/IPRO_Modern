@@ -91,10 +91,13 @@ public class PublicWebsiteController : Controller
             return NotFound();
         }
 
-        if (!string.IsNullOrWhiteSpace(model.Website))
+        var honeypotSubmissionType = string.Equals(model.SubmissionType, WebsiteLeadTypes.Newsletter, StringComparison.OrdinalIgnoreCase)
+            ? WebsiteLeadTypes.Newsletter
+            : WebsiteLeadTypes.Contact;
+        if (!string.IsNullOrWhiteSpace(model.HoneypotField))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, returnPath);
-            return LocalRedirect(AddResult(returnPath, "submitted", "true"));
+            return LocalRedirect(AddResult(returnPath, "submitted", honeypotSubmissionType.ToLowerInvariant()));
         }
 
         var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;

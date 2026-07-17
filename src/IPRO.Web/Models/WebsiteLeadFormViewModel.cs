@@ -26,7 +26,7 @@ public class WebsiteLeadFormViewModel
     [Range(typeof(bool), "true", "true", ErrorMessage = "Please confirm that we may use your information to respond.")]
     public bool ConsentGiven { get; set; }
 
-    public string Website { get; set; } = string.Empty;
+    public string HoneypotField { get; set; } = string.Empty;
     public long FormStartedAt { get; set; }
     public string CaptchaToken { get; set; } = string.Empty;
     public string CaptchaAnswer { get; set; } = string.Empty;

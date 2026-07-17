@@ -8,6 +8,9 @@
     var expectedResult = Model.SubmissionType.ToLowerInvariant();
     var captchaLeft = Random.Shared.Next(2, 10);
     var captchaRight = Random.Shared.Next(2, 10);
+    var publicReturnPath = Context.Items.TryGetValue("IproPublicPath", out var originalPath) && originalPath is string { Length: > 0 } originalPathValue
+        ? originalPathValue
+        : Context.Request.Path.ToString();
     var captchaToken = DataProtectionProvider
         .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
         .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
@@ -27,10 +30,10 @@
       @Html.AntiForgeryToken()
       <input type="hidden" name="SubmissionType" value="@Model.SubmissionType" />
       <input type="hidden" name="PageId" value="@Model.PageId" />
-      <input type="hidden" name="ReturnPath" value="@Context.Request.Path" />
+      <input type="hidden" name="ReturnPath" value="@publicReturnPath" />
       <input type="hidden" name="FormStartedAt" value="@DateTimeOffset.UtcNow.ToUnixTimeSeconds()" />
       <input type="hidden" name="CaptchaToken" value="@captchaToken" />
-      <div class="website-lead-honeypot" aria-hidden="true"><label>Website<input name="Website" tabindex="-1" autocomplete="off" /></label></div>
+      <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
       <div class="website-lead-grid">
         <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
         @if (!isNewsletter)

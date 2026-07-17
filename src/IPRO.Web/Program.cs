@@ -108,6 +108,7 @@ app.Use(async (context, next) =>
 {
     if (ShouldRouteToPublicWebsite(context, app.Configuration))
     {
+        context.Items["IproPublicPath"] = context.Request.Path.Value is { Length: > 0 } rawPath ? rawPath : "/";
         var requestedPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
         if (requestedPath.Equals("PublicWebsite", StringComparison.OrdinalIgnoreCase) ||
             requestedPath.Equals("PublicWebsite/Page", StringComparison.OrdinalIgnoreCase))

@@ -124,6 +124,14 @@ Super Admin can also review notification delivery and blocked spam/bot attempts 
 
 Public contact and newsletter forms include a math captcha, a hidden honeypot field, and a minimum-fill-time check. A submission that fails any of these is never shown to the visitor as an error beyond a generic message, and no lead is created — but IPRO records the blocked attempt (reason, domain, page, and IP address only, never the submitted name/email/message) so Super Admin can review volume and patterns. The public contact form endpoint also has a dedicated rate limit separate from ordinary page browsing.
 
+The honeypot is a hidden decoy field that real visitors never see or fill. Some browsers can still autofill hidden form fields based on field naming, so the decoy field is deliberately named and structured to avoid common autofill triggers.
+
+### A visitor says they submitted the form but nothing shows up
+
+1. Check Super Admin's **Website Leads → Blocked Attempts** tab for a matching domain/page/timestamp — this confirms whether the anti-spam checks (captcha, honeypot, or timing) caught the submission.
+2. If a blocked attempt shows a honeypot reason but the visitor is confident they filled out the form normally, their browser's autofill may have populated the hidden decoy field. This is uncommon after 2026-07-17 (the decoy field was renamed away from common autofill-trigger names), but can still happen with some browser/password-manager combinations.
+3. Confirm the visitor's request landed within a few seconds of the page loading — submissions faster than 2 seconds are treated as automated and blocked by the timing check.
+
 ## Review Website Leads
 
 1. Select **Website Leads** in the Agent Portal.
