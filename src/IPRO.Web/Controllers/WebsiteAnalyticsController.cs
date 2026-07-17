@@ -52,43 +52,63 @@ public class WebsiteAnalyticsController : Controller
         var leads = await _db.WebsiteLeads.AsNoTracking()
             .CountAsync(l => l.AgentWebsiteId == website.Id && l.CreatedAt >= cutoff);
 
-        var daily = await query
+        var dailyRaw = await query
             .GroupBy(v => v.CreatedAt.Date)
-            .Select(group => new WebsiteAnalyticsDailyPoint(
-                group.Key,
-                group.Count(),
-                group.Select(v => v.VisitorHash).Distinct().Count()))
+            .Select(group => new
+            {
+                Date = group.Key,
+                Views = group.Count(),
+                Visitors = group.Select(v => v.VisitorHash).Distinct().Count()
+            })
             .OrderBy(point => point.Date)
             .ToListAsync();
+        var daily = dailyRaw
+            .Select(point => new WebsiteAnalyticsDailyPoint(point.Date, point.Views, point.Visitors))
+            .ToList();
 
-        var topPages = await query
+        var topPagesRaw = await query
             .GroupBy(v => v.Path)
-            .Select(group => new WebsiteAnalyticsBreakdown(
-                group.Key,
-                group.Count(),
-                group.Select(v => v.VisitorHash).Distinct().Count()))
+            .Select(group => new
+            {
+                Label = group.Key,
+                Views = group.Count(),
+                Visitors = group.Select(v => v.VisitorHash).Distinct().Count()
+            })
             .OrderByDescending(item => item.Views)
             .Take(10)
             .ToListAsync();
+        var topPages = topPagesRaw
+            .Select(item => new WebsiteAnalyticsBreakdown(item.Label, item.Views, item.Visitors))
+            .ToList();
 
-        var referrers = await query
+        var referrersRaw = await query
             .GroupBy(v => v.ReferrerHost)
-            .Select(group => new WebsiteAnalyticsBreakdown(
-                group.Key == "" ? "Direct / unknown" : group.Key,
-                group.Count(),
-                group.Select(v => v.VisitorHash).Distinct().Count()))
+            .Select(group => new
+            {
+                Label = group.Key,
+                Views = group.Count(),
+                Visitors = group.Select(v => v.VisitorHash).Distinct().Count()
+            })
             .OrderByDescending(item => item.Views)
             .Take(10)
             .ToListAsync();
+        var referrers = referrersRaw
+            .Select(item => new WebsiteAnalyticsBreakdown(string.IsNullOrEmpty(item.Label) ? "Direct / unknown" : item.Label, item.Views, item.Visitors))
+            .ToList();
 
-        var domains = await query
+        var domainsRaw = await query
             .GroupBy(v => v.SourceDomain)
-            .Select(group => new WebsiteAnalyticsBreakdown(
-                group.Key,
-                group.Count(),
-                group.Select(v => v.VisitorHash).Distinct().Count()))
+            .Select(group => new
+            {
+                Label = group.Key,
+                Views = group.Count(),
+                Visitors = group.Select(v => v.VisitorHash).Distinct().Count()
+            })
             .OrderByDescending(item => item.Views)
             .ToListAsync();
+        var domains = domainsRaw
+            .Select(item => new WebsiteAnalyticsBreakdown(item.Label, item.Views, item.Visitors))
+            .ToList();
 
         return View(new WebsiteAnalyticsViewModel
         {
