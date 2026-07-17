@@ -489,7 +489,7 @@ static async Task EnsurePromotionCodeSchemaAsync(IPRODbContext db)
 CREATE TABLE IF NOT EXISTS `PromotionCodes` (
     `Id` int NOT NULL AUTO_INCREMENT,
     `Code` varchar(60) CHARACTER SET utf8mb4 NOT NULL,
-    `Description` varchar(300) CHARACTER SET utf8mb4 NOT NULL,
+    `Description` varchar(300) CHARACTER SET utf8mb4 NULL,
     `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
     `ExpiresAt` datetime(6) NULL,
     `MaxRedemptions` int NULL,
@@ -500,12 +500,18 @@ CREATE TABLE IF NOT EXISTS `PromotionCodes` (
     `RecurringDurationCycles` int NULL,
     `SetupFeeDiscountType` int NOT NULL DEFAULT 0,
     `SetupFeeDiscountValue` decimal(10,2) NOT NULL DEFAULT 0,
-    `PayPalPromoPlanIdMonthly` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `PayPalPromoPlanIdAnnual` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `PayPalPromoPlanIdMonthly` varchar(80) CHARACTER SET utf8mb4 NULL,
+    `PayPalPromoPlanIdAnnual` varchar(80) CHARACTER SET utf8mb4 NULL,
     `CreatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`),
     UNIQUE KEY `IX_PromotionCodes_Code` (`Code`)
 ) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+ALTER TABLE `PromotionCodes`
+    MODIFY COLUMN `Description` varchar(300) CHARACTER SET utf8mb4 NULL,
+    MODIFY COLUMN `PayPalPromoPlanIdMonthly` varchar(80) CHARACTER SET utf8mb4 NULL,
+    MODIFY COLUMN `PayPalPromoPlanIdAnnual` varchar(80) CHARACTER SET utf8mb4 NULL;");
 
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS `PromotionCodeRedemptions` (
