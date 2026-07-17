@@ -129,8 +129,9 @@ The honeypot is a hidden decoy field that real visitors never see or fill. Some 
 ### A visitor says they submitted the form but nothing shows up
 
 1. Check Super Admin's **Website Leads → Blocked Attempts** tab for a matching domain/page/timestamp — this confirms whether the anti-spam checks (captcha, honeypot, or timing) caught the submission.
-2. If a blocked attempt shows a honeypot reason but the visitor is confident they filled out the form normally, their browser's autofill may have populated the hidden decoy field. This is uncommon after 2026-07-17 (the decoy field was renamed away from common autofill-trigger names), but can still happen with some browser/password-manager combinations.
+2. If a blocked attempt shows a honeypot reason but the visitor is confident they filled out the form normally, their browser's autofill may have populated the hidden decoy field. This is uncommon (the decoy field is deliberately named to avoid common autofill triggers), but can still happen with some browser/password-manager combinations.
 3. Confirm the visitor's request landed within a few seconds of the page loading — submissions faster than 2 seconds are treated as automated and blocked by the timing check.
+4. If nothing shows up in **Blocked Attempts** either — no lead, no blocked-attempt record, no trace at all — this points to a model-validation rejection rather than an anti-spam block. A validation failure happens before any record is created, so it is otherwise invisible. This exact scenario happened platform-wide on 2026-07-17 (see the "Public Contact/Newsletter Leads Silently Not Saving" incident in `09_TROUBLESHOOTING.md`) and is now fixed, but if a similar report comes in again, check the application logs for a `Public lead submission rejected by validation` warning first.
 
 ## Review Website Leads
 

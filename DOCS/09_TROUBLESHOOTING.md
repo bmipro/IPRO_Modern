@@ -105,6 +105,42 @@ az webapp log download --name ipro-prod-web --resource-group ipro-production --l
 
 **Prevention rule**: any new schema-repair code that uses `db.Database.GetDbConnection()` directly (rather than `db.Database.ExecuteSqlRawAsync(...)`) must run inside its own `OpenConnectionAsync`/`CloseConnectionAsync` scope, or be added inside the existing `EnsureWebsiteTemplateSchemaAsync` scope rather than as a new sibling call after it.
 
+## Incident: Public Contact/Newsletter Leads Silently Not Saving
+
+**2026-07-17.** An agent reported that submitting their own site's contact form (`www.4ipro.com/contact`, and the equivalent temp domain) produced a validation error every time, and separately that a successful-looking submission redirected to a blank/unexpected page. Investigation surfaced **three separate, compounding bugs**, all inside the "harden public contact/lead forms" feature shipped 2026-07-16. Because these failed before a lead row was ever created, **none of them left any trace anywhere in the product** — not a saved lead, not a logged blocked-spam-attempt, nothing. The only way to find them was direct log inspection plus live reproduction against the actual custom domain.
+
+### Bug 1 — every legitimate submission failed model validation (the critical one)
+
+`IPRO.Web.csproj` has `<Nullable>enable</Nullable>`. With that set, ASP.NET Core MVC treats **non-nullable `string` properties as implicitly `[Required]`** during model binding/validation — with no explicit `[Required]` attribute needed to trigger it. `WebsiteLeadFormViewModel.HoneypotField` was declared as a plain non-nullable `string`. The honeypot field is *always* submitted empty for a real visitor (that's the entire point of a honeypot) — so this implicit rule rejected **every** contact/newsletter submission, unconditionally. The same non-nullable-string pattern also affected `LastName`, `Phone`, and `Message` (all logically optional, and always absent from the DOM entirely for newsletter-type submissions), so even without the honeypot issue, any visitor who left phone/message blank — or any newsletter signup at all — would also have failed.
+
+Confirmed via a diagnostic log line added specifically to catch this (`_logger.LogWarning` on the ModelState-invalid branch in `PublicWebsiteController.SubmitLead`):
+```
+Public lead submission rejected by validation on www.4ipro.com/contact. ConsentGiven=True. Invalid fields: HoneypotField: The HoneypotField field is required.
+```
+**Fix** (commit `385cb48`): changed `HoneypotField`, `LastName`, `Phone`, `Message`, `CaptchaToken`, `CaptchaAnswer` to nullable (`string?`). The controller already handled all of these null-safely (`model.X?.Trim() ?? string.Empty`), so no other code changed.
+
+A second, smaller instance of the same class of bug: `ConsentGiven` used `[Range(typeof(bool), "true", "true")]` to enforce "must be checked" — `RangeAttribute` is not reliably designed for `bool` comparisons. The controller already had an explicit `!model.ConsentGiven` check as a backup, making the attribute redundant and a plausible source of its own false rejections. Removed (commit `5fdb353`).
+
+### Bug 2 — successful submissions redirected to the wrong page with no confirmation
+
+The routing middleware in `Program.cs` that maps a custom/temp domain's `/contact` to the internal `PublicWebsiteController.Page` action **rewrites `context.Request.Path`** before MVC ever sees it (to `/PublicWebsite/Page`, moving the real slug into the query string). The lead form's hidden `ReturnPath` field read `@Context.Request.Path` directly — which by then was the *rewritten* internal path, not the path the visitor's browser actually showed. Confirmed live: the hidden field on the real production site literally read `/PublicWebsite/Page`. Every post-submit redirect therefore sent visitors to that path, which itself gets rewritten again on the next request and lands on the site's home page — never back to Contact, and never showing a success message (which only renders on the page it's configured for).
+
+**Fix** (commit `4aad54e`): the middleware now stores the original, pre-rewrite path in `context.Items["IproPublicPath"]`; the lead form reads that instead of `Context.Request.Path`.
+
+### Bug 3 — the success confirmation still didn't show, even on the right page
+
+After fixing Bug 2, the URL correctly showed `/contact?submitted=contact` post-submit, but the page still rendered the empty form instead of the green confirmation banner. The same routing middleware **also replaces `context.Request.QueryString` wholesale** with just `?slug=<path>` on every request through the `else` branch — silently discarding whatever query string was already there, including `submitted=contact`, which the lead-form partial depends on (`@if (submitted == expectedResult)`) to know a submission just succeeded.
+
+**Fix** (commit `3ccc8b0`): the middleware now merges `slug` into the existing query string (`existingQuery.Add("slug", ...)`) instead of replacing it outright.
+
+**Verification**: all three fixes were confirmed against live production before *and* after deploying, by inspecting the actual rendered hidden-field values and page content via the browser tool (not just by reading the code) — e.g. navigating directly to `.../contact?submitted=contact` post-fix and confirming the success text rendered. A real end-to-end submission (`forthtest@gbssurveillance.com`) was confirmed to appear as a new CRM client afterward.
+
+**Prevention rules**:
+- Any new field on a public form model that is legitimately allowed to be empty (honeypots, optional contact details) must be declared nullable (`string?`) in a project with `<Nullable>enable</Nullable>` — a non-nullable `string` with no visible `[Required]` attribute is still implicitly required by MVC's validation, which is easy to miss in review.
+- Prefer plain, explicit boolean checks (`!model.SomeFlag`) over `[Range(typeof(bool), ...)]` for "must be true" checkbox validation — the latter is a known-fragile pattern.
+- Any middleware that rewrites `context.Request.Path` and/or `context.Request.QueryString` must preserve (not replace) whatever was already present, unless discarding it is a deliberate, documented choice — silent data loss here broke both page identity and success-state signaling.
+- A validation failure that happens *before* a domain entity is created leaves no audit trail by default. Consider whether public-form validation failures deserve the same "blocked attempt" visibility that spam/honeypot/captcha rejections already get in Super Admin's Website Leads screen.
+
 ## Release Build Commands
 
 From the repository root:
