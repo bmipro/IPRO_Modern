@@ -47,6 +47,8 @@ IPRO does not process the payment itself — the agent always confirms and recor
 2. Under **Client Invoicing**, enter a payment link (for example a PayPal.me link or a Stripe payment link).
 3. Save. This link appears as **Pay Now** on every invoice sent afterward — no need to reissue past invoices when it changes.
 
+If the link is a PayPal.me link, IPRO automatically appends the invoice's exact total and currency to the URL (PayPal.me's own supported format, e.g. `paypal.me/yourname/113.00CAD`), so the amount is pre-filled for the client and they don't have to type it in themselves. Other payment links (Stripe, etc.) open as-is, since there's no equivalent standard for passing an amount in the URL.
+
 ## Recurring Invoices
 
 1. Select **Client Invoices**, then **Recurring Schedules**.

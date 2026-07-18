@@ -1,5 +1,6 @@
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ public class ClientDocumentController : Controller
 
         ViewBag.Agent = invoice.AgentUser;
         ViewBag.IsPublicView = true;
-        ViewBag.PaymentLink = invoice.AgentUser.DefaultPaymentLink;
+        ViewBag.PaymentLink = PayPalMeLinkHelper.WithAmount(invoice.AgentUser.DefaultPaymentLink, invoice.Total, invoice.Currency);
         return View(invoice);
     }
 
