@@ -206,6 +206,9 @@ using (var scope = app.Services.CreateScope())
     await TaxRateSeeder.SeedAsync(db);
     await WebsiteTemplateSeeder.SeedAsync(db);
     await WebsiteStarterContentSeeder.SeedAsync(db);
+
+    var blob = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
+    await blob.EnsureContainerAccessAsync("portal-documents", isPrivate: true);
 }
 
 app.Run();

@@ -48,8 +48,14 @@ public class ClientPortalDocumentsController : Controller
         }
 
         await using var stream = file.OpenReadStream();
-        var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType;
-        var url = await _blob.UploadAsync(stream, file.FileName, "portal-documents", contentType);
+        var validation = await PortalDocumentValidator.ValidateAsync(file.FileName, stream);
+        if (!validation.IsValid)
+        {
+            TempData["Error"] = validation.Error;
+            return RedirectToAction(nameof(Index));
+        }
+        stream.Position = 0;
+        var url = await _blob.UploadAsync(stream, file.FileName, "portal-documents", validation.ContentType, isPrivate: true);
 
         _db.PortalDocuments.Add(new PortalDocument
         {
@@ -57,7 +63,7 @@ public class ClientPortalDocumentsController : Controller
             UploadedByClient = true,
             FileName = Path.GetFileName(file.FileName),
             BlobUrl = url,
-            ContentType = contentType,
+            ContentType = validation.ContentType,
             FileSizeBytes = file.Length
         });
         await _db.SaveChangesAsync();

@@ -41,6 +41,13 @@ Both the agent and the client can upload documents into a shared folder per clie
 
 Both sides can download anything uploaded by either party. Files are capped at 20 MB per upload.
 
+### Important Behavior
+
+- Allowed file types: PDF, Word (.doc/.docx), Excel (.xls/.xlsx), images (JPG/PNG/GIF/WebP), TXT, CSV. Any other file type — including executables, scripts, or HTML — is rejected at upload.
+- Each upload's actual content is checked against its extension (a renamed file with mismatched contents is rejected), and downloads always force a file-save dialog rather than opening in the browser.
+- Uploaded documents are stored in a private, non-public storage location — the only way to retrieve a file is through the authenticated Download links in the portal, never a bare public URL.
+- Antivirus/malware scanning of uploaded files is **not** performed today.
+
 ## My Information
 
 Clients can update their own contact details (name, phone, address) directly from their portal's **My Information** page — changes save immediately to the same client record visible in your CRM.

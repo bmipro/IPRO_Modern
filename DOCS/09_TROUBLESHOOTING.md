@@ -193,6 +193,18 @@ System.InvalidOperationException: The partial view '_ClassicSidebar' was not fou
 
 **Prevention rule**: this is now a recurring pattern in this codebase — any action reached via a positional URL segment (not a query string or form field) needs either a parameter literally named `id`, or its own explicit attribute route naming the actual parameter. Grep for `int \w+\)` action parameters reached via link hrefs with a trailing `/{value}` segment when adding a new controller, and default to adding the attribute route up front rather than relying on the conventional route.
 
+## Incident: Portal Documents Accepted Any File With No Validation
+
+**2026-07-18.** A security review of the Client Portal's document-sharing feature (both the agent-side `ClientsController.UploadPortalDocument` and client-side `ClientPortalDocumentsController.Upload`) found no extension allowlist, no content-type validation, and no magic-byte inspection — any file, regardless of actual content, was accepted and stored as long as it was under the 20 MB cap. The uploaded file's browser-supplied `Content-Type` was also trusted and stored as-is. Separately, the underlying Azure Blob container (`portal-documents`) was created public-read (`PublicAccessType.Blob`) with a bare HTTPS URL and no SAS token, meaning a leaked or guessed blob URL could bypass the authenticated Download action entirely.
+
+One initially-suspected issue turned out to already be handled correctly: both Download actions already call `File(stream, contentType, fileName)`, and ASP.NET Core's 3-argument overload sets `Content-Disposition: attachment` automatically — there was no stored-XSS-via-inline-render risk, contrary to first appearances.
+
+**Fix**: added `PortalDocumentValidator` (`src/IPRO.Utility/PortalDocumentValidator.cs`), an extension allowlist (PDF, Word, Excel, JPG/PNG/GIF/WebP, TXT, CSV) paired with a magic-byte signature check per type, modeled directly on `WebsitePagesController.UploadImage`'s existing image-signature validation. The upload controllers no longer trust `IFormFile.ContentType` at all — the content-type stored is always derived from the validated extension. `IBlobStorageService.UploadAsync` gained an explicit `isPrivate` parameter; the `portal-documents` container is now created/kept private (`PublicAccessType.None`), while `agent-logos`/`website-media` (used for the public agent website) remain public, since those must stay directly viewable by anonymous visitors. The container's access policy is re-asserted on every upload and once at app startup, so an already-public container from before this fix gets locked down automatically without a manual Azure step.
+
+**Prevention rule**: any new file-upload endpoint must validate both the file extension against an explicit allowlist AND the file's actual byte signature, and must never trust a client-supplied `Content-Type` header for anything that gets stored or re-served. A blob container should default to private unless the stored content is specifically meant to be publicly, anonymously accessible (e.g. content embedded in a public website).
+
+**Explicitly out of scope**: antivirus/malware scanning of uploaded files (e.g. Azure Defender for Storage) was not added — it requires enabling a paid Azure service, which is a cost/ops decision for the business to make separately, not something to add silently.
+
 ## Release Build Commands
 
 From the repository root:

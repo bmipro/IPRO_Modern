@@ -7,10 +7,11 @@ namespace IPRO.Utility;
 
 public interface IBlobStorageService
 {
-    Task<string> UploadAsync(Stream fileStream, string fileName, string containerName, string contentType);
+    Task<string> UploadAsync(Stream fileStream, string fileName, string containerName, string contentType, bool isPrivate);
     Task<bool> DeleteAsync(string blobUrl);
     Task<Stream?> DownloadAsync(string blobUrl);
     string GetPublicUrl(string containerName, string fileName);
+    Task EnsureContainerAccessAsync(string containerName, bool isPrivate);
 }
 
 public class AzureBlobStorageService : IBlobStorageService
@@ -27,17 +28,25 @@ public class AzureBlobStorageService : IBlobStorageService
         _logger = logger;
     }
 
-    public async Task<string> UploadAsync(Stream fileStream, string fileName, string containerName, string contentType)
+    public async Task<string> UploadAsync(Stream fileStream, string fileName, string containerName, string contentType, bool isPrivate)
     {
-        var container = _client.GetBlobContainerClient(containerName);
-        await container.CreateIfNotExistsAsync(PublicAccessType.Blob);
+        await EnsureContainerAccessAsync(containerName, isPrivate);
 
+        var container = _client.GetBlobContainerClient(containerName);
         var safeName = $"{Guid.NewGuid():N}_{Path.GetFileName(fileName)}";
         var blob = container.GetBlobClient(safeName);
 
         await blob.UploadAsync(fileStream, new BlobHttpHeaders { ContentType = contentType });
         _logger.LogInformation("Uploaded blob {Name} to {Container}", safeName, containerName);
         return blob.Uri.ToString();
+    }
+
+    public async Task EnsureContainerAccessAsync(string containerName, bool isPrivate)
+    {
+        var container = _client.GetBlobContainerClient(containerName);
+        var accessType = isPrivate ? PublicAccessType.None : PublicAccessType.Blob;
+        await container.CreateIfNotExistsAsync(accessType);
+        await container.SetAccessPolicyAsync(accessType);
     }
 
     public async Task<bool> DeleteAsync(string blobUrl)

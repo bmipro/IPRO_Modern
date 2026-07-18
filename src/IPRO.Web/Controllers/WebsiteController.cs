@@ -69,7 +69,7 @@ public class WebsiteController : Controller
         if (logo != null && logo.Length > 0)
         {
             using var s = logo.OpenReadStream();
-            model.LogoUrl = await _blob.UploadAsync(s, logo.FileName, "agent-logos", logo.ContentType);
+            model.LogoUrl = await _blob.UploadAsync(s, logo.FileName, "agent-logos", logo.ContentType, isPrivate: false);
         }
 
         model.CustomDomain = NormalizeDomain(model.CustomDomain);

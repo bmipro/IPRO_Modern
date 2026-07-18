@@ -313,7 +313,7 @@ public class WebsitePagesController : Controller
             return RedirectToAction(nameof(Edit), new { id = pageId });
         }
         stream.Position = 0;
-        var url = await _blob.UploadAsync(stream, image.FileName, "website-media", expectedContentType);
+        var url = await _blob.UploadAsync(stream, image.FileName, "website-media", expectedContentType, isPrivate: false);
         _db.WebsiteMediaAssets.Add(new WebsiteMediaAsset
         {
             AgentWebsiteId = page.AgentWebsiteId,
