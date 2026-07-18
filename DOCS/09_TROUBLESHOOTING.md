@@ -141,6 +141,44 @@ After fixing Bug 2, the URL correctly showed `/contact?submitted=contact` post-s
 - Any middleware that rewrites `context.Request.Path` and/or `context.Request.QueryString` must preserve (not replace) whatever was already present, unless discarding it is a deliberate, documented choice — silent data loss here broke both page identity and success-state signaling.
 - A validation failure that happens *before* a domain entity is created leaves no audit trail by default. Consider whether public-form validation failures deserve the same "blocked attempt" visibility that spam/honeypot/captcha rejections already get in Super Admin's Website Leads screen.
 
+## Incident: New Agents Published With No Nav/Pages, And Some Couldn't Publish At All
+
+**2026-07-17.** Two compounding bugs surfaced while live-testing a brand-new test agent's first publish.
+
+**Bug 1 — the Publish button silently didn't render.** `Views/Website/Index.cshtml` gated both Publish buttons (top of page and bottom of the settings form) on `Model != null`, where `Model` is the agent's `AgentWebsite` row. A brand-new agent who hadn't saved website settings yet had no row, so `Model` was `null` and the button never appeared — even though the `Publish` controller action already knew how to create a default website on the fly. The agent had no visible way to publish at all.
+
+**Fix** (commit `fb914ba`): changed both button conditions from `Model != null && !isPublished` to just `!isPublished`, since `isPublished` is already `false` when `Model` is null.
+
+**Bug 2 — publishing directly (without visiting Manage Pages first) produced an empty nav and blank homepage.** Starter pages (Home/About/Services/Contact, with their nav-visibility flags) are seeded by `EnsureStarterPagesAsync`, but that method was only ever called from `WebsitePagesController.Index`/`Navigation` — never from `WebsiteController.Publish`. An agent who selected a template, saved, and clicked **Publish** directly on **My Website** got a live site with zero `WebsitePage` rows: an empty top nav and no home content. The moment they visited **Manage Pages**, the same seeding ran and pages "magically" appeared — which looked like an unrelated edit had fixed it, but visiting that screen was the actual trigger.
+
+**Fix** (commit `0b824dd`): extracted the seeding logic into a shared `WebsiteStarterPagesHelper.EnsureStarterPagesAsync(db, website, agentId)` and call it from `WebsiteController.Publish` too, so starter pages always exist the moment a site goes live, regardless of which screen the agent visits first.
+
+**Prevention rule**: any "first-run" seeding step (starter pages, default settings, etc.) tied to a specific screen should also run from every other path that can make the underlying record live (here: Publish) — not just the screen where a developer happened to add it first.
+
+## Incident: My Website Template Preview Buttons Threw a 500
+
+**2026-07-17.** Clicking **Preview** on any template card in **My Website** returned an Azure 500 error page. Root cause found via fresh Azure container logs (`az webapp log download`):
+
+```
+System.InvalidOperationException: The partial view '_ClassicSidebar' was not found. The following locations were searched:
+/Views/Website/_ClassicSidebar.cshtml
+/Views/Shared/_ClassicSidebar.cshtml
+```
+
+`WebsiteController.PreviewTemplate` renders `~/Views/PublicWebsite/Index.cshtml` directly via an absolute path, but that view (and the shell partials it selects between — `_ClassicSidebar`, `_EditorialVisual`, `_ModernProfessional`) reference each other by simple name (`Html.PartialAsync("_ClassicSidebar", ...)`). ASP.NET Core's default Razor view location search is based on the **ambient route's controller name** ("Website"), not the folder the already-resolved parent view lives in ("PublicWebsite") — so the partials were never found. This was a latent bug in the Preview feature itself, not a regression from any same-day change; it just hadn't been clicked before.
+
+**Fix** (commit `4de495e`): registered a `PublicWebsiteViewLocationExpander` (`IPRO.Web/Infrastructure/PublicWebsiteViewLocationExpander.cs`) in `Program.cs` via `services.Configure<RazorViewEngineOptions>(...)`, adding `/Views/PublicWebsite/{0}.cshtml` as an extra fallback search path app-wide.
+
+**Prevention rule**: rendering a view via an absolute `~/Views/{OtherController}/...` path from a controller whose name doesn't match that folder will break any simple-name partial lookup inside it (and inside anything it includes, transitively) — either register a view-location fallback for that folder, or route the request through the controller that actually owns the view.
+
+## Incident: Support Help Article Links 404'd
+
+**2026-07-17.** Every "Read article" link on the agent Support Center 404'd. `Views/Support/Index.cshtml` links to `/Support/Article/@article.Slug`, and the app's conventional route is `{controller=Dashboard}/{action=Index}/{id?}` — that last segment binds to a route value literally named `id`. `SupportController.Article`'s parameter is named `slug`, not `id`, so MVC model binding never populated it; `HelpDocsService.FindArticle(null)` returned nothing and the action returned `NotFound()`.
+
+**Fix** (commit `7c57fd2`): added an explicit `[HttpGet("Support/Article/{slug}")]` attribute route on the action so the URL segment binds to `slug` directly.
+
+**Prevention rule**: an action parameter name must match the route template's placeholder name (or the route must be adjusted) — the conventional default route's placeholder is `id`; any action using a differently-named identifier parameter reached via that route needs its own explicit route attribute.
+
 ## Release Build Commands
 
 From the repository root:
