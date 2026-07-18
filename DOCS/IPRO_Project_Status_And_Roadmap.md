@@ -123,6 +123,13 @@ Last updated: July 16, 2026 (evening)
 - Formal backup/release checklist.
 - Broader admin audit logging (today's audit log covers login and admin-account changes only, not every action across every screen).
 
+### Proposed agent-value features (not scoped yet)
+- **Testimonial module.** Today the website's Testimonials block is just manually typed text. A real module would let an agent send a client a short request link, the client submits a quote (and optionally a star rating/photo) through a public form, the agent approves/rejects it in the portal, and approved testimonials feed the existing Testimonials block automatically instead of copy-paste. A natural first slice of the "Reputation and social media" idea below.
+- **Poll/survey system.** Let an agent build a short poll (one or a few questions), send it to their client list the same way a newsletter goes out, and view results in the portal, with a public voting page for recipients. Reuses the existing client-list segmentation and email-send infrastructure rather than building new plumbing.
+- **Client life-event reminders** (recommended). A lightweight extension of the existing follow-up system: track a client's birthday, policy renewal, or anniversary date and auto-create a follow-up reminder ahead of it. High relationship-business value for advisers/insurance agents specifically, and needs no new sending infrastructure since follow-ups already exist.
+- **Lead-magnet download block** (recommended). Let an agent attach a downloadable resource (PDF guide, checklist) to a page, gated behind the existing public lead-capture form, so a visitor trades contact info for the download. Reuses the WebsiteLead pipeline and file-upload infrastructure end to end.
+- **External review widget** (recommended). A much smaller first step than a full review-request system: let an agent paste their Google/Facebook review page link and show an embeddable ratings badge on their site. Immediate trust-signal value without building a full request-and-moderate pipeline.
+
 ## Recommended Next Tasks
 
 ### 1. Stabilize the page builder image flow (done)
