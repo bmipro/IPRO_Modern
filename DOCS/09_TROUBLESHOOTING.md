@@ -219,6 +219,20 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Prevention rule**: this is now the third time this exact routing mistake has shipped in this codebase. When adding any GET action reached via a positional URL segment, either name the parameter `id` or add an explicit attribute route — do not rely on the default convention route with a differently-named parameter.
 
+## Incident: Agent Portal Nav Never Highlighted, And Job Scheduler 404'd
+
+**2026-07-18.** Two more UI bugs found by the user during live testing, both in navigation.
+
+**Bug 1 — the agent portal's top nav never showed which page was active.** Unlike the Super Admin sidebar (which had per-item active-state logic, aside from the Reports section bug fixed earlier the same day), `src/IPRO.Web/Views/Shared/_Layout.cshtml`'s top nav had no active-state logic at all — every `<a class="nav-link">` used a static class with no conditional, so Bootstrap's `.nav-link.active` styling never triggered no matter what page was open.
+
+**Fix**: added `currentController`/`currentAction` lookups and a `NavActive(params string[] controllers)` helper to the layout, applied per nav item. Three items (**Clients**, **Follow-ups**, **Calendar**) all route through the same `ClientsController` with different actions, so they needed action-level differentiation (`ClientsSubActive(action)` for the two sub-tabs, with the main **Clients** tab active whenever the action is neither of those) rather than a simple controller-name check.
+
+**Bug 2 — "Job Scheduler" in Super Admin's System section 404'd.** `src/IPRO.Admin` never referenced Hangfire at all — no package, no `AddHangfire`, no dashboard route — so the `/hangfire` link in its own sidebar pointed at a route that simply didn't exist there. Hangfire is fully configured only in `src/IPRO.Web/Program.cs`, which runs the actual background jobs. Initially repointing the link to `https://ipro-prod-web.azurewebsites.net/hangfire` seemed like the fix, but testing that URL directly revealed a **403 Forbidden** — Hangfire's dashboard defaults to `LocalRequestsOnlyAuthorizationFilter` unless a custom `Authorization` array is supplied, and IPRO.Web's `MapHangfireDashboard` call never supplied one, so the dashboard was never actually reachable from any browser, in either app.
+
+**Fix**: added a dashboard-only Hangfire registration to `IPRO.Admin` (same MySQL storage/table prefix as IPRO.Web, but no `AddHangfireServer` — Admin only views/manages the shared queue, it never runs jobs), gated by a custom `SuperAdminDashboardAuthorizationFilter` that checks the same `Role`/`SuperAdmin` claim already used by the existing `"SuperAdmin"` authorization policy. Job Scheduler now lives at `/hangfire` inside the Admin app itself, restricted to the Super Admin role (a Support-role admin gets denied, same as every other Super-Admin-only screen).
+
+**Prevention rule**: when a nav item is added to a shared layout, always apply the same active-state pattern already established for the rest of that nav — don't let a new item silently skip it. And before wiring a cross-app link to another app's route, confirm that route is actually reachable by an external request, not just that it's registered — Hangfire's secure-by-default local-only dashboard is an easy trap since it fails the same way (looks fine in local dev, where requests genuinely are local) as it does in an environment where it's silently broken for everyone.
+
 ## Release Build Commands
 
 From the repository root:

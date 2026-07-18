@@ -9,6 +9,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
+    <PackageReference Include="Hangfire.AspNetCore" />
+    <PackageReference Include="Hangfire.Core" />
+    <PackageReference Include="Hangfire.Storage.MySql" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />

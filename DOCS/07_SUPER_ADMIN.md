@@ -213,3 +213,7 @@ Use the reporting screens to review:
 - Revenue by period
 - Subscription status
 
+## Job Scheduler
+
+**Job Scheduler** (Super Admin only, under **System**) opens the Hangfire dashboard — a view of the same background job queue the agent portal runs on (newsletter dispatch, drip campaigns, calendar reminders, subscription billing, domain automation, recurring invoices). It shows job history, lets you retry or delete failed jobs, and trigger jobs manually. Access is restricted to the Super Admin role; a Support-role admin cannot open it.
+

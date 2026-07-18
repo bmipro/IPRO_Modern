@@ -1,4 +1,7 @@
 using AspNetCoreRateLimit;
+using Hangfire;
+using Hangfire.Dashboard;
+using Hangfire.Storage.MySql;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
@@ -17,6 +20,17 @@ connStr = EnsureMySqlMigrationOptions(connStr);
 
 builder.Services.AddDbContext<IPRODbContext>(o =>
     o.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
+
+// Dashboard-only view of the same Hangfire storage IPRO.Web writes to - no AddHangfireServer here,
+// since Admin should never run background jobs, only monitor/manage the shared queue.
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseStorage(new MySqlStorage(connStr, new MySqlStorageOptions
+    {
+        TablesPrefix = "Hangfire_"
+    })));
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAgentService, AgentService>();
@@ -80,6 +94,11 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute("admin", "{controller=AdminDashboard}/{action=Index}/{id?}");
+app.MapHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new SuperAdminDashboardAuthorizationFilter() },
+    IsReadOnlyFunc = _ => false
+});
 
 using (var scope = app.Services.CreateScope())
 {
@@ -611,5 +630,15 @@ WHERE TABLE_SCHEMA = DATABASE()
     if (!exists)
     {
         await db.Database.ExecuteSqlRawAsync(alterSql);
+    }
+}
+
+class SuperAdminDashboardAuthorizationFilter : IDashboardAuthorizationFilter
+{
+    public bool Authorize(DashboardContext context)
+    {
+        var httpContext = context.GetHttpContext();
+        return httpContext.User.Identity?.IsAuthenticated == true
+            && httpContext.User.HasClaim("Role", AdminRoles.SuperAdmin);
     }
 }
