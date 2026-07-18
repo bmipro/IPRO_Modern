@@ -80,9 +80,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     })
    .AddCookie("ClientPortal", o =>
     {
-        o.LoginPath = "/ClientPortal/Login";
-        o.LogoutPath = "/ClientPortal/Logout";
-        o.AccessDeniedPath = "/ClientPortal/AccessDenied";
+        o.LoginPath = "/ClientPortalAccount/Login";
+        o.LogoutPath = "/ClientPortalAccount/Logout";
+        o.AccessDeniedPath = "/ClientPortalAccount/AccessDenied";
         o.Cookie.Name = "IPRO.ClientPortal";
         o.ExpireTimeSpan = TimeSpan.FromHours(8);
         o.SlidingExpiration = true;
