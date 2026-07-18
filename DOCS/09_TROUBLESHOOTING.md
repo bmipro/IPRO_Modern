@@ -179,6 +179,20 @@ System.InvalidOperationException: The partial view '_ClassicSidebar' was not fou
 
 **Prevention rule**: an action parameter name must match the route template's placeholder name (or the route must be adjusted) — the conventional default route's placeholder is `id`; any action using a differently-named identifier parameter reached via that route needs its own explicit route attribute.
 
+## Incident: Client Portal Activation Page Missing Company Name, And Agent Message Thread 404'd
+
+**2026-07-18.** Live verification of the newly-built Client Portal feature surfaced two bugs.
+
+**Bug 1 — the activation page never showed the inviting company's name.** `ClientPortalAccountController.Activate(string token)` (GET) queried `_db.Clients.FirstOrDefaultAsync(c => c.PortalInviteToken == token)` without including the `AgentUser` navigation, so `client.AgentUser?.CompanyName` was always null and the page read "has invited you to their client portal" with a blank company name.
+
+**Fix** (commit `66c76ef`): added `.Include(c => c.AgentUser)` to the query.
+
+**Bug 2 — clicking into a client's conversation from the agent's Portal Messages inbox 404'd.** Same bug class as the earlier Support Article incident above: `PortalMessagesController.Thread(int clientId)` had no attribute route, and the app's conventional route (`{controller=Dashboard}/{action=Index}/{id?}`) only binds a route segment literally named `id`. The inbox linked to `/PortalMessages/Thread/{clientId}`, but since the action's parameter is named `clientId` (not `id`), it never bound — silently defaulting to `0`, which the ownership-scoped lookup then correctly (but unhelpfully) turned into a blank `NotFound()`.
+
+**Fix** (commit `66c76ef`): added `[HttpGet("PortalMessages/Thread/{clientId}")]` above the action, mirroring the `SupportController.Article` fix.
+
+**Prevention rule**: this is now a recurring pattern in this codebase — any action reached via a positional URL segment (not a query string or form field) needs either a parameter literally named `id`, or its own explicit attribute route naming the actual parameter. Grep for `int \w+\)` action parameters reached via link hrefs with a trailing `/{value}` segment when adding a new controller, and default to adding the attribute route up front rather than relying on the conventional route.
+
 ## Release Build Commands
 
 From the repository root:
