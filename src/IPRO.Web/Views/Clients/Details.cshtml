@@ -133,7 +133,9 @@
         }
         else if (!string.IsNullOrWhiteSpace(Model.PortalInviteToken))
         {
+          var activateUrl = Url.Action("Activate", "ClientPortalAccount", new { token = Model.PortalInviteToken }, Context.Request.Scheme);
           <div class="small text-warning mb-2"><i class="fas fa-clock me-1"></i>Invited, pending activation</div>
+          <div class="small text-muted mb-2">Activation link: <a href="@activateUrl" target="_blank">@activateUrl</a></div>
           <form asp-action="InvitePortal" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-sm btn-outline-success">Resend Invite</button>
