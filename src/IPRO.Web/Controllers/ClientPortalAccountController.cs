@@ -88,7 +88,7 @@ public class ClientPortalAccountController : Controller
     [HttpGet]
     public async Task<IActionResult> Activate(string token)
     {
-        var client = await _db.Clients.FirstOrDefaultAsync(c => c.PortalInviteToken == token);
+        var client = await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c => c.PortalInviteToken == token);
         if (client == null) return NotFound();
 
         return View(new PortalActivateViewModel { Token = token, CompanyName = client.AgentUser?.CompanyName ?? string.Empty });

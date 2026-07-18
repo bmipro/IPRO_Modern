@@ -33,6 +33,7 @@ public class PortalMessagesController : Controller
         return View();
     }
 
+    [HttpGet("PortalMessages/Thread/{clientId}")]
     public async Task<IActionResult> Thread(int clientId)
     {
         var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
