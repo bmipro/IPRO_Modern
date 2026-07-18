@@ -10,6 +10,25 @@
 
 If the login fails, verify the username and password. Super Admin can reset the password and require another password change.
 
+## Forgot Your Password
+
+1. On the login page, click **Forgot password?**.
+2. Enter the email address on the account.
+3. Click **Send Reset Link**.
+4. Check email for a message from IPRO Advisers and click **Reset My Password**.
+5. Enter and confirm a new password.
+
+### Important Behavior
+
+- The confirmation screen always shows the same message ("If that email is registered...") whether or not an account exists for that email, so no one can use this form to discover which emails have an account.
+- The reset link expires **1 hour** after the request and can only be used once. Request a new link if it expires.
+- Successfully resetting the password signs the agent in immediately and clears any pending forced-password-change flag.
+
+### Troubleshooting
+
+- No email arrives: check spam/junk, confirm the email matches the one on file in **My Profile**, and try again — each request issues a fresh link and invalidates the previous one.
+- "Link Invalid or Expired": request a new reset link; the old link can no longer be used once consumed or after 1 hour.
+
 ## Change the Password
 
 1. Open the user menu in the upper-right corner.

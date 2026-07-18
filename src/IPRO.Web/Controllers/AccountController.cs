@@ -58,6 +58,92 @@ public class AccountController : Controller
     }
 
     [HttpGet]
+    public IActionResult ForgotPassword() => View();
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(string email)
+    {
+        email = email?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var agent = await _agents.InitiatePasswordResetAsync(email);
+            if (agent != null)
+            {
+                var resetUrl = Url.Action(nameof(ResetPassword), "Account", new { token = agent.PasswordResetToken }, Request.Scheme);
+                var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+                var html = $"""
+                    <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+                      <div style="padding:22px;background:#193f82;color:white"><h1 style="margin:0;font-size:24px">IPRO Advisers</h1></div>
+                      <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
+                        <p>Hi {System.Net.WebUtility.HtmlEncode(fullName)},</p>
+                        <p>We received a request to reset your IPRO Advisers password. This link expires in 1 hour.</p>
+                        <p><a href="{resetUrl}" style="display:inline-block;padding:11px 18px;background:#193f82;color:white;text-decoration:none;border-radius:6px">Reset My Password</a></p>
+                        <p>If you didn't request this, you can safely ignore this email.</p>
+                      </div>
+                    </div>
+                    """;
+                var emailSent = await _email.SendDetailedAsync(agent.Email, fullName, "Reset your IPRO Advisers password", html);
+                if (!emailSent.Success)
+                {
+                    _logger.LogWarning("Password reset email was not sent to {Email}: {Message}", agent.Email, emailSent.Message);
+                }
+            }
+        }
+
+        return RedirectToAction(nameof(ForgotPasswordConfirmation));
+    }
+
+    [HttpGet]
+    public IActionResult ForgotPasswordConfirmation() => View();
+
+    [HttpGet]
+    public async Task<IActionResult> ResetPassword(string token)
+    {
+        var agent = await _agents.GetByValidPasswordResetTokenAsync(token);
+        ViewBag.TokenValid = agent != null;
+        return View(new ResetPasswordViewModel { Token = token });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(string token, string newPassword, string confirmPassword)
+    {
+        var agent = await _agents.GetByValidPasswordResetTokenAsync(token);
+        if (agent == null)
+        {
+            ViewBag.TokenValid = false;
+            return View(new ResetPasswordViewModel { Token = token });
+        }
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            ModelState.AddModelError("", "New password must be at least 8 characters.");
+        if (newPassword != confirmPassword)
+            ModelState.AddModelError("", "Passwords do not match.");
+        if (!ModelState.IsValid)
+        {
+            ViewBag.TokenValid = true;
+            return View(new ResetPasswordViewModel { Token = token });
+        }
+
+        var succeeded = await _agents.ResetPasswordByTokenAsync(token, newPassword);
+        if (!succeeded)
+        {
+            ViewBag.TokenValid = false;
+            return View(new ResetPasswordViewModel { Token = token });
+        }
+
+        var user = await _agents.GetByIdAsync(agent.Id);
+        if (user != null)
+        {
+            await SignInAgentAsync(user, new AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+            });
+        }
+        return RedirectToAction("Index", "Dashboard");
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Register()
     {
         SetRegistrationVerifyCode();

@@ -88,6 +88,8 @@ public class IPRODbContext : DbContext
             e.Property(u => u.DomainName).HasMaxLength(255);
             e.Property(u => u.PromotionCode).HasMaxLength(80);
             e.Property(u => u.RegistrationIpAddress).HasMaxLength(64);
+            e.HasIndex(u => u.PasswordResetToken);
+            e.Property(u => u.PasswordResetToken).HasMaxLength(80);
         });
 
         // AgentWebsite → AgentUser

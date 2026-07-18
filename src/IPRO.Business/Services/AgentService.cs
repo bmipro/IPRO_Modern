@@ -63,6 +63,44 @@ public class AgentService : IAgentService
         await _uow.SaveChangesAsync();
     }
 
+    public async Task<AgentUser?> InitiatePasswordResetAsync(string email)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+        if (user == null || !user.IsActive) return null;
+
+        user.PasswordResetToken = Guid.NewGuid().ToString("N");
+        user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
+        _uow.AgentUsers.Update(user);
+        await _uow.SaveChangesAsync();
+        return user;
+    }
+
+    public async Task<AgentUser?> GetByValidPasswordResetTokenAsync(string token)
+    {
+        var user = await _uow.AgentUsers.FirstOrDefaultAsync(u => u.PasswordResetToken == token);
+        if (user == null || user.PasswordResetTokenExpiresAt == null || user.PasswordResetTokenExpiresAt <= DateTime.UtcNow)
+        {
+            return null;
+        }
+        return user;
+    }
+
+    public async Task<bool> ResetPasswordByTokenAsync(string token, string newPassword)
+    {
+        var user = await GetByValidPasswordResetTokenAsync(token);
+        if (user == null) return false;
+
+        user.PasswordHash = _hasher.HashPassword(user, newPassword);
+        user.MustChangePassword = false;
+        user.PasswordChangedAt = DateTime.UtcNow;
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiresAt = null;
+        _uow.AgentUsers.Update(user);
+        await _uow.SaveChangesAsync();
+        return true;
+    }
+
     public async Task DeactivateAsync(int id)
     {
         var user = await _uow.AgentUsers.GetByIdAsync(id);

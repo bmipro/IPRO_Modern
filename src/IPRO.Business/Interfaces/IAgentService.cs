@@ -11,6 +11,9 @@ public interface IAgentService
     Task<AgentUser> RegisterAsync(AgentUser user, string plainPassword);
     Task UpdateAsync(AgentUser user);
     Task ChangePasswordAsync(int id, string plainPassword);
+    Task<AgentUser?> InitiatePasswordResetAsync(string email);
+    Task<AgentUser?> GetByValidPasswordResetTokenAsync(string token);
+    Task<bool> ResetPasswordByTokenAsync(string token, string newPassword);
     Task DeactivateAsync(int id);
     Task<bool> UsernameExistsAsync(string username);
     Task<bool> EmailExistsAsync(string email);

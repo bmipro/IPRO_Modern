@@ -28,6 +28,8 @@ public class AgentUser
     public string RegistrationIpAddress { get; set; } = string.Empty;
     public bool MustChangePassword { get; set; }
     public DateTime? PasswordChangedAt { get; set; }
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiresAt { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
