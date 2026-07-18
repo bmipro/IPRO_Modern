@@ -188,6 +188,21 @@ public class ClientsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePortalDocument(int id)
+    {
+        var document = await _db.PortalDocuments.Include(d => d.Client).FirstOrDefaultAsync(d => d.Id == id && d.Client.AgentUserId == AgentId);
+        if (document == null) return NotFound();
+
+        var clientId = document.ClientId;
+        await _blob.DeleteAsync(document.BlobUrl);
+        _db.PortalDocuments.Remove(document);
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Document deleted.";
+        return RedirectToAction(nameof(Details), new { id = clientId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RevokePortal(int id)
     {
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);

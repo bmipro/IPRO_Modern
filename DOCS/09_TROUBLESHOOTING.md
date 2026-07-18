@@ -205,6 +205,20 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Explicitly out of scope**: antivirus/malware scanning of uploaded files (e.g. Azure Defender for Storage) was not added — it requires enabling a paid Azure service, which is a cost/ops decision for the business to make separately, not something to add silently.
 
+## Incident: Portal Documents Had No Delete, And Newsletter "Use This Template" 404'd
+
+**2026-07-18.** Two unrelated bugs, both found by the user during live testing.
+
+**Bug 1 — no way to remove a shared Portal Document.** `ClientsController` and `ClientPortalDocumentsController` had Upload and Download actions but no Delete action, and neither view rendered a delete control — this was missing from the feature's original build, not a regression.
+
+**Fix**: added a `DeletePortalDocument` action to `ClientsController.cs` (agent side — can delete any document on their own clients) and a `Delete` action to `ClientPortalDocumentsController.cs` (client side — scoped to `UploadedByClient == true`, so a client can only remove their own uploads, never a document the agent shared with them). Both call the existing `IBlobStorageService.DeleteAsync` before removing the database row. Delete buttons were added next to each Download link in `Views/Clients/Details.cshtml` and `Views/ClientPortalDocuments/Index.cshtml`.
+
+**Bug 2 — every "Use this template" click on the Newsletter Create page 404'd.** Same bug class as the earlier Support Article and Portal Messages Thread incidents: `NewsletterController.CreateFromTemplate(int templateId)` had no attribute route, so the app's default convention route (`{controller=Dashboard}/{action=Index}/{id?}`) bound the URL's third segment to `id`, not `templateId` — the parameter silently defaulted to `0`, which never matches a real seeded template, so the action always returned `NotFound()`.
+
+**Fix**: added `[HttpGet("Newsletter/CreateFromTemplate/{templateId}")]` above the action.
+
+**Prevention rule**: this is now the third time this exact routing mistake has shipped in this codebase. When adding any GET action reached via a positional URL segment, either name the parameter `id` or add an explicit attribute route — do not rely on the default convention route with a differently-named parameter.
+
 ## Release Build Commands
 
 From the repository root:

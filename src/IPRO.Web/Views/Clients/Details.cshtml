@@ -166,7 +166,13 @@
             {
               <li class="mb-2 d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-file me-1 text-muted"></i>@doc.FileName <span class="text-muted">(@(doc.UploadedByClient ? "Client" : "You"))</span></span>
-                <a class="btn btn-sm btn-outline-secondary" href="/Clients/DownloadPortalDocument/@doc.Id">Download</a>
+                <span class="d-flex gap-1">
+                  <a class="btn btn-sm btn-outline-secondary" href="/Clients/DownloadPortalDocument/@doc.Id">Download</a>
+                  <form asp-action="DeletePortalDocument" asp-route-id="@doc.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete @doc.FileName?"><i class="fas fa-trash"></i></button>
+                  </form>
+                </span>
               </li>
             }
           </ul>

@@ -82,4 +82,18 @@ public class ClientPortalDocumentsController : Controller
 
         return File(stream, string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType, document.FileName);
     }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var document = await _db.PortalDocuments.FirstOrDefaultAsync(d => d.Id == id && d.ClientId == ClientId && d.UploadedByClient);
+        if (document == null) return NotFound();
+
+        await _blob.DeleteAsync(document.BlobUrl);
+        _db.PortalDocuments.Remove(document);
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Document deleted.";
+        return RedirectToAction(nameof(Index));
+    }
 }

@@ -43,7 +43,16 @@
             <td><i class="fas fa-file me-2 text-muted"></i>@doc.FileName</td>
             <td>@(doc.UploadedByClient ? "You" : "Your advisor")</td>
             <td>@doc.UploadedAt.ToLocalTime().ToString("MMM d, yyyy")</td>
-            <td class="text-end"><a class="btn btn-sm btn-outline-success" href="/ClientPortalDocuments/Download/@doc.Id">Download</a></td>
+            <td class="text-end d-flex gap-1 justify-content-end">
+              <a class="btn btn-sm btn-outline-success" href="/ClientPortalDocuments/Download/@doc.Id">Download</a>
+              @if (doc.UploadedByClient)
+              {
+                <form asp-action="Delete" asp-route-id="@doc.Id" method="post" class="d-inline" onsubmit="return confirm('Delete @doc.FileName.Replace("'", "")?')">
+                  @Html.AntiForgeryToken()
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                </form>
+              }
+            </td>
           </tr>
         }
       </tbody>

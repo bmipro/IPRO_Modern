@@ -37,6 +37,7 @@ public class NewsletterController : Controller
         await LoadTemplatePickerAsync();
         return View(new NewsLetter());
     }
+    [HttpGet("Newsletter/CreateFromTemplate/{templateId}")]
     public async Task<IActionResult> CreateFromTemplate(int templateId)
     {
         var gate = await RequireNewsletterAccessAsync();

@@ -41,6 +41,8 @@ Both the agent and the client can upload documents into a shared folder per clie
 
 Both sides can download anything uploaded by either party. Files are capped at 20 MB per upload.
 
+An agent can delete any document for their own clients. A client can only delete documents they themselves uploaded — not ones the agent shared with them, since those may be official records the agent needs kept.
+
 ### Important Behavior
 
 - Allowed file types: PDF, Word (.doc/.docx), Excel (.xls/.xlsx), images (JPG/PNG/GIF/WebP), TXT, CSV. Any other file type — including executables, scripts, or HTML — is rejected at upload.
