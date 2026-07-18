@@ -31,7 +31,7 @@
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
     string NavActive(params string[] controllers) => controllers.Contains(currentController, StringComparer.OrdinalIgnoreCase) ? "active" : "";
-    var clientsMainActive = currentController == "Clients" && currentAction != "FollowUps" && currentAction != "Calendar" ? "active" : "";
+    var clientsMainActive = currentController == "Clients" && currentAction != "FollowUpQueue" && currentAction != "FollowUps" && currentAction != "Calendar" ? "active" : "";
     string ClientsSubActive(string action) => currentController == "Clients" && currentAction == action ? "active" : "";
 }
 <html lang="en">
@@ -56,7 +56,7 @@
             <ul class="navbar-nav me-auto">
                 <li class="nav-item"><a class="nav-link @NavActive("Dashboard")" href="/Dashboard"><i class="fas fa-home me-1"></i>Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link @clientsMainActive" href="/Clients"><i class="fas fa-users me-1"></i>Clients</a></li>
-                <li class="nav-item"><a class="nav-link @ClientsSubActive("FollowUps")" href="/Clients/FollowUps?status=open"><i class="fas fa-list-check me-1"></i>Follow-ups</a></li>
+                <li class="nav-item"><a class="nav-link @(currentController == "Clients" && (currentAction == "FollowUpQueue" || currentAction == "FollowUps") ? "active" : "")" href="/Clients/FollowUps?status=open"><i class="fas fa-list-check me-1"></i>Follow-ups</a></li>
                 <li class="nav-item"><a class="nav-link @ClientsSubActive("Calendar")" href="/Clients/Calendar" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CalendarScheduler))><i class="fas fa-calendar-alt me-1"></i>Calendar</a></li>
                 <li class="nav-item"><a class="nav-link @NavActive("Newsletter")" href="/Newsletter" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-envelope me-1"></i>Newsletter</a></li>
                 <li class="nav-item"><a class="nav-link @NavActive("Campaigns")" href="/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign))><i class="fas fa-bullhorn me-1"></i>Campaigns</a></li>
