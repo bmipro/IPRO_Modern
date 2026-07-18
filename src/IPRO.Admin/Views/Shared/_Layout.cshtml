@@ -93,14 +93,14 @@
               <i class="fas fa-envelope-circle-check"></i>Email Setup
           </a>
         }
-        <a class="nav-link" href="/Reports/Revenue">
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "Revenue" ? "active" : "")" href="/Reports/Revenue">
             <i class="fas fa-dollar-sign"></i>Revenue
         </a>
         <div class="nav-section">Reports</div>
-        <a class="nav-link" href="/Reports/Agents">
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "Agents" ? "active" : "")" href="/Reports/Agents">
             <i class="fas fa-chart-column"></i>Agent Stats
         </a>
-        <a class="nav-link" href="/Reports/Subscriptions">
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "Subscriptions" ? "active" : "")" href="/Reports/Subscriptions">
             <i class="fas fa-credit-card"></i>Subscriptions
         </a>
     </nav>
