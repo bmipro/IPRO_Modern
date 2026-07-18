@@ -1,0 +1,44 @@
+@model List<IPRO.Entities.ClientInvoice>
+@{
+    Layout = "_ClientPortalLayout";
+    ViewData["Title"] = "Invoices";
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-file-invoice-dollar me-2 text-success"></i>Invoices</h2>
+  <div class="text-muted">Estimates and invoices from your advisor.</div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Type</th>
+          <th>Date</th>
+          <th class="text-end">Total</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!Model.Any())
+        {
+          <tr><td colspan="6" class="text-center text-muted py-4">No invoices yet.</td></tr>
+        }
+        @foreach (var invoice in Model)
+        {
+          <tr>
+            <td>@invoice.DocumentNumber</td>
+            <td>@invoice.DocumentType</td>
+            <td>@invoice.IssueDate.ToString("MMM d, yyyy")</td>
+            <td class="text-end">$@invoice.Total.ToString("N2") @invoice.Currency</td>
+            <td>@invoice.Status</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-success" href="/invoice/@invoice.ViewToken" target="_blank">View</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

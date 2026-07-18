@@ -42,4 +42,5 @@ public static class PackageFeatureCodes
     public const string PayPalIntegration = "paypal_integration";
     public const string DesignatedSupport = "designated_support";
     public const string ClientInvoicing = "client_invoicing";
+    public const string ClientPortal = "client_portal";
 }

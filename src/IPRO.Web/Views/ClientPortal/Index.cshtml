@@ -1,0 +1,49 @@
+@model IPRO.Entities.Client
+@{
+    Layout = "_ClientPortalLayout";
+    ViewData["Title"] = "Dashboard";
+    var unread = (int)(ViewBag.UnreadMessages ?? 0);
+    var openInvoices = (int)(ViewBag.OpenInvoices ?? 0);
+    var documentCount = (int)(ViewBag.DocumentCount ?? 0);
+    var pendingRequests = (int)(ViewBag.PendingRequests ?? 0);
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1">Welcome back, @Model.FirstName!</h2>
+  <div class="text-muted">Here's what's happening with @Model.AgentUser?.CompanyName.</div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-3">
+    <a href="/ClientPortalMessages" class="text-decoration-none">
+      <div class="card border-0 shadow-sm"><div class="card-body">
+        <div class="small text-muted">Unread Messages</div>
+        <div class="h3 fw-bold mb-0 text-success">@unread</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="/ClientPortal/Invoices" class="text-decoration-none">
+      <div class="card border-0 shadow-sm"><div class="card-body">
+        <div class="small text-muted">Open Invoices</div>
+        <div class="h3 fw-bold mb-0">@openInvoices</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="/ClientPortalDocuments" class="text-decoration-none">
+      <div class="card border-0 shadow-sm"><div class="card-body">
+        <div class="small text-muted">Documents</div>
+        <div class="h3 fw-bold mb-0">@documentCount</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="/ClientPortalAppointments" class="text-decoration-none">
+      <div class="card border-0 shadow-sm"><div class="card-body">
+        <div class="small text-muted">Pending Requests</div>
+        <div class="h3 fw-bold mb-0">@pendingRequests</div>
+      </div></div>
+    </a>
+  </div>
+</div>

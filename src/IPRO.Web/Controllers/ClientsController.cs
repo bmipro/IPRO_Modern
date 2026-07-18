@@ -2,6 +2,7 @@ using System.Security.Claims;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
+using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Utility;
 using IPRO.Web.Models;
@@ -19,10 +20,12 @@ public class ClientsController : Controller
     private readonly IUnitOfWork _uow;
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IEmailService _email;
+    private readonly IBlobStorageService _blob;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements)
-    { _clients = clients; _importer = importer; _uow = uow; _db = db; _entitlements = entitlements; }
+    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IBlobStorageService blob)
+    { _clients = clients; _importer = importer; _uow = uow; _db = db; _entitlements = entitlements; _email = email; _blob = blob; }
 
     public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter)
     {
@@ -86,7 +89,111 @@ public class ClientsController : Controller
         var comments = (await _clients.GetCommentsAsync(id)).ToList();
         ViewBag.Comments = comments;
         ViewBag.Timeline = BuildClientTimeline(client, comments);
+        ViewBag.PortalAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
+        ViewBag.PortalDocuments = await _db.PortalDocuments.AsNoTracking().Where(d => d.ClientId == id).OrderByDescending(d => d.UploadedAt).ToListAsync();
         return View(client);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> InvitePortal(int id)
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
+        if (!access.IsIncluded)
+        {
+            TempData["Error"] = access.UpgradeMessage;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var client = await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (client == null) return NotFound();
+        if (string.IsNullOrWhiteSpace(client.Email))
+        {
+            TempData["Error"] = "This client has no email address on file.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        client.PortalInviteToken = Guid.NewGuid().ToString("N");
+        client.PortalPasswordHash = null;
+        client.PortalActivatedAt = null;
+        await _db.SaveChangesAsync();
+
+        var activateUrl = Url.Action("Activate", "ClientPortalAccount", new { token = client.PortalInviteToken }, Request.Scheme);
+        var companyName = client.AgentUser.CompanyName;
+        var html = $"""
+            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+              <div style="padding:22px;background:#0f7a52;color:white"><h1 style="margin:0;font-size:24px">{System.Net.WebUtility.HtmlEncode(companyName)} Client Portal</h1></div>
+              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
+                <p>{System.Net.WebUtility.HtmlEncode(companyName)} has invited you to their client portal, where you can message your advisor, view documents and invoices, and request appointments.</p>
+                <p><a href="{activateUrl}" style="display:inline-block;padding:11px 18px;background:#0f7a52;color:white;text-decoration:none;border-radius:6px">Activate My Account</a></p>
+              </div>
+            </div>
+            """;
+        await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html);
+
+        TempData["Success"] = $"Portal invite sent to {client.Email}.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadPortalDocument(int clientId, IFormFile file)
+    {
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
+        if (client == null) return NotFound();
+
+        if (file == null || file.Length == 0)
+        {
+            TempData["Error"] = "Choose a file to upload.";
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+        if (file.Length > 20 * 1024 * 1024)
+        {
+            TempData["Error"] = "That file is larger than the 20 MB upload limit.";
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+
+        await using var stream = file.OpenReadStream();
+        var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType;
+        var url = await _blob.UploadAsync(stream, file.FileName, "portal-documents", contentType);
+
+        _db.PortalDocuments.Add(new PortalDocument
+        {
+            ClientId = clientId,
+            UploadedByClient = false,
+            FileName = Path.GetFileName(file.FileName),
+            BlobUrl = url,
+            ContentType = contentType,
+            FileSizeBytes = file.Length
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Document uploaded to the client portal.";
+        return RedirectToAction(nameof(Details), new { id = clientId });
+    }
+
+    public async Task<IActionResult> DownloadPortalDocument(int id)
+    {
+        var document = await _db.PortalDocuments.Include(d => d.Client).AsNoTracking().FirstOrDefaultAsync(d => d.Id == id && d.Client.AgentUserId == AgentId);
+        if (document == null) return NotFound();
+
+        var stream = await _blob.DownloadAsync(document.BlobUrl);
+        if (stream == null) return NotFound();
+
+        return File(stream, string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType, document.FileName);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokePortal(int id)
+    {
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (client == null) return NotFound();
+
+        client.PortalPasswordHash = null;
+        client.PortalInviteToken = null;
+        client.PortalActivatedAt = null;
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Portal access revoked.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     public async Task<IActionResult> FollowUps(int id, string status = "open", int page = 1)

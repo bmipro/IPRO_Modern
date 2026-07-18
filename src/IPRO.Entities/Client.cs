@@ -28,8 +28,14 @@ public class Client
     public string Notes { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public string? PortalPasswordHash { get; set; }
+    public string? PortalInviteToken { get; set; }
+    public DateTime? PortalActivatedAt { get; set; }
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<ClientCategory> Categories { get; set; } = new List<ClientCategory>();
     public ICollection<ClientComment> Comments { get; set; } = new List<ClientComment>();
     public ICollection<ClientFollowUp> FollowUps { get; set; } = new List<ClientFollowUp>();
+    public ICollection<PortalMessage> Messages { get; set; } = new List<PortalMessage>();
+    public ICollection<PortalDocument> PortalDocuments { get; set; } = new List<PortalDocument>();
+    public ICollection<PortalAppointmentRequest> PortalAppointmentRequests { get; set; } = new List<PortalAppointmentRequest>();
 }

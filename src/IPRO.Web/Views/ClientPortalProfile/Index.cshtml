@@ -1,0 +1,62 @@
+@model IPRO.Web.Models.PortalProfileViewModel
+@{
+    Layout = "_ClientPortalLayout";
+    ViewData["Title"] = "My Information";
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-id-card me-2 text-success"></i>My Information</h2>
+  <div class="text-muted">Keep your contact details current.</div>
+</div>
+
+<div asp-validation-summary="All" class="alert alert-danger" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+<form method="post" class="card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">First Name</label>
+        <input asp-for="FirstName" class="form-control" required />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Last Name</label>
+        <input asp-for="LastName" class="form-control" required />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Email</label>
+        <input asp-for="Email" type="email" class="form-control" required />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Phone</label>
+        <input asp-for="Phone" class="form-control" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Mobile</label>
+        <input asp-for="CellPhone" class="form-control" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Address</label>
+        <input asp-for="Address" class="form-control" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">City</label>
+        <input asp-for="City" class="form-control" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Province/State</label>
+        <input asp-for="Province" class="form-control" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Postal Code</label>
+        <input asp-for="PostalCode" class="form-control" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Country</label>
+        <input asp-for="Country" class="form-control" />
+      </div>
+    </div>
+  </div>
+  <div class="card-footer bg-white border-0 pb-4">
+    <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Save Changes</button>
+  </div>
+</form>

@@ -55,6 +55,9 @@ public class IPRODbContext : DbContext
     public DbSet<ClientInvoiceLineItem> ClientInvoiceLineItems => Set<ClientInvoiceLineItem>();
     public DbSet<RecurringInvoiceSchedule> RecurringInvoiceSchedules => Set<RecurringInvoiceSchedule>();
     public DbSet<RecurringInvoiceLineItem> RecurringInvoiceLineItems => Set<RecurringInvoiceLineItem>();
+    public DbSet<PortalMessage> PortalMessages => Set<PortalMessage>();
+    public DbSet<PortalDocument> PortalDocuments => Set<PortalDocument>();
+    public DbSet<PortalAppointmentRequest> PortalAppointmentRequests => Set<PortalAppointmentRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

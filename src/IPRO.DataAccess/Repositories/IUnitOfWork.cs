@@ -45,6 +45,9 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<ClientInvoiceLineItem> ClientInvoiceLineItems { get; }
     IRepository<RecurringInvoiceSchedule> RecurringInvoiceSchedules { get; }
     IRepository<RecurringInvoiceLineItem> RecurringInvoiceLineItems { get; }
+    IRepository<PortalMessage> PortalMessages { get; }
+    IRepository<PortalDocument> PortalDocuments { get; }
+    IRepository<PortalAppointmentRequest> PortalAppointmentRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

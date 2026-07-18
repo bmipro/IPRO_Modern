@@ -50,6 +50,9 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<ClientInvoiceLineItem>? _clientInvoiceLineItems;
     private IRepository<RecurringInvoiceSchedule>? _recurringInvoiceSchedules;
     private IRepository<RecurringInvoiceLineItem>? _recurringInvoiceLineItems;
+    private IRepository<PortalMessage>? _portalMessages;
+    private IRepository<PortalDocument>? _portalDocuments;
+    private IRepository<PortalAppointmentRequest>? _portalAppointmentRequests;
 
     public UnitOfWork(IPRODbContext context) // <-- CHANGED
     {
@@ -93,6 +96,9 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     public IRepository<ClientInvoiceLineItem> ClientInvoiceLineItems => _clientInvoiceLineItems ??= new Repository<ClientInvoiceLineItem>(_context);
     public IRepository<RecurringInvoiceSchedule> RecurringInvoiceSchedules => _recurringInvoiceSchedules ??= new Repository<RecurringInvoiceSchedule>(_context);
     public IRepository<RecurringInvoiceLineItem> RecurringInvoiceLineItems => _recurringInvoiceLineItems ??= new Repository<RecurringInvoiceLineItem>(_context);
+    public IRepository<PortalMessage> PortalMessages => _portalMessages ??= new Repository<PortalMessage>(_context);
+    public IRepository<PortalDocument> PortalDocuments => _portalDocuments ??= new Repository<PortalDocument>(_context);
+    public IRepository<PortalAppointmentRequest> PortalAppointmentRequests => _portalAppointmentRequests ??= new Repository<PortalAppointmentRequest>(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
         => _context.SaveChangesAsync(cancellationToken);

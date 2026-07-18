@@ -104,13 +104,82 @@
     </div>
     @if (!string.IsNullOrEmpty(Model.Notes))
     {
-      <div class="card border-0 shadow-sm">
+      <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-4">
           <h6 class="fw-bold mb-2"><i class="fas fa-sticky-note me-2 text-warning"></i>Notes</h6>
           <p class="text-muted mb-0 small">@Model.Notes</p>
         </div>
       </div>
     }
+
+    @{
+      var portalAccess = ViewBag.PortalAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+      var portalDocuments = (ViewBag.PortalDocuments as List<IPRO.Entities.PortalDocument>) ?? new List<IPRO.Entities.PortalDocument>();
+    }
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="fas fa-user-shield me-2 text-success"></i>Client Portal</h6>
+        @if (portalAccess?.IsIncluded != true)
+        {
+          <p class="text-muted small mb-0">@portalAccess?.UpgradeMessage</p>
+        }
+        else if (Model.PortalActivatedAt.HasValue)
+        {
+          <div class="small text-success mb-2"><i class="fas fa-circle-check me-1"></i>Active since @Model.PortalActivatedAt.Value.ToString("MMM d, yyyy")</div>
+          <form asp-action="RevokePortal" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Revoke portal access for @Model.FirstName?">Revoke Access</button>
+          </form>
+        }
+        else if (!string.IsNullOrWhiteSpace(Model.PortalInviteToken))
+        {
+          <div class="small text-warning mb-2"><i class="fas fa-clock me-1"></i>Invited, pending activation</div>
+          <form asp-action="InvitePortal" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-success">Resend Invite</button>
+          </form>
+        }
+        else
+        {
+          <p class="text-muted small">Give @Model.FirstName secure access to message you, view invoices/documents, and request appointments.</p>
+          <form asp-action="InvitePortal" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-paper-plane me-1"></i>Invite to Portal</button>
+          </form>
+        }
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="fas fa-folder me-2 text-primary"></i>Portal Documents</h6>
+        @if (!portalDocuments.Any())
+        {
+          <p class="text-muted small mb-0">No documents shared yet.</p>
+        }
+        else
+        {
+          <ul class="list-unstyled small">
+            @foreach (var doc in portalDocuments)
+            {
+              <li class="mb-2 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-file me-1 text-muted"></i>@doc.FileName <span class="text-muted">(@(doc.UploadedByClient ? "Client" : "You"))</span></span>
+                <a class="btn btn-sm btn-outline-secondary" href="/Clients/DownloadPortalDocument/@doc.Id">Download</a>
+              </li>
+            }
+          </ul>
+        }
+        @if (portalAccess?.IsIncluded == true)
+        {
+          <form asp-action="UploadPortalDocument" method="post" enctype="multipart/form-data" class="d-flex gap-2 mt-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="clientId" value="@Model.Id" />
+            <input type="file" name="file" class="form-control form-control-sm" required />
+            <button type="submit" class="btn btn-sm btn-primary">Upload</button>
+          </form>
+        }
+      </div>
+    </div>
   </div>
 
   <div class="col-md-8">

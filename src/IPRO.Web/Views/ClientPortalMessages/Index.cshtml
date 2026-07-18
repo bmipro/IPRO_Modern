@@ -1,0 +1,35 @@
+@model List<IPRO.Entities.PortalMessage>
+@{
+    Layout = "_ClientPortalLayout";
+    ViewData["Title"] = "Messages";
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-comments me-2 text-success"></i>Messages</h2>
+  <div class="text-muted">A direct line to your advisor.</div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body" style="max-height:520px;overflow-y:auto;">
+    @if (!Model.Any())
+    {
+      <div class="text-center text-muted py-4">No messages yet. Say hello below.</div>
+    }
+    @foreach (var message in Model)
+    {
+      <div class="mb-3 d-flex @(message.IsFromClient ? "justify-content-end" : "justify-content-start")">
+        <div class="p-3 rounded-3" style="max-width:70%;background:@(message.IsFromClient ? "#0f7a52" : "#f1f3f5");color:@(message.IsFromClient ? "#fff" : "#212529");">
+          <div class="small fw-bold mb-1">@message.AuthorName</div>
+          <div>@message.Body</div>
+          <div class="small mt-1" style="opacity:.75">@message.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt")</div>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<form asp-action="Send" method="post" class="d-flex gap-2">
+  @Html.AntiForgeryToken()
+  <textarea name="body" class="form-control" rows="2" placeholder="Type a message..." required></textarea>
+  <button type="submit" class="btn btn-success align-self-end"><i class="fas fa-paper-plane"></i></button>
+</form>

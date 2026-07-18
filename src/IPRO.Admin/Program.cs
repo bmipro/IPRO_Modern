@@ -96,6 +96,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureSupportTicketSchemaAsync(db);
     await EnsurePromotionCodeSchemaAsync(db);
     await EnsureClientInvoiceSchemaAsync(db);
+    await EnsureClientPortalSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -524,6 +525,59 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
     try
     {
         await EnsureTableColumnAsync(db, "AgentUsers", "DefaultPaymentLink", "ALTER TABLE `AgentUsers` ADD COLUMN `DefaultPaymentLink` varchar(500) CHARACTER SET utf8mb4 NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureClientPortalSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PortalMessages` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ClientId` int NOT NULL,
+    `IsFromClient` tinyint(1) NOT NULL DEFAULT FALSE,
+    `AuthorName` varchar(160) CHARACTER SET utf8mb4 NOT NULL,
+    `Body` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `IsReadByAgent` tinyint(1) NOT NULL DEFAULT FALSE,
+    `IsReadByClient` tinyint(1) NOT NULL DEFAULT TRUE,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PortalDocuments` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ClientId` int NOT NULL,
+    `UploadedByClient` tinyint(1) NOT NULL DEFAULT FALSE,
+    `FileName` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `BlobUrl` varchar(1000) CHARACTER SET utf8mb4 NOT NULL,
+    `ContentType` varchar(150) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `FileSizeBytes` bigint NOT NULL DEFAULT 0,
+    `UploadedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PortalAppointmentRequests` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ClientId` int NOT NULL,
+    `Notes` varchar(2000) CHARACTER SET utf8mb4 NULL,
+    `PreferredDate` datetime(6) NULL,
+    `Status` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `RespondedAt` datetime(6) NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "Clients", "PortalPasswordHash", "ALTER TABLE `Clients` ADD COLUMN `PortalPasswordHash` varchar(500) CHARACTER SET utf8mb4 NULL");
+        await EnsureTableColumnAsync(db, "Clients", "PortalInviteToken", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteToken` varchar(80) CHARACTER SET utf8mb4 NULL");
+        await EnsureTableColumnAsync(db, "Clients", "PortalActivatedAt", "ALTER TABLE `Clients` ADD COLUMN `PortalActivatedAt` datetime(6) NULL");
     }
     finally
     {

@@ -23,6 +23,7 @@ public static class HelpDocsService
         new HelpArticle("domains-leads", "Domains, SSL, Website Leads, and Lead Forms", "05_DOMAINS_AND_LEADS.md"),
         new HelpArticle("billing-invoices", "Packages, Billing, PayPal, and Invoices", "06_BILLING_AND_INVOICES.md"),
         new HelpArticle("client-invoicing", "Client Invoicing: Estimates, Invoices, and Recurring Billing", "10_CLIENT_INVOICING.md"),
+        new HelpArticle("client-portal", "Client Portal: Login, Messages, Documents, and Appointments", "11_CLIENT_PORTAL.md"),
     };
 
     public static IReadOnlyList<HelpArticle> GetArticles() => Articles;

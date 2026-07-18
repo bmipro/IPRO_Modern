@@ -1,0 +1,52 @@
+@model List<IPRO.Entities.PortalDocument>
+@{
+    Layout = "_ClientPortalLayout";
+    ViewData["Title"] = "Documents";
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-folder me-2 text-success"></i>Documents</h2>
+    <div class="text-muted">Shared between you and your advisor.</div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <form asp-action="Upload" method="post" enctype="multipart/form-data" class="d-flex gap-2">
+      @Html.AntiForgeryToken()
+      <input type="file" name="file" class="form-control" required />
+      <button type="submit" class="btn btn-success"><i class="fas fa-upload me-1"></i>Upload</button>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>File</th>
+          <th>Uploaded By</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!Model.Any())
+        {
+          <tr><td colspan="4" class="text-center text-muted py-4">No documents yet.</td></tr>
+        }
+        @foreach (var doc in Model)
+        {
+          <tr>
+            <td><i class="fas fa-file me-2 text-muted"></i>@doc.FileName</td>
+            <td>@(doc.UploadedByClient ? "You" : "Your advisor")</td>
+            <td>@doc.UploadedAt.ToLocalTime().ToString("MMM d, yyyy")</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-success" href="/ClientPortalDocuments/Download/@doc.Id">Download</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

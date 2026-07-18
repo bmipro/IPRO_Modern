@@ -115,9 +115,8 @@ Last updated: July 18, 2026
 ## Not Done or Still Fragile
 
 ### Important missing product pieces
-- Client portal.
-- Document upload/storage.
-- Appointment booking.
+- Document upload/storage (a scoped version now exists inside the Client Portal — see item 14; a general-purpose agent-side document library outside the portal context is still open).
+- Appointment booking (the Client Portal now has a lightweight read-only view + simple request flow — see item 14; a real two-way scheduling/booking engine is still open).
 - SMS reminders.
 - Social media posting/management.
 - Formal backup/release checklist.
@@ -211,6 +210,16 @@ Last updated: July 18, 2026
 - CSV export of documents matching the current filter.
 - Gated by a new Platinum/Broker-tier package feature ("Client invoicing and estimates"), same pattern as other premium features.
 
+### 14. Add a Client Portal (login, messages, documents, appointment requests, My Info, invoices) (done)
+- A separate, secure login for an agent's own clients (not the same auth as the agent/admin logins) — the agent invites a client by email, the client sets their own password via an activation link, and logs in at a distinct URL going forward.
+- Because `Client.Email` has no uniqueness constraint (the same email can exist under different agents), login is scoped to the agent relationship rather than a single global identity; the rare case of one email matching multiple agents' clients is handled with a "choose your advisor" picker instead of failing.
+- One continuous message thread per client, visible to both sides, with unread tracking on each side independently.
+- Two-way document upload/download (agent and client both upload into a shared per-client folder); downloads always go through an authenticated action, never a raw storage URL.
+- Clients see their own upcoming follow-ups (read-only) and can submit a lightweight appointment request with optional preferred date and notes; the agent has a dedicated Portal Requests queue (Pending/Scheduled/Declined) — turning a request into a real scheduled appointment is a manual step using the existing Follow-up/Calendar tools, not an automatic scheduling engine.
+- Clients can self-service edit their own contact information; changes save directly to the same record visible in the agent's CRM.
+- Clients see all of their own estimates/invoices, linking to the same pages used by the existing signed-link invoicing feature.
+- Gated by a new Platinum/Broker-tier package feature ("Client portal"), same pattern as other premium features.
+
 ## Bigger Product Ideas
 
 ### Agent invoicing and billing system (v1 done — see item 13 below)
@@ -250,14 +259,11 @@ Each starter pack should include:
 - Summarize client activity.
 - Recommend next best action.
 
-### Client portal
-- Secure client login.
-- Messages.
-- Documents.
-- Forms.
-- Appointments.
-- Invoices and payments.
-- Campaign preferences and unsubscribe controls.
+### Client portal (v1 done — see item 14 above)
+Secure login, messages, two-way documents, self-service "My Information," lightweight appointment requests, and invoices all shipped. Still open for a future pass:
+- Campaign preferences and unsubscribe controls surfaced inside the portal itself (today, unsubscribe still happens via the per-send/per-enrollment email links).
+- A real two-way appointment *booking/scheduling* engine, rather than today's request-then-manually-schedule flow.
+- Payments taken directly inside the portal (today's Pay Now button still links out to the agent's own external payment link, same as the standalone invoicing feature).
 
 ### Reputation and social media
 - Request reviews from clients.
