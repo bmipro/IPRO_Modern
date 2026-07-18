@@ -233,6 +233,18 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Prevention rule**: when a nav item is added to a shared layout, always apply the same active-state pattern already established for the rest of that nav — don't let a new item silently skip it. And before wiring a cross-app link to another app's route, confirm that route is actually reachable by an external request, not just that it's registered — Hangfire's secure-by-default local-only dashboard is an easy trap since it fails the same way (looks fine in local dev, where requests genuinely are local) as it does in an environment where it's silently broken for everyone.
 
+## Incident: Admin 500 Was A Deploy-Restart False Alarm, And The Nav Fix Itself Had A Bug
+
+**2026-07-18.** Two follow-ups from the "Agent Portal Nav Never Highlighted" deploy (commit `ddb573d`) above, found while verifying it live immediately after deploy.
+
+**False alarm — `/Admin/Login` returned 500 twice in a row right after deploy.** This broke the previously-documented "transient cold-start 500 resolves on retry" pattern (a retry normally fixes it), so it looked like the new Hangfire registration had broken Admin's startup. Downloading the Azure log bundle (`az webapp log download --name ipro-prod-admin --resource-group ipro-prod-admin_group --log-file <path>.zip`) and reading `LogFiles/*_docker.log` showed the container simply cycling through two back-to-back restarts a few minutes apart during the deploy window — no application exception appeared anywhere in `*_containerStream.log` for that period. By the time a clean request landed a few minutes later it returned 200, and the site has been healthy since. **Lesson**: a 500 that survives one retry isn't automatically a code bug — check the docker log's container start/stop timeline before assuming the deploy itself is broken, since a deploy can trigger multiple platform-level container recycles in quick succession.
+
+**Real bug — the new nav active-state fix highlighted the wrong link on the Follow-ups page.** On `/Clients/FollowUps?status=open`, "Clients" stayed highlighted instead of "Follow-ups". The nav check compared `currentAction` against the literal string `"FollowUps"`, but the link's URL is actually served by `ClientsController.FollowUpQueue` (mapped via `[HttpGet("Clients/FollowUps")]`) — a *different*, separately-named action from the per-client `ClientsController.FollowUps(int id, ...)` action used elsewhere. `ViewContext.RouteData.Values["action"]` reflects the real C# method name, not the URL path segment, so the check silently never matched.
+
+**Fix** (commit `ce77bdc`): updated both the "Clients" tab's exclusion check and the "Follow-ups" tab's own check in `src/IPRO.Web/Views/Shared/_Layout.cshtml` to accept either `FollowUpQueue` or `FollowUps` as the active action.
+
+**Prevention rule**: this is a variant of the recurring "action name vs. URL path" trap (see the `id`-parameter incidents above) — it now also applies to nav active-state checks, not just routing. When writing a `currentAction == "X"` check for a nav link, verify `X` against the actual action method name the link's URL resolves to (especially for controllers with multiple attribute-routed actions on similar paths), not against the URL segment text.
+
 ## Release Build Commands
 
 From the repository root:
