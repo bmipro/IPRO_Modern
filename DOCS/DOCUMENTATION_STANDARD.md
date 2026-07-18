@@ -65,4 +65,5 @@ Before committing a feature:
 - [ ] Troubleshooting guidance is added for operational integrations.
 - [ ] `DOCS/README.md` links to any new manual.
 - [ ] Release builds pass.
+- [ ] If the feature is a paid/gated agent capability (not a bug fix or free platform improvement), it has a new `PackageFeatureCodes` entry, a matching row in `PackageEntitlementSeeder.BuildFeatureDefinitions()`, and a server-side `IPackageEntitlementService.GetAccessAsync(...)` check in the controller action(s) that expose it — never gate on UI alone. This makes it automatically appear as a toggleable checkbox in Super Admin's `Packages/Edit` screen (`_PackageFeaturesEditor.cshtml`) for every package (Silver/Gold/Platinum/Broker), which is how Super Admin controls who gets the feature. `ClientInvoicing` and `ClientPortal` are the reference examples.
 

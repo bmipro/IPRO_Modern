@@ -2,6 +2,16 @@
 
 Last updated: July 18, 2026
 
+## Standing Convention: Every Paid Feature Must Be Package-Gated
+
+Any new agent-facing capability that isn't a plain bug fix or a free platform-wide improvement must be selectable per package in Super Admin, the same way **Client Invoicing** and **Client Portal** already are:
+
+1. Add a constant to `src/IPRO.Entities/PackageFeatureCodes.cs`.
+2. Add a matching `Feature(...)` row in `PackageEntitlementSeeder.BuildFeatureDefinitions()` (`src/IPRO.DataAccess/PackageEntitlementSeeder.cs`) with a sensible default per package.
+3. Gate every controller action that exposes the feature with a server-side `IPackageEntitlementService.GetAccessAsync(agentId, PackageFeatureCodes.X)` check (fail closed) — never rely on hiding a button in the UI alone.
+
+Doing this automatically surfaces the feature as a checkbox in Super Admin's **Packages → Edit** screen (`_PackageFeaturesEditor.cshtml`) for every package (Silver/Gold/Platinum/Broker), which is how Super Admin actually turns it on or off per package without a code change. This is now also captured as a checklist item in `DOCUMENTATION_STANDARD.md`. Confirmed live 2026-07-18: `client_invoicing` and `client_portal` both already appear as toggleable rows in the Platinum package's 41-function grid.
+
 ## What Is Working
 
 ### Core deployment
