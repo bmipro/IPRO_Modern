@@ -149,6 +149,19 @@
         </div>
       </div>
 
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3">Client Invoicing</h5>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Payment Link</label>
+              <input asp-for="DefaultPaymentLink" class="form-control" maxlength="500" placeholder="paypal.me/yourname" />
+              <div class="form-text">Shown as a "Pay Now" button on invoices you send to your clients. Use your own PayPal.me, Stripe, or other payment link.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="d-flex justify-content-end gap-2">
         <a href="/Dashboard" class="btn btn-outline-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Profile</button>

@@ -1,0 +1,122 @@
+@model IPRO.Web.Models.RecurringInvoiceEditViewModel
+@{
+    ViewData["Title"] = Model.Id > 0 ? "Edit Recurring Schedule" : "New Recurring Schedule";
+    var formAction = Model.Id > 0 ? $"/RecurringInvoices/Edit/{Model.Id}" : "/RecurringInvoices/Create";
+    var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
+    var lineItems = Model.LineItems.Count > 0 ? Model.LineItems : new List<IPRO.Web.Models.ClientInvoiceLineItemInputModel> { new() };
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-rotate me-2 text-primary"></i>@ViewData["Title"]</h2>
+  <div class="text-muted">Each time this runs, a new Draft invoice is created for you to review and send &mdash; it is never emailed automatically.</div>
+</div>
+
+<div asp-validation-summary="All" class="alert alert-danger" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+<form method="post" action="@formAction">
+  @Html.AntiForgeryToken()
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Client</label>
+          <select name="ClientId" class="form-select" required>
+            <option value="">Choose a client...</option>
+            @foreach (var c in clients)
+            {
+              <option value="@c.Id" selected="@(c.Id == Model.ClientId)">@c.FirstName @c.LastName</option>
+            }
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Frequency</label>
+          <select name="Frequency" class="form-select">
+            <option value="Monthly" selected="@(Model.Frequency == IPRO.Entities.RecurringInvoiceFrequency.Monthly)">Monthly</option>
+            <option value="Quarterly" selected="@(Model.Frequency == IPRO.Entities.RecurringInvoiceFrequency.Quarterly)">Quarterly</option>
+            <option value="Annually" selected="@(Model.Frequency == IPRO.Entities.RecurringInvoiceFrequency.Annually)">Annually</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Next Run Date</label>
+          <input type="date" name="NextRunDate" class="form-control" value="@Model.NextRunDate.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Due In (days)</label>
+          <input type="number" name="DueInDays" class="form-control" value="@Model.DueInDays" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <label class="form-label fw-bold">Line Items</label>
+      <table class="table" id="lineItemsTable">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th style="width:110px">Qty</th>
+            <th style="width:140px">Unit Price</th>
+            <th style="width:40px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (var i = 0; i < lineItems.Count; i++)
+          {
+            <tr class="line-item-row">
+              <td><input type="text" name="LineItems[@i].Description" class="form-control" value="@lineItems[i].Description" placeholder="Service or product description" /></td>
+              <td><input type="number" step="0.01" name="LineItems[@i].Quantity" class="form-control" value="@lineItems[i].Quantity" /></td>
+              <td><input type="number" step="0.01" name="LineItems[@i].UnitPrice" class="form-control" value="@lineItems[i].UnitPrice" /></td>
+              <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      <button type="button" id="addLineItem" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i>Add Line</button>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <label class="form-label">Notes (shown on generated invoices)</label>
+      <textarea name="Notes" class="form-control" rows="3">@Model.Notes</textarea>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i>Save Schedule</button>
+  <a href="/RecurringInvoices" class="btn btn-outline-secondary btn-lg">Cancel</a>
+</form>
+
+<script>
+  function reindexRows() {
+    document.querySelectorAll('#lineItemsTable tbody tr').forEach(function (row, index) {
+      row.querySelectorAll('input').forEach(function (input) {
+        input.name = input.name.replace(/LineItems\[\d+\]/, 'LineItems[' + index + ']');
+      });
+    });
+  }
+
+  document.getElementById('addLineItem').addEventListener('click', function () {
+    var tbody = document.querySelector('#lineItemsTable tbody');
+    var row = document.createElement('tr');
+    row.className = 'line-item-row';
+    var nextIndex = tbody.querySelectorAll('tr').length;
+    row.innerHTML =
+      '<td><input type="text" name="LineItems[' + nextIndex + '].Description" class="form-control" placeholder="Service or product description" /></td>' +
+      '<td><input type="number" step="0.01" name="LineItems[' + nextIndex + '].Quantity" class="form-control" value="1" /></td>' +
+      '<td><input type="number" step="0.01" name="LineItems[' + nextIndex + '].UnitPrice" class="form-control" value="0" /></td>' +
+      '<td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>';
+    tbody.appendChild(row);
+  });
+
+  document.querySelector('#lineItemsTable tbody').addEventListener('click', function (e) {
+    var btn = e.target.closest('.remove-row');
+    if (!btn) return;
+    var rows = document.querySelectorAll('#lineItemsTable tbody tr');
+    if (rows.length > 1) {
+      btn.closest('tr').remove();
+      reindexRows();
+    }
+  });
+</script>

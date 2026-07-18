@@ -51,6 +51,10 @@ public class IPRODbContext : DbContext
     public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
     public DbSet<PromotionCode> PromotionCodes => Set<PromotionCode>();
     public DbSet<PromotionCodeRedemption> PromotionCodeRedemptions => Set<PromotionCodeRedemption>();
+    public DbSet<ClientInvoice> ClientInvoices => Set<ClientInvoice>();
+    public DbSet<ClientInvoiceLineItem> ClientInvoiceLineItems => Set<ClientInvoiceLineItem>();
+    public DbSet<RecurringInvoiceSchedule> RecurringInvoiceSchedules => Set<RecurringInvoiceSchedule>();
+    public DbSet<RecurringInvoiceLineItem> RecurringInvoiceLineItems => Set<RecurringInvoiceLineItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

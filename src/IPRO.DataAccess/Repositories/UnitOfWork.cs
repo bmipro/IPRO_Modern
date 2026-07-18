@@ -46,6 +46,10 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<SupportTicketMessage>? _supportTicketMessages;
     private IRepository<PromotionCode>? _promotionCodes;
     private IRepository<PromotionCodeRedemption>? _promotionCodeRedemptions;
+    private IRepository<ClientInvoice>? _clientInvoices;
+    private IRepository<ClientInvoiceLineItem>? _clientInvoiceLineItems;
+    private IRepository<RecurringInvoiceSchedule>? _recurringInvoiceSchedules;
+    private IRepository<RecurringInvoiceLineItem>? _recurringInvoiceLineItems;
 
     public UnitOfWork(IPRODbContext context) // <-- CHANGED
     {
@@ -85,6 +89,10 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     public IRepository<SupportTicketMessage> SupportTicketMessages => _supportTicketMessages ??= new Repository<SupportTicketMessage>(_context);
     public IRepository<PromotionCode> PromotionCodes => _promotionCodes ??= new Repository<PromotionCode>(_context);
     public IRepository<PromotionCodeRedemption> PromotionCodeRedemptions => _promotionCodeRedemptions ??= new Repository<PromotionCodeRedemption>(_context);
+    public IRepository<ClientInvoice> ClientInvoices => _clientInvoices ??= new Repository<ClientInvoice>(_context);
+    public IRepository<ClientInvoiceLineItem> ClientInvoiceLineItems => _clientInvoiceLineItems ??= new Repository<ClientInvoiceLineItem>(_context);
+    public IRepository<RecurringInvoiceSchedule> RecurringInvoiceSchedules => _recurringInvoiceSchedules ??= new Repository<RecurringInvoiceSchedule>(_context);
+    public IRepository<RecurringInvoiceLineItem> RecurringInvoiceLineItems => _recurringInvoiceLineItems ??= new Repository<RecurringInvoiceLineItem>(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) 
         => _context.SaveChangesAsync(cancellationToken);

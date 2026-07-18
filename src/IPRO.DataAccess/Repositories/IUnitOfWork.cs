@@ -41,6 +41,10 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<SupportTicketMessage> SupportTicketMessages { get; }
     IRepository<PromotionCode> PromotionCodes { get; }
     IRepository<PromotionCodeRedemption> PromotionCodeRedemptions { get; }
+    IRepository<ClientInvoice> ClientInvoices { get; }
+    IRepository<ClientInvoiceLineItem> ClientInvoiceLineItems { get; }
+    IRepository<RecurringInvoiceSchedule> RecurringInvoiceSchedules { get; }
+    IRepository<RecurringInvoiceLineItem> RecurringInvoiceLineItems { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

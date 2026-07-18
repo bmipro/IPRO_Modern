@@ -9,6 +9,7 @@
     <PackageReference Include="Hangfire.Core" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <ProjectReference Include="..\IPRO.Billing\IPRO.Billing.csproj" />
+    <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />
     <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
     <ProjectReference Include="..\IPRO.Email\IPRO.Email.csproj" />
     <ProjectReference Include="..\IPRO.Utility\IPRO.Utility.csproj" />

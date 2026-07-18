@@ -19,6 +19,7 @@
   <EmbeddedResource Include="..\..\DOCS\04_WEBSITE_BUILDER.md" LogicalName="HelpDocs.04_WEBSITE_BUILDER.md" />
   <EmbeddedResource Include="..\..\DOCS\05_DOMAINS_AND_LEADS.md" LogicalName="HelpDocs.05_DOMAINS_AND_LEADS.md" />
   <EmbeddedResource Include="..\..\DOCS\06_BILLING_AND_INVOICES.md" LogicalName="HelpDocs.06_BILLING_AND_INVOICES.md" />
+  <EmbeddedResource Include="..\..\DOCS\10_CLIENT_INVOICING.md" LogicalName="HelpDocs.10_CLIENT_INVOICING.md" />
 </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />

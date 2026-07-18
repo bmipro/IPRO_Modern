@@ -148,7 +148,8 @@ public static class PackageEntitlementSeeder
             Feature(360, PackageFeatureCodes.ManagedBlog, "One unique blog per month written and managed", no, no, all, all),
             Feature(370, PackageFeatureCodes.ManagedSeo, "Managed SEO for all pages", no, no, all, all),
             Feature(380, PackageFeatureCodes.PayPalIntegration, "PayPal integration", no, no, all, all),
-            Feature(390, PackageFeatureCodes.DesignatedSupport, "Designated support", no, no, no, all)
+            Feature(390, PackageFeatureCodes.DesignatedSupport, "Designated support", no, no, no, all),
+            Feature(400, PackageFeatureCodes.ClientInvoicing, "Client invoicing and estimates", no, no, all, all)
         };
     }
 

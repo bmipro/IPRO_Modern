@@ -49,6 +49,7 @@ builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
+builder.Services.AddScoped<IClientInvoiceService, ClientInvoiceService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.AddScoped<NewsLetterDispatcher>();
@@ -170,6 +171,7 @@ RecurringJob.AddOrUpdate<DripCampaignJob>("drip-campaigns", job => job.RunAsync(
 RecurringJob.AddOrUpdate<CalendarReminderJob>("calendar-reminders", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<SubscriptionBillingJob>("subscription-billing", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<DomainAutomationJob>("domain-automation", job => job.RunAsync(), "*/5 * * * *");
+RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices", job => job.RunAsync(), Cron.Daily);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -184,6 +186,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
     await EnsureSupportTicketSchemaAsync(db);
     await EnsurePromotionCodeSchemaAsync(db);
+    await EnsureClientInvoiceSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -534,6 +537,84 @@ CREATE TABLE IF NOT EXISTS `PromotionCodeRedemptions` (
     try
     {
         await EnsureTableColumnAsync(db, "SubscriptionChanges", "PromotionCodeId", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `PromotionCodeId` int NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureClientInvoiceSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ClientInvoices` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `ClientId` int NOT NULL,
+    `DocumentType` int NOT NULL,
+    `Status` int NOT NULL,
+    `DocumentNumber` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+    `IssueDate` datetime(6) NOT NULL,
+    `DueDate` datetime(6) NULL,
+    `Currency` varchar(10) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'CAD',
+    `SubTotal` decimal(10,2) NOT NULL DEFAULT 0,
+    `TaxRegion` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `TaxRate` decimal(6,4) NOT NULL DEFAULT 0,
+    `TaxAmount` decimal(10,2) NOT NULL DEFAULT 0,
+    `Total` decimal(10,2) NOT NULL DEFAULT 0,
+    `Notes` varchar(2000) CHARACTER SET utf8mb4 NULL,
+    `PaidAt` datetime(6) NULL,
+    `PaidMethod` int NULL,
+    `ViewToken` varchar(80) CHARACTER SET utf8mb4 NOT NULL,
+    `SentAt` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_ClientInvoices_ViewToken` (`ViewToken`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ClientInvoiceLineItems` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ClientInvoiceId` int NOT NULL,
+    `Description` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `Quantity` decimal(10,2) NOT NULL DEFAULT 1,
+    `UnitPrice` decimal(10,2) NOT NULL DEFAULT 0,
+    `Amount` decimal(10,2) NOT NULL DEFAULT 0,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `RecurringInvoiceSchedules` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `ClientId` int NOT NULL,
+    `Frequency` int NOT NULL,
+    `NextRunDate` datetime(6) NOT NULL,
+    `DueInDays` int NOT NULL DEFAULT 15,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `Notes` varchar(2000) CHARACTER SET utf8mb4 NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `RecurringInvoiceScheduleId` int NOT NULL,
+    `Description` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `Quantity` decimal(10,2) NOT NULL DEFAULT 1,
+    `UnitPrice` decimal(10,2) NOT NULL DEFAULT 0,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "AgentUsers", "DefaultPaymentLink", "ALTER TABLE `AgentUsers` ADD COLUMN `DefaultPaymentLink` varchar(500) CHARACTER SET utf8mb4 NULL");
     }
     finally
     {

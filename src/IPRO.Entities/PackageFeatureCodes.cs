@@ -41,4 +41,5 @@ public static class PackageFeatureCodes
     public const string ManagedSeo = "managed_seo";
     public const string PayPalIntegration = "paypal_integration";
     public const string DesignatedSupport = "designated_support";
+    public const string ClientInvoicing = "client_invoicing";
 }

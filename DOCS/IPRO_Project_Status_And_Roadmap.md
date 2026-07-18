@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: July 16, 2026 (evening)
+Last updated: July 18, 2026
 
 ## What Is Working
 
@@ -41,6 +41,7 @@ Last updated: July 16, 2026 (evening)
 - Paid invoice email resend exists.
 - Promotion codes exist for signup, fully integrated with PayPal billing (not just cosmetic): Super Admin creates codes with a recurring-price discount (percent/flat, for N billing cycles or permanently) and/or a setup-fee discount. A recurring discount is implemented as a real, separate PayPal plan with PayPal's native multi-cycle pricing (a discounted cycle followed by a full-price cycle) — PayPal itself reverts the price automatically, IPRO never has to. Codes support expiry, redemption limits, and package restriction; redemptions are recorded (with original/discounted amounts) for reporting once a subscription actually activates, not merely when a code is entered.
 - Pending/unpaid checkout recovery exists.
+- Agents can now invoice their own clients: estimates and invoices with line items, automatic tax calculated from the client's own province, a signed no-login link the client uses to view/approve/decline/pay, a "Pay Now" button driven by the agent's own payment link (set on their Profile — no PayPal/Stripe integration required, since IPRO never touches the money), manual paid-tracking (Online/Cheque/Cash/EFT/Other), recurring schedules that auto-draft (never auto-send) an invoice on a cadence, and CSV export.
 
 ### CRM and follow-ups
 - Agent client/contact management exists.
@@ -114,7 +115,6 @@ Last updated: July 16, 2026 (evening)
 ## Not Done or Still Fragile
 
 ### Important missing product pieces
-- Agent-side billing/invoicing system for their own clients.
 - Client portal.
 - Document upload/storage.
 - Appointment booking.
@@ -202,20 +202,23 @@ Last updated: July 16, 2026 (evening)
 - Codes are validated at registration (with a live price preview) and re-validated again when the agent actually subscribes, since the PayPal subscription isn't created until then; an expired/maxed-out code degrades to the normal price instead of blocking signup.
 - Redemptions are recorded only once a subscription actually activates (not merely when a code is entered), with original/discounted amounts for revenue-impact reporting.
 
+### 13. Add agent-to-client invoicing (estimates, invoices, recurring, export) (done)
+- Agents create estimates and invoices for their own clients with line items; tax is computed from the client's own province (not the agent's), reusing the same Canadian provincial tax table as platform billing.
+- No PayPal/Stripe integration needed: a document shows a "Pay Now" button pointing at the agent's own payment link (set on Profile), and the agent always confirms payment manually (Online/Cheque/Cash/EFT/Other) — money never flows through IPRO.
+- Clients view, and for estimates approve/decline, a document through a signed no-login link — no client-portal login required.
+- Approved estimates convert to invoices in place with a new invoice number.
+- Recurring schedules (Monthly/Quarterly/Annually) auto-generate a Draft invoice on a cadence; generated invoices are never auto-sent, so the agent always reviews before it reaches the client.
+- CSV export of documents matching the current filter.
+- Gated by a new Platinum/Broker-tier package feature ("Client invoicing and estimates"), same pattern as other premium features.
+
 ## Bigger Product Ideas
 
-### Agent invoicing and billing system
-This could become a major differentiator. Agents and other vertical businesses should be able to:
-- Create estimates and invoices for their own clients.
-- Create recurring invoices.
-- Add taxes by province/state.
-- Email invoices as polished PDFs.
-- Accept online payments.
-- Track paid, unpaid, overdue, and failed payments.
-- Send payment reminders.
-- Store client payment history.
-- Export to CSV/QuickBooks.
-- Let clients view/pay invoices in a secure client portal.
+### Agent invoicing and billing system (v1 done — see item 13 below)
+The core of this shipped: estimates/invoices with line items, per-client tax, a no-login client view/approve/pay link, manual paid-tracking, recurring auto-drafted invoices, and CSV export. Still open for a future pass:
+- Send automatic payment reminders for overdue invoices.
+- Track failed/declined payments (today, payment itself happens outside IPRO, so there's nothing to detect automatically).
+- QuickBooks export (CSV export exists; QuickBooks-specific format does not).
+- Let clients view/pay through a real logged-in client portal instead of a one-off signed link (see "Client portal" below).
 
 ### Vertical starter packs
 Create business-type starter packs for:
@@ -276,4 +279,4 @@ The strongest path is not just "website builder" or "CRM". The winning position 
 
 > A vertical-ready business growth platform that gives small businesses a website, CRM, email campaigns, follow-ups, billing, client portal, and automation in one place.
 
-The next phase should make the website builder dependable, then connect website leads into CRM, then add agent-client billing as the next major revenue feature.
+The website builder is dependable, website leads connect into CRM, and agent-to-client invoicing (v1) now exists. The next phase should focus on the testimonial/poll/engagement backlog and a real client portal to build on top of the invoicing foundation.

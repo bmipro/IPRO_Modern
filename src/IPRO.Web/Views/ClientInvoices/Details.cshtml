@@ -1,0 +1,7 @@
+@model IPRO.Entities.ClientInvoice
+@{
+    Layout = null;
+    ViewBag.IsPublicView = false;
+    ViewBag.CanEdit = Model.Status == IPRO.Entities.ClientInvoiceStatus.Draft;
+}
+@await Html.PartialAsync("_ClientInvoiceDocument", Model)

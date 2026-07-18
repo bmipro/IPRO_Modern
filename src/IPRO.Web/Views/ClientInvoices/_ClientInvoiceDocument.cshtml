@@ -1,0 +1,355 @@
+@model IPRO.Entities.ClientInvoice
+@{
+    var agent = ViewBag.Agent as IPRO.Entities.AgentUser;
+    var client = Model.Client;
+    var isEstimate = Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Estimate;
+    var docLabel = isEstimate ? "Estimate" : "Invoice";
+    var isPublicView = ViewBag.IsPublicView as bool? ?? false;
+    var canEdit = ViewBag.CanEdit as bool? ?? false;
+    var publicUrl = ViewBag.PublicUrl as string;
+    var paymentLink = ViewBag.PaymentLink as string;
+    var statusClass = Model.Status switch
+    {
+        IPRO.Entities.ClientInvoiceStatus.Paid => "paid",
+        IPRO.Entities.ClientInvoiceStatus.Approved => "paid",
+        IPRO.Entities.ClientInvoiceStatus.Declined => "open",
+        IPRO.Entities.ClientInvoiceStatus.Void => "open",
+        _ => "open"
+    };
+    var billToName = $"{client?.FirstName} {client?.LastName}".Trim();
+    var companyName = string.IsNullOrWhiteSpace(agent?.CompanyName) ? "Your Business" : agent!.CompanyName;
+}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>@docLabel @Model.DocumentNumber</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #64748b;
+      --line: #dbe4ef;
+      --panel: #f8fafc;
+      --blue: #1457d9;
+      --green: #087f5b;
+      --orange: #9a3412;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #e8eef7;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      max-width: 920px;
+      margin: 24px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 0 18px;
+    }
+
+    .btn {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+      font-weight: 700;
+      padding: 10px 14px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn-success { background: var(--green); border-color: var(--green); color: #fff; }
+    .btn-danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+
+    .invoice {
+      max-width: 920px;
+      margin: 18px auto 40px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .14);
+      overflow: hidden;
+    }
+
+    .header {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 24px;
+      padding: 44px 48px;
+      background: linear-gradient(135deg, #102a5c, #1457d9);
+      color: #fff;
+    }
+
+    .brand { font-size: 28px; font-weight: 900; letter-spacing: .02em; margin-bottom: 8px; }
+    .brand-subtitle { color: #dbeafe; font-size: 14px; }
+    .invoice-title { text-align: right; }
+    .invoice-title h1 { font-size: 42px; line-height: 1; margin: 0 0 12px; }
+
+    .status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      background: #fff;
+    }
+
+    .status.paid { color: var(--green); }
+    .status.open { color: var(--orange); }
+
+    .content { padding: 42px 48px 48px; }
+
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 34px; }
+
+    .panel { border: 1px solid var(--line); border-radius: 14px; padding: 20px; background: var(--panel); }
+
+    .label { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .08em; margin-bottom: 8px; text-transform: uppercase; }
+    .value { font-size: 16px; font-weight: 700; }
+    .muted { color: var(--muted); font-size: 14px; }
+
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th { border-bottom: 2px solid var(--line); color: var(--muted); font-size: 12px; letter-spacing: .08em; padding: 13px 0; text-align: left; text-transform: uppercase; }
+    td { border-bottom: 1px solid var(--line); padding: 16px 0; vertical-align: top; }
+    .amount { text-align: right; white-space: nowrap; }
+
+    .totals { margin-left: auto; margin-top: 24px; width: min(360px, 100%); }
+    .total-row { display: flex; justify-content: space-between; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .grand-total { color: var(--blue); font-size: 24px; font-weight: 900; }
+
+    .notes { margin-top: 28px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+
+    .footer { color: var(--muted); font-size: 13px; margin-top: 42px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+    .action-panel { max-width: 920px; margin: 0 auto 40px; padding: 0 18px; }
+    .action-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+    @@media print {
+      body { background: #fff; font-size: 11px; line-height: 1.25; }
+      .toolbar, .action-panel { display: none; }
+      .invoice { border: none; border-radius: 0; box-shadow: none; margin: 0; max-width: none; overflow: visible; }
+      @@page { size: Letter; margin: .28in; }
+    }
+
+    @@media (max-width: 720px) {
+      .header, .meta-grid { grid-template-columns: 1fr; }
+      .invoice-title { text-align: left; }
+      .content, .header { padding: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    @if (!isPublicView)
+    {
+      <a class="btn" href="/ClientInvoices">Back to list</a>
+      @if (canEdit)
+      {
+        <a class="btn" href="/ClientInvoices/Edit/@Model.Id">Edit</a>
+      }
+    }
+    <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+  </div>
+
+  @if (!isPublicView)
+  {
+    <div class="action-panel">
+      <div class="action-card">
+        <div class="muted">
+          Public link: <a href="@publicUrl" target="_blank">@publicUrl</a>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          @if (Model.Status == IPRO.Entities.ClientInvoiceStatus.Draft)
+          {
+            <form method="post" action="/ClientInvoices/Send/@Model.Id">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn btn-success">Send to Client</button>
+            </form>
+          }
+          @if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Invoice && Model.Status is IPRO.Entities.ClientInvoiceStatus.Sent)
+          {
+            <form method="post" action="/ClientInvoices/MarkPaid/@Model.Id" style="display:flex;gap:6px;align-items:center">
+              @Html.AntiForgeryToken()
+              <select name="method" class="btn">
+                <option value="Online">Paid Online</option>
+                <option value="Cheque">Paid by Cheque</option>
+                <option value="Cash">Paid by Cash</option>
+                <option value="EFT">Paid by EFT</option>
+                <option value="Other">Paid (Other)</option>
+              </select>
+              <button type="submit" class="btn btn-success">Mark Paid</button>
+            </form>
+          }
+          @if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Estimate && Model.Status == IPRO.Entities.ClientInvoiceStatus.Approved)
+          {
+            <form method="post" action="/ClientInvoices/ConvertToInvoice/@Model.Id">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn btn-success">Convert to Invoice</button>
+            </form>
+          }
+          <form method="post" action="/ClientInvoices/Duplicate/@Model.Id">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn">Duplicate</button>
+          </form>
+          @if (Model.Status is not (IPRO.Entities.ClientInvoiceStatus.Paid or IPRO.Entities.ClientInvoiceStatus.Void))
+          {
+            <form method="post" action="/ClientInvoices/Void/@Model.Id" onclick="return confirm('Void this document?');">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn btn-danger">Void</button>
+            </form>
+          }
+        </div>
+      </div>
+    </div>
+  }
+  else if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Estimate && Model.Status == IPRO.Entities.ClientInvoiceStatus.Sent)
+  {
+    <div class="action-panel">
+      <div class="action-card">
+        <div class="muted">Please review this estimate and let us know if you'd like to proceed.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <form method="post" action="/invoice/@Model.ViewToken/decline">
+            <button type="submit" class="btn">Decline</button>
+          </form>
+          <form method="post" action="/invoice/@Model.ViewToken/approve">
+            <button type="submit" class="btn btn-success">Approve</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  }
+  else if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Invoice && Model.Status == IPRO.Entities.ClientInvoiceStatus.Sent && !string.IsNullOrWhiteSpace(paymentLink))
+  {
+    <div class="action-panel">
+      <div class="action-card">
+        <div class="muted">You can pay online now, or arrange payment another way with @companyName.</div>
+        <a class="btn btn-success" href="@paymentLink" target="_blank" rel="noopener">Pay Now</a>
+      </div>
+    </div>
+  }
+
+  <main class="invoice">
+    <section class="header">
+      <div>
+        <div class="brand">@companyName</div>
+        @if (!string.IsNullOrWhiteSpace(agent?.Email))
+        {
+          <div class="brand-subtitle">@agent.Email</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(agent?.Phone))
+        {
+          <div class="brand-subtitle">@agent.Phone</div>
+        }
+      </div>
+      <div class="invoice-title">
+        <h1>@docLabel</h1>
+        <span class="status @statusClass">@Model.Status</span>
+      </div>
+    </section>
+
+    <section class="content">
+      <div class="meta-grid">
+        <div class="panel">
+          <div class="label">Bill To</div>
+          <div class="value">@billToName</div>
+          @if (!string.IsNullOrWhiteSpace(client?.CompanyName))
+          {
+            <div>@client.CompanyName</div>
+          }
+          @if (!string.IsNullOrWhiteSpace(client?.Email))
+          {
+            <div class="muted">@client.Email</div>
+          }
+          <div class="muted">
+            @client?.Address
+            @if (!string.IsNullOrWhiteSpace(client?.City))
+            {
+              <br />@client.City
+            }
+            @if (!string.IsNullOrWhiteSpace(client?.Province) || !string.IsNullOrWhiteSpace(client?.PostalCode))
+            {
+              <br />@client?.Province @client?.PostalCode
+            }
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="label">@docLabel Details</div>
+          <div><strong>@(docLabel) #:</strong> @Model.DocumentNumber</div>
+          <div><strong>Date:</strong> @Model.IssueDate.ToString("MMMM d, yyyy")</div>
+          @if (Model.DueDate.HasValue)
+          {
+            <div><strong>Due:</strong> @Model.DueDate.Value.ToString("MMMM d, yyyy")</div>
+          }
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="amount">Qty</th>
+            <th class="amount">Unit Price</th>
+            <th class="amount">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var item in Model.LineItems.OrderBy(i => i.SortOrder))
+          {
+            <tr>
+              <td>@item.Description</td>
+              <td class="amount">@item.Quantity.ToString("0.##")</td>
+              <td class="amount">$@item.UnitPrice.ToString("N2")</td>
+              <td class="amount">$@item.Amount.ToString("N2")</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="total-row">
+          <span>Subtotal</span>
+          <strong>$@Model.SubTotal.ToString("N2") @Model.Currency</strong>
+        </div>
+        <div class="total-row">
+          <span>
+            Tax
+            @if (!string.IsNullOrWhiteSpace(Model.TaxRegion))
+            {
+              <small class="muted">(@Model.TaxRegion @(Model.TaxRate > 0 ? Model.TaxRate.ToString("P2") : ""))</small>
+            }
+          </span>
+          <strong>$@Model.TaxAmount.ToString("N2") @Model.Currency</strong>
+        </div>
+        <div class="total-row grand-total">
+          <span>Total</span>
+          <span>$@Model.Total.ToString("N2") @Model.Currency</span>
+        </div>
+      </div>
+
+      @if (!string.IsNullOrWhiteSpace(Model.Notes))
+      {
+        <div class="notes">
+          <div class="label">Notes</div>
+          <div>@Model.Notes</div>
+        </div>
+      }
+
+      <div class="footer">
+        Thank you for your business.
+      </div>
+    </section>
+  </main>
+</body>
+</html>

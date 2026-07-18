@@ -49,4 +49,5 @@ public class AgentProfileViewModel
     public string BusinessType { get; set; } = string.Empty;
 
     public string? PromotionCode { get; set; }
+    public string? DefaultPaymentLink { get; set; }
 }

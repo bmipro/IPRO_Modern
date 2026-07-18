@@ -20,6 +20,7 @@ public class AgentUser
     public string BusinessFax { get; set; } = string.Empty;
     public string CellPhone { get; set; } = string.Empty;
     public string BusinessType { get; set; } = string.Empty;
+    public string? DefaultPaymentLink { get; set; } = string.Empty;
     public string DomainName { get; set; } = string.Empty;
     public int PackageId { get; set; }
     public string PromotionCode { get; set; } = string.Empty;

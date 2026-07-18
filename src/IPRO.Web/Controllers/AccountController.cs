@@ -286,6 +286,7 @@ public class AccountController : Controller
         agent.CellPhone = model.CellPhone ?? "";
         agent.BusinessType = model.BusinessType;
         agent.PromotionCode = model.PromotionCode ?? "";
+        agent.DefaultPaymentLink = model.DefaultPaymentLink;
 
         await _agents.UpdateAsync(agent);
         await SignInAgentAsync(agent, new AuthenticationProperties
@@ -491,7 +492,8 @@ public class AccountController : Controller
         BusinessFax = agent.BusinessFax,
         CellPhone = agent.CellPhone,
         BusinessType = agent.BusinessType,
-        PromotionCode = agent.PromotionCode
+        PromotionCode = agent.PromotionCode,
+        DefaultPaymentLink = agent.DefaultPaymentLink
     };
 
     private static void NormalizeRegistration(AgentRegistrationViewModel model)
@@ -532,5 +534,13 @@ public class AccountController : Controller
         model.CellPhone = model.CellPhone?.Trim() ?? "";
         model.BusinessType = model.BusinessType?.Trim() ?? "";
         model.PromotionCode = model.PromotionCode?.Trim() ?? "";
+        model.DefaultPaymentLink = NormalizePaymentLink(model.DefaultPaymentLink);
+    }
+
+    private static string? NormalizePaymentLink(string? value)
+    {
+        value = value?.Trim();
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        return value.Contains("://") ? value : $"https://{value}";
     }
 }

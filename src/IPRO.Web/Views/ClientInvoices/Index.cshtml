@@ -1,0 +1,119 @@
+@model IReadOnlyCollection<IPRO.Entities.ClientInvoice>
+@{
+    ViewData["Title"] = "Client Invoices";
+    var documentType = (string)(ViewBag.DocumentType ?? "all");
+    var status = (string)(ViewBag.Status ?? "all");
+    var clientId = ViewBag.ClientId as int?;
+    var search = ViewBag.Search as string;
+    var page = (int)(ViewBag.Page ?? 1);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var totalCount = (int)(ViewBag.TotalCount ?? 0);
+    var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
+    var exportUrl = $"/ClientInvoices/Export?documentType={Uri.EscapeDataString(documentType)}&status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}";
+    string FilterClass(string value) => documentType == value ? "btn-primary" : "btn-outline-secondary";
+    string StatusBadge(IPRO.Entities.ClientInvoiceStatus s) => s switch
+    {
+        IPRO.Entities.ClientInvoiceStatus.Paid => "bg-success-subtle text-success",
+        IPRO.Entities.ClientInvoiceStatus.Approved => "bg-success-subtle text-success",
+        IPRO.Entities.ClientInvoiceStatus.Declined => "bg-danger-subtle text-danger",
+        IPRO.Entities.ClientInvoiceStatus.Void => "bg-light text-muted",
+        IPRO.Entities.ClientInvoiceStatus.Sent => "bg-info-subtle text-info-emphasis",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Client Invoices</h2>
+    <div class="text-muted">Estimates and invoices you send to your own clients.</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="@exportUrl"><i class="fas fa-file-csv me-1"></i>Export CSV</a>
+    <a class="btn btn-outline-primary" href="/RecurringInvoices"><i class="fas fa-rotate me-1"></i>Recurring Schedules</a>
+    <a class="btn btn-primary" href="/ClientInvoices/Create?documentType=Estimate"><i class="fas fa-file-signature me-1"></i>New Estimate</a>
+    <a class="btn btn-success" href="/ClientInvoices/Create?documentType=Invoice"><i class="fas fa-plus me-1"></i>New Invoice</a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-3">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+      <div class="btn-group flex-wrap" role="group">
+        <a class="btn @FilterClass("all")" href="/ClientInvoices?documentType=all">All (@totalCount)</a>
+        <a class="btn @FilterClass("estimate")" href="/ClientInvoices?documentType=estimate">Estimates</a>
+        <a class="btn @FilterClass("invoice")" href="/ClientInvoices?documentType=invoice">Invoices</a>
+      </div>
+    </div>
+    <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+      <input type="hidden" name="documentType" value="@documentType" />
+      <select class="form-select form-select-sm" style="width:auto" name="status">
+        <option value="all" selected="@(status == "all")">All statuses</option>
+        <option value="draft" selected="@(status == "draft")">Draft</option>
+        <option value="sent" selected="@(status == "sent")">Sent</option>
+        <option value="approved" selected="@(status == "approved")">Approved</option>
+        <option value="declined" selected="@(status == "declined")">Declined</option>
+        <option value="paid" selected="@(status == "paid")">Paid</option>
+        <option value="void" selected="@(status == "void")">Void</option>
+      </select>
+      <select class="form-select form-select-sm" style="width:auto" name="clientId">
+        <option value="">All clients</option>
+        @foreach (var c in clients)
+        {
+          <option value="@c.Id" selected="@(clientId == c.Id)">@c.FirstName @c.LastName</option>
+        }
+      </select>
+      <input class="form-control form-control-sm" style="max-width:220px" type="search" name="search" value="@search" placeholder="Search # or client..." />
+      <button class="btn btn-primary btn-sm" title="Apply filters"><i class="fas fa-search"></i></button>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Type</th>
+          <th>Client</th>
+          <th>Issue Date</th>
+          <th class="text-end">Total</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!Model.Any())
+        {
+          <tr><td colspan="7" class="text-center text-muted py-4">No documents yet.</td></tr>
+        }
+        @foreach (var invoice in Model)
+        {
+          <tr>
+            <td><a href="/ClientInvoices/Details/@invoice.Id">@invoice.DocumentNumber</a></td>
+            <td>@invoice.DocumentType</td>
+            <td>@invoice.Client?.FirstName @invoice.Client?.LastName</td>
+            <td>@invoice.IssueDate.ToString("MMM d, yyyy")</td>
+            <td class="text-end">$@invoice.Total.ToString("N2") @invoice.Currency</td>
+            <td><span class="badge @StatusBadge(invoice.Status)">@invoice.Status</span></td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/ClientInvoices/Details/@invoice.Id">Open</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@if (totalPages > 1)
+{
+  <nav class="mt-3">
+    <ul class="pagination">
+      @for (var p = 1; p <= totalPages; p++)
+      {
+        <li class="page-item @(p == page ? "active" : "")">
+          <a class="page-link" href="/ClientInvoices?documentType=@documentType&amp;status=@status&amp;search=@search&amp;page=@p">@p</a>
+        </li>
+      }
+    </ul>
+  </nav>
+}
