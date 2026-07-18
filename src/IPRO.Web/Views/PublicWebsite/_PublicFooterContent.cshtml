@@ -1,4 +1,5 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
+@inject IConfiguration Configuration
 @{
     var website = Model.Website;
     var agent = website.AgentUser;
@@ -7,6 +8,7 @@
         ? (string.IsNullOrWhiteSpace(agent.CompanyName) ? $"{agent.FirstName} {agent.LastName}".Trim() : agent.CompanyName)
         : website.SiteTitle;
     var copyrightName = string.IsNullOrWhiteSpace(footer.CopyrightText) ? fallbackName : footer.CopyrightText;
+    var agentLoginUrl = $"{IPRO.Web.Infrastructure.PortalUrlHelper.GetAgentPortalBaseUrl(Configuration)}/Account/Login";
     var platformIcons = new Dictionary<string, string>
     {
         ["facebook"] = "fa-facebook",
@@ -34,16 +36,14 @@
     }
   </div>
 }
-@if (footer.SocialLinks.Any())
-{
-  <div class="public-footer__social">
-    @foreach (var link in footer.SocialLinks.OrderBy(l => l.SortOrder))
-    {
-      var iconClass = platformIcons.TryGetValue(link.Platform, out var icon) ? icon : "fa-link";
-      <a href="@link.Url" target="_blank" rel="noopener noreferrer" aria-label="@link.Platform"><i class="fab @iconClass"></i></a>
-    }
-  </div>
-}
+<div class="public-footer__social">
+  @foreach (var link in footer.SocialLinks.OrderBy(l => l.SortOrder))
+  {
+    var iconClass = platformIcons.TryGetValue(link.Platform, out var icon) ? icon : "fa-link";
+    <a href="@link.Url" target="_blank" rel="noopener noreferrer" aria-label="@link.Platform"><i class="fab @iconClass"></i></a>
+  }
+  <a class="public-footer__agent-login" href="@agentLoginUrl" aria-label="Agent login" title="Agent login"><i class="fas fa-arrow-right-to-bracket"></i></a>
+</div>
 @if (footer.LegalLinks.Any())
 {
   <div class="public-footer__legal">

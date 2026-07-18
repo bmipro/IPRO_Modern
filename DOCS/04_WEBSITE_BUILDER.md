@@ -159,7 +159,7 @@ Analytics excludes common bots, social preview tools, template previews, and bro
 5. Add an optional header button and link.
 6. Click **Save Header**.
 
-An **Agent Login** link always appears in the header on every page, regardless of these settings — it links back to the agent portal sign-in page so agents (or visitors who find it) can always get to the portal from the public site.
+A small arrow icon linking to the agent portal sign-in page always appears in the footer, beside the social media icons, on every page — regardless of header settings and regardless of whether any social links are configured.
 
 ## Configure the Footer
 
