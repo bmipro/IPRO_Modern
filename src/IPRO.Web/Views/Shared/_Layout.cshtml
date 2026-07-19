@@ -57,6 +57,43 @@
     <style>
         :root { --portal-accent: @effectiveAccent; }
 
+        /* App-wide accent unification: every semantic Bootstrap color (primary/success/danger/warning/info)
+           maps to the agent's chosen portal color instead of Bootstrap's defaults, so the whole app feels
+           personalized rather than just the sidebar. Alerts are deliberately excluded since they're transient
+           system feedback (success/error/warning), not persistent brand chrome. */
+        .btn-primary, .btn-success, .btn-danger, .btn-warning, .btn-info {
+            --bs-btn-color:#fff; --bs-btn-bg:var(--portal-accent); --bs-btn-border-color:var(--portal-accent);
+            --bs-btn-hover-color:#fff; --bs-btn-hover-bg:color-mix(in srgb, var(--portal-accent) 85%, black); --bs-btn-hover-border-color:color-mix(in srgb, var(--portal-accent) 80%, black);
+            --bs-btn-active-color:#fff; --bs-btn-active-bg:color-mix(in srgb, var(--portal-accent) 80%, black); --bs-btn-active-border-color:color-mix(in srgb, var(--portal-accent) 75%, black);
+            --bs-btn-disabled-bg:var(--portal-accent); --bs-btn-disabled-border-color:var(--portal-accent);
+        }
+        .btn-outline-primary, .btn-outline-success, .btn-outline-danger, .btn-outline-warning, .btn-outline-info {
+            --bs-btn-color:var(--portal-accent); --bs-btn-border-color:var(--portal-accent);
+            --bs-btn-hover-color:#fff; --bs-btn-hover-bg:var(--portal-accent); --bs-btn-hover-border-color:var(--portal-accent);
+            --bs-btn-active-color:#fff; --bs-btn-active-bg:var(--portal-accent); --bs-btn-active-border-color:var(--portal-accent);
+            --bs-btn-disabled-color:var(--portal-accent); --bs-btn-disabled-border-color:var(--portal-accent);
+        }
+        .text-primary, .text-success, .text-danger, .text-warning, .text-info { color:var(--portal-accent) !important; }
+        .bg-primary, .bg-success, .bg-danger, .bg-warning, .bg-info { background-color:var(--portal-accent) !important; }
+        .border-primary, .border-success, .border-danger, .border-warning, .border-info { border-color:var(--portal-accent) !important; }
+        .bg-primary-subtle, .bg-success-subtle, .bg-danger-subtle, .bg-warning-subtle, .bg-info-subtle {
+            background-color:color-mix(in srgb, var(--portal-accent) 15%, white) !important;
+        }
+        .text-primary-emphasis, .text-success-emphasis, .text-danger-emphasis, .text-warning-emphasis, .text-info-emphasis {
+            color:color-mix(in srgb, var(--portal-accent) 70%, black) !important;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color:var(--portal-accent);
+            box-shadow:0 0 0 0.25rem color-mix(in srgb, var(--portal-accent) 25%, transparent);
+        }
+        .form-check-input:focus { border-color:var(--portal-accent); box-shadow:0 0 0 0.25rem color-mix(in srgb, var(--portal-accent) 25%, transparent); }
+        .form-check-input:checked { background-color:var(--portal-accent); border-color:var(--portal-accent); }
+        a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link) { color:var(--portal-accent); }
+        a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover { color:color-mix(in srgb, var(--portal-accent) 85%, black); }
+        .page-link { color:var(--portal-accent); }
+        .page-item.active .page-link { background-color:var(--portal-accent); border-color:var(--portal-accent); }
+        .dropdown-item.active, .dropdown-item:active { background-color:var(--portal-accent) !important; }
+
         .agent-sidebar { width:250px; height:100vh; background:linear-gradient(180deg,#0f172a 0%,#1e3a5f 100%); position:fixed; top:0; left:0; z-index:1040; display:flex; flex-direction:column; }
         .agent-sidebar .brand { flex-shrink:0; padding:1.25rem 1.25rem 1rem; border-bottom:1px solid rgba(255,255,255,0.1); }
         .agent-sidebar .brand a { color:#fff; font-weight:700; text-decoration:none; font-size:1.05rem; }
