@@ -35,6 +35,7 @@
     string ClientsSubActive(string action) => currentController == "Clients" && currentAction == action ? "active" : "";
 
     var portalAccentColor = User.FindFirst("PortalAccentColor")?.Value ?? "";
+    var effectiveAccent = string.IsNullOrEmpty(portalAccentColor) ? "#1457d9" : portalAccentColor;
     var portalColorSwatches = new (string Hex, string Name)[]
     {
         ("#1457d9", "Ocean Blue"),
@@ -54,78 +55,105 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="~/css/site.css" />
     <style>
-        .portal-color-toggle { color: rgba(255,255,255,.85); border: 1px solid rgba(255,255,255,.35); background: transparent; }
-        .portal-color-toggle:hover, .portal-color-toggle:focus { color: #fff; border-color: rgba(255,255,255,.6); }
-        .portal-color-menu.show { min-width: auto; display: flex; gap: .4rem; }
-        .portal-color-menu li { list-style: none; }
-        .portal-color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; }
-        .portal-color-swatch.is-active { border-color: #0f172a; box-shadow: 0 0 0 2px #fff inset; }
+        :root { --portal-accent: @effectiveAccent; }
+
+        .agent-sidebar { width:250px; height:100vh; background:linear-gradient(180deg,#0f172a 0%,#1e3a5f 100%); position:fixed; top:0; left:0; z-index:1040; display:flex; flex-direction:column; }
+        .agent-sidebar .brand { flex-shrink:0; padding:1.25rem 1.25rem 1rem; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .agent-sidebar .brand a { color:#fff; font-weight:700; text-decoration:none; font-size:1.05rem; }
+        .agent-sidebar .brand i { color:var(--portal-accent); }
+        .agent-sidebar-nav { flex:1 1 auto; min-height:0; overflow-y:auto; padding-bottom:.5rem; }
+        .agent-sidebar-nav::-webkit-scrollbar { width:6px; }
+        .agent-sidebar-nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
+        .agent-sidebar .nav-section { color:rgba(255,255,255,0.35); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; padding:.9rem 1.25rem .25rem; }
+        .agent-sidebar .nav-link { color:rgba(255,255,255,0.75); padding:.6rem 1.25rem; border-radius:8px; margin:.05rem .75rem; transition:background .15s, color .15s; }
+        .agent-sidebar .nav-link:hover { background:color-mix(in srgb, var(--portal-accent) 25%, transparent); color:#fff; }
+        .agent-sidebar .nav-link.active { background:var(--portal-accent); color:#fff; }
+        .agent-sidebar .nav-link i { width:20px; margin-right:.6rem; text-align:center; }
+
+        .agent-sidebar-footer { flex-shrink:0; border-top:1px solid rgba(255,255,255,0.1); padding:.75rem 0; }
+        .portal-color-row { display:flex; gap:.4rem; padding:.25rem 1.25rem .75rem; }
+        .portal-color-swatch { width:20px; height:20px; border-radius:50%; border:2px solid transparent; padding:0; cursor:pointer; }
+        .portal-color-swatch.is-active { border-color:#fff; box-shadow:0 0 0 2px var(--portal-accent); }
+        .agent-sidebar-footer .nav-link { font-size:.9rem; }
+
+        .agent-topbar { margin-left:250px; background:#fff; border-bottom:1px solid #e5e7eb; padding:.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1030; }
+        .agent-content { margin-left:250px; padding:1.25rem 1.5rem; }
+        .sidebar-toggle-btn { display:none; background:none; border:1px solid #d1d5db; border-radius:6px; padding:.3rem .6rem; }
+
+        @@media (max-width: 991.98px) {
+            .agent-sidebar { transform:translateX(-100%); transition:transform .2s ease; }
+            .agent-sidebar.show { transform:translateX(0); }
+            .agent-topbar, .agent-content { margin-left:0; }
+            .sidebar-toggle-btn { display:inline-block; }
+        }
     </style>
 </head>
 <body>
 @if (User.Identity?.IsAuthenticated == true)
 {
-<nav class="navbar navbar-expand-lg navbar-dark @(string.IsNullOrEmpty(portalAccentColor) ? "bg-primary" : "")" style="@(string.IsNullOrEmpty(portalAccentColor) ? "" : $"background-color:{portalAccentColor};")">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="/"><i class="fas fa-shield-alt me-2"></i>IPRO Agent Portal</a>
-        <div class="dropdown me-2">
-            <button class="btn btn-sm portal-color-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Choose your portal color">
-                <i class="fas fa-palette"></i>
-            </button>
-            <ul class="dropdown-menu portal-color-menu p-2">
-                @foreach (var swatch in portalColorSwatches)
-                {
-                    <li>
-                        <form asp-controller="Account" asp-action="SetPortalAccentColor" method="post">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="color" value="@swatch.Hex" />
-                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                            <button type="submit" class="portal-color-swatch @(portalAccentColor == swatch.Hex ? "is-active" : "")" style="background-color:@swatch.Hex;" title="@swatch.Name" aria-label="@swatch.Name"></button>
-                        </form>
-                    </li>
-                }
-            </ul>
-        </div>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navMain">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link @NavActive("Dashboard")" href="/Dashboard"><i class="fas fa-home me-1"></i>Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link @clientsMainActive" href="/Clients"><i class="fas fa-users me-1"></i>Clients</a></li>
-                <li class="nav-item"><a class="nav-link @(currentController == "Clients" && (currentAction == "FollowUpQueue" || currentAction == "FollowUps") ? "active" : "")" href="/Clients/FollowUps?status=open"><i class="fas fa-list-check me-1"></i>Follow-ups</a></li>
-                <li class="nav-item"><a class="nav-link @ClientsSubActive("Calendar")" href="/Clients/Calendar" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CalendarScheduler))><i class="fas fa-calendar-alt me-1"></i>Calendar</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("Newsletter")" href="/Newsletter" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-envelope me-1"></i>Newsletter</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("Campaigns")" href="/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign))><i class="fas fa-bullhorn me-1"></i>Campaigns</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("Website", "WebsitePages")" href="/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite))><i class="fas fa-globe me-1"></i>My Website</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("WebsiteLeads")" href="/WebsiteLeads"><i class="fas fa-inbox me-1"></i>Website Leads</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("WebsiteAnalytics")" href="/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking))><i class="fas fa-chart-line me-1"></i>Analytics</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("Billing")" href="/Billing"><i class="fas fa-credit-card me-1"></i>Billing</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("ClientInvoices", "RecurringInvoices")" href="/ClientInvoices"><i class="fas fa-file-invoice-dollar me-1"></i>Client Invoices</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("PortalMessages")" href="/PortalMessages"><i class="fas fa-comments me-1"></i>Portal Messages</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("PortalRequests")" href="/PortalRequests"><i class="fas fa-calendar-check me-1"></i>Portal Requests</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("Documents")" href="/Documents"><i class="fas fa-folder-open me-1"></i>Documents</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("SocialPosts")" href="/SocialPosts"><i class="fas fa-share-nodes me-1"></i>Social Posts</a></li>
-                <li class="nav-item"><a class="nav-link @NavActive("Support")" href="/Support"><i class="fas fa-life-ring me-1"></i>Support</a></li>
-            </ul>
-            <ul class="navbar-nav">
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <i class="fas fa-user-circle me-1"></i>@User.FindFirst("FullName")?.Value
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="/Account/Profile"><i class="fas fa-id-card me-2"></i>My Profile</a></li>
-                        <li><a class="dropdown-item" href="/Account/ChangePassword"><i class="fas fa-key me-2"></i>Change Password</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="/Account/Logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
+<aside class="agent-sidebar" id="agentSidebar">
+    <div class="brand">
+        <a href="/"><i class="fas fa-shield-alt me-2"></i>IPRO Agent Portal</a>
     </div>
-</nav>
+    <nav class="agent-sidebar-nav">
+        <div class="nav-section">Overview</div>
+        <a class="nav-link @NavActive("Dashboard")" href="/Dashboard"><i class="fas fa-home"></i>Dashboard</a>
+
+        <div class="nav-section">Clients</div>
+        <a class="nav-link @clientsMainActive" href="/Clients"><i class="fas fa-users"></i>Clients</a>
+        <a class="nav-link @(currentController == "Clients" && (currentAction == "FollowUpQueue" || currentAction == "FollowUps") ? "active" : "")" href="/Clients/FollowUps?status=open"><i class="fas fa-list-check"></i>Follow-ups</a>
+        <a class="nav-link @ClientsSubActive("Calendar")" href="/Clients/Calendar" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CalendarScheduler))><i class="fas fa-calendar-alt"></i>Calendar</a>
+
+        <div class="nav-section">Marketing</div>
+        <a class="nav-link @NavActive("Newsletter")" href="/Newsletter" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-envelope"></i>Newsletter</a>
+        <a class="nav-link @NavActive("Campaigns")" href="/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign))><i class="fas fa-bullhorn"></i>Campaigns</a>
+        <a class="nav-link @NavActive("SocialPosts")" href="/SocialPosts"><i class="fas fa-share-nodes"></i>Social Posts</a>
+
+        <div class="nav-section">Website</div>
+        <a class="nav-link @NavActive("Website", "WebsitePages")" href="/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite))><i class="fas fa-globe"></i>My Website</a>
+        <a class="nav-link @NavActive("WebsiteLeads")" href="/WebsiteLeads"><i class="fas fa-inbox"></i>Website Leads</a>
+        <a class="nav-link @NavActive("WebsiteAnalytics")" href="/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking))><i class="fas fa-chart-line"></i>Analytics</a>
+
+        <div class="nav-section">Billing</div>
+        <a class="nav-link @NavActive("Billing")" href="/Billing"><i class="fas fa-credit-card"></i>Billing</a>
+        <a class="nav-link @NavActive("ClientInvoices", "RecurringInvoices")" href="/ClientInvoices"><i class="fas fa-file-invoice-dollar"></i>Client Invoices</a>
+
+        <div class="nav-section">Client Portal</div>
+        <a class="nav-link @NavActive("PortalMessages")" href="/PortalMessages"><i class="fas fa-comments"></i>Portal Messages</a>
+        <a class="nav-link @NavActive("PortalRequests")" href="/PortalRequests"><i class="fas fa-calendar-check"></i>Portal Requests</a>
+
+        <div class="nav-section">Tools</div>
+        <a class="nav-link @NavActive("Documents")" href="/Documents"><i class="fas fa-folder-open"></i>Documents</a>
+
+        <div class="nav-section">Support</div>
+        <a class="nav-link @NavActive("Support")" href="/Support"><i class="fas fa-life-ring"></i>Support</a>
+    </nav>
+    <div class="agent-sidebar-footer">
+        <div class="portal-color-row">
+            @foreach (var swatch in portalColorSwatches)
+            {
+                <form asp-controller="Account" asp-action="SetPortalAccentColor" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="color" value="@swatch.Hex" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                    <button type="submit" class="portal-color-swatch @(portalAccentColor == swatch.Hex ? "is-active" : "")" style="background-color:@swatch.Hex;" title="@swatch.Name" aria-label="@swatch.Name"></button>
+                </form>
+            }
+        </div>
+        <a class="nav-link" href="/Account/Profile"><i class="fas fa-id-card"></i>@User.FindFirst("FullName")?.Value</a>
+        <a class="nav-link" href="/Account/ChangePassword"><i class="fas fa-key"></i>Change Password</a>
+        <a class="nav-link text-danger" href="/Account/Logout"><i class="fas fa-sign-out-alt"></i>Logout</a>
+    </div>
+</aside>
+
+<div class="agent-topbar">
+    <div class="d-flex align-items-center gap-2">
+        <button type="button" class="sidebar-toggle-btn" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+        <span class="fw-semibold text-muted">@ViewData["Title"]</span>
+    </div>
+</div>
 }
-<div class="@(User.Identity?.IsAuthenticated == true ? "container-fluid mt-3" : "")">
+<div class="@(User.Identity?.IsAuthenticated == true ? "agent-content" : "")">
     @if (TempData["Success"] != null)
     { <div class="alert alert-success alert-dismissible fade show"><i class="fas fa-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
     @if (TempData["Error"] != null)
@@ -169,6 +197,12 @@ document.querySelectorAll('[data-upgrade-lock="true"]').forEach(link => {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('upgradeRequiredModal')).show();
     });
 });
+const sidebarToggle = document.getElementById('sidebarToggle');
+if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', () => {
+        document.getElementById('agentSidebar')?.classList.toggle('show');
+    });
+}
 </script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
