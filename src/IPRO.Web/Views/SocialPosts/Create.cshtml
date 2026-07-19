@@ -1,0 +1,71 @@
+@model IPRO.Entities.SocialPostDraft
+@{
+    ViewData["Title"] = "New Social Post";
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-share-nodes me-2 text-primary"></i>New Social Post</h2>
+  <div class="text-muted">Write your post once, check it against each platform's character limit, then copy and paste it in.</div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <form asp-action="Create" method="post">
+      @Html.AntiForgeryToken()
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Topic (optional)</label>
+        <input asp-for="Topic" class="form-control" maxlength="200" placeholder="Spring promo"/>
+      </div>
+      <div class="mb-2">
+        <label class="form-label small fw-semibold text-muted">Post text</label>
+        <textarea id="postBody" asp-for="Body" class="form-control" rows="8" required></textarea>
+      </div>
+
+      <div class="row g-2 small mb-3">
+        <div class="col-6 col-md-3"><i class="fab fa-x-twitter me-1"></i>X: <span id="limit-twitter"></span></div>
+        <div class="col-6 col-md-3"><i class="fab fa-instagram me-1"></i>Instagram: <span id="limit-instagram"></span></div>
+        <div class="col-6 col-md-3"><i class="fab fa-linkedin me-1"></i>LinkedIn: <span id="limit-linkedin"></span></div>
+        <div class="col-6 col-md-3"><i class="fab fa-facebook me-1"></i>Facebook: <span id="limit-facebook"></span></div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Save Post</button>
+        <button type="button" id="copyBtn" class="btn btn-outline-secondary"><i class="fas fa-copy me-1"></i>Copy to Clipboard</button>
+        <a href="/SocialPosts" class="btn btn-link">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+  const limits = { twitter: 280, instagram: 2200, linkedin: 3000, facebook: 63206 };
+  const textarea = document.getElementById('postBody');
+
+  function updateCounters() {
+    const len = textarea.value.length;
+    for (const key in limits) {
+      const limit = limits[key];
+      const el = document.getElementById('limit-' + key);
+      el.textContent = len + ' / ' + limit;
+      el.classList.remove('text-success', 'text-warning', 'text-danger');
+      if (len > limit) el.classList.add('text-danger');
+      else if (len >= limit * 0.9) el.classList.add('text-warning');
+      else el.classList.add('text-success');
+    }
+  }
+  textarea.addEventListener('input', updateCounters);
+  updateCounters();
+
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    const btn = this;
+    navigator.clipboard.writeText(textarea.value).then(function () {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
+      setTimeout(function () { btn.innerHTML = original; }, 1500);
+    });
+  });
+})();
+</script>
+}

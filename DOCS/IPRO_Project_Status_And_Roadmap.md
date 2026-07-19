@@ -129,7 +129,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Document upload/storage (done — see item 17: a scoped version already existed inside the Client Portal; a general-purpose agent-side document library outside the portal context now exists too).
 - Appointment booking (done — see item 15: scheduling a request now creates a real Calendar follow-up and emails the client the confirmed time).
 - SMS reminders.
-- Social media posting/management.
+- Social media posting/management (done — see item 18: a content composer/tracker exists; live auto-publishing to specific platforms is a separate, larger future item — see "Reputation and social media" below).
 - Formal backup/release checklist.
 - Broader admin audit logging (today's audit log covers login and admin-account changes only, not every action across every screen).
 
@@ -249,6 +249,12 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Search by file name, filter by an optional free-text category, download through an authenticated action (never a raw storage URL), and delete.
 - Makes the legacy `PackageFeatureCodes.FileUploadCapacity` checkbox genuinely functional for the first time: it was already seeded with real per-package storage limits (Silver 50 MB / Gold 500 MB / Platinum 1000 MB / Broker 1000 MB per user) but had zero enforcement anywhere in the code. Uploads are now checked against the agent's package limit, with a usage bar and a clear message if an upload would exceed it.
 - Reuses the existing file-validation (`PortalDocumentValidator`) and blob storage infrastructure built for Portal Documents, in a new private `agent-documents` container.
+
+### 18. Add a social post composer/tracker (done)
+- New **Social Posts** area in the Agent Portal: write a post once, see a live character count against X (280), Instagram (2,200), LinkedIn (~3,000), and Facebook's effectively-unlimited caption length, then copy the finished text to paste into each platform's own app.
+- Track status per post (Draft/Posted, self-reported) so agents can see what's still pending vs. already gone out.
+- Makes the legacy `PackageFeatureCodes.SocialMediaIntegration` checkbox genuinely functional for the first time — it was already seeded as included for every package but had zero enforcement anywhere in the code.
+- Deliberately does **not** connect to any real platform: no OAuth, no auto-posting, no vendor review process, no ongoing API cost. Chosen over live auto-publishing because each platform (Meta, LinkedIn, X) requires its own separate developer app, business verification, and review — LinkedIn's posting API specifically needs a hard-to-get partnership, and X's now requires a paid developer tier. Live per-platform publishing remains a distinct, larger future item under "Reputation and social media" below, to pursue only once a specific platform's setup cost is worth it.
 
 ## Bigger Product Ideas
 

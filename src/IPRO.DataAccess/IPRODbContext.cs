@@ -62,6 +62,7 @@ public class IPRODbContext : DbContext
     public DbSet<ExternalCalendarEvent> ExternalCalendarEvents => Set<ExternalCalendarEvent>();
     public DbSet<ClientLifeEvent> ClientLifeEvents => Set<ClientLifeEvent>();
     public DbSet<AgentDocument> AgentDocuments => Set<AgentDocument>();
+    public DbSet<SocialPostDraft> SocialPostDrafts => Set<SocialPostDraft>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

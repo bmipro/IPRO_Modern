@@ -1,0 +1,78 @@
+@model IReadOnlyCollection<IPRO.Entities.SocialPostDraft>
+@{
+    ViewData["Title"] = "Social Posts";
+    var status = (string)(ViewBag.Status ?? "all");
+    string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
+    string StatusBadge(IPRO.Entities.SocialPostStatus s) => s == IPRO.Entities.SocialPostStatus.Posted
+        ? "bg-success-subtle text-success"
+        : "bg-secondary-subtle text-secondary";
+    string Snippet(string body) => body.Length > 140 ? body[..140] + "…" : body;
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-share-nodes me-2 text-primary"></i>Social Posts</h2>
+    <div class="text-muted">Draft a post once, check it against each platform's character limit, then copy and paste it wherever you post.</div>
+  </div>
+  <a class="btn btn-primary" href="/SocialPosts/Create"><i class="fas fa-plus me-1"></i>New Post</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-3">
+    <div class="btn-group flex-wrap" role="group">
+      <a class="btn @FilterClass("all")" href="/SocialPosts?status=all">All</a>
+      <a class="btn @FilterClass("draft")" href="/SocialPosts?status=draft">Draft</a>
+      <a class="btn @FilterClass("posted")" href="/SocialPosts?status=posted">Posted</a>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-3">
+    @if (!Model.Any())
+    {
+      <p class="text-muted small mb-0">No posts yet. Click <strong>New Post</strong> to draft one.</p>
+    }
+    else
+    {
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr class="text-muted small text-uppercase">
+              <th>Topic</th>
+              <th>Preview</th>
+              <th>Status</th>
+              <th>Updated</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var post in Model)
+            {
+              <tr>
+                <td>@(string.IsNullOrWhiteSpace(post.Topic) ? "-" : post.Topic)</td>
+                <td class="text-muted small">@Snippet(post.Body)</td>
+                <td><span class="badge rounded-pill @StatusBadge(post.Status)">@post.Status</span></td>
+                <td class="small text-muted">@post.UpdatedAt.ToString("MMM d, yyyy")</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-secondary" href="/SocialPosts/Edit/@post.Id">Edit</a>
+                  @if (post.Status == IPRO.Entities.SocialPostStatus.Draft)
+                  {
+                    <form asp-action="MarkPosted" asp-route-id="@post.Id" method="post" class="d-inline">
+                      @Html.AntiForgeryToken()
+                      <button type="submit" class="btn btn-sm btn-outline-success">Mark Posted</button>
+                    </form>
+                  }
+                  <form asp-action="Delete" asp-route-id="@post.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete this post?"><i class="fas fa-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

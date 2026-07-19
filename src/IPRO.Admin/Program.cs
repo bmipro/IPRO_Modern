@@ -118,6 +118,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureClientPortalSchemaAsync(db);
     await EnsureClientLifeEventSchemaAsync(db);
     await EnsureAgentDocumentSchemaAsync(db);
+    await EnsureSocialPostSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -681,6 +682,22 @@ CREATE TABLE IF NOT EXISTS `AgentDocuments` (
     `FileSizeBytes` bigint NOT NULL DEFAULT 0,
     `Category` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
     `UploadedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureSocialPostSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `SocialPostDrafts` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `Topic` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Body` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `Status` int NOT NULL DEFAULT 0,
+    `PostedAt` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
 }
