@@ -17,6 +17,7 @@
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />
     <ProjectReference Include="..\IPRO.Billing\IPRO.Billing.csproj" />
     <ProjectReference Include="..\IPRO.Utility\IPRO.Utility.csproj" />
+    <ProjectReference Include="..\IPRO.Scheduler\IPRO.Scheduler.csproj" />
   </ItemGroup>
 </Project>
 
