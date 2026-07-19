@@ -8,6 +8,10 @@
     var followUpsByDate = Model
         .GroupBy(f => f.DueAt.Date)
         .ToDictionary(g => g.Key, g => g.OrderBy(f => f.IsCompleted).ThenBy(f => f.DueAt).ToList());
+    var externalEvents = (ViewBag.ExternalEvents as IEnumerable<IPRO.Entities.ExternalCalendarEvent>) ?? Enumerable.Empty<IPRO.Entities.ExternalCalendarEvent>();
+    var externalEventsByDate = externalEvents
+        .GroupBy(e => e.StartAt.Date)
+        .ToDictionary(g => g.Key, g => g.OrderBy(e => e.StartAt).ToList());
 
     string MonthUrl(DateTime date) => $"/Clients/Calendar?year={date.Year}&month={date.Month}";
     string DayCellClass(DateTime day)
@@ -75,10 +79,13 @@
       var dayFollowUps = followUpsByDate.TryGetValue(day.Date, out var items)
           ? items
           : new List<IPRO.Entities.ClientFollowUp>();
+      var dayExternalEvents = externalEventsByDate.TryGetValue(day.Date, out var extItems)
+          ? extItems
+          : new List<IPRO.Entities.ExternalCalendarEvent>();
 
       <div class="@DayCellClass(day)">
         <div class="calendar-day-number">@day.Day</div>
-        @if (dayFollowUps.Any())
+        @if (dayFollowUps.Any() || dayExternalEvents.Any())
         {
           <div class="calendar-events">
           @foreach (var item in dayFollowUps)
@@ -98,6 +105,12 @@
               <div class="calendar-client">@item.Client.FirstName @item.Client.LastName</div>
             </div>
           }
+          @foreach (var ext in dayExternalEvents)
+          {
+            <div class="calendar-event is-external" title="Synced from your Google Calendar">
+              <div class="calendar-event-title"><i class="fab fa-google me-1"></i>@ext.Title</div>
+            </div>
+          }
           </div>
         }
       </div>
@@ -110,6 +123,10 @@
   <span><span class="legend-dot bg-warning"></span>Today</span>
   <span><span class="legend-dot bg-primary"></span>Upcoming</span>
   <span><span class="legend-dot bg-success"></span>Completed</span>
+  @if (externalEvents.Any())
+  {
+    <span><i class="fab fa-google me-1"></i>From your connected Google Calendar</span>
+  }
 </div>
 
 <style>
@@ -189,6 +206,16 @@
     background: #ecfdf5;
     border-left-color: #198754;
     opacity: .85;
+  }
+
+  .calendar-event.is-external {
+    background: #f8f9fa;
+    border-left-color: #6b7280;
+  }
+
+  .calendar-event.is-external .calendar-event-title {
+    color: #4b5563;
+    cursor: default;
   }
 
   .calendar-event-title {

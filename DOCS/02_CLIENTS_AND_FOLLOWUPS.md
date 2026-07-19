@@ -88,5 +88,17 @@ Follow-up history uses pagination when the list becomes long.
 
 1. Open the follow-up queue, calendar, dashboard, or client record.
 2. Click the check icon to mark it complete.
-3. Use the delete action only if the follow-up should not remain in history.
+3. Use the delete action only if the follow-up should not remain in history. If the follow-up was synced to Google Calendar, deleting it also removes the matching Google event immediately.
+
+## Connect Google Calendar (optional, two-way sync)
+
+By default the Calendar runs entirely on IPRO. Agents whose package includes it can also connect their own Google Calendar from **My Profile → Calendar Source**:
+
+1. Click **Connect Google Calendar** and sign in to the Google account to link.
+2. Once connected, every follow-up you add in IPRO is pushed to that Google Calendar automatically, and events you create, edit, or delete directly in Google appear on the IPRO Calendar too (synced roughly every 15 minutes, not instantly).
+3. Events from Google that aren't tied to any IPRO client show on the Calendar for context (marked with a Google icon) but aren't linked to a client record and can't be marked complete — they're just there so your day looks complete in one place.
+4. If a Google event linked to an IPRO follow-up is deleted directly in Google, IPRO unlinks it rather than deleting the follow-up itself — a follow-up is part of a client's history, so it's never silently removed just because the calendar entry vanished.
+5. Click **Disconnect** at any time to stop syncing; anything already synced stays as-is.
+
+This is gated by a package feature ("Google Calendar two-way sync") that Super Admin can enable on any package, same as other premium features.
 

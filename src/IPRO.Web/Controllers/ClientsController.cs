@@ -7,6 +7,7 @@ using IPRO.Entities;
 using IPRO.Utility;
 using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,10 +23,16 @@ public class ClientsController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IEmailService _email;
     private readonly IBlobStorageService _blob;
+    private readonly IGoogleCalendarService _googleCalendar;
+    private readonly IDataProtector _googleTokenProtector;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IBlobStorageService blob)
-    { _clients = clients; _importer = importer; _uow = uow; _db = db; _entitlements = entitlements; _email = email; _blob = blob; }
+    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IBlobStorageService blob, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider)
+    {
+        _clients = clients; _importer = importer; _uow = uow; _db = db; _entitlements = entitlements; _email = email; _blob = blob;
+        _googleCalendar = googleCalendar;
+        _googleTokenProtector = dataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1");
+    }
 
     public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter)
     {
@@ -332,6 +339,11 @@ public class ClientsController : Controller
             .ThenBy(f => f.IsCompleted)
             .ToListAsync();
 
+        ViewBag.ExternalEvents = await _db.ExternalCalendarEvents
+            .Where(e => e.AgentUserId == AgentId && e.StartAt >= monthStart && e.StartAt < monthEnd)
+            .OrderBy(e => e.StartAt)
+            .ToListAsync();
+
         return View(followUps);
     }
 
@@ -590,6 +602,12 @@ public class ClientsController : Controller
         if (followUp == null || followUp.Client.AgentUserId != AgentId) return NotFound();
 
         var clientId = followUp.ClientId;
+
+        if (!string.IsNullOrWhiteSpace(followUp.GoogleEventId))
+        {
+            await TryDeleteGoogleEventAsync(followUp.GoogleEventId);
+        }
+
         _db.ClientFollowUps.Remove(followUp);
         await _db.SaveChangesAsync();
 
@@ -915,5 +933,32 @@ public class ClientsController : Controller
         return items
             .OrderByDescending(i => i.OccurredAt)
             .ToList();
+    }
+
+    private async Task TryDeleteGoogleEventAsync(string googleEventId)
+    {
+        try
+        {
+            var connection = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.AgentUserId == AgentId && c.IsActive);
+            if (connection == null) return;
+
+            var accessToken = _googleTokenProtector.Unprotect(connection.EncryptedAccessToken);
+            if (connection.AccessTokenExpiresAt <= DateTime.UtcNow.AddMinutes(5))
+            {
+                var refreshToken = _googleTokenProtector.Unprotect(connection.EncryptedRefreshToken);
+                var (newAccessToken, expiresAt) = await _googleCalendar.RefreshAccessTokenAsync(refreshToken);
+                accessToken = newAccessToken;
+                connection.EncryptedAccessToken = _googleTokenProtector.Protect(newAccessToken);
+                connection.AccessTokenExpiresAt = expiresAt;
+                await _db.SaveChangesAsync();
+            }
+
+            await _googleCalendar.DeleteEventAsync(accessToken, connection.GoogleCalendarId, googleEventId);
+        }
+        catch
+        {
+            // Best-effort - the follow-up delete in IPRO still proceeds even if Google is unreachable
+            // or the connection has been revoked; the periodic sync job will reconcile eventually.
+        }
     }
 }

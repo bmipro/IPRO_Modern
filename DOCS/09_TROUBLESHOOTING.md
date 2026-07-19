@@ -279,6 +279,20 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Explicit scope boundary**: rescheduling or cancelling an already-scheduled appointment isn't a new flow — it reuses the existing follow-up edit/delete tools on the client's Details page, since the appointment *is* a follow-up under the hood.
 
+## Feature: Google Calendar Two-Way Sync (Per-Agent, Opt-In)
+
+**2026-07-19.** Follow-up to the appointment-scheduling fix above: agents who live in Google Calendar can now connect it to the Agent Portal Calendar for a full two-way sync, gated by a new togglable `GoogleCalendarSync` package feature (default off, Super Admin enables it per package).
+
+**Architecture**: `GoogleCalendarConnection` stores one encrypted OAuth connection per agent (`IDataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1")` — same API already used for the public-site captcha token, just a new purpose string). `IGoogleCalendarService` (`src/IPRO.Utility`) is a thin, token-based HttpClient wrapper over the Calendar REST v3 API — no Google SDK dependency, matching how `PayPalBillingService` already hand-rolls its own HTTP calls rather than pulling in a provider SDK. `GoogleCalendarController` (`src/IPRO.Web`) handles the Authorization Code OAuth flow (`Connect`/`Callback`/`Disconnect`); `GoogleCalendarSyncJob` (`src/IPRO.Scheduler`) is a Hangfire recurring job (every 15 minutes) doing the actual two-way reconciliation: new IPRO follow-ups get pushed to Google, and Google's incremental `events.list` (`syncToken`) surfaces anything changed on the Google side since the last run.
+
+**Deliberate design choices worth knowing**:
+- Deletes are pushed to Google **immediately** at delete-time (`ClientsController.DeleteFollowUp`), not left to the next poll — a follow-up disappearing from the agent's calendar should feel instant.
+- If a Google event linked to a follow-up is deleted directly in Google, IPRO **unlinks** the follow-up (clears `GoogleEventId`) rather than deleting it — a follow-up is CRM history tied to a client, not just a calendar block, so it shouldn't vanish because the calendar side changed.
+- Non-client Google events (personal appointments, other meetings) are cached into a separate `ExternalCalendarEvent` table purely for Calendar-view display — they're never forced into the client-scoped `ClientFollowUp` model, which keeps "mark complete," Dashboard counts, and the Follow-up Queue meaningful (only real client follow-ups appear there).
+- Editing a follow-up's date/title from within IPRO after it's already synced does not currently propagate to Google — there's no "edit a follow-up" UI in this codebase yet (only add/complete/delete), so that gap doesn't apply in practice; if an edit flow is ever added, it will need to also push the update to Google.
+
+**Requires setup outside IPRO before it can be tested live**: a Google Cloud project with the Calendar API enabled, an OAuth consent screen, and a Web-application OAuth Client ID (redirect URI `https://ipro-prod-web.azurewebsites.net/GoogleCalendar/Callback`) with its Client ID/Secret placed in Azure App Settings as `GoogleCalendar:ClientId`/`GoogleCalendar:ClientSecret`. Google also requires app-review/verification for the Calendar scope before agents outside a manually-added test-user list can connect without an "unverified app" warning — this can take Google days to weeks, independent of when the code itself ships.
+
 ## Release Build Commands
 
 From the repository root:

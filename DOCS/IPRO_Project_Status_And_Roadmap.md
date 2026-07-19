@@ -288,12 +288,13 @@ Secure login, messages, two-way documents, self-service "My Information," a real
 - Campaign preferences and unsubscribe controls surfaced inside the portal itself (today, unsubscribe still happens via the per-send/per-enrollment email links).
 - Payments taken directly inside the portal (today's Pay Now button still links out to the agent's own external payment link, same as the standalone invoicing feature).
 
-### Google Calendar sync (in progress)
+### Google Calendar sync (code done — live verification pending Google Cloud setup)
 Full two-way sync between an agent's own Google Calendar and the Agent Portal Calendar, opt-in per agent:
-- Connect/Disconnect flow (OAuth) from a new Calendar Source settings panel; gated by a new togglable `GoogleCalendarSync` package feature Super Admin can enable on any package.
-- IPRO follow-ups push to the agent's connected Google Calendar automatically; events created, edited, or deleted directly in Google sync back into the Agent Portal Calendar (a Hangfire job polling on an interval, not realtime push).
-- Non-client Google events (personal appointments, other meetings) show on the Agent Portal Calendar for context, distinguished from client follow-ups, but aren't tied to any client record.
-- Needs a Google Cloud OAuth client (Client ID/Secret in Azure App Settings) provisioned outside IPRO first, and Google's app-review process for the Calendar scope before agents can connect without an "unverified app" warning.
+- Connect/Disconnect flow (OAuth) from a new Calendar Source settings panel on My Profile; gated by a new togglable `GoogleCalendarSync` package feature Super Admin can enable on any package (defaults to off everywhere).
+- IPRO follow-ups push to the agent's connected Google Calendar automatically; events created or edited directly in Google sync back into the linked follow-up (a Hangfire job polling every ~15 minutes, not realtime push). Deleting a follow-up in IPRO removes the Google event immediately rather than waiting for the next sync cycle.
+- If a linked Google event is deleted directly in Google, IPRO unlinks the follow-up rather than deleting it — a follow-up is CRM history, not just a calendar block.
+- Non-client Google events (personal appointments, other meetings) show on the Agent Portal Calendar for context, distinguished from client follow-ups with a Google icon, but aren't tied to any client record and can't be marked complete.
+- Still needed before this is usable live: the user must provision a Google Cloud OAuth client (Client ID/Secret in Azure App Settings as `GoogleCalendar:ClientId`/`GoogleCalendar:ClientSecret`) and start Google's app-review process for the Calendar scope, since agents will see an "unverified app" warning until that review completes.
 
 ### Reputation and social media
 - Request reviews from clients.

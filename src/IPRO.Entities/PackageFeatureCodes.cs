@@ -43,4 +43,5 @@ public static class PackageFeatureCodes
     public const string DesignatedSupport = "designated_support";
     public const string ClientInvoicing = "client_invoicing";
     public const string ClientPortal = "client_portal";
+    public const string GoogleCalendarSync = "google_calendar_sync";
 }

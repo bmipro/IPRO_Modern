@@ -150,7 +150,8 @@ public static class PackageEntitlementSeeder
             Feature(380, PackageFeatureCodes.PayPalIntegration, "PayPal integration", no, no, all, all),
             Feature(390, PackageFeatureCodes.DesignatedSupport, "Designated support", no, no, no, all),
             Feature(400, PackageFeatureCodes.ClientInvoicing, "Client invoicing and estimates", no, no, all, all),
-            Feature(410, PackageFeatureCodes.ClientPortal, "Client portal (login, messages, documents, appointments)", no, no, all, all)
+            Feature(410, PackageFeatureCodes.ClientPortal, "Client portal (login, messages, documents, appointments)", no, no, all, all),
+            Feature(420, PackageFeatureCodes.GoogleCalendarSync, "Google Calendar two-way sync", no, no, no, no)
         };
     }
 

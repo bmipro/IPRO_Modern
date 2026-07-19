@@ -57,6 +57,8 @@ builder.Services.AddScoped<NewsLetterDispatcher>();
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
+builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
+builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<IContactImporter, ContactImporter>();
@@ -185,6 +187,7 @@ RecurringJob.AddOrUpdate<CalendarReminderJob>("calendar-reminders", job => job.R
 RecurringJob.AddOrUpdate<SubscriptionBillingJob>("subscription-billing", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<DomainAutomationJob>("domain-automation", job => job.RunAsync(), "*/5 * * * *");
 RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices", job => job.RunAsync(), Cron.Daily);
+RecurringJob.AddOrUpdate<GoogleCalendarSyncJob>("google-calendar-sync", job => job.RunAsync(), "*/15 * * * *");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -683,6 +686,34 @@ CREATE TABLE IF NOT EXISTS `PortalAppointmentRequests` (
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
 
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `GoogleCalendarConnections` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `GoogleAccountEmail` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `EncryptedAccessToken` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `EncryptedRefreshToken` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `AccessTokenExpiresAt` datetime(6) NOT NULL,
+    `GoogleCalendarId` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'primary',
+    `SyncToken` longtext CHARACTER SET utf8mb4 NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `ConnectedAt` datetime(6) NOT NULL,
+    `LastSyncedAt` datetime(6) NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ExternalCalendarEvents` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `GoogleEventId` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Title` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `StartAt` datetime(6) NOT NULL,
+    `EndAt` datetime(6) NULL,
+    `LastSyncedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
     await db.Database.OpenConnectionAsync();
     try
     {
@@ -691,6 +722,7 @@ CREATE TABLE IF NOT EXISTS `PortalAppointmentRequests` (
         await EnsureTableColumnAsync(db, "Clients", "PortalActivatedAt", "ALTER TABLE `Clients` ADD COLUMN `PortalActivatedAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ScheduledAt", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ScheduledAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ClientFollowUpId", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ClientFollowUpId` int NULL");
+        await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleEventId", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleEventId` varchar(255) CHARACTER SET utf8mb4 NULL");
     }
     finally
     {

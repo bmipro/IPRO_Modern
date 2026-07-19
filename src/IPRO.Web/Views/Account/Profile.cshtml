@@ -169,3 +169,37 @@
     </div>
   </div>
 </form>
+
+@{
+    var googleAccess = ViewBag.GoogleCalendarAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+    var googleConnection = ViewBag.GoogleCalendarConnection as IPRO.Entities.GoogleCalendarConnection;
+    var googleIncluded = googleAccess?.IsIncluded == true;
+}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-body p-4">
+    <h5 class="fw-bold mb-1"><i class="fab fa-google me-2 text-primary"></i>Calendar Source</h5>
+    <div class="text-muted small mb-3">By default your Calendar runs on IPRO alone. Connect Google Calendar for a two-way sync: follow-ups you add here appear in Google, and events you add in Google appear here.</div>
+
+    @if (!googleIncluded)
+    {
+      <div class="alert alert-light border d-flex justify-content-between align-items-center flex-wrap gap-2 mb-0">
+        <span><i class="fas fa-lock me-2 text-muted"></i>@(googleAccess?.UpgradeMessage ?? "Google Calendar sync requires a package upgrade.")</span>
+        <a href="/Billing" class="btn btn-sm btn-outline-primary">View Packages</a>
+      </div>
+    }
+    else if (googleConnection != null)
+    {
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="text-success"><i class="fas fa-circle-check me-2"></i>Connected as <strong>@googleConnection.GoogleAccountEmail</strong></span>
+        <form asp-controller="GoogleCalendar" asp-action="Disconnect" method="post" onsubmit="return confirm('Disconnect Google Calendar? Events already synced will stay as-is, but new changes will stop syncing.');">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn btn-sm btn-outline-danger">Disconnect</button>
+        </form>
+      </div>
+    }
+    else
+    {
+      <a asp-controller="GoogleCalendar" asp-action="Connect" class="btn btn-outline-primary"><i class="fab fa-google me-1"></i>Connect Google Calendar</a>
+    }
+  </div>
+</div>

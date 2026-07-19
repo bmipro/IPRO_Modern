@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Email;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Web.Controllers;
 
@@ -22,14 +24,18 @@ public class AccountController : Controller
     private readonly IEmailService _email;
     private readonly IUnitOfWork _uow;
     private readonly IBillingService _billing;
+    private readonly IPRODbContext _db;
+    private readonly IPackageEntitlementService _entitlements;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, ILogger<AccountController> logger)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, ILogger<AccountController> logger)
     {
         _agents = agents;
         _email = email;
         _uow = uow;
         _billing = billing;
+        _db = db;
+        _entitlements = entitlements;
         _logger = logger;
     }
 
@@ -317,6 +323,10 @@ public class AccountController : Controller
 
         var package = agent.PackageId > 0 ? await _uow.BillingRules.GetByIdAsync(agent.PackageId) : null;
         LoadTimeZoneOptions();
+
+        ViewBag.GoogleCalendarAccess = await _entitlements.GetAccessAsync(agent.Id, PackageFeatureCodes.GoogleCalendarSync);
+        ViewBag.GoogleCalendarConnection = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.AgentUserId == agent.Id && c.IsActive);
+
         return View(ToProfileViewModel(agent, package?.PackageName ?? ""));
     }
 
