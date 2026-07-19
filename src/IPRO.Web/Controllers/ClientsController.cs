@@ -91,6 +91,7 @@ public class ClientsController : Controller
         var client = await _db.Clients
             .Include(c => c.Categories)
             .Include(c => c.FollowUps)
+            .Include(c => c.LifeEvents)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
         var comments = (await _clients.GetCommentsAsync(id)).ToList();
@@ -98,6 +99,7 @@ public class ClientsController : Controller
         ViewBag.Timeline = BuildClientTimeline(client, comments);
         ViewBag.PortalAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
         ViewBag.PortalDocuments = await _db.PortalDocuments.AsNoTracking().Where(d => d.ClientId == id).OrderByDescending(d => d.UploadedAt).ToListAsync();
+        ViewBag.LifeEventAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.LifeEventReminders);
         return View(client);
     }
 
@@ -569,6 +571,62 @@ public class ClientsController : Controller
         await _db.SaveChangesAsync();
 
         TempData["Success"] = "Follow-up added.";
+        return RedirectToAction(nameof(Details), new { id = clientId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddLifeEvent(int clientId, ClientLifeEventType eventType, string label, DateTime eventDate, int reminderDaysBefore)
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.LifeEventReminders);
+        if (!access.IsIncluded)
+        {
+            TempData["Error"] = access.UpgradeMessage;
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
+        if (client == null) return NotFound();
+
+        label = label?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            TempData["Error"] = "A label is required for the life event.";
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+
+        if (eventDate == default)
+        {
+            TempData["Error"] = "An event date is required.";
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+
+        await _db.ClientLifeEvents.AddAsync(new ClientLifeEvent
+        {
+            ClientId = clientId,
+            EventType = eventType,
+            Label = label,
+            EventDate = eventDate,
+            ReminderDaysBefore = reminderDaysBefore <= 0 ? 7 : reminderDaysBefore
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Life event added.";
+        return RedirectToAction(nameof(Details), new { id = clientId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteLifeEvent(int id)
+    {
+        var lifeEvent = await _db.ClientLifeEvents
+            .Include(e => e.Client)
+            .FirstOrDefaultAsync(e => e.Id == id);
+        if (lifeEvent == null || lifeEvent.Client.AgentUserId != AgentId) return NotFound();
+
+        var clientId = lifeEvent.ClientId;
+        _db.ClientLifeEvents.Remove(lifeEvent);
+        await _db.SaveChangesAsync();
+
+        TempData["Warning"] = "Life event removed.";
         return RedirectToAction(nameof(Details), new { id = clientId });
     }
 

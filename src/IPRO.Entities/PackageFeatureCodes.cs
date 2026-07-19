@@ -44,4 +44,5 @@ public static class PackageFeatureCodes
     public const string ClientInvoicing = "client_invoicing";
     public const string ClientPortal = "client_portal";
     public const string GoogleCalendarSync = "google_calendar_sync";
+    public const string LifeEventReminders = "life_event_reminders";
 }

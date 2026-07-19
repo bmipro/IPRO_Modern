@@ -286,6 +286,90 @@
       </div>
     </div>
 
+    @{
+        var lifeEventAccess = ViewBag.LifeEventAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+        var lifeEventIncluded = lifeEventAccess?.IsIncluded == true;
+        var lifeEvents = Model.LifeEvents.OrderBy(e => e.EventDate.Month).ThenBy(e => e.EventDate.Day).ToList();
+    }
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="fw-bold mb-0"><i class="fas fa-gift me-2 text-primary"></i>Life Events</h5>
+      </div>
+      <div class="card-body px-4 pb-4">
+        @if (!lifeEventIncluded)
+        {
+          <div class="alert alert-light border d-flex justify-content-between align-items-center flex-wrap gap-2 mb-0">
+            <span><i class="fas fa-lock me-2 text-muted"></i>@(lifeEventAccess?.UpgradeMessage ?? "Client life-event reminders require a package upgrade.")</span>
+            <a href="/Billing" class="btn btn-sm btn-outline-primary">View Packages</a>
+          </div>
+        }
+        else
+        {
+          <div class="text-muted small mb-3">
+            @if (Model.DateOfBirth.HasValue)
+            {
+              <span><i class="fas fa-cake-candles me-1"></i>Birthday (@Model.DateOfBirth.Value.ToString("MMM d")) is already covered automatically — a reminder follow-up is created 7 days ahead each year.</span>
+            }
+            else
+            {
+              <span>Add a date of birth above to get automatic yearly birthday reminders. Use the form below for policy renewals, anniversaries, or anything else that repeats yearly.</span>
+            }
+          </div>
+
+          <form asp-action="AddLifeEvent" method="post" class="row g-2 align-items-end mb-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="clientId" value="@Model.Id"/>
+            <div class="col-lg-3">
+              <label class="form-label small fw-semibold text-muted">Type</label>
+              <select name="eventType" class="form-select">
+                <option value="@((int)IPRO.Entities.ClientLifeEventType.PolicyRenewal)">Policy Renewal</option>
+                <option value="@((int)IPRO.Entities.ClientLifeEventType.Anniversary)">Anniversary</option>
+                <option value="@((int)IPRO.Entities.ClientLifeEventType.Other)">Other</option>
+              </select>
+            </div>
+            <div class="col-lg-4">
+              <label class="form-label small fw-semibold text-muted">Label</label>
+              <input type="text" name="label" class="form-control" maxlength="200" placeholder="Auto Policy Renewal" required/>
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label small fw-semibold text-muted">Date</label>
+              <input type="date" name="eventDate" class="form-control" required/>
+            </div>
+            <div class="col-lg-1">
+              <label class="form-label small fw-semibold text-muted">Remind</label>
+              <input type="number" name="reminderDaysBefore" class="form-control" value="7" min="1" max="90" title="Days before"/>
+            </div>
+            <div class="col-lg-1 d-grid">
+              <button type="submit" class="btn btn-primary" title="Add life event"><i class="fas fa-plus"></i></button>
+            </div>
+          </form>
+
+          @if (lifeEvents.Any())
+          {
+            <div class="vstack gap-2">
+              @foreach (var lifeEvent in lifeEvents)
+              {
+                <div class="d-flex justify-content-between align-items-center gap-3 border rounded-3 p-3">
+                  <div>
+                    <strong>@lifeEvent.Label</strong>
+                    <span class="text-muted small ms-2">@lifeEvent.EventDate.ToString("MMM d") &middot; reminder @lifeEvent.ReminderDaysBefore day(s) before</span>
+                  </div>
+                  <form asp-action="DeleteLifeEvent" asp-route-id="@lifeEvent.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" data-confirm="Remove this life event?"><i class="fas fa-trash"></i></button>
+                  </form>
+                </div>
+              }
+            </div>
+          }
+          else
+          {
+            <div class="text-muted small py-2">No policy renewals or anniversaries added yet.</div>
+          }
+        }
+      </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-0 pt-4 px-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">

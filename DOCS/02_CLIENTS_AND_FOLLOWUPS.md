@@ -102,3 +102,15 @@ By default the Calendar runs entirely on IPRO. Agents whose package includes it 
 
 This is gated by a package feature ("Google Calendar two-way sync") that Super Admin can enable on any package, same as other premium features.
 
+## Client Life-Event Reminders (birthdays, policy renewals, anniversaries)
+
+Agents whose package includes this feature see a **Life Events** card on each client record:
+
+1. If the client has a **Date of Birth** on file, their birthday is covered automatically — no setup needed. A reminder follow-up ("🎂 Birthday: ...") is created 7 days before it every year.
+2. For anything else that repeats yearly — a policy renewal, an anniversary, or a custom date — add it from the **Life Events** card: choose a type, a label (e.g. "Auto Policy Renewal"), the date, and how many days ahead to be reminded (default 7).
+3. A client can have multiple life events (e.g. separate auto, home, and life policy renewal dates).
+4. Once the reminder window is reached, a normal follow-up is created automatically — it shows up on the Follow-up queue, the Calendar, the Dashboard, and syncs to Google Calendar exactly like any other follow-up, since it's the same underlying record.
+5. Each reminder is created once per year per event; deleting the generated follow-up doesn't stop future years' reminders, but deleting the life event itself does.
+
+This is gated by a package feature ("Client life-event reminders") that Super Admin can enable on any package, same as other premium features.
+

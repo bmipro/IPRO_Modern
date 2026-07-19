@@ -63,6 +63,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Dashboard reminders exist.
 - Calendar/follow-up view exists.
 - Package contact limits are partially enforced.
+- Client life-event reminders exist: a client's birthday (from Date of Birth) is covered automatically, and agents can add policy renewal/anniversary/custom yearly dates per client; a daily job auto-creates a real follow-up reminder ahead of each one (default 7 days), gated by a Platinum/Broker-tier package feature.
 
 ### Newsletter and campaigns
 - Newsletter drafts exist.
@@ -135,7 +136,6 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 ### Proposed agent-value features (not scoped yet)
 - **Testimonial module.** Today the website's Testimonials block is just manually typed text. A real module would let an agent send a client a short request link, the client submits a quote (and optionally a star rating/photo) through a public form, the agent approves/rejects it in the portal, and approved testimonials feed the existing Testimonials block automatically instead of copy-paste. A natural first slice of the "Reputation and social media" idea below.
 - **Poll/survey system.** Let an agent build a short poll (one or a few questions), send it to their client list the same way a newsletter goes out, and view results in the portal, with a public voting page for recipients. Reuses the existing client-list segmentation and email-send infrastructure rather than building new plumbing.
-- **Client life-event reminders** (recommended). A lightweight extension of the existing follow-up system: track a client's birthday, policy renewal, or anniversary date and auto-create a follow-up reminder ahead of it. High relationship-business value for advisers/insurance agents specifically, and needs no new sending infrastructure since follow-ups already exist.
 - **Lead-magnet download block** (recommended). Let an agent attach a downloadable resource (PDF guide, checklist) to a page, gated behind the existing public lead-capture form, so a visitor trades contact info for the download. Reuses the WebsiteLead pipeline and file-upload infrastructure end to end.
 - **External review widget** (recommended). A much smaller first step than a full review-request system: let an agent paste their Google/Facebook review page link and show an embeddable ratings badge on their site. Immediate trust-signal value without building a full request-and-moderate pipeline.
 
@@ -236,6 +236,13 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - The client is emailed automatically when a request is scheduled (with the confirmed date/time) or declined, and sees the confirmed time on their own Appointments page.
 - Rescheduling/cancelling an already-scheduled appointment reuses the existing follow-up edit/delete tools on the client's Details page — no separate reschedule flow.
 - Next up: an optional two-way Google Calendar sync per agent (see "Google Calendar sync" under Bigger Product Ideas — in progress).
+
+### 16. Add client life-event reminders (done)
+- `Client.DateOfBirth` (already collected on every client) now covers birthdays automatically — no setup needed — with a reminder follow-up created 7 days ahead each year.
+- Agents can add any number of additional yearly events per client (policy renewal, anniversary, or custom) with their own label and reminder lead time, from a new Life Events card on the client record.
+- A daily background job creates a real `ClientFollowUp` when a reminder window is reached, so it shows up on the Follow-up queue, Calendar, Dashboard, and Google Calendar sync exactly like any manually-added follow-up — no changes needed to any of those.
+- Each event/birthday reminds once per year (tracked per event and per client) so the daily job never duplicates a reminder.
+- Gated by a new Platinum/Broker-tier package feature ("Client life-event reminders"), same pattern as other premium features; the job fails closed if an agent's package no longer includes it.
 
 ## Bigger Product Ideas
 

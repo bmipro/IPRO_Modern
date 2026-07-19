@@ -116,6 +116,7 @@ using (var scope = app.Services.CreateScope())
     await EnsurePromotionCodeSchemaAsync(db);
     await EnsureClientInvoiceSchemaAsync(db);
     await EnsureClientPortalSchemaAsync(db);
+    await EnsureClientLifeEventSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -633,6 +634,33 @@ CREATE TABLE IF NOT EXISTS `ExternalCalendarEvents` (
         await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ScheduledAt", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ScheduledAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ClientFollowUpId", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ClientFollowUpId` int NULL");
         await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleEventId", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleEventId` varchar(255) CHARACTER SET utf8mb4 NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureClientLifeEventSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ClientLifeEvents` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ClientId` int NOT NULL,
+    `EventType` int NOT NULL,
+    `Label` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `EventDate` datetime(6) NOT NULL,
+    `ReminderDaysBefore` int NOT NULL DEFAULT 7,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `LastReminderYear` int NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "Clients", "LastBirthdayReminderYear", "ALTER TABLE `Clients` ADD COLUMN `LastBirthdayReminderYear` int NULL");
     }
     finally
     {
