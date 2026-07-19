@@ -101,7 +101,14 @@ public class PayPalBillingService : IBillingService
                 if (promo.RecurringDiscountType != PromoDiscountType.None)
                 {
                     overrideAmount = ComputeDiscountedAmount(GetAmount(requestedPackage, period), promo.RecurringDiscountType, promo.RecurringDiscountValue);
-                    overridePlanId = await GetOrCreatePromoPlanIdAsync(promo, requestedPackage, period);
+                    try
+                    {
+                        overridePlanId = await GetOrCreatePromoPlanIdAsync(promo, requestedPackage, period);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return BillingChangeResult.Failed("This promotion code's pricing can't be set up with PayPal right now (a permanent 100%-or-more discount isn't supported for a recurring plan). Please contact support.");
+                    }
                 }
 
                 if (promo.SetupFeeDiscountType != PromoDiscountType.None)

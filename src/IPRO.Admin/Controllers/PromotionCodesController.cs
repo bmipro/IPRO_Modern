@@ -67,6 +67,21 @@ public class PromotionCodesController : Controller
             ModelState.AddModelError(nameof(model.RecurringDiscountValue), "Enter a discount value greater than zero.");
         }
 
+        if (model.RecurringDiscountType != PromoDiscountType.None && model.RecurringDurationCycles == null && model.RestrictedBillingRuleId != null)
+        {
+            var restrictedPackage = await _uow.BillingRules.GetByIdAsync(model.RestrictedBillingRuleId.Value);
+            if (restrictedPackage != null)
+            {
+                var discountedMonthly = ComputeDiscountedAmount(restrictedPackage.MonthlyPrice, model.RecurringDiscountType, model.RecurringDiscountValue);
+                var discountedAnnual = ComputeDiscountedAmount(restrictedPackage.AnnualPrice, model.RecurringDiscountType, model.RecurringDiscountValue);
+                if (discountedMonthly <= 0 || discountedAnnual <= 0)
+                {
+                    ModelState.AddModelError(nameof(model.RecurringDurationCycles),
+                        "A permanent discount can't bring the price to $0 or less — PayPal doesn't support a free-forever recurring plan. Set a limited duration instead (e.g. 1 for \"first cycle free\"), or reduce the discount.");
+                }
+            }
+        }
+
         if (model.SetupFeeDiscountType != PromoDiscountType.None && model.SetupFeeDiscountValue <= 0)
         {
             ModelState.AddModelError(nameof(model.SetupFeeDiscountValue), "Enter a setup fee discount value greater than zero.");
@@ -120,6 +135,13 @@ public class PromotionCodesController : Controller
         TempData["Success"] = "Promotion code saved.";
         return RedirectToAction(nameof(Index));
     }
+
+    private static decimal ComputeDiscountedAmount(decimal original, PromoDiscountType type, decimal value) => type switch
+    {
+        PromoDiscountType.PercentOff => Math.Max(0, Math.Round(original * (1 - value / 100m), 2)),
+        PromoDiscountType.FlatAmountOff => Math.Max(0, original - value),
+        _ => original
+    };
 
     public async Task<IActionResult> Redemptions(int id)
     {

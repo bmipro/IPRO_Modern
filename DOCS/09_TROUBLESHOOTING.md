@@ -245,6 +245,20 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Prevention rule**: this is a variant of the recurring "action name vs. URL path" trap (see the `id`-parameter incidents above) — it now also applies to nav active-state checks, not just routing. When writing a `currentAction == "X"` check for a nav link, verify `X` against the actual action method name the link's URL resolves to (especially for controllers with multiple attribute-routed actions on similar paths), not against the URL segment text.
 
+## Incident: My Website Publish Button Silently Failed, And A 100%-Off Promo Crashed Subscribe
+
+**2026-07-19.** Two bugs found by the user during live testing of a new promo code.
+
+**Bug 1 — the "Publish" button at the bottom of My Website did nothing, but the one in the top-right corner worked.** Both post to the same `WebsiteController.Publish` action, but the bottom button lives inside the big "Website Settings" `<form>` (`asp-action="Save"`) via an HTML `formaction`/`formmethod` override, while the top-right button is its own small standalone form. That settings form has a `required` Site Title input; for a brand-new site with no title saved yet, clicking the bottom Publish button triggered the browser's native "please fill out this field" validation on Site Title — completely unrelated to publishing — and silently blocked the submit with an easy-to-miss browser tooltip. The top-right button's form has no other fields, so it always worked.
+
+**Fix**: added `formnovalidate` to the bottom Publish button (`src/IPRO.Web/Views/Website/Index.cshtml`) so it always bypasses the settings form's unrelated required-field checks, matching the top-right button's behavior.
+
+**Bug 2 — subscribing with a promo code named `SAVEFREE` (100% off, permanent) 500'd on `/Billing/Subscribe`.** Root cause: PayPal's Subscriptions API rejects a `$0.00` price on a permanent (`REGULAR`) billing cycle outright — only a temporary `TRIAL` cycle may be free, and a permanent 100%-off code has no `RecurringDurationCycles`, so it always built a single `REGULAR` cycle at `$0.00`, which PayPal always rejects with `UNPROCESSABLE_ENTITY`. This wasn't a fluke or a transient PayPal issue — a permanent, fully-discounted recurring promo code can never work against PayPal's Subscriptions API.
+
+**Fix**: two layers. (1) `PromotionCodesController.Edit` (`src/IPRO.Admin`) now blocks *saving* a permanent recurring discount that would bring the restricted package's monthly or annual price to $0 or less, with a message suggesting a limited duration (e.g. `1` = "first cycle free") or a smaller discount instead. (2) `PayPalBillingService.CreateSubscriptionAsync` now catches a PayPal plan-creation failure and returns a normal failed-result message instead of letting the exception reach the unhandled-exception middleware as a raw 500 — defense in depth for any promo code already saved in a bad state before this fix, or any other PayPal plan-creation edge case.
+
+**Prevention rule**: when a discount or price override feeds an external payment provider's API, validate the *worst-case computed price* server-side against that provider's actual constraints at save time (not just "is the input greater than zero") — a percent-based discount can silently produce $0 depending on which package it's later applied to, and provider-side rejections should never be allowed to surface as an unhandled exception to the end user.
+
 ## Release Build Commands
 
 From the repository root:
