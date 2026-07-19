@@ -61,6 +61,7 @@ public class IPRODbContext : DbContext
     public DbSet<GoogleCalendarConnection> GoogleCalendarConnections => Set<GoogleCalendarConnection>();
     public DbSet<ExternalCalendarEvent> ExternalCalendarEvents => Set<ExternalCalendarEvent>();
     public DbSet<ClientLifeEvent> ClientLifeEvents => Set<ClientLifeEvent>();
+    public DbSet<AgentDocument> AgentDocuments => Set<AgentDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

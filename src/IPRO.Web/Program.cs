@@ -206,6 +206,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureClientInvoiceSchemaAsync(db);
     await EnsureClientPortalSchemaAsync(db);
     await EnsureClientLifeEventSchemaAsync(db);
+    await EnsureAgentDocumentSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -214,6 +215,7 @@ using (var scope = app.Services.CreateScope())
 
     var blob = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
     await blob.EnsureContainerAccessAsync("portal-documents", isPrivate: true);
+    await blob.EnsureContainerAccessAsync("agent-documents", isPrivate: true);
 }
 
 app.Run();
@@ -758,6 +760,22 @@ CREATE TABLE IF NOT EXISTS `ClientLifeEvents` (
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureAgentDocumentSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `AgentDocuments` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `FileName` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `BlobUrl` varchar(1000) CHARACTER SET utf8mb4 NOT NULL,
+    `ContentType` varchar(150) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `FileSizeBytes` bigint NOT NULL DEFAULT 0,
+    `Category` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `UploadedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)

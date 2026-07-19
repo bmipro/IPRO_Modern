@@ -1,0 +1,113 @@
+@model IReadOnlyCollection<IPRO.Entities.AgentDocument>
+@{
+    ViewData["Title"] = "Documents";
+    var search = ViewBag.Search as string;
+    var category = ViewBag.Category as string;
+    var categories = (ViewBag.Categories as IEnumerable<string>) ?? Enumerable.Empty<string>();
+    var access = ViewBag.UsageAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+    var usedMb = (double)(ViewBag.UsedMb ?? 0.0);
+    var limitMb = access?.LimitValue ?? 0;
+    var usedPct = limitMb > 0 ? Math.Min(100.0, usedMb / limitMb * 100.0) : 0;
+    var barClass = usedPct >= 90 ? "bg-danger" : usedPct >= 70 ? "bg-warning" : "bg-primary";
+
+    string FormatSize(long bytes) => bytes >= 1024 * 1024
+        ? $"{bytes / 1024.0 / 1024.0:0.0} MB"
+        : $"{Math.Max(1, bytes / 1024)} KB";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-folder-open me-2 text-primary"></i>Documents</h2>
+    <div class="text-muted">Your own business documents — marketing materials, templates, compliance forms — kept separate from any client's record.</div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-3">
+    <div class="d-flex justify-content-between align-items-center small mb-1">
+      <span class="fw-semibold">Storage used</span>
+      <span class="text-muted">@usedMb MB of @limitMb MB</span>
+    </div>
+    <div class="progress" style="height:8px">
+      <div class="progress-bar @barClass" style="width:@usedPct.ToString("0.0")%"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-3">
+    <form method="get" class="d-flex gap-2 flex-wrap align-items-center mb-3">
+      <input type="text" name="search" class="form-control form-control-sm" style="max-width:240px" placeholder="Search by file name" value="@search" />
+      <select name="category" class="form-select form-select-sm" style="max-width:200px">
+        <option value="">All categories</option>
+        @foreach (var c in categories)
+        {
+          <option value="@c" selected="@(category == c)">@c</option>
+        }
+      </select>
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+      @if (!string.IsNullOrWhiteSpace(search) || !string.IsNullOrWhiteSpace(category))
+      {
+        <a href="/Documents" class="btn btn-sm btn-link">Clear</a>
+      }
+    </form>
+
+    <form asp-action="Upload" method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+      @Html.AntiForgeryToken()
+      <div class="col-lg-5">
+        <label class="form-label small fw-semibold text-muted">File</label>
+        <input type="file" name="file" class="form-control form-control-sm" required />
+      </div>
+      <div class="col-lg-4">
+        <label class="form-label small fw-semibold text-muted">Category (optional)</label>
+        <input type="text" name="category" class="form-control form-control-sm" maxlength="100" placeholder="Marketing, Compliance, ..." />
+      </div>
+      <div class="col-lg-3 d-grid">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-upload me-1"></i>Upload</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-3">
+    @if (!Model.Any())
+    {
+      <p class="text-muted small mb-0">No documents yet. Upload one above.</p>
+    }
+    else
+    {
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr class="text-muted small text-uppercase">
+              <th>File</th>
+              <th>Category</th>
+              <th>Size</th>
+              <th>Uploaded</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var doc in Model)
+            {
+              <tr>
+                <td><i class="fas fa-file me-1 text-muted"></i>@doc.FileName</td>
+                <td>@(string.IsNullOrWhiteSpace(doc.Category) ? "-" : doc.Category)</td>
+                <td>@FormatSize(doc.FileSizeBytes)</td>
+                <td>@doc.UploadedAt.ToString("MMM d, yyyy")</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-secondary" href="/Documents/Download/@doc.Id">Download</a>
+                  <form asp-action="Delete" asp-route-id="@doc.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete @doc.FileName?"><i class="fas fa-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

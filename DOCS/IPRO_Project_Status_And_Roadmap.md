@@ -126,7 +126,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 ## Not Done or Still Fragile
 
 ### Important missing product pieces
-- Document upload/storage (a scoped version now exists inside the Client Portal — see item 14; a general-purpose agent-side document library outside the portal context is still open).
+- Document upload/storage (done — see item 17: a scoped version already existed inside the Client Portal; a general-purpose agent-side document library outside the portal context now exists too).
 - Appointment booking (done — see item 15: scheduling a request now creates a real Calendar follow-up and emails the client the confirmed time).
 - SMS reminders.
 - Social media posting/management.
@@ -243,6 +243,12 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - A daily background job creates a real `ClientFollowUp` when a reminder window is reached, so it shows up on the Follow-up queue, Calendar, Dashboard, and Google Calendar sync exactly like any manually-added follow-up — no changes needed to any of those.
 - Each event/birthday reminds once per year (tracked per event and per client) so the daily job never duplicates a reminder.
 - Gated by a new Platinum/Broker-tier package feature ("Client life-event reminders"), same pattern as other premium features; the job fails closed if an agent's package no longer includes it.
+
+### 17. Add a general-purpose agent document library (done)
+- New **Documents** area in the Agent Portal for an agent's own business documents (marketing materials, compliance forms, templates), separate from the per-client Portal Documents inside a client's record.
+- Search by file name, filter by an optional free-text category, download through an authenticated action (never a raw storage URL), and delete.
+- Makes the legacy `PackageFeatureCodes.FileUploadCapacity` checkbox genuinely functional for the first time: it was already seeded with real per-package storage limits (Silver 50 MB / Gold 500 MB / Platinum 1000 MB / Broker 1000 MB per user) but had zero enforcement anywhere in the code. Uploads are now checked against the agent's package limit, with a usage bar and a clear message if an upload would exceed it.
+- Reuses the existing file-validation (`PortalDocumentValidator`) and blob storage infrastructure built for Portal Documents, in a new private `agent-documents` container.
 
 ## Bigger Product Ideas
 
