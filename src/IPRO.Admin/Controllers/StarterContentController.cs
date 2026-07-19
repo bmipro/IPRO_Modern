@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using IPRO.Admin.Models;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +14,11 @@ namespace IPRO.Admin.Controllers;
 public class StarterContentController : Controller
 {
     private readonly IPRODbContext _db;
-    public StarterContentController(IPRODbContext db) => _db = db;
+    private readonly IAdminAuditLogService _auditLog;
+    public StarterContentController(IPRODbContext db, IAdminAuditLogService auditLog) { _db = db; _auditLog = auditLog; }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index()
     {
@@ -81,6 +87,7 @@ public class StarterContentController : Controller
             foreach (var other in others) other.IsHomePage = false;
         }
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "StarterPageSave", $"Starter page '{page.Title}' ({businessType}) saved");
         TempData["Success"] = "Starter page saved. It will be copied to agents who have not created website pages yet.";
         return RedirectToAction(nameof(Edit), new { id = page.Id });
     }
@@ -97,6 +104,7 @@ public class StarterContentController : Controller
             SortOrder = await _db.WebsiteStarterBlocks.CountAsync(b => b.WebsiteStarterPageId == pageId), IsVisible = true
         });
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "StarterBlockAdd", $"Added a '{blockType}' block to starter page id {pageId}");
         TempData["Success"] = "Starter content block added.";
         return RedirectToAction(nameof(Edit), new { id = pageId });
     }
@@ -115,6 +123,7 @@ public class StarterContentController : Controller
         block.ButtonUrl = SafeLink(buttonUrl);
         block.IsVisible = isVisible;
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "StarterBlockUpdate", $"Updated starter block id {id} on page id {block.WebsiteStarterPageId}");
         TempData["Success"] = "Starter block saved.";
         return RedirectToAction(nameof(Edit), new { id = block.WebsiteStarterPageId });
     }
@@ -127,6 +136,7 @@ public class StarterContentController : Controller
         var pageId = block.WebsiteStarterPageId;
         _db.WebsiteStarterBlocks.Remove(block);
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "StarterBlockDelete", $"Deleted starter block id {id} from page id {pageId}");
         return RedirectToAction(nameof(Edit), new { id = pageId });
     }
 
@@ -137,6 +147,7 @@ public class StarterContentController : Controller
         if (page == null) return NotFound();
         _db.WebsiteStarterPages.Remove(page);
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "StarterPageDelete", $"Deleted starter page '{page.Title}' (id {id})");
         TempData["Success"] = "Starter page deleted. Existing agent pages were not changed.";
         return RedirectToAction(nameof(Index));
     }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using IPRO.Business.Interfaces;
 using IPRO.Admin.Models;
 using IPRO.Billing;
@@ -20,10 +21,14 @@ public class AgentsController : Controller
     private readonly IBillingService _billing;
     private readonly IPasswordHasher<AgentUser> _hasher;
     private readonly ILogger<AgentsController> _logger;
+    private readonly IAdminAuditLogService _auditLog;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; }
+        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog)
+    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index(string? search, string? status, int page = 1)
     {
@@ -133,6 +138,7 @@ public class AgentsController : Controller
 
         await _agents.UpdateAsync(agent);
         await LogAsync(id, "Edit", "Agent profile updated");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentEdit", $"Agent '{agent.UserName}' profile updated");
         TempData["Success"] = $"Agent {agent.UserName} updated.";
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -147,6 +153,7 @@ public class AgentsController : Controller
         await DeleteAgentOwnedDataAsync(id);
         _uow.AgentUsers.Remove(agent);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete", $"Agent '{userName}' (id {id}) permanently deleted along with all owned data");
 
         TempData["Warning"] = $"Agent {userName} deleted.";
         return RedirectToAction(nameof(Index));
@@ -165,6 +172,7 @@ public class AgentsController : Controller
 
         await _agents.UpdateAsync(agent);
         await LogAsync(id, "ResetPassword", "Temporary password reset by Super Admin");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentResetPassword", $"Temporary password reset for agent '{agent.UserName}'");
 
         TempData["Success"] = $"Temporary password for {agent.UserName} reset to: {temporaryPassword}";
         return RedirectToAction(nameof(Details), new { id });
@@ -180,6 +188,10 @@ public class AgentsController : Controller
         }
 
         var result = await _billing.EmailPaidInvoiceAsync(invoiceId, force: true);
+        if (result.Success)
+        {
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentEmailInvoice", $"Invoice {invoice.InvoiceNumber} resent to agent id {id}");
+        }
         TempData[result.Success ? "Success" : "Error"] = result.Success
             ? $"Invoice {invoice.InvoiceNumber} emailed to the agent's current email address."
             : result.Message;
@@ -196,6 +208,7 @@ public class AgentsController : Controller
         await _agents.UpdateAsync(agent);
         if (!string.IsNullOrEmpty(agent.DomainName)) await _plesk.UnsuspendDomainAsync(agent.DomainName);
         await LogAsync(id, "Activate", "Agent activated");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentActivate", $"Agent '{agent.UserName}' activated");
         TempData["Success"] = $"Agent {agent.UserName} activated.";
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -208,6 +221,7 @@ public class AgentsController : Controller
         await _agents.DeactivateAsync(id);
         if (!string.IsNullOrEmpty(agent.DomainName)) await _plesk.SuspendDomainAsync(agent.DomainName);
         await LogAsync(id, "Deactivate", "Agent deactivated");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate", $"Agent '{agent.UserName}' deactivated");
         TempData["Warning"] = $"Agent {agent.UserName} deactivated.";
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -225,6 +239,7 @@ public class AgentsController : Controller
         {
             await _plesk.CreateEmailAsync($"info@{agent.DomainName}", tempPwd, agent.DomainName);
             await LogAsync(id, "ProvisionHosting", $"Hosting provisioned: {agent.DomainName}");
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentProvisionHosting", $"Hosting provisioned for agent '{agent.UserName}': {agent.DomainName}");
             TempData["Success"] = $"Hosting provisioned for {agent.DomainName}.";
         }
         else TempData["Error"] = "Provisioning failed — check Plesk connection.";
@@ -238,6 +253,7 @@ public class AgentsController : Controller
         if (agent == null) return NotFound();
         var url = await _plesk.GenerateAutoLoginUrlAsync(agent.UserName);
         if (string.IsNullOrEmpty(url)) { TempData["Error"] = "Could not generate Plesk login."; return RedirectToAction(nameof(Details), new { id }); }
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentPleskLogin", $"Generated Plesk auto-login for agent '{agent.UserName}'");
         return Redirect(url);
     }
 

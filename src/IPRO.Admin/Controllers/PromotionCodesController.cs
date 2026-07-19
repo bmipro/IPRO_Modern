@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +11,16 @@ namespace IPRO.Admin.Controllers;
 public class PromotionCodesController : Controller
 {
     private readonly IUnitOfWork _uow;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public PromotionCodesController(IUnitOfWork uow)
+    public PromotionCodesController(IUnitOfWork uow, IAdminAuditLogService auditLog)
     {
         _uow = uow;
+        _auditLog = auditLog;
     }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index()
     {
@@ -101,7 +108,8 @@ public class PromotionCodesController : Controller
             return View(model);
         }
 
-        if (model.Id == 0)
+        var isNew = model.Id == 0;
+        if (isNew)
         {
             model.CreatedAt = DateTime.UtcNow;
             await _uow.PromotionCodes.AddAsync(model);
@@ -140,6 +148,7 @@ public class PromotionCodesController : Controller
         }
 
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, isNew ? "PromotionCodeCreate" : "PromotionCodeEdit", $"Promotion code '{model.Code}' {(isNew ? "created" : "updated")}");
         TempData["Success"] = "Promotion code saved.";
         return RedirectToAction(nameof(Index));
     }

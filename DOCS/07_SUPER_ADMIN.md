@@ -18,7 +18,11 @@ The original Azure-application-settings admin credential is automatically create
 4. **Edit** an account to change its full name, role, or active status. An admin cannot deactivate their own account.
 5. **Reset Password** sets a new password for an account; share it with that admin securely.
 
-The audit log (visible in the database, not yet a dedicated screen) records login success/failure and every admin-account change (create, edit, role change, deactivate, password reset) with the acting admin's username and a timestamp. It does not yet cover every action across every screen — that is a larger effort for a future pass.
+## View the Audit Log
+
+Select **Audit Log** (Super Admin only, under **System**) to see every logged action across the portal, newest first — login success/failure, admin-account changes, and every meaningful change made on Agents, Packages, Promotion Codes, Tax Rates, Domains, Newsletter Templates, Website Templates, Starter Content, and Support Tickets. Each entry shows when it happened, which admin did it, a short action code, and a human-readable detail.
+
+Filter by acting admin, search action/detail text, or set a date range. Results are paginated 50 per page.
 
 ## Dashboard
 

@@ -108,8 +108,11 @@
         <div class="nav-section">System</div>
         @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
         {
-          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AdminUsers" ? "active" : "")" href="/AdminUsers">
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AdminUsers" && ViewContext.RouteData.Values["action"]?.ToString() != "AuditLog" ? "active" : "")" href="/AdminUsers">
               <i class="fas fa-user-shield"></i>Admin Users
+          </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AdminUsers" && ViewContext.RouteData.Values["action"]?.ToString() == "AuditLog" ? "active" : "")" href="/AdminUsers/AuditLog">
+              <i class="fas fa-scroll"></i>Audit Log
           </a>
         }
         <a class="nav-link" href="/hangfire" target="_blank">

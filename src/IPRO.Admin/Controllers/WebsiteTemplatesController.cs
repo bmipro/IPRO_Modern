@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using IPRO.Admin.Models;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Email;
 using IPRO.Entities;
@@ -15,14 +17,19 @@ public class WebsiteTemplatesController : Controller
     private readonly IEmailService _email;
     private readonly ILogger<WebsiteTemplatesController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public WebsiteTemplatesController(IUnitOfWork uow, IEmailService email, ILogger<WebsiteTemplatesController> logger, IConfiguration configuration)
+    public WebsiteTemplatesController(IUnitOfWork uow, IEmailService email, ILogger<WebsiteTemplatesController> logger, IConfiguration configuration, IAdminAuditLogService auditLog)
     {
         _uow = uow;
         _email = email;
         _logger = logger;
         _configuration = configuration;
+        _auditLog = auditLog;
     }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index()
     {
@@ -64,7 +71,7 @@ public class WebsiteTemplatesController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public IActionResult PreviewOnAgent(int templateId, int agentUserId, bool useDefaults = false)
+    public async Task<IActionResult> PreviewOnAgent(int templateId, int agentUserId, bool useDefaults = false)
     {
         var secret = _configuration["AdminPreview:SharedSecret"];
         if (string.IsNullOrWhiteSpace(secret) || secret.StartsWith("CHANGE_THIS", StringComparison.OrdinalIgnoreCase))
@@ -75,6 +82,7 @@ public class WebsiteTemplatesController : Controller
 
         var token = AdminPreviewToken.Create(secret, agentUserId, templateId, useDefaults, TimeSpan.FromMinutes(10));
         var baseUrl = (_configuration["App:PublicWebsiteBaseUrl"] ?? "https://ipro-prod-web.azurewebsites.net").TrimEnd('/');
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "WebsiteTemplatePreviewOnAgent", $"Generated a signed preview of template id {templateId} on agent id {agentUserId}");
         return Redirect($"{baseUrl}/PublicWebsite/PreviewTemplateForAdmin?token={Uri.EscapeDataString(token)}");
     }
 
@@ -115,7 +123,8 @@ public class WebsiteTemplatesController : Controller
             return View(model);
         }
 
-        if (model.Id == 0)
+        var isNew = model.Id == 0;
+        if (isNew)
         {
             model.CreatedAt = DateTime.UtcNow;
             await _uow.WebsiteTemplates.AddAsync(model);
@@ -142,6 +151,7 @@ public class WebsiteTemplatesController : Controller
         }
 
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, isNew ? "WebsiteTemplateCreate" : "WebsiteTemplateEdit", $"Website template '{model.Name}' {(isNew ? "created" : "updated")}");
         TempData["Success"] = "Website template saved.";
         return RedirectToAction(nameof(Index));
     }
@@ -166,6 +176,7 @@ public class WebsiteTemplatesController : Controller
         }
 
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "WebsiteTemplateSetDefault", $"Template '{selected.Name}' set as default for {(string.IsNullOrWhiteSpace(selectedBusinessType) ? "all businesses" : selectedBusinessType)}");
         TempData["Success"] = $"{selected.Name} is now the default website template for {(string.IsNullOrWhiteSpace(selectedBusinessType) ? "all businesses" : selectedBusinessType)}.";
         return RedirectToAction(nameof(Index));
     }
@@ -201,6 +212,7 @@ public class WebsiteTemplatesController : Controller
         };
         await _uow.WebsiteTemplates.AddAsync(duplicate);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "WebsiteTemplateDuplicate", $"Template '{source.Name}' duplicated as inactive draft '{duplicate.Name}'");
         TempData["Success"] = $"{duplicate.Name} was created as an inactive draft. Review and activate it when ready.";
         return RedirectToAction(nameof(Edit), new { id = duplicate.Id });
     }
@@ -220,6 +232,7 @@ public class WebsiteTemplatesController : Controller
         template.IsActive = false;
         _uow.WebsiteTemplates.Update(template);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "WebsiteTemplateRetire", $"Template '{template.Name}' retired (in use by {usage.WebsiteCount} agent site(s))");
 
         if (usage.WebsiteCount > 0)
         {
@@ -279,6 +292,7 @@ public class WebsiteTemplatesController : Controller
         template.IsActive = true;
         _uow.WebsiteTemplates.Update(template);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "WebsiteTemplateRestore", $"Template '{template.Name}' restored");
         TempData["Success"] = $"{template.Name} is active again.";
         return RedirectToAction(nameof(Index));
     }
@@ -319,6 +333,7 @@ public class WebsiteTemplatesController : Controller
 
         _uow.WebsiteTemplates.Remove(template);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "WebsiteTemplateDelete", $"Template '{template.Name}' permanently deleted");
         TempData["Success"] = $"{template.Name} was deleted.";
         return RedirectToAction(nameof(Index));
     }

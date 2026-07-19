@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +11,16 @@ namespace IPRO.Admin.Controllers;
 public class NewsletterTemplatesController : Controller
 {
     private readonly IUnitOfWork _uow;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public NewsletterTemplatesController(IUnitOfWork uow)
+    public NewsletterTemplatesController(IUnitOfWork uow, IAdminAuditLogService auditLog)
     {
         _uow = uow;
+        _auditLog = auditLog;
     }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index()
     {
@@ -62,7 +69,8 @@ public class NewsletterTemplatesController : Controller
             return View(model);
         }
 
-        if (model.Id == 0)
+        var isNew = model.Id == 0;
+        if (isNew)
         {
             model.CreatedAt = DateTime.UtcNow;
             await _uow.NewsLetterTemplates.AddAsync(model);
@@ -83,6 +91,7 @@ public class NewsletterTemplatesController : Controller
         }
 
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, isNew ? "NewsletterTemplateCreate" : "NewsletterTemplateEdit", $"Newsletter template '{model.Name}' {(isNew ? "created" : "updated")}");
         TempData["Success"] = "Newsletter template saved.";
         return RedirectToAction(nameof(Index));
     }
@@ -95,6 +104,7 @@ public class NewsletterTemplatesController : Controller
         template.IsActive = false;
         _uow.NewsLetterTemplates.Update(template);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "NewsletterTemplateDeactivate", $"Newsletter template '{template.Name}' deactivated");
         TempData["Success"] = $"{template.Name} is no longer offered to agents.";
         return RedirectToAction(nameof(Index));
     }
@@ -107,6 +117,7 @@ public class NewsletterTemplatesController : Controller
         template.IsActive = true;
         _uow.NewsLetterTemplates.Update(template);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "NewsletterTemplateRestore", $"Newsletter template '{template.Name}' restored");
         TempData["Success"] = $"{template.Name} is available to agents again.";
         return RedirectToAction(nameof(Index));
     }
@@ -118,6 +129,7 @@ public class NewsletterTemplatesController : Controller
         if (template == null) return NotFound();
         _uow.NewsLetterTemplates.Remove(template);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "NewsletterTemplateDelete", $"Newsletter template '{template.Name}' permanently deleted");
         TempData["Success"] = $"{template.Name} was deleted.";
         return RedirectToAction(nameof(Index));
     }

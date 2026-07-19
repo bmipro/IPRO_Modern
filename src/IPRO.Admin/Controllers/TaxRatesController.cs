@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using IPRO.Admin.Models;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,11 +11,16 @@ namespace IPRO.Admin.Controllers;
 public class TaxRatesController : Controller
 {
     private readonly IUnitOfWork _uow;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public TaxRatesController(IUnitOfWork uow)
+    public TaxRatesController(IUnitOfWork uow, IAdminAuditLogService auditLog)
     {
         _uow = uow;
+        _auditLog = auditLog;
     }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index()
     {
@@ -43,6 +50,7 @@ public class TaxRatesController : Controller
         }
 
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "TaxRatesUpdate", $"Bulk-updated {model.Rates.Count} province tax rate(s)");
         TempData["Success"] = "Tax rates updated.";
         return RedirectToAction(nameof(Index));
     }

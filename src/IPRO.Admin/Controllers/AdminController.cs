@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authentication;
@@ -13,11 +14,13 @@ public class AdminController : Controller
 {
     private readonly IUnitOfWork _uow;
     private readonly IPasswordHasher<AdminUser> _hasher;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public AdminController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher)
+    public AdminController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher, IAdminAuditLogService auditLog)
     {
         _uow = uow;
         _hasher = hasher;
+        _auditLog = auditLog;
     }
 
     [HttpGet] public IActionResult Login() => View();
@@ -33,8 +36,7 @@ public class AdminController : Controller
 
         if (!verified)
         {
-            await LogAsync(user, "LoginFailed", $"Failed login attempt for username '{normalizedUsername}'.");
-            await _uow.SaveChangesAsync();
+            await _auditLog.LogAsync(user?.Id ?? 0, user?.Username ?? "unknown", "LoginFailed", $"Failed login attempt for username '{normalizedUsername}'.");
             await Task.Delay(1500); // Slow brute force
             ModelState.AddModelError("", "Invalid credentials.");
             return View();
@@ -42,8 +44,8 @@ public class AdminController : Controller
 
         user!.LastLoginAt = DateTime.UtcNow;
         _uow.AdminUsers.Update(user);
-        await LogAsync(user, "LoginSucceeded", $"Successful login for '{user.Username}'.");
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(user.Id, user.Username, "LoginSucceeded", $"Successful login for '{user.Username}'.");
 
         var claims = new List<Claim>
         {
@@ -65,8 +67,7 @@ public class AdminController : Controller
         if (!string.IsNullOrWhiteSpace(username))
         {
             var user = await _uow.AdminUsers.FirstOrDefaultAsync(u => u.Username == username);
-            await LogAsync(user, "Logout", $"'{username}' signed out.");
-            await _uow.SaveChangesAsync();
+            await _auditLog.LogAsync(user?.Id ?? 0, user?.Username ?? "unknown", "Logout", $"'{username}' signed out.");
         }
 
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -84,16 +85,5 @@ public class AdminController : Controller
         }
 
         return View();
-    }
-
-    private async Task LogAsync(AdminUser? user, string action, string details)
-    {
-        await _uow.AdminAuditLogEntries.AddAsync(new AdminAuditLogEntry
-        {
-            AdminUserId = user?.Id ?? 0,
-            AdminUsername = user?.Username ?? "unknown",
-            Action = action,
-            Details = details
-        });
     }
 }

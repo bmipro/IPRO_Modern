@@ -1,0 +1,81 @@
+@model IEnumerable<IPRO.Entities.AdminAuditLogEntry>
+@{
+    ViewData["Title"] = "Audit Log";
+    var adminUsers = (ViewBag.AdminUsers as IEnumerable<IPRO.Entities.AdminUser>) ?? Enumerable.Empty<IPRO.Entities.AdminUser>();
+    int? adminUserId = ViewBag.AdminUserId;
+    string? action = ViewBag.Action;
+    string? from = ViewBag.From;
+    string? to = ViewBag.To;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-scroll me-2 text-primary"></i>Audit Log</h4>
+    <div class="text-muted">@ViewBag.TotalCount total entries &middot; every action a Super Admin or Support user takes across the portal</div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="adminUserId" class="form-select">
+          <option value="">All admins</option>
+          @foreach (var admin in adminUsers)
+          {
+            <option value="@admin.Id" selected="@(adminUserId == admin.Id)">@admin.Username</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="text" name="action" class="form-control" placeholder="Search action or details..." value="@action" />
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="from" class="form-control" value="@from" />
+      </div>
+      <div class="col-md-2">
+        <input type="date" name="to" class="form-control" value="@to" />
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+      </div>
+    </form>
+
+    @if (!Model.Any())
+    {
+      <div class="text-muted">No audit log entries match this filter.</div>
+    }
+    else
+    {
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Details</th></tr></thead>
+          <tbody>
+          @foreach (var entry in Model)
+          {
+            <tr>
+              <td class="small text-muted text-nowrap">@entry.CreatedAt.ToString("MMM d, yyyy h:mm tt")</td>
+              <td>@entry.AdminUsername</td>
+              <td><span class="badge bg-light text-dark border">@entry.Action</span></td>
+              <td class="small">@entry.Details</td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
+      @if ((int)ViewBag.TotalPages > 1)
+      {
+        <nav>
+          <ul class="pagination">
+          @for (var p = 1; p <= (int)ViewBag.TotalPages; p++)
+          {
+            <li class="page-item @(p == (int)ViewBag.Page ? "active" : "")">
+              <a class="page-link" href="/AdminUsers/AuditLog?adminUserId=@adminUserId&action=@action&from=@from&to=@to&page=@p">@p</a>
+            </li>
+          }
+          </ul>
+        </nav>
+      }
+    }
+  </div>
+</div>

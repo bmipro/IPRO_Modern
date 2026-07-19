@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using IPRO.Admin.Models;
 using IPRO.Billing;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -13,12 +15,17 @@ public class PackagesController : Controller
     private const int Unlimited = -1;
     private readonly IUnitOfWork _uow;
     private readonly IBillingService _billing;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public PackagesController(IUnitOfWork uow, IBillingService billing)
+    public PackagesController(IUnitOfWork uow, IBillingService billing, IAdminAuditLogService auditLog)
     {
         _uow = uow;
         _billing = billing;
+        _auditLog = auditLog;
     }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index()
     {
@@ -75,6 +82,7 @@ public class PackagesController : Controller
         await _uow.BillingRules.AddAsync(rule);
         await _uow.SaveChangesAsync();
         await SaveFeatureRowsAsync(rule.Id, model.Features);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageCreate", $"Package '{rule.PackageName}' created (monthly ${rule.MonthlyPrice}, annual ${rule.AnnualPrice}, setup ${rule.SetupFee})");
 
         TempData["Success"] = "Package created.";
         return RedirectToAction(nameof(Index));
@@ -104,6 +112,7 @@ public class PackagesController : Controller
         _uow.BillingRules.Update(rule);
         await _uow.SaveChangesAsync();
         await SaveFeatureRowsAsync(rule.Id, model.Features);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageEdit", $"Package '{rule.PackageName}' pricing/features updated");
 
         TempData["Success"] = "Package updated.";
         return RedirectToAction(nameof(Index));
@@ -117,6 +126,7 @@ public class PackagesController : Controller
         rule.IsActive = !rule.IsActive;
         _uow.BillingRules.Update(rule);
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageToggle", $"Package '{rule.PackageName}' {(rule.IsActive ? "activated" : "deactivated")}");
         return RedirectToAction(nameof(Index));
     }
 
@@ -124,6 +134,10 @@ public class PackagesController : Controller
     public async Task<IActionResult> SyncPayPalPlans(int id)
     {
         var result = await _billing.SyncPayPalPlansAsync(id);
+        if (result.Success)
+        {
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageSyncPayPalPlans", $"Synced PayPal plans for package id {id}: Monthly {FormatPlanStatus(result.MonthlyPlanId)}, Annual {FormatPlanStatus(result.AnnualPlanId)}");
+        }
         TempData[result.Success ? "Success" : "Error"] = result.Success
             ? $"{result.Message} Monthly: {FormatPlanStatus(result.MonthlyPlanId)} Annual: {FormatPlanStatus(result.AnnualPlanId)}"
             : result.Message;

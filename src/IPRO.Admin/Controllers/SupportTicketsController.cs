@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
@@ -13,15 +15,19 @@ public class SupportTicketsController : Controller
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
     private readonly ILogger<SupportTicketsController> _logger;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public SupportTicketsController(IPRODbContext db, IEmailService email, ILogger<SupportTicketsController> logger)
+    public SupportTicketsController(IPRODbContext db, IEmailService email, ILogger<SupportTicketsController> logger, IAdminAuditLogService auditLog)
     {
         _db = db;
         _email = email;
         _logger = logger;
+        _auditLog = auditLog;
     }
 
     private string CurrentAdminName => User.FindFirst("FullName")?.Value ?? User.Identity?.Name ?? "Support";
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index(string status = "all", string? search = null, int page = 1)
     {
@@ -122,6 +128,7 @@ public class SupportTicketsController : Controller
         }
 
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "SupportTicketReply", $"Replied to ticket #{ticket.Id} ('{ticket.Subject}')");
         await NotifyAgentAsync(ticket, body);
 
         TempData["Success"] = "Reply sent.";
@@ -142,6 +149,7 @@ public class SupportTicketsController : Controller
         ticket.Status = parsed;
         ticket.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "SupportTicketSetStatus", $"Ticket #{ticket.Id} status set to {parsed}");
 
         TempData["Success"] = $"Ticket status set to {parsed}.";
         return RedirectToAction(nameof(Details), new { id });

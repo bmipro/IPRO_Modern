@@ -35,6 +35,7 @@ builder.Services.AddHangfire(config => config
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAgentService, AgentService>();
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
+builder.Services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();

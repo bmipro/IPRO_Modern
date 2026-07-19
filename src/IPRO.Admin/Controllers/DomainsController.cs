@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using IPRO.Admin.Models;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Utility;
@@ -17,20 +19,26 @@ public class DomainsController : Controller
     private readonly IAzureDomainAutomationService _azureDomains;
     private readonly IDomainCheckService _domainCheck;
     private readonly ILogger<DomainsController> _logger;
+    private readonly IAdminAuditLogService _auditLog;
 
     public DomainsController(
         IPRODbContext db,
         IOptions<AzureDomainAutomationOptions> azureOptions,
         IAzureDomainAutomationService azureDomains,
         IDomainCheckService domainCheck,
-        ILogger<DomainsController> logger)
+        ILogger<DomainsController> logger,
+        IAdminAuditLogService auditLog)
     {
         _db = db;
         _azureOptions = azureOptions.Value;
         _azureDomains = azureDomains;
         _domainCheck = domainCheck;
         _logger = logger;
+        _auditLog = auditLog;
     }
+
+    private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     public async Task<IActionResult> Index()
     {
@@ -66,6 +74,7 @@ public class DomainsController : Controller
         domain.LastCheckedAt = DateTime.UtcNow;
         domain.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "DomainMarkBound", $"Domain '{domain.DomainName}' manually marked as bound");
 
         TempData["Success"] = $"{domain.DomainName} marked as bound.";
         return RedirectToAction(nameof(Index));
@@ -77,6 +86,7 @@ public class DomainsController : Controller
         var domain = await _db.AgentDomains.GetRequiredAsync(id);
         await _domainCheck.CheckAsync(domain);
         await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "DomainRecheck", $"Triggered a recheck for domain '{domain.DomainName}'");
 
         if (domain.DnsStatus == AgentDomainStatus.PendingDns)
         {

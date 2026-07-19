@@ -131,7 +131,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - SMS reminders.
 - Social media posting/management (done — see item 18: a content composer/tracker exists; live auto-publishing to specific platforms is a separate, larger future item — see "Reputation and social media" below).
 - Formal backup/release checklist.
-- Broader admin audit logging (today's audit log covers login and admin-account changes only, not every action across every screen).
+- Broader admin audit logging (done — see item 19: now covers every meaningful mutating action across the Super Admin portal, plus a real Audit Log viewer with filters).
 
 ### Proposed agent-value features (not scoped yet)
 - **Testimonial module.** Today the website's Testimonials block is just manually typed text. A real module would let an agent send a client a short request link, the client submits a quote (and optionally a star rating/photo) through a public form, the agent approves/rejects it in the portal, and approved testimonials feed the existing Testimonials block automatically instead of copy-paste. A natural first slice of the "Reputation and social media" idea below.
@@ -255,6 +255,12 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Track status per post (Draft/Posted, self-reported) so agents can see what's still pending vs. already gone out.
 - Makes the legacy `PackageFeatureCodes.SocialMediaIntegration` checkbox genuinely functional for the first time — it was already seeded as included for every package but had zero enforcement anywhere in the code.
 - Deliberately does **not** connect to any real platform: no OAuth, no auto-posting, no vendor review process, no ongoing API cost. Chosen over live auto-publishing because each platform (Meta, LinkedIn, X) requires its own separate developer app, business verification, and review — LinkedIn's posting API specifically needs a hard-to-get partnership, and X's now requires a paid developer tier. Live per-platform publishing remains a distinct, larger future item under "Reputation and social media" below, to pursue only once a specific platform's setup cost is worth it.
+
+### 19. Broaden admin audit logging + add a real viewer (done)
+- Before this pass, only login attempts and admin-account changes were written to the audit log, and there was no screen to view it at all — entries were only visible via a direct database query.
+- A new shared `IAdminAuditLogService` consolidates two previously-inconsistent private logging helpers, and now every meaningful mutating action across 9 Super Admin controllers writes an entry: Agents (edit, delete, password reset, activate/deactivate, hosting provisioning, Plesk login, invoice resend), Packages (create/edit/toggle/PayPal plan sync), Promotion Codes, Tax Rates, Domains, Newsletter Templates, Website Templates, Starter Content, and Support Tickets.
+- A new **Audit Log** screen (Super Admin only) shows every entry, filterable by acting admin, action/detail text search, and date range, paginated.
+- The pre-existing, separate per-agent `OperateLogs` history (a different, older mechanism) is untouched — both now run side by side.
 
 ## Bigger Product Ideas
 

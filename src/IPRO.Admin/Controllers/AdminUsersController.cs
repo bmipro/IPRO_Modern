@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -12,12 +13,16 @@ public class AdminUsersController : Controller
 {
     private readonly IUnitOfWork _uow;
     private readonly IPasswordHasher<AdminUser> _hasher;
+    private readonly IAdminAuditLogService _auditLog;
 
-    public AdminUsersController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher)
+    public AdminUsersController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher, IAdminAuditLogService auditLog)
     {
         _uow = uow;
         _hasher = hasher;
+        _auditLog = auditLog;
     }
+
+    private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
@@ -74,8 +79,8 @@ public class AdminUsersController : Controller
         };
         newUser.PasswordHash = _hasher.HashPassword(newUser, password);
         await _uow.AdminUsers.AddAsync(newUser);
-        await LogAsync("AdminUserCreated", $"Created admin account '{newUser.Username}' with role {newUser.Role}.");
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AdminUserCreated", $"Created admin account '{newUser.Username}' with role {newUser.Role}.");
 
         TempData["Success"] = $"{newUser.Username} was created.";
         return RedirectToAction(nameof(Index));
@@ -126,11 +131,11 @@ public class AdminUsersController : Controller
         user.IsActive = isActive;
         _uow.AdminUsers.Update(user);
 
+        await _uow.SaveChangesAsync();
         if (changes.Any())
         {
-            await LogAsync("AdminUserUpdated", $"Updated '{user.Username}': {string.Join(", ", changes)}.");
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AdminUserUpdated", $"Updated '{user.Username}': {string.Join(", ", changes)}.");
         }
-        await _uow.SaveChangesAsync();
 
         TempData["Success"] = $"{user.Username} was updated.";
         return RedirectToAction(nameof(Index));
@@ -150,21 +155,54 @@ public class AdminUsersController : Controller
 
         user.PasswordHash = _hasher.HashPassword(user, newPassword);
         _uow.AdminUsers.Update(user);
-        await LogAsync("AdminUserPasswordReset", $"Reset password for '{user.Username}'.");
         await _uow.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AdminUserPasswordReset", $"Reset password for '{user.Username}'.");
 
         TempData["Success"] = $"Password reset for {user.Username}.";
         return RedirectToAction(nameof(Edit), new { id });
     }
 
-    private async Task LogAsync(string action, string details)
+    public async Task<IActionResult> AuditLog(int page = 1, int? adminUserId = null, string? action = null, DateTime? from = null, DateTime? to = null)
     {
-        await _uow.AdminAuditLogEntries.AddAsync(new AdminAuditLogEntry
+        const int pageSize = 50;
+        page = Math.Max(1, page);
+        action = action?.Trim();
+
+        var entries = (await _uow.AdminAuditLogEntries.GetAllAsync()).AsEnumerable();
+
+        if (adminUserId.HasValue)
         {
-            AdminUserId = CurrentAdminId,
-            AdminUsername = User.Identity?.Name ?? "unknown",
-            Action = action,
-            Details = details
-        });
+            entries = entries.Where(e => e.AdminUserId == adminUserId.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            entries = entries.Where(e =>
+                e.Action.Contains(action, StringComparison.OrdinalIgnoreCase) ||
+                e.Details.Contains(action, StringComparison.OrdinalIgnoreCase));
+        }
+        if (from.HasValue)
+        {
+            entries = entries.Where(e => e.CreatedAt >= from.Value.Date);
+        }
+        if (to.HasValue)
+        {
+            entries = entries.Where(e => e.CreatedAt < to.Value.Date.AddDays(1));
+        }
+
+        var ordered = entries.OrderByDescending(e => e.CreatedAt).ToList();
+        var totalCount = ordered.Count;
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        page = Math.Min(page, totalPages);
+
+        ViewBag.AdminUsers = (await _uow.AdminUsers.GetAllAsync()).OrderBy(u => u.Username).ToList();
+        ViewBag.AdminUserId = adminUserId;
+        ViewBag.Action = action;
+        ViewBag.From = from?.ToString("yyyy-MM-dd");
+        ViewBag.To = to?.ToString("yyyy-MM-dd");
+        ViewBag.Page = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
+        return View(ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList());
     }
 }
