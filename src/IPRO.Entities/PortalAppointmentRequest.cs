@@ -11,6 +11,8 @@ public class PortalAppointmentRequest
     public PortalAppointmentRequestStatus Status { get; set; } = PortalAppointmentRequestStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }
+    public DateTime? ScheduledAt { get; set; }
+    public int? ClientFollowUpId { get; set; }
 
     public Client Client { get; set; } = null!;
 }

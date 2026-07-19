@@ -27,10 +27,12 @@ Clients see the same thread from their side of the portal — it is one continuo
 Clients can request an appointment from their portal, optionally with a preferred date and notes. These appear under **Portal Requests** in the Agent Portal.
 
 1. Filter by Pending / Scheduled / Declined / All.
-2. Click **Mark Scheduled** or **Decline** to respond.
-3. Marking a request Scheduled does not automatically create a calendar entry — add the actual appointment through the existing **Calendar**/Follow-up tools yourself.
+2. For a pending request, pick the actual date and time (prefilled from the client's preferred date when they gave one, but yours to adjust) and click **Schedule** — this creates a real follow-up on your **Calendar**, and the client is emailed the confirmed date/time.
+3. Click **Decline** to turn down a request — the client is emailed a polite decline notice; no calendar entry is created.
 
-Clients also see any of their own upcoming follow-ups (read-only) on their Appointments page.
+Once scheduled, the client sees the confirmed date/time on their own Appointments page, and it also appears in their "Upcoming" follow-ups list there.
+
+Rescheduling or cancelling an already-scheduled appointment isn't a separate flow — use the normal follow-up edit/delete tools on the client's Details page, since the appointment *is* a follow-up under the hood.
 
 ## Documents
 

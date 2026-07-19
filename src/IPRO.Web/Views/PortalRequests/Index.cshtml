@@ -36,24 +36,30 @@
         </div>
         @if (request.Status == IPRO.Entities.PortalAppointmentRequestStatus.Pending)
         {
-          <div class="d-flex gap-2">
-            <form asp-action="SetStatus" method="post">
+          <div class="d-flex align-items-center gap-2">
+            <form asp-action="Schedule" method="post" class="d-flex align-items-center gap-2">
               @Html.AntiForgeryToken()
               <input type="hidden" name="id" value="@request.Id" />
-              <input type="hidden" name="status" value="Declined" />
-              <button type="submit" class="btn btn-sm btn-outline-danger">Decline</button>
+              <input type="datetime-local" name="scheduledAt" class="form-control form-control-sm" style="width:auto;"
+                     value="@(request.PreferredDate?.ToString("yyyy-MM-ddTHH:mm"))" required />
+              <button type="submit" class="btn btn-sm btn-success">Schedule</button>
             </form>
-            <form asp-action="SetStatus" method="post">
+            <form asp-action="Decline" method="post">
               @Html.AntiForgeryToken()
               <input type="hidden" name="id" value="@request.Id" />
-              <input type="hidden" name="status" value="Scheduled" />
-              <button type="submit" class="btn btn-sm btn-success">Mark Scheduled</button>
+              <button type="submit" class="btn btn-sm btn-outline-danger">Decline</button>
             </form>
           </div>
         }
+        else if (request.Status == IPRO.Entities.PortalAppointmentRequestStatus.Scheduled)
+        {
+          <span class="badge bg-success-subtle text-success">
+            Scheduled @(request.ScheduledAt.HasValue ? request.ScheduledAt.Value.ToString("MMM d, yyyy 'at' h:mm tt") : "")
+          </span>
+        }
         else
         {
-          <span class="badge @(request.Status == IPRO.Entities.PortalAppointmentRequestStatus.Scheduled ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">@request.Status</span>
+          <span class="badge bg-danger-subtle text-danger">@request.Status</span>
         }
       </div>
     }

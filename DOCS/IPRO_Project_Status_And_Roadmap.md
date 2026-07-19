@@ -126,7 +126,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 
 ### Important missing product pieces
 - Document upload/storage (a scoped version now exists inside the Client Portal — see item 14; a general-purpose agent-side document library outside the portal context is still open).
-- Appointment booking (the Client Portal now has a lightweight read-only view + simple request flow — see item 14; a real two-way scheduling/booking engine is still open).
+- Appointment booking (done — see item 15: scheduling a request now creates a real Calendar follow-up and emails the client the confirmed time).
 - SMS reminders.
 - Social media posting/management.
 - Formal backup/release checklist.
@@ -225,10 +225,17 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Because `Client.Email` has no uniqueness constraint (the same email can exist under different agents), login is scoped to the agent relationship rather than a single global identity; the rare case of one email matching multiple agents' clients is handled with a "choose your advisor" picker instead of failing.
 - One continuous message thread per client, visible to both sides, with unread tracking on each side independently.
 - Two-way document upload/download (agent and client both upload into a shared per-client folder); downloads always go through an authenticated action, never a raw storage URL.
-- Clients see their own upcoming follow-ups (read-only) and can submit a lightweight appointment request with optional preferred date and notes; the agent has a dedicated Portal Requests queue (Pending/Scheduled/Declined) — turning a request into a real scheduled appointment is a manual step using the existing Follow-up/Calendar tools, not an automatic scheduling engine.
+- Clients see their own upcoming follow-ups (read-only) and can submit a lightweight appointment request with optional preferred date and notes; the agent has a dedicated Portal Requests queue (Pending/Scheduled/Declined).
 - Clients can self-service edit their own contact information; changes save directly to the same record visible in the agent's CRM.
 - Clients see all of their own estimates/invoices, linking to the same pages used by the existing signed-link invoicing feature.
 - Gated by a new Platinum/Broker-tier package feature ("Client portal"), same pattern as other premium features.
+
+### 15. Wire appointment requests into a real Calendar entry (done)
+- Scheduling a pending Portal Request now lets the agent confirm/adjust the exact date and time (prefilled from the client's preferred date when given) rather than just flipping a status flag.
+- Scheduling creates a real `ClientFollowUp`, so the appointment actually shows up on the agent's Calendar and Dashboard counts, not just in the Portal Requests queue.
+- The client is emailed automatically when a request is scheduled (with the confirmed date/time) or declined, and sees the confirmed time on their own Appointments page.
+- Rescheduling/cancelling an already-scheduled appointment reuses the existing follow-up edit/delete tools on the client's Details page — no separate reschedule flow.
+- Next up: an optional two-way Google Calendar sync per agent (see "Google Calendar sync" under Bigger Product Ideas — in progress).
 
 ## Bigger Product Ideas
 
@@ -276,11 +283,17 @@ Real estate agents specifically need to display MLS listings on their site (IDX)
 - Summarize client activity.
 - Recommend next best action.
 
-### Client portal (v1 done — see item 14 above)
-Secure login, messages, two-way documents, self-service "My Information," lightweight appointment requests, and invoices all shipped. Still open for a future pass:
+### Client portal (v1 done — see item 14 above; real appointment scheduling — see item 15)
+Secure login, messages, two-way documents, self-service "My Information," a real appointment-scheduling flow (not just a request queue), and invoices all shipped. Still open for a future pass:
 - Campaign preferences and unsubscribe controls surfaced inside the portal itself (today, unsubscribe still happens via the per-send/per-enrollment email links).
-- A real two-way appointment *booking/scheduling* engine, rather than today's request-then-manually-schedule flow.
 - Payments taken directly inside the portal (today's Pay Now button still links out to the agent's own external payment link, same as the standalone invoicing feature).
+
+### Google Calendar sync (in progress)
+Full two-way sync between an agent's own Google Calendar and the Agent Portal Calendar, opt-in per agent:
+- Connect/Disconnect flow (OAuth) from a new Calendar Source settings panel; gated by a new togglable `GoogleCalendarSync` package feature Super Admin can enable on any package.
+- IPRO follow-ups push to the agent's connected Google Calendar automatically; events created, edited, or deleted directly in Google sync back into the Agent Portal Calendar (a Hangfire job polling on an interval, not realtime push).
+- Non-client Google events (personal appointments, other meetings) show on the Agent Portal Calendar for context, distinguished from client follow-ups, but aren't tied to any client record.
+- Needs a Google Cloud OAuth client (Client ID/Secret in Azure App Settings) provisioned outside IPRO first, and Google's app-review process for the Calendar scope before agents can connect without an "unverified app" warning.
 
 ### Reputation and social media
 - Request reviews from clients.

@@ -75,7 +75,11 @@
               <div>@r.Notes</div>
               <div class="small text-muted">Requested @r.CreatedAt.ToLocalTime().ToString("MMM d, yyyy") @(r.PreferredDate.HasValue ? $"— preferred {r.PreferredDate.Value:MMM d, yyyy}" : "")</div>
             </div>
-            <span class="badge @StatusBadge(r.Status)">@r.Status</span>
+            <span class="badge @StatusBadge(r.Status)">
+              @(r.Status == IPRO.Entities.PortalAppointmentRequestStatus.Scheduled && r.ScheduledAt.HasValue
+                  ? "Scheduled " + r.ScheduledAt.Value.ToString("MMM d, yyyy 'at' h:mm tt")
+                  : r.Status.ToString())
+            </span>
           </li>
         }
       </ul>

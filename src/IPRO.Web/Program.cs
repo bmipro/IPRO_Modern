@@ -678,6 +678,8 @@ CREATE TABLE IF NOT EXISTS `PortalAppointmentRequests` (
     `Status` int NOT NULL DEFAULT 0,
     `CreatedAt` datetime(6) NOT NULL,
     `RespondedAt` datetime(6) NULL,
+    `ScheduledAt` datetime(6) NULL,
+    `ClientFollowUpId` int NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
 
@@ -687,6 +689,8 @@ CREATE TABLE IF NOT EXISTS `PortalAppointmentRequests` (
         await EnsureTableColumnAsync(db, "Clients", "PortalPasswordHash", "ALTER TABLE `Clients` ADD COLUMN `PortalPasswordHash` varchar(500) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "Clients", "PortalInviteToken", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteToken` varchar(80) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "Clients", "PortalActivatedAt", "ALTER TABLE `Clients` ADD COLUMN `PortalActivatedAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ScheduledAt", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ScheduledAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ClientFollowUpId", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ClientFollowUpId` int NULL");
     }
     finally
     {

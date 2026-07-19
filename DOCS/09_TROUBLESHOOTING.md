@@ -271,6 +271,14 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Scope note**: this bypass only applies to `SubscriptionChangeType.Subscribe` (a fresh signup). A *temporary* 100%-off code (e.g. "first month free, then full price") is unaffected and still goes through PayPal's `TRIAL` → `REGULAR` billing-cycle mechanism as before, since that path still needs a real payment method on file for PayPal to auto-charge once the trial ends.
 
+## Feature: Portal Appointment Requests Now Create Real Calendar Entries
+
+**2026-07-19.** Explaining "how does the Calendar get populated" to the user surfaced a real, already-documented gap: the Agent Portal Calendar is driven entirely by `ClientFollowUp` rows (`ClientsController.Calendar`), and `PortalRequestsController.SetStatus` marking a Client Portal appointment request "Scheduled" only flipped a status enum — it never created anything the Calendar could show, and the client never learned what time was actually agreed.
+
+**Fix**: `PortalAppointmentRequest` gained `ScheduledAt` and `ClientFollowUpId`. `SetStatus` was replaced with two actions: `Schedule(id, scheduledAt)` lets the agent confirm/adjust the exact date and time (prefilled from the client's preferred date when given, not auto-accepted) and creates a real `ClientFollowUp` linked back to the request, so the appointment now genuinely appears on the Calendar and in Dashboard/Follow-up counts; `Decline(id)` is unchanged in effect but now its own explicit action. Both email the client via the existing `IEmailService.SendDetailedAsync` (same pattern already used for invoice-sent and ticket-reply notifications) — confirming the scheduled time, or a polite decline notice. The client's own Appointments page now shows the confirmed date/time instead of a bare "Scheduled" badge.
+
+**Explicit scope boundary**: rescheduling or cancelling an already-scheduled appointment isn't a new flow — it reuses the existing follow-up edit/delete tools on the client's Details page, since the appointment *is* a follow-up under the hood.
+
 ## Release Build Commands
 
 From the repository root:
