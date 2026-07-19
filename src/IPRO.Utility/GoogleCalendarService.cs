@@ -29,7 +29,7 @@ public class GoogleCalendarService : IGoogleCalendarService
     private const string RevokeEndpoint = "https://oauth2.googleapis.com/revoke";
     private const string UserInfoEndpoint = "https://www.googleapis.com/oauth2/v2/userinfo";
     private const string CalendarApiBase = "https://www.googleapis.com/calendar/v3";
-    private const string Scope = "https://www.googleapis.com/auth/calendar";
+    private const string Scope = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
