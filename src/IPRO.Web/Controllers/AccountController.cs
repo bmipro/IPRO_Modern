@@ -395,6 +395,37 @@ public class AccountController : Controller
         return RedirectToAction(nameof(Profile));
     }
 
+    private static readonly HashSet<string> PortalAccentColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "#1457d9", "#d9541f", "#1f7a4d", "#4b5563", "#7a1f3d", "#5b2f9e"
+    };
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetPortalAccentColor(string? color, string? returnUrl)
+    {
+        var agent = await GetCurrentAgentAsync();
+        if (agent == null) return RedirectToAction(nameof(Login));
+
+        if (!string.IsNullOrWhiteSpace(color) && PortalAccentColors.Contains(color))
+        {
+            agent.PortalAccentColor = color.ToLowerInvariant();
+            await _agents.UpdateAsync(agent);
+            await SignInAgentAsync(agent, new AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
+        return RedirectToAction("Index", "Dashboard");
+    }
+
     [Authorize]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword(string newPassword, string confirmPassword)
@@ -478,7 +509,8 @@ public class AccountController : Controller
             new(ClaimTypes.Email, user.Email),
             new("FullName", $"{user.FirstName} {user.LastName}"),
             new("PackageId", user.PackageId.ToString()),
-            new("MustChangePassword", user.MustChangePassword ? "true" : "false")
+            new("MustChangePassword", user.MustChangePassword ? "true" : "false"),
+            new("PortalAccentColor", user.PortalAccentColor ?? "")
         };
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,

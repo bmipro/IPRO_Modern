@@ -33,6 +33,17 @@
     string NavActive(params string[] controllers) => controllers.Contains(currentController, StringComparer.OrdinalIgnoreCase) ? "active" : "";
     var clientsMainActive = currentController == "Clients" && currentAction != "FollowUpQueue" && currentAction != "FollowUps" && currentAction != "Calendar" ? "active" : "";
     string ClientsSubActive(string action) => currentController == "Clients" && currentAction == action ? "active" : "";
+
+    var portalAccentColor = User.FindFirst("PortalAccentColor")?.Value ?? "";
+    var portalColorSwatches = new (string Hex, string Name)[]
+    {
+        ("#1457d9", "Ocean Blue"),
+        ("#d9541f", "Sunset Orange"),
+        ("#1f7a4d", "Forest Green"),
+        ("#4b5563", "Slate Gray"),
+        ("#7a1f3d", "Burgundy"),
+        ("#5b2f9e", "Royal Purple")
+    };
 }
 <html lang="en">
 <head>
@@ -42,13 +53,39 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="~/css/site.css" />
+    <style>
+        .portal-color-toggle { color: rgba(255,255,255,.85); border: 1px solid rgba(255,255,255,.35); background: transparent; }
+        .portal-color-toggle:hover, .portal-color-toggle:focus { color: #fff; border-color: rgba(255,255,255,.6); }
+        .portal-color-menu { min-width: auto; display: flex; gap: .4rem; }
+        .portal-color-menu li { list-style: none; }
+        .portal-color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; }
+        .portal-color-swatch.is-active { border-color: #0f172a; box-shadow: 0 0 0 2px #fff inset; }
+    </style>
 </head>
 <body>
 @if (User.Identity?.IsAuthenticated == true)
 {
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark @(string.IsNullOrEmpty(portalAccentColor) ? "bg-primary" : "")" style="@(string.IsNullOrEmpty(portalAccentColor) ? "" : $"background-color:{portalAccentColor};")">
     <div class="container-fluid">
         <a class="navbar-brand fw-bold" href="/"><i class="fas fa-shield-alt me-2"></i>IPRO Agent Portal</a>
+        <div class="dropdown me-2">
+            <button class="btn btn-sm portal-color-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Choose your portal color">
+                <i class="fas fa-palette"></i>
+            </button>
+            <ul class="dropdown-menu portal-color-menu p-2">
+                @foreach (var swatch in portalColorSwatches)
+                {
+                    <li>
+                        <form asp-controller="Account" asp-action="SetPortalAccentColor" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="color" value="@swatch.Hex" />
+                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                            <button type="submit" class="portal-color-swatch @(portalAccentColor == swatch.Hex ? "is-active" : "")" style="background-color:@swatch.Hex;" title="@swatch.Name" aria-label="@swatch.Name"></button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
             <span class="navbar-toggler-icon"></span>
         </button>

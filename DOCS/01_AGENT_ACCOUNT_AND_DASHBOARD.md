@@ -47,6 +47,10 @@ If the login fails, verify the username and password. Super Admin can reset the 
 
 Profile data is also used on the public website, invoices, lead notifications, and billing tax calculations.
 
+## Personalize the Agent Portal Color
+
+Click the small palette icon beside the "IPRO Agent Portal" logo (top-left of every page) to pick one of 6 colors for your own portal's top bar — Ocean Blue, Sunset Orange, Forest Green, Slate Gray, Burgundy, or Royal Purple. This only changes how your own portal looks to you; it's separate from your public website's theme color (set under My Website).
+
 ## Use the Dashboard
 
 The dashboard summarizes work that needs attention:
