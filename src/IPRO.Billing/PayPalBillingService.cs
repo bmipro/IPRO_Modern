@@ -98,22 +98,34 @@ public class PayPalBillingService : IBillingService
 
             if (promo != null)
             {
-                if (promo.RecurringDiscountType != PromoDiscountType.None)
-                {
-                    overrideAmount = ComputeDiscountedAmount(GetAmount(requestedPackage, period), promo.RecurringDiscountType, promo.RecurringDiscountValue);
-                    try
-                    {
-                        overridePlanId = await GetOrCreatePromoPlanIdAsync(promo, requestedPackage, period);
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        return BillingChangeResult.Failed("This promotion code's pricing can't be set up with PayPal right now (a permanent 100%-or-more discount isn't supported for a recurring plan). Please contact support.");
-                    }
-                }
-
                 if (promo.SetupFeeDiscountType != PromoDiscountType.None)
                 {
                     overrideSetupFee = ComputeDiscountedAmount(requestedPackage.SetupFee, promo.SetupFeeDiscountType, promo.SetupFeeDiscountValue);
+                }
+
+                if (promo.RecurringDiscountType != PromoDiscountType.None)
+                {
+                    overrideAmount = ComputeDiscountedAmount(GetAmount(requestedPackage, period), promo.RecurringDiscountType, promo.RecurringDiscountValue);
+
+                    var effectiveSetupFee = overrideSetupFee ?? requestedPackage.SetupFee;
+                    var isFullyComped = promo.RecurringDurationCycles == null && overrideAmount <= 0 && effectiveSetupFee <= 0;
+
+                    if (isFullyComped)
+                    {
+                        // No PayPal plan needed at all - BeginPaidChangeAsync will activate directly.
+                        overridePlanId = string.Empty;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            overridePlanId = await GetOrCreatePromoPlanIdAsync(promo, requestedPackage, period);
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            return BillingChangeResult.Failed("This promotion code's pricing can't be set up with PayPal right now (a permanent 100%-or-more discount isn't supported unless the setup fee is also fully discounted). Please contact support.");
+                        }
+                    }
                 }
             }
 
@@ -883,6 +895,15 @@ public class PayPalBillingService : IBillingService
             AmountDue = invoice.Total
         });
         await _uow.SaveChangesAsync();
+
+        if (changeType == SubscriptionChangeType.Subscribe && promotionCodeId.HasValue && billing.Amount <= 0 && setupFee <= 0)
+        {
+            // Fully comped by a permanent promo code (recurring price and setup fee both discounted to $0) -
+            // PayPal's Subscriptions API has no way to represent a free-forever recurring plan, so there is
+            // nothing to check out; activate the package directly using the same activation path a real
+            // PayPal payment confirmation would take.
+            return await ActivateSubscriptionBillingAsync(userId, billing, invoice, "Your promotion code covers this package at no cost - your account is active now.");
+        }
 
         if (changeType == SubscriptionChangeType.Subscribe && !string.IsNullOrWhiteSpace(billing.PayPalPlanId))
         {

@@ -259,6 +259,18 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Prevention rule**: when a discount or price override feeds an external payment provider's API, validate the *worst-case computed price* server-side against that provider's actual constraints at save time (not just "is the input greater than zero") — a percent-based discount can silently produce $0 depending on which package it's later applied to, and provider-side rejections should never be allowed to surface as an unhandled exception to the end user.
 
+## Feature: Fully-Comped Promo Codes Bypass PayPal Entirely
+
+**2026-07-19.** Follow-up to the `SAVEFREE` 500 incident above. Rather than only blocking a permanent 100%-off code from being saved, a permanent promo code that discounts **both** the recurring price and the setup fee to $0 (a genuine "free forever" comp) now activates the package directly, without ever creating a PayPal plan, subscription, or order — there is nothing to check out.
+
+**Why not just force PayPal to accept it**: PayPal's Subscriptions API has no representation for a permanent $0 recurring plan (see the incident above); padding the price to $0.01 or similar would be a hack, not a fix, and would misrepresent the transaction. A genuinely free-forever account is more correctly modeled as a comped subscription with no PayPal object attached at all.
+
+**Implementation**: `PayPalBillingService.CreateSubscriptionAsync` now detects this exact case (`RecurringDurationCycles == null` and both the discounted recurring price and effective setup fee are ≤ $0) and skips `GetOrCreatePromoPlanIdAsync` entirely. `BeginPaidChangeAsync` then short-circuits before ever attempting a PayPal call and calls the same `ActivateSubscriptionBillingAsync` helper a real PayPal payment confirmation would call — so invoice creation, promo redemption recording, and paid-invoice email all go through the identical path a paid subscription uses, just without waiting on a PayPal webhook. `PromotionCodesController`'s validation was loosened to match: a permanent 100%-off code can now be saved, but only when the setup fee is *also* fully discounted; a permanent code that zeroes the recurring price while a setup fee remains due is still blocked, since that combination genuinely can't be represented as one PayPal plan.
+
+**Known consequence, by design**: since the agent never goes through PayPal checkout for a fully-comped code, no payment method is ever collected. That's correct for a true free-forever comp — but if that code is later revoked or the agent is meant to convert to paying, they have no card on file and must go through a normal, non-promo Subscribe flow once to attach one.
+
+**Scope note**: this bypass only applies to `SubscriptionChangeType.Subscribe` (a fresh signup). A *temporary* 100%-off code (e.g. "first month free, then full price") is unaffected and still goes through PayPal's `TRIAL` → `REGULAR` billing-cycle mechanism as before, since that path still needs a real payment method on file for PayPal to auto-charge once the trial ends.
+
 ## Release Build Commands
 
 From the repository root:

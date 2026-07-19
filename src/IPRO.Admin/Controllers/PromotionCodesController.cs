@@ -74,10 +74,18 @@ public class PromotionCodesController : Controller
             {
                 var discountedMonthly = ComputeDiscountedAmount(restrictedPackage.MonthlyPrice, model.RecurringDiscountType, model.RecurringDiscountValue);
                 var discountedAnnual = ComputeDiscountedAmount(restrictedPackage.AnnualPrice, model.RecurringDiscountType, model.RecurringDiscountValue);
-                if (discountedMonthly <= 0 || discountedAnnual <= 0)
+                var effectiveSetupFee = model.SetupFeeDiscountType != PromoDiscountType.None
+                    ? ComputeDiscountedAmount(restrictedPackage.SetupFee, model.SetupFeeDiscountType, model.SetupFeeDiscountValue)
+                    : restrictedPackage.SetupFee;
+
+                // A permanent discount that zeroes out the recurring price is only supported when the setup
+                // fee is also fully discounted (a genuine "free forever" comp, activated without PayPal at all).
+                // If a setup fee would still be due, there's no way to represent "one-time paid, then free
+                // forever" as a single PayPal recurring plan.
+                if ((discountedMonthly <= 0 || discountedAnnual <= 0) && effectiveSetupFee > 0)
                 {
                     ModelState.AddModelError(nameof(model.RecurringDurationCycles),
-                        "A permanent discount can't bring the price to $0 or less — PayPal doesn't support a free-forever recurring plan. Set a limited duration instead (e.g. 1 for \"first cycle free\"), or reduce the discount.");
+                        "A permanent discount can't bring the recurring price to $0 or less while a setup fee is still due — PayPal doesn't support that combination. Either fully discount the setup fee too (a true free-forever comp), set a limited duration instead (e.g. 1 for \"first cycle free\"), or reduce the discount.");
                 }
             }
         }
