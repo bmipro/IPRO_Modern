@@ -260,6 +260,13 @@ Each starter pack should include:
 - Follow-up workflows.
 - Lead/contact forms.
 
+### Real estate vertical: IDX listings (not scoped yet)
+Real estate agents specifically need to display MLS listings on their site (IDX), which none of the other verticals require. Researched 2026-07-19; not yet designed or built. Costs show up at two separate layers:
+- **Raw MLS data feed (platform/vendor side)**: no single national feed exists — 500+ regional MLSs each control their own data. **MLS Grid** is the most practical aggregator for a multi-region SaaS (~180+ MLSs under one vendor contract, standardized RESO Web API), priced at ~$250/month per feed + $20/month per participating agent license. **Bridge Interactive (Zillow)** charges vendors nothing directly, but the underlying MLS can still charge its own fee, and IPRO would still bear RESO certification, legal review, and field-mapping engineering either way.
+- **Turnkey IDX widgets (agent side)**: providers like iHomefinder ($85–$500+/month) or IDX Broker sell a ready-made search widget an individual agent already embeds on their own site today, with zero MLS compliance burden on IPRO.
+
+**Recommendation**: build a "Listings" content block (same pattern as the existing Services/Testimonials blocks) that lets an agent paste in their existing iHomefinder/IDX Broker embed code — fast, low-risk MVP with no vendor agreement or RESO certification needed. Only pursue a native MLS Grid integration later, once real estate signups justify the vendor contract and compliance overhead; that path would let IDX listings live inside IPRO's own package tiers instead of requiring a separate per-agent third-party subscription.
+
 ### AI-assisted business tools
 - Generate website copy by vertical.
 - Generate newsletter drafts.
