@@ -9,3 +9,5 @@ publish-*-check/
 .vs/
 
 dotnet-tools.json
+
+appsettings.Development.json
