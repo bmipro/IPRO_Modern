@@ -154,7 +154,7 @@ public class StarterContentController : Controller
 
     private Task<List<BillingRule>> PackagesAsync() => _db.BillingRules.AsNoTracking().OrderBy(p => p.PackageName).ToListAsync();
     private static string NormalizeSlug(string value) => Regex.Replace(value.Trim().ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
-    private static string DefaultHeading(string type) => type switch { WebsiteBlockTypes.Hero => "Main headline", WebsiteBlockTypes.Services => "Services", WebsiteBlockTypes.CallToAction => "Ready to connect?", WebsiteBlockTypes.ContactForm => "Contact us", _ => "Content heading" };
+    private static string DefaultHeading(string type) => type switch { WebsiteBlockTypes.Hero => "Main headline", WebsiteBlockTypes.Services => "Services", WebsiteBlockTypes.CallToAction => "Ready to connect?", WebsiteBlockTypes.ContactForm => "Contact us", WebsiteBlockTypes.TestimonialForm => "Client testimonials", _ => "Content heading" };
     private static string SafeUrl(string? value) => Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri.ToString() : string.Empty;
     private static string SafeLink(string? value) { value = value?.Trim() ?? string.Empty; return value.StartsWith('/') ? value : SafeUrl(value); }
 }

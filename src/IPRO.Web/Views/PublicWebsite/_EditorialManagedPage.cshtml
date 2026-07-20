@@ -123,6 +123,10 @@
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="ep-section ep-cta"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2></div><div><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })</div></div></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){<section class="ep-section"><div class="ep-inner ep-contact"><div class="ep-heading"><div class="ep-kicker">Contact</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p><h3>@($"{agent.FirstName} {agent.LastName}".Trim())</h3><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<p><a href="tel:@agent.Phone">@agent.Phone</a></p>}</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>}
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
+  {
+    <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_TestimonialForm", new IPRO.Web.Models.TestimonialFormViewModel { PageId = Model.CurrentPage?.Id })</div>@if(Model.ApprovedTestimonials.Any()){<div>@foreach(var t in Model.ApprovedTestimonials){<blockquote class="ep-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}</div>}</div></section>
+  }
   else
   {
     var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);

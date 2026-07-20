@@ -136,6 +136,10 @@
   {
     <section class="mp-section mp-alt"><div class="mp-inner mp-split"><div><div class="mp-kicker">Contact</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><p>@block.Body</p><div class="mt-4"><strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div>@agent.CompanyName</div>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<div><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}</div></div><div class="mp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>
   }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
+  {
+    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_TestimonialForm", new IPRO.Web.Models.TestimonialFormViewModel { PageId = Model.CurrentPage?.Id })</div>@if(Model.ApprovedTestimonials.Any()){<div class="mp-quote-list">@foreach(var t in Model.ApprovedTestimonials){<div class="mp-quote-row"><i class="fas fa-quote-left"></i><div><div>@t.Body</div><div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></div></div>}</div>}</div></section>
+  }
   else
   {
     var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);

@@ -26,6 +26,7 @@ public static class HelpDocsService
         new HelpArticle("client-portal", "Client Portal: Login, Messages, Documents, and Appointments", "11_CLIENT_PORTAL.md"),
         new HelpArticle("agent-document-library", "Agent Document Library", "12_AGENT_DOCUMENT_LIBRARY.md"),
         new HelpArticle("social-posts", "Social Posts: Draft, Check Limits, and Track", "13_SOCIAL_MEDIA_POSTS.md"),
+        new HelpArticle("testimonials", "Testimonials: Collect, Review, and Approve", "15_TESTIMONIALS.md"),
     };
 
     public static IReadOnlyList<HelpArticle> GetArticles() => Articles;

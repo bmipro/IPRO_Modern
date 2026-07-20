@@ -196,8 +196,11 @@ Available block types include:
 - Contact form
 - Testimonials
 - Newsletter signup
+- Testimonial form
 
 Use the arrows to reorder blocks and the trash icon to remove one.
+
+**Testimonials** vs. **Testimonial form**: "Testimonials" is a simple static block — you write the quotes yourself, one per line. "Testimonial form" is a live public form: visitors submit their own testimonial, you review and approve it in the **Testimonials** queue (Agent Portal menu), and only approved ones appear on the page beneath the form. See [DOCS/15_TESTIMONIALS.md](15_TESTIMONIALS.md) for the full review workflow. Requires the Testimonial Manager package feature.
 
 ## Change a Block's Layout
 

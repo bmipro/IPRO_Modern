@@ -1,0 +1,91 @@
+@model IReadOnlyCollection<IPRO.Entities.TestimonialSubmission>
+@{
+    ViewData["Title"] = "Testimonials";
+    var status = (string)(ViewBag.Status ?? "pending");
+    string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
+    string StatusBadge(IPRO.Entities.TestimonialStatus s) => s switch
+    {
+        IPRO.Entities.TestimonialStatus.Approved => "bg-success-subtle text-success",
+        IPRO.Entities.TestimonialStatus.Rejected => "bg-danger-subtle text-danger",
+        _ => "bg-secondary-subtle text-secondary"
+    };
+    string Snippet(string body) => body.Length > 140 ? body[..140] + "…" : body;
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-quote-left me-2 text-primary"></i>Testimonials</h2>
+    <div class="text-muted">Review testimonials submitted through your website. Nothing appears publicly until you approve it.</div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-3">
+    <div class="btn-group flex-wrap" role="group">
+      <a class="btn @FilterClass("pending")" href="/Testimonials?status=pending">Pending</a>
+      <a class="btn @FilterClass("approved")" href="/Testimonials?status=approved">Approved</a>
+      <a class="btn @FilterClass("rejected")" href="/Testimonials?status=rejected">Rejected</a>
+      <a class="btn @FilterClass("all")" href="/Testimonials?status=all">All</a>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-3">
+    @if (!Model.Any())
+    {
+      <p class="text-muted small mb-0">No testimonials here.</p>
+    }
+    else
+    {
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr class="text-muted small text-uppercase">
+              <th>From</th>
+              <th>Testimonial</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var t in Model)
+            {
+              <tr>
+                <td>
+                  <div class="fw-semibold">@($"{t.FirstName} {t.LastName}".Trim())</div>
+                  <div class="small text-muted">@t.Email</div>
+                </td>
+                <td class="text-muted small">@Snippet(t.Body)</td>
+                <td><span class="badge rounded-pill @StatusBadge(t.Status)">@t.Status</span></td>
+                <td class="small text-muted">@t.SubmittedAt.ToString("MMM d, yyyy")</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-secondary" href="/Testimonials/Edit/@t.Id">Edit</a>
+                  @if (t.Status != IPRO.Entities.TestimonialStatus.Approved)
+                  {
+                    <form asp-action="Approve" asp-route-id="@t.Id" method="post" class="d-inline">
+                      @Html.AntiForgeryToken()
+                      <button type="submit" class="btn btn-sm btn-outline-success">Approve</button>
+                    </form>
+                  }
+                  @if (t.Status != IPRO.Entities.TestimonialStatus.Rejected)
+                  {
+                    <form asp-action="Reject" asp-route-id="@t.Id" method="post" class="d-inline">
+                      @Html.AntiForgeryToken()
+                      <button type="submit" class="btn btn-sm btn-outline-warning">Reject</button>
+                    </form>
+                  }
+                  <form asp-action="Delete" asp-route-id="@t.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete this testimonial?"><i class="fas fa-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

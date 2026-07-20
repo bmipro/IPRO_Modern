@@ -486,6 +486,15 @@ public class WebsitePagesController : Controller
         var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == pageId);
         if (page == null) return NotFound();
         if (!WebsiteBlockTypes.All.Contains(blockType)) blockType = WebsiteBlockTypes.Text;
+        if (blockType == WebsiteBlockTypes.TestimonialForm)
+        {
+            var testimonialAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.TestimonialManager);
+            if (!testimonialAccess.IsIncluded)
+            {
+                TempData["Error"] = testimonialAccess.UpgradeMessage;
+                return RedirectToAction(nameof(Edit), new { id = pageId });
+            }
+        }
         var order = await _db.WebsiteContentBlocks.CountAsync(b => b.WebsitePageId == pageId);
         _db.WebsiteContentBlocks.Add(NewBlock(pageId, blockType, order));
         await _db.SaveChangesAsync();
@@ -653,6 +662,7 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.ContactForm => "Contact us",
             WebsiteBlockTypes.Testimonials => "What clients say",
             WebsiteBlockTypes.NewsletterSignup => "Stay informed",
+            WebsiteBlockTypes.TestimonialForm => "Client testimonials",
             _ => "New content section"
         },
         Subheading = "Add a short supporting message.",

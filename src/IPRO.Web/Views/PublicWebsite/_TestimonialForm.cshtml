@@ -1,0 +1,71 @@
+@model IPRO.Web.Models.TestimonialFormViewModel
+@using Microsoft.AspNetCore.DataProtection
+@inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
+@{
+    var formId = $"testimonial-form-{Guid.NewGuid():N}";
+    var submitted = Context.Request.Query["submitted"].ToString();
+    var captchaLeft = Random.Shared.Next(2, 10);
+    var captchaRight = Random.Shared.Next(2, 10);
+    var publicReturnPath = Context.Items.TryGetValue("IproPublicPath", out var originalPath) && originalPath is string { Length: > 0 } originalPathValue
+        ? originalPathValue
+        : Context.Request.Path.ToString();
+    var captchaToken = DataProtectionProvider
+        .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
+        .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+}
+<div class="website-lead-form-shell">
+  @if (submitted == "testimonial")
+  {
+    <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> Thank you for taking the time to share your feedback. It will appear here once reviewed.</div>
+  }
+  else
+  {
+    @if (TempData["PublicFormError"] is string formError)
+    {
+      <div class="website-lead-error" role="alert">@formError</div>
+    }
+    <form id="@formId" method="post" action="/PublicWebsite/SubmitTestimonial" class="website-lead-form">
+      @Html.AntiForgeryToken()
+      <input type="hidden" name="PageId" value="@Model.PageId" />
+      <input type="hidden" name="ReturnPath" value="@publicReturnPath" />
+      <input type="hidden" name="FormStartedAt" value="@DateTimeOffset.UtcNow.ToUnixTimeSeconds()" />
+      <input type="hidden" name="CaptchaToken" value="@captchaToken" />
+      <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
+      <div class="website-lead-grid">
+        <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
+        <label><span>Last name</span><input name="LastName" maxlength="80" autocomplete="family-name" /></label>
+        <label><span>Email *</span><input type="email" name="Email" maxlength="200" autocomplete="email" required /></label>
+        <label class="website-lead-full"><span>Your testimonial *</span><textarea name="Body" maxlength="2000" rows="4" required></textarea></label>
+      </div>
+      <label class="website-lead-captcha">
+        <span>Security check *</span>
+        <span class="website-lead-captcha-row">
+          <span class="website-lead-captcha-question">What is @captchaLeft + @captchaRight?</span>
+          <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
+        </span>
+      </label>
+      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>I agree that this testimonial may be reviewed and published on this website.</span></label>
+      <button type="submit" class="website-lead-submit"><i class="fas fa-paper-plane"></i> Submit</button>
+    </form>
+  }
+</div>
+<style>
+  .website-lead-form-shell{width:100%;}
+  .website-lead-form{display:grid;gap:16px;}
+  .website-lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .website-lead-form label{display:grid;gap:6px;font:700 13px/1.4 Arial,sans-serif;color:inherit;}
+  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#17223a;font:400 15px/1.4 Arial,sans-serif;}
+  .website-lead-form input:focus,.website-lead-form textarea:focus{outline:3px solid color-mix(in srgb,var(--site-theme,#1457d9) 20%,transparent);border-color:var(--site-theme,#1457d9);}
+  .website-lead-full{grid-column:1/-1;}
+  .website-lead-captcha-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .website-lead-captcha-question{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:6px;background:color-mix(in srgb,var(--site-theme,#1457d9) 10%,#fff);border:1px solid color-mix(in srgb,var(--site-theme,#1457d9) 30%,#cbd5e1);font:800 14px Arial,sans-serif;color:#17223a;}
+  .website-lead-captcha input{max-width:110px;}
+  .website-lead-consent{display:flex!important;grid-template-columns:auto 1fr!important;align-items:start;gap:9px!important;font-weight:400!important;}
+  .website-lead-consent input{margin-top:3px;}
+  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:0;border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:#fff;font:800 14px Arial,sans-serif;}
+  .website-lead-success,.website-lead-error{padding:14px;border-radius:6px;font:700 14px/1.5 Arial,sans-serif;}
+  .website-lead-success{background:#dcfce7;color:#166534;border:1px solid #86efac;}
+  .website-lead-error{margin-bottom:12px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .website-lead-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
+  @@media(max-width:640px){.website-lead-grid{grid-template-columns:1fr}.website-lead-full{grid-column:auto}}
+</style>

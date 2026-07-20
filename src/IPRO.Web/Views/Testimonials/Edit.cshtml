@@ -1,0 +1,46 @@
+@model IPRO.Entities.TestimonialSubmission
+@{
+    ViewData["Title"] = "Edit Testimonial";
+    string StatusBadge(IPRO.Entities.TestimonialStatus s) => s switch
+    {
+        IPRO.Entities.TestimonialStatus.Approved => "bg-success-subtle text-success",
+        IPRO.Entities.TestimonialStatus.Rejected => "bg-danger-subtle text-danger",
+        _ => "bg-secondary-subtle text-secondary"
+    };
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-quote-left me-2 text-primary"></i>Edit Testimonial</h2>
+  <div class="text-muted">
+    Submitted @Model.SubmittedAt.ToString("MMM d, yyyy") by @Model.Email &middot;
+    <span class="badge rounded-pill @StatusBadge(Model.Status)">@Model.Status</span>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <form asp-action="Edit" method="post">
+      @Html.AntiForgeryToken()
+      <input type="hidden" asp-for="Id"/>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">First name</label>
+          <input asp-for="FirstName" class="form-control" maxlength="100"/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Last name</label>
+          <input asp-for="LastName" class="form-control" maxlength="100"/>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Testimonial text</label>
+        <textarea asp-for="Body" class="form-control" rows="6" required></textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Save Changes</button>
+        <a href="/Testimonials" class="btn btn-link">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>

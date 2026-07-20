@@ -9,10 +9,11 @@ public static class WebsiteBlockTypes
     public const string ContactForm = "ContactForm";
     public const string Testimonials = "Testimonials";
     public const string NewsletterSignup = "NewsletterSignup";
+    public const string TestimonialForm = "TestimonialForm";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, Testimonials, NewsletterSignup
+        Hero, Text, Services, CallToAction, ContactForm, Testimonials, NewsletterSignup, TestimonialForm
     };
 }
 

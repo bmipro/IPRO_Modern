@@ -208,6 +208,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureClientLifeEventSchemaAsync(db);
     await EnsureAgentDocumentSchemaAsync(db);
     await EnsureSocialPostSchemaAsync(db);
+    await EnsureTestimonialSubmissionSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -791,6 +792,23 @@ CREATE TABLE IF NOT EXISTS `SocialPostDrafts` (
     `PostedAt` datetime(6) NULL,
     `CreatedAt` datetime(6) NOT NULL,
     `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureTestimonialSubmissionSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TestimonialSubmissions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `FirstName` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `LastName` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Email` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Body` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `Status` int NOT NULL DEFAULT 0,
+    `SubmittedAt` datetime(6) NOT NULL,
+    `ReviewedAt` datetime(6) NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
 }

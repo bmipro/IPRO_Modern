@@ -240,6 +240,72 @@ public class PublicWebsiteController : Controller
         return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitTestimonial(TestimonialFormViewModel model)
+    {
+        var returnPath = NormalizeReturnPath(model.ReturnPath);
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        if (website == null)
+        {
+            return NotFound();
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.HoneypotField))
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, returnPath);
+            return LocalRedirect(AddResult(returnPath, "submitted", "testimonial"));
+        }
+
+        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
+        if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
+            TempData["PublicFormError"] = "Please refresh the page and try the form again.";
+            return LocalRedirect(returnPath);
+        }
+
+        if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Captcha, returnPath);
+            TempData["PublicFormError"] = "Please complete the security check and try again.";
+            return LocalRedirect(returnPath);
+        }
+
+        model.FirstName = model.FirstName?.Trim() ?? string.Empty;
+        model.LastName = model.LastName?.Trim() ?? string.Empty;
+        model.Email = (model.Email?.Trim() ?? string.Empty).ToLowerInvariant();
+        model.Body = model.Body?.Trim() ?? string.Empty;
+
+        if (!ModelState.IsValid || !model.ConsentGiven)
+        {
+            TempData["PublicFormError"] = "Please provide your name, a valid email address, your testimonial, and consent so it can be reviewed.";
+            return LocalRedirect(returnPath);
+        }
+
+        var duplicateCutoff = DateTime.UtcNow.AddMinutes(-5);
+        if (await _db.TestimonialSubmissions.AnyAsync(t =>
+                t.AgentUserId == website.AgentUserId &&
+                t.Email == model.Email &&
+                t.SubmittedAt >= duplicateCutoff))
+        {
+            return LocalRedirect(AddResult(returnPath, "submitted", "testimonial"));
+        }
+
+        _db.TestimonialSubmissions.Add(new TestimonialSubmission
+        {
+            AgentUserId = website.AgentUserId,
+            FirstName = model.FirstName,
+            LastName = model.LastName,
+            Email = model.Email,
+            Body = model.Body,
+            Status = TestimonialStatus.Pending,
+            SubmittedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        return LocalRedirect(AddResult(returnPath, "submitted", "testimonial"));
+    }
+
     private async Task<IActionResult> RenderPageAsync(string? slug)
     {
         var host = NormalizeHost(Request.Host.Host);
@@ -323,11 +389,19 @@ public class PublicWebsiteController : Controller
 
         await TrackPageViewAsync(website, currentPage);
 
+        var approvedTestimonials = currentPage?.Blocks.Any(b => b.BlockType == WebsiteBlockTypes.TestimonialForm) == true
+            ? await _db.TestimonialSubmissions
+                .Where(t => t.AgentUserId == website.AgentUserId && t.Status == TestimonialStatus.Approved)
+                .OrderByDescending(t => t.ReviewedAt)
+                .ToListAsync()
+            : new List<TestimonialSubmission>();
+
         return View("Index", new PublicWebsiteViewModel
         {
             Website = website,
             Pages = pages,
-            CurrentPage = currentPage
+            CurrentPage = currentPage,
+            ApprovedTestimonials = approvedTestimonials
         });
     }
 

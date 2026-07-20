@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: July 19, 2026
+Last updated: July 20, 2026
 
 ## Standing Convention: Every Paid Feature Must Be Package-Gated
 
@@ -132,9 +132,9 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Social media posting/management (done — see item 18: a content composer/tracker exists; live auto-publishing to specific platforms is a separate, larger future item — see "Reputation and social media" below).
 - Formal backup/release checklist (done — see `DOCS/14_BACKUP_AND_RELEASE_CHECKLIST.md`: documents the actual current backup process — git + a dated OneDrive snapshot + folding decisions into existing docs — and the release process, including honestly-flagged gaps like no staging slot and no scripted rollback).
 - Broader admin audit logging (done — see item 19: now covers every meaningful mutating action across the Super Admin portal, plus a real Audit Log viewer with filters).
+- Testimonial module (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: a new **Testimonial form** website block lets any visitor submit a testimonial through an open public form (reusing the hardened honeypot/timing/CAPTCHA anti-spam pipeline); agents review, edit, approve, or reject submissions in a new **Testimonials** queue in the Agent Portal; approved ones display below the form on the same page. Kept as a separate block type from the existing static Testimonials block, which is untouched).
 
 ### Proposed agent-value features (not scoped yet)
-- **Testimonial module.** Today the website's Testimonials block is just manually typed text. A real module would let an agent send a client a short request link, the client submits a quote (and optionally a star rating/photo) through a public form, the agent approves/rejects it in the portal, and approved testimonials feed the existing Testimonials block automatically instead of copy-paste. A natural first slice of the "Reputation and social media" idea below.
 - **Poll/survey system.** Let an agent build a short poll (one or a few questions), send it to their client list the same way a newsletter goes out, and view results in the portal, with a public voting page for recipients. Reuses the existing client-list segmentation and email-send infrastructure rather than building new plumbing.
 - **Lead-magnet download block** (recommended). Let an agent attach a downloadable resource (PDF guide, checklist) to a page, gated behind the existing public lead-capture form, so a visitor trades contact info for the download. Reuses the WebsiteLead pipeline and file-upload infrastructure end to end.
 - **External review widget** (recommended). A much smaller first step than a full review-request system: let an agent paste their Google/Facebook review page link and show an embeddable ratings badge on their site. Immediate trust-signal value without building a full request-and-moderate pipeline.
@@ -262,6 +262,13 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - A new **Audit Log** screen (Super Admin only) shows every entry, filterable by acting admin, action/detail text search, and date range, paginated.
 - The pre-existing, separate per-agent `OperateLogs` history (a different, older mechanism) is untouched — both now run side by side.
 
+### 20. Add a testimonial collection module (done)
+- New **Testimonial form** website block (distinct from the pre-existing static Testimonials block, which is untouched): an open public form where any visitor submits a testimonial, protected by the same hardened honeypot/timing/math-CAPTCHA anti-spam pipeline already used on the contact form.
+- New **Testimonials** area in the Agent Portal: a Pending/Approved/Rejected/All queue, an Edit screen to adjust wording before publishing, and Approve/Reject/Delete actions. Nothing shows publicly until an agent approves it.
+- Approved testimonials render automatically below the form on the same public page, across all three template families (Modern Professional, Classic Sidebar, Editorial Visual).
+- Makes the legacy `PackageFeatureCodes.TestimonialManager` checkbox genuinely functional for the first time — it was already seeded as included for every package but had zero enforcement anywhere in the code.
+- Built as a new `TestimonialSubmission` entity/table rather than repurposing the pre-existing, unused `Testimonial` entity discovered mid-build: that old table's columns are `NOT NULL` with no default in the live schema, so a straight rename risked INSERT failures against unknown historical row state. Safer to add a fresh table and leave the dormant one alone.
+
 ## Bigger Product Ideas
 
 ### Agent invoicing and billing system (v1 done — see item 13 below)
@@ -336,9 +343,8 @@ Full two-way sync between an agent's own Google Calendar and the Agent Portal Ca
 - Still open: the OAuth consent screen is in Testing mode (max 100 manually-added test users) and the Google Cloud project is still owned by a personal account rather than a dedicated one — see the production-readiness notes for the path to full public availability (Google app verification/review) and account ownership handoff.
 
 ### Reputation and social media
-- Request reviews from clients.
-- Track review status.
-- Publish social posts.
+- Collect and approve testimonials (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: open public submission form + agent review queue). Still open: a targeted "send this specific client a request link" flow, star ratings, and photo upload were considered but deferred — today's version is an open form only.
+- Publish social posts (done — see item 18: draft/track composer; live auto-publishing directly to a platform is still a separate, larger future item).
 - Reuse newsletter/page content as social content.
 - Campaign calendar for email and social.
 
