@@ -17,6 +17,7 @@
   @if (submitted == "testimonial")
   {
     <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> Thank you for taking the time to share your feedback. It will appear here once reviewed.</div>
+    <script>(function(){var u=new URL(location.href);u.searchParams.delete('submitted');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
   }
   else
   {

@@ -19,6 +19,7 @@
   @if (submitted == expectedResult)
   {
     <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : "Thank you. Your message was sent to the adviser.")</div>
+    <script>(function(){var u=new URL(location.href);u.searchParams.delete('submitted');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
   }
   else
   {
