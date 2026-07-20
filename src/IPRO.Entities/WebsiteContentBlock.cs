@@ -9,15 +9,17 @@ public static class WebsiteBlockTypes
     public const string ContactForm = "ContactForm";
     public const string NewsletterSignup = "NewsletterSignup";
     public const string TestimonialForm = "TestimonialForm";
+    public const string PollResults = "PollResults";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults
     };
 
     public static string DisplayName(string type) => type switch
     {
         TestimonialForm => "Testimonial Submission Form",
+        PollResults => "Poll Results",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

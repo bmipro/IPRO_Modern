@@ -8,4 +8,5 @@ public class PublicWebsiteViewModel
     public List<WebsitePage> Pages { get; set; } = new();
     public WebsitePage? CurrentPage { get; set; }
     public List<TestimonialSubmission> ApprovedTestimonials { get; set; } = new();
+    public Dictionary<int, PollResultsBlockData> PollResultsByBlockId { get; set; } = new();
 }

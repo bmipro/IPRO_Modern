@@ -265,11 +265,16 @@ public class WebsitePagesController : Controller
         var page = await OwnedPages().Include(p => p.Blocks).FirstOrDefaultAsync(p => p.Id == id);
         if (page == null) return NotFound();
         page.Blocks = page.Blocks.OrderBy(b => b.SortOrder).ToList();
+        var sentPolls = await _db.PollSurveys
+            .Where(s => s.AgentUserId == AgentId && s.Status != PollSurveyStatus.Draft)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync();
         return View(new WebsitePageEditViewModel
         {
             Page = page,
             AvailableParents = await GetParentChoicesAsync(page.AgentWebsiteId, page.Id),
-            MediaAssets = await GetMediaAssetsAsync(page.AgentWebsiteId)
+            MediaAssets = await GetMediaAssetsAsync(page.AgentWebsiteId),
+            AvailableSentPolls = sentPolls
         });
     }
 
@@ -495,6 +500,15 @@ public class WebsitePagesController : Controller
                 return RedirectToAction(nameof(Edit), new { id = pageId });
             }
         }
+        if (blockType == WebsiteBlockTypes.PollResults)
+        {
+            var pollAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.PollSurveys);
+            if (!pollAccess.IsIncluded)
+            {
+                TempData["Error"] = pollAccess.UpgradeMessage;
+                return RedirectToAction(nameof(Edit), new { id = pageId });
+            }
+        }
         var order = await _db.WebsiteContentBlocks.CountAsync(b => b.WebsitePageId == pageId);
         _db.WebsiteContentBlocks.Add(NewBlock(pageId, blockType, order));
         await _db.SaveChangesAsync();
@@ -506,7 +520,8 @@ public class WebsitePagesController : Controller
     public async Task<IActionResult> UpdateBlock(int id, string heading, string subheading, string body,
         string imageUrl, string buttonText, string buttonUrl, bool isVisible,
         string heroLayout = "split", string imagePosition = "center", string textAlignment = "left",
-        string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "")
+        string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
+        int pollSurveyId = 0)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -529,6 +544,14 @@ public class WebsitePagesController : Controller
                 TextAlignment = textAlignment,
                 Height = bannerHeight,
                 OverlayStrength = overlayStrength
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.PollResults)
+        {
+            var pollBelongsToAgent = pollSurveyId > 0 && await _db.PollSurveys.AnyAsync(s => s.Id == pollSurveyId && s.AgentUserId == AgentId);
+            block.SettingsJson = new WebsitePollResultsSettings
+            {
+                PollSurveyId = pollBelongsToAgent ? pollSurveyId : 0
             }.ToJson();
         }
         block.UpdatedAt = DateTime.UtcNow;

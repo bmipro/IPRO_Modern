@@ -100,6 +100,13 @@
   {
     <section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:640px">@await Html.PartialAsync("_TestimonialForm", new IPRO.Web.Models.TestimonialFormViewModel { PageId = Model.CurrentPage?.Id })</div>@if(Model.ApprovedTestimonials.Any()){@foreach(var t in Model.ApprovedTestimonials){<blockquote class="cp-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}}</section>
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PollResults)
+  {
+    if(Model.PollResultsByBlockId.TryGetValue(block.Id, out var classicPollData))
+    {
+      <section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@(string.IsNullOrWhiteSpace(block.Heading) ? classicPollData.Title : block.Heading)</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:640px">@await Html.PartialAsync("_PollResults", classicPollData)</div></section>
+    }
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
   {
     if(block.LayoutVariant == "card")

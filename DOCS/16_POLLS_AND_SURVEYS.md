@@ -35,6 +35,10 @@ Each recipient gets one vote. Reopening the same link after submitting shows a "
 
 Once a recipient submits (or reopens a link they've already used), they're shown a thank-you message and, if the agent's website is published, automatically taken there a few seconds later — with a "go now" link for anyone who doesn't want to wait.
 
+## Publishing Results on Your Website
+
+Add a **Poll Results** block to any page in the Website Builder, then pick which sent poll it should show. The block stays hidden on your live site until that poll has at least 10 responses — enough that no single answer can be traced back to one client — then displays the live percentage breakdown for each question, updating automatically as more people respond.
+
 ## Deleting a Poll
 
 Only polls that are still Drafts (never sent) can be deleted. Once a poll has an actual send — even a cancelled one — it's kept permanently so its results stay available.

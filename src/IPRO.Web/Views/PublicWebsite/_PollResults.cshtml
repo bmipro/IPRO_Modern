@@ -1,0 +1,17 @@
+@model IPRO.Web.Models.PollResultsBlockData
+<div class="poll-results-block">
+  @foreach (var question in Model.Questions)
+  {
+    <div class="poll-results-question mb-3">
+      <div class="fw-semibold mb-2">@question.Text</div>
+      @foreach (var option in question.Options)
+      {
+        <div class="poll-results-option mb-2">
+          <div class="d-flex justify-content-between small mb-1"><span>@option.Text</span><span class="text-muted">@option.Percent%</span></div>
+          <div class="progress" style="height:8px;"><div class="progress-bar" role="progressbar" style="width:@(option.Percent)%" aria-valuenow="@option.Percent" aria-valuemin="0" aria-valuemax="100"></div></div>
+        </div>
+      }
+    </div>
+  }
+  <div class="small text-muted mt-2">@Model.TotalResponded response@(Model.TotalResponded == 1 ? "" : "s")</div>
+</div>

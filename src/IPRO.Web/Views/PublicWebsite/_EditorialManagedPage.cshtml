@@ -109,6 +109,13 @@
   {
     <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_TestimonialForm", new IPRO.Web.Models.TestimonialFormViewModel { PageId = Model.CurrentPage?.Id })</div>@if(Model.ApprovedTestimonials.Any()){<div>@foreach(var t in Model.ApprovedTestimonials){<blockquote class="ep-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}</div>}</div></section>
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PollResults)
+  {
+    if(Model.PollResultsByBlockId.TryGetValue(block.Id, out var editorialPollData))
+    {
+      <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@(string.IsNullOrWhiteSpace(block.Heading) ? editorialPollData.Title : block.Heading)</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_PollResults", editorialPollData)</div></div></section>
+    }
+  }
   else
   {
     var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);

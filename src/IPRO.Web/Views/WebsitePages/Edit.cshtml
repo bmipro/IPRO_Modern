@@ -258,6 +258,28 @@
               <div class="col-md-6"><label class="form-label fw-semibold">Text readability over image</label><select name="overlayStrength" class="form-select"><option value="0" selected="@(heroSettings.OverlayStrength <= 0)">None</option><option value="25" selected="@(heroSettings.OverlayStrength > 0 && heroSettings.OverlayStrength <= 35)">Light</option><option value="50" selected="@(heroSettings.OverlayStrength > 35 && heroSettings.OverlayStrength < 70)">Medium</option><option value="80" selected="@(heroSettings.OverlayStrength >= 70)">Strong</option></select><div class="form-text">Adds shading behind banner text so it stays readable on photos.</div></div>
             </div></div></div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PollResults)
+          {
+            var pollSettings = IPRO.Entities.WebsitePollResultsSettings.FromJson(block.SettingsJson);
+            <div class="col-12">
+              <label class="form-label fw-semibold">Which poll?</label>
+              @if (Model.AvailableSentPolls.Any())
+              {
+                <select name="pollSurveyId" class="form-select">
+                  <option value="0">Choose a poll...</option>
+                  @foreach (var poll in Model.AvailableSentPolls)
+                  {
+                    <option value="@poll.Id" selected="@(pollSettings.PollSurveyId == poll.Id ? "selected" : null)">@poll.Title (@poll.TotalResponded response@(poll.TotalResponded == 1 ? "" : "s"))</option>
+                  }
+                </select>
+                <div class="form-text">Hidden on your live site until the chosen poll has at least 10 responses, to keep answers anonymous.</div>
+              }
+              else
+              {
+                <div class="alert alert-info mb-0">Send a poll first, then come back here to display its results.</div>
+              }
+            </div>
+          }
           <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><button class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div>
         </div>
       </form>
