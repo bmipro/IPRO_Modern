@@ -18,6 +18,26 @@ public class PollVoteController : Controller
         _db = db;
     }
 
+    private async Task<string?> ResolveAgentSiteUrlAsync(int agentUserId)
+    {
+        var website = await _db.AgentWebsites.FirstOrDefaultAsync(w => w.AgentUserId == agentUserId);
+        if (website == null || !website.IsPublished) return null;
+
+        var boundDomain = await _db.AgentDomains
+            .Where(d => d.AgentUserId == agentUserId && d.IsPrimary && d.AzureBindingStatus == AgentDomainStatus.Bound)
+            .FirstOrDefaultAsync();
+        if (boundDomain != null && !string.IsNullOrWhiteSpace(boundDomain.DomainName))
+        {
+            return $"https://{boundDomain.DomainName}";
+        }
+
+        // AgentUser.DomainName already stores the full temporary domain (e.g. "janedoe.247advisers.com").
+        var agentUser = await _db.AgentUsers.FirstOrDefaultAsync(u => u.Id == agentUserId);
+        if (agentUser == null || string.IsNullOrWhiteSpace(agentUser.DomainName)) return null;
+
+        return $"https://{agentUser.DomainName}";
+    }
+
     [HttpGet]
     public async Task<IActionResult> Vote(string token)
     {
@@ -35,16 +55,17 @@ public class PollVoteController : Controller
             return View();
         }
 
-        if (recipient.Status == PollRecipientStatus.Responded)
-        {
-            ViewBag.State = "already-voted";
-            return View();
-        }
-
         var survey = await _db.PollSurveys.FirstOrDefaultAsync(s => s.Id == recipient.PollSurveyId);
         if (survey == null)
         {
             ViewBag.State = "invalid";
+            return View();
+        }
+
+        if (recipient.Status == PollRecipientStatus.Responded)
+        {
+            ViewBag.State = "already-voted";
+            ViewBag.AgentSiteUrl = await ResolveAgentSiteUrlAsync(survey.AgentUserId);
             return View();
         }
 
@@ -74,16 +95,17 @@ public class PollVoteController : Controller
             return View();
         }
 
-        if (recipient.Status == PollRecipientStatus.Responded)
-        {
-            ViewBag.State = "already-voted";
-            return View();
-        }
-
         var survey = await _db.PollSurveys.FirstOrDefaultAsync(s => s.Id == recipient.PollSurveyId);
         if (survey == null)
         {
             ViewBag.State = "invalid";
+            return View();
+        }
+
+        if (recipient.Status == PollRecipientStatus.Responded)
+        {
+            ViewBag.State = "already-voted";
+            ViewBag.AgentSiteUrl = await ResolveAgentSiteUrlAsync(survey.AgentUserId);
             return View();
         }
 
@@ -136,6 +158,7 @@ public class PollVoteController : Controller
         await _db.SaveChangesAsync();
 
         ViewBag.State = "submitted";
+        ViewBag.AgentSiteUrl = await ResolveAgentSiteUrlAsync(survey.AgentUserId);
         return View();
     }
 }

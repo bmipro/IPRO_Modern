@@ -6,6 +6,8 @@
     var optionsByQuestion = ViewBag.OptionsByQuestion as Dictionary<int, List<IPRO.Entities.PollOption>> ?? new Dictionary<int, List<IPRO.Entities.PollOption>>();
     var token = ViewBag.Token as string ?? "";
     var error = ViewBag.Error as string;
+    var agentSiteUrl = ViewBag.AgentSiteUrl as string;
+    var redirectSeconds = 6;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -51,6 +53,10 @@
           <div class="display-6 text-primary mb-3"><i class="fas fa-circle-check"></i></div>
           <h1 class="h3 fw-bold">You've already responded</h1>
           <p class="text-muted mb-0">Thanks again for sharing your answers to this poll.</p>
+          @if (!string.IsNullOrWhiteSpace(agentSiteUrl))
+          {
+            <p class="text-muted small mt-3 mb-0">Taking you back in <span id="redirect-countdown">@redirectSeconds</span>s, or <a href="@agentSiteUrl">go now</a>.</p>
+          }
         </div>
       }
       else if (state == "submitted")
@@ -59,6 +65,10 @@
           <div class="display-6 text-success mb-3"><i class="fas fa-circle-check"></i></div>
           <h1 class="h3 fw-bold">Thank you!</h1>
           <p class="text-muted mb-0">Your responses have been recorded.</p>
+          @if (!string.IsNullOrWhiteSpace(agentSiteUrl))
+          {
+            <p class="text-muted small mt-3 mb-0">Taking you back in <span id="redirect-countdown">@redirectSeconds</span>s, or <a href="@agentSiteUrl">go now</a>.</p>
+          }
         </div>
       }
       else
@@ -96,5 +106,22 @@
       }
     </div>
   </main>
+  @if (!string.IsNullOrWhiteSpace(agentSiteUrl) && (state == "submitted" || state == "already-voted"))
+  {
+    <script>
+      (function () {
+        var seconds = @redirectSeconds;
+        var el = document.getElementById('redirect-countdown');
+        var timer = setInterval(function () {
+          seconds -= 1;
+          if (el) el.textContent = seconds;
+          if (seconds <= 0) {
+            clearInterval(timer);
+            window.location.href = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(agentSiteUrl));
+          }
+        }, 1000);
+      })();
+    </script>
+  }
 </body>
 </html>

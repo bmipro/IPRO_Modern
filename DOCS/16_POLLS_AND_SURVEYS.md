@@ -31,6 +31,10 @@ Once a poll has been sent, a **Results** link appears. It shows, per question, h
 
 Each recipient gets one vote. Reopening the same link after submitting shows a "you've already responded" message instead of the form.
 
+## After Voting
+
+Once a recipient submits (or reopens a link they've already used), they're shown a thank-you message and, if the agent's website is published, automatically taken there a few seconds later — with a "go now" link for anyone who doesn't want to wait.
+
 ## Deleting a Poll
 
 Only polls that are still Drafts (never sent) can be deleted. Once a poll has an actual send — even a cancelled one — it's kept permanently so its results stay available.
