@@ -194,20 +194,18 @@ Available block types include:
 - Services
 - Call to action
 - Contact form
-- Testimonials
 - Newsletter signup
-- Testimonial form
+- Testimonial Submission Form
 
 Use the arrows to reorder blocks and the trash icon to remove one.
 
-**Testimonials** vs. **Testimonial form**: "Testimonials" is a simple static block — you write the quotes yourself, one per line. "Testimonial form" is a live public form: visitors submit their own testimonial, you review and approve it in the **Testimonials** queue (Agent Portal menu), and only approved ones appear on the page beneath the form. See [DOCS/15_TESTIMONIALS.md](15_TESTIMONIALS.md) for the full review workflow. Requires the Testimonial Manager package feature.
+**Testimonial Submission Form** is a live public form: visitors submit their own testimonial, you review and approve it in the **Testimonials** queue (Agent Portal menu), and only approved ones appear on the page beneath the form. See [DOCS/15_TESTIMONIALS.md](15_TESTIMONIALS.md) for the full review workflow. Requires the Testimonial Manager package feature.
 
 ## Change a Block's Layout
 
-Services, Testimonials, and Call to Action blocks offer a **Layout** dropdown independent of your selected template:
+Services and Call to Action blocks offer a **Layout** dropdown independent of your selected template:
 
 - **Services**: Cards, List, or Icons.
-- **Testimonials**: Grid, Featured Quote, or List.
 - **Call to Action**: Banner, Card, or Split.
 
 Leave **Match template default** to use the arrangement your selected template normally uses for that block type. Changing the layout only affects that one block; other blocks and pages are unaffected. Save the block after changing its layout.

@@ -95,24 +95,6 @@
       }
     </div></section>
   }
-  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
-  {
-    var items = block.Body.Split(new[]{'\r','\n'}, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">Client stories</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>
-      @if(block.LayoutVariant == "featured" && items.Length > 0)
-      {
-        <blockquote class="mp-featured-quote"><i class="fas fa-quote-left"></i><p>@items[0]</p></blockquote>
-      }
-      else if(block.LayoutVariant == "grid")
-      {
-        <div class="mp-grid">@foreach(var item in items){<div class="mp-card"><i class="fas fa-quote-left"></i><div class="fw-bold">@item</div></div>}</div>
-      }
-      else
-      {
-        <div class="mp-quote-list">@foreach(var item in items){<div class="mp-quote-row"><i class="fas fa-quote-left"></i><div>@item</div></div>}</div>
-      }
-    </div></section>
-  }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
   {
     if(block.LayoutVariant == "banner")

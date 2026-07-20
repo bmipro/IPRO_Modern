@@ -498,7 +498,7 @@ public class WebsitePagesController : Controller
         var order = await _db.WebsiteContentBlocks.CountAsync(b => b.WebsitePageId == pageId);
         _db.WebsiteContentBlocks.Add(NewBlock(pageId, blockType, order));
         await _db.SaveChangesAsync();
-        TempData["Success"] = $"{SplitName(blockType)} block added.";
+        TempData["Success"] = $"{WebsiteBlockTypes.DisplayName(blockType)} block added.";
         return RedirectToAction(nameof(Edit), new { id = pageId });
     }
 
@@ -643,10 +643,10 @@ public class WebsitePagesController : Controller
     {
         return starterPreset.ToLowerInvariant() switch
         {
-            "about" => new[] { WebsiteBlockTypes.Text, WebsiteBlockTypes.Testimonials, WebsiteBlockTypes.CallToAction },
+            "about" => new[] { WebsiteBlockTypes.Text, WebsiteBlockTypes.CallToAction },
             "services" => new[] { WebsiteBlockTypes.Hero, WebsiteBlockTypes.Services, WebsiteBlockTypes.CallToAction },
             "contact" => new[] { WebsiteBlockTypes.Hero, WebsiteBlockTypes.ContactForm },
-            "landing" => new[] { WebsiteBlockTypes.Hero, WebsiteBlockTypes.Services, WebsiteBlockTypes.Testimonials, WebsiteBlockTypes.CallToAction },
+            "landing" => new[] { WebsiteBlockTypes.Hero, WebsiteBlockTypes.Services, WebsiteBlockTypes.CallToAction },
             _ => new[] { isHomePage ? WebsiteBlockTypes.Hero : WebsiteBlockTypes.Text }
         };
     }
@@ -660,7 +660,6 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.Services => "Our services",
             WebsiteBlockTypes.CallToAction => "Ready to connect?",
             WebsiteBlockTypes.ContactForm => "Contact us",
-            WebsiteBlockTypes.Testimonials => "What clients say",
             WebsiteBlockTypes.NewsletterSignup => "Stay informed",
             WebsiteBlockTypes.TestimonialForm => "Client testimonials",
             _ => "New content section"
@@ -711,5 +710,4 @@ public class WebsitePagesController : Controller
         if (value.StartsWith('/')) return value;
         return NormalizeUrl(value);
     }
-    private static string SplitName(string value) => Regex.Replace(value, "([a-z])([A-Z])", "$1 $2");
 }

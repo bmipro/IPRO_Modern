@@ -99,7 +99,7 @@
             <select id="uploadedImageTarget" class="form-select form-select-sm">
               @foreach (var targetBlock in sitePage.Blocks.OrderByDescending(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero).ThenBy(b => b.SortOrder))
               {
-                <option value="@targetBlock.Id">@System.Text.RegularExpressions.Regex.Replace(targetBlock.BlockType, "([a-z])([A-Z])", "$1 $2") - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
+                <option value="@targetBlock.Id">@IPRO.Entities.WebsiteBlockTypes.DisplayName(targetBlock.BlockType) - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
               }
             </select>
           </div>
@@ -141,7 +141,7 @@
               <select id="starterBannerTarget" class="form-select form-select-sm">
                 @foreach (var targetBlock in sitePage.Blocks.OrderByDescending(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero).ThenBy(b => b.SortOrder))
                 {
-                  <option value="@targetBlock.Id">@System.Text.RegularExpressions.Regex.Replace(targetBlock.BlockType, "([a-z])([A-Z])", "$1 $2") - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
+                  <option value="@targetBlock.Id">@IPRO.Entities.WebsiteBlockTypes.DisplayName(targetBlock.BlockType) - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
                 }
               </select>
             </div>
@@ -171,7 +171,7 @@
     <form method="post" action="/WebsitePages/AddBlock" class="d-flex gap-2">
       @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" />
       <select name="blockType" class="form-select">
-        @foreach (var type in Model.BlockTypes){<option value="@type">@System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")</option>}
+        @foreach (var type in Model.BlockTypes){<option value="@type">@IPRO.Entities.WebsiteBlockTypes.DisplayName(type)</option>}
       </select>
       <button class="btn btn-primary text-nowrap"><i class="fas fa-plus me-1"></i>Add Block</button>
     </form>
@@ -182,7 +182,7 @@
     var heroSettings = IPRO.Entities.WebsiteHeroSettings.FromJson(block.SettingsJson);
     <section class="card border-0 shadow-sm mb-3">
       <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 py-3">
-        <div><span class="badge bg-primary-subtle text-primary me-2">@System.Text.RegularExpressions.Regex.Replace(block.BlockType, "([a-z])([A-Z])", "$1 $2")</span><span class="fw-bold">@(string.IsNullOrWhiteSpace(block.Heading) ? "Untitled block" : block.Heading)</span></div>
+        <div><span class="badge bg-primary-subtle text-primary me-2">@IPRO.Entities.WebsiteBlockTypes.DisplayName(block.BlockType)</span><span class="fw-bold">@(string.IsNullOrWhiteSpace(block.Heading) ? "Untitled block" : block.Heading)</span></div>
         <div class="d-flex gap-1">
           <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="up" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button></form>
           <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
@@ -194,7 +194,7 @@
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div>
           <div class="col-md-6"><label class="form-label fw-semibold">Supporting Line</label><input name="subheading" value="@block.Subheading" class="form-control" /></div>
-          <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.Testimonials ? "Items (one per line)" : "Body")</label><textarea name="body" class="form-control" rows="4">@block.Body</textarea></div>
+          <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services ? "Items (one per line)" : "Body")</label><textarea name="body" class="form-control" rows="4">@block.Body</textarea></div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
             <select name="imageUrl" class="form-select" data-block-id="@block.Id">
@@ -226,7 +226,7 @@
           </div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
-          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.Testimonials or IPRO.Entities.WebsiteBlockTypes.CallToAction)
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction)
           {
             <div class="col-md-4">
               <label class="form-label fw-semibold">Layout</label>
@@ -237,12 +237,6 @@
                   <option value="cards" selected="@(block.LayoutVariant == "cards" ? "selected" : null)">Cards</option>
                   <option value="list" selected="@(block.LayoutVariant == "list" ? "selected" : null)">List</option>
                   <option value="icons" selected="@(block.LayoutVariant == "icons" ? "selected" : null)">Icons</option>
-                }
-                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
-                {
-                  <option value="grid" selected="@(block.LayoutVariant == "grid" ? "selected" : null)">Grid</option>
-                  <option value="featured" selected="@(block.LayoutVariant == "featured" ? "selected" : null)">Featured quote</option>
-                  <option value="list" selected="@(block.LayoutVariant == "list" ? "selected" : null)">List</option>
                 }
                 else
                 {

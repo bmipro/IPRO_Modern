@@ -4,12 +4,10 @@
 
 A way to collect client testimonials directly from your website and choose which ones appear publicly. A visitor fills out a short form on your site; you review what they wrote, edit it if needed, and approve or reject it. Nothing is ever shown on your site until you approve it.
 
-This is a separate feature from the plain **Testimonials** content block (where you type the quotes yourself). The **Testimonial form** block is the live, visitor-submitted version.
-
 ## Add the Form to Your Website
 
 1. Go to **My Website** > edit a page (or create one, e.g. a page called "Testimonials").
-2. Choose **Testimonial form** beside **Add Block**, then click **Add Block**.
+2. Choose **Testimonial Submission Form** beside **Add Block**, then click **Add Block**.
 3. Set a heading and any supporting text, then **Save Block**.
 4. Publish the page.
 
@@ -33,4 +31,4 @@ Approving or rejecting doesn't require re-editing first — you can act directly
 
 ## Package Availability
 
-Testimonials is included with every package. If a package removes access to it later, agents keep any testimonials already approved and visible on their site, but can no longer add new **Testimonial form** blocks or reach the review queue until they upgrade.
+Testimonials is included with every package. If a package removes access to it later, agents keep any testimonials already approved and visible on their site, but can no longer add new **Testimonial Submission Form** blocks or reach the review queue until they upgrade.

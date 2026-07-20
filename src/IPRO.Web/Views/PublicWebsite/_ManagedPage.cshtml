@@ -22,11 +22,6 @@
   {
     <section class="managed-block"><div class="managed-inner managed-contact"><div><div class="managed-eyebrow">Contact</div><h1 class="h1 fw-bold">@block.Heading</h1><p class="managed-subheading">@block.Subheading</p><p class="managed-copy">@block.Body</p></div><div class="managed-item"><strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div class="mt-2 text-muted">@agent.CompanyName</div>@if (!string.IsNullOrWhiteSpace(agent.Phone)){<div class="mt-3"><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}@if (!string.IsNullOrWhiteSpace(agent.Email)){<a class="managed-button" href="mailto:@agent.Email">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Send an email" : block.ButtonText)</a>}</div></div></section>
   }
-  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Testimonials)
-  {
-    var quotes = block.Body.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    <section class="managed-block"><div class="managed-inner"><div class="managed-eyebrow">Testimonials</div><h2 class="h1 fw-bold">@block.Heading</h2><p class="managed-subheading">@block.Subheading</p><div class="managed-grid">@foreach (var quote in quotes){<blockquote class="managed-item mb-0">&ldquo;@quote&rdquo;</blockquote>}</div></div></section>
-  }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup)
   {
     <section class="managed-block managed-cta"><div class="managed-inner"><h2 class="h1 fw-bold">@block.Heading</h2><p class="managed-subheading">@block.Subheading</p><a class="managed-button" href="mailto:@agent.Email?subject=Newsletter subscription request">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Subscribe" : block.ButtonText)</a></div></section>

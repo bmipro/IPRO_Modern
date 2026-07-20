@@ -263,7 +263,8 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - The pre-existing, separate per-agent `OperateLogs` history (a different, older mechanism) is untouched — both now run side by side.
 
 ### 20. Add a testimonial collection module (done)
-- New **Testimonial form** website block (distinct from the pre-existing static Testimonials block, which is untouched): an open public form where any visitor submits a testimonial, protected by the same hardened honeypot/timing/math-CAPTCHA anti-spam pipeline already used on the contact form.
+- New **Testimonial Submission Form** website block: an open public form where any visitor submits a testimonial, protected by the same hardened honeypot/timing/math-CAPTCHA anti-spam pipeline already used on the contact form.
+- The old, unrelated static **Testimonials** block (manually-typed quotes, no approval concept) was retired 2026-07-20 after confirming it had zero real usage — the whole project is still pre-launch/test-data-only. Removed the block type, its layout-variant options, and its rendering in all 3 templates rather than leaving dead functionality behind. The new block's dropdown label was also changed to **Testimonial Submission Form** (previously auto-generated as "Testimonial Form", which was too easy to confuse with the old block by name).
 - New **Testimonials** area in the Agent Portal: a Pending/Approved/Rejected/All queue, an Edit screen to adjust wording before publishing, and Approve/Reject/Delete actions. Nothing shows publicly until an agent approves it.
 - Approved testimonials render automatically below the form on the same public page, across all three template families (Modern Professional, Classic Sidebar, Editorial Visual).
 - Makes the legacy `PackageFeatureCodes.TestimonialManager` checkbox genuinely functional for the first time — it was already seeded as included for every package but had zero enforcement anywhere in the code.
