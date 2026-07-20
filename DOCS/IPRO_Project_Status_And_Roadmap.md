@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: July 18, 2026
+Last updated: July 19, 2026
 
 ## Standing Convention: Every Paid Feature Must Be Package-Gated
 
@@ -313,13 +313,14 @@ Secure login, messages, two-way documents, self-service "My Information," a real
 - Campaign preferences and unsubscribe controls surfaced inside the portal itself (today, unsubscribe still happens via the per-send/per-enrollment email links).
 - Payments taken directly inside the portal (today's Pay Now button still links out to the agent's own external payment link, same as the standalone invoicing feature).
 
-### Google Calendar sync (code done — live verification pending Google Cloud setup)
+### Google Calendar sync (done — verified live end-to-end 2026-07-19)
 Full two-way sync between an agent's own Google Calendar and the Agent Portal Calendar, opt-in per agent:
 - Connect/Disconnect flow (OAuth) from a new Calendar Source settings panel on My Profile; gated by a new togglable `GoogleCalendarSync` package feature Super Admin can enable on any package (defaults to off everywhere).
 - IPRO follow-ups push to the agent's connected Google Calendar automatically; events created or edited directly in Google sync back into the linked follow-up (a Hangfire job polling every ~15 minutes, not realtime push). Deleting a follow-up in IPRO removes the Google event immediately rather than waiting for the next sync cycle.
 - If a linked Google event is deleted directly in Google, IPRO unlinks the follow-up rather than deleting it — a follow-up is CRM history, not just a calendar block.
 - Non-client Google events (personal appointments, other meetings) show on the Agent Portal Calendar for context, distinguished from client follow-ups with a Google icon, but aren't tied to any client record and can't be marked complete.
-- Still needed before this is usable live: the user must provision a Google Cloud OAuth client (Client ID/Secret in Azure App Settings as `GoogleCalendar:ClientId`/`GoogleCalendar:ClientSecret`) and start Google's app-review process for the Calendar scope, since agents will see an "unverified app" warning until that review completes.
+- Live setup is done: Google Cloud OAuth client provisioned, Calendar API enabled, the `.../auth/calendar` scope registered on the OAuth consent screen's Data Access page (a separate step from creating the OAuth client — missing this caused a "not syncing" incident where the sync job ran cleanly but every Google API call failed; see `09_TROUBLESHOOTING.md`), and both directions (IPRO → Google, Google → IPRO) confirmed working live.
+- Still open: the OAuth consent screen is in Testing mode (max 100 manually-added test users) and the Google Cloud project is still owned by a personal account rather than a dedicated one — see the production-readiness notes for the path to full public availability (Google app verification/review) and account ownership handoff.
 
 ### Reputation and social media
 - Request reviews from clients.
