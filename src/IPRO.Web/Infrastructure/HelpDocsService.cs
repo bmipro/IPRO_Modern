@@ -27,6 +27,7 @@ public static class HelpDocsService
         new HelpArticle("agent-document-library", "Agent Document Library", "12_AGENT_DOCUMENT_LIBRARY.md"),
         new HelpArticle("social-posts", "Social Posts: Draft, Check Limits, and Track", "13_SOCIAL_MEDIA_POSTS.md"),
         new HelpArticle("testimonials", "Testimonials: Collect, Review, and Approve", "15_TESTIMONIALS.md"),
+        new HelpArticle("polls", "Polls and Surveys: Build, Send, and View Results", "16_POLLS_AND_SURVEYS.md"),
     };
 
     public static IReadOnlyList<HelpArticle> GetArticles() => Articles;

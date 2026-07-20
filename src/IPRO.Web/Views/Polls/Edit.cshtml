@@ -1,0 +1,135 @@
+@model IPRO.Web.Models.PollSurveyBuilderViewModel
+@{
+    ViewData["Title"] = "Edit Poll";
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-square-poll-vertical me-2 text-primary"></i>Edit Poll</h2>
+  <div class="text-muted">Add a title, an email intro, and one or more questions. Each question needs at least 2 answer options.</div>
+</div>
+
+<div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+<form asp-action="Edit" method="post" id="pollBuilderForm">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id"/>
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Poll Title</label>
+        <input asp-for="Title" class="form-control" maxlength="200"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Email Subject</label>
+        <input asp-for="Subject" class="form-control" maxlength="200"/>
+      </div>
+      <div class="mb-0">
+        <label class="form-label small fw-semibold text-muted">Intro Text</label>
+        <textarea asp-for="IntroText" class="form-control" rows="3"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div id="questionsContainer"></div>
+
+  <button type="button" id="addQuestionBtn" class="btn btn-outline-primary mb-4"><i class="fas fa-plus me-1"></i>Add Question</button>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Save Changes</button>
+    <a href="/Polls/Preview/@Model.Id" class="btn btn-link">Cancel</a>
+  </div>
+</form>
+
+<template id="questionTemplate">
+  <div class="card border-0 shadow-sm mb-3 question-card">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <label class="form-label small fw-semibold text-muted mb-0">Question</label>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-question-btn"><i class="fas fa-trash"></i></button>
+      </div>
+      <input type="text" class="form-control mb-3 question-text" maxlength="500" placeholder="How would you rate our service?"/>
+      <label class="form-label small fw-semibold text-muted">Answer Options (2 or more)</label>
+      <div class="options-container"></div>
+      <button type="button" class="btn btn-sm btn-outline-secondary add-option-btn mt-2"><i class="fas fa-plus me-1"></i>Add Option</button>
+    </div>
+  </div>
+</template>
+
+<template id="optionTemplate">
+  <div class="input-group mb-2 option-row">
+    <input type="text" class="form-control option-text" maxlength="300" placeholder="Answer option"/>
+    <button type="button" class="btn btn-outline-danger remove-option-btn"><i class="fas fa-times"></i></button>
+  </div>
+</template>
+
+@section Scripts {
+<script>
+(function () {
+  const container = document.getElementById('questionsContainer');
+  const questionTemplate = document.getElementById('questionTemplate');
+  const optionTemplate = document.getElementById('optionTemplate');
+  const form = document.getElementById('pollBuilderForm');
+
+  function addOption(optionsContainer, value) {
+    const node = optionTemplate.content.cloneNode(true);
+    const input = node.querySelector('.option-text');
+    input.value = value || '';
+    node.querySelector('.remove-option-btn').addEventListener('click', function () {
+      const row = this.closest('.option-row');
+      if (optionsContainer.querySelectorAll('.option-row').length > 2) {
+        row.remove();
+      }
+    });
+    optionsContainer.appendChild(node);
+  }
+
+  function addQuestion(text, options) {
+    const node = questionTemplate.content.cloneNode(true);
+    const card = node.querySelector('.question-card');
+    card.querySelector('.question-text').value = text || '';
+    const optionsContainer = card.querySelector('.options-container');
+    (options && options.length ? options : ['', '']).forEach(function (o) { addOption(optionsContainer, o); });
+
+    card.querySelector('.add-option-btn').addEventListener('click', function () { addOption(optionsContainer, ''); });
+    card.querySelector('.remove-question-btn').addEventListener('click', function () {
+      if (container.querySelectorAll('.question-card').length > 1) {
+        card.remove();
+      }
+    });
+    container.appendChild(node);
+  }
+
+  document.getElementById('addQuestionBtn').addEventListener('click', function () { addQuestion('', ['', '']); });
+
+  const initialQuestions = @Html.Raw(Json.Serialize(Model.Questions));
+  if (initialQuestions && initialQuestions.length) {
+    initialQuestions.forEach(function (q) { addQuestion(q.text, q.options); });
+  } else {
+    addQuestion('', ['', '']);
+  }
+
+  form.addEventListener('submit', function () {
+    document.querySelectorAll('input[name^="Questions["]').forEach(function (el) { el.remove(); });
+
+    const questionCards = container.querySelectorAll('.question-card');
+    questionCards.forEach(function (card, qIndex) {
+      const qText = card.querySelector('.question-text').value;
+      const qHidden = document.createElement('input');
+      qHidden.type = 'hidden';
+      qHidden.name = 'Questions[' + qIndex + '].Text';
+      qHidden.value = qText;
+      form.appendChild(qHidden);
+
+      const optionInputs = card.querySelectorAll('.option-text');
+      optionInputs.forEach(function (optInput, oIndex) {
+        const oHidden = document.createElement('input');
+        oHidden.type = 'hidden';
+        oHidden.name = 'Questions[' + qIndex + '].Options[' + oIndex + ']';
+        oHidden.value = optInput.value;
+        form.appendChild(oHidden);
+      });
+    });
+  });
+})();
+</script>
+}

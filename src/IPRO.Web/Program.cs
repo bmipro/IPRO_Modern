@@ -54,6 +54,7 @@ builder.Services.AddScoped<IClientInvoiceService, ClientInvoiceService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.AddScoped<NewsLetterDispatcher>();
+builder.Services.AddScoped<PollDispatcher>();
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
@@ -182,6 +183,7 @@ app.MapControllerRoute("default", "{controller=Dashboard}/{action=Index}/{id?}")
 app.MapHangfireDashboard("/hangfire", new DashboardOptions { IsReadOnlyFunc = _ => false });
 
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
+RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DripCampaignJob>("drip-campaigns", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<CalendarReminderJob>("calendar-reminders", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<SubscriptionBillingJob>("subscription-billing", job => job.RunAsync(), Cron.Hourly);
@@ -209,6 +211,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureAgentDocumentSchemaAsync(db);
     await EnsureSocialPostSchemaAsync(db);
     await EnsureTestimonialSubmissionSchemaAsync(db);
+    await EnsurePollSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -810,6 +813,108 @@ CREATE TABLE IF NOT EXISTS `TestimonialSubmissions` (
     `SubmittedAt` datetime(6) NOT NULL,
     `ReviewedAt` datetime(6) NULL,
     PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsurePollSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PollSurveys` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `Title` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `IntroText` varchar(2000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Status` int NOT NULL DEFAULT 0,
+    `ScheduledAt` datetime(6) NULL,
+    `SentAt` datetime(6) NULL,
+    `TotalRecipients` int NOT NULL DEFAULT 0,
+    `TotalSent` int NOT NULL DEFAULT 0,
+    `TotalFailed` int NOT NULL DEFAULT 0,
+    `TotalResponded` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_poll_surveys_agent` (`AgentUserId`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PollQuestions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `PollSurveyId` int NOT NULL,
+    `Text` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_poll_questions_survey` (`PollSurveyId`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PollOptions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `PollQuestionId` int NOT NULL,
+    `Text` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SortOrder` int NOT NULL DEFAULT 0,
+    PRIMARY KEY (`Id`),
+    KEY `idx_poll_options_question` (`PollQuestionId`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PollSends` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `PollSurveyId` int NOT NULL,
+    `AgentUserId` int NOT NULL,
+    `AudienceType` int NOT NULL DEFAULT 0,
+    `AudienceLabel` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `ClientCategoryId` int NULL,
+    `ClientId` int NULL,
+    `Status` int NOT NULL DEFAULT 0,
+    `ScheduledAt` datetime(6) NOT NULL,
+    `SentAt` datetime(6) NULL,
+    `TotalRecipients` int NOT NULL DEFAULT 0,
+    `TotalSent` int NOT NULL DEFAULT 0,
+    `TotalFailed` int NOT NULL DEFAULT 0,
+    `TotalResponded` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_poll_sends_survey` (`PollSurveyId`),
+    KEY `idx_poll_sends_agent_scheduled` (`AgentUserId`, `ScheduledAt`),
+    KEY `idx_poll_sends_status_scheduled` (`Status`, `ScheduledAt`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PollRecipients` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `PollSurveyId` int NOT NULL,
+    `PollSendId` int NULL,
+    `ClientId` int NULL,
+    `Email` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `RecipientName` varchar(160) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Status` int NOT NULL DEFAULT 0,
+    `SendGridMessageId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `VoteToken` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `FailureReason` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SentAt` datetime(6) NULL,
+    `FailedAt` datetime(6) NULL,
+    `RespondedAt` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_poll_recipients_survey` (`PollSurveyId`),
+    KEY `idx_poll_recipients_send` (`PollSendId`),
+    KEY `idx_poll_recipients_vote_token` (`VoteToken`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `PollAnswers` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `PollRecipientId` int NOT NULL,
+    `PollQuestionId` int NOT NULL,
+    `PollOptionId` int NOT NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `ux_poll_answers_recipient_question` (`PollRecipientId`, `PollQuestionId`),
+    KEY `idx_poll_answers_option` (`PollOptionId`)
 ) CHARACTER SET=utf8mb4;");
 }
 

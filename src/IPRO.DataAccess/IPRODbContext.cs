@@ -64,6 +64,12 @@ public class IPRODbContext : DbContext
     public DbSet<ClientLifeEvent> ClientLifeEvents => Set<ClientLifeEvent>();
     public DbSet<AgentDocument> AgentDocuments => Set<AgentDocument>();
     public DbSet<SocialPostDraft> SocialPostDrafts => Set<SocialPostDraft>();
+    public DbSet<PollSurvey> PollSurveys => Set<PollSurvey>();
+    public DbSet<PollQuestion> PollQuestions => Set<PollQuestion>();
+    public DbSet<PollOption> PollOptions => Set<PollOption>();
+    public DbSet<PollSend> PollSends => Set<PollSend>();
+    public DbSet<PollRecipient> PollRecipients => Set<PollRecipient>();
+    public DbSet<PollAnswer> PollAnswers => Set<PollAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

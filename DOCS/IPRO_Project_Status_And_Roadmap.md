@@ -132,10 +132,10 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Social media posting/management (done — see item 18: a content composer/tracker exists; live auto-publishing to specific platforms is a separate, larger future item — see "Reputation and social media" below).
 - Formal backup/release checklist (done — see `DOCS/14_BACKUP_AND_RELEASE_CHECKLIST.md`: documents the actual current backup process — git + a dated OneDrive snapshot + folding decisions into existing docs — and the release process, including honestly-flagged gaps like no staging slot and no scripted rollback).
 - Broader admin audit logging (done — see item 19: now covers every meaningful mutating action across the Super Admin portal, plus a real Audit Log viewer with filters).
-- Testimonial module (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: a new **Testimonial form** website block lets any visitor submit a testimonial through an open public form (reusing the hardened honeypot/timing/CAPTCHA anti-spam pipeline); agents review, edit, approve, or reject submissions in a new **Testimonials** queue in the Agent Portal; approved ones display below the form on the same page. Kept as a separate block type from the existing static Testimonials block, which is untouched).
+- Testimonial module (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: a new **Testimonial Submission Form** website block lets any visitor submit a testimonial through an open public form (reusing the hardened honeypot/timing/CAPTCHA anti-spam pipeline); agents review, edit, approve, or reject submissions in a new **Testimonials** queue in the Agent Portal; approved ones display below the form on the same page. The old static Testimonials block — manually-typed quotes, no approval concept — was retired the same day after confirming zero real usage, rather than left as dead, confusable functionality alongside the new one).
+- Poll/survey system (done 2026-07-20 — see `DOCS/16_POLLS_AND_SURVEYS.md` and item 21 below).
 
 ### Proposed agent-value features (not scoped yet)
-- **Poll/survey system.** Let an agent build a short poll (one or a few questions), send it to their client list the same way a newsletter goes out, and view results in the portal, with a public voting page for recipients. Reuses the existing client-list segmentation and email-send infrastructure rather than building new plumbing.
 - **Lead-magnet download block** (recommended). Let an agent attach a downloadable resource (PDF guide, checklist) to a page, gated behind the existing public lead-capture form, so a visitor trades contact info for the download. Reuses the WebsiteLead pipeline and file-upload infrastructure end to end.
 - **External review widget** (recommended). A much smaller first step than a full review-request system: let an agent paste their Google/Facebook review page link and show an embeddable ratings badge on their site. Immediate trust-signal value without building a full request-and-moderate pipeline.
 
@@ -269,6 +269,14 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Approved testimonials render automatically below the form on the same public page, across all three template families (Modern Professional, Classic Sidebar, Editorial Visual).
 - Makes the legacy `PackageFeatureCodes.TestimonialManager` checkbox genuinely functional for the first time — it was already seeded as included for every package but had zero enforcement anywhere in the code.
 - Built as a new `TestimonialSubmission` entity/table rather than repurposing the pre-existing, unused `Testimonial` entity discovered mid-build: that old table's columns are `NOT NULL` with no default in the live schema, so a straight rename risked INSERT failures against unknown historical row state. Safer to add a fresh table and leave the dormant one alone.
+
+### 21. Add a poll/survey system (done)
+- New **Polls** area in the Agent Portal: build a poll with one or more single-choice questions (2+ answer options each), send it to the same subscriber base and audience picker (all subscribers / account type / individual client) newsletters already use, as Send Now or scheduled — dispatched by a new Hangfire job mirroring the newsletter dispatcher exactly.
+- Each recipient gets a one-time link to a public, no-login voting page; submitting an answer is blocked from a second submission on the same link.
+- A **Results** view shows per-question, per-option response counts and percentages, plus overall sent/responded totals.
+- Deliberately scoped tight for v1: single-choice questions only (no free-text or multi-select), no SendGrid open/click webhook tracking (only Sent/Failed at send time and Responded on actual submission — the shared newsletter webhook handler is untouched), and a poll can only be deleted while still a Draft (never sent).
+- Gated by a new `PackageFeatureCodes.PollSurveys` feature code, included in every package (Silver/Gold/Platinum/Broker) — same tier scoping as `Newsletters` (the exact infra it reuses) and `TestimonialManager`, so this checkbox is real and enforced from day one rather than a dead placeholder.
+- See `DOCS/16_POLLS_AND_SURVEYS.md`.
 
 ## Bigger Product Ideas
 

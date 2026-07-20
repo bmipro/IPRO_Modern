@@ -12,7 +12,8 @@
             IPRO.Entities.PackageFeatureCodes.MarketingCampaign,
             IPRO.Entities.PackageFeatureCodes.InstantWebsite,
             IPRO.Entities.PackageFeatureCodes.VisitorTracking,
-            IPRO.Entities.PackageFeatureCodes.TestimonialManager
+            IPRO.Entities.PackageFeatureCodes.TestimonialManager,
+            IPRO.Entities.PackageFeatureCodes.PollSurveys
         })
         {
             navAccess[featureCode] = await PackageEntitlements.GetAccessAsync(layoutAgentId, featureCode);
@@ -146,6 +147,7 @@
         <a class="nav-link @NavActive("Newsletter")" href="/Newsletter" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-envelope"></i>Newsletter</a>
         <a class="nav-link @NavActive("Campaigns")" href="/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign))><i class="fas fa-bullhorn"></i>Campaigns</a>
         <a class="nav-link @NavActive("SocialPosts")" href="/SocialPosts"><i class="fas fa-share-nodes"></i>Social Posts</a>
+        <a class="nav-link @NavActive("Polls")" href="/Polls" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PollSurveys))><i class="fas fa-square-poll-vertical"></i>Polls</a>
 
         <div class="nav-section">Website</div>
         <a class="nav-link @NavActive("Website", "WebsitePages")" href="/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite))><i class="fas fa-globe"></i>My Website</a>

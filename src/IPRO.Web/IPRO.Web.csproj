@@ -24,6 +24,7 @@
   <EmbeddedResource Include="..\..\DOCS\12_AGENT_DOCUMENT_LIBRARY.md" LogicalName="HelpDocs.12_AGENT_DOCUMENT_LIBRARY.md" />
   <EmbeddedResource Include="..\..\DOCS\13_SOCIAL_MEDIA_POSTS.md" LogicalName="HelpDocs.13_SOCIAL_MEDIA_POSTS.md" />
   <EmbeddedResource Include="..\..\DOCS\15_TESTIMONIALS.md" LogicalName="HelpDocs.15_TESTIMONIALS.md" />
+  <EmbeddedResource Include="..\..\DOCS\16_POLLS_AND_SURVEYS.md" LogicalName="HelpDocs.16_POLLS_AND_SURVEYS.md" />
 </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />

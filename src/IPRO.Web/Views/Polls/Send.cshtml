@@ -1,0 +1,188 @@
+@model IPRO.Web.Models.PollSendViewModel
+@{
+    ViewData["Title"] = "Send Poll";
+    var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory> ?? Enumerable.Empty<IPRO.Entities.ClientCategory>()).ToList();
+    var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client> ?? Enumerable.Empty<IPRO.Entities.Client>()).ToList();
+    var subscriberCount = (int)(ViewBag.SubscriberCount ?? 0);
+    var agentTimeZoneLabel = ViewBag.AgentTimeZoneLabel as string ?? "Eastern";
+    var agentNow = ViewBag.AgentNow as DateTime? ?? DateTime.Now;
+    var scheduledAtValue = (Model.ScheduledAt ?? agentNow.AddMinutes(5)).ToString("yyyy-MM-ddTHH:mm");
+    var scheduledMinValue = agentNow.ToString("yyyy-MM-ddTHH:mm");
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2">
+        <li class="breadcrumb-item"><a href="/Polls">Polls</a></li>
+        <li class="breadcrumb-item"><a href="/Polls/Preview/@Model.PollSurveyId">Preview</a></li>
+        <li class="breadcrumb-item active">Send</li>
+      </ol>
+    </nav>
+    <h2 class="fw-bold mb-1"><i class="fas fa-paper-plane me-2 text-success"></i>Send Poll</h2>
+    <div class="text-muted">@Model.Title</div>
+  </div>
+  <a href="/Polls/Preview/@Model.PollSurveyId" class="btn btn-outline-secondary">Back to Preview</a>
+</div>
+
+<form asp-action="Send" method="post">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="PollSurveyId" />
+  <input type="hidden" asp-for="Title" />
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <h5 class="fw-bold mb-1">Choose Audience</h5>
+          <div class="text-muted small">Send this poll to the right people.</div>
+        </div>
+        <div class="card-body p-4">
+          <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+          <div class="audience-option mb-3">
+            <input class="form-check-input" type="radio" asp-for="AudienceType" id="audAll" value="@IPRO.Entities.NewsLetterAudienceType.AllSubscribers" />
+            <label class="form-check-label" for="audAll">
+              <strong>All newsletter subscribers</strong>
+              <span>@subscriberCount subscribed client@(subscriberCount == 1 ? "" : "s")</span>
+            </label>
+          </div>
+
+          <div class="audience-option mb-3">
+            <input class="form-check-input" type="radio" asp-for="AudienceType" id="audType" value="@IPRO.Entities.NewsLetterAudienceType.AccountType" />
+            <label class="form-check-label" for="audType">
+              <strong>Account type / group</strong>
+              <span>Send to clients grouped by account type.</span>
+            </label>
+            <select asp-for="ClientCategoryId" class="form-select mt-3">
+              <option value="">Choose account type...</option>
+              @foreach (var type in accountTypes)
+              {
+                <option value="@type.Id">@type.Name</option>
+              }
+            </select>
+            <span asp-validation-for="ClientCategoryId" class="text-danger small"></span>
+          </div>
+
+          <div class="audience-option">
+            <input class="form-check-input" type="radio" asp-for="AudienceType" id="audClient" value="@IPRO.Entities.NewsLetterAudienceType.IndividualClient" />
+            <label class="form-check-label" for="audClient">
+              <strong>One individual client</strong>
+              <span>Send to a single client's inbox.</span>
+            </label>
+            <select asp-for="ClientId" class="form-select mt-3">
+              <option value="">Choose client...</option>
+              @foreach (var client in clients)
+              {
+                var name = $"{client.LastName}, {client.FirstName}".Trim(' ', ',');
+                <option value="@client.Id">@name - @client.Email</option>
+              }
+            </select>
+            <span asp-validation-for="ClientId" class="text-danger small"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <h5 class="fw-bold mb-1">Timing</h5>
+          <div class="text-muted small">Use the agent profile time zone. Current setting: @agentTimeZoneLabel.</div>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="timing-option">
+                <input class="form-check-input" type="radio" asp-for="SendNow" id="sendNow" value="true" />
+                <label class="form-check-label" for="sendNow">
+                  <strong>Send now</strong>
+                  <span>Queue this poll for the next dispatch cycle.</span>
+                </label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="timing-option">
+                <input class="form-check-input" type="radio" asp-for="SendNow" id="sendLater" value="false" />
+                <label class="form-check-label" for="sendLater">
+                  <strong>Schedule for later</strong>
+                  <span>Pick a date and time.</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label fw-semibold">Scheduled Date &amp; Time</label>
+            <input id="scheduledAtInput" name="ScheduledAt" type="datetime-local" class="form-control" value="@scheduledAtValue" min="@scheduledMinValue" @(Model.SendNow ? "disabled" : "") />
+            <span asp-validation-for="ScheduledAt" class="text-danger small"></span>
+            <div class="form-text">Only required when scheduling for later.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm sticky-top" style="top: 90px;">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3"><i class="fas fa-check-circle me-2 text-success"></i>Ready to Send</h5>
+          <p class="text-muted small">Each recipient gets a unique link to submit their answers, with no login required.</p>
+          <button type="submit" class="btn btn-success btn-lg w-100"><i class="fas fa-paper-plane me-2"></i>Confirm Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<style>
+  .audience-option,
+  .timing-option {
+    border: 1px solid #dbe5f2;
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: #fff;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 12px;
+    align-items: start;
+  }
+
+  .audience-option .form-check-input,
+  .timing-option .form-check-input {
+    margin-top: .25rem;
+  }
+
+  .audience-option label,
+  .timing-option label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .audience-option .form-select,
+  .audience-option .text-danger {
+    grid-column: 2;
+  }
+
+  .audience-option span,
+  .timing-option span {
+    color: #64748b;
+    font-size: .92rem;
+  }
+</style>
+
+<script>
+  (() => {
+    const sendNow = document.getElementById('sendNow');
+    const sendLater = document.getElementById('sendLater');
+    const scheduledAt = document.getElementById('scheduledAtInput');
+
+    const syncScheduledInput = () => {
+      scheduledAt.disabled = sendNow.checked;
+    };
+
+    sendNow.addEventListener('change', syncScheduledInput);
+    sendLater.addEventListener('change', syncScheduledInput);
+    syncScheduledInput();
+  })();
+</script>
