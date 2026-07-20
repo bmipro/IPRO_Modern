@@ -2,6 +2,7 @@ using IPRO.DataAccess;
 using IPRO.Business.Interfaces;
 using IPRO.Email;
 using IPRO.Entities;
+using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
@@ -23,8 +24,10 @@ public class PublicWebsiteController : Controller
     private readonly ILogger<PublicWebsiteController> _logger;
     private readonly IConfiguration _configuration;
     private readonly IDataProtector _captchaProtector;
+    private readonly IDataProtector _leadMagnetProtector;
+    private readonly IBlobStorageService _blob;
 
-    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider)
+    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider, IBlobStorageService blob)
     {
         _db = db;
         _entitlements = entitlements;
@@ -32,6 +35,8 @@ public class PublicWebsiteController : Controller
         _logger = logger;
         _configuration = configuration;
         _captchaProtector = dataProtectionProvider.CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1");
+        _leadMagnetProtector = dataProtectionProvider.CreateProtector("IPRO.Web.PublicWebsite.LeadMagnetDownload.v1");
+        _blob = blob;
     }
 
     public async Task<IActionResult> Index()
@@ -107,9 +112,7 @@ public class PublicWebsiteController : Controller
             return NotFound();
         }
 
-        var honeypotSubmissionType = string.Equals(model.SubmissionType, WebsiteLeadTypes.Newsletter, StringComparison.OrdinalIgnoreCase)
-            ? WebsiteLeadTypes.Newsletter
-            : WebsiteLeadTypes.Contact;
+        var honeypotSubmissionType = ResolveSubmissionType(model.SubmissionType);
         if (!string.IsNullOrWhiteSpace(model.HoneypotField))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, returnPath);
@@ -131,9 +134,7 @@ public class PublicWebsiteController : Controller
             return LocalRedirect(returnPath);
         }
 
-        var submissionType = string.Equals(model.SubmissionType, WebsiteLeadTypes.Newsletter, StringComparison.OrdinalIgnoreCase)
-            ? WebsiteLeadTypes.Newsletter
-            : WebsiteLeadTypes.Contact;
+        var submissionType = ResolveSubmissionType(model.SubmissionType);
         model.FirstName = model.FirstName?.Trim() ?? string.Empty;
         model.LastName = model.LastName?.Trim() ?? string.Empty;
         model.Email = (model.Email?.Trim() ?? string.Empty).ToLowerInvariant();
@@ -237,7 +238,73 @@ public class PublicWebsiteController : Controller
 
         await _db.SaveChangesAsync();
         await NotifyAgentAsync(website, lead);
+
+        if (submissionType == WebsiteLeadTypes.LeadMagnet)
+        {
+            var downloadToken = await TryIssueLeadMagnetTokenAsync(website, model.LeadMagnetBlockId);
+            if (downloadToken != null)
+            {
+                return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant(), "dl", downloadToken));
+            }
+        }
+
         return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
+    }
+
+    private async Task<string?> TryIssueLeadMagnetTokenAsync(AgentWebsite website, int? blockId)
+    {
+        if (!blockId.HasValue) return null;
+
+        var block = await _db.WebsiteContentBlocks
+            .Include(b => b.WebsitePage)
+            .FirstOrDefaultAsync(b => b.Id == blockId.Value
+                && b.WebsitePage.AgentWebsiteId == website.Id
+                && b.BlockType == WebsiteBlockTypes.LeadMagnet);
+        if (block == null) return null;
+
+        var agentDocumentId = WebsiteLeadMagnetSettings.FromJson(block.SettingsJson).AgentDocumentId;
+        if (agentDocumentId <= 0) return null;
+
+        var documentExists = await _db.AgentDocuments.AnyAsync(d => d.Id == agentDocumentId && d.AgentUserId == website.AgentUserId);
+        if (!documentExists) return null;
+
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds();
+        return _leadMagnetProtector.Protect($"{agentDocumentId}|{expiresAt}");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadLeadMagnet(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return NotFound();
+
+        string payload;
+        try
+        {
+            payload = _leadMagnetProtector.Unprotect(token);
+        }
+        catch
+        {
+            return NotFound();
+        }
+
+        var parts = payload.Split('|');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var documentId) || !long.TryParse(parts[1], out var expiresAt))
+        {
+            return NotFound();
+        }
+        if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiresAt)
+        {
+            return NotFound();
+        }
+
+        var document = await _db.AgentDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+        if (document == null) return NotFound();
+
+        var stream = await _blob.DownloadAsync(document.BlobUrl);
+        if (stream == null) return NotFound();
+
+        var contentType = string.IsNullOrWhiteSpace(document.ContentType) ? "application/octet-stream" : document.ContentType;
+        return File(stream, contentType, document.FileName);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -622,5 +689,14 @@ public class PublicWebsiteController : Controller
     }
 
     private static string AddResult(string path, string key, string value) => $"{path}?{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
+    private static string AddResult(string path, string key, string value, string extraKey, string extraValue) =>
+        $"{AddResult(path, key, value)}&{Uri.EscapeDataString(extraKey)}={Uri.EscapeDataString(extraValue)}";
     private static string Truncate(string? value, int length) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim()[..Math.Min(value.Trim().Length, length)];
+
+    private static string ResolveSubmissionType(string? submissionType)
+    {
+        if (string.Equals(submissionType, WebsiteLeadTypes.Newsletter, StringComparison.OrdinalIgnoreCase)) return WebsiteLeadTypes.Newsletter;
+        if (string.Equals(submissionType, WebsiteLeadTypes.LeadMagnet, StringComparison.OrdinalIgnoreCase)) return WebsiteLeadTypes.LeadMagnet;
+        return WebsiteLeadTypes.Contact;
+    }
 }

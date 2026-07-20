@@ -116,6 +116,10 @@
       <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@(string.IsNullOrWhiteSpace(block.Heading) ? editorialPollData.Title : block.Heading)</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_PollResults", editorialPollData)</div></div></section>
     }
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.LeadMagnet)
+  {
+    <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.LeadMagnet, LeadMagnetBlockId = block.Id })</div></div></section>
+  }
   else
   {
     var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);

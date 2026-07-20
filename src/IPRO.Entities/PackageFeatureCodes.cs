@@ -46,4 +46,5 @@ public static class PackageFeatureCodes
     public const string GoogleCalendarSync = "google_calendar_sync";
     public const string LifeEventReminders = "life_event_reminders";
     public const string PollSurveys = "poll_surveys";
+    public const string LeadMagnet = "lead_magnet";
 }

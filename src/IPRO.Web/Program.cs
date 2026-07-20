@@ -135,6 +135,10 @@ app.Use(async (context, next) =>
         {
             context.Request.Path = "/PublicWebsite";
         }
+        else if (requestedPath.Equals("PublicWebsite/DownloadLeadMagnet", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Request.Path = "/PublicWebsite/DownloadLeadMagnet";
+        }
         else if (requestedPath.StartsWith("PublicWebsite/Page/", StringComparison.OrdinalIgnoreCase))
         {
             var publicSlug = requestedPath["PublicWebsite/Page/".Length..];

@@ -91,6 +91,17 @@ The captcha token is protected by the application and expires after a short peri
 
 A successful signup updates or creates the CRM client and enables newsletter subscription.
 
+## Add a Lead Magnet Download Block
+
+1. Upload the file you want to give away (a PDF guide, checklist, etc.) from [Documents](12_AGENT_DOCUMENT_LIBRARY.md) first.
+2. Edit the desired page.
+3. Add a **Lead Magnet Download** block.
+4. Enter its heading and supporting content.
+5. Under **Which file?**, choose the document you uploaded.
+6. Save the block.
+
+Visitors see a short form (name and email) instead of a direct download link. Submitting it creates a website lead the same way a Contact Form submission does, and reveals a "Download Now" button that unlocks the file. If you haven't uploaded any documents yet, the block shows a reminder to do that first instead of a file picker.
+
 ## Website Lead Processing
 
 Public submissions are handled as follows:

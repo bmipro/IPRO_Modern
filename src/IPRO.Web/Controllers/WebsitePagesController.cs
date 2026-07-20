@@ -269,12 +269,17 @@ public class WebsitePagesController : Controller
             .Where(s => s.AgentUserId == AgentId && s.Status != PollSurveyStatus.Draft)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
+        var agentDocuments = await _db.AgentDocuments
+            .Where(d => d.AgentUserId == AgentId)
+            .OrderByDescending(d => d.UploadedAt)
+            .ToListAsync();
         return View(new WebsitePageEditViewModel
         {
             Page = page,
             AvailableParents = await GetParentChoicesAsync(page.AgentWebsiteId, page.Id),
             MediaAssets = await GetMediaAssetsAsync(page.AgentWebsiteId),
-            AvailableSentPolls = sentPolls
+            AvailableSentPolls = sentPolls,
+            AvailableAgentDocuments = agentDocuments
         });
     }
 
@@ -509,6 +514,15 @@ public class WebsitePagesController : Controller
                 return RedirectToAction(nameof(Edit), new { id = pageId });
             }
         }
+        if (blockType == WebsiteBlockTypes.LeadMagnet)
+        {
+            var leadMagnetAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.LeadMagnet);
+            if (!leadMagnetAccess.IsIncluded)
+            {
+                TempData["Error"] = leadMagnetAccess.UpgradeMessage;
+                return RedirectToAction(nameof(Edit), new { id = pageId });
+            }
+        }
         var order = await _db.WebsiteContentBlocks.CountAsync(b => b.WebsitePageId == pageId);
         _db.WebsiteContentBlocks.Add(NewBlock(pageId, blockType, order));
         await _db.SaveChangesAsync();
@@ -521,7 +535,7 @@ public class WebsitePagesController : Controller
         string imageUrl, string buttonText, string buttonUrl, bool isVisible,
         string heroLayout = "split", string imagePosition = "center", string textAlignment = "left",
         string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
-        int pollSurveyId = 0)
+        int pollSurveyId = 0, int agentDocumentId = 0)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -552,6 +566,14 @@ public class WebsitePagesController : Controller
             block.SettingsJson = new WebsitePollResultsSettings
             {
                 PollSurveyId = pollBelongsToAgent ? pollSurveyId : 0
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.LeadMagnet)
+        {
+            var docBelongsToAgent = agentDocumentId > 0 && await _db.AgentDocuments.AnyAsync(d => d.Id == agentDocumentId && d.AgentUserId == AgentId);
+            block.SettingsJson = new WebsiteLeadMagnetSettings
+            {
+                AgentDocumentId = docBelongsToAgent ? agentDocumentId : 0
             }.ToJson();
         }
         block.UpdatedAt = DateTime.UtcNow;

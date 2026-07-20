@@ -53,10 +53,9 @@ public class AzureBlobStorageService : IBlobStorageService
     {
         try
         {
-            var uri = new Uri(blobUrl);
-            var parts = uri.AbsolutePath.TrimStart('/').Split('/', 2);
-            var container = _client.GetBlobContainerClient(parts[0]);
-            var blob = container.GetBlobClient(parts[1]);
+            var (containerName, blobName) = ParseBlobUrl(blobUrl);
+            var container = _client.GetBlobContainerClient(containerName);
+            var blob = container.GetBlobClient(blobName);
             return await blob.DeleteIfExistsAsync();
         }
         catch (Exception ex)
@@ -68,14 +67,29 @@ public class AzureBlobStorageService : IBlobStorageService
 
     public async Task<Stream?> DownloadAsync(string blobUrl)
     {
-        var uri = new Uri(blobUrl);
-        var parts = uri.AbsolutePath.TrimStart('/').Split('/', 2);
-        var container = _client.GetBlobContainerClient(parts[0]);
-        var blob = container.GetBlobClient(parts[1]);
+        var (containerName, blobName) = ParseBlobUrl(blobUrl);
+        var container = _client.GetBlobContainerClient(containerName);
+        var blob = container.GetBlobClient(blobName);
         var response = await blob.DownloadAsync();
         return response.Value.Content;
     }
 
     public string GetPublicUrl(string containerName, string fileName) =>
         $"https://{_accountName}.blob.core.windows.net/{containerName}/{fileName}";
+
+    // Azurite uses path-style URLs (account name as a path segment) while real Azure Storage
+    // uses virtual-hosted-style URLs (account name in the host). Strip the service client's own
+    // base path so both formats resolve to the same {container}/{blob} split.
+    private (string ContainerName, string BlobName) ParseBlobUrl(string blobUrl)
+    {
+        var uri = new Uri(blobUrl);
+        var basePath = _client.Uri.AbsolutePath.TrimEnd('/');
+        var relativePath = uri.AbsolutePath;
+        if (basePath.Length > 0 && relativePath.StartsWith(basePath, StringComparison.Ordinal))
+        {
+            relativePath = relativePath[basePath.Length..];
+        }
+        var parts = relativePath.TrimStart('/').Split('/', 2);
+        return (parts[0], parts[1]);
+    }
 }

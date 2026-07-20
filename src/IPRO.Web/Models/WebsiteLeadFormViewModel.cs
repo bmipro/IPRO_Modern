@@ -7,6 +7,7 @@ public class WebsiteLeadFormViewModel
     public int? PageId { get; set; }
     public string SubmissionType { get; set; } = IPRO.Entities.WebsiteLeadTypes.Contact;
     public string ReturnPath { get; set; } = "/";
+    public int? LeadMagnetBlockId { get; set; }
 
     [Required, StringLength(80)]
     public string FirstName { get; set; } = string.Empty;

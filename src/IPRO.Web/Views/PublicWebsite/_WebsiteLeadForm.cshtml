@@ -3,8 +3,11 @@
 @inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
 @{
     var isNewsletter = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter;
+    var isLeadMagnet = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.LeadMagnet;
+    var showFullFields = !isNewsletter && !isLeadMagnet;
     var formId = $"website-lead-{Guid.NewGuid():N}";
     var submitted = Context.Request.Query["submitted"].ToString();
+    var dlToken = Context.Request.Query["dl"].ToString();
     var expectedResult = Model.SubmissionType.ToLowerInvariant();
     var captchaLeft = Random.Shared.Next(2, 10);
     var captchaRight = Random.Shared.Next(2, 10);
@@ -18,8 +21,18 @@
 <div class="website-lead-form-shell">
   @if (submitted == expectedResult)
   {
-    <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : "Thank you. Your message was sent to the adviser.")</div>
-    <script>(function(){var u=new URL(location.href);u.searchParams.delete('submitted');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
+    @if (isLeadMagnet && !string.IsNullOrEmpty(dlToken))
+    {
+      <div class="website-lead-success" role="status">
+        <i class="fas fa-circle-check"></i> Thanks! Your download is ready.
+        <div class="mt-2"><a class="website-lead-submit" href="/PublicWebsite/DownloadLeadMagnet?token=@Uri.EscapeDataString(dlToken)"><i class="fas fa-download"></i> Download Now</a></div>
+      </div>
+    }
+    else
+    {
+      <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : "Thank you. Your message was sent to the adviser.")</div>
+    }
+    <script>(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('dl');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
   }
   else
   {
@@ -34,15 +47,19 @@
       <input type="hidden" name="ReturnPath" value="@publicReturnPath" />
       <input type="hidden" name="FormStartedAt" value="@DateTimeOffset.UtcNow.ToUnixTimeSeconds()" />
       <input type="hidden" name="CaptchaToken" value="@captchaToken" />
+      @if (isLeadMagnet)
+      {
+        <input type="hidden" name="LeadMagnetBlockId" value="@Model.LeadMagnetBlockId" />
+      }
       <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
       <div class="website-lead-grid">
         <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
-        @if (!isNewsletter)
+        @if (showFullFields)
         {
           <label><span>Last name</span><input name="LastName" maxlength="80" autocomplete="family-name" /></label>
         }
         <label><span>Email *</span><input type="email" name="Email" maxlength="200" autocomplete="email" required /></label>
-        @if (!isNewsletter)
+        @if (showFullFields)
         {
           <label><span>Phone</span><input name="Phone" maxlength="40" autocomplete="tel" /></label>
           <label class="website-lead-full"><span>How can we help?</span><textarea name="Message" maxlength="4000" rows="4"></textarea></label>
@@ -55,8 +72,8 @@
           <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
         </span>
       </label>
-      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : "I agree that this adviser may use my information to respond to this request.")</span></label>
-      <button type="submit" class="website-lead-submit"><i class="fas @(isNewsletter ? "fa-envelope" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : "Send message")</button>
+      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : isLeadMagnet ? "I agree that this adviser may use my information to follow up about this download." : "I agree that this adviser may use my information to respond to this request.")</span></label>
+      <button type="submit" class="website-lead-submit"><i class="fas @(isNewsletter ? "fa-envelope" : isLeadMagnet ? "fa-download" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : isLeadMagnet ? "Get the Download" : "Send message")</button>
     </form>
   }
 </div>

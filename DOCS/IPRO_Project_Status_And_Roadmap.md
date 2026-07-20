@@ -134,9 +134,9 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Broader admin audit logging (done — see item 19: now covers every meaningful mutating action across the Super Admin portal, plus a real Audit Log viewer with filters).
 - Testimonial module (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: a new **Testimonial Submission Form** website block lets any visitor submit a testimonial through an open public form (reusing the hardened honeypot/timing/CAPTCHA anti-spam pipeline); agents review, edit, approve, or reject submissions in a new **Testimonials** queue in the Agent Portal; approved ones display below the form on the same page. The old static Testimonials block — manually-typed quotes, no approval concept — was retired the same day after confirming zero real usage, rather than left as dead, confusable functionality alongside the new one).
 - Poll/survey system (done 2026-07-20 — see `DOCS/16_POLLS_AND_SURVEYS.md` and item 21 below).
+- Lead-magnet download block (done 2026-07-20 — see `DOCS/05_DOMAINS_AND_LEADS.md` and item 22 below).
 
 ### Proposed agent-value features (not scoped yet)
-- **Lead-magnet download block** (recommended). Let an agent attach a downloadable resource (PDF guide, checklist) to a page, gated behind the existing public lead-capture form, so a visitor trades contact info for the download. Reuses the WebsiteLead pipeline and file-upload infrastructure end to end.
 - **External review widget** (recommended). A much smaller first step than a full review-request system: let an agent paste their Google/Facebook review page link and show an embeddable ratings badge on their site. Immediate trust-signal value without building a full request-and-moderate pipeline.
 
 ## Recommended Next Tasks
@@ -278,6 +278,13 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Gated by a new `PackageFeatureCodes.PollSurveys` feature code, included in every package (Silver/Gold/Platinum/Broker) — same tier scoping as `Newsletters` (the exact infra it reuses) and `TestimonialManager`, so this checkbox is real and enforced from day one rather than a dead placeholder.
 - After the user's first live test, added: a post-vote redirect back to the agent's own published website; a fix for the Results link being wrongly hidden whenever a send didn't register a successful SendGrid delivery; and a new **Poll Results** website block agents can add to any page, showing live results for a chosen poll once it clears 10 responses (to protect anonymity). Also identified and fixed that `App:BaseUrl` was never configured in Azure, so poll and newsletter links fell back to the raw `azurewebsites.net` hostname — bound a real `app.iproadvisers.com` domain (same as was done for the admin app) and set `App__BaseUrl` accordingly; SSL was provisioning as of this writing.
 - See `DOCS/16_POLLS_AND_SURVEYS.md`.
+
+### 22. Add a lead-magnet download block (done)
+- New **Lead Magnet Download** website block: an agent picks an already-uploaded document from their [Documents](DOCS/12_AGENT_DOCUMENT_LIBRARY.md) library, and a visitor must submit the standard name/email lead-capture form before a "Download Now" link unlocks — no separate upload pipeline, reuses the existing document library and `WebsiteLead` pipeline end to end, matching the roadmap note's explicit intent.
+- The submission becomes a real `WebsiteLead` (`SubmissionType = "LeadMagnet"`), so it shows up in the agent's Website Leads inbox and triggers the same agent-notification email as any Contact or Newsletter submission — not a parallel, separate system.
+- The unlock link is a signed, time-boxed (30-minute) token minted via the same `IDataProtector` pattern already used for the public site's math CAPTCHA — not single-use, since re-downloading within the window isn't a scarcity concern the way re-voting on a poll is.
+- Gated by a new `PackageFeatureCodes.LeadMagnet` feature code, included in every package, same pattern as `PollSurveys`/`TestimonialManager`.
+- See `DOCS/05_DOMAINS_AND_LEADS.md` ("Add a Lead Magnet Download Block").
 
 ## Bigger Product Ideas
 
