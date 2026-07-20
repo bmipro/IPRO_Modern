@@ -128,7 +128,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 ### Important missing product pieces
 - Document upload/storage (done — see item 17: a scoped version already existed inside the Client Portal; a general-purpose agent-side document library outside the portal context now exists too).
 - Appointment booking (done — see item 15: scheduling a request now creates a real Calendar follow-up and emails the client the confirmed time).
-- SMS reminders.
+- SMS reminders (not built — vendor pricing researched 2026-07-20, see "SMS reminders" under Bigger Product Ideas below).
 - Social media posting/management (done — see item 18: a content composer/tracker exists; live auto-publishing to specific platforms is a separate, larger future item — see "Reputation and social media" below).
 - Formal backup/release checklist (done — see `DOCS/14_BACKUP_AND_RELEASE_CHECKLIST.md`: documents the actual current backup process — git + a dated OneDrive snapshot + folding decisions into existing docs — and the release process, including honestly-flagged gaps like no staging slot and no scripted rollback).
 - Broader admin audit logging (done — see item 19: now covers every meaningful mutating action across the Super Admin portal, plus a real Audit Log viewer with filters).
@@ -291,6 +291,19 @@ Each starter pack should include:
 - Account types/groups.
 - Follow-up workflows.
 - Lead/contact forms.
+
+### SMS reminders (not built — vendor pricing researched 2026-07-20)
+`PackageFeatureCodes.SmsReminder` already exists as a seeded package-feature checkbox ("Mobile SMS reminder", included for every package) but, like `FileUploadCapacity`/`SocialMediaIntegration` before it, has zero real functionality behind it today.
+
+Two scope options were discussed, mirroring the Social Posts decision:
+- **Composer-only** (no vendor, no cost): auto-draft a short SMS-ready reminder text for upcoming follow-ups/appointments with a character count; agent copies and sends it themselves. Ships immediately, same pattern as the Social Post composer.
+- **Real Twilio-sent SMS**: IPRO actually sends the text. Requires the user to set up a Twilio account first. Researched current (2026-07) Twilio pricing so the vendor-cost decision can be made with real numbers instead of guessing:
+  - Twilio has no monthly platform fee — pure pay-as-you-go. **$0.0083 per SMS segment** sent or received (US).
+  - Phone number rental: **local 10DLC number ~$1.15/month** vs. **toll-free ~$2.15/month**. Toll-free's old advantage (skip A2P 10DLC registration) went away January 1, 2026 — toll-free numbers now require the same business-verification paperwork (EIN/business registration number), so there's no longer a reason to pay more for toll-free.
+  - **A2P 10DLC registration** (required to send from a 10DLC number to US mobile carriers) — recommended tier for IPRO's actual use case (transactional appointment/follow-up reminders, not marketing) is **Low Volume Standard**: ~$24.50 one-time brand+campaign registration, ~$1.50–$10/month recurring campaign fee (vs. ~$71.90 one-time + higher monthly for High Volume Standard, which IPRO doesn't need at pilot scale).
+  - **Realistic starting cost**: ~$25 one-time + ~$5–12/month fixed + $0.0083/message. Cheap enough to pilot.
+  - **IPRO-specific wrinkle worth remembering**: IPRO would be sending on behalf of *many different agents' businesses*, not one business's own messages. For a pilot, registering one Twilio brand as IPRO itself for uniform "appointment reminder" traffic should work. If this scales and agents want personalized "from [Agent Name]" sender identity, Twilio's ISV/reseller model (sub-brands per agent/agency under one account) is the correct long-term path — more setup, not needed to start.
+- **Status**: decision paused here — no scope chosen yet, no Twilio account exists. Revisit this section (not memory) for the pricing numbers when ready to decide; they're current as of 2026-07-20 but Twilio/TCR fees are set by external parties and can change.
 
 ### Real estate vertical: IDX listings (not scoped yet)
 Real estate agents specifically need to display MLS listings on their site (IDX), which none of the other verticals require. Researched 2026-07-19; not yet designed or built. Costs show up at two separate layers:
