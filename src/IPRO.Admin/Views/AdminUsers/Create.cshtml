@@ -34,9 +34,11 @@
       <div class="mb-4">
         <label class="form-label fw-semibold">Role</label>
         <select asp-for="Role" class="form-select">
+          <option value="">-- Choose a role --</option>
           <option value="@IPRO.Entities.AdminRoles.Support">Support (day-to-day operations)</option>
           <option value="@IPRO.Entities.AdminRoles.SuperAdmin">Super Admin (full access, including billing and platform settings)</option>
         </select>
+        <span asp-validation-for="Role" class="text-danger small"></span>
       </div>
 
       <div class="d-flex gap-2">

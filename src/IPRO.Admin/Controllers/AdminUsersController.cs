@@ -32,7 +32,7 @@ public class AdminUsersController : Controller
         return View(users.OrderBy(u => u.Username));
     }
 
-    public IActionResult Create() => View(new AdminUser { Role = AdminRoles.Support, IsActive = true });
+    public IActionResult Create() => View(new AdminUser { Role = string.Empty, IsActive = true });
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(AdminUser model, string password)
