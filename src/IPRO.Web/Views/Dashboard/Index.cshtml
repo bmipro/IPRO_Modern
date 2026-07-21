@@ -52,7 +52,13 @@
       </div>
       <div class="alert alert-light border d-flex align-items-center gap-2 mb-0">
         <i class="fas fa-lightbulb text-warning"></i>
-        <div><strong>Suggested next action:</strong> @dailyInsight.SuggestedActionText</div>
+        <div>
+          <div><strong>Suggested next action:</strong> @dailyInsight.SuggestedActionText</div>
+          @if (!string.IsNullOrWhiteSpace(dailyInsight.SuggestedActionReason))
+          {
+            <div class="text-muted small mt-1"><i class="fas fa-sparkles me-1"></i>@dailyInsight.SuggestedActionReason</div>
+          }
+        </div>
         @if (!string.IsNullOrWhiteSpace(dailyInsight.SuggestedActionUrl))
         {
           <a href="@dailyInsight.SuggestedActionUrl" class="btn btn-sm btn-outline-primary ms-auto">View</a>

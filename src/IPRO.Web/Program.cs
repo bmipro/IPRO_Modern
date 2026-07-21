@@ -60,6 +60,8 @@ builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.G
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
+builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ai"));
+builder.Services.AddScoped<IAiSuggestionService, AnthropicAiSuggestionService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<IContactImporter, ContactImporter>();

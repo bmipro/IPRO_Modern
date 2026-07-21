@@ -10,12 +10,14 @@ public class AiDailyDigestJob
 {
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IAiSuggestionService _aiSuggestions;
     private readonly ILogger<AiDailyDigestJob> _logger;
 
-    public AiDailyDigestJob(IPRODbContext db, IPackageEntitlementService entitlements, ILogger<AiDailyDigestJob> logger)
+    public AiDailyDigestJob(IPRODbContext db, IPackageEntitlementService entitlements, IAiSuggestionService aiSuggestions, ILogger<AiDailyDigestJob> logger)
     {
         _db = db;
         _entitlements = entitlements;
+        _aiSuggestions = aiSuggestions;
         _logger = logger;
     }
 
@@ -65,7 +67,7 @@ public class AiDailyDigestJob
                     : null;
 
                 string actionType, actionText;
-                string? actionUrl;
+                string? actionUrl, aiSituation;
 
                 if (mostOverdueFollowUp != null)
                 {
@@ -73,6 +75,7 @@ public class AiDailyDigestJob
                     actionType = AgentDailyInsightActionTypes.OverdueFollowUp;
                     actionUrl = $"/Clients/Details/{mostOverdueFollowUp.ClientId}";
                     actionText = $"Call {mostOverdueFollowUp.Client.FirstName} {mostOverdueFollowUp.Client.LastName} first — \"{mostOverdueFollowUp.Title}\" is {daysOverdue} day{(daysOverdue == 1 ? "" : "s")} overdue.";
+                    aiSituation = $"A client follow-up task titled \"{mostOverdueFollowUp.Title}\" is {daysOverdue} day{(daysOverdue == 1 ? "" : "s")} overdue.";
                 }
                 else if (oldestStaleLead != null)
                 {
@@ -80,19 +83,26 @@ public class AiDailyDigestJob
                     actionType = AgentDailyInsightActionTypes.StaleLead;
                     actionUrl = "/WebsiteLeads?status=new";
                     actionText = $"Call {oldestStaleLead.FirstName} {oldestStaleLead.LastName} first — lead has been waiting {hoursOld} hours.";
+                    aiSituation = $"A new website lead (a contact request, not yet an existing client) has gone unanswered for {hoursOld} hours.";
                 }
                 else if (noFollowUpClient != null)
                 {
                     actionType = AgentDailyInsightActionTypes.NoFollowUp;
                     actionUrl = $"/Clients/Details/{noFollowUpClient.Id}";
                     actionText = $"Schedule a follow-up with {noFollowUpClient.FirstName} {noFollowUpClient.LastName} — nothing is on the books.";
+                    aiSituation = "A client currently has no follow-up task scheduled at all.";
                 }
                 else
                 {
                     actionType = AgentDailyInsightActionTypes.None;
                     actionUrl = null;
                     actionText = "You're all caught up — no urgent actions today.";
+                    aiSituation = null;
                 }
+
+                var actionReason = aiSituation == null
+                    ? null
+                    : await _aiSuggestions.GenerateActionReasonAsync(aiSituation);
 
                 var insight = await _db.AgentDailyInsights.FirstOrDefaultAsync(i => i.AgentUserId == agentId);
                 if (insight == null)
@@ -107,6 +117,7 @@ public class AiDailyDigestJob
                 insight.SuggestedActionType = actionType;
                 insight.SuggestedActionText = actionText;
                 insight.SuggestedActionUrl = actionUrl;
+                insight.SuggestedActionReason = actionReason;
                 insight.GeneratedAt = DateTime.UtcNow;
                 insight.UpdatedAt = DateTime.UtcNow;
             }
