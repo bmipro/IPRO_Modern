@@ -4,6 +4,7 @@ using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -47,16 +48,51 @@ public class AdminController : Controller
         await _uow.SaveChangesAsync();
         await _auditLog.LogAsync(user.Id, user.Username, "LoginSucceeded", $"Successful login for '{user.Username}'.");
 
+        await SignInAdminAsync(user, new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) });
+
+        return RedirectToAction("Index", "AdminDashboard");
+    }
+
+    private async Task SignInAdminAsync(AdminUser user, AuthenticationProperties props)
+    {
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, user.Username),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new("Role", user.Role),
-            new("FullName", user.FullName)
+            new("FullName", user.FullName),
+            new("PortalAccentColor", user.PortalAccentColor ?? "")
         };
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
-            new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) });
+            props);
+    }
+
+    private static readonly HashSet<string> PortalAccentColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "#1457d9", "#d9541f", "#1f7a4d", "#4b5563", "#7a1f3d", "#5b2f9e"
+    };
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetPortalAccentColor(string? color, string? returnUrl)
+    {
+        var username = User.Identity?.Name;
+        var user = string.IsNullOrWhiteSpace(username) ? null : await _uow.AdminUsers.FirstOrDefaultAsync(u => u.Username == username);
+        if (user == null) return RedirectToAction(nameof(Login));
+
+        if (!string.IsNullOrWhiteSpace(color) && PortalAccentColors.Contains(color))
+        {
+            user.PortalAccentColor = color.ToLowerInvariant();
+            _uow.AdminUsers.Update(user);
+            await _uow.SaveChangesAsync();
+            await SignInAdminAsync(user, new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) });
+        }
+
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
 
         return RedirectToAction("Index", "AdminDashboard");
     }

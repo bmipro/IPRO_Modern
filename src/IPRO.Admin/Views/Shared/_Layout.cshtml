@@ -1,4 +1,17 @@
 <!DOCTYPE html>
+@{
+    var adminPortalAccentColor = User.FindFirst("PortalAccentColor")?.Value ?? "";
+    var adminEffectiveAccent = string.IsNullOrEmpty(adminPortalAccentColor) ? "#1457d9" : adminPortalAccentColor;
+    var adminColorSwatches = new (string Hex, string Name)[]
+    {
+        ("#1457d9", "Ocean Blue"),
+        ("#d9541f", "Sunset Orange"),
+        ("#1f7a4d", "Forest Green"),
+        ("#4b5563", "Slate Gray"),
+        ("#7a1f3d", "Burgundy"),
+        ("#5b2f9e", "Royal Purple")
+    };
+}
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -7,6 +20,44 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
     <style>
+        :root { --portal-accent: @adminEffectiveAccent; }
+
+        /* Mirrors the agent portal's accent theming: every semantic Bootstrap color maps to the
+           admin's chosen accent so the whole app feels personalized. Alerts are excluded since
+           they're transient system feedback, not persistent brand chrome. */
+        .btn-primary, .btn-success, .btn-danger, .btn-warning, .btn-info {
+            --bs-btn-color:#fff; --bs-btn-bg:var(--portal-accent); --bs-btn-border-color:var(--portal-accent);
+            --bs-btn-hover-color:#fff; --bs-btn-hover-bg:color-mix(in srgb, var(--portal-accent) 85%, black); --bs-btn-hover-border-color:color-mix(in srgb, var(--portal-accent) 80%, black);
+            --bs-btn-active-color:#fff; --bs-btn-active-bg:color-mix(in srgb, var(--portal-accent) 80%, black); --bs-btn-active-border-color:color-mix(in srgb, var(--portal-accent) 75%, black);
+            --bs-btn-disabled-bg:var(--portal-accent); --bs-btn-disabled-border-color:var(--portal-accent);
+        }
+        .btn-outline-primary, .btn-outline-success, .btn-outline-danger, .btn-outline-warning, .btn-outline-info {
+            --bs-btn-color:var(--portal-accent); --bs-btn-border-color:var(--portal-accent);
+            --bs-btn-hover-color:#fff; --bs-btn-hover-bg:var(--portal-accent); --bs-btn-hover-border-color:var(--portal-accent);
+            --bs-btn-active-color:#fff; --bs-btn-active-bg:var(--portal-accent); --bs-btn-active-border-color:var(--portal-accent);
+            --bs-btn-disabled-color:var(--portal-accent); --bs-btn-disabled-border-color:var(--portal-accent);
+        }
+        .text-primary, .text-success, .text-danger, .text-warning, .text-info { color:var(--portal-accent) !important; }
+        .bg-primary, .bg-success, .bg-danger, .bg-warning, .bg-info { background-color:var(--portal-accent) !important; }
+        .border-primary, .border-success, .border-danger, .border-warning, .border-info { border-color:var(--portal-accent) !important; }
+        .bg-primary-subtle, .bg-success-subtle, .bg-danger-subtle, .bg-warning-subtle, .bg-info-subtle {
+            background-color:color-mix(in srgb, var(--portal-accent) 15%, white) !important;
+        }
+        .text-primary-emphasis, .text-success-emphasis, .text-danger-emphasis, .text-warning-emphasis, .text-info-emphasis {
+            color:color-mix(in srgb, var(--portal-accent) 70%, black) !important;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color:var(--portal-accent);
+            box-shadow:0 0 0 0.25rem color-mix(in srgb, var(--portal-accent) 25%, transparent);
+        }
+        .form-check-input:focus { border-color:var(--portal-accent); box-shadow:0 0 0 0.25rem color-mix(in srgb, var(--portal-accent) 25%, transparent); }
+        .form-check-input:checked { background-color:var(--portal-accent); border-color:var(--portal-accent); }
+        a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link) { color:var(--portal-accent); }
+        a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover { color:color-mix(in srgb, var(--portal-accent) 85%, black); }
+        .page-link { color:var(--portal-accent); }
+        .page-item.active .page-link { background-color:var(--portal-accent); border-color:var(--portal-accent); }
+        .dropdown-item.active, .dropdown-item:active { background-color:var(--portal-accent) !important; }
+
         body { background:#f1f5f9; font-family:'Segoe UI',system-ui,sans-serif; }
         .admin-sidebar { width:250px; height:100vh; background:linear-gradient(180deg,#0f172a 0%,#1e3a5f 100%); position:fixed; top:0; left:0; z-index:100; display:flex; flex-direction:column; }
         .admin-sidebar .brand { flex-shrink:0; padding:1.5rem 1.25rem; border-bottom:1px solid rgba(255,255,255,0.1); }
@@ -17,9 +68,13 @@
         .admin-sidebar-nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
         .admin-sidebar-footer { flex-shrink:0; border-top:1px solid rgba(255,255,255,0.1); padding:.5rem 0; }
         .admin-sidebar .nav-link { color:rgba(255,255,255,0.7); padding:.65rem 1.25rem; border-radius:8px; margin:.1rem .75rem; transition:all .15s; }
-        .admin-sidebar .nav-link:hover, .admin-sidebar .nav-link.active { background:rgba(255,255,255,0.12); color:#fff; }
+        .admin-sidebar .nav-link:hover { background:color-mix(in srgb, var(--portal-accent) 25%, transparent); color:#fff; }
+        .admin-sidebar .nav-link.active { background:var(--portal-accent); color:#fff; }
         .admin-sidebar .nav-link i { width:20px; margin-right:.6rem; }
         .admin-sidebar .nav-section { color:rgba(255,255,255,0.35); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; padding:.75rem 1.25rem .25rem; }
+        .portal-color-row { display:flex; gap:.4rem; padding:.25rem 1.25rem .75rem; }
+        .portal-color-swatch { width:20px; height:20px; border-radius:50%; border:2px solid transparent; padding:0; cursor:pointer; }
+        .portal-color-swatch.is-active { border-color:#fff; box-shadow:0 0 0 2px var(--portal-accent); }
         .admin-topbar { margin-left:250px; background:#fff; border-bottom:1px solid #e5e7eb; padding:.75rem 1.5rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:99; }
         .admin-content { margin-left:250px; padding:1.5rem; }
         .stat-card { border:none; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
@@ -105,6 +160,17 @@
         </a>
     </nav>
     <div class="admin-sidebar-footer">
+        <div class="portal-color-row">
+            @foreach (var swatch in adminColorSwatches)
+            {
+                <form asp-controller="Admin" asp-action="SetPortalAccentColor" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="color" value="@swatch.Hex" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                    <button type="submit" class="portal-color-swatch @(adminPortalAccentColor == swatch.Hex ? "is-active" : "")" style="background-color:@swatch.Hex;" title="@swatch.Name" aria-label="@swatch.Name"></button>
+                </form>
+            }
+        </div>
         <div class="nav-section">System</div>
         @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
         {

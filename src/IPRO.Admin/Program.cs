@@ -357,8 +357,19 @@ CREATE TABLE IF NOT EXISTS `AdminUsers` (
     `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
     `CreatedAt` datetime(6) NOT NULL,
     `LastLoginAt` datetime(6) NULL,
+    `PortalAccentColor` varchar(20) CHARACTER SET utf8mb4 NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "AdminUsers", "PortalAccentColor", "ALTER TABLE `AdminUsers` ADD COLUMN `PortalAccentColor` varchar(20) CHARACTER SET utf8mb4 NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
 
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS `AdminAuditLogEntries` (
