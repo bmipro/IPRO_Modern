@@ -47,4 +47,5 @@ public static class PackageFeatureCodes
     public const string LifeEventReminders = "life_event_reminders";
     public const string PollSurveys = "poll_surveys";
     public const string LeadMagnet = "lead_magnet";
+    public const string AiDailyAssistant = "ai_daily_assistant";
 }

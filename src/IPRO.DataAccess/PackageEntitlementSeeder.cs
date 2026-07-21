@@ -154,7 +154,8 @@ public static class PackageEntitlementSeeder
             Feature(420, PackageFeatureCodes.GoogleCalendarSync, "Google Calendar two-way sync", no, no, no, no),
             Feature(430, PackageFeatureCodes.LifeEventReminders, "Client life-event reminders (birthdays, renewals, anniversaries)", no, no, all, all),
             Feature(440, PackageFeatureCodes.PollSurveys, "Poll and survey builder", all, all, all, all),
-            Feature(450, PackageFeatureCodes.LeadMagnet, "Lead magnet download block", all, all, all, all)
+            Feature(450, PackageFeatureCodes.LeadMagnet, "Lead magnet download block", all, all, all, all),
+            Feature(460, PackageFeatureCodes.AiDailyAssistant, "AI daily assistant digest", no, no, all, all)
         };
     }
 

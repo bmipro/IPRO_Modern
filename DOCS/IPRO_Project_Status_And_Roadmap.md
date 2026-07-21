@@ -292,6 +292,24 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - **Targeted testimonial requests**: a new **Request Testimonial** button on the Client Details page emails one specific client a personal feedback link (`TestimonialSubmission.RequestToken`, following the same signed-token pattern as `ClientInvoice.ViewToken`), landing in the same Pending review queue as open-form submissions once they respond. See `DOCS/15_TESTIMONIALS.md` ("Request a Testimonial from a Specific Client").
 - In-portal payment processing (a fourth item from the same backlog note) was explicitly deferred — it requires picking a real payment processor and live merchant credentials, a bigger decision kept separate from this batch.
 
+### 24. Add an AI Daily Assistant dashboard widget (done)
+- New card at the top of the Agent Portal Dashboard — the first thing an agent sees — showing new lead count, leads older than 24 hours, clients with no follow-up scheduled, and one ranked "suggested next action" line (e.g. "Call Jane Doe first — her renewal follow-up is 3 days overdue").
+- **Despite the name, v1 has zero AI/LLM API calls.** A new daily `AiDailyDigestJob` (same Hangfire pattern as `ClientLifeEventReminderJob`/`OverdueInvoiceReminderJob`) computes the counts and a deterministic priority ranking (overdue follow-up beats stale lead beats a "nothing scheduled" nudge), caches the result in a new `AgentDailyInsights` table (one row per agent, upserted daily), and the Dashboard just displays it instantly — no live computation, no API cost, no new configuration or NuGet dependency.
+- Gated by a new `PackageFeatureCodes.AiDailyAssistant` feature code, Platinum/Broker tier — same tier as `ClientPortal`/`ClientInvoicing`/`LifeEventReminders` (a productivity/intelligence feature, not a marketing content tool like `PollSurveys`/`LeadMagnet`).
+- This was scoped down deliberately from the broader "AI-assisted business tools" idea below after costing out the alternatives: most of the visible value here is plain dashboard engineering against data already in the schema, not an LLM call — so it ships with no ongoing cost and no external dependency, and the "AI" part is reserved as an optional future layer (see below) rather than the foundation.
+
+### AI Assistant — where this could expand next
+The daily digest above is intentionally the smallest, cheapest, most deterministic slice of the original "AI-assisted business tools" idea. In priority order for a future pass:
+1. **LLM-composed "why" line** — the natural next step: populate a reserved `AgentDailyInsight.SuggestedActionReason` column via a short Claude Haiku call once per agent per day (~$0.002/agent/day at 2026-07 pricing), synthesizing *why* the suggestion matters rather than just naming the client. Smallest possible AI integration on top of what already shipped.
+2. **Social post drafting** — smallest-scope content-generation feature; drops into the existing Social Posts composer, which already tracks per-platform character limits.
+3. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
+4. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
+5. **Client activity summarization** (Client Details page) — a higher-risk tier: client notes/timeline would leave the system in the API call, so this needs a PII-handling/redaction and consent decision made deliberately before writing any code, not bolted on after.
+6. **Drip campaign generation** — a full multi-step sequence from one prompt, bigger scope than any single-shot draft above.
+7. **Weekly/portfolio-wide digest** — a broader version of today's daily per-agent digest, e.g. "across your whole book, here's who needs attention this week."
+
+The throughline for all seven: AI drafts or suggests, the agent always reviews and acts — the same "never auto-send" instinct already used throughout IPRO (testimonial approval queue, Draft-only recurring invoices, agent-triggered newsletter/poll sends).
+
 ## Bigger Product Ideas
 
 ### Agent invoicing and billing system (v1 done — see item 13 below; automatic overdue reminders — see item 23 above)
@@ -341,14 +359,8 @@ Real estate agents specifically need to display MLS listings on their site (IDX)
 
 **Recommendation**: build a "Listings" content block (same pattern as the existing Services/Testimonials blocks) that lets an agent paste in their existing iHomefinder/IDX Broker embed code — fast, low-risk MVP with no vendor agreement or RESO certification needed. Only pursue a native MLS Grid integration later, once real estate signups justify the vendor contract and compliance overhead; that path would let IDX listings live inside IPRO's own package tiers instead of requiring a separate per-agent third-party subscription.
 
-### AI-assisted business tools
-- Generate website copy by vertical.
-- Generate newsletter drafts.
-- Generate drip campaigns.
-- Generate social posts.
-- Suggest follow-ups.
-- Summarize client activity.
-- Recommend next best action.
+### AI-assisted business tools (daily assistant v1 done — see item 24 above)
+"Suggest follow-ups"/"recommend next best action" shipped as the AI Daily Assistant dashboard widget (item 24). The rest of this original list — generate website copy by vertical, generate newsletter drafts, generate drip campaigns, generate social posts, summarize client activity — remains open; see "AI Assistant — where this could expand next" under item 24 for the prioritized order and the reasoning behind it.
 
 ### Client portal (v1 done — see item 14 above; real appointment scheduling — see item 15; campaign preferences — see item 23)
 Secure login, messages, two-way documents, self-service "My Information," a real appointment-scheduling flow (not just a request queue), invoices, and campaign/newsletter preferences all shipped. Still open for a future pass:

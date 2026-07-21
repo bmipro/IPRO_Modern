@@ -122,6 +122,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureSocialPostSchemaAsync(db);
     await EnsureTestimonialSubmissionSchemaAsync(db);
     await EnsurePollSchemaAsync(db);
+    await EnsureAgentDailyInsightSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -732,6 +733,27 @@ CREATE TABLE IF NOT EXISTS `TestimonialSubmissions` (
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureAgentDailyInsightSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `AgentDailyInsights` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `NewLeadCount` int NOT NULL DEFAULT 0,
+    `StaleLeadCount` int NOT NULL DEFAULT 0,
+    `NoFollowUpClientCount` int NOT NULL DEFAULT 0,
+    `SuggestedActionType` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'None',
+    `SuggestedActionText` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SuggestedActionUrl` varchar(300) CHARACTER SET utf8mb4 NULL,
+    `SuggestedActionReason` varchar(1000) CHARACTER SET utf8mb4 NULL,
+    `GeneratedAt` datetime(6) NOT NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_AgentDailyInsights_AgentUserId` (`AgentUserId`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)

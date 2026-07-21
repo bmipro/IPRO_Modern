@@ -32,6 +32,7 @@ public class DashboardController : Controller
         ViewBag.Subscription    = await _billing.GetActiveSubscriptionAsync(agentId);
         ViewBag.AgentName       = User.FindFirstValue("FullName");
         ViewBag.FeatureAccess = await LoadFeatureAccessAsync(agentId);
+        ViewBag.DailyInsight = await _db.AgentDailyInsights.AsNoTracking().FirstOrDefaultAsync(i => i.AgentUserId == agentId);
         ViewBag.OverdueFollowUpCount = await _db.ClientFollowUps
             .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today);
         ViewBag.TodayFollowUpCount = await _db.ClientFollowUps
@@ -64,7 +65,8 @@ public class DashboardController : Controller
         {
             PackageFeatureCodes.CalendarScheduler,
             PackageFeatureCodes.Newsletters,
-            PackageFeatureCodes.InstantWebsite
+            PackageFeatureCodes.InstantWebsite,
+            PackageFeatureCodes.AiDailyAssistant
         };
 
         var access = new Dictionary<string, PackageFeatureAccess>();

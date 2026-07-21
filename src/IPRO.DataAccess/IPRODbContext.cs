@@ -23,6 +23,7 @@ public class IPRODbContext : DbContext
     public DbSet<ClientCategory> ClientCategories => Set<ClientCategory>();
     public DbSet<ClientComment> ClientComments => Set<ClientComment>();
     public DbSet<ClientFollowUp> ClientFollowUps => Set<ClientFollowUp>();
+    public DbSet<AgentDailyInsight> AgentDailyInsights => Set<AgentDailyInsight>();
     public DbSet<Billing> Billings => Set<Billing>();
     public DbSet<BillingRule> BillingRules => Set<BillingRule>();
     public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
