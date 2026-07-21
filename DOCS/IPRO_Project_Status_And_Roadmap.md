@@ -37,6 +37,8 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Package active/inactive status exists.
 - PayPal setup, email setup, tax rates, domain automation, templates, agents, revenue, and subscription sections exist.
 - Admin authentication and authorization is a real role model instead of a single hardcoded credential: multiple named admin accounts exist (created/edited/deactivated/password-reset from **Admin Users**), split across two roles (Super Admin: full access including billing/platform config; Support: day-to-day ops), and every login attempt plus admin-account change is written to an audit log. The original Azure-config credential is auto-migrated into the first Super Admin account on first startup, so nothing breaks on deploy. Fixes a prior inconsistency where some billing/platform screens (PayPal, Email, Packages, Tax Rates) were actually *less* protected than day-to-day ops screens.
+- Each admin account can pick its own accent color (a 6-swatch picker in the sidebar, mirroring the same feature on the Agent Portal) that re-themes the whole portal's buttons/links/active nav — a personal preference, not a shared setting.
+- A SuperAdmin-only **AI Usage** page (`/AiUsage`) tracks estimated Anthropic API spend from the AI Daily Assistant's LLM calls, with a top-up form and a low-balance reminder banner on the Dashboard (see item 26 below).
 
 ### Billing and invoices
 - PayPal subscription checkout works in sandbox.
@@ -298,17 +300,29 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Gated by a new `PackageFeatureCodes.AiDailyAssistant` feature code, Platinum/Broker tier — same tier as `ClientPortal`/`ClientInvoicing`/`LifeEventReminders` (a productivity/intelligence feature, not a marketing content tool like `PollSurveys`/`LeadMagnet`).
 - This was scoped down deliberately from the broader "AI-assisted business tools" idea below after costing out the alternatives: most of the visible value here is plain dashboard engineering against data already in the schema, not an LLM call — so it ships with no ongoing cost and no external dependency, and the "AI" part is reserved as an optional future layer (see below) rather than the foundation.
 
-### AI Assistant — where this could expand next
-The daily digest above is intentionally the smallest, cheapest, most deterministic slice of the original "AI-assisted business tools" idea. In priority order for a future pass:
-1. **LLM-composed "why" line** — the natural next step: populate a reserved `AgentDailyInsight.SuggestedActionReason` column via a short Claude Haiku call once per agent per day (~$0.002/agent/day at 2026-07 pricing), synthesizing *why* the suggestion matters rather than just naming the client. Smallest possible AI integration on top of what already shipped.
-2. **Social post drafting** — smallest-scope content-generation feature; drops into the existing Social Posts composer, which already tracks per-platform character limits.
-3. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
-4. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
-5. **Client activity summarization** (Client Details page) — a higher-risk tier: client notes/timeline would leave the system in the API call, so this needs a PII-handling/redaction and consent decision made deliberately before writing any code, not bolted on after.
-6. **Drip campaign generation** — a full multi-step sequence from one prompt, bigger scope than any single-shot draft above.
-7. **Weekly/portfolio-wide digest** — a broader version of today's daily per-agent digest, e.g. "across your whole book, here's who needs attention this week."
+### 25. Add a SuperAdmin portal accent-color picker (done)
+- The Agent Portal has always had a 6-swatch accent-color picker in its sidebar (`AgentUser.PortalAccentColor`) that re-themes the whole app's buttons/links/active-nav via a `--portal-accent` CSS variable — the SuperAdmin portal never had the equivalent, which surfaced as a confusing "the color palette is gone" bug report before it was clarified as a missing feature, not a regression.
+- Mirrored the identical pattern onto `AdminUser.PortalAccentColor`: a `SetPortalAccentColor` action in `AdminController`, the same claims-refresh-on-change pattern (the accent color is baked into the login cookie, refreshed via a full re-sign-in when changed), and the same swatch row + CSS overrides in `IPRO.Admin/Views/Shared/_Layout.cshtml`.
+- One schema-repair gotcha worth remembering: `EnsureTableColumnAsync` (the shared helper used to add a column to an existing table) reads the raw ADO.NET connection directly and needs `db.Database.OpenConnectionAsync()`/`CloseConnectionAsync()` wrapped around it — unlike `ExecuteSqlRawAsync` (used for `CREATE TABLE`), which manages its own connection. `EnsureAdminUserSchemaAsync` had never needed this before and threw `Connection must be Open` on a fresh database until fixed. See `09_TROUBLESHOOTING.md`.
 
-The throughline for all seven: AI drafts or suggests, the agent always reviews and acts — the same "never auto-send" instinct already used throughout IPRO (testimonial approval queue, Draft-only recurring invoices, agent-triggered newsletter/poll sends).
+### 26. Add LLM-composed reason line + AI usage/cost tracking (done)
+- **The "why" line**: `AiDailyDigestJob` now calls Claude Haiku 4.5 once per agent per day (only when there's an actual suggestion — skipped entirely for "you're all caught up") to populate `AgentDailyInsight.SuggestedActionReason`, a one-sentence explanation of *why* the suggested action matters, shown under the suggestion on the Agent Dashboard. New `IAiSuggestionService`/`AnthropicAiSuggestionService` in `IPRO.Business` — a plain `HttpClient` call to `api.anthropic.com/v1/messages`, no SDK dependency. Fails soft everywhere: unconfigured key, network error, or bad response all just leave the reason blank and never break the rest of the digest (counts/action text still save normally).
+- **Anthropic API key**: stored as the `Ai__AnthropicApiKey` Azure App Service setting on `ipro-prod-web` only (that's the only app with a Hangfire server) — never committed to git; `appsettings.json` only carries the `YOUR_ANTHROPIC_API_KEY` placeholder.
+- **Usage/cost tracking**: every call's real `input_tokens`/`output_tokens` (returned by Anthropic's API) are accumulated per job run and upserted into a new `AiUsageDailyLogs` table (one row per calendar day), with estimated cost computed from Haiku 4.5's published rate — **$1/MTok input, $5/MTok output** (confirmed live from `platform.claude.com/docs/en/about-claude/pricing` on 2026-07-21, not assumed from memory).
+- **New SuperAdmin page** `/AiUsage` (`AiUsageController`, SuperAdmin-only): total funded, estimated spend to date, estimated remaining, a 30-day usage table, a "record a top-up" form (adds to the running total — funding is cumulative, not a reset), and an adjustable low-balance threshold (default 20%). Backed by a single-row `AiBillingSettings` table.
+- **Top-up reminder**: a warning banner on the Admin Dashboard itself (the first page a SuperAdmin sees) once estimated remaining balance drops to the threshold, linking straight to `/AiUsage`.
+- This whole feature is **self-tracked, not synced with Anthropic's real account balance** — there's no read access to Anthropic's actual ledger without a separate Admin API key, so "remaining balance" is always an estimate the SuperAdmin keeps accurate by recording top-ups as they happen.
+
+### AI Assistant — where this could expand next
+Item 1 below (the "why" line) is done — see item 26 above. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
+1. **Social post drafting** — smallest-scope content-generation feature; drops into the existing Social Posts composer, which already tracks per-platform character limits.
+2. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
+3. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
+4. **Client activity summarization** (Client Details page) — a higher-risk tier: client notes/timeline would leave the system in the API call, so this needs a PII-handling/redaction and consent decision made deliberately before writing any code, not bolted on after.
+5. **Drip campaign generation** — a full multi-step sequence from one prompt, bigger scope than any single-shot draft above.
+6. **Weekly/portfolio-wide digest** — a broader version of today's daily per-agent digest, e.g. "across your whole book, here's who needs attention this week."
+
+The throughline for all six: AI drafts or suggests, the agent always reviews and acts — the same "never auto-send" instinct already used throughout IPRO (testimonial approval queue, Draft-only recurring invoices, agent-triggered newsletter/poll sends).
 
 ## Bigger Product Ideas
 
@@ -359,8 +373,8 @@ Real estate agents specifically need to display MLS listings on their site (IDX)
 
 **Recommendation**: build a "Listings" content block (same pattern as the existing Services/Testimonials blocks) that lets an agent paste in their existing iHomefinder/IDX Broker embed code — fast, low-risk MVP with no vendor agreement or RESO certification needed. Only pursue a native MLS Grid integration later, once real estate signups justify the vendor contract and compliance overhead; that path would let IDX listings live inside IPRO's own package tiers instead of requiring a separate per-agent third-party subscription.
 
-### AI-assisted business tools (daily assistant v1 done — see item 24 above)
-"Suggest follow-ups"/"recommend next best action" shipped as the AI Daily Assistant dashboard widget (item 24). The rest of this original list — generate website copy by vertical, generate newsletter drafts, generate drip campaigns, generate social posts, summarize client activity — remains open; see "AI Assistant — where this could expand next" under item 24 for the prioritized order and the reasoning behind it.
+### AI-assisted business tools (daily assistant v1 done — see item 24 above; LLM reason line + usage tracking done — see item 26 above)
+"Suggest follow-ups"/"recommend next best action" shipped as the AI Daily Assistant dashboard widget (item 24), and its first real LLM call (the "why" line, plus SuperAdmin cost tracking) shipped as item 26. The rest of this original list — generate website copy by vertical, generate newsletter drafts, generate drip campaigns, generate social posts, summarize client activity — remains open; see "AI Assistant — where this could expand next" under item 26 for the prioritized order and the reasoning behind it.
 
 ### Client portal (v1 done — see item 14 above; real appointment scheduling — see item 15; campaign preferences — see item 23)
 Secure login, messages, two-way documents, self-service "My Information," a real appointment-scheduling flow (not just a request queue), invoices, and campaign/newsletter preferences all shipped. Still open for a future pass:
