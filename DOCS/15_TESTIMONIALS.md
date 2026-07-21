@@ -29,6 +29,17 @@ The public form asks for first name, last name, email, and the testimonial text.
 
 Approving or rejecting doesn't require re-editing first — you can act directly from the Pending list, or open **Edit** first if you want to adjust the wording.
 
+## Request a Testimonial from a Specific Client
+
+Instead of waiting for a visitor to find the form on your site, you can ask one client directly:
+
+1. Open the client's profile from **Clients**.
+2. Under **Testimonial**, click **Request Testimonial**.
+3. The client receives an email with a personal link to a short feedback form (just their testimonial and a consent checkbox — no captcha, since the link itself is only ever sent to that one person).
+4. Once they submit, it lands in your **Pending** queue exactly like an open-form submission, ready to edit and approve.
+
+The client profile card shows the current state — awaiting response, submitted and awaiting your review, or the outcome once you've approved or rejected it — with a **Resend Request** or **Request Another** button as appropriate. Clicking the button again before they've responded resends the same link rather than creating a duplicate request.
+
 ## Package Availability
 
 Testimonials is included with every package. If a package removes access to it later, agents keep any testimonials already approved and visible on their site, but can no longer add new **Testimonial Submission Form** blocks or reach the review queue until they upgrade.

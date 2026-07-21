@@ -59,3 +59,12 @@ Clients can update their own contact details (name, phone, address) directly fro
 ## Invoices
 
 Clients see all estimates/invoices you've sent them under their portal's **Invoices** tab, each linking to the same invoice page used for the standalone signed links.
+
+## Preferences
+
+Clients can manage their own newsletter and campaign subscriptions from their portal's **Preferences** page, instead of only through the anonymous unsubscribe link in an individual email:
+
+- **Newsletter**: a single subscribe/unsubscribe toggle, the same flag every newsletter (and poll) send checks.
+- **Campaigns**: every drip campaign the client is currently active in, each with its own **Opt Out** button — opting out of one campaign does not affect any other campaign or the newsletter subscription.
+
+The per-send and per-enrollment unsubscribe links already sent in newsletter and drip campaign emails keep working exactly as before; this page is an additional, authenticated way to reach the same settings, not a replacement.

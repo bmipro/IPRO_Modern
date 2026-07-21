@@ -25,6 +25,7 @@ public class ClientInvoice
     public ClientInvoicePaymentMethod? PaidMethod { get; set; }
     public string ViewToken { get; set; } = string.Empty;
     public DateTime? SentAt { get; set; }
+    public DateTime? LastReminderSentAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

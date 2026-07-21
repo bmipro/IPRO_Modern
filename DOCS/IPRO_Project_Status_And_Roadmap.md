@@ -286,11 +286,16 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Gated by a new `PackageFeatureCodes.LeadMagnet` feature code, included in every package, same pattern as `PollSurveys`/`TestimonialManager`.
 - See `DOCS/05_DOMAINS_AND_LEADS.md` ("Add a Lead Magnet Download Block").
 
+### 23. Three small follow-ups on shipped features (done)
+- **Automatic overdue-invoice reminders**: once a sent invoice's due date passes, IPRO emails the client a reminder roughly weekly (a new daily `OverdueInvoiceReminderJob`, same dedup/gating pattern as `ClientLifeEventReminderJob`) until it's marked Paid/Void — no agent setup needed. See `DOCS/10_CLIENT_INVOICING.md` ("Automatic Overdue Reminders").
+- **Campaign preferences inside the Client Portal**: a new **Preferences** page lets a logged-in client toggle their newsletter subscription and opt out of individual drip campaigns, alongside (not replacing) the existing anonymous per-send/per-enrollment unsubscribe email links. See `DOCS/11_CLIENT_PORTAL.md` ("Preferences").
+- **Targeted testimonial requests**: a new **Request Testimonial** button on the Client Details page emails one specific client a personal feedback link (`TestimonialSubmission.RequestToken`, following the same signed-token pattern as `ClientInvoice.ViewToken`), landing in the same Pending review queue as open-form submissions once they respond. See `DOCS/15_TESTIMONIALS.md` ("Request a Testimonial from a Specific Client").
+- In-portal payment processing (a fourth item from the same backlog note) was explicitly deferred — it requires picking a real payment processor and live merchant credentials, a bigger decision kept separate from this batch.
+
 ## Bigger Product Ideas
 
-### Agent invoicing and billing system (v1 done — see item 13 below)
-The core of this shipped: estimates/invoices with line items, per-client tax, a no-login client view/approve/pay link, manual paid-tracking, recurring auto-drafted invoices, and CSV export. Still open for a future pass:
-- Send automatic payment reminders for overdue invoices.
+### Agent invoicing and billing system (v1 done — see item 13 below; automatic overdue reminders — see item 23 above)
+The core of this shipped: estimates/invoices with line items, per-client tax, a no-login client view/approve/pay link, manual paid-tracking, recurring auto-drafted invoices, CSV export, and automatic overdue reminders. Still open for a future pass:
 - Track failed/declined payments (today, payment itself happens outside IPRO, so there's nothing to detect automatically).
 - QuickBooks export (CSV export exists; QuickBooks-specific format does not).
 - Let clients view/pay through a real logged-in client portal instead of a one-off signed link (see "Client portal" below).
@@ -345,10 +350,9 @@ Real estate agents specifically need to display MLS listings on their site (IDX)
 - Summarize client activity.
 - Recommend next best action.
 
-### Client portal (v1 done — see item 14 above; real appointment scheduling — see item 15)
-Secure login, messages, two-way documents, self-service "My Information," a real appointment-scheduling flow (not just a request queue), and invoices all shipped. Still open for a future pass:
-- Campaign preferences and unsubscribe controls surfaced inside the portal itself (today, unsubscribe still happens via the per-send/per-enrollment email links).
-- Payments taken directly inside the portal (today's Pay Now button still links out to the agent's own external payment link, same as the standalone invoicing feature).
+### Client portal (v1 done — see item 14 above; real appointment scheduling — see item 15; campaign preferences — see item 23)
+Secure login, messages, two-way documents, self-service "My Information," a real appointment-scheduling flow (not just a request queue), invoices, and campaign/newsletter preferences all shipped. Still open for a future pass:
+- Payments taken directly inside the portal (today's Pay Now button still links out to the agent's own external payment link, same as the standalone invoicing feature) — deferred pending a decision on which payment processor to integrate.
 
 ### Google Calendar sync (done — verified live end-to-end 2026-07-19)
 Full two-way sync between an agent's own Google Calendar and the Agent Portal Calendar, opt-in per agent:
@@ -360,7 +364,7 @@ Full two-way sync between an agent's own Google Calendar and the Agent Portal Ca
 - Still open: the OAuth consent screen is in Testing mode (max 100 manually-added test users) and the Google Cloud project is still owned by a personal account rather than a dedicated one — see the production-readiness notes for the path to full public availability (Google app verification/review) and account ownership handoff.
 
 ### Reputation and social media
-- Collect and approve testimonials (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: open public submission form + agent review queue). Still open: a targeted "send this specific client a request link" flow, star ratings, and photo upload were considered but deferred — today's version is an open form only.
+- Collect and approve testimonials (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: open public submission form + agent review queue; targeted per-client request links done 2026-07-20, see item 23 above). Star ratings and photo upload were considered but remain deferred.
 - Publish social posts (done — see item 18: draft/track composer; live auto-publishing directly to a platform is still a separate, larger future item).
 - Reuse newsletter/page content as social content.
 - Campaign calendar for email and social.

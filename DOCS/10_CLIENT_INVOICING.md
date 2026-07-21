@@ -41,6 +41,10 @@ IPRO does not process the payment itself — the agent always confirms and recor
 2. Click **Mark Paid** and choose how it was paid (Online, Cheque, Cash, EFT, or Other).
 3. The invoice status updates to Paid and the payment date/method is recorded.
 
+## Automatic Overdue Reminders
+
+Once an invoice is sent and its due date passes without being marked Paid, IPRO automatically emails the client a reminder roughly once a week for as long as it stays overdue — no setup needed. The reminder links to the same document page the client already has (`/invoice/{link}`), and stops on its own as soon as the invoice is marked Paid, Void, or otherwise leaves Sent status. This only applies to invoices, not estimates.
+
 ## Setting a Payment Link
 
 1. Select **Profile** in the Agent Portal.

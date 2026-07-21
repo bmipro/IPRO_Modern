@@ -1,0 +1,124 @@
+@model IPRO.Entities.TestimonialSubmission
+@{
+    Layout = null;
+    var agent = ViewBag.Agent as IPRO.Entities.AgentUser;
+    var companyName = string.IsNullOrWhiteSpace(agent?.CompanyName) ? "Your Advisor" : agent!.CompanyName;
+    var alreadySubmitted = !string.IsNullOrWhiteSpace(Model.Body);
+}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Share Your Feedback - @companyName</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #64748b;
+      --line: #dbe4ef;
+      --panel: #f8fafc;
+      --blue: #1457d9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #e8eef7;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(560px, 100%);
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, .12);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 22px 28px;
+      background: var(--blue);
+      color: white;
+    }
+    .card-header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+    .card-body {
+      padding: 28px;
+    }
+    .card-body p.lead {
+      color: var(--muted);
+      margin-top: 0;
+    }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      resize: vertical;
+    }
+    label.consent {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 16px 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .btn {
+      display: inline-block;
+      padding: 11px 20px;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .thankyou {
+      text-align: center;
+    }
+    .thankyou .icon {
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h1>@companyName</h1>
+    </div>
+    <div class="card-body">
+      @if (alreadySubmitted)
+      {
+        <div class="thankyou">
+          <div class="icon">🙏</div>
+          <h2>Thank you!</h2>
+          <p class="lead">Your feedback has been sent to @companyName for review.</p>
+        </div>
+      }
+      else
+      {
+        <p class="lead">@companyName would love to hear about your experience. Your feedback may be reviewed and shared publicly on their website.</p>
+        <form method="post" action="/testimonial/@Model.RequestToken">
+          @Html.AntiForgeryToken()
+          <textarea name="body" placeholder="Share a few words about your experience..." required maxlength="4000"></textarea>
+          <label class="consent">
+            <input type="checkbox" name="consentGiven" value="true" required />
+            <span>I agree that @companyName may review, edit for length, and publish this testimonial on their website.</span>
+          </label>
+          <button type="submit" class="btn">Submit Feedback</button>
+        </form>
+      }
+    </div>
+  </div>
+</body>
+</html>

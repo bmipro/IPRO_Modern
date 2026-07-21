@@ -100,6 +100,11 @@ public class ClientsController : Controller
         ViewBag.PortalAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
         ViewBag.PortalDocuments = await _db.PortalDocuments.AsNoTracking().Where(d => d.ClientId == id).OrderByDescending(d => d.UploadedAt).ToListAsync();
         ViewBag.LifeEventAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.LifeEventReminders);
+        ViewBag.TestimonialAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.TestimonialManager);
+        ViewBag.TestimonialRequest = await _db.TestimonialSubmissions.AsNoTracking()
+            .Where(t => t.ClientId == id && t.AgentUserId == AgentId)
+            .OrderByDescending(t => t.SubmittedAt)
+            .FirstOrDefaultAsync();
         return View(client);
     }
 

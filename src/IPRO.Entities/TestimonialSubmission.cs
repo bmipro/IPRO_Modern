@@ -18,4 +18,6 @@ public class TestimonialSubmission
     public TestimonialStatus Status { get; set; } = TestimonialStatus.Pending;
     public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ReviewedAt { get; set; }
+    public int? ClientId { get; set; }
+    public string? RequestToken { get; set; }
 }

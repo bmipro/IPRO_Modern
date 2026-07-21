@@ -195,6 +195,7 @@ RecurringJob.AddOrUpdate<DomainAutomationJob>("domain-automation", job => job.Ru
 RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<GoogleCalendarSyncJob>("google-calendar-sync", job => job.RunAsync(), "*/15 * * * *");
 RecurringJob.AddOrUpdate<ClientLifeEventReminderJob>("client-life-event-reminders", job => job.RunAsync(), Cron.Daily);
+RecurringJob.AddOrUpdate<OverdueInvoiceReminderJob>("overdue-invoice-reminders", job => job.RunAsync(), Cron.Daily);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -651,6 +652,7 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
         await EnsureTableColumnAsync(db, "AgentUsers", "PortalAccentColor", "ALTER TABLE `AgentUsers` ADD COLUMN `PortalAccentColor` varchar(20) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetToken", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetToken` varchar(80) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetTokenExpiresAt", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetTokenExpiresAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "ClientInvoices", "LastReminderSentAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastReminderSentAt` datetime(6) NULL");
     }
     finally
     {
@@ -818,6 +820,17 @@ CREATE TABLE IF NOT EXISTS `TestimonialSubmissions` (
     `ReviewedAt` datetime(6) NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "TestimonialSubmissions", "ClientId", "ALTER TABLE `TestimonialSubmissions` ADD COLUMN `ClientId` int NULL");
+        await EnsureTableColumnAsync(db, "TestimonialSubmissions", "RequestToken", "ALTER TABLE `TestimonialSubmissions` ADD COLUMN `RequestToken` varchar(80) CHARACTER SET utf8mb4 NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)

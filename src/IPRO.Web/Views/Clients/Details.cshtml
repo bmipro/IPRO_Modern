@@ -152,6 +152,57 @@
       </div>
     </div>
 
+    @{
+      var testimonialAccess = ViewBag.TestimonialAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+      var testimonialRequest = ViewBag.TestimonialRequest as IPRO.Entities.TestimonialSubmission;
+    }
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="fas fa-star me-2 text-warning"></i>Testimonial</h6>
+        @if (testimonialAccess?.IsIncluded != true)
+        {
+          <p class="text-muted small mb-0">@testimonialAccess?.UpgradeMessage</p>
+        }
+        else if (testimonialRequest == null)
+        {
+          <p class="text-muted small">Ask @Model.FirstName to share a quick testimonial about their experience.</p>
+          <form asp-controller="Testimonials" asp-action="RequestFromClient" asp-route-clientId="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-paper-plane me-1"></i>Request Testimonial</button>
+          </form>
+        }
+        else if (testimonialRequest.Status == IPRO.Entities.TestimonialStatus.Approved)
+        {
+          <div class="small text-success mb-2"><i class="fas fa-circle-check me-1"></i>Approved and published on your site</div>
+          <form asp-controller="Testimonials" asp-action="RequestFromClient" asp-route-clientId="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-success">Request Another</button>
+          </form>
+        }
+        else if (testimonialRequest.Status == IPRO.Entities.TestimonialStatus.Rejected)
+        {
+          <div class="small text-muted mb-2"><i class="fas fa-circle-xmark me-1"></i>Rejected</div>
+          <form asp-controller="Testimonials" asp-action="RequestFromClient" asp-route-clientId="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-success">Request Another</button>
+          </form>
+        }
+        else if (string.IsNullOrWhiteSpace(testimonialRequest.Body))
+        {
+          <div class="small text-warning mb-2"><i class="fas fa-clock me-1"></i>Awaiting response, sent @testimonialRequest.SubmittedAt.ToString("MMM d, yyyy")</div>
+          <form asp-controller="Testimonials" asp-action="RequestFromClient" asp-route-clientId="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-success">Resend Request</button>
+          </form>
+        }
+        else
+        {
+          <div class="small text-primary mb-2"><i class="fas fa-hourglass-half me-1"></i>Submitted — awaiting your review</div>
+          <a class="btn btn-sm btn-outline-primary" href="/Testimonials/Edit/@testimonialRequest.Id">Review Testimonial</a>
+        }
+      </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <h6 class="fw-bold mb-3"><i class="fas fa-folder me-2 text-primary"></i>Portal Documents</h6>

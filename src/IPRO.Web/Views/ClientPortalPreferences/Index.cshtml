@@ -1,0 +1,56 @@
+@model IPRO.Web.Models.PortalPreferencesViewModel
+@{
+    Layout = "_ClientPortalLayout";
+    ViewData["Title"] = "Preferences";
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-bell me-2 text-success"></i>Preferences</h2>
+  <div class="text-muted">Manage what you hear from us.</div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3">Newsletter</h6>
+    <form asp-action="ToggleNewsletter" method="post" class="d-flex align-items-center gap-3">
+      @Html.AntiForgeryToken()
+      @if (Model.IsNewsletterSubscribed)
+      {
+        <input type="hidden" name="subscribed" value="false" />
+        <span class="text-muted small">You're currently subscribed to newsletter emails.</span>
+        <button type="submit" class="btn btn-sm btn-outline-danger ms-auto">Unsubscribe</button>
+      }
+      else
+      {
+        <input type="hidden" name="subscribed" value="true" />
+        <span class="text-muted small">You're not currently subscribed to newsletter emails.</span>
+        <button type="submit" class="btn btn-sm btn-success ms-auto">Subscribe</button>
+      }
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3">Campaigns</h6>
+    @if (!Model.Enrollments.Any())
+    {
+      <p class="text-muted small mb-0">You're not currently enrolled in any campaigns.</p>
+    }
+    else
+    {
+      <ul class="list-unstyled mb-0">
+        @foreach (var enrollment in Model.Enrollments)
+        {
+          <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+            <span>@enrollment.DripCampaign.Name</span>
+            <form asp-action="CancelEnrollment" asp-route-enrollmentId="@enrollment.Id" method="post">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn btn-sm btn-outline-danger">Opt Out</button>
+            </form>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>
