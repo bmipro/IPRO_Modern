@@ -28,6 +28,10 @@ public class AiDailyDigestJob
 
         var agentIds = await _db.AgentUsers.Where(a => a.IsActive).Select(a => a.Id).ToListAsync();
 
+        var totalAiCalls = 0;
+        var totalInputTokens = 0L;
+        var totalOutputTokens = 0L;
+
         foreach (var agentId in agentIds)
         {
             try
@@ -100,9 +104,18 @@ public class AiDailyDigestJob
                     aiSituation = null;
                 }
 
-                var actionReason = aiSituation == null
-                    ? null
-                    : await _aiSuggestions.GenerateActionReasonAsync(aiSituation);
+                string? actionReason = null;
+                if (aiSituation != null)
+                {
+                    var aiResult = await _aiSuggestions.GenerateActionReasonAsync(aiSituation);
+                    actionReason = aiResult.Reason;
+                    if (aiResult.InputTokens > 0 || aiResult.OutputTokens > 0)
+                    {
+                        totalAiCalls++;
+                        totalInputTokens += aiResult.InputTokens;
+                        totalOutputTokens += aiResult.OutputTokens;
+                    }
+                }
 
                 var insight = await _db.AgentDailyInsights.FirstOrDefaultAsync(i => i.AgentUserId == agentId);
                 if (insight == null)
@@ -127,6 +140,34 @@ public class AiDailyDigestJob
             }
         }
 
+        if (totalAiCalls > 0)
+        {
+            await RecordAiUsageAsync(today, totalAiCalls, totalInputTokens, totalOutputTokens);
+        }
+
         await _db.SaveChangesAsync();
+    }
+
+    // Haiku 4.5 base pricing as of 2026-07-21 (platform.claude.com/docs/en/about-claude/pricing): $1/MTok input, $5/MTok output.
+    private const decimal InputCostPerMillionTokens = 1.00m;
+    private const decimal OutputCostPerMillionTokens = 5.00m;
+
+    private async Task RecordAiUsageAsync(DateTime date, int callCount, long inputTokens, long outputTokens)
+    {
+        var estimatedCost = (inputTokens / 1_000_000m) * InputCostPerMillionTokens
+                           + (outputTokens / 1_000_000m) * OutputCostPerMillionTokens;
+
+        var log = await _db.AiUsageDailyLogs.FirstOrDefaultAsync(l => l.Date == date);
+        if (log == null)
+        {
+            log = new AiUsageDailyLog { Date = date };
+            _db.AiUsageDailyLogs.Add(log);
+        }
+
+        log.CallCount += callCount;
+        log.InputTokens += inputTokens;
+        log.OutputTokens += outputTokens;
+        log.EstimatedCostUsd += estimatedCost;
+        log.UpdatedAt = DateTime.UtcNow;
     }
 }

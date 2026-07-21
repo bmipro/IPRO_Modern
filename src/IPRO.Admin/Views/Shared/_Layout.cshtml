@@ -147,6 +147,9 @@
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "EmailSetup" ? "active" : "")" href="/EmailSetup">
               <i class="fas fa-envelope-circle-check"></i>Email Setup
           </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AiUsage" ? "active" : "")" href="/AiUsage">
+              <i class="fas fa-robot"></i>AI Usage
+          </a>
         }
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "Revenue" ? "active" : "")" href="/Reports/Revenue">
             <i class="fas fa-dollar-sign"></i>Revenue

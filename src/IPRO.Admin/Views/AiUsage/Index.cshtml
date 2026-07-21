@@ -1,0 +1,132 @@
+@model List<IPRO.Entities.AiUsageDailyLog>
+@{
+    ViewData["Title"] = "AI Usage";
+    var settings = ViewBag.Settings as IPRO.Entities.AiBillingSettings;
+    decimal totalSpend = ViewBag.TotalSpend;
+    decimal remaining = ViewBag.Remaining;
+    decimal remainingPercent = ViewBag.RemainingPercent;
+    bool isLow = ViewBag.IsLow;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-robot me-2 text-primary"></i>AI Usage &amp; Billing</h4>
+    <p class="text-muted mb-0">Estimated Anthropic API spend from the AI Daily Assistant's "why" line generation.</p>
+  </div>
+</div>
+
+@if (isLow)
+{
+  <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2 mb-4">
+    <i class="fas fa-triangle-exclamation"></i>
+    <div><strong>Time to top up.</strong> Estimated remaining balance is @remainingPercent.ToString("0")% of what you've funded — add more credits at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>, then record it below.</div>
+  </div>
+}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-3">
+        <div class="text-muted small">Total funded</div>
+        <div class="fs-4 fw-bold">$@settings?.TotalFundedUsd.ToString("0.00")</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-3">
+        <div class="text-muted small">Estimated spend to date</div>
+        <div class="fs-4 fw-bold">$@totalSpend.ToString("0.0000")</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-3">
+        <div class="text-muted small">Estimated remaining</div>
+        <div class="fs-4 fw-bold @(isLow ? "text-warning" : "")">$@remaining.ToString("0.00")</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-3">
+        <div class="text-muted small">Low-balance reminder at</div>
+        <div class="fs-4 fw-bold">@settings?.LowBalanceThresholdPercent%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">Record a top-up</h6>
+        <form asp-action="AddFunds" method="post" class="d-flex gap-2">
+          @Html.AntiForgeryToken()
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" class="form-control" step="0.01" min="0.01" placeholder="20.00" required />
+          </div>
+          <button type="submit" class="btn btn-primary text-nowrap">Add funds</button>
+        </form>
+        <div class="form-text">Enter what you just added on console.anthropic.com — this adds to the running total, it doesn't reset it.</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">Reminder threshold</h6>
+        <form asp-action="SetThreshold" method="post" class="d-flex gap-2">
+          @Html.AntiForgeryToken()
+          <div class="input-group">
+            <input type="number" name="percent" class="form-control" min="1" max="90" value="@settings?.LowBalanceThresholdPercent" required />
+            <span class="input-group-text">%</span>
+          </div>
+          <button type="submit" class="btn btn-outline-primary text-nowrap">Save</button>
+        </form>
+        <div class="form-text">Show the top-up reminder once estimated remaining balance drops to this percentage of total funded.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <h6 class="fw-bold mb-3">Daily usage (last 30 entries)</h6>
+    @if (!Model.Any())
+    {
+      <p class="text-muted small mb-0">No AI calls recorded yet — this fills in once the AI Daily Assistant job runs with an Anthropic API key configured.</p>
+    }
+    else
+    {
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th class="text-end">Calls</th>
+              <th class="text-end">Input tokens</th>
+              <th class="text-end">Output tokens</th>
+              <th class="text-end">Estimated cost</th>
+            </tr>
+          </thead>
+          <tbody>
+          @foreach (var log in Model)
+          {
+            <tr>
+              <td>@log.Date.ToString("MMM d, yyyy")</td>
+              <td class="text-end">@log.CallCount</td>
+              <td class="text-end">@log.InputTokens.ToString("N0")</td>
+              <td class="text-end">@log.OutputTokens.ToString("N0")</td>
+              <td class="text-end">$@log.EstimatedCostUsd.ToString("0.0000")</td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

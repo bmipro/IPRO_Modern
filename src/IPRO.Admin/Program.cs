@@ -123,6 +123,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureTestimonialSubmissionSchemaAsync(db);
     await EnsurePollSchemaAsync(db);
     await EnsureAgentDailyInsightSchemaAsync(db);
+    await EnsureAiUsageSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -765,6 +766,36 @@ CREATE TABLE IF NOT EXISTS `AgentDailyInsights` (
     PRIMARY KEY (`Id`),
     UNIQUE KEY `IX_AgentDailyInsights_AgentUserId` (`AgentUserId`)
 ) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureAiUsageSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `AiUsageDailyLogs` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Date` date NOT NULL,
+    `CallCount` int NOT NULL DEFAULT 0,
+    `InputTokens` bigint NOT NULL DEFAULT 0,
+    `OutputTokens` bigint NOT NULL DEFAULT 0,
+    `EstimatedCostUsd` decimal(10,4) NOT NULL DEFAULT 0,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_AiUsageDailyLogs_Date` (`Date`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `AiBillingSettings` (
+    `Id` int NOT NULL,
+    `TotalFundedUsd` decimal(10,4) NOT NULL DEFAULT 0,
+    `LowBalanceThresholdPercent` int NOT NULL DEFAULT 20,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+INSERT INTO `AiBillingSettings` (`Id`, `TotalFundedUsd`, `LowBalanceThresholdPercent`, `UpdatedAt`)
+SELECT 1, 0, 20, UTC_TIMESTAMP()
+WHERE NOT EXISTS (SELECT 1 FROM `AiBillingSettings` WHERE `Id` = 1);");
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)

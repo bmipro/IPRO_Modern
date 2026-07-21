@@ -26,11 +26,11 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
         _logger = logger;
     }
 
-    public async Task<string?> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default)
+    public async Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default)
     {
         if (!IsConfigured())
         {
-            return null;
+            return AiActionReasonResult.Empty;
         }
 
         try
@@ -53,17 +53,20 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
             {
                 var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogWarning("Anthropic API returned {StatusCode}: {Body}", response.StatusCode, errorBody);
-                return null;
+                return AiActionReasonResult.Empty;
             }
 
             var json = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
             var text = json.GetProperty("content")[0].GetProperty("text").GetString();
-            return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+            var inputTokens = json.TryGetProperty("usage", out var usage) && usage.TryGetProperty("input_tokens", out var inTok) ? inTok.GetInt32() : 0;
+            var outputTokens = json.TryGetProperty("usage", out usage) && usage.TryGetProperty("output_tokens", out var outTok) ? outTok.GetInt32() : 0;
+            var reason = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+            return new AiActionReasonResult(reason, inputTokens, outputTokens);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Anthropic API call failed.");
-            return null;
+            return AiActionReasonResult.Empty;
         }
     }
 
