@@ -198,6 +198,7 @@ Available block types include:
 - Testimonial Submission Form
 - Poll Results
 - Lead Magnet Download
+- Review Badge
 
 Use the arrows to reorder blocks and the trash icon to remove one.
 
@@ -206,6 +207,8 @@ Use the arrows to reorder blocks and the trash icon to remove one.
 **Poll Results** displays the live results of a poll you've sent — pick which one from the dropdown that appears when you add the block. It stays hidden on your published site until that poll has at least 10 responses, to keep individual answers anonymous. See [DOCS/16_POLLS_AND_SURVEYS.md](16_POLLS_AND_SURVEYS.md).
 
 **Lead Magnet Download** gates a file you've already uploaded to [Documents](12_AGENT_DOCUMENT_LIBRARY.md) behind the site's standard lead-capture form — a visitor gives their name and email to unlock a "Download Now" link. See [DOCS/05_DOMAINS_AND_LEADS.md](05_DOMAINS_AND_LEADS.md) for the full walkthrough.
+
+**Review Badge** shows a star rating, review count, and a "Read Reviews" button linking out to your Google or Facebook review page — a quick trust signal for visitors. Enter your platform, review page URL, current rating, and review count when you add the block; there's no live sync with Google/Facebook, so update the numbers here yourself whenever they change. Available on every package — no upgrade required.
 
 ## Change a Block's Layout
 
