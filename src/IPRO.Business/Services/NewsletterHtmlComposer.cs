@@ -33,6 +33,15 @@ public static class NewsletterHtmlComposer
         if (siteUrl != null) contactLines.Add($"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:#2563eb;text-decoration:none;">{WebUtility.HtmlEncode(agent.DomainName)}</a>""");
         var contactLine = string.Join(" &nbsp;&bull;&nbsp; ", contactLines);
 
+        var absolutePhotoUrl = ToAbsoluteUrl(agent.PhotoUrl, baseUrl);
+        var photoCell = string.IsNullOrWhiteSpace(absolutePhotoUrl)
+            ? ""
+            : $"""
+              <td width="48" style="padding-right:12px;vertical-align:top;">
+                <img src="{WebUtility.HtmlEncode(absolutePhotoUrl)}" width="40" height="40" style="display:block;width:40px;height:40px;border-radius:50%;object-fit:cover;border:0;" alt="" />
+              </td>
+              """;
+
         return $"""
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f1f5f9;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
               <tr>
@@ -56,9 +65,16 @@ public static class NewsletterHtmlComposer
                     </tr>
                     <tr>
                       <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 24px;color:#475569;font-size:12px;">
-                        <strong>{WebUtility.HtmlEncode(agentName)}</strong>{(string.IsNullOrWhiteSpace(agent.CompanyName) ? "" : $" &mdash; {WebUtility.HtmlEncode(agent.CompanyName)}")}
-                        <br />
-                        {contactLine}
+                        <table cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            {photoCell}
+                            <td style="vertical-align:top;">
+                              <strong>{WebUtility.HtmlEncode(agentName)}</strong>{(string.IsNullOrWhiteSpace(agent.CompanyName) ? "" : $" &mdash; {WebUtility.HtmlEncode(agent.CompanyName)}")}
+                              <br />
+                              {contactLine}
+                            </td>
+                          </tr>
+                        </table>
                       </td>
                     </tr>
                   </table>

@@ -22,6 +22,7 @@ public class AgentUser
     public string BusinessType { get; set; } = string.Empty;
     public string? DefaultPaymentLink { get; set; } = string.Empty;
     public string? PortalAccentColor { get; set; }
+    public string? PhotoUrl { get; set; }
     public string DomainName { get; set; } = string.Empty;
     public int PackageId { get; set; }
     public string PromotionCode { get; set; } = string.Empty;

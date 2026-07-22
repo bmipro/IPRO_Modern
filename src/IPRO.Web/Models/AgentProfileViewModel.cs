@@ -50,4 +50,5 @@ public class AgentProfileViewModel
 
     public string? PromotionCode { get; set; }
     public string? DefaultPaymentLink { get; set; }
+    public string? PhotoUrl { get; set; }
 }

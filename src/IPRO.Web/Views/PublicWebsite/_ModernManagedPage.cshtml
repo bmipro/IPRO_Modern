@@ -47,6 +47,7 @@
   .modern-page .mp-cta { background:var(--site-theme); color:#fff; border:0; }
   .modern-page .mp-cta h2,.modern-page .mp-cta .mp-lead { color:#fff; }
   .modern-page .mp-contact-card { padding:28px; border-radius:8px; background:#fff; color:#17223a; }
+  .modern-page .mp-avatar { display:block; width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:12px; box-shadow:0 8px 20px rgba(15,35,70,.15); }
   .modern-page .mp-simple-list { list-style:none; padding:0; margin:24px 0 0; max-width:640px; }
   .modern-page .mp-simple-list li { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid #dce5f1; font-weight:700; }
   .modern-page .mp-simple-list i { color:var(--site-theme); }
@@ -116,7 +117,7 @@
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm)
   {
-    <section class="mp-section mp-alt"><div class="mp-inner mp-split"><div><div class="mp-kicker">Contact</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><p>@block.Body</p><div class="mt-4"><strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div>@agent.CompanyName</div>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<div><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}</div></div><div class="mp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>
+    <section class="mp-section mp-alt"><div class="mp-inner mp-split"><div><div class="mp-kicker">Contact</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><p>@block.Body</p><div class="mt-4">@if(!string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="mp-avatar" />}<strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div>@agent.CompanyName</div>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<div><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}</div></div><div class="mp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
   {

@@ -9,6 +9,7 @@ using IPRO.Entities;
 using IPRO.Email;
 using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
+using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -26,9 +27,10 @@ public class AccountController : Controller
     private readonly IBillingService _billing;
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IBlobStorageService _blob;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, ILogger<AccountController> logger)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger)
     {
         _agents = agents;
         _email = email;
@@ -36,6 +38,7 @@ public class AccountController : Controller
         _billing = billing;
         _db = db;
         _entitlements = entitlements;
+        _blob = blob;
         _logger = logger;
     }
 
@@ -428,6 +431,96 @@ public class AccountController : Controller
 
     [Authorize]
     [HttpPost, ValidateAntiForgeryToken]
+    [RequestSizeLimit(8 * 1024 * 1024)]
+    public async Task<IActionResult> UploadPhoto(IFormFile? photo)
+    {
+        var agent = await GetCurrentAgentAsync();
+        if (agent == null) return RedirectToAction(nameof(Login));
+
+        if (photo == null || photo.Length == 0)
+        {
+            TempData["Error"] = "Choose a photo to upload.";
+            return RedirectToAction(nameof(Profile));
+        }
+        if (photo.Length > 8 * 1024 * 1024)
+        {
+            TempData["Error"] = "Photos must be 8 MB or smaller.";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
+        var expectedContentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => string.Empty
+        };
+        if (string.IsNullOrEmpty(expectedContentType) ||
+            !string.Equals(photo.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed.";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        await using var stream = photo.OpenReadStream();
+        if (!await HasValidImageSignatureAsync(stream, extension))
+        {
+            TempData["Error"] = "That file does not contain a valid supported image.";
+            return RedirectToAction(nameof(Profile));
+        }
+        stream.Position = 0;
+
+        var previousPhotoUrl = agent.PhotoUrl;
+        var url = await _blob.UploadAsync(stream, photo.FileName, "agent-photos", expectedContentType, isPrivate: false);
+        agent.PhotoUrl = url;
+        await _agents.UpdateAsync(agent);
+
+        if (!string.IsNullOrWhiteSpace(previousPhotoUrl))
+        {
+            try { await _blob.DeleteAsync(previousPhotoUrl); } catch { /* best effort */ }
+        }
+
+        TempData["Success"] = "Photo updated.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemovePhoto()
+    {
+        var agent = await GetCurrentAgentAsync();
+        if (agent == null) return RedirectToAction(nameof(Login));
+
+        if (!string.IsNullOrWhiteSpace(agent.PhotoUrl))
+        {
+            try { await _blob.DeleteAsync(agent.PhotoUrl); } catch { /* best effort */ }
+            agent.PhotoUrl = null;
+            await _agents.UpdateAsync(agent);
+        }
+
+        TempData["Success"] = "Photo removed.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
+    {
+        var header = new byte[12];
+        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
+        if (read < 6) return false;
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
+            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
+            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
+            _ => false
+        };
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword(string newPassword, string confirmPassword)
     {
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
@@ -621,7 +714,8 @@ public class AccountController : Controller
         CellPhone = agent.CellPhone,
         BusinessType = agent.BusinessType,
         PromotionCode = agent.PromotionCode,
-        DefaultPaymentLink = agent.DefaultPaymentLink
+        DefaultPaymentLink = agent.DefaultPaymentLink,
+        PhotoUrl = agent.PhotoUrl
     };
 
     private static void NormalizeRegistration(AgentRegistrationViewModel model)

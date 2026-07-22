@@ -11,7 +11,7 @@
 7. Add a plain-text version for email clients that do not display HTML.
 8. Save as a draft.
 
-Every newsletter sends inside a branded wrapper: your banner (if chosen), a colored title bar showing the Edition and your website link (using your own accent color from the portal color picker), your content, then a footer with your name, company, phone, and email. You only ever compose the middle part — the wrapper is added automatically at send time, so **Preview** and **Test Send** both show the exact finished email, banner and footer included. This wrapper applies to newsletters only, not drip campaign steps (see below).
+Every newsletter sends inside a branded wrapper: your banner (if chosen), a colored title bar showing the Edition and your website link (using your own accent color from the portal color picker), your content, then a footer with your name, company, phone, and email — plus your profile photo next to your name if you've uploaded one (Agent Portal → **My Profile** → **Photo**). You only ever compose the middle part — the wrapper is added automatically at send time, so **Preview** and **Test Send** both show the exact finished email, banner and footer included. This wrapper applies to newsletters only, not drip campaign steps (see below).
 
 Super Admin manages the library of starter templates agents can choose from (see `07_SUPER_ADMIN.md`).
 

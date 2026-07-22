@@ -24,6 +24,35 @@
   <div class="row g-4">
     <div class="col-lg-4">
       <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4 text-center">
+          <h5 class="fw-bold mb-3 text-start">Photo</h5>
+          @if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
+          {
+            <img src="@Model.PhotoUrl" alt="@Model.FirstName @Model.LastName" class="rounded-circle mb-3" style="width:120px;height:120px;object-fit:cover;" />
+          }
+          else
+          {
+            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3" style="width:120px;height:120px;">
+              <i class="fas fa-user text-muted" style="font-size:2.5rem;"></i>
+            </div>
+          }
+          <div class="form-text mb-3">Used on your newsletters and public website. JPG, PNG, GIF, or WebP, up to 8 MB.</div>
+          <form asp-controller="Account" asp-action="UploadPhoto" method="post" enctype="multipart/form-data" class="d-flex flex-column gap-2">
+            @Html.AntiForgeryToken()
+            <input type="file" name="photo" accept=".jpg,.jpeg,.png,.gif,.webp" class="form-control form-control-sm" required />
+            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-upload me-1"></i>Upload Photo</button>
+          </form>
+          @if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
+          {
+            <form asp-controller="Account" asp-action="RemovePhoto" method="post" class="mt-2" onsubmit="return confirm('Remove your profile photo?');">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash me-1"></i>Remove Photo</button>
+            </form>
+          }
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
           <h5 class="fw-bold mb-3">Account</h5>
           <div class="mb-3">

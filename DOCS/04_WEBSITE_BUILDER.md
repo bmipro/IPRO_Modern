@@ -202,6 +202,8 @@ Available block types include:
 
 Use the arrows to reorder blocks and the trash icon to remove one.
 
+**Contact form** shows your name, company, and phone alongside the lead form. If you've uploaded a profile photo (Agent Portal → **My Profile** → **Photo**), it appears next to your name here too.
+
 **Testimonial Submission Form** is a live public form: visitors submit their own testimonial, you review and approve it in the **Testimonials** queue (Agent Portal menu), and only approved ones appear on the page beneath the form. See [DOCS/15_TESTIMONIALS.md](15_TESTIMONIALS.md) for the full review workflow. Requires the Testimonial Manager package feature.
 
 **Poll Results** displays the live results of a poll you've sent — pick which one from the dropdown that appears when you add the block. It stays hidden on your published site until that poll has at least 10 responses, to keep individual answers anonymous. See [DOCS/16_POLLS_AND_SURVEYS.md](16_POLLS_AND_SURVEYS.md).
