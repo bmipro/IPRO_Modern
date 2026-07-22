@@ -214,10 +214,13 @@ Use the arrows to reorder blocks and the trash icon to remove one.
 
 ## Change a Block's Layout
 
-Services and Call to Action blocks offer a **Layout** dropdown independent of your selected template:
+Services, Call to Action, Text, Review Badge, and Testimonial Submission Form blocks offer a **Layout** dropdown independent of your selected template:
 
 - **Services**: Cards, List, or Icons.
 - **Call to Action**: Banner, Card, or Split.
+- **Text**: Image on the left or Image on the right — only takes effect when the block has an image selected.
+- **Review Badge**: Badge (a centered card) or Banner (a full-width, colored strip matching your Call to Action banner style).
+- **Testimonial Submission Form**: List or Grid — changes how the approved testimonials below the form are arranged.
 
 Leave **Match template default** to use the arrangement your selected template normally uses for that block type. Changing the layout only affects that one block; other blocks and pages are unaffected. Save the block after changing its layout.
 

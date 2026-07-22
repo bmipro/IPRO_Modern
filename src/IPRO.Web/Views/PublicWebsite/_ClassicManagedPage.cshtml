@@ -40,6 +40,8 @@
   .classic-managed .cp-list li { padding:13px 0; border-bottom:1px solid var(--line); font-weight:700; }
   .classic-managed .cp-list i { color:var(--site-theme); width:24px; }
   .classic-managed .cp-quote { border-left:4px solid var(--site-theme); padding:18px 20px; margin:18px 0; background:#f7f9fc; font-family:Georgia,serif; }
+  .classic-managed .cp-quote-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:18px; }
+  .classic-managed .cp-quote-grid .cp-quote { margin:0; }
   .classic-managed .cp-image { width:100%; max-height:420px; object-fit:cover; margin-top:24px; border:1px solid var(--line); }
   .classic-managed .cp-cta-band { background:linear-gradient(120deg, var(--site-theme-deep), var(--site-theme)); color:#fff; text-align:center; }
   .classic-managed .cp-cta-band .cp-kicker { color:#fff; opacity:.85; }
@@ -55,6 +57,7 @@
   .classic-managed .cp-contact-card { border:1px solid var(--line); border-radius:8px; background:#fff; box-shadow:0 12px 30px rgba(14,33,66,.08); padding:24px; }
   .classic-managed .cp-text-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(240px,.9fr); gap:32px; align-items:center; }
   .classic-managed .cp-text-grid .cp-image { margin-top:0; }
+  .classic-managed .cp-text-grid.layout-image-left .cp-image { order:-1; }
   .classic-managed .cp-card-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:24px; }
   .classic-managed .cp-service-card { padding:20px; border:1px solid var(--line); border-radius:8px; background:#f8fbff; }
   .classic-managed .cp-service-card i { color:var(--site-theme); margin-bottom:12px; display:block; font-size:20px; }
@@ -65,7 +68,7 @@
   .classic-managed .cp-cta-band.cp-cta-split { text-align:left; }
   .classic-managed .cp-cta-split-grid { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:24px; align-items:center; }
   .classic-managed .cp-cta-split-grid .cp-copy { margin-left:0; }
-  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed__grid{grid-template-columns:1fr}.classic-managed__side{padding:24px}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list,.classic-managed .cp-card-grid,.classic-managed .cp-icon-row{grid-template-columns:1fr}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid,.classic-managed .cp-cta-split-grid{grid-template-columns:1fr}}
+  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed__grid{grid-template-columns:1fr}.classic-managed__side{padding:24px}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list,.classic-managed .cp-card-grid,.classic-managed .cp-icon-row,.classic-managed .cp-quote-grid{grid-template-columns:1fr}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid,.classic-managed .cp-cta-split-grid{grid-template-columns:1fr}}
 </style>
 <main class="classic-managed"><div class="classic-managed__grid"><aside class="classic-managed__side"><h2>@fullName</h2><p>@agent.Designation</p><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>Email me</a>}<div class="mt-4 small">Professional guidance and dependable client service.</div></aside><div class="classic-managed__content">
 @foreach(var block in blocks)
@@ -100,7 +103,7 @@
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){<section class="cp-section"><div class="cp-contact-grid"><div><div class="cp-kicker">Contact</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><p class="cp-copy">@block.Body</p><div class="cp-agent">@if(!string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="cp-avatar" />}<div><strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div class="text-muted">@agent.CompanyName</div></div></div><div class="cp-contact-mini">@if(!string.IsNullOrWhiteSpace(agent.Phone)){<a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>@agent.Email</a>}</div></div><div class="cp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
   {
-    <section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:640px">@await Html.PartialAsync("_TestimonialForm", new IPRO.Web.Models.TestimonialFormViewModel { PageId = Model.CurrentPage?.Id })</div>@if(Model.ApprovedTestimonials.Any()){@foreach(var t in Model.ApprovedTestimonials){<blockquote class="cp-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}}</section>
+    <section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:640px">@await Html.PartialAsync("_TestimonialForm", new IPRO.Web.Models.TestimonialFormViewModel { PageId = Model.CurrentPage?.Id })</div>@if(Model.ApprovedTestimonials.Any()){if(block.LayoutVariant == "grid"){<div class="cp-quote-grid">@foreach(var t in Model.ApprovedTestimonials){<blockquote class="cp-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}</div>}else{@foreach(var t in Model.ApprovedTestimonials){<blockquote class="cp-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}}}</section>
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PollResults)
   {
@@ -119,11 +122,22 @@
     var cpFull = (int)Math.Floor(cpReview.Rating);
     var cpHalf = cpReview.Rating - cpFull >= 0.25m && cpReview.Rating - cpFull < 0.75m;
     if (cpReview.Rating - cpFull >= 0.75m) { cpFull++; cpHalf = false; }
-    <section class="cp-section" style="text-align:center"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:420px;margin:0 auto;text-align:center">
-      <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-      <div class="fw-bold fs-4 mt-2">@cpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></div>
-      @if(!string.IsNullOrWhiteSpace(cpReview.ReviewUrl)){<a class="cp-button mt-3" href="@cpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
-    </div></section>
+    if (block.LayoutVariant == "banner")
+    {
+      <section class="cp-section cp-cta-band" style="text-align:center"><div class="cp-kicker">@(string.IsNullOrWhiteSpace(block.Subheading) ? "Trusted by clients" : block.Subheading)</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy" style="margin-left:auto;margin-right:auto">@block.Body</p>}
+        <div style="font-size:1.6rem;color:#fff">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+        <p class="cp-copy" style="margin-left:auto;margin-right:auto">@cpReview.Rating.ToString("0.0") <span style="opacity:.85">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></p>
+        @if(!string.IsNullOrWhiteSpace(cpReview.ReviewUrl)){<a class="cp-button" href="@cpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
+      </section>
+    }
+    else
+    {
+      <section class="cp-section" style="text-align:center"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:420px;margin:0 auto;text-align:center">
+        <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+        <div class="fw-bold fs-4 mt-2">@cpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></div>
+        @if(!string.IsNullOrWhiteSpace(cpReview.ReviewUrl)){<a class="cp-button mt-3" href="@cpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
+      </div></section>
+    }
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
   {
@@ -147,7 +161,7 @@
     <section class="cp-section">
       @if (hasImage)
       {
-        <div class="cp-text-grid">
+        <div class="cp-text-grid @(block.LayoutVariant == "image-left" ? "layout-image-left" : "")">
           <div><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2><div class="cp-copy">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="cp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"#":block.ButtonUrl)">@block.ButtonText</a>}</div>
           <img class="cp-image" src="@block.ImageUrl" alt="" />
         </div>

@@ -4,11 +4,17 @@ public static class WebsiteBlockLayoutVariants
 {
     public static readonly string[] Services = { "cards", "list", "icons" };
     public static readonly string[] CallToAction = { "banner", "card", "split" };
+    public static readonly string[] Text = { "image-left", "image-right" };
+    public static readonly string[] Reviews = { "badge", "banner" };
+    public static readonly string[] TestimonialForm = { "list", "grid" };
 
     public static string[] AllowedFor(string blockType) => blockType switch
     {
         WebsiteBlockTypes.Services => Services,
         WebsiteBlockTypes.CallToAction => CallToAction,
+        WebsiteBlockTypes.Text => Text,
+        WebsiteBlockTypes.Reviews => Reviews,
+        WebsiteBlockTypes.TestimonialForm => TestimonialForm,
         _ => Array.Empty<string>()
     };
 

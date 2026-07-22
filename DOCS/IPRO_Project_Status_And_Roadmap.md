@@ -334,6 +334,12 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Not gated behind any package tier — a free profile field, same reasoning as the portal accent-color picker.
 - Phases 2-4 of the Wix-style templating design below (more `LayoutVariant` options, wiring up the dead `NewsLetterArticle` entity, curated per-block style choices) remain designed but not started — no go-ahead yet.
 
+### 30. Add more website block layout variants (phase 2 of Wix-style templating) (done)
+- Extended `WebsiteBlockLayoutVariants` (purely additive, same mechanism Services/CallToAction already proved out) with three more block types: **Text** (`image-left`/`image-right`, only takes effect on blocks with an image — implemented via CSS `order:-1` on the image, the same technique Hero's `image-left` layout already uses; in the Editorial template this explicit choice overrides that template's automatic left/right zigzag, which stays as the default when no variant is set), **Review Badge** (`badge`/`banner` — banner reuses each template's existing Call to Action banner markup/CSS so it looks native, not bolted on), and **Testimonial Submission Form** (`list`/`grid` — grid arranges the approved testimonials shown below the form as 2-column cards instead of a stacked list).
+- Same Layout dropdown UI on the block edit form (`Views/WebsitePages/Edit.cshtml`) agents already use for Services/CallToAction, just with type-specific option lists. No new architecture, no new tables — filling in a mechanism that existed for 2 of 10 block types with 3 more.
+- Verified all six new variants (3 block types × 2 options) render correctly on all 3 public templates by seeding real dev blocks/testimonials and fetching each page with the agent's real custom-domain `Host` header, temporarily switching the same dev website between all 3 templates to check each one, then cleaning up the test data afterward.
+- Phase 3 (wire up the dead `NewsLetterArticle` entity) and phase 4 (curated per-block style choices) remain designed but not started.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26) and 2 (social post drafting, item 27) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
@@ -469,13 +475,13 @@ public class Broker
 
 **Proposed phasing, smallest/most shared value first**:
 1. **Agent photo** (`AgentUser.PhotoUrl`, new upload action modeled on `WebsitePagesController.UploadImage` — public, 8MB, image-type+signature validated — not the unvalidated Logo path). Unblocks two things at once: a headshot in the website's Contact/About area, and a headshot in the newsletter footer next to the agent's contact info (the newsletter wrapper — item 28 — already has a footer; this is a small, additive change to `NewsletterHtmlComposer.Wrap`). **Done — see item 29.**
-2. **More `LayoutVariant` options on more block types** — e.g. Testimonials (list/carousel/grid), Text (image-left/right, matching Hero's existing pattern), Reviews (badge/banner). Purely additive to `WebsiteBlockLayoutVariants` and each template's existing per-type rendering branch — no new architecture, just filling in a mechanism that's already proven for 2 of 10 block types.
+2. **More `LayoutVariant` options on more block types** — e.g. Testimonials (list/carousel/grid), Text (image-left/right, matching Hero's existing pattern), Reviews (badge/banner). Purely additive to `WebsiteBlockLayoutVariants` and each template's existing per-type rendering branch — no new architecture, just filling in a mechanism that's already proven for 2 of 10 block types. **Done — see item 30** (shipped Text image-left/right, Reviews badge/banner, Testimonials list/grid; a carousel option was skipped as it would need new JS, not just markup/CSS).
 3. **Wire up the newsletter's dead `NewsLetterArticle` entity** (flagged as unused in item 28's design — `Title`/`Content`/`ImageUrl`/`SortOrder` already exist in the schema and in the Edit page's UI, but the dispatcher never reads them) as the newsletter's actual content-section system, giving newsletters the same "add/reorder sections" flexibility websites already have, inside the wrapper chrome that already ships.
 4. **A narrow set of curated per-block style choices** (e.g. background: white/light-gray/accent-tint; alignment: left/center) added to `SettingsJson` for the block types agents ask about most — only after 1-3 ship and it's clear which blocks actually need it.
 
 **Deliberately not proposed**: a free-form drag/drop canvas or arbitrary per-block CSS/color picker. Both are real products in their own right, not incremental features, and an unbounded color picker risks agents producing off-brand or illegible pages — the same reasoning that shaped every template-wide style choice already in the system (curated dropdowns, not raw CSS).
 
-**Status**: phase 1 (agent photo) shipped — see item 29. Phases 2-4 designed, not started; revisit with an explicit go-ahead.
+**Status**: phase 1 (agent photo, item 29) and phase 2 (more layout variants, item 30) shipped. Phases 3-4 designed, not started; revisit with an explicit go-ahead.
 
 ## Product Direction
 

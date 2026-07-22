@@ -226,7 +226,7 @@
           </div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
-          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction)
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
           {
             <div class="col-md-4">
               <label class="form-label fw-semibold">Layout</label>
@@ -238,14 +238,29 @@
                   <option value="list" selected="@(block.LayoutVariant == "list" ? "selected" : null)">List</option>
                   <option value="icons" selected="@(block.LayoutVariant == "icons" ? "selected" : null)">Icons</option>
                 }
-                else
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
                 {
                   <option value="banner" selected="@(block.LayoutVariant == "banner" ? "selected" : null)">Banner</option>
                   <option value="card" selected="@(block.LayoutVariant == "card" ? "selected" : null)">Card</option>
                   <option value="split" selected="@(block.LayoutVariant == "split" ? "selected" : null)">Split</option>
                 }
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Text)
+                {
+                  <option value="image-left" selected="@(block.LayoutVariant == "image-left" ? "selected" : null)">Image on the left</option>
+                  <option value="image-right" selected="@(block.LayoutVariant == "image-right" ? "selected" : null)">Image on the right</option>
+                }
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
+                {
+                  <option value="badge" selected="@(block.LayoutVariant == "badge" ? "selected" : null)">Badge (centered card)</option>
+                  <option value="banner" selected="@(block.LayoutVariant == "banner" ? "selected" : null)">Banner (full-width, colored)</option>
+                }
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
+                {
+                  <option value="list" selected="@(block.LayoutVariant == "list" ? "selected" : null)">List</option>
+                  <option value="grid" selected="@(block.LayoutVariant == "grid" ? "selected" : null)">Grid</option>
+                }
               </select>
-              <div class="form-text">Changes how this block's items are arranged. Leave as default to match your template's usual style.</div>
+              <div class="form-text">Changes how this block's items are arranged. Leave as default to match your template's usual style.@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Text ? " Only affects blocks with an image selected." : "")@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm ? " Only affects approved testimonials shown below the form." : "")</div>
             </div>
           }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
