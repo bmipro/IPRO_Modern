@@ -139,7 +139,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - Lead-magnet download block (done 2026-07-20 — see `DOCS/05_DOMAINS_AND_LEADS.md` and item 22 below).
 
 ### Proposed agent-value features (not scoped yet)
-- **External review widget** (recommended). A much smaller first step than a full review-request system: let an agent paste their Google/Facebook review page link and show an embeddable ratings badge on their site. Immediate trust-signal value without building a full request-and-moderate pipeline.
+- External review widget (done 2026-07-22 — see item 27 below).
 
 ## Recommended Next Tasks
 
@@ -313,14 +313,19 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 - **Top-up reminder**: a warning banner on the Admin Dashboard itself (the first page a SuperAdmin sees) once estimated remaining balance drops to the threshold, linking straight to `/AiUsage`.
 - This whole feature is **self-tracked, not synced with Anthropic's real account balance** — there's no read access to Anthropic's actual ledger without a separate Admin API key, so "remaining balance" is always an estimate the SuperAdmin keeps accurate by recording top-ups as they happen.
 
+### 27. Add an external review widget block + AI-drafted social posts (done)
+- **Review Badge** website block: agent enters a platform (Google/Facebook), review page URL, current rating, and review count; renders a star rating + "Read Reviews" button on all 3 public templates. Settings live in `WebsiteReviewSettings` (`SettingsJson`, same pattern as `WebsiteLeadMagnetSettings`) — no new table. Not gated behind any package tier; a low-friction trust signal available to every agent. No live sync with Google/Facebook — an agent updates the numbers here manually whenever they change.
+- **Draft with AI** in the Social Posts composer: a topic in, a short on-brand post out (professional tone, at most one emoji, at most two hashtags, sized to fit X's 280-character limit), which the agent edits before saving. Gated by the same `PackageFeatureCodes.AiDailyAssistant` entitlement as the daily digest — renamed that feature's display name from "AI daily assistant digest" to "AI Assistant features" now that it gates more than one thing (the already-seeded production row needs a one-time manual update since the seeder only sets `FeatureName` when it was previously empty — see `09_TROUBLESHOOTING.md`).
+- Extracted `AiUsageRecorder` (`IPRO.Business`) as a shared static helper so cost tracking (item 26) stays accurate across both Anthropic call sites instead of duplicating the upsert logic.
+- Both features documented in the agent-facing Support articles (`04_WEBSITE_BUILDER.md`, `13_SOCIAL_MEDIA_POSTS.md`), not just internal docs — these are embedded resources compiled into `IPRO.Web`, so a redeploy is required for help-article text changes to go live.
+
 ### AI Assistant — where this could expand next
-Item 1 below (the "why" line) is done — see item 26 above. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
-1. **Social post drafting** — smallest-scope content-generation feature; drops into the existing Social Posts composer, which already tracks per-platform character limits.
-2. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
-3. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
-4. **Client activity summarization** (Client Details page) — a higher-risk tier: client notes/timeline would leave the system in the API call, so this needs a PII-handling/redaction and consent decision made deliberately before writing any code, not bolted on after.
-5. **Drip campaign generation** — a full multi-step sequence from one prompt, bigger scope than any single-shot draft above.
-6. **Weekly/portfolio-wide digest** — a broader version of today's daily per-agent digest, e.g. "across your whole book, here's who needs attention this week."
+Items 1 (the "why" line, item 26) and 2 (social post drafting, item 27) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
+1. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
+2. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
+3. **Client activity summarization** (Client Details page) — a higher-risk tier: client notes/timeline would leave the system in the API call, so this needs a PII-handling/redaction and consent decision made deliberately before writing any code, not bolted on after.
+4. **Drip campaign generation** — a full multi-step sequence from one prompt, bigger scope than any single-shot draft above.
+5. **Weekly/portfolio-wide digest** — a broader version of today's daily per-agent digest, e.g. "across your whole book, here's who needs attention this week."
 
 The throughline for all six: AI drafts or suggests, the agent always reviews and acts — the same "never auto-send" instinct already used throughout IPRO (testimonial approval queue, Draft-only recurring invoices, agent-triggered newsletter/poll sends).
 
@@ -373,8 +378,8 @@ Real estate agents specifically need to display MLS listings on their site (IDX)
 
 **Recommendation**: build a "Listings" content block (same pattern as the existing Services/Testimonials blocks) that lets an agent paste in their existing iHomefinder/IDX Broker embed code — fast, low-risk MVP with no vendor agreement or RESO certification needed. Only pursue a native MLS Grid integration later, once real estate signups justify the vendor contract and compliance overhead; that path would let IDX listings live inside IPRO's own package tiers instead of requiring a separate per-agent third-party subscription.
 
-### AI-assisted business tools (daily assistant v1 done — see item 24 above; LLM reason line + usage tracking done — see item 26 above)
-"Suggest follow-ups"/"recommend next best action" shipped as the AI Daily Assistant dashboard widget (item 24), and its first real LLM call (the "why" line, plus SuperAdmin cost tracking) shipped as item 26. The rest of this original list — generate website copy by vertical, generate newsletter drafts, generate drip campaigns, generate social posts, summarize client activity — remains open; see "AI Assistant — where this could expand next" under item 26 for the prioritized order and the reasoning behind it.
+### AI-assisted business tools (daily assistant v1 done — see item 24 above; LLM reason line + usage tracking done — see item 26 above; social post drafting done — see item 27 above)
+"Suggest follow-ups"/"recommend next best action" shipped as the AI Daily Assistant dashboard widget (item 24), its first real LLM call (the "why" line, plus SuperAdmin cost tracking) shipped as item 26, and AI-drafted social posts shipped as item 27. The rest of this original list — generate website copy by vertical, generate newsletter drafts, generate drip campaigns, summarize client activity — remains open; see "AI Assistant — where this could expand next" under item 27 for the prioritized order and the reasoning behind it.
 
 ### Client portal (v1 done — see item 14 above; real appointment scheduling — see item 15; campaign preferences — see item 23)
 Secure login, messages, two-way documents, self-service "My Information," a real appointment-scheduling flow (not just a request queue), invoices, and campaign/newsletter preferences all shipped. Still open for a future pass:
