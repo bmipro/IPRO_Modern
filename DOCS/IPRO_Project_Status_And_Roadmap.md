@@ -395,12 +395,43 @@ Full two-way sync between an agent's own Google Calendar and the Agent Portal Ca
 - Reuse newsletter/page content as social content.
 - Campaign calendar for email and social.
 
-### Broker/team/white-label model
-- Broker package management.
-- Team member accounts.
-- Shared templates and campaigns.
-- Broker-level reporting.
-- White-label branding.
+### Broker/team/white-label model (not built — designed 2026-07-22)
+
+Two genuinely different projects hide under "white-labeling," and the choice matters more than any implementation detail:
+
+- **(A) Cosmetic white-label**: a broker's logo/colors/domain wrap around the existing multi-tenant platform; agents still relate to IPRO for billing and support. Roughly a 2-3 week slice, almost entirely additive — reuses patterns already shipped (the per-agent accent-color mechanism, the host-header-based custom-domain routing already built for agent public websites).
+- **(B) Full reseller model**: the broker owns billing, support, and the agent relationship; IPRO becomes invisible infrastructure underneath. A much bigger, multi-month effort — new billing/entitlement hierarchy, broker-level support routing, revenue-share accounting.
+
+**Decision**: build (A) first as a real, shippable slice, designed so nothing in it has to be thrown away if a real broker later justifies (B).
+
+**(A) data model** — one new table, two new columns, nothing else:
+```csharp
+public class Broker
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string LogoUrl { get; set; }
+    public string AccentColor { get; set; } = "#1457d9";
+    public string? CustomDomain { get; set; }   // e.g. team.acmefinancial.com
+    public bool EnforceBranding { get; set; }   // if true, agents under this broker can't override the accent color themselves
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
+}
+```
+`AgentUser` gains `BrokerId` (nullable FK — null means today's entire existing standalone-agent behavior, completely untouched) and `IsBrokerAdmin` (marks which agent(s) under a broker can manage that broker's team/branding).
+
+**(A) phase-1 scope**:
+1. `Broker` entity + schema repair, both apps, standard convention (raw SQL `CREATE TABLE IF NOT EXISTS`, not an EF migration).
+2. New `BrokerController` **inside `IPRO.Web`** (not a third app) — `Dashboard` (list this broker's agents), `Branding` (logo/accent/domain), gated by `IsBrokerAdmin`.
+3. Agent Portal `_Layout.cshtml`: when `AgentUser.BrokerId` is set, swap the "IPRO Agent Portal" wordmark for the broker's logo and default `--portal-accent` to the broker's color — same CSS-variable mechanism the per-agent accent picker already uses. If `EnforceBranding` is on, hide that agent's own color-swatch picker.
+4. Custom domain for the broker's own management view — reuse the exact `Request.Host.Host` resolution already built for agent public websites; `team.acmefinancial.com` routes to the Broker Dashboard instead of the standard agent login.
+5. SuperAdmin-only **Brokers** page — CRUD brokers, assign agents to one. Deliberately not self-serve in phase 1: onboarding a broker is a manual, high-touch relationship, not something a broker signs themselves up for yet.
+
+**The one real gap phase 1 won't close**: transactional emails (invoices, welcome emails, reminders) are hardcoded to send as "IPRO Advisers" via one shared SendGrid sender identity (`EmailSettings`). True per-broker email branding needs per-broker sender domain authentication in SendGrid (DNS records, verified domains) — real infrastructure work, not a code change. Scoped out of phase 1; a broker's agents and public sites would look fully branded, but system emails would still show IPRO until this is built.
+
+**Keeping the door open to (B)**: `Broker` is exactly the tenant record a reseller model needs — (B) would add `Broker.RevenueSharePercent`, a broker-scoped billing rollup, and broker-routed support tickets *on top of* this table, not instead of it. One decision worth pinning down before writing any code, even for phase 1: confirm `EnforceBranding` and SuperAdmin-only broker creation are the right defaults — cheap to build either way, but shapes the first real broker conversation.
+
+**Status**: designed, not started. Revisit when a specific broker relationship makes this worth prioritizing.
 
 ## Product Direction
 
