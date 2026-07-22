@@ -7,7 +7,7 @@ public static class NewsletterHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
 
-    public static string Wrap(NewsLetter newsletter, AgentUser agent)
+    public static string Wrap(NewsLetter newsletter, AgentUser agent, string baseUrl)
     {
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
         var edition = string.IsNullOrWhiteSpace(newsletter.Edition)
@@ -16,10 +16,11 @@ public static class NewsletterHtmlComposer
         var siteUrl = string.IsNullOrWhiteSpace(agent.DomainName) ? null : $"https://{agent.DomainName}";
         var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
 
-        var bannerRow = string.IsNullOrWhiteSpace(newsletter.BannerUrl)
+        var absoluteBannerUrl = ToAbsoluteUrl(newsletter.BannerUrl, baseUrl);
+        var bannerRow = string.IsNullOrWhiteSpace(absoluteBannerUrl)
             ? ""
             : $"""
-              <tr><td style="padding:0;line-height:0;"><img src="{WebUtility.HtmlEncode(newsletter.BannerUrl)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" alt="" /></td></tr>
+              <tr><td style="padding:0;line-height:0;"><img src="{WebUtility.HtmlEncode(absoluteBannerUrl)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" alt="" /></td></tr>
               """;
 
         var siteLinkHtml = siteUrl == null
@@ -65,5 +66,16 @@ public static class NewsletterHtmlComposer
               </tr>
             </table>
             """;
+    }
+
+    private static string? ToAbsoluteUrl(string? url, string baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        return $"{baseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
     }
 }

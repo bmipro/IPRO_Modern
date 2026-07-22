@@ -126,7 +126,7 @@ public class NewsletterController : Controller
         await LoadNewsletterContextAsync();
         ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
         var previewAgent = await _uow.AgentUsers.GetByIdAsync(AgentId);
-        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent);
+        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent, GetRequestBaseUrl());
         var sends = (await _newsletters.GetSendsAsync(id)).OrderByDescending(s => s.ScheduledAt).ToList();
         ViewBag.Sends = sends;
         ViewBag.Recipients = sends.Any()
@@ -180,7 +180,7 @@ public class NewsletterController : Controller
             <div style="margin-bottom:16px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e3a8a;font-family:Arial,sans-serif;">
               <strong>Test send:</strong> This preview was sent only to you. No clients received it.
             </div>
-            {NewsletterHtmlComposer.Wrap(nl, agent)}
+            {NewsletterHtmlComposer.Wrap(nl, agent, GetRequestBaseUrl())}
             """;
         var result = await _email.SendDetailedAsync(
             agent.Email,
@@ -367,6 +367,8 @@ public class NewsletterController : Controller
 
         return Ok();
     }
+
+    private string GetRequestBaseUrl() => $"{Request.Scheme}://{Request.Host}";
 
     private async Task LoadNewsletterContextAsync()
     {

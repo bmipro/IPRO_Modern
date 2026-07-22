@@ -54,7 +54,7 @@ public class NewsLetterDispatcher
         if (newsletter == null) return;
 
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(newsletter.AgentUserId);
-        var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent);
+        var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl());
 
         send.Status = NewsLetterSendStatus.Sending;
         _uow.NewsLetterSends.Update(send);
@@ -126,7 +126,7 @@ public class NewsLetterDispatcher
             send.Id, newsletter.Id, recipients.Count, sentCount > 0);
     }
 
-    private string BuildUnsubscribeUrl(string token)
+    private string GetBaseUrl()
     {
         var baseUrl = _configuration["App:BaseUrl"];
         if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("yourdomain.com", StringComparison.OrdinalIgnoreCase))
@@ -134,7 +134,12 @@ public class NewsLetterDispatcher
             baseUrl = "https://ipro-prod-web.azurewebsites.net";
         }
 
-        return $"{baseUrl.TrimEnd('/')}/Newsletter/Unsubscribe?token={WebUtility.UrlEncode(token)}";
+        return baseUrl.TrimEnd('/');
+    }
+
+    private string BuildUnsubscribeUrl(string token)
+    {
+        return $"{GetBaseUrl()}/Newsletter/Unsubscribe?token={WebUtility.UrlEncode(token)}";
     }
 
     private static string AppendUnsubscribeHtml(string htmlBody, string unsubscribeUrl)
