@@ -449,6 +449,26 @@ public class Broker
 
 **Status**: designed, not started. Revisit when a specific broker relationship makes this worth prioritizing.
 
+### More flexible, Wix-style website and newsletter templating (not built — designed 2026-07-22)
+
+**Where this came from**: after the branded newsletter wrapper shipped (item 28), the user's actual expectation was a real configurable *system* — agent photo, choice of what's displayed, real layout flexibility — not one fixed design with a banner-image and accent-color as the only knobs. They connected this to a standing complaint about the website builder too, citing agent feedback requesting "Wix-style" templating. Investigated the current ceiling directly rather than assuming:
+
+- **No agent photo/headshot concept exists anywhere in the codebase** — not on `AgentUser`, not in any website block, not in the newsletter wrapper. The closest thing is `AgentWebsite.LogoUrl` (one company logo, header-only, uploaded with *no* content-type/signature validation — don't copy that upload path).
+- **Website block flexibility is real but shallow**: 10 block types exist, but only **Services** (cards/list/icons) and **CallToAction** (banner/card/split) have any `LayoutVariant` option. The other 8 block types render exactly one fixed shape each, no exceptions. Hero has its own separate 5-option layout system, but it lives in `SettingsJson`, not the shared `LayoutVariant` mechanism.
+- **Zero per-block style overrides exist, anywhere.** Every color/font/spacing choice is 100% template-wide (`AgentWebsite.ThemeColor`/`FontFamilyOverride`/etc., emitted as CSS custom properties every block's CSS references). No block type's `SettingsJson` carries a color, font, or spacing field — not even the ones that already use `SettingsJson` for structural settings (Hero, Reviews, PollResults, LeadMagnet). This is the real architectural ceiling, not a UI gap.
+
+**The honest tradeoff**: true Wix-style templating — a free-form drag/drop canvas, arbitrary per-element styling, live WYSIWYG editing — is not a feature to add on top of the current block/template system, it's a different piece of engineering than what exists today, realistically months of work on its own as a dedicated page-builder product. That's not the right first move. What's achievable without a rebuild is making the *existing* block/template architecture noticeably more flexible — more layout variants per block type (reusing the exact mechanism Services/CallToAction already prove out), a real agent photo, and a narrow, curated set of per-block style choices (not an open color picker — a bounded set of pre-vetted combinations, the same philosophy Hero's `OverlayStrength`/`Layout` dropdowns already use) so agents get "feels configurable" without the risk of an agent making an ugly, off-brand page.
+
+**Proposed phasing, smallest/most shared value first**:
+1. **Agent photo** (`AgentUser.PhotoUrl`, new upload action modeled on `WebsitePagesController.UploadImage` — public, 8MB, image-type+signature validated — not the unvalidated Logo path). Unblocks two things at once: a headshot in the website's Contact/About area, and a headshot in the newsletter footer next to the agent's contact info (the newsletter wrapper — item 28 — already has a footer; this is a small, additive change to `NewsletterHtmlComposer.Wrap`).
+2. **More `LayoutVariant` options on more block types** — e.g. Testimonials (list/carousel/grid), Text (image-left/right, matching Hero's existing pattern), Reviews (badge/banner). Purely additive to `WebsiteBlockLayoutVariants` and each template's existing per-type rendering branch — no new architecture, just filling in a mechanism that's already proven for 2 of 10 block types.
+3. **Wire up the newsletter's dead `NewsLetterArticle` entity** (flagged as unused in item 28's design — `Title`/`Content`/`ImageUrl`/`SortOrder` already exist in the schema and in the Edit page's UI, but the dispatcher never reads them) as the newsletter's actual content-section system, giving newsletters the same "add/reorder sections" flexibility websites already have, inside the wrapper chrome that already ships.
+4. **A narrow set of curated per-block style choices** (e.g. background: white/light-gray/accent-tint; alignment: left/center) added to `SettingsJson` for the block types agents ask about most — only after 1-3 ship and it's clear which blocks actually need it.
+
+**Deliberately not proposed**: a free-form drag/drop canvas or arbitrary per-block CSS/color picker. Both are real products in their own right, not incremental features, and an unbounded color picker risks agents producing off-brand or illegible pages — the same reasoning that shaped every template-wide style choice already in the system (curated dropdowns, not raw CSS).
+
+**Status**: designed, not started. Natural next step after this conversation is agreeing on phase 1 (agent photo) scope and starting there, since it's small, shared by both newsletter and website, and directly closes the gap the user flagged first.
+
 ## Product Direction
 
 The strongest path is not just "website builder" or "CRM". The winning position is:
