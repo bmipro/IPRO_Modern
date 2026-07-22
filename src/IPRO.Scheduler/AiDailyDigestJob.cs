@@ -1,4 +1,5 @@
 using IPRO.Business.Interfaces;
+using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -140,34 +141,8 @@ public class AiDailyDigestJob
             }
         }
 
-        if (totalAiCalls > 0)
-        {
-            await RecordAiUsageAsync(today, totalAiCalls, totalInputTokens, totalOutputTokens);
-        }
+        await AiUsageRecorder.RecordAsync(_db, totalAiCalls, totalInputTokens, totalOutputTokens);
 
         await _db.SaveChangesAsync();
-    }
-
-    // Haiku 4.5 base pricing as of 2026-07-21 (platform.claude.com/docs/en/about-claude/pricing): $1/MTok input, $5/MTok output.
-    private const decimal InputCostPerMillionTokens = 1.00m;
-    private const decimal OutputCostPerMillionTokens = 5.00m;
-
-    private async Task RecordAiUsageAsync(DateTime date, int callCount, long inputTokens, long outputTokens)
-    {
-        var estimatedCost = (inputTokens / 1_000_000m) * InputCostPerMillionTokens
-                           + (outputTokens / 1_000_000m) * OutputCostPerMillionTokens;
-
-        var log = await _db.AiUsageDailyLogs.FirstOrDefaultAsync(l => l.Date == date);
-        if (log == null)
-        {
-            log = new AiUsageDailyLog { Date = date };
-            _db.AiUsageDailyLogs.Add(log);
-        }
-
-        log.CallCount += callCount;
-        log.InputTokens += inputTokens;
-        log.OutputTokens += outputTokens;
-        log.EstimatedCostUsd += estimatedCost;
-        log.UpdatedAt = DateTime.UtcNow;
     }
 }

@@ -111,6 +111,18 @@
   {
     <section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.LeadMagnet, LeadMagnetBlockId = block.Id })</div></section>
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
+  {
+    var cpReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);
+    var cpFull = (int)Math.Floor(cpReview.Rating);
+    var cpHalf = cpReview.Rating - cpFull >= 0.25m && cpReview.Rating - cpFull < 0.75m;
+    if (cpReview.Rating - cpFull >= 0.75m) { cpFull++; cpHalf = false; }
+    <section class="cp-section" style="text-align:center"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:420px;margin:0 auto;text-align:center">
+      <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+      <div class="fw-bold fs-4 mt-2">@cpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></div>
+      @if(!string.IsNullOrWhiteSpace(cpReview.ReviewUrl)){<a class="cp-button mt-3" href="@cpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
+    </div></section>
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
   {
     if(block.LayoutVariant == "card")

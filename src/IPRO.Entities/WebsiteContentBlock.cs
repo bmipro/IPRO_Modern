@@ -11,10 +11,11 @@ public static class WebsiteBlockTypes
     public const string TestimonialForm = "TestimonialForm";
     public const string PollResults = "PollResults";
     public const string LeadMagnet = "LeadMagnet";
+    public const string Reviews = "Reviews";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews
     };
 
     public static string DisplayName(string type) => type switch
@@ -22,6 +23,7 @@ public static class WebsiteBlockTypes
         TestimonialForm => "Testimonial Submission Form",
         PollResults => "Poll Results",
         LeadMagnet => "Lead Magnet Download",
+        Reviews => "Review Badge",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

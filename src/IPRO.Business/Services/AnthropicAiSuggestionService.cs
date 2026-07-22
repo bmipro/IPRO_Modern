@@ -26,7 +26,19 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
         _logger = logger;
     }
 
-    public async Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default)
+    private const string SocialPostSystemPrompt =
+        "You draft a single social media post for a financial/insurance advisor's business page. " +
+        "Keep it under 280 characters so it works everywhere, professional but warm in tone, no more than one emoji, " +
+        "no hashtag spam (at most 2 relevant hashtags), no financial promises or guarantees. " +
+        "No preamble, no quotation marks, just the post text.";
+
+    public Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default) =>
+        CallAnthropicAsync(SystemPrompt, situation, 60, cancellationToken);
+
+    public Task<AiActionReasonResult> DraftSocialPostAsync(string topic, CancellationToken cancellationToken = default) =>
+        CallAnthropicAsync(SocialPostSystemPrompt, $"Topic: {topic}", 120, cancellationToken);
+
+    private async Task<AiActionReasonResult> CallAnthropicAsync(string systemPrompt, string userMessage, int maxTokens, CancellationToken cancellationToken)
     {
         if (!IsConfigured())
         {
@@ -38,9 +50,9 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
             var payload = new
             {
                 model = Model,
-                max_tokens = 60,
-                system = SystemPrompt,
-                messages = new[] { new { role = "user", content = situation } }
+                max_tokens = maxTokens,
+                system = systemPrompt,
+                messages = new[] { new { role = "user", content = userMessage } }
             };
 
             using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");

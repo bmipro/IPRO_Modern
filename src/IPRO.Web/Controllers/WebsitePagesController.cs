@@ -535,7 +535,8 @@ public class WebsitePagesController : Controller
         string imageUrl, string buttonText, string buttonUrl, bool isVisible,
         string heroLayout = "split", string imagePosition = "center", string textAlignment = "left",
         string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
-        int pollSurveyId = 0, int agentDocumentId = 0)
+        int pollSurveyId = 0, int agentDocumentId = 0,
+        string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -574,6 +575,16 @@ public class WebsitePagesController : Controller
             block.SettingsJson = new WebsiteLeadMagnetSettings
             {
                 AgentDocumentId = docBelongsToAgent ? agentDocumentId : 0
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.Reviews)
+        {
+            block.SettingsJson = new WebsiteReviewSettings
+            {
+                Platform = reviewPlatform,
+                ReviewUrl = NormalizeUrl(reviewUrl),
+                Rating = reviewRating,
+                ReviewCount = reviewCount
             }.ToJson();
         }
         block.UpdatedAt = DateTime.UtcNow;
@@ -707,11 +718,17 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.ContactForm => "Contact us",
             WebsiteBlockTypes.NewsletterSignup => "Stay informed",
             WebsiteBlockTypes.TestimonialForm => "Client testimonials",
+            WebsiteBlockTypes.Reviews => "What our clients say",
             _ => "New content section"
         },
         Subheading = "Add a short supporting message.",
         Body = type == WebsiteBlockTypes.Services ? "Service one\nService two\nService three" : "Add your content here.",
-        ButtonText = type is WebsiteBlockTypes.Hero or WebsiteBlockTypes.CallToAction ? "Learn more" : string.Empty
+        ButtonText = type switch
+        {
+            WebsiteBlockTypes.Hero or WebsiteBlockTypes.CallToAction => "Learn more",
+            WebsiteBlockTypes.Reviews => "Read Reviews",
+            _ => string.Empty
+        }
     };
 
     private static WebsiteContentBlock CloneBlock(WebsiteContentBlock b) => new()

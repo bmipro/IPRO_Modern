@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using IPRO.Business.Interfaces;
+using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -11,11 +13,15 @@ namespace IPRO.Web.Controllers;
 public class SocialPostsController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly IAiSuggestionService _aiSuggestions;
+    private readonly IPackageEntitlementService _entitlements;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public SocialPostsController(IPRODbContext db)
+    public SocialPostsController(IPRODbContext db, IAiSuggestionService aiSuggestions, IPackageEntitlementService entitlements)
     {
         _db = db;
+        _aiSuggestions = aiSuggestions;
+        _entitlements = entitlements;
     }
 
     public async Task<IActionResult> Index(string? status)
@@ -35,8 +41,9 @@ public class SocialPostsController : Controller
         return View(await query.OrderByDescending(p => p.UpdatedAt).ToListAsync());
     }
 
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
+        ViewBag.AiAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
         return View(new SocialPostDraft());
     }
 
@@ -68,6 +75,7 @@ public class SocialPostsController : Controller
     {
         var post = await _db.SocialPostDrafts.FirstOrDefaultAsync(p => p.Id == id && p.AgentUserId == AgentId);
         if (post == null) return NotFound();
+        ViewBag.AiAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
         return View(post);
     }
 
@@ -92,6 +100,35 @@ public class SocialPostsController : Controller
 
         TempData["Success"] = "Post updated.";
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DraftWithAi(string topic)
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
+        if (!access.IsIncluded)
+        {
+            return Json(new { success = false, error = access.UpgradeMessage });
+        }
+
+        if (string.IsNullOrWhiteSpace(topic))
+        {
+            return Json(new { success = false, error = "Enter a topic first, then draft with AI." });
+        }
+
+        var result = await _aiSuggestions.DraftSocialPostAsync(topic.Trim());
+        if (result.InputTokens > 0 || result.OutputTokens > 0)
+        {
+            await AiUsageRecorder.RecordAsync(_db, 1, result.InputTokens, result.OutputTokens);
+            await _db.SaveChangesAsync();
+        }
+
+        if (string.IsNullOrWhiteSpace(result.Reason))
+        {
+            return Json(new { success = false, error = "AI drafting isn't available right now — try again in a moment, or write the post yourself." });
+        }
+
+        return Json(new { success = true, body = result.Reason });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

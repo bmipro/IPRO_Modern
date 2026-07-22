@@ -1,6 +1,8 @@
 @model IPRO.Entities.SocialPostDraft
 @{
     ViewData["Title"] = "New Social Post";
+    var aiAccess = ViewBag.AiAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+    var aiLocked = aiAccess?.IsIncluded != true;
 }
 
 <div class="mb-4">
@@ -13,8 +15,17 @@
     <form asp-action="Create" method="post">
       @Html.AntiForgeryToken()
       <div class="mb-3">
-        <label class="form-label small fw-semibold text-muted">Topic (optional)</label>
-        <input asp-for="Topic" class="form-control" maxlength="200" placeholder="Spring promo"/>
+        <label class="form-label small fw-semibold text-muted">Topic</label>
+        <div class="d-flex gap-2">
+          <input asp-for="Topic" id="postTopic" class="form-control" maxlength="200" placeholder="Spring promo"/>
+          <button type="button" id="draftAiBtn" class="btn btn-outline-primary text-nowrap"
+                  data-upgrade-lock="@(aiLocked ? "true" : "false")"
+                  data-upgrade-title="@(aiAccess?.FeatureName ?? "AI Assistant")"
+                  data-upgrade-message="@(aiAccess?.UpgradeMessage ?? "AI drafting requires a package upgrade.")">
+            <i class="fas fa-wand-magic-sparkles me-1"></i>Draft with AI
+          </button>
+        </div>
+        <div class="form-text">Enter a topic, then let AI draft a starting point you can edit.</div>
       </div>
       <div class="mb-2">
         <label class="form-label small fw-semibold text-muted">Post text</label>
@@ -66,6 +77,35 @@
       setTimeout(function () { btn.innerHTML = original; }, 1500);
     });
   });
+
+  const draftBtn = document.getElementById('draftAiBtn');
+  if (draftBtn && draftBtn.dataset.upgradeLock !== 'true') {
+    draftBtn.addEventListener('click', async function () {
+      const topic = document.getElementById('postTopic').value.trim();
+      if (!topic) { alert('Enter a topic first, then draft with AI.'); return; }
+      const original = draftBtn.innerHTML;
+      draftBtn.disabled = true;
+      draftBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Drafting...';
+      try {
+        const formData = new FormData();
+        formData.append('topic', topic);
+        formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+        const res = await fetch('/SocialPosts/DraftWithAi', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          textarea.value = data.body;
+          updateCounters();
+        } else {
+          alert(data.error || 'Could not draft a post right now.');
+        }
+      } catch (e) {
+        alert('Could not draft a post right now.');
+      } finally {
+        draftBtn.disabled = false;
+        draftBtn.innerHTML = original;
+      }
+    });
+  }
 })();
 </script>
 }

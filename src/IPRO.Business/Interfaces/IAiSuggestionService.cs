@@ -8,4 +8,5 @@ public record AiActionReasonResult(string? Reason, int InputTokens, int OutputTo
 public interface IAiSuggestionService
 {
     Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default);
+    Task<AiActionReasonResult> DraftSocialPostAsync(string topic, CancellationToken cancellationToken = default);
 }

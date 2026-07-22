@@ -120,6 +120,18 @@
   {
     <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.LeadMagnet, LeadMagnetBlockId = block.Id })</div></div></section>
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
+  {
+    var epReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);
+    var epFull = (int)Math.Floor(epReview.Rating);
+    var epHalf = epReview.Rating - epFull >= 0.25m && epReview.Rating - epFull < 0.75m;
+    if (epReview.Rating - epFull >= 0.75m) { epFull++; epHalf = false; }
+    <section class="ep-section"><div class="ep-inner" style="text-align:center;display:block"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:420px;margin:0 auto;text-align:center">
+      <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<epFull){<i class="fas fa-star"></i>}else if(i==epFull && epHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+      <div class="fw-bold fs-4 mt-2">@epReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal">(@epReview.ReviewCount review@(epReview.ReviewCount == 1 ? "" : "s") on @epReview.Platform)</span></div>
+      @if(!string.IsNullOrWhiteSpace(epReview.ReviewUrl)){<a class="ep-button mt-3" href="@epReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
+    </div></div></section>
+  }
   else
   {
     var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);
