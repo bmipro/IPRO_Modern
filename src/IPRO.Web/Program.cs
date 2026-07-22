@@ -492,6 +492,8 @@ static async Task EnsureNewsLetterClickTrackingSchemaAsync(IPRODbContext db)
     {
         await EnsureTableColumnAsync(db, "NewsLetterSends", "TotalClicked", "ALTER TABLE `NewsLetterSends` ADD COLUMN `TotalClicked` int NOT NULL DEFAULT 0");
         await EnsureTableColumnAsync(db, "NewsLetters", "TotalClicked", "ALTER TABLE `NewsLetters` ADD COLUMN `TotalClicked` int NOT NULL DEFAULT 0");
+        await EnsureTableColumnAsync(db, "NewsLetters", "BannerUrl", "ALTER TABLE `NewsLetters` ADD COLUMN `BannerUrl` varchar(500) CHARACTER SET utf8mb4 NULL");
+        await EnsureTableColumnAsync(db, "NewsLetters", "Edition", "ALTER TABLE `NewsLetters` ADD COLUMN `Edition` varchar(200) CHARACTER SET utf8mb4 NULL");
     }
     finally
     {

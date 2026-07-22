@@ -9,6 +9,8 @@ public class NewsLetter
     public string Subject { get; set; } = string.Empty;
     public string HtmlBody { get; set; } = string.Empty;
     public string TextBody { get; set; } = string.Empty;
+    public string? BannerUrl { get; set; }
+    public string? Edition { get; set; }
     public NewsLetterStatus Status { get; set; } = NewsLetterStatus.Draft;
     public DateTime? ScheduledAt { get; set; }
     public DateTime? SentAt { get; set; }

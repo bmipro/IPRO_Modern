@@ -1,3 +1,4 @@
+using IPRO.Business.Services;
 using IPRO.DataAccess.Repositories;
 using IPRO.DataAccess;
 using IPRO.Entities;
@@ -52,6 +53,9 @@ public class NewsLetterDispatcher
         var newsletter = await _uow.NewsLetters.GetByIdAsync(send.NewsLetterId);
         if (newsletter == null) return;
 
+        var sendingAgent = await _uow.AgentUsers.GetByIdAsync(newsletter.AgentUserId);
+        var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent);
+
         send.Status = NewsLetterSendStatus.Sending;
         _uow.NewsLetterSends.Update(send);
         await _uow.SaveChangesAsync();
@@ -85,7 +89,7 @@ public class NewsLetterDispatcher
                 recipient.Email,
                 recipient.RecipientName,
                 newsletter.Subject,
-                AppendUnsubscribeHtml(newsletter.HtmlBody, unsubscribeUrl),
+                AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl),
                 AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl),
                 new Dictionary<string, string>
                 {

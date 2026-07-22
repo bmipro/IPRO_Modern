@@ -6,9 +6,12 @@
 2. Click **Create Newsletter**.
 3. Optionally choose **Start from a template** to pre-fill the subject and body from one of Super Admin's starter templates, or start blank.
 4. Enter the subject line.
-5. Compose the HTML newsletter body in the rich editor (formatting toolbar, or switch to raw HTML source).
-6. Add a plain-text version for email clients that do not display HTML.
-7. Save as a draft.
+5. Optionally enter an **Edition** (e.g. "November 2026 Newsletter") and choose a **Banner Image** from the shared starter-banner gallery — the same stock photo library used for website Hero blocks. Leave Edition blank to default to the current month automatically.
+6. Compose the HTML newsletter body in the rich editor (formatting toolbar, or switch to raw HTML source).
+7. Add a plain-text version for email clients that do not display HTML.
+8. Save as a draft.
+
+Every newsletter sends inside a branded wrapper: your banner (if chosen), a colored title bar showing the Edition and your website link (using your own accent color from the portal color picker), your content, then a footer with your name, company, phone, and email. You only ever compose the middle part — the wrapper is added automatically at send time, so **Preview** and **Test Send** both show the exact finished email, banner and footer included. This wrapper applies to newsletters only, not drip campaign steps (see below).
 
 Super Admin manages the library of starter templates agents can choose from (see `07_SUPER_ADMIN.md`).
 

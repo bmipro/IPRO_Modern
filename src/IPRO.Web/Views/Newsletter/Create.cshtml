@@ -55,6 +55,33 @@
           </div>
 
           <div class="mb-4">
+            <label class="form-label fw-semibold">Edition</label>
+            <input asp-for="Edition" class="form-control" placeholder="@DateTime.UtcNow.ToString("MMMM yyyy") Newsletter" />
+            <div class="form-text">Shown in the colored title bar at the top of the email. Leave blank to use the current month automatically.</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Banner Image</label>
+            <input type="hidden" asp-for="BannerUrl" id="bannerUrlInput" />
+            <div id="bannerPreview" class="mb-2 @(string.IsNullOrWhiteSpace(Model.BannerUrl) ? "d-none" : "")">
+              <img src="@Model.BannerUrl" alt="" style="max-width:100%;max-height:120px;border-radius:6px;" />
+            </div>
+            <details class="starter-banner-library">
+              <summary><i class="fas fa-wand-magic-sparkles me-2 text-primary"></i><strong>Choose a banner</strong><span class="text-muted ms-2">optional</span></summary>
+              <div class="starter-banner-grid mt-3">
+                @foreach (var banner in IPRO.Entities.WebsiteStarterBannerCatalog.All)
+                {
+                  <button type="button" class="starter-banner-choice @(Model.BannerUrl == banner.Url ? "is-selected" : "")" data-banner-url="@banner.Url" data-banner-name="@banner.Name">
+                    <img src="@banner.Url" alt="@banner.Name" loading="lazy" />
+                    <span class="starter-banner-caption"><strong>@banner.Name</strong><span>@banner.Category</span></span>
+                    <span class="starter-banner-use"><i class="fas fa-check me-1"></i>Use this banner</span>
+                  </button>
+                }
+              </div>
+            </details>
+          </div>
+
+          <div class="mb-4">
             <label class="form-label fw-semibold">Newsletter Body</label>
             @await Html.PartialAsync("_RichEditor", Model.HtmlBody ?? string.Empty, new ViewDataDictionary(ViewData) {
                 { "EditorId", "nlBody" }, { "FieldName", "HtmlBody" }, { "Height", "500" }, { "Toolbar", "full" }
@@ -99,3 +126,35 @@
     </div>
   </div>
 </div>
+
+<style>
+.starter-banner-library summary{cursor:pointer;list-style:none}
+.starter-banner-library summary::-webkit-details-marker{display:none}
+.starter-banner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.starter-banner-choice{position:relative;overflow:hidden;margin:0;padding:0;border:2px solid transparent;border-radius:7px;background:#fff;text-align:left;box-shadow:0 4px 14px rgba(27,45,75,.08);transition:border-color .15s ease,transform .15s ease,box-shadow .15s ease}
+.starter-banner-choice:hover,.starter-banner-choice:focus-visible{border-color:#0d6efd;transform:translateY(-1px);box-shadow:0 8px 22px rgba(13,110,253,.16);outline:0}
+.starter-banner-choice.is-selected{border-color:#198754;box-shadow:0 0 0 3px rgba(25,135,84,.14)}
+.starter-banner-choice img{display:block;width:100%;aspect-ratio:3.6/1;object-fit:cover}
+.starter-banner-caption{display:flex;justify-content:space-between;gap:8px;padding:9px 10px 30px;font-size:12px}
+.starter-banner-caption span{color:#64748b}
+.starter-banner-use{position:absolute;right:8px;bottom:7px;color:#0d6efd;font-size:11px;font-weight:700}
+.starter-banner-choice.is-selected .starter-banner-use{color:#198754}
+@@media(max-width:800px){.starter-banner-grid{grid-template-columns:1fr}.starter-banner-caption{font-size:11px}}
+</style>
+
+@section Scripts {
+<script>
+document.querySelectorAll('.starter-banner-choice').forEach(button => {
+  button.addEventListener('click', event => {
+    event.preventDefault();
+    const url = button.dataset.bannerUrl || '';
+    document.getElementById('bannerUrlInput').value = url;
+    document.querySelectorAll('.starter-banner-choice').forEach(choice => choice.classList.remove('is-selected'));
+    button.classList.add('is-selected');
+    const preview = document.getElementById('bannerPreview');
+    preview.querySelector('img').src = url;
+    preview.classList.remove('d-none');
+  });
+});
+</script>
+}

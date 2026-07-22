@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Net;
 using System.Text.Json;
 using IPRO.Business.Interfaces;
+using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Email;
@@ -108,6 +109,8 @@ public class NewsletterController : Controller
         existing.Subject = model.Subject;
         existing.HtmlBody = model.HtmlBody;
         existing.TextBody = model.TextBody;
+        existing.BannerUrl = model.BannerUrl;
+        existing.Edition = model.Edition?.Trim();
         await _newsletters.UpdateAsync(existing);
         TempData["Success"] = "Newsletter updated.";
         return RedirectToAction(nameof(Preview), new { id = existing.Id });
@@ -122,6 +125,8 @@ public class NewsletterController : Controller
 
         await LoadNewsletterContextAsync();
         ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
+        var previewAgent = await _uow.AgentUsers.GetByIdAsync(AgentId);
+        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent);
         var sends = (await _newsletters.GetSendsAsync(id)).OrderByDescending(s => s.ScheduledAt).ToList();
         ViewBag.Sends = sends;
         ViewBag.Recipients = sends.Any()
@@ -175,7 +180,7 @@ public class NewsletterController : Controller
             <div style="margin-bottom:16px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e3a8a;font-family:Arial,sans-serif;">
               <strong>Test send:</strong> This preview was sent only to you. No clients received it.
             </div>
-            {nl.HtmlBody}
+            {NewsletterHtmlComposer.Wrap(nl, agent)}
             """;
         var result = await _email.SendDetailedAsync(
             agent.Email,
@@ -419,6 +424,8 @@ public class NewsletterController : Controller
         model.Subject = model.Subject?.Trim() ?? "";
         model.HtmlBody = model.HtmlBody?.Trim() ?? "";
         model.TextBody = model.TextBody?.Trim() ?? "";
+        model.Edition = string.IsNullOrWhiteSpace(model.Edition) ? null : model.Edition.Trim();
+        model.BannerUrl = string.IsNullOrWhiteSpace(model.BannerUrl) ? null : model.BannerUrl.Trim();
         if (string.IsNullOrWhiteSpace(model.HtmlBody) && !string.IsNullOrWhiteSpace(model.TextBody))
         {
             model.HtmlBody = ConvertPlainTextToHtml(model.TextBody);

@@ -63,8 +63,8 @@
             <div><strong>Subject:</strong> @Model.Subject</div>
             <div><strong>From:</strong> IPRO Advisers</div>
           </div>
-          <div class="newsletter-preview-body">
-            @Html.Raw(Model.HtmlBody)
+          <div class="newsletter-preview-wrapped">
+            @Html.Raw(ViewBag.WrappedHtmlBody as string ?? Model.HtmlBody)
           </div>
           @if (articles != null && articles.Any())
           {
@@ -287,14 +287,11 @@
     font-size: .92rem;
   }
 
-  .newsletter-preview-body {
-    padding: 24px;
-    color: #172033;
-    line-height: 1.6;
+  .newsletter-preview-wrapped {
+    overflow-x: auto;
     min-height: 240px;
   }
 
-  .newsletter-preview-body img,
   .newsletter-preview-article img {
     max-width: 100%;
     height: auto;
