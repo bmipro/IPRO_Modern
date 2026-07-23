@@ -120,6 +120,20 @@
   {
     <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })</div></div></section>
   }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.AgentInfo)
+  {
+    var mpAgentInfo = IPRO.Entities.WebsiteAgentInfoSettings.FromJson(block.SettingsJson);
+    var mpAddressLines = mpAgentInfo.ShowAddress ? agent.GetFormattedAddressLines() : new List<string>();
+    var mpDesignationLine = string.Join(" · ", new[] { agent.Designation, agent.CompanyName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    <section class="mp-section mp-alt"><div class="mp-inner" style="text-align:center"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:420px;margin:0 auto;text-align:center">
+      @if(mpAgentInfo.ShowPhoto && !string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="mp-avatar" style="margin-left:auto;margin-right:auto" />}
+      <div class="fw-bold fs-4">@($"{agent.FirstName} {agent.LastName}".Trim())</div>
+      @if(mpAgentInfo.ShowDesignation && !string.IsNullOrWhiteSpace(mpDesignationLine)){<div class="text-muted">@mpDesignationLine</div>}
+      @if(mpAddressLines.Any()){<div class="mt-2">@foreach(var line in mpAddressLines){<div>@line</div>}</div>}
+      @if(mpAgentInfo.ShowPhone && !string.IsNullOrWhiteSpace(agent.Phone)){<div class="mt-2"><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}
+      @if(mpAgentInfo.ShowEmail && !string.IsNullOrWhiteSpace(agent.Email)){<div class="mt-1"><i class="fas fa-envelope me-2"></i><a href="mailto:@agent.Email">@agent.Email</a></div>}
+    </div></div></section>
+  }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm)
   {
     <section class="mp-section mp-alt"><div class="mp-inner mp-split"><div><div class="mp-kicker">Contact</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><p>@block.Body</p><div class="mt-4">@if(!string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="mp-avatar" />}<strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div>@agent.CompanyName</div>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<div><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}</div></div><div class="mp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>

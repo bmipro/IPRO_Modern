@@ -199,8 +199,9 @@ Available block types include:
 - Poll Results
 - Lead Magnet Download
 - Review Badge
+- Agent Info Card
 
-Use the arrows to reorder blocks and the trash icon to remove one.
+Use the arrows to reorder blocks and the trash icon to remove one — this is also how you place an Agent Info Card wherever you want it on the page, since it's an ordinary block like any other.
 
 **Contact form** shows your name, company, and phone alongside the lead form. If you've uploaded a profile photo (Agent Portal → **My Profile** → **Photo**), it appears next to your name here too.
 
@@ -211,6 +212,8 @@ Use the arrows to reorder blocks and the trash icon to remove one.
 **Lead Magnet Download** gates a file you've already uploaded to [Documents](12_AGENT_DOCUMENT_LIBRARY.md) behind the site's standard lead-capture form — a visitor gives their name and email to unlock a "Download Now" link. See [DOCS/05_DOMAINS_AND_LEADS.md](05_DOMAINS_AND_LEADS.md) for the full walkthrough.
 
 **Review Badge** shows a star rating, review count, and a "Read Reviews" button linking out to your Google or Facebook review page — a quick trust signal for visitors. Enter your platform, review page URL, current rating, and review count when you add the block; there's no live sync with Google/Facebook, so update the numbers here yourself whenever they change. Available on every package — no upgrade required.
+
+**Agent Info Card** shows your photo, name, designation/company, full mailing address, phone, and email, pulled from your Profile — tick or untick which pieces to show when you add the block (for example, show your photo and name but hide your address). Add it once and move it anywhere on any page with the reorder arrows. On the Editorial template it renders as a full byline-style card; on Modern and Classic it currently uses the same plain contact-card style as the Review Badge block, ahead of a matching visual refresh for those two templates.
 
 ## Change a Block's Layout
 

@@ -536,7 +536,8 @@ public class WebsitePagesController : Controller
         string heroLayout = "split", string imagePosition = "center", string textAlignment = "left",
         string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
         int pollSurveyId = 0, int agentDocumentId = 0,
-        string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0)
+        string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
+        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -585,6 +586,17 @@ public class WebsitePagesController : Controller
                 ReviewUrl = NormalizeUrl(reviewUrl),
                 Rating = reviewRating,
                 ReviewCount = reviewCount
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.AgentInfo)
+        {
+            block.SettingsJson = new WebsiteAgentInfoSettings
+            {
+                ShowPhoto = showAgentPhoto,
+                ShowDesignation = showAgentDesignation,
+                ShowAddress = showAgentAddress,
+                ShowPhone = showAgentPhone,
+                ShowEmail = showAgentEmail
             }.ToJson();
         }
         block.UpdatedAt = DateTime.UtcNow;
@@ -719,6 +731,7 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.NewsletterSignup => "Stay informed",
             WebsiteBlockTypes.TestimonialForm => "Client testimonials",
             WebsiteBlockTypes.Reviews => "What our clients say",
+            WebsiteBlockTypes.AgentInfo => "Meet Your Agent",
             _ => "New content section"
         },
         Subheading = "Add a short supporting message.",

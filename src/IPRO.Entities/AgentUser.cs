@@ -39,4 +39,14 @@ public class AgentUser
     public ICollection<Client> Clients { get; set; } = new List<Client>();
     public ICollection<Billing> Billings { get; set; } = new List<Billing>();
     public ICollection<NewsLetter> NewsLetters { get; set; } = new List<NewsLetter>();
+
+    public List<string> GetFormattedAddressLines()
+    {
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(CompanyAddress)) lines.Add(CompanyAddress);
+        var cityLine = string.Join(" ", new[] { City, Province, PostalCode }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (!string.IsNullOrWhiteSpace(cityLine)) lines.Add(cityLine);
+        if (!string.IsNullOrWhiteSpace(Country)) lines.Add(Country);
+        return lines;
+    }
 }
