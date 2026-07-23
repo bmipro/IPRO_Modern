@@ -34,8 +34,18 @@
     <h2 class="fw-bold mb-1"><i class="fas fa-file-pen me-2 text-primary"></i>@ViewData["Title"]</h2>
     <div class="text-muted">Page settings control navigation and search details. Content blocks build the page itself.</div>
   </div>
-  <a href="/WebsitePages" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>All Pages</a>
+  <div class="d-flex gap-2">
+    @if (!isNew)
+    {
+      <a href="/WebsitePages/Preview/@sitePage.Id" target="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview Page</a>
+    }
+    <a href="/WebsitePages" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>All Pages</a>
+  </div>
 </div>
+@if (!isNew)
+{
+  <div class="alert alert-light border small mb-4"><i class="fas fa-circle-info me-1 text-primary"></i>Preview shows this page exactly as saved, including drafts — you don't need to publish first. Save your changes below, then click Preview again to see them.</div>
+}
 
 <form method="post" action="/WebsitePages/SavePage" class="card border-0 shadow-sm mb-4">
   @Html.AntiForgeryToken()

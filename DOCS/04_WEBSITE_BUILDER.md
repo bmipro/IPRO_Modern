@@ -252,14 +252,16 @@ Uploaded images are limited to image formats such as JPG, JPEG, PNG, GIF, and We
 
 ## Preview a Page
 
-1. Open **My Website**.
-2. Click **Manage Pages**.
-3. Edit the page.
-4. Save page settings and any changed blocks.
-5. Use the page preview or open the public website link.
-6. Confirm the page uses the same selected template, header, navigation, logo, and footer as the home page.
+Every page has a **Preview** button — on the page editor itself and on the Pages list. It opens the page in a new tab exactly as saved, using your current template, header, navigation, logo, and footer — including pages you haven't published yet. Nothing needs to be live for you to see it.
 
-All public pages should render from the same website template. If one page looks different from the others, check that the page is published and that its content blocks have been saved.
+1. Open **My Website** → **Manage Pages**.
+2. Edit a page and make your changes.
+3. Click **Save Block** (or **Save Page Settings**) so your edits are saved — Preview always shows what's saved, not what's still typed into the form.
+4. Click **Preview Page** (in the editor) or **Preview** (from the Pages list) to open it in a new tab.
+
+Preview shows draft pages too — a page can be marked **Draft** and you can still preview it freely; only your published pages are visible to real visitors on your live site. This is the fastest way to check how a change actually looks without publishing first.
+
+All public pages should render from the same website template. If one page looks different from the others in Preview, check that its content blocks have been saved.
 
 ## Troubleshoot Image Selection
 

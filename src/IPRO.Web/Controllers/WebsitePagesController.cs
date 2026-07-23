@@ -283,6 +283,48 @@ public class WebsitePagesController : Controller
         });
     }
 
+    // Shows this page exactly as it will render publicly, using whatever is currently saved -- regardless of
+    // the page's own Published toggle or the site's overall Publish state. This is the only way an agent can
+    // see their own draft work; the real public site (PublicWebsiteController) only ever shows published content.
+    [HttpGet]
+    public async Task<IActionResult> Preview(int id)
+    {
+        var page = await OwnedPages()
+            .Include(p => p.Blocks)
+            .Include(p => p.AgentWebsite).ThenInclude(w => w.AgentUser)
+            .Include(p => p.AgentWebsite).ThenInclude(w => w.Template)
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (page == null) return NotFound();
+
+        var website = page.AgentWebsite;
+        var pages = await _db.WebsitePages
+            .AsNoTracking()
+            .Where(p => p.AgentWebsiteId == website.Id)
+            .Include(p => p.Blocks)
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Title)
+            .ToListAsync();
+
+        var approvedTestimonials = page.Blocks.Any(b => b.BlockType == WebsiteBlockTypes.TestimonialForm)
+            ? await _db.TestimonialSubmissions
+                .Where(t => t.AgentUserId == AgentId && t.Status == TestimonialStatus.Approved)
+                .OrderByDescending(t => t.ReviewedAt)
+                .ToListAsync()
+            : new List<TestimonialSubmission>();
+
+        var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, AgentId, page);
+
+        ViewBag.IsTemplatePreview = true;
+        return View("~/Views/PublicWebsite/Index.cshtml", new PublicWebsiteViewModel
+        {
+            Website = website,
+            Pages = pages,
+            CurrentPage = page,
+            ApprovedTestimonials = approvedTestimonials,
+            PollResultsByBlockId = pollResultsByBlockId
+        });
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     [RequestSizeLimit(8 * 1024 * 1024)]
     public async Task<IActionResult> UploadImage(int pageId, IFormFile? image)
