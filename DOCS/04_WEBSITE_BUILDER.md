@@ -255,9 +255,9 @@ Uploaded images are limited to image formats such as JPG, JPEG, PNG, GIF, and We
 Every page has a **Preview** button — on the page editor itself and on the Pages list. It opens the page in a new tab exactly as saved, using your current template, header, navigation, logo, and footer — including pages you haven't published yet. Nothing needs to be live for you to see it.
 
 1. Open **My Website** → **Manage Pages**.
-2. Edit a page and make your changes.
-3. Click **Save Block** (or **Save Page Settings**) so your edits are saved — Preview always shows what's saved, not what's still typed into the form.
-4. Click **Preview Page** (in the editor) or **Preview** (from the Pages list) to open it in a new tab.
+2. Edit a page and make your changes to a block.
+3. Click **Save & Preview** on that block — this saves the block and opens Preview in one step, in a new tab. Preview always shows what's saved, not what's still sitting unsaved in the form, so picking an image or typing new text and clicking Preview *without* saving first will not show your change.
+4. Prefer to keep editing without leaving the page? Click **Save Block** instead, then use the **Preview Page** button at the top of the editor (or **Preview** from the Pages list) whenever you're ready to check the whole page.
 
 Preview shows draft pages too — a page can be marked **Draft** and you can still preview it freely; only your published pages are visible to real visitors on your live site. This is the fastest way to check how a change actually looks without publishing first.
 

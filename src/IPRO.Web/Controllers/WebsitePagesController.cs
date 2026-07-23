@@ -579,7 +579,8 @@ public class WebsitePagesController : Controller
         string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
-        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true)
+        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
+        bool preview = false)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -643,6 +644,7 @@ public class WebsitePagesController : Controller
         }
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        if (preview) return RedirectToAction(nameof(Preview), new { id = block.WebsitePageId });
         TempData["Success"] = "Content block saved.";
         return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
     }
