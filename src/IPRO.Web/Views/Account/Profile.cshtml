@@ -17,6 +17,15 @@
   <div class="alert alert-danger">@Html.ValidationSummary()</div>
 }
 
+@* These two forms live outside the main Profile form below because HTML does not allow nested <form> elements
+   (browsers silently drop a nested form tag, which would submit the file input as part of the outer Profile
+   save instead) -- their controls are placed visually inside the Photo card via the form="" attribute. *@
+<form id="uploadPhotoForm" asp-controller="Account" asp-action="UploadPhoto" method="post" enctype="multipart/form-data" class="d-none">@Html.AntiForgeryToken()</form>
+@if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
+{
+  <form id="removePhotoForm" asp-controller="Account" asp-action="RemovePhoto" method="post" class="d-none">@Html.AntiForgeryToken()</form>
+}
+
 <form asp-action="Profile" method="post">
   @Html.AntiForgeryToken()
   <input type="hidden" asp-for="Id" />
@@ -37,17 +46,13 @@
             </div>
           }
           <div class="form-text mb-3">Used on your newsletters and public website. JPG, PNG, GIF, or WebP, up to 8 MB.</div>
-          <form asp-controller="Account" asp-action="UploadPhoto" method="post" enctype="multipart/form-data" class="d-flex flex-column gap-2">
-            @Html.AntiForgeryToken()
-            <input type="file" name="photo" accept=".jpg,.jpeg,.png,.gif,.webp" class="form-control form-control-sm" required />
-            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-upload me-1"></i>Upload Photo</button>
-          </form>
+          <div class="d-flex flex-column gap-2">
+            <input type="file" name="photo" form="uploadPhotoForm" accept=".jpg,.jpeg,.png,.gif,.webp" class="form-control form-control-sm" required />
+            <button type="submit" form="uploadPhotoForm" class="btn btn-sm btn-outline-primary"><i class="fas fa-upload me-1"></i>Upload Photo</button>
+          </div>
           @if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
           {
-            <form asp-controller="Account" asp-action="RemovePhoto" method="post" class="mt-2" onsubmit="return confirm('Remove your profile photo?');">
-              @Html.AntiForgeryToken()
-              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash me-1"></i>Remove Photo</button>
-            </form>
+            <button type="submit" form="removePhotoForm" class="btn btn-sm btn-outline-danger mt-2" onclick="return confirm('Remove your profile photo?');"><i class="fas fa-trash me-1"></i>Remove Photo</button>
           }
         </div>
       </div>
