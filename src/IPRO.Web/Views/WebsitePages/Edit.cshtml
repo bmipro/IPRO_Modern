@@ -205,6 +205,8 @@
           <div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div>
           <div class="col-md-6"><label class="form-label fw-semibold">Supporting Line</label><input name="subheading" value="@block.Subheading" class="form-control" /></div>
           <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services ? "Items (one per line)" : "Body")</label><textarea name="body" class="form-control" rows="4">@block.Body</textarea></div>
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Hero or IPRO.Entities.WebsiteBlockTypes.Text)
+          {
           <div class="col-md-6">
             <label class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
             <select name="imageUrl" class="form-select" data-block-id="@block.Id">
@@ -234,8 +236,12 @@
             </select>
             <img src="@block.ImageUrl" alt="" class="rounded mt-2 block-image-preview @(string.IsNullOrWhiteSpace(block.ImageUrl) ? "d-none" : "")" style="width:180px;height:74px;object-fit:cover" />
           </div>
+          }
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Hero or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.Text)
+          {
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
+          }
           @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
           {
             <div class="col-md-4">

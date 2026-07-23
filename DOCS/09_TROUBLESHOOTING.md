@@ -259,6 +259,16 @@ One initially-suspected issue turned out to already be handled correctly: both D
 
 **Prevention rule**: when a discount or price override feeds an external payment provider's API, validate the *worst-case computed price* server-side against that provider's actual constraints at save time (not just "is the input greater than zero") — a percent-based discount can silently produce $0 depending on which package it's later applied to, and provider-side rejections should never be allowed to surface as an unhandled exception to the end user.
 
+## Incident: Website Block Editor Showed Image/Button Fields That Did Nothing
+
+**2026-07-23.** Found by an agent (via a real QA report, not testing here): a Poll Results block had an image selected in the block editor — visibly previewed there — but it never appeared anywhere on the live site. The agent had set it up "a couple of days ago" and it never worked, which is what made this worth digging into rather than dismissing as user error.
+
+**Root cause**: `Views/WebsitePages/Edit.cshtml`'s block editor shows the same generic form (Heading, Subheading, Body, Image, Button Text, Button Link) for *every* block type, but the public-site renderers (`_ModernManagedPage.cshtml`, `_ClassicManagedPage.cshtml`, `_EditorialManagedPage.cshtml`) only ever read `block.ImageUrl` for **Hero** and **Text** blocks, and only ever read `block.ButtonText`/`block.ButtonUrl` for **Hero**, **Call to Action**, **Review Badge**, and **Text** blocks — confirmed by grepping all three template files directly, not assumed. For every other block type (Services, Contact Form, Newsletter Signup, Testimonial Submission Form, Poll Results, Lead Magnet Download, Agent Info Card), those two fields are complete no-ops: an agent can pick an image, watch it preview correctly right there in the edit form, click Save, and it will never render anywhere. This predates this session's work — it's not something introduced by any of the newer blocks, just never caught before because nothing was checking whether a form field's value was actually consumed downstream.
+
+**Fix**: `Edit.cshtml` now only renders the Image field for Hero/Text blocks, and only renders the Button Text/Link fields for Hero/CallToAction/Reviews/Text blocks, matching exactly what each template actually reads. No data migration — blocks that already had a now-hidden `ImageUrl`/`ButtonText` saved keep that value in the database (harmless, simply unused), the field is just no longer offered where it can't do anything.
+
+**Prevention rule**: a generic, one-size-fits-all edit form across many content types is only honest if every field on it is wired all the way through to every renderer that type can hit. When adding a new field to a shared form, grep the actual render paths for whether it's consumed by *every* type the form covers — an unused form field with no downstream reader looks identical to a working one until someone loses real time to it.
+
 ## Incident: Agent Photo Upload Silently Did Nothing (Saved the Wrong Form Instead)
 
 **2026-07-23.** Found by the user during live testing the morning after the Agent Photo feature (item 29) shipped: clicking **Upload Photo** on the My Profile page showed a green "Profile updated." success banner, no error, but no photo — and the file picker reset to "No file selected."
