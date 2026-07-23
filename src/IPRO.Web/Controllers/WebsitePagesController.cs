@@ -296,6 +296,54 @@ public class WebsitePagesController : Controller
             .FirstOrDefaultAsync(p => p.Id == id);
         if (page == null) return NotFound();
 
+        var model = await BuildPreviewViewModelAsync(page);
+        ViewBag.IsTemplatePreview = true;
+        return View("~/Views/PublicWebsite/Index.cshtml", model);
+    }
+
+    // Same rendering as Preview, but applies the submitted (not-yet-saved) form values to the one block being
+    // edited before rendering -- nothing is written to the database. This is deliberately the primary way to
+    // check a change: for an already-published page, Save Block goes live immediately, so Preview-after-save
+    // offers no safety net. This lets an agent see the effect of a change before ever committing to it.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> PreviewUnsaved(int id, string heading, string subheading, string body,
+        string imageUrl, string buttonText, string buttonUrl, bool isVisible,
+        string heroLayout = "split", string imagePosition = "center", string textAlignment = "left",
+        string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
+        int pollSurveyId = 0, int agentDocumentId = 0,
+        string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
+        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true)
+    {
+        var ownedPageId = await _db.WebsiteContentBlocks
+            .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
+            .Select(b => b.WebsitePageId)
+            .FirstOrDefaultAsync();
+        if (ownedPageId == 0) return NotFound();
+
+        var page = await _db.WebsitePages
+            .AsNoTracking()
+            .Include(p => p.Blocks)
+            .Include(p => p.AgentWebsite).ThenInclude(w => w.AgentUser)
+            .Include(p => p.AgentWebsite).ThenInclude(w => w.Template)
+            .FirstOrDefaultAsync(p => p.Id == ownedPageId);
+        if (page == null) return NotFound();
+
+        var block = page.Blocks.FirstOrDefault(b => b.Id == id);
+        if (block == null) return NotFound();
+
+        await ApplyBlockFieldsAsync(block, heading, subheading, body, imageUrl, buttonText, buttonUrl, isVisible,
+            heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
+            pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
+            showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail);
+
+        var model = await BuildPreviewViewModelAsync(page);
+        ViewBag.IsTemplatePreview = true;
+        ViewBag.IsUnsavedPreview = true;
+        return View("~/Views/PublicWebsite/Index.cshtml", model);
+    }
+
+    private async Task<PublicWebsiteViewModel> BuildPreviewViewModelAsync(WebsitePage page)
+    {
         var website = page.AgentWebsite;
         var pages = await _db.WebsitePages
             .AsNoTracking()
@@ -304,6 +352,8 @@ public class WebsitePagesController : Controller
             .OrderBy(p => p.SortOrder)
             .ThenBy(p => p.Title)
             .ToListAsync();
+        var pageIndex = pages.FindIndex(p => p.Id == page.Id);
+        if (pageIndex >= 0) pages[pageIndex] = page;
 
         var approvedTestimonials = page.Blocks.Any(b => b.BlockType == WebsiteBlockTypes.TestimonialForm)
             ? await _db.TestimonialSubmissions
@@ -314,15 +364,14 @@ public class WebsitePagesController : Controller
 
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, AgentId, page);
 
-        ViewBag.IsTemplatePreview = true;
-        return View("~/Views/PublicWebsite/Index.cshtml", new PublicWebsiteViewModel
+        return new PublicWebsiteViewModel
         {
             Website = website,
             Pages = pages,
             CurrentPage = page,
             ApprovedTestimonials = approvedTestimonials,
             PollResultsByBlockId = pollResultsByBlockId
-        });
+        };
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -579,13 +628,33 @@ public class WebsitePagesController : Controller
         string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
-        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool preview = false)
+        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
             .FirstOrDefaultAsync(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
         if (block == null) return NotFound();
+
+        await ApplyBlockFieldsAsync(block, heading, subheading, body, imageUrl, buttonText, buttonUrl, isVisible,
+            heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
+            pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
+            showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail);
+        block.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Content block saved.";
+        return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+    }
+
+    // Applies submitted form values to a block in memory. Does not save -- callers decide whether/when to
+    // call SaveChangesAsync, so this same logic can back both a real save (UpdateBlock) and a no-write
+    // preview (PreviewUnsaved).
+    private async Task ApplyBlockFieldsAsync(WebsiteContentBlock block, string heading, string subheading, string body,
+        string imageUrl, string buttonText, string buttonUrl, bool isVisible,
+        string heroLayout, string imagePosition, string textAlignment, string bannerHeight, int overlayStrength, string layoutVariant,
+        int pollSurveyId, int agentDocumentId,
+        string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
+        bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail)
+    {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
         block.Body = body?.Trim() ?? string.Empty;
@@ -642,11 +711,6 @@ public class WebsitePagesController : Controller
                 ShowEmail = showAgentEmail
             }.ToJson();
         }
-        block.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-        if (preview) return RedirectToAction(nameof(Preview), new { id = block.WebsitePageId });
-        TempData["Success"] = "Content block saved.";
-        return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
     }
 
     [HttpGet]

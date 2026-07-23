@@ -257,7 +257,11 @@
   @await Html.PartialAsync("_ManagedPageStyles")
 </head>
 <body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle">
-  @if (ViewBag.IsTemplatePreview == true)
+  @if (ViewBag.IsUnsavedPreview == true)
+  {
+    <div class="template-preview-banner unsaved-preview-banner"><i class="fas fa-pen me-2"></i>Unsaved preview — showing your current changes to this block. Nothing has been saved yet.</div>
+  }
+  else if (ViewBag.IsTemplatePreview == true)
   {
     <div class="template-preview-banner"><i class="fas fa-eye me-2"></i>Template preview using your current pages and content. Nothing has been changed.</div>
   }

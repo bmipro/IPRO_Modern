@@ -252,16 +252,18 @@ Uploaded images are limited to image formats such as JPG, JPEG, PNG, GIF, and We
 
 ## Preview a Page
 
-Every page has a **Preview** button — on the page editor itself and on the Pages list. It opens the page in a new tab exactly as saved, using your current template, header, navigation, logo, and footer — including pages you haven't published yet. Nothing needs to be live for you to see it.
+There are two different Preview buttons, and they answer two different questions. Knowing which one you're using matters — **important:** if a page is already published, clicking **Save Block** makes that change live immediately. There is no draft/staging step at the block level, so always check a change with **Preview without Saving** before you click Save Block on a page that's already live.
 
-1. Open **My Website** → **Manage Pages**.
-2. Edit a page and make your changes to a block.
-3. Click **Save & Preview** on that block — this saves the block and opens Preview in one step, in a new tab. Preview always shows what's saved, not what's still sitting unsaved in the form, so picking an image or typing new text and clicking Preview *without* saving first will not show your change.
-4. Prefer to keep editing without leaving the page? Click **Save Block** instead, then use the **Preview Page** button at the top of the editor (or **Preview** from the Pages list) whenever you're ready to check the whole page.
+**Preview without Saving** (on each content block, next to Save Block) — shows what the page would look like *if* you saved this block's current form values, without saving anything. Nothing is written to the database, so it's always safe, whether the page is published or a draft. Use this every time you're checking a change you haven't committed to yet — an image, a heading, a layout choice.
 
-Preview shows draft pages too — a page can be marked **Draft** and you can still preview it freely; only your published pages are visible to real visitors on your live site. This is the fastest way to check how a change actually looks without publishing first.
+**Preview Page** (top of the page editor) and **Preview** (on the Pages list) — shows the page exactly as it's currently *saved* in the database. If a page is a draft (not published), this is the only way to see it, since it never appears on your live site until you publish. If a page is already published, this shows the same thing your real visitors see right now.
 
-All public pages should render from the same website template. If one page looks different from the others in Preview, check that its content blocks have been saved.
+1. Open **My Website** → **Manage Pages** → edit a page.
+2. Make a change to a block — a heading, an image, anything.
+3. Click **Preview without Saving** to check it in a new tab. Not happy with it? Keep adjusting and preview again — nothing has been saved.
+4. Happy with it? Click **Save Block** to commit the change. If the page is published, this goes live immediately.
+
+All public pages should render from the same website template. If one page looks different from the others in a saved-state Preview, check that its content blocks have actually been saved.
 
 ## Troubleshoot Image Selection
 
