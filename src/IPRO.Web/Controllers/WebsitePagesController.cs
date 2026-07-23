@@ -362,7 +362,7 @@ public class WebsitePagesController : Controller
                 .ToListAsync()
             : new List<TestimonialSubmission>();
 
-        var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, AgentId, page);
+        var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, AgentId, page, isOwnerPreview: true);
 
         return new PublicWebsiteViewModel
         {

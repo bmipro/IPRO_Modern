@@ -9,7 +9,11 @@ public static class PollResultsBuilder
 {
     private const int PollResultsMinResponses = 10;
 
-    public static async Task<Dictionary<int, PollResultsBlockData>> BuildAsync(IPRODbContext db, int agentUserId, WebsitePage? currentPage)
+    // isOwnerPreview: the anonymity threshold below exists to protect respondents from a real visitor
+    // seeing individual-identifiable results on the live public site. It serves no purpose when the
+    // person viewing is the agent themselves, authenticated, looking at their own preview -- so preview
+    // callers pass true to bypass it and let the agent see their own poll block while composing.
+    public static async Task<Dictionary<int, PollResultsBlockData>> BuildAsync(IPRODbContext db, int agentUserId, WebsitePage? currentPage, bool isOwnerPreview = false)
     {
         var result = new Dictionary<int, PollResultsBlockData>();
         var pollBlocks = currentPage?.Blocks.Where(b => b.BlockType == WebsiteBlockTypes.PollResults && b.IsVisible).ToList()
@@ -22,7 +26,7 @@ public static class PollResultsBuilder
             if (settings.PollSurveyId <= 0) continue;
 
             var survey = await db.PollSurveys.FirstOrDefaultAsync(s => s.Id == settings.PollSurveyId && s.AgentUserId == agentUserId);
-            if (survey == null || survey.TotalResponded < PollResultsMinResponses) continue;
+            if (survey == null || (!isOwnerPreview && survey.TotalResponded < PollResultsMinResponses)) continue;
 
             var questions = await db.PollQuestions.Where(q => q.PollSurveyId == survey.Id).OrderBy(q => q.SortOrder).ToListAsync();
             var questionIds = questions.Select(q => q.Id).ToList();

@@ -146,7 +146,7 @@
   {
     if (Model.PollResultsByBlockId.TryGetValue(block.Id, out var modernPollData))
     {
-      <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@(string.IsNullOrWhiteSpace(block.Heading) ? modernPollData.Title : block.Heading)</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_PollResults", modernPollData)</div></div></section>
+      <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@(string.IsNullOrWhiteSpace(block.Heading) ? modernPollData.Title : block.Heading)</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_PollResults", modernPollData)</div>@if((ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true) && modernPollData.TotalResponded < 10){<p class="text-muted small mt-2">Preview only — hidden on your live site until this poll reaches 10 responses (currently @modernPollData.TotalResponded).</p>}</div></section>
     }
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.LeadMagnet)
