@@ -124,6 +124,33 @@
               <input name="SiteTitle" class="form-control" value="@siteTitle" placeholder="John Smith Insurance Adviser" required />
             </div>
             <div class="col-12">
+              <label class="form-label fw-semibold">Website Themes</label>
+              <div class="theme-gallery" role="group" aria-label="Website themes">
+                <button type="button" class="theme-card" data-theme="heritage-green"
+                        data-accent="#1F6B4D" data-background="#F6F8F4" data-font="Georgia, 'Times New Roman', serif"
+                        data-heading-size="24" data-body-size="17" data-button="soft" data-spacing="comfortable" data-hero="classic">
+                  <span class="theme-card__swatch" style="background:linear-gradient(135deg, #1F6B4D 55%, #F6F8F4 55%)"></span>
+                  <span class="theme-card__name">Heritage Green</span>
+                  <span class="theme-card__desc">Serif, warm sage paper, established &amp; trustworthy</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="modern-minimal"
+                        data-accent="#0EA5E9" data-background="#FAFAFA" data-font="'Segoe UI', Arial, Helvetica, sans-serif"
+                        data-heading-size="24" data-body-size="17" data-button="pill" data-spacing="spacious" data-hero="clean">
+                  <span class="theme-card__swatch" style="background:linear-gradient(135deg, #0EA5E9 55%, #FAFAFA 55%)"></span>
+                  <span class="theme-card__name">Modern Minimal</span>
+                  <span class="theme-card__desc">Clean sans, bright white, generous space</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="classic-navy"
+                        data-accent="#1B3A5C" data-background="#FFFFFF" data-font="'Times New Roman', Times, serif"
+                        data-heading-size="24" data-body-size="17" data-button="square" data-spacing="comfortable" data-hero="gradient">
+                  <span class="theme-card__swatch" style="background:linear-gradient(135deg, #1B3A5C 55%, #FFFFFF 55%)"></span>
+                  <span class="theme-card__name">Classic Navy</span>
+                  <span class="theme-card__desc">Traditional serif, navy &amp; white, formal</span>
+                </button>
+              </div>
+              <div class="form-text">Pick a complete look — color, font, spacing, and button style all set together. Fine-tune any of it below afterward if you want.</div>
+            </div>
+            <div class="col-12">
               <label class="form-label fw-semibold">Color Palettes</label>
               <div class="palette-picker" role="group" aria-label="Color palettes">
                 <button type="button" class="palette-swatch" data-accent="#1457d9" data-background="#f4f7fb" style="--swatch-accent:#1457d9;--swatch-bg:#f4f7fb" title="Ocean Blue" aria-label="Ocean Blue"></button>
@@ -485,6 +512,13 @@
 </div>
 
 <style>
+.theme-gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:8px; }
+.theme-card { display:flex; flex-direction:column; gap:6px; padding:14px; text-align:left; border:2px solid #dbe3ed; border-radius:10px; background:#fff; cursor:pointer; transition:border-color .15s ease,box-shadow .15s ease; }
+.theme-card:hover, .theme-card:focus-visible { border-color:#9fb3cc; box-shadow:0 6px 18px rgba(20,35,65,.1); outline:0; }
+.theme-card.is-selected { border-color:#1457d9; box-shadow:0 0 0 1px #1457d9; }
+.theme-card__swatch { display:block; width:100%; height:36px; border-radius:6px; border:1px solid rgba(0,0,0,.06); }
+.theme-card__name { font-weight:700; font-size:14px; color:#1a2436; }
+.theme-card__desc { font-size:12px; color:#6b7686; line-height:1.4; }
 .palette-picker { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:4px; }
 .palette-swatch { width:34px; height:34px; padding:0; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #d6deea; cursor:pointer; background:linear-gradient(135deg, var(--swatch-accent) 50%, var(--swatch-bg) 50%); }
 .palette-swatch:hover, .palette-swatch:focus-visible { box-shadow:0 0 0 2px var(--swatch-accent); outline:0; }
@@ -594,6 +628,36 @@ document.getElementById('ThemeColor')?.addEventListener('input', function () {
   updateWebsitePreview();
 });
 document.getElementById('BackgroundColorOverride')?.addEventListener('input', updateWebsitePreview);
+document.querySelectorAll('.theme-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const color = document.getElementById('ThemeColor');
+    const hex = document.getElementById('themeHex');
+    const background = document.getElementById('BackgroundColorOverride');
+    const font = document.querySelector('[name="FontFamilyOverride"]');
+    const headingSize = document.querySelector('[name="HeadingFontSizeOverride"]');
+    const bodySize = document.querySelector('[name="BodyFontSizeOverride"]');
+    const buttonStyle = document.querySelector('[name="ButtonStyleOverride"]');
+    const spacing = document.querySelector('[name="SectionSpacingOverride"]');
+    const hero = document.querySelector('[name="HeroStyleOverride"]');
+    if (color) color.value = card.dataset.accent;
+    if (hex) hex.value = card.dataset.accent;
+    if (background) background.value = card.dataset.background;
+    if (font) font.value = card.dataset.font;
+    if (headingSize) headingSize.value = card.dataset.headingSize;
+    if (bodySize) bodySize.value = card.dataset.bodySize;
+    if (buttonStyle) buttonStyle.value = card.dataset.button;
+    if (spacing) spacing.value = card.dataset.spacing;
+    if (hero) hero.value = card.dataset.hero;
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('is-selected', c === card));
+    const preview = document.getElementById('websiteTemplatePreview');
+    if (preview) {
+      preview.style.setProperty('--preview-font', card.dataset.font);
+      preview.classList.toggle('buttons-square', card.dataset.button === 'square');
+      preview.classList.toggle('buttons-pill', card.dataset.button === 'pill');
+    }
+    updateWebsitePreview();
+  });
+});
 document.querySelectorAll('.palette-swatch').forEach(swatch => {
   swatch.addEventListener('click', () => {
     const color = document.getElementById('ThemeColor');
