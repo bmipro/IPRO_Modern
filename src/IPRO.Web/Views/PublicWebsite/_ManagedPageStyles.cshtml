@@ -40,11 +40,15 @@
   .public-site-header.logo-center .public-site-actions { grid-column: 3; grid-row: 1; justify-self: end; }
   .public-site-nav { display: flex; align-items: stretch; gap: 4px; }
   .public-site-nav__item { position: relative; }
-  .public-site-nav a { display: block; padding: 13px 11px; color: #273348; text-decoration: none; font-weight: 700; font-size: 14px; }
+  .public-site-nav a { display: block; position: relative; padding: 13px 11px; color: #273348; text-decoration: none; font-weight: 700; font-size: 14px; }
   .public-site-nav a:hover { color: var(--site-theme, #1457d9); }
+  .public-site-nav a.is-active { color: var(--site-theme, #1457d9); }
+  .public-site-nav a.is-active::after { content: ''; position: absolute; left: 11px; right: 11px; bottom: 6px; height: 2px; border-radius: 1px; background: var(--site-theme, #1457d9); }
   .public-site-nav__children { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; padding: 6px; border: 1px solid #dce4ef; border-radius: 6px; background: #fff; box-shadow: 0 14px 32px rgba(20,35,65,.14); }
   .public-site-nav__item:hover .public-site-nav__children { display: block; }
   .public-site-nav__children a { padding: 9px 11px; }
+  .public-site-nav__children a.is-active { background: rgba(20,35,65,.06); border-radius: 4px; }
+  .public-site-nav__children a.is-active::after { display: none; }
   .public-site-actions { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .public-site-action { display: inline-flex; align-items: center; gap: 6px; color: #344158; text-decoration: none; font-size: 13px; font-weight: 700; }
   .public-site-action:hover { color: var(--site-theme, #1457d9); }
@@ -52,6 +56,9 @@
   .public-site-cta:hover { color: #fff; filter: brightness(.9); }
   .header-dark .public-site-header { background: #111827; border-color: rgba(255,255,255,.12); }
   .header-dark .public-site-nav a, .header-dark .public-site-brand { color: #fff; }
+  .header-dark .public-site-nav a.is-active { color: #fff; }
+  .header-dark .public-site-nav a.is-active::after { background: #fff; }
+  .header-dark .public-site-nav__children a.is-active { background: rgba(255,255,255,.14); }
   .header-dark .public-site-action { color: rgba(255,255,255,.86); }
   .header-overlay .public-site-header { position: absolute; z-index: 30; width: 100%; background: rgba(255,255,255,.92); }
   .template-preview-banner { position: sticky; top: 0; z-index: 100; padding: 10px 18px; background: #fff3cd; border-bottom: 1px solid #ffda6a; color: #664d03; text-align: center; font: 700 14px/1.4 Arial, sans-serif; }

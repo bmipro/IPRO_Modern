@@ -21,14 +21,16 @@
       @foreach (var sitePage in topPages)
       {
         var children = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == sitePage.Id).OrderBy(p => p.SortOrder).ToList();
+        var isCurrent = sitePage.Id == Model.CurrentPage?.Id;
+        var childIsCurrent = children.Any(child => child.Id == Model.CurrentPage?.Id);
         <div class="public-site-nav__item">
-          <a href="@(sitePage.IsHomePage ? "/" : "/" + sitePage.Slug)">@sitePage.NavigationLabel</a>
+          <a href="@(sitePage.IsHomePage ? "/" : "/" + sitePage.Slug)" class="@((isCurrent || childIsCurrent) ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
           @if (children.Any())
           {
             <div class="public-site-nav__children">
               @foreach (var child in children)
               {
-                <a href="/@child.Slug">@child.NavigationLabel</a>
+                <a href="/@child.Slug" class="@(child.Id == Model.CurrentPage?.Id ? "is-active" : "")" aria-current="@(child.Id == Model.CurrentPage?.Id ? "page" : null)">@child.NavigationLabel</a>
               }
             </div>
           }
