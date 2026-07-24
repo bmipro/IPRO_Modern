@@ -170,13 +170,34 @@ app.Use(async (context, next) =>
     var path = context.Request.Path.Value ?? "";
     var canChangePassword = path.StartsWith("/Account/ChangePassword", StringComparison.OrdinalIgnoreCase);
     var canLogout = path.StartsWith("/Account/Logout", StringComparison.OrdinalIgnoreCase);
-    var mustChangePassword = context.User.Identity?.IsAuthenticated == true
+    var isAuthenticated = context.User.Identity?.IsAuthenticated == true;
+    var mustChangePassword = isAuthenticated
         && string.Equals(context.User.FindFirst("MustChangePassword")?.Value, "true", StringComparison.OrdinalIgnoreCase);
 
     if (mustChangePassword && !canChangePassword && !canLogout)
     {
         context.Response.Redirect("/Account/ChangePassword");
         return;
+    }
+
+    // No active subscription and outside the trial + grace window (or never on a trial at all):
+    // every tab except Billing (and Account, so they can still log out) is blocked until they
+    // subscribe. Checked here rather than baked into the auth cookie because access needs to stop
+    // working the moment the grace period lapses, not just at the next login.
+    var canUseBilling = path.StartsWith("/Billing", StringComparison.OrdinalIgnoreCase);
+    var canLoginOrLogout = path.StartsWith("/Account/Login", StringComparison.OrdinalIgnoreCase) || canLogout;
+    if (isAuthenticated && !mustChangePassword && !canUseBilling && !canLoginOrLogout)
+    {
+        var idClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(idClaim, out var gateAgentId))
+        {
+            var entitlements = context.RequestServices.GetRequiredService<IPackageEntitlementService>();
+            if (await entitlements.IsAccessGatedAsync(gateAgentId))
+            {
+                context.Response.Redirect("/Billing");
+                return;
+            }
+        }
     }
 
     await next();
@@ -200,6 +221,7 @@ RecurringJob.AddOrUpdate<GoogleCalendarSyncJob>("google-calendar-sync", job => j
 RecurringJob.AddOrUpdate<ClientLifeEventReminderJob>("client-life-event-reminders", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<OverdueInvoiceReminderJob>("overdue-invoice-reminders", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<AiDailyDigestJob>("ai-daily-digest", job => job.RunAsync(), Cron.Daily);
+RecurringJob.AddOrUpdate<TrialReminderJob>("trial-reminders", job => job.RunAsync(), Cron.Daily);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -223,6 +245,7 @@ using (var scope = app.Services.CreateScope())
     await EnsurePollSchemaAsync(db);
     await EnsureAgentDailyInsightSchemaAsync(db);
     await EnsureAiUsageSchemaAsync(db);
+    await EnsureTrialFeatureSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -390,6 +413,9 @@ static async Task EnsureBillingRuleSchemaAsync(IPRODbContext db)
     await EnsureTableColumnAsync(db, "BillingRules", "DefaultWebsiteTemplateId", "ALTER TABLE `BillingRules` ADD COLUMN `DefaultWebsiteTemplateId` int NULL");
     await EnsureTableColumnAsync(db, "BillingRules", "IsActive", "ALTER TABLE `BillingRules` ADD COLUMN `IsActive` tinyint(1) NOT NULL DEFAULT TRUE");
     await EnsureTableColumnAsync(db, "BillingRules", "CreatedAt", "ALTER TABLE `BillingRules` ADD COLUMN `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+    await EnsureTableColumnAsync(db, "BillingRules", "IsTrialPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsTrialPackage` tinyint(1) NOT NULL DEFAULT FALSE");
+    await EnsureTableColumnAsync(db, "BillingRules", "TrialDurationDays", "ALTER TABLE `BillingRules` ADD COLUMN `TrialDurationDays` int NULL");
+    await EnsureTableColumnAsync(db, "BillingRules", "TrialReminderDayOffsets", "ALTER TABLE `BillingRules` ADD COLUMN `TrialReminderDayOffsets` varchar(120) CHARACTER SET utf8mb4 NULL");
 }
 
 static async Task EnsureAgentDomainSchemaAsync(IPRODbContext db)
@@ -711,6 +737,8 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
         await EnsureTableColumnAsync(db, "AgentUsers", "PhotoUrl", "ALTER TABLE `AgentUsers` ADD COLUMN `PhotoUrl` varchar(500) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetToken", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetToken` varchar(80) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetTokenExpiresAt", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetTokenExpiresAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "AgentUsers", "TrialEndsAt", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialEndsAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "AgentUsers", "TrialRemindersSentCount", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialRemindersSentCount` int NOT NULL DEFAULT 0");
         await EnsureTableColumnAsync(db, "ClientInvoices", "LastReminderSentAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastReminderSentAt` datetime(6) NULL");
     }
     finally
@@ -951,6 +979,64 @@ CREATE TABLE IF NOT EXISTS `AiBillingSettings` (
 INSERT INTO `AiBillingSettings` (`Id`, `TotalFundedUsd`, `LowBalanceThresholdPercent`, `UpdatedAt`)
 SELECT 1, 0, 20, UTC_TIMESTAMP()
 WHERE NOT EXISTS (SELECT 1 FROM `AiBillingSettings` WHERE `Id` = 1);");
+}
+
+static async Task EnsureTrialFeatureSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TrialInviteCodes` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Code` varchar(60) CHARACTER SET utf8mb4 NOT NULL,
+    `Description` varchar(300) CHARACTER SET utf8mb4 NULL,
+    `BillingRuleId` int NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `ExpiresAt` datetime(6) NULL,
+    `MaxRedemptions` int NULL,
+    `RedemptionCount` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_TrialInviteCodes_Code` (`Code`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TrialInviteCodeRedemptions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `TrialInviteCodeId` int NOT NULL,
+    `AgentUserId` int NOT NULL,
+    `RedeemedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TrialSettings` (
+    `Id` int NOT NULL,
+    `GracePeriodDays` int NOT NULL DEFAULT 1,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    // Same "INSERT ... SELECT ... WHERE NOT EXISTS" singleton pattern as AiBillingSettings above.
+    // The row count this returns doubles as a one-time-only marker: it's only > 0 the very first
+    // time this method ever runs, which is exactly when the backfill below should run too - on
+    // every later restart the row already exists, the insert is a no-op, and the backfill (which
+    // must never re-run against agents who registered normally after this feature shipped) stays
+    // skipped.
+    var trialSettingsRowsInserted = await db.Database.ExecuteSqlRawAsync(@"
+INSERT INTO `TrialSettings` (`Id`, `GracePeriodDays`, `UpdatedAt`)
+SELECT 1, 1, UTC_TIMESTAMP()
+WHERE NOT EXISTS (SELECT 1 FROM `TrialSettings` WHERE `Id` = 1);");
+
+    if (trialSettingsRowsInserted > 0)
+    {
+        // One-time grandfather grace period: agents already using the system for free (no active
+        // Billing row, e.g. via the entitlement fallback bug this feature closes) get a real week
+        // before enforcement applies to them, instead of being cut off the instant this deploys.
+        await db.Database.ExecuteSqlRawAsync(@"
+UPDATE `AgentUsers`
+SET `TrialEndsAt` = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
+WHERE `TrialEndsAt` IS NULL
+  AND NOT EXISTS (SELECT 1 FROM `Billings` WHERE `Billings`.`AgentUserId` = `AgentUsers`.`Id` AND `Billings`.`Status` = 1);");
+    }
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)

@@ -15,7 +15,7 @@
       {
         <tr>
           <td>
-            <div class="fw-semibold">@p.PackageName</div>
+            <div class="fw-semibold">@p.PackageName @if (p.IsTrialPackage) { <span class="badge bg-info-subtle text-info">Trial</span> }</div>
             <small class="text-muted">@p.Description</small>
           </td>
           <td class="fw-bold text-primary">$@p.MonthlyPrice.ToString("N2")</td>

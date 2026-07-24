@@ -133,6 +133,18 @@ Editing a code's discount amount, duration, or restricted package after it has a
 
 Always verify a new promotion code against PayPal Sandbox before relying on it in live mode.
 
+## Manage Trial Packages and Invite Codes
+
+Trials are invitation-only and never appear in the normal public registration dropdown.
+
+1. Create a trial package under **Packages** like any other package (typically priced at $0), and check **This is a trial package**. Set the trial length in days and, optionally, a comma-separated list of days-before-expiry to send reminder emails (e.g. `7,3,1`).
+2. Select **Trial Invite Codes** and click **New Invite Code**.
+3. Choose which trial package the code unlocks, an optional expiry date for the invitation link itself, and a maximum number of redemptions (blank means unlimited — this is the "how many people can use this link" control).
+4. Save. The Index page shows a ready-to-copy link (`.../Account/Register?trialCode=CODE`) — share it directly with the prospect (email, chat, however).
+5. Open **Redemptions** on any code to see which agents claimed it and when their trial ends.
+
+A global **grace period** (default 1 day, applies to every trial) controls how long access continues after a trial's end date before the agent's portal locks down to the Billing page only. There's no dedicated settings screen for this yet — it lives in the `TrialSettings` table and can be adjusted directly if it ever needs to change.
+
 ## Email Setup
 
 Select **Email Setup** to review SendGrid configuration, sender identity, event webhook information, and recent delivery events.

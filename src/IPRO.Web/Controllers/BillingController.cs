@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using IPRO.Billing;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -15,13 +16,15 @@ public class BillingController : Controller
     private readonly IBillingService _billing;
     private readonly IUnitOfWork _uow;
     private readonly IConfiguration _configuration;
+    private readonly IPackageEntitlementService _entitlements;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public BillingController(IBillingService billing, IUnitOfWork uow, IConfiguration configuration)
+    public BillingController(IBillingService billing, IUnitOfWork uow, IConfiguration configuration, IPackageEntitlementService entitlements)
     {
         _billing = billing;
         _uow = uow;
         _configuration = configuration;
+        _entitlements = entitlements;
     }
 
     public async Task<IActionResult> Index()
@@ -31,6 +34,9 @@ public class BillingController : Controller
         ViewBag.PendingChange = await _billing.GetPendingChangeAsync(AgentId);
         ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);
         ViewBag.PackageFeatures = await _uow.PackageFeatures.GetAllAsync();
+        ViewBag.IsAccessGated = await _entitlements.IsAccessGatedAsync(AgentId);
+        var agent = await _uow.AgentUsers.GetByIdAsync(AgentId);
+        ViewBag.TrialEndsAt = agent?.TrialEndsAt;
         return View();
     }
 

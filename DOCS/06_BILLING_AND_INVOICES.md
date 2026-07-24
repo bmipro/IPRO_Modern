@@ -1,5 +1,12 @@
 # Packages, Billing, PayPal, and Invoices
 
+## Access Without An Active Subscription
+
+Portal features require an active subscription, or an active trial (invitation-only — see `08_PUBLIC_REGISTRATION.md`). The Billing page itself always shows the current state:
+
+- **Trial active**: an info banner shows the trial end date. Subscribing at any point keeps access uninterrupted.
+- **No active subscription or trial (including a lapsed trial's grace period)**: a warning banner explains that access is limited, and every other portal tab redirects here until a package is chosen and paid for. This is the only page (besides Account sign-in/sign-out) that stays reachable in this state.
+
 ## Choose a Package
 
 1. Select **Billing** in the Agent Portal.

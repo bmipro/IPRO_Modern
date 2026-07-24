@@ -35,6 +35,9 @@ public class AgentUser
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
+    // Null = not on a trial. Set at registration when the picked package is a trial package.
+    public DateTime? TrialEndsAt { get; set; }
+    public int TrialRemindersSentCount { get; set; }
     public ICollection<AgentWebsite> Websites { get; set; } = new List<AgentWebsite>();
     public ICollection<Client> Clients { get; set; } = new List<Client>();
     public ICollection<Billing> Billings { get; set; } = new List<Billing>();

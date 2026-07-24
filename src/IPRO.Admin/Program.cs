@@ -124,6 +124,7 @@ using (var scope = app.Services.CreateScope())
     await EnsurePollSchemaAsync(db);
     await EnsureAgentDailyInsightSchemaAsync(db);
     await EnsureAiUsageSchemaAsync(db);
+    await EnsureTrialFeatureSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -150,6 +151,9 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
         await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureWebsiteTemplateColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "BillingRules", "DefaultWebsiteTemplateId", "ALTER TABLE `BillingRules` ADD COLUMN `DefaultWebsiteTemplateId` int NULL");
+        await EnsureTableColumnAsync(db, "BillingRules", "IsTrialPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsTrialPackage` tinyint(1) NOT NULL DEFAULT FALSE");
+        await EnsureTableColumnAsync(db, "BillingRules", "TrialDurationDays", "ALTER TABLE `BillingRules` ADD COLUMN `TrialDurationDays` int NULL");
+        await EnsureTableColumnAsync(db, "BillingRules", "TrialReminderDayOffsets", "ALTER TABLE `BillingRules` ADD COLUMN `TrialReminderDayOffsets` varchar(120) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "AgentWebsites", "HeaderSettingsJson", "ALTER TABLE `AgentWebsites` ADD COLUMN `HeaderSettingsJson` longtext CHARACTER SET utf8mb4 NULL");
         await db.Database.ExecuteSqlRawAsync(
             "UPDATE `AgentWebsites` SET `HeaderSettingsJson` = {0} WHERE `HeaderSettingsJson` IS NULL OR `HeaderSettingsJson` = ''",
@@ -570,6 +574,8 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
         await EnsureTableColumnAsync(db, "AgentUsers", "PhotoUrl", "ALTER TABLE `AgentUsers` ADD COLUMN `PhotoUrl` varchar(500) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetToken", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetToken` varchar(80) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetTokenExpiresAt", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetTokenExpiresAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "AgentUsers", "TrialEndsAt", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialEndsAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "AgentUsers", "TrialRemindersSentCount", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialRemindersSentCount` int NOT NULL DEFAULT 0");
         await EnsureTableColumnAsync(db, "ClientInvoices", "LastReminderSentAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastReminderSentAt` datetime(6) NULL");
     }
     finally
@@ -810,6 +816,57 @@ CREATE TABLE IF NOT EXISTS `AiBillingSettings` (
 INSERT INTO `AiBillingSettings` (`Id`, `TotalFundedUsd`, `LowBalanceThresholdPercent`, `UpdatedAt`)
 SELECT 1, 0, 20, UTC_TIMESTAMP()
 WHERE NOT EXISTS (SELECT 1 FROM `AiBillingSettings` WHERE `Id` = 1);");
+}
+
+static async Task EnsureTrialFeatureSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TrialInviteCodes` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Code` varchar(60) CHARACTER SET utf8mb4 NOT NULL,
+    `Description` varchar(300) CHARACTER SET utf8mb4 NULL,
+    `BillingRuleId` int NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `ExpiresAt` datetime(6) NULL,
+    `MaxRedemptions` int NULL,
+    `RedemptionCount` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_TrialInviteCodes_Code` (`Code`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TrialInviteCodeRedemptions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `TrialInviteCodeId` int NOT NULL,
+    `AgentUserId` int NOT NULL,
+    `RedeemedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TrialSettings` (
+    `Id` int NOT NULL,
+    `GracePeriodDays` int NOT NULL DEFAULT 1,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+
+    // Mirrors IPRO.Web's copy of this method exactly - both apps share the same database, so
+    // whichever app starts first does the actual work and the other finds it all already done.
+    var trialSettingsRowsInserted = await db.Database.ExecuteSqlRawAsync(@"
+INSERT INTO `TrialSettings` (`Id`, `GracePeriodDays`, `UpdatedAt`)
+SELECT 1, 1, UTC_TIMESTAMP()
+WHERE NOT EXISTS (SELECT 1 FROM `TrialSettings` WHERE `Id` = 1);");
+
+    if (trialSettingsRowsInserted > 0)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+UPDATE `AgentUsers`
+SET `TrialEndsAt` = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
+WHERE `TrialEndsAt` IS NULL
+  AND NOT EXISTS (SELECT 1 FROM `Billings` WHERE `Billings`.`AgentUserId` = `AgentUsers`.`Id` AND `Billings`.`Status` = 1);");
+    }
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)

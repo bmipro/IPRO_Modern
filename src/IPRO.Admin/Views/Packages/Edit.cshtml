@@ -62,9 +62,31 @@
       <i class="fas fa-sync-alt me-1"></i>Create / Replace PayPal Plans
     </button>
   </div>
-  <div class="form-check form-switch mb-4">
+  <div class="form-check form-switch mb-3">
     <input asp-for="IsActive" class="form-check-input" type="checkbox"/>
     <label asp-for="IsActive" class="form-check-label fw-semibold">Package is active</label>
+  </div>
+
+  <div class="card border-0 bg-light mb-4">
+    <div class="card-body">
+      <div class="form-check form-switch mb-3">
+        <input asp-for="IsTrialPackage" class="form-check-input" type="checkbox" id="isTrialPackageToggle"/>
+        <label asp-for="IsTrialPackage" class="form-check-label fw-semibold">This is a trial package</label>
+      </div>
+      <div id="trialFieldsGroup" class="row g-3" style="display:@(Model.IsTrialPackage ? "flex" : "none")">
+        <div class="col-md-4">
+          <label asp-for="TrialDurationDays" class="form-label small fw-semibold text-muted">Trial length (days)</label>
+          <input asp-for="TrialDurationDays" class="form-control" type="number" min="1" placeholder="14"/>
+        </div>
+        <div class="col-md-8">
+          <label asp-for="TrialReminderDayOffsets" class="form-label small fw-semibold text-muted">Reminder emails (days before expiry, comma-separated)</label>
+          <input asp-for="TrialReminderDayOffsets" class="form-control" placeholder="7,3,1"/>
+        </div>
+        <div class="col-12">
+          <small class="text-muted">Reachable only via an invitation code from <a href="/TrialInviteCodes">Trial Invite Codes</a> - never shown in the normal self-serve registration dropdown.</small>
+        </div>
+      </div>
+    </div>
   </div>
 
   @await Html.PartialAsync("_PackageFeaturesEditor", Model.Features)
@@ -79,3 +101,16 @@
 </form>
 </div></div>
 </div></div>
+
+@section Scripts {
+<script>
+(function () {
+  var toggle = document.getElementById('isTrialPackageToggle');
+  var group = document.getElementById('trialFieldsGroup');
+  if (!toggle || !group) return;
+  toggle.addEventListener('change', function () {
+    group.style.display = toggle.checked ? 'flex' : 'none';
+  });
+})();
+</script>
+}

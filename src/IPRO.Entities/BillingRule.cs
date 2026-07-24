@@ -15,6 +15,10 @@ public class BillingRule
     public int MaxNewsletters { get; set; } = 12;
     public int? DefaultWebsiteTemplateId { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool IsTrialPackage { get; set; }
+    public int? TrialDurationDays { get; set; }
+    // Comma-separated days-before-expiry to send a reminder, e.g. "7,3,1". Only meaningful when IsTrialPackage.
+    public string? TrialReminderDayOffsets { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<PackageFeature> Features { get; set; } = new List<PackageFeature>();
 }

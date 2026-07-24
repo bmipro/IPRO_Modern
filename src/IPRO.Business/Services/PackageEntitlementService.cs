@@ -55,6 +55,22 @@ public class PackageEntitlementService : IPackageEntitlementService
         };
     }
 
+    public async Task<bool> IsAccessGatedAsync(int agentId)
+    {
+        var activeBilling = await _uow.Billings.FirstOrDefaultAsync(b =>
+            b.AgentUserId == agentId && b.Status == BillingStatus.Active);
+        if (activeBilling != null) return false;
+
+        var agent = await _uow.AgentUsers.GetByIdAsync(agentId);
+        // No active subscription and never on a trial (e.g. registered for a paid package
+        // directly, or has no account at all) - no free ride, gated immediately.
+        if (agent?.TrialEndsAt == null) return true;
+
+        var settings = await _uow.TrialSettings.GetByIdAsync(1);
+        var graceDays = settings?.GracePeriodDays ?? 1;
+        return DateTime.UtcNow > agent.TrialEndsAt.Value.AddDays(graceDays);
+    }
+
     private async Task<int?> ResolveBillingRuleIdAsync(int agentId)
     {
         var activeBilling = await _uow.Billings.FirstOrDefaultAsync(b =>
@@ -62,6 +78,11 @@ public class PackageEntitlementService : IPackageEntitlementService
         if (activeBilling != null)
         {
             return activeBilling.BillingRuleId;
+        }
+
+        if (await IsAccessGatedAsync(agentId))
+        {
+            return null;
         }
 
         var agent = await _uow.AgentUsers.GetByIdAsync(agentId);

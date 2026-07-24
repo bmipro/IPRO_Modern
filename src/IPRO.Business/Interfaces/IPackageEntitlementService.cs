@@ -6,6 +6,11 @@ public interface IPackageEntitlementService
 {
     Task<PackageFeatureAccess> GetAccessAsync(int agentId, string featureCode);
     Task<bool> HasAccessAsync(int agentId, string featureCode);
+
+    /// True if the agent has no active paid subscription and is outside their trial + grace
+    /// window (or was never on a trial at all) - i.e. every paid feature should be blocked and
+    /// they should be routed to Billing to subscribe.
+    Task<bool> IsAccessGatedAsync(int agentId);
 }
 
 public class PackageFeatureAccess

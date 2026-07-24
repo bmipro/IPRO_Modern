@@ -55,6 +55,9 @@ public class IPRODbContext : DbContext
     public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
     public DbSet<PromotionCode> PromotionCodes => Set<PromotionCode>();
     public DbSet<PromotionCodeRedemption> PromotionCodeRedemptions => Set<PromotionCodeRedemption>();
+    public DbSet<TrialInviteCode> TrialInviteCodes => Set<TrialInviteCode>();
+    public DbSet<TrialInviteCodeRedemption> TrialInviteCodeRedemptions => Set<TrialInviteCodeRedemption>();
+    public DbSet<TrialSettings> TrialSettings => Set<TrialSettings>();
     public DbSet<ClientInvoice> ClientInvoices => Set<ClientInvoice>();
     public DbSet<ClientInvoiceLineItem> ClientInvoiceLineItems => Set<ClientInvoiceLineItem>();
     public DbSet<RecurringInvoiceSchedule> RecurringInvoiceSchedules => Set<RecurringInvoiceSchedule>();

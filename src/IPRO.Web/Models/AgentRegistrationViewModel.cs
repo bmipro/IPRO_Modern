@@ -48,4 +48,7 @@ public class AgentRegistrationViewModel
     public int PackageId { get; set; }
 
     public string? PromotionCode { get; set; }
+
+    // Set only when arriving via an invitation link (?trialCode=...); claims a trial package.
+    public string? TrialCode { get; set; }
 }

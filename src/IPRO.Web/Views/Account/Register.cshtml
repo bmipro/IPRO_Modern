@@ -10,6 +10,8 @@
     var verificationDisplayCode = ViewBag.VerificationCode as string ?? "0000";
     var packages = ((ViewBag.Packages as IEnumerable<IPRO.Entities.BillingRule>) ?? Enumerable.Empty<IPRO.Entities.BillingRule>()).ToList();
     var timeZones = (ViewBag.TimeZones as IEnumerable<string>) ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.Options;
+    var trialPackage = ViewBag.TrialPackage as IPRO.Entities.BillingRule;
+    var trialCodeError = ViewBag.TrialCodeError as string;
 }
 <!DOCTYPE html>
 <html>
@@ -99,9 +101,23 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
   {
     <div class="validation">@Html.ValidationSummary()</div>
   }
+  @if (trialPackage != null)
+  {
+    <div class="validation" style="background:#eef5ff;border-color:#cfe0ff;color:#244575;">
+      You're claiming your invited free trial of <strong>@trialPackage.PackageName</strong>@(trialPackage.TrialDurationDays.HasValue ? $" ({trialPackage.TrialDurationDays} days)" : "").
+    </div>
+  }
+  else if (trialCodeError != null)
+  {
+    <div class="validation">@trialCodeError You can still register below by choosing one of our regular packages.</div>
+  }
 
   <form asp-action="Register" method="post">
     @Html.AntiForgeryToken()
+    @if (!string.IsNullOrWhiteSpace(Model.TrialCode))
+    {
+      <input type="hidden" asp-for="TrialCode" />
+    }
     <div class="form-grid">
 
     <div class="section">Contact Information</div>
@@ -197,24 +213,35 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
         <option>Mortgage</option>
       </select>
     </div>
-    <div class="form-row">
-      <label><span class="required">*</span>Packages:</label>
-      <select asp-for="PackageId" id="packageSelect" class="short" required>
-        <option value="">Click here</option>
-        @foreach (var package in packages)
-        {
-          <option value="@package.Id">@package.PackageName</option>
-        }
-      </select>
-    </div>
-    <div class="form-row">
-      <label>Promotion Code:</label>
-      <span>
-        <input asp-for="PromotionCode" id="promoCodeInput" maxlength="60" autocomplete="off" placeholder="Optional" />
-        <button type="button" id="applyPromoCodeButton">Apply</button>
-        <div id="promoCodeResult" style="margin-top:6px;font-size:0.9em;"></div>
-      </span>
-    </div>
+    @if (trialPackage != null)
+    {
+      <div class="form-row">
+        <label><span class="required">*</span>Package:</label>
+        <input type="text" class="short" value="@trialPackage.PackageName (free trial)" readonly/>
+        <input type="hidden" asp-for="PackageId" value="@trialPackage.Id" />
+      </div>
+    }
+    else
+    {
+      <div class="form-row">
+        <label><span class="required">*</span>Packages:</label>
+        <select asp-for="PackageId" id="packageSelect" class="short" required>
+          <option value="">Click here</option>
+          @foreach (var package in packages)
+          {
+            <option value="@package.Id">@package.PackageName</option>
+          }
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Promotion Code:</label>
+        <span>
+          <input asp-for="PromotionCode" id="promoCodeInput" maxlength="60" autocomplete="off" placeholder="Optional" />
+          <button type="button" id="applyPromoCodeButton">Apply</button>
+          <div id="promoCodeResult" style="margin-top:6px;font-size:0.9em;"></div>
+        </span>
+      </div>
+    }
 
     <div class="section">Terms and Verification</div>
     <div class="form-row agreement-row">

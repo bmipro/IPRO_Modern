@@ -17,6 +17,18 @@ Optional information such as designation, company address, fax, and mobile phone
 
 A promotion code is checked against the selected package immediately (some codes only apply to one specific package) and again later when the agent first subscribes through Billing, since the actual PayPal subscription isn't created at registration time. If a code expires or reaches its redemption limit in between, the agent simply pays the normal price — registration itself is never blocked by an invalid or expired code.
 
+**Registering does not itself create a paid subscription.** Every paid feature is gated on an active subscription (`Billing`) or an active trial, not on having merely picked a package during registration — after registering for a paid package directly, the agent still needs to complete **Billing → Subscribe** before portal features unlock. The registration success page always says clearly which of the two applies.
+
+## Trial Invitations
+
+Trial packages are invitation-only — they never appear in the normal package dropdown above. A SuperAdmin creates a trial package under **Packages** (checking "This is a trial package", setting the trial length in days and how many reminder emails to send as it nears expiry), then generates a shareable link from **Trial Invite Codes** (`/TrialInviteCodes`), which also controls how many different people can redeem that one link.
+
+1. The prospect opens their invitation link (`.../Account/Register?trialCode=CODE`).
+2. The registration form switches into a locked "claiming your invited trial" mode — the package is implicit, not user-selectable.
+3. On successful registration, the trial starts immediately (no payment step) and runs for the configured number of days.
+4. As the trial nears its end, the agent receives the configured reminder emails, then a "trial ended" notice with a short grace period (SuperAdmin-configurable, default 1 day), then a final notice once that grace period lapses.
+5. If the agent hasn't subscribed by then, the portal locks to the Billing page only — everything else redirects there until they subscribe. Subscribing at any point (during the trial, the grace period, or after) restores full access immediately.
+
 ## Automatic Account Setup
 
 After successful registration, IPRO:
@@ -46,6 +58,7 @@ The page displays:
 - Temporary password
 - First-login password instructions
 - Sign-in and website links
+- Either the trial end date (trial registrations) or a reminder that a subscription still needs to be completed via Billing (direct paid-package registrations)
 
 The registrant should keep these details until the password has been changed.
 

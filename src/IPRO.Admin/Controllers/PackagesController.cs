@@ -55,7 +55,8 @@ public class PackagesController : Controller
                     templates.TryGetValue(p.DefaultWebsiteTemplateId.Value, out var templateName)
                         ? templateName
                         : "Global default",
-                IsActive = p.IsActive
+                IsActive = p.IsActive,
+                IsTrialPackage = p.IsTrialPackage
             })
             .ToList();
 
@@ -168,6 +169,9 @@ public class PackagesController : Controller
             MaxNewsletters = rule.MaxNewsletters == 0 ? null : rule.MaxNewsletters,
             DefaultWebsiteTemplateId = rule.DefaultWebsiteTemplateId,
             IsActive = rule.IsActive,
+            IsTrialPackage = rule.IsTrialPackage,
+            TrialDurationDays = rule.TrialDurationDays,
+            TrialReminderDayOffsets = rule.TrialReminderDayOffsets,
             Features = features
         };
     }
@@ -285,6 +289,9 @@ public class PackagesController : Controller
         rule.MaxNewsletters = model.MaxNewsletters ?? 0;
         rule.DefaultWebsiteTemplateId = model.DefaultWebsiteTemplateId > 0 ? model.DefaultWebsiteTemplateId : null;
         rule.IsActive = model.IsActive;
+        rule.IsTrialPackage = model.IsTrialPackage;
+        rule.TrialDurationDays = model.IsTrialPackage ? model.TrialDurationDays : null;
+        rule.TrialReminderDayOffsets = model.IsTrialPackage ? model.TrialReminderDayOffsets : null;
     }
 
     private async Task LoadWebsiteTemplatesAsync()

@@ -161,11 +161,25 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Register()
+    public async Task<IActionResult> Register(string? trialCode = null)
     {
         SetRegistrationVerifyCode();
         await LoadActivePackagesAsync();
-        return View(new AgentRegistrationViewModel());
+
+        if (!string.IsNullOrWhiteSpace(trialCode))
+        {
+            var (invite, package, error) = await ResolveTrialInviteAsync(trialCode);
+            if (invite != null && package != null)
+            {
+                ViewBag.TrialPackage = package;
+            }
+            else
+            {
+                ViewBag.TrialCodeError = error ?? "This invitation link is not valid.";
+            }
+        }
+
+        return View(new AgentRegistrationViewModel { TrialCode = trialCode });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -183,10 +197,28 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
+        BillingRule? submittedPackage = null;
+        TrialInviteCode? trialInvite = null;
         if (model.PackageId <= 0) ModelState.AddModelError("", "Package is required.");
-        else if (!await _uow.BillingRules.ExistsAsync(p => p.Id == model.PackageId && p.IsActive))
+        else
         {
-            ModelState.AddModelError("", "Please choose an active package.");
+            submittedPackage = await _uow.BillingRules.FirstOrDefaultAsync(p => p.Id == model.PackageId && p.IsActive);
+            if (submittedPackage == null)
+            {
+                ModelState.AddModelError("", "Please choose an active package.");
+            }
+            else if (submittedPackage.IsTrialPackage)
+            {
+                var (invite, package, error) = await ResolveTrialInviteAsync(model.TrialCode);
+                if (invite == null || package == null || package.Id != submittedPackage.Id)
+                {
+                    ModelState.AddModelError("", error ?? "A valid invitation is required for this package.");
+                }
+                else
+                {
+                    trialInvite = invite;
+                }
+            }
         }
         if (string.IsNullOrWhiteSpace(expectedVerificationCode)
             || !string.Equals(verificationCode?.Trim(), expectedVerificationCode, StringComparison.Ordinal))
@@ -206,6 +238,7 @@ public class AccountController : Controller
         {
             SetRegistrationVerifyCode();
             await LoadActivePackagesAsync();
+            await RepopulateTrialViewBagAsync(model.TrialCode);
             return View(model);
         }
         if (await _agents.EmailExistsAsync(model.Email))
@@ -213,6 +246,7 @@ public class AccountController : Controller
             ModelState.AddModelError("", "An account already exists for this email address.");
             SetRegistrationVerifyCode();
             await LoadActivePackagesAsync();
+            await RepopulateTrialViewBagAsync(model.TrialCode);
             return View(model);
         }
 
@@ -222,6 +256,10 @@ public class AccountController : Controller
         agent.TermsAcceptedAt = DateTime.UtcNow;
         agent.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         agent.MustChangePassword = true;
+        if (trialInvite != null && submittedPackage != null)
+        {
+            agent.TrialEndsAt = DateTime.UtcNow.AddDays(submittedPackage.TrialDurationDays ?? 14);
+        }
         var temporaryPassword = GenerateTemporaryPassword(model.FirstName, model.LastName);
         try
         {
@@ -233,7 +271,21 @@ public class AccountController : Controller
             ModelState.AddModelError("", "We could not complete the registration. Please check the form and try again.");
             SetRegistrationVerifyCode();
             await LoadActivePackagesAsync();
+            await RepopulateTrialViewBagAsync(model.TrialCode);
             return View(model);
+        }
+
+        if (trialInvite != null)
+        {
+            trialInvite.RedemptionCount++;
+            _uow.TrialInviteCodes.Update(trialInvite);
+            await _uow.TrialInviteCodeRedemptions.AddAsync(new TrialInviteCodeRedemption
+            {
+                TrialInviteCodeId = trialInvite.Id,
+                AgentUserId = agent.Id,
+                RedeemedAt = DateTime.UtcNow
+            });
+            await _uow.SaveChangesAsync();
         }
 
         var welcome = BuildWelcomeModel(agent, temporaryPassword);
@@ -254,8 +306,40 @@ public class AccountController : Controller
         TempData["RegistrationUserName"] = agent.UserName;
         TempData["RegistrationPassword"] = temporaryPassword;
         TempData["RegistrationDomain"] = agent.DomainName;
+        TempData["RegistrationTrialEndsAt"] = agent.TrialEndsAt?.ToString("O");
         HttpContext.Session.Remove(RegistrationVerifyCodeSessionKey);
         return RedirectToAction(nameof(RegisterSuccess));
+    }
+
+    private async Task<(TrialInviteCode? Invite, BillingRule? Package, string? Error)> ResolveTrialInviteAsync(string? trialCode)
+    {
+        if (string.IsNullOrWhiteSpace(trialCode)) return (null, null, "An invitation code is required for this package.");
+
+        var code = trialCode.Trim();
+        var invite = await _uow.TrialInviteCodes.FirstOrDefaultAsync(c => c.Code == code);
+        if (invite == null) return (null, null, "This invitation link is not valid.");
+        if (!invite.IsActive) return (null, null, "This invitation is no longer active.");
+        if (invite.ExpiresAt.HasValue && invite.ExpiresAt.Value < DateTime.UtcNow) return (null, null, "This invitation has expired.");
+        if (invite.MaxRedemptions.HasValue && invite.RedemptionCount >= invite.MaxRedemptions.Value) return (null, null, "This invitation has already been used the maximum number of times.");
+
+        var package = await _uow.BillingRules.GetByIdAsync(invite.BillingRuleId);
+        if (package == null || !package.IsActive || !package.IsTrialPackage) return (null, null, "This invitation's package is no longer available.");
+
+        return (invite, package, null);
+    }
+
+    private async Task RepopulateTrialViewBagAsync(string? trialCode)
+    {
+        if (string.IsNullOrWhiteSpace(trialCode)) return;
+        var (invite, package, error) = await ResolveTrialInviteAsync(trialCode);
+        if (invite != null && package != null)
+        {
+            ViewBag.TrialPackage = package;
+        }
+        else
+        {
+            ViewBag.TrialCodeError = error ?? "This invitation link is not valid.";
+        }
     }
 
     [HttpPost]
@@ -317,6 +401,11 @@ public class AccountController : Controller
         {
             welcome = RegistrationWelcomeTemplate.Sample();
         }
+
+        var trialEndsAtRaw = TempData["RegistrationTrialEndsAt"] as string;
+        ViewBag.TrialEndsAt = !string.IsNullOrWhiteSpace(trialEndsAtRaw)
+            ? DateTime.Parse(trialEndsAtRaw, null, System.Globalization.DateTimeStyles.RoundtripKind)
+            : (DateTime?)null;
 
         return View(welcome);
     }
@@ -579,7 +668,9 @@ public class AccountController : Controller
     {
         try
         {
-            var packages = await _uow.BillingRules.FindAsync(p => p.IsActive);
+            // Trial packages are invitation-only (see trialCode handling in Register) - never
+            // shown in the normal self-serve dropdown.
+            var packages = await _uow.BillingRules.FindAsync(p => p.IsActive && !p.IsTrialPackage);
             ViewBag.Packages = packages
                 .OrderBy(GetPackageRank)
                 .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)

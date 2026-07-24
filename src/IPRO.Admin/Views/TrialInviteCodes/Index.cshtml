@@ -1,0 +1,58 @@
+@model IEnumerable<IPRO.Entities.TrialInviteCode>
+@{
+    ViewData["Title"] = "Trial Invite Codes";
+    var packageNames = (ViewBag.PackageNames as Dictionary<int, string>) ?? new Dictionary<int, string>();
+    var portalBaseUrl = ViewBag.PortalBaseUrl as string ?? "https://ipro-prod-web.azurewebsites.net";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-envelope-open-text me-2 text-primary"></i>Trial Invite Codes</h4>
+    <div class="text-muted">Invitation-only free trial links. Share the link column directly with a prospect - each redemption counts against the code's limit.</div>
+  </div>
+  <a href="/TrialInviteCodes/Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Invite Code</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Trial Package</th>
+          <th>Invitation Link</th>
+          <th>Redemptions</th>
+          <th>Expires</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      @foreach (var code in Model)
+      {
+        var link = $"{portalBaseUrl}/Account/Register?trialCode={Uri.EscapeDataString(code.Code)}";
+        <tr>
+          <td><code>@code.Code</code><div class="small text-muted">@code.Description</div></td>
+          <td>@(packageNames.TryGetValue(code.BillingRuleId, out var name) ? name : "-")</td>
+          <td>
+            <div class="input-group input-group-sm" style="max-width:320px;">
+              <input type="text" class="form-control form-control-sm" value="@link" readonly onclick="this.select()"/>
+              <button type="button" class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText('@link')" title="Copy link"><i class="fas fa-copy"></i></button>
+            </div>
+          </td>
+          <td>
+            <a href="/TrialInviteCodes/Redemptions/@code.Id">@code.RedemptionCount@(code.MaxRedemptions.HasValue ? $" / {code.MaxRedemptions}" : "")</a>
+          </td>
+          <td class="small text-muted">@(code.ExpiresAt?.ToString("MMM d, yyyy") ?? "Never")</td>
+          <td><span class="badge @(code.IsActive ? "bg-success" : "bg-secondary")">@(code.IsActive ? "Active" : "Inactive")</span></td>
+          <td class="text-end"><a href="/TrialInviteCodes/Edit/@code.Id" class="btn btn-sm btn-outline-primary">Edit</a></td>
+        </tr>
+      }
+      @if (!Model.Any())
+      {
+        <tr><td colspan="7" class="text-center py-4 text-muted">No trial invite codes yet. <a href="/TrialInviteCodes/Create">Create one.</a></td></tr>
+      }
+      </tbody>
+    </table>
+  </div>
+</div>

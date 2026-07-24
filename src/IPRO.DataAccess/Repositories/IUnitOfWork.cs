@@ -41,6 +41,9 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<SupportTicketMessage> SupportTicketMessages { get; }
     IRepository<PromotionCode> PromotionCodes { get; }
     IRepository<PromotionCodeRedemption> PromotionCodeRedemptions { get; }
+    IRepository<TrialInviteCode> TrialInviteCodes { get; }
+    IRepository<TrialInviteCodeRedemption> TrialInviteCodeRedemptions { get; }
+    IRepository<TrialSettings> TrialSettings { get; }
     IRepository<ClientInvoice> ClientInvoices { get; }
     IRepository<ClientInvoiceLineItem> ClientInvoiceLineItems { get; }
     IRepository<RecurringInvoiceSchedule> RecurringInvoiceSchedules { get; }

@@ -144,6 +144,9 @@
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "PromotionCodes" ? "active" : "")" href="/PromotionCodes">
               <i class="fas fa-tags"></i>Promotion Codes
           </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "TrialInviteCodes" ? "active" : "")" href="/TrialInviteCodes">
+              <i class="fas fa-envelope-open-text"></i>Trial Invite Codes
+          </a>
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "EmailSetup" ? "active" : "")" href="/EmailSetup">
               <i class="fas fa-envelope-circle-check"></i>Email Setup
           </a>

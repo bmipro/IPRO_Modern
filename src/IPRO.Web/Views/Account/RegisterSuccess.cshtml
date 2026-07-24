@@ -4,6 +4,7 @@
     Layout = null;
     var domainUrl = $"http://{Model.SetupDomain}";
     var emailSent = string.Equals(TempData["RegistrationEmailSent"] as string, "true", StringComparison.OrdinalIgnoreCase);
+    var trialEndsAt = ViewBag.TrialEndsAt as DateTime?;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -75,6 +76,15 @@ h1{font-size:30px;line-height:1.1;margin:0 0 8px;font-weight:850;color:#162033}
       </div>
 
       <p class="fine">You will be asked to change this temporary password the first time you sign in. Your temporary website domain can be used right away, and later you can attach your own registered domain from the user control panel.</p>
+
+      @if (trialEndsAt.HasValue)
+      {
+        <div class="notice">Your trial is active until <strong>@trialEndsAt.Value.ToString("MMMM d, yyyy")</strong>. You can subscribe any time before then from Billing &amp; Subscription in the portal.</div>
+      }
+      else
+      {
+        <div class="notice warn"><strong>One step left:</strong> your account is created, but you still need to complete your subscription before your portal features are active. You can do this any time from Billing &amp; Subscription after signing in.</div>
+      }
 
       <div class="actions">
         <a class="btn primary" href="/Account/Login">Sign In</a>
