@@ -62,6 +62,7 @@ builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSect
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ai"));
 builder.Services.AddScoped<IAiSuggestionService, AnthropicAiSuggestionService>();
+builder.Services.AddScoped<IGeocodingService, NominatimGeocodingService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<IContactImporter, ContactImporter>();

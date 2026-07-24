@@ -137,10 +137,10 @@
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Maps)
   {
     var mpMapSettings = IPRO.Entities.WebsiteMapSettings.FromJson(block.SettingsJson);
-    var mpMapAddress = !string.IsNullOrWhiteSpace(mpMapSettings.Address) ? mpMapSettings.Address : agent.GetSingleLineAddress();
-    if (!string.IsNullOrWhiteSpace(mpMapAddress))
+    var mpMapEmbedUrl = mpMapSettings.BuildEmbedUrl();
+    if (!string.IsNullOrWhiteSpace(mpMapEmbedUrl))
     {
-      <section class="mp-section"><div class="mp-inner" style="@(block.LayoutVariant == "narrow" ? "max-width:640px" : "")"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<iframe src="@IPRO.Entities.WebsiteMapSettings.BuildEmbedUrl(mpMapAddress)" width="100%" height="@mpMapSettings.HeightPixels" style="border:0;border-radius:8px;margin-top:16px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="@block.Heading"></iframe></div></section>
+      <section class="mp-section"><div class="mp-inner" style="@(block.LayoutVariant == "narrow" ? "max-width:640px" : "")"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<iframe src="@mpMapEmbedUrl" width="100%" height="@mpMapSettings.HeightPixels" style="border:0;border-radius:8px;margin-top:16px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="@block.Heading"></iframe></div></section>
     }
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm)
