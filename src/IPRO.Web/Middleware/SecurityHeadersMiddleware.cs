@@ -28,6 +28,17 @@ public class SecurityHeadersMiddleware
         // Permissions policy — disable unused browser APIs
         headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self), payment=(self)";
 
+        // Every page here is server-rendered per request (agent portal, admin, public agent sites).
+        // Without this, browsers can serve a stale snapshot from disk cache or back/forward cache
+        // after data changes server-side (e.g. the client list looking unchanged right after adding
+        // one) instead of hitting the server again. Static assets (css/js/images) are excluded so
+        // they keep their own caching.
+        if (!(context.Request.Path.HasValue && System.IO.Path.HasExtension(context.Request.Path.Value)))
+        {
+            headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+            headers["Pragma"] = "no-cache";
+        }
+
         // Content Security Policy
         headers["Content-Security-Policy"] =
             "default-src 'self'; " +
