@@ -73,6 +73,7 @@ public class AiDailyDigestJob
 
                 string actionType, actionText;
                 string? actionUrl, aiSituation;
+                int? relatedEntityId;
 
                 if (mostOverdueFollowUp != null)
                 {
@@ -81,6 +82,7 @@ public class AiDailyDigestJob
                     actionUrl = $"/Clients/Details/{mostOverdueFollowUp.ClientId}";
                     actionText = $"Call {mostOverdueFollowUp.Client.FirstName} {mostOverdueFollowUp.Client.LastName} first — \"{mostOverdueFollowUp.Title}\" is {daysOverdue} day{(daysOverdue == 1 ? "" : "s")} overdue.";
                     aiSituation = $"A client follow-up task titled \"{mostOverdueFollowUp.Title}\" is {daysOverdue} day{(daysOverdue == 1 ? "" : "s")} overdue.";
+                    relatedEntityId = mostOverdueFollowUp.Id;
                 }
                 else if (oldestStaleLead != null)
                 {
@@ -89,6 +91,7 @@ public class AiDailyDigestJob
                     actionUrl = "/WebsiteLeads?status=new";
                     actionText = $"Call {oldestStaleLead.FirstName} {oldestStaleLead.LastName} first — lead has been waiting {hoursOld} hours.";
                     aiSituation = $"A new website lead (a contact request, not yet an existing client) has gone unanswered for {hoursOld} hours.";
+                    relatedEntityId = oldestStaleLead.Id;
                 }
                 else if (noFollowUpClient != null)
                 {
@@ -96,6 +99,7 @@ public class AiDailyDigestJob
                     actionUrl = $"/Clients/Details/{noFollowUpClient.Id}";
                     actionText = $"Schedule a follow-up with {noFollowUpClient.FirstName} {noFollowUpClient.LastName} — nothing is on the books.";
                     aiSituation = "A client currently has no follow-up task scheduled at all.";
+                    relatedEntityId = noFollowUpClient.Id;
                 }
                 else
                 {
@@ -103,6 +107,7 @@ public class AiDailyDigestJob
                     actionUrl = null;
                     actionText = "You're all caught up — no urgent actions today.";
                     aiSituation = null;
+                    relatedEntityId = null;
                 }
 
                 string? actionReason = null;

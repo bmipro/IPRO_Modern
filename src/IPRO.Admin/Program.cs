@@ -770,6 +770,8 @@ CREATE TABLE IF NOT EXISTS `AgentDailyInsights` (
     PRIMARY KEY (`Id`),
     UNIQUE KEY `IX_AgentDailyInsights_AgentUserId` (`AgentUserId`)
 ) CHARACTER SET=utf8mb4;");
+
+    await EnsureTableColumnAsync(db, "AgentDailyInsights", "RelatedEntityId", "ALTER TABLE `AgentDailyInsights` ADD COLUMN `RelatedEntityId` int NULL");
 }
 
 static async Task EnsureAiUsageSchemaAsync(IPRODbContext db)

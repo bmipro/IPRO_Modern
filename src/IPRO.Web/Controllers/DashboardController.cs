@@ -32,7 +32,29 @@ public class DashboardController : Controller
         ViewBag.Subscription    = await _billing.GetActiveSubscriptionAsync(agentId);
         ViewBag.AgentName       = User.FindFirstValue("FullName");
         ViewBag.FeatureAccess = await LoadFeatureAccessAsync(agentId);
-        ViewBag.DailyInsight = await _db.AgentDailyInsights.AsNoTracking().FirstOrDefaultAsync(i => i.AgentUserId == agentId);
+        var dailyInsight = await _db.AgentDailyInsights.AsNoTracking().FirstOrDefaultAsync(i => i.AgentUserId == agentId);
+        if (dailyInsight != null && dailyInsight.RelatedEntityId.HasValue)
+        {
+            var stillActionable = dailyInsight.SuggestedActionType switch
+            {
+                AgentDailyInsightActionTypes.OverdueFollowUp => await _db.ClientFollowUps.AnyAsync(f =>
+                    f.Id == dailyInsight.RelatedEntityId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+                AgentDailyInsightActionTypes.StaleLead => await _db.WebsiteLeads.AnyAsync(l =>
+                    l.Id == dailyInsight.RelatedEntityId && l.Status == WebsiteLeadStatuses.New),
+                AgentDailyInsightActionTypes.NoFollowUp => await _db.Clients.AnyAsync(c =>
+                    c.Id == dailyInsight.RelatedEntityId && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted)),
+                _ => true
+            };
+
+            if (!stillActionable)
+            {
+                dailyInsight.SuggestedActionType = AgentDailyInsightActionTypes.None;
+                dailyInsight.SuggestedActionText = "You're all caught up — no urgent actions today.";
+                dailyInsight.SuggestedActionUrl = null;
+                dailyInsight.SuggestedActionReason = null;
+            }
+        }
+        ViewBag.DailyInsight = dailyInsight;
         ViewBag.OverdueFollowUpCount = await _db.ClientFollowUps
             .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today);
         ViewBag.TodayFollowUpCount = await _db.ClientFollowUps
