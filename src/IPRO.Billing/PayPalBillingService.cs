@@ -2188,7 +2188,7 @@ public class PayPalBillingService : IBillingService
 
     private static bool IsPayPalSubscriptionApproved(string status) =>
         status.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ||
-        status.Equals("APPROVAL_PENDING", StringComparison.OrdinalIgnoreCase);
+        status.Equals("APPROVED", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsPayPalFailedInvoice(IPRO.Entities.Invoice invoice) =>
         invoice.PayPalTransactionId.StartsWith("PAYPAL_FAILED:", StringComparison.OrdinalIgnoreCase);
