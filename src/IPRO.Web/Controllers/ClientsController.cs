@@ -313,6 +313,12 @@ public class ClientsController : Controller
             .Take(pageSize)
             .ToListAsync();
 
+        ViewBag.Clients = await _db.Clients
+            .Where(c => c.AgentUserId == AgentId)
+            .OrderBy(c => c.FirstName).ThenBy(c => c.LastName)
+            .Select(c => new Client { Id = c.Id, FirstName = c.FirstName, LastName = c.LastName, Email = c.Email })
+            .ToListAsync();
+
         return View(followUps);
     }
 
@@ -545,10 +551,15 @@ public class ClientsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddFollowUp(int clientId, string title, DateTime dueAt, string? notes)
+    public async Task<IActionResult> AddFollowUp(int clientId, string title, DateTime dueAt, string? notes, string? returnUrl = null)
     {
         title = title?.Trim() ?? "";
         notes = notes?.Trim() ?? "";
+
+        IActionResult BackToCaller() =>
+            !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? Redirect(returnUrl)
+                : RedirectToAction(nameof(Details), new { id = clientId });
 
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
         if (client == null) return NotFound();
@@ -556,13 +567,13 @@ public class ClientsController : Controller
         if (string.IsNullOrWhiteSpace(title))
         {
             TempData["Error"] = "Follow-up title is required.";
-            return RedirectToAction(nameof(Details), new { id = clientId });
+            return BackToCaller();
         }
 
         if (dueAt == default)
         {
             TempData["Error"] = "Follow-up date is required.";
-            return RedirectToAction(nameof(Details), new { id = clientId });
+            return BackToCaller();
         }
 
         await _db.ClientFollowUps.AddAsync(new ClientFollowUp
@@ -576,7 +587,7 @@ public class ClientsController : Controller
         await _db.SaveChangesAsync();
 
         TempData["Success"] = "Follow-up added.";
-        return RedirectToAction(nameof(Details), new { id = clientId });
+        return BackToCaller();
     }
 
     [HttpPost, ValidateAntiForgeryToken]

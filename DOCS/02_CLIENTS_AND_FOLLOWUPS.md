@@ -69,10 +69,12 @@ Website inquiries are also added to this timeline automatically when the lead is
 
 ## Add a Follow-up
 
-1. Open the client record.
-2. Open the follow-up area.
-3. Enter a title, due date and time, and optional notes.
-4. Save the follow-up.
+Add one from either place:
+
+- **The client record**: open the client, use the follow-up area, enter a title, due date, and optional notes, and save.
+- **Follow-ups** (the queue): use the same quick-add row at the top of the page — search for the client by name or email, enter a title and due date, and save. Useful when you want to add a follow-up without navigating to that client's record first.
+
+Both write to the same underlying record, so it immediately shows up everywhere follow-ups are shown (queue, Calendar, Dashboard, client record).
 
 ## Review Follow-ups
 
