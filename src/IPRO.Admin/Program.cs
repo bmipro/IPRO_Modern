@@ -771,7 +771,15 @@ CREATE TABLE IF NOT EXISTS `AgentDailyInsights` (
     UNIQUE KEY `IX_AgentDailyInsights_AgentUserId` (`AgentUserId`)
 ) CHARACTER SET=utf8mb4;");
 
-    await EnsureTableColumnAsync(db, "AgentDailyInsights", "RelatedEntityId", "ALTER TABLE `AgentDailyInsights` ADD COLUMN `RelatedEntityId` int NULL");
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "AgentDailyInsights", "RelatedEntityId", "ALTER TABLE `AgentDailyInsights` ADD COLUMN `RelatedEntityId` int NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
 }
 
 static async Task EnsureAiUsageSchemaAsync(IPRODbContext db)
