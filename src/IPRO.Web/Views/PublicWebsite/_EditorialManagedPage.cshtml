@@ -1,4 +1,5 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @functions {
     private static string HeroMonogram(IPRO.Entities.AgentUser agent)
     {
@@ -128,7 +129,8 @@
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup){<section class="ep-section ep-cta"><div class="ep-inner ep-feature"><div class="ep-heading"><div class="ep-kicker" style="color:#fff">Continue the conversation</div><h2>@block.Heading</h2></div><div><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })</div></div></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Maps){
     var epMapSettings = IPRO.Entities.WebsiteMapSettings.FromJson(block.SettingsJson);
-    var epMapEmbedUrl = epMapSettings.BuildEmbedUrl();
+    var epMapAddress = !string.IsNullOrWhiteSpace(epMapSettings.Address) ? epMapSettings.Address : agent.GetSingleLineAddress();
+    var epMapEmbedUrl = IPRO.Entities.WebsiteMapSettings.BuildEmbedUrl(epMapAddress, Configuration["GoogleMaps:EmbedApiKey"]);
     if (!string.IsNullOrWhiteSpace(epMapEmbedUrl))
     {
       <section class="ep-section"><div class="ep-inner" style="@(block.LayoutVariant == "narrow" ? "max-width:640px" : "")"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<iframe src="@epMapEmbedUrl" width="100%" height="@epMapSettings.HeightPixels" style="border:0;border-radius:4px;margin-top:16px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="@block.Heading"></iframe></div></section>

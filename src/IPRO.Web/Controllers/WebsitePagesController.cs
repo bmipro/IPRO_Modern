@@ -17,15 +17,13 @@ public class WebsitePagesController : Controller
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
     private readonly IBlobStorageService _blob;
-    private readonly IGeocodingService _geocoding;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public WebsitePagesController(IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, IGeocodingService geocoding)
+    public WebsitePagesController(IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob)
     {
         _db = db;
         _entitlements = entitlements;
         _blob = blob;
-        _geocoding = geocoding;
     }
 
     public async Task<IActionResult> Index()
@@ -334,12 +332,11 @@ public class WebsitePagesController : Controller
         var block = page.Blocks.FirstOrDefault(b => b.Id == id);
         if (block == null) return NotFound();
 
-        var previewAgentFallbackAddress = page.AgentWebsite.AgentUser.GetSingleLineAddress();
         await ApplyBlockFieldsAsync(block, heading, subheading, body, imageUrl, buttonText, buttonUrl, isVisible,
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, previewAgentFallbackAddress);
+            mapAddress, mapHeight);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -637,16 +634,15 @@ public class WebsitePagesController : Controller
         bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard")
     {
         var block = await _db.WebsiteContentBlocks
-            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite).ThenInclude(w => w.AgentUser)
+            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
             .FirstOrDefaultAsync(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
         if (block == null) return NotFound();
 
-        var agentFallbackAddress = block.WebsitePage.AgentWebsite.AgentUser.GetSingleLineAddress();
         await ApplyBlockFieldsAsync(block, heading, subheading, body, imageUrl, buttonText, buttonUrl, isVisible,
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, agentFallbackAddress);
+            mapAddress, mapHeight);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -662,7 +658,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId, int agentDocumentId,
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
-        bool showContactPhoto, string mapAddress, string mapHeight, string agentFallbackAddress)
+        bool showContactPhoto, string mapAddress, string mapHeight)
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -729,41 +725,11 @@ public class WebsitePagesController : Controller
         }
         else if (block.BlockType == WebsiteBlockTypes.Maps)
         {
-            var existingMapSettings = WebsiteMapSettings.FromJson(block.SettingsJson);
-            var trimmedOverride = mapAddress?.Trim() ?? string.Empty;
-            var effectiveAddress = !string.IsNullOrWhiteSpace(trimmedOverride) ? trimmedOverride : agentFallbackAddress;
-            var newMapSettings = new WebsiteMapSettings { Address = trimmedOverride, Height = mapHeight };
-
-            if (!string.IsNullOrWhiteSpace(effectiveAddress) && effectiveAddress == existingMapSettings.GeocodedAddress)
+            block.SettingsJson = new WebsiteMapSettings
             {
-                // Address hasn't changed since the last successful geocode -- reuse cached coordinates,
-                // don't call Nominatim again.
-                newMapSettings.GeocodedAddress = existingMapSettings.GeocodedAddress;
-                newMapSettings.Latitude = existingMapSettings.Latitude;
-                newMapSettings.Longitude = existingMapSettings.Longitude;
-                newMapSettings.BboxSouth = existingMapSettings.BboxSouth;
-                newMapSettings.BboxNorth = existingMapSettings.BboxNorth;
-                newMapSettings.BboxWest = existingMapSettings.BboxWest;
-                newMapSettings.BboxEast = existingMapSettings.BboxEast;
-            }
-            else if (!string.IsNullOrWhiteSpace(effectiveAddress))
-            {
-                var geocode = await _geocoding.GeocodeAsync(effectiveAddress);
-                if (geocode != null)
-                {
-                    newMapSettings.GeocodedAddress = effectiveAddress;
-                    newMapSettings.Latitude = geocode.Latitude;
-                    newMapSettings.Longitude = geocode.Longitude;
-                    newMapSettings.BboxSouth = geocode.South;
-                    newMapSettings.BboxNorth = geocode.North;
-                    newMapSettings.BboxWest = geocode.West;
-                    newMapSettings.BboxEast = geocode.East;
-                }
-                // Geocoding failed (address not found, or the service is unreachable) -- coordinates stay
-                // null and the block simply won't render on the public site until the address resolves.
-            }
-
-            block.SettingsJson = newMapSettings.ToJson();
+                Address = mapAddress?.Trim() ?? string.Empty,
+                Height = mapHeight
+            }.ToJson();
         }
     }
 

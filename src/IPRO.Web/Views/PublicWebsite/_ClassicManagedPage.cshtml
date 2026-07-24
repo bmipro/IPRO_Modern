@@ -1,4 +1,5 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     var agent = Model.Website.AgentUser;
     var blocks = Model.CurrentPage?.Blocks.Where(b => b.IsVisible).OrderBy(b => b.SortOrder).ToList() ?? new();
@@ -102,7 +103,8 @@
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Maps){
     var cpMapSettings = IPRO.Entities.WebsiteMapSettings.FromJson(block.SettingsJson);
-    var cpMapEmbedUrl = cpMapSettings.BuildEmbedUrl();
+    var cpMapAddress = !string.IsNullOrWhiteSpace(cpMapSettings.Address) ? cpMapSettings.Address : agent.GetSingleLineAddress();
+    var cpMapEmbedUrl = IPRO.Entities.WebsiteMapSettings.BuildEmbedUrl(cpMapAddress, Configuration["GoogleMaps:EmbedApiKey"]);
     if (!string.IsNullOrWhiteSpace(cpMapEmbedUrl))
     {
       <section class="cp-section"><div style="@(block.LayoutVariant == "narrow" ? "max-width:640px;margin:0 auto" : "")"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<iframe src="@cpMapEmbedUrl" width="100%" height="@cpMapSettings.HeightPixels" style="border:0;border-radius:8px;margin-top:16px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="@block.Heading"></iframe></div></section>
