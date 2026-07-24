@@ -121,13 +121,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseSecurityHeaders(); 
-app.UseIpRateLimiting(); 
+app.UseSecurityHeaders();
+app.UseIpRateLimiting();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+var portalRoutePrefixes = BuildPortalRoutePrefixes();
 app.Use(async (context, next) =>
 {
-    if (ShouldRouteToPublicWebsite(context, app.Configuration))
+    if (ShouldRouteToPublicWebsite(context, app.Configuration, portalRoutePrefixes))
     {
         context.Items["IproPublicPath"] = context.Request.Path.Value is { Length: > 0 } rawPath ? rawPath : "/";
         var requestedPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
@@ -235,17 +236,56 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
-static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration)
+// Every real app route (agent portal, admin bits, client portal, etc.) must work from an
+// agent's own domain (temporary *.247advisers.com or a custom domain) too - agents manage
+// their whole portal from that one URL, not from an internal Azure hostname. Reflects over
+// every MVC controller once at startup to build the set of first-path-segment prefixes that
+// are real app routes (respecting a class-level [Route] override where one exists, e.g.
+// TestimonialRequestController -> "testimonial") so any request whose first segment matches
+// falls through to normal MVC routing instead of being swallowed by the page-slug lookup
+// below. This is deliberately NOT a hand-maintained list: a single missed entry here once
+// took down an agent's entire portal (everything but the login page) in production, because
+// nothing failed loudly - it just silently looked like "page not found."
+static HashSet<string> BuildPortalRoutePrefixes()
+{
+    var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var type in typeof(Program).Assembly.GetTypes())
+    {
+        if (!typeof(Microsoft.AspNetCore.Mvc.ControllerBase).IsAssignableFrom(type) || type.IsAbstract) continue;
+        // PublicWebsiteController IS the page-slug lookup target - its own specific paths
+        // (/PublicWebsite, /PublicWebsite/Page/{slug}, ...) are already handled by the more
+        // specific branches below; it must not reserve "PublicWebsite" as an off-limits slug.
+        if (string.Equals(type.Name, "PublicWebsiteController", StringComparison.OrdinalIgnoreCase)) continue;
+
+        var routeTemplate = type.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.RouteAttribute), false)
+            .Cast<Microsoft.AspNetCore.Mvc.RouteAttribute>()
+            .FirstOrDefault()?.Template;
+
+        string prefix;
+        if (!string.IsNullOrWhiteSpace(routeTemplate))
+        {
+            prefix = routeTemplate.Split('/')[0];
+            if (prefix.Contains('{') || prefix.Contains('[')) continue; // route param/token first, not a literal prefix
+        }
+        else
+        {
+            var name = type.Name;
+            prefix = name.EndsWith("Controller", StringComparison.Ordinal) ? name[..^"Controller".Length] : name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(prefix)) prefixes.Add(prefix);
+    }
+    return prefixes;
+}
+
+static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration, HashSet<string> portalRoutePrefixes)
 {
     if (!HttpMethods.IsGet(context.Request.Method)) return false;
     if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return false;
 
-    // Agent-portal sign-in must work from the agent's own domain (temporary or custom) too --
-    // e.g. the "sign in" link in the site footer links back to /Account/Login on whatever host
-    // served the page. Without this exemption it gets swallowed by the page-slug lookup below.
     var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
-    if (requestPath.Equals("Account", StringComparison.OrdinalIgnoreCase) ||
-        requestPath.StartsWith("Account/", StringComparison.OrdinalIgnoreCase))
+    var firstSegment = requestPath.Split('/', 2)[0];
+    if (firstSegment.Length > 0 && portalRoutePrefixes.Contains(firstSegment))
     {
         return false;
     }
