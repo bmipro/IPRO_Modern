@@ -312,7 +312,8 @@ public class WebsitePagesController : Controller
         string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
-        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true)
+        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
+        bool showContactPhoto = true)
     {
         var ownedPageId = await _db.WebsiteContentBlocks
             .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
@@ -334,7 +335,7 @@ public class WebsitePagesController : Controller
         await ApplyBlockFieldsAsync(block, heading, subheading, body, imageUrl, buttonText, buttonUrl, isVisible,
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
-            showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail);
+            showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -628,7 +629,8 @@ public class WebsitePagesController : Controller
         string bannerHeight = "standard", int overlayStrength = 45, string layoutVariant = "",
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
-        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true)
+        bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
+        bool showContactPhoto = true)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -638,7 +640,7 @@ public class WebsitePagesController : Controller
         await ApplyBlockFieldsAsync(block, heading, subheading, body, imageUrl, buttonText, buttonUrl, isVisible,
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
-            showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail);
+            showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -653,7 +655,8 @@ public class WebsitePagesController : Controller
         string heroLayout, string imagePosition, string textAlignment, string bannerHeight, int overlayStrength, string layoutVariant,
         int pollSurveyId, int agentDocumentId,
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
-        bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail)
+        bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
+        bool showContactPhoto)
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -709,6 +712,13 @@ public class WebsitePagesController : Controller
                 ShowAddress = showAgentAddress,
                 ShowPhone = showAgentPhone,
                 ShowEmail = showAgentEmail
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.ContactForm)
+        {
+            block.SettingsJson = new WebsiteContactFormSettings
+            {
+                ShowPhoto = showContactPhoto
             }.ToJson();
         }
     }
