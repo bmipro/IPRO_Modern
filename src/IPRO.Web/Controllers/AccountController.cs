@@ -63,7 +63,11 @@ public class AccountController : Controller
             return LocalRedirect(returnUrl);
         }
 
-        return RedirectToAction("Index", "Dashboard");
+        // Explicit path, not RedirectToAction("Index", "Dashboard") - that generates "/" because
+        // Dashboard/Index are the default route's default values, and "/" on an agent's own
+        // domain (temporary or custom) is reserved for their public website homepage, not the
+        // portal. Bare "/" would silently strand them on their own marketing site after signing in.
+        return Redirect("/Dashboard");
     }
 
     [HttpGet]
@@ -149,7 +153,11 @@ public class AccountController : Controller
                 ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
             });
         }
-        return RedirectToAction("Index", "Dashboard");
+        // Explicit path, not RedirectToAction("Index", "Dashboard") - that generates "/" because
+        // Dashboard/Index are the default route's default values, and "/" on an agent's own
+        // domain (temporary or custom) is reserved for their public website homepage, not the
+        // portal. Bare "/" would silently strand them on their own marketing site after signing in.
+        return Redirect("/Dashboard");
     }
 
     [HttpGet]
@@ -426,7 +434,11 @@ public class AccountController : Controller
             return LocalRedirect(returnUrl);
         }
 
-        return RedirectToAction("Index", "Dashboard");
+        // Explicit path, not RedirectToAction("Index", "Dashboard") - that generates "/" because
+        // Dashboard/Index are the default route's default values, and "/" on an agent's own
+        // domain (temporary or custom) is reserved for their public website homepage, not the
+        // portal. Bare "/" would silently strand them on their own marketing site after signing in.
+        return Redirect("/Dashboard");
     }
 
     [Authorize]
@@ -542,7 +554,11 @@ public class AccountController : Controller
                 ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
             });
         }
-        return RedirectToAction("Index", "Dashboard");
+        // Explicit path, not RedirectToAction("Index", "Dashboard") - that generates "/" because
+        // Dashboard/Index are the default route's default values, and "/" on an agent's own
+        // domain (temporary or custom) is reserved for their public website homepage, not the
+        // portal. Bare "/" would silently strand them on their own marketing site after signing in.
+        return Redirect("/Dashboard");
     }
 
     public async Task<IActionResult> Logout()
