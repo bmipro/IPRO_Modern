@@ -1,5 +1,9 @@
 @model IPRO.Entities.NewsLetter
-@{ ViewData["Title"] = "Edit Newsletter"; var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>; }
+@{
+    ViewData["Title"] = "Edit Newsletter";
+    var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>;
+    var sidebarCtas = IPRO.Entities.NewsLetterSidebarCtas.FromJson(Model.SidebarCtasJson);
+}
 
 <div class="row mb-4">
   <div class="col">
@@ -82,6 +86,7 @@
         <h5 class="fw-bold mb-0">Articles</h5>
       </div>
       <div class="card-body px-4 pb-4">
+        <div class="form-text mb-3">Each article renders as its own section below the newsletter body, in the order added, when this newsletter is previewed, test-sent, or sent.</div>
         @if (articles != null && articles.Any())
         {
           @foreach (var a in articles.OrderBy(x => x.SortOrder))
@@ -93,6 +98,12 @@
                 <div class="fw-semibold">@a.Title</div>
                 <small class="text-muted">@(a.Content.Length > 80 ? a.Content[..80] + "..." : a.Content)</small>
               </div>
+              <form asp-action="DeleteArticle" method="post" onsubmit="return confirm('Remove this article?')">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@a.Id"/>
+                <input type="hidden" name="newsletterId" value="@Model.Id"/>
+                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
+              </form>
             </div>
           }
         }
@@ -104,12 +115,52 @@
           @Html.AntiForgeryToken()
           <input type="hidden" name="NewsLetterId" value="@Model.Id"/>
           <div class="mb-2"><input name="Title" class="form-control" placeholder="Article title" required/></div>
+          <div class="mb-2"><input name="ImageUrl" class="form-control" placeholder="Image URL (optional)"/></div>
           <div class="mb-2">
             @await Html.PartialAsync("_RichEditor", string.Empty, new ViewDataDictionary(ViewData) {
                 { "EditorId", "articleBody" }, { "FieldName", "Content" }, { "Height", "250" }, { "Toolbar", "simple" }
             })
           </div>
           <button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>Add Article</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Sidebar CTAs Section -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0">Sidebar Buttons</h5>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <div class="form-text mb-3">Adds a narrow sidebar of button links (e.g. "Visit my website", "Book an appointment") next to the newsletter body. No sidebar appears if none are added.</div>
+        @if (sidebarCtas.Any())
+        {
+          @foreach (var cta in sidebarCtas.OrderBy(c => c.SortOrder))
+          {
+            <div class="border rounded p-3 mb-2 d-flex align-items-center gap-3">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">@cta.Label</div>
+                <small class="text-muted">@cta.Url</small>
+              </div>
+              <form asp-action="DeleteSidebarCta" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ctaId" value="@cta.Id"/>
+                <input type="hidden" name="newsletterId" value="@Model.Id"/>
+                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
+              </form>
+            </div>
+          }
+        }
+        else { <p class="text-muted">No sidebar buttons added yet.</p> }
+
+        <hr/>
+        <h6 class="fw-bold">Add Button</h6>
+        <form asp-action="AddSidebarCta" method="post">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="newsletterId" value="@Model.Id"/>
+          <div class="mb-2"><input name="label" class="form-control" placeholder="Button label, e.g. Visit my website" required/></div>
+          <div class="mb-2"><input name="url" class="form-control" placeholder="https://..." required/></div>
+          <button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>Add Button</button>
         </form>
       </div>
     </div>

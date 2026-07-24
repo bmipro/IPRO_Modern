@@ -54,7 +54,9 @@ public class NewsLetterDispatcher
         if (newsletter == null) return;
 
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(newsletter.AgentUserId);
-        var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl());
+        var articles = await _uow.NewsLetterArticles.FindAsync(a => a.NewsLetterId == newsletter.Id);
+        var sidebarCtas = NewsLetterSidebarCtas.FromJson(newsletter.SidebarCtasJson);
+        var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl(), articles, sidebarCtas);
 
         send.Status = NewsLetterSendStatus.Sending;
         _uow.NewsLetterSends.Update(send);

@@ -1,7 +1,6 @@
 @model IPRO.Entities.NewsLetter
 @{
     ViewData["Title"] = "Preview Newsletter";
-    var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>;
     var sends = (ViewBag.Sends as IEnumerable<IPRO.Entities.NewsLetterSend> ?? Enumerable.Empty<IPRO.Entities.NewsLetterSend>()).OrderByDescending(s => s.ScheduledAt).ToList();
     var latestSend = sends.FirstOrDefault();
     var recipients = (ViewBag.Recipients as IEnumerable<IPRO.Entities.NewsLetterRecipient> ?? Enumerable.Empty<IPRO.Entities.NewsLetterRecipient>()).ToList();
@@ -66,22 +65,6 @@
           <div class="newsletter-preview-wrapped">
             @Html.Raw(ViewBag.WrappedHtmlBody as string ?? Model.HtmlBody)
           </div>
-          @if (articles != null && articles.Any())
-          {
-            <hr />
-            <div class="small text-uppercase text-muted fw-bold mb-3">Articles</div>
-            @foreach (var article in articles.OrderBy(a => a.SortOrder))
-            {
-              <article class="newsletter-preview-article">
-                <h5>@article.Title</h5>
-                @if (!string.IsNullOrWhiteSpace(article.ImageUrl))
-                {
-                  <img src="@article.ImageUrl" alt="" />
-                }
-                <div>@Html.Raw(article.Content)</div>
-              </article>
-            }
-          }
         </div>
 
         @if (!string.IsNullOrWhiteSpace(Model.TextBody))

@@ -124,9 +124,11 @@ public class NewsletterController : Controller
         if (nl == null || nl.AgentUserId != AgentId) return NotFound();
 
         await LoadNewsletterContextAsync();
-        ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
+        var previewArticles = await _newsletters.GetArticlesAsync(id);
+        ViewBag.Articles = previewArticles;
+        ViewBag.SidebarCtas = NewsLetterSidebarCtas.FromJson(nl.SidebarCtasJson);
         var previewAgent = await _uow.AgentUsers.GetByIdAsync(AgentId);
-        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent, GetRequestBaseUrl());
+        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent, GetRequestBaseUrl(), previewArticles, (List<NewsLetterCta>)ViewBag.SidebarCtas);
         var sends = (await _newsletters.GetSendsAsync(id)).OrderByDescending(s => s.ScheduledAt).ToList();
         ViewBag.Sends = sends;
         ViewBag.Recipients = sends.Any()
@@ -176,11 +178,13 @@ public class NewsletterController : Controller
             return RedirectToAction(nameof(Preview), new { id });
         }
 
+        var testSendArticles = await _newsletters.GetArticlesAsync(id);
+        var testSendCtas = NewsLetterSidebarCtas.FromJson(nl.SidebarCtasJson);
         var htmlBody = $"""
             <div style="margin-bottom:16px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e3a8a;font-family:Arial,sans-serif;">
               <strong>Test send:</strong> This preview was sent only to you. No clients received it.
             </div>
-            {NewsletterHtmlComposer.Wrap(nl, agent, GetRequestBaseUrl())}
+            {NewsletterHtmlComposer.Wrap(nl, agent, GetRequestBaseUrl(), testSendArticles, testSendCtas)}
             """;
         var result = await _email.SendDetailedAsync(
             agent.Email,
@@ -327,7 +331,85 @@ public class NewsletterController : Controller
         return RedirectToAction(nameof(Preview), new { id });
     }
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddArticle(NewsLetterArticle article) { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await _newsletters.AddArticleAsync(article); return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId }); }
+    public async Task<IActionResult> AddArticle(NewsLetterArticle article)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+        var owned = await _newsletters.GetByIdAsync(article.NewsLetterId);
+        if (owned == null || owned.AgentUserId != AgentId) return NotFound();
+
+        var existing = await _newsletters.GetArticlesAsync(article.NewsLetterId);
+        article.SortOrder = existing.Count();
+        article.ImageUrl = NormalizeUrl(article.ImageUrl);
+        await _newsletters.AddArticleAsync(article);
+        TempData["Success"] = "Article added.";
+        return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteArticle(int id, int newsletterId)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+        var owned = await _newsletters.GetByIdAsync(newsletterId);
+        if (owned == null || owned.AgentUserId != AgentId) return NotFound();
+
+        var articleOwned = (await _newsletters.GetArticlesAsync(newsletterId)).Any(a => a.Id == id);
+        if (articleOwned) await _newsletters.RemoveArticleAsync(id);
+        TempData["Success"] = "Article removed.";
+        return RedirectToAction(nameof(Edit), new { id = newsletterId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddSidebarCta(int newsletterId, string label, string url)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+        var nl = await _newsletters.GetByIdAsync(newsletterId);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
+        var normalized = NormalizeUrl(url);
+        if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(normalized))
+        {
+            TempData["Error"] = "Enter a label and a complete http or https URL.";
+            return RedirectToAction(nameof(Edit), new { id = newsletterId });
+        }
+        var ctas = NewsLetterSidebarCtas.FromJson(nl.SidebarCtasJson);
+        ctas.Add(new NewsLetterCta { Label = label.Trim(), Url = normalized, SortOrder = ctas.Count });
+        nl.SidebarCtasJson = NewsLetterSidebarCtas.ToJson(ctas);
+        await _newsletters.UpdateAsync(nl);
+        TempData["Success"] = "Sidebar button added.";
+        return RedirectToAction(nameof(Edit), new { id = newsletterId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSidebarCta(int newsletterId, string ctaId)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+        var nl = await _newsletters.GetByIdAsync(newsletterId);
+        if (nl == null || nl.AgentUserId != AgentId) return NotFound();
+
+        var ctas = NewsLetterSidebarCtas.FromJson(nl.SidebarCtasJson);
+        ctas.RemoveAll(c => c.Id == ctaId);
+        nl.SidebarCtasJson = NewsLetterSidebarCtas.ToJson(ctas);
+        await _newsletters.UpdateAsync(nl);
+        TempData["Success"] = "Sidebar button removed.";
+        return RedirectToAction(nameof(Edit), new { id = newsletterId });
+    }
+
+    private static string NormalizeUrl(string? value)
+    {
+        value = value?.Trim() ?? string.Empty;
+        if (value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https"
+            ? uri.ToString()
+            : string.Empty;
+    }
     public async Task<IActionResult> Subscribers() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _clients.GetNewsletterSubscribersAsync(AgentId)); }
 
     [AllowAnonymous]

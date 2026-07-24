@@ -7,7 +7,7 @@ public static class NewsletterHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
 
-    public static string Wrap(NewsLetter newsletter, AgentUser agent, string baseUrl)
+    public static string Wrap(NewsLetter newsletter, AgentUser agent, string baseUrl, IEnumerable<NewsLetterArticle>? articles = null, IEnumerable<NewsLetterCta>? sidebarCtas = null)
     {
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
         var edition = string.IsNullOrWhiteSpace(newsletter.Edition)
@@ -42,6 +42,60 @@ public static class NewsletterHtmlComposer
               </td>
               """;
 
+        var articleCardsHtml = string.Concat((articles ?? Enumerable.Empty<NewsLetterArticle>())
+            .OrderBy(a => a.SortOrder)
+            .Select(article =>
+            {
+                var absoluteArticleImage = ToAbsoluteUrl(article.ImageUrl, baseUrl);
+                var imageHtml = string.IsNullOrWhiteSpace(absoluteArticleImage)
+                    ? ""
+                    : $"""<img src="{WebUtility.HtmlEncode(absoluteArticleImage)}" width="552" style="display:block;width:100%;max-width:552px;height:auto;border-radius:6px;border:0;margin-bottom:12px;" alt="" />""";
+                return $"""
+                    <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0;">
+                      {imageHtml}
+                      <h3 style="margin:0 0 8px;color:{WebUtility.HtmlEncode(accent)};font-size:17px;">{WebUtility.HtmlEncode(article.Title)}</h3>
+                      <div>{article.Content}</div>
+                    </div>
+                    """;
+            }));
+
+        var ctaList = (sidebarCtas ?? Enumerable.Empty<NewsLetterCta>()).OrderBy(c => c.SortOrder).ToList();
+        var hasSidebar = ctaList.Count > 0;
+        var sidebarCtaButtons = string.Concat(ctaList.Select(cta => $"""
+            <tr><td style="padding-bottom:10px;">
+              <a href="{WebUtility.HtmlEncode(cta.Url)}" style="display:block;padding:10px 12px;background:{WebUtility.HtmlEncode(accent)};color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;border-radius:5px;text-align:center;">{WebUtility.HtmlEncode(cta.Label)}</a>
+            </td></tr>
+            """));
+
+        var mainColumnInner = $"""
+            {newsletter.HtmlBody}
+            {articleCardsHtml}
+            """;
+
+        var bodyRow = hasSidebar
+            ? $"""
+              <tr>
+                <td style="padding:24px;color:#222222;font-size:14px;line-height:1.5;">
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td width="380" style="vertical-align:top;">{mainColumnInner}</td>
+                      <td width="20"></td>
+                      <td width="152" style="vertical-align:top;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:16px;">
+                        <table cellpadding="0" cellspacing="0" border="0" width="100%">{sidebarCtaButtons}</table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              """
+            : $"""
+              <tr>
+                <td style="padding:24px;color:#222222;font-size:14px;line-height:1.5;">
+                  {mainColumnInner}
+                </td>
+              </tr>
+              """;
+
         return $"""
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f1f5f9;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
               <tr>
@@ -58,11 +112,7 @@ public static class NewsletterHtmlComposer
                         </table>
                       </td>
                     </tr>
-                    <tr>
-                      <td style="padding:24px;color:#222222;font-size:14px;line-height:1.5;">
-                        {newsletter.HtmlBody}
-                      </td>
-                    </tr>
+                    {bodyRow}
                     <tr>
                       <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 24px;color:#475569;font-size:12px;">
                         <table cellpadding="0" cellspacing="0" border="0">
