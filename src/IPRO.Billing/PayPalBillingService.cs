@@ -84,6 +84,14 @@ public class PayPalBillingService : IBillingService
             return BillingChangeResult.Failed("We could not activate that subscription. Please choose an active package.");
         }
 
+        // Trial packages are only ever entered via an invitation code at registration (see
+        // TrialInviteCode) - never through the normal subscribe/upgrade/downgrade flow, or this
+        // would be a way to get a genuinely active, never-expiring Billing row for a free package.
+        if (requestedPackage.IsTrialPackage)
+        {
+            return BillingChangeResult.Failed("That package is invitation-only. Please choose one of our regular packages.");
+        }
+
         var activeSubscription = await GetActiveSubscriptionAsync(userId);
         if (activeSubscription == null)
         {
@@ -830,7 +838,10 @@ public class PayPalBillingService : IBillingService
 
     public async Task<List<BillingRule>> GetPackagesAsync()
     {
-        var packages = await _uow.BillingRules.FindAsync(p => p.IsActive);
+        // Trial packages are invitation-only (see TrialInviteCode) - never offered as a normal
+        // subscribe/upgrade/downgrade choice, or an agent could just "subscribe" to the free
+        // trial package directly and get a genuinely active (never-expiring) Billing row for it.
+        var packages = await _uow.BillingRules.FindAsync(p => p.IsActive && !p.IsTrialPackage);
         return packages.OrderBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice).ToList();
     }
 
