@@ -29,8 +29,9 @@ public class AccountController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IBlobStorageService _blob;
     private readonly ILogger<AccountController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration)
     {
         _agents = agents;
         _email = email;
@@ -40,11 +41,28 @@ public class AccountController : Controller
         _entitlements = entitlements;
         _blob = blob;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {
+        // Agents' own domains (temporary *.247advisers.com or a custom domain) aren't the agent
+        // portal itself - only the platform domain is. The auth cookie set here would be scoped
+        // to whichever host serves this response, so signing in on the agent's own domain would
+        // leave every other portal page (which only exists on the platform domain) looking
+        // logged-out. Redirect to the platform host before the form is even shown, so the actual
+        // sign-in POST - and the cookie it sets - happens on the right host.
+        if (!PortalUrlHelper.IsPlatformHost(HttpContext, _configuration))
+        {
+            var target = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/Account/Login";
+            if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                target += $"?returnUrl={Uri.EscapeDataString(returnUrl)}";
+            }
+            return Redirect(target);
+        }
+
         ViewData["ReturnUrl"] = returnUrl;
         return View();
     }
