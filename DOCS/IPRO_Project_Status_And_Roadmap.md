@@ -426,6 +426,16 @@ Real estate agents specifically need to display MLS listings on their site (IDX)
 Secure login, messages, two-way documents, self-service "My Information," a real appointment-scheduling flow (not just a request queue), invoices, and campaign/newsletter preferences all shipped. Still open for a future pass:
 - Payments taken directly inside the portal (today's Pay Now button still links out to the agent's own external payment link, same as the standalone invoicing feature) — deferred pending a decision on which payment processor to integrate.
 
+### In-portal payments (not started — recommendation recorded 2026-07-23, decision still pending)
+
+**Why this is a real fork, not just an implementation detail**: `AgentUser.DefaultPaymentLink` today is a free-text URL (placeholder `paypal.me/yourname`) — agents already point it at whatever they personally use (PayPal, Venmo, Square, a Stripe Payment Link, etc.), and the Pay Now button just opens it in a new tab. Genuine in-portal payment collection (card fields rendered inside IPRO itself, no redirect) means picking one specific processor to integrate via API/SDK, and — since IPRO is a platform where many separate agents each need to receive their *own* funds, not IPRO itself — it specifically needs that processor's multi-party/marketplace product, not a plain single-merchant integration.
+
+**Recommendation**: **Stripe Connect**. It's built for exactly this shape (a platform with many separate merchants); each agent does a one-time "Connect your Stripe account" OAuth flow instead of IPRO ever touching or holding their money; card collection uses Stripe Elements/Checkout so the PCI compliance burden stays with Stripe, not IPRO. Square for Platforms is the fallback option if there's an existing Square relationship worth building on instead.
+
+**What's actually blocking this**: a Stripe platform account with Connect enabled, and a decision to commit to it — not an engineering unknown. When ready, this needs: (1) an agent-facing "Connect your Stripe account" flow in Profile/My Website settings, replacing or supplementing `DefaultPaymentLink`, (2) a payment-collection UI on the invoice/portal Pay Now page using Stripe Elements, (3) webhook handling to confirm payment and update `ClientInvoice` status, (4) test-mode end-to-end verification before any live keys are involved.
+
+**Status**: design recommendation only — no code written, no credentials exist yet. Revisit this section when there's a Stripe (or alternative) merchant account to build against.
+
 ### Google Calendar sync (done — verified live end-to-end 2026-07-19)
 Full two-way sync between an agent's own Google Calendar and the Agent Portal Calendar, opt-in per agent:
 - Connect/Disconnect flow (OAuth) from a new Calendar Source settings panel on My Profile; gated by a new togglable `GoogleCalendarSync` package feature Super Admin can enable on any package (defaults to off everywhere).
