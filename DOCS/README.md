@@ -24,12 +24,15 @@ This directory is the operating manual for the current IPRO application. The ins
 - [Legacy Template Migration](LEGACY_TEMPLATE_MIGRATION.md)
 - [Legacy Training Workflow Map](LEGACY_TRAINING_WORKFLOW_MAP.md)
 - [Production Domain Cutover](PRODUCTION_DOMAIN_CUTOVER.md)
+- [Security & Code Quality Audit — 2026-07-24](SECURITY_AUDIT_2026-07-24.md)
 
 ## Portal Addresses
 
-- Agent Portal: `https://ipro-prod-web.azurewebsites.net/`
-- Super Admin Portal: `https://ipro-prod-admin-fhaydtemgeetbycm.canadaeast-01.azurewebsites.net/`
+- Agent Portal: `https://ipro-prod-web.azurewebsites.net/` (custom domain: `https://app.iproadvisers.com/`) — login at `/Account/Login`
+- Super Admin Portal: `https://ipro-prod-admin-fhaydtemgeetbycm.canadaeast-01.azurewebsites.net/` (custom domain: `https://admin.iproadvisers.com/`) — login at `/Admin/Login`, not `/Account/Login`
 - Registration: `https://ipro-prod-web.azurewebsites.net/Account/Register`
+
+Note: `app.iproadvisers.com` and `admin.iproadvisers.com` are separate Azure Web Apps (`ipro-prod-web` / `ipro-prod-admin`) with independent App Settings and login routes — easy to conflate by name alone.
 
 ## Documentation Rule
 
