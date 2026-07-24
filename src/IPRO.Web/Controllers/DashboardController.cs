@@ -33,18 +33,38 @@ public class DashboardController : Controller
         ViewBag.AgentName       = User.FindFirstValue("FullName");
         ViewBag.FeatureAccess = await LoadFeatureAccessAsync(agentId);
         var dailyInsight = await _db.AgentDailyInsights.AsNoTracking().FirstOrDefaultAsync(i => i.AgentUserId == agentId);
-        if (dailyInsight != null && dailyInsight.RelatedEntityId.HasValue)
+        if (dailyInsight != null && dailyInsight.SuggestedActionType != AgentDailyInsightActionTypes.None)
         {
-            var stillActionable = dailyInsight.SuggestedActionType switch
+            bool stillActionable;
+            if (dailyInsight.RelatedEntityId.HasValue)
             {
-                AgentDailyInsightActionTypes.OverdueFollowUp => await _db.ClientFollowUps.AnyAsync(f =>
-                    f.Id == dailyInsight.RelatedEntityId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
-                AgentDailyInsightActionTypes.StaleLead => await _db.WebsiteLeads.AnyAsync(l =>
-                    l.Id == dailyInsight.RelatedEntityId && l.Status == WebsiteLeadStatuses.New),
-                AgentDailyInsightActionTypes.NoFollowUp => await _db.Clients.AnyAsync(c =>
-                    c.Id == dailyInsight.RelatedEntityId && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted)),
-                _ => true
-            };
+                stillActionable = dailyInsight.SuggestedActionType switch
+                {
+                    AgentDailyInsightActionTypes.OverdueFollowUp => await _db.ClientFollowUps.AnyAsync(f =>
+                        f.Id == dailyInsight.RelatedEntityId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+                    AgentDailyInsightActionTypes.StaleLead => await _db.WebsiteLeads.AnyAsync(l =>
+                        l.Id == dailyInsight.RelatedEntityId && l.Status == WebsiteLeadStatuses.New),
+                    AgentDailyInsightActionTypes.NoFollowUp => await _db.Clients.AnyAsync(c =>
+                        c.Id == dailyInsight.RelatedEntityId && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted)),
+                    _ => true
+                };
+            }
+            else
+            {
+                // Cached row predates RelatedEntityId (or the job hasn't repopulated it yet) - fall back to
+                // a general "does this condition still apply at all for this agent" check.
+                var staleCutoff = DateTime.UtcNow.AddHours(-24);
+                stillActionable = dailyInsight.SuggestedActionType switch
+                {
+                    AgentDailyInsightActionTypes.OverdueFollowUp => await _db.ClientFollowUps.AnyAsync(f =>
+                        f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+                    AgentDailyInsightActionTypes.StaleLead => await _db.WebsiteLeads.AnyAsync(l =>
+                        l.AgentUserId == agentId && l.Status == WebsiteLeadStatuses.New && l.CreatedAt < staleCutoff),
+                    AgentDailyInsightActionTypes.NoFollowUp => await _db.Clients.AnyAsync(c =>
+                        c.AgentUserId == agentId && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted)),
+                    _ => true
+                };
+            }
 
             if (!stillActionable)
             {
