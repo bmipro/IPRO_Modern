@@ -1,5 +1,4 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
-@inject IConfiguration Configuration
 @{
     var website = Model.Website;
     var agent = website.AgentUser;
@@ -8,7 +7,7 @@
         ? (string.IsNullOrWhiteSpace(agent.CompanyName) ? $"{agent.FirstName} {agent.LastName}".Trim() : agent.CompanyName)
         : website.SiteTitle;
     var copyrightName = string.IsNullOrWhiteSpace(footer.CopyrightText) ? fallbackName : footer.CopyrightText;
-    var agentLoginUrl = $"{IPRO.Web.Infrastructure.PortalUrlHelper.GetAgentPortalBaseUrl(Configuration)}/Account/Login";
+    var agentLoginUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/Account/Login";
     var platformIcons = new Dictionary<string, string>
     {
         ["facebook"] = "fa-facebook",

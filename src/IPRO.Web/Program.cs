@@ -240,6 +240,16 @@ static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration confi
     if (!HttpMethods.IsGet(context.Request.Method)) return false;
     if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return false;
 
+    // Agent-portal sign-in must work from the agent's own domain (temporary or custom) too --
+    // e.g. the "sign in" link in the site footer links back to /Account/Login on whatever host
+    // served the page. Without this exemption it gets swallowed by the page-slug lookup below.
+    var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
+    if (requestPath.Equals("Account", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("Account/", StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
+
     var host = context.Request.Host.Host.Trim().Trim('.').ToLowerInvariant();
     if (string.IsNullOrWhiteSpace(host)) return false;
     if (host is "localhost" or "127.0.0.1" or "::1") return false;
