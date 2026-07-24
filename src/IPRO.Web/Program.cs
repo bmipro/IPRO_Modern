@@ -2,6 +2,7 @@
 
 using AspNetCoreRateLimit;
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.Storage.MySql;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
@@ -208,10 +209,11 @@ app.MapControllerRoute(
     "pub/register.aspx",
     new { controller = "Account", action = "Register" });
 app.MapControllerRoute("default", "{controller=Dashboard}/{action=Index}/{id?}");
-if (app.Environment.IsDevelopment())
+app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
-    app.MapHangfireDashboard("/hangfire", new DashboardOptions { IsReadOnlyFunc = _ => false });
-}
+    IsReadOnlyFunc = _ => false,
+    Authorization = new[] { new WebDashboardAuthorizationFilter(app.Environment.IsDevelopment()) }
+});
 
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
@@ -1169,4 +1171,16 @@ WHERE TABLE_SCHEMA = DATABASE()
     {
         await db.Database.ExecuteSqlRawAsync(alterSql);
     }
+}
+
+class WebDashboardAuthorizationFilter : IDashboardAuthorizationFilter
+{
+    private readonly bool _isDevelopment;
+
+    public WebDashboardAuthorizationFilter(bool isDevelopment) => _isDevelopment = isDevelopment;
+
+    // IPRO.Web has no operator/staff role of its own -- IPRO.Admin already exposes
+    // this same underlying Hangfire storage to authenticated SuperAdmins. Only allow
+    // the dashboard here during local development.
+    public bool Authorize(DashboardContext context) => _isDevelopment;
 }
