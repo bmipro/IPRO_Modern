@@ -49,4 +49,6 @@ public class AgentUser
         if (!string.IsNullOrWhiteSpace(Country)) lines.Add(Country);
         return lines;
     }
+
+    public string GetSingleLineAddress() => string.Join(", ", GetFormattedAddressLines());
 }

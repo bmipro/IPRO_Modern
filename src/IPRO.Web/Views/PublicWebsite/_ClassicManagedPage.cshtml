@@ -100,6 +100,14 @@
       }
     </section>
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Maps){
+    var cpMapSettings = IPRO.Entities.WebsiteMapSettings.FromJson(block.SettingsJson);
+    var cpMapAddress = !string.IsNullOrWhiteSpace(cpMapSettings.Address) ? cpMapSettings.Address : agent.GetSingleLineAddress();
+    if (!string.IsNullOrWhiteSpace(cpMapAddress))
+    {
+      <section class="cp-section"><div style="@(block.LayoutVariant == "narrow" ? "max-width:640px;margin:0 auto" : "")"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<iframe src="@IPRO.Entities.WebsiteMapSettings.BuildEmbedUrl(cpMapAddress)" width="100%" height="@cpMapSettings.HeightPixels" style="border:0;border-radius:8px;margin-top:16px" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="@block.Heading"></iframe></div></section>
+    }
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){
     var cpContactSettings = IPRO.Entities.WebsiteContactFormSettings.FromJson(block.SettingsJson);
     <section class="cp-section"><div class="cp-contact-grid"><div><div class="cp-kicker">Contact</div><h2 class="h2 fw-bold">@block.Heading</h2><p class="cp-copy">@block.Subheading</p><p class="cp-copy">@block.Body</p><div class="cp-agent">@if(cpContactSettings.ShowPhoto && !string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="cp-avatar" />}<div><strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div class="text-muted">@agent.CompanyName</div></div></div><div class="cp-contact-mini">@if(!string.IsNullOrWhiteSpace(agent.Phone)){<a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>}@if(!string.IsNullOrWhiteSpace(agent.Email)){<a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>@agent.Email</a>}</div></div><div class="cp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>}
