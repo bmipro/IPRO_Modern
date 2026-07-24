@@ -483,6 +483,10 @@ Secure login, messages, two-way documents, self-service "My Information," a real
 
 **Status**: design recommendation only — no code written, no credentials exist yet. Revisit this section when there's a Stripe (or alternative) merchant account to build against.
 
+### Revisit the signup process (not started — flagged 2026-07-24)
+
+User asked to revisit the agent signup/registration flow (`AccountController.Register`, `Views/Account/Register.cshtml`). No specific complaint or scope given yet — next time this comes up, clarify what's prompting it (a UX gap, a bug, a new step to add) before proposing changes.
+
 ### Google Calendar sync (done — verified live end-to-end 2026-07-19)
 Full two-way sync between an agent's own Google Calendar and the Agent Portal Calendar, opt-in per agent:
 - Connect/Disconnect flow (OAuth) from a new Calendar Source settings panel on My Profile; gated by a new togglable `GoogleCalendarSync` package feature Super Admin can enable on any package (defaults to off everywhere).
