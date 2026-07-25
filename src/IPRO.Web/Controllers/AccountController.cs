@@ -115,6 +115,11 @@ public class AccountController : Controller
             }
         }
 
+        // InitiatePasswordResetAsync does an extra DB write (token + expiry) only when the account
+        // exists, a residual timing gap smaller than the email-send one above but still measurable.
+        // A flat delay on every request (found or not) swamps it, same approach as the login timing
+        // fix (M-NEW-4).
+        await Task.Delay(300);
         return RedirectToAction(nameof(ForgotPasswordConfirmation));
     }
 
@@ -122,20 +127,30 @@ public class AccountController : Controller
     {
         _ = Task.Run(async () =>
         {
-            using var scope = _scopeFactory.CreateScope();
-            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<AccountController>>();
             try
             {
-                var emailSent = await email.SendDetailedAsync(toEmail, fullName, "Reset your IPRO Advisers password", html);
-                if (!emailSent.Success)
+                using var scope = _scopeFactory.CreateScope();
+                var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<AccountController>>();
+                try
                 {
-                    logger.LogWarning("Password reset email was not sent to {Email}: {Message}", toEmail, emailSent.Message);
+                    var emailSent = await email.SendDetailedAsync(toEmail, fullName, "Reset your IPRO Advisers password", html);
+                    if (!emailSent.Success)
+                    {
+                        logger.LogWarning("Password reset email was not sent to {Email}: {Message}", toEmail, emailSent.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Password reset email failed for {Email}", toEmail);
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                logger.LogError(ex, "Password reset email failed for {Email}", toEmail);
+                // Scope creation/service resolution itself failing here would otherwise be an
+                // unobserved task exception with nothing to log to - the logger is one of the
+                // things that failed to resolve, so there's genuinely nothing more useful to do
+                // than swallow it.
             }
         });
     }
