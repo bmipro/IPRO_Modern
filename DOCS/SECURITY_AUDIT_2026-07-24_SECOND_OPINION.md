@@ -11,7 +11,7 @@ The good news first: **of the ~35 findings in the original audit, the overwhelmi
 The bad news: **two fixes that were marked "Fixed" do not actually work**, and **one fix introduced a real regression**. These three are the headline of this report:
 
 1. **H-1's rate-limiter fix does not work.** The `X-Real-IP` spoofing bypass the audit described is still fully live on both apps. **Fixed in [c165637].**
-2. **The Upgrade billing path has the same bug H-7 fixed on Downgrade — except on Upgrade it was never touched.** This is the normal, everyday paid-upgrade flow, not an edge case. **Open — product decision pending, see below.**
+2. **The Upgrade billing path has the same bug H-7 fixed on Downgrade — except on Upgrade it was never touched.** This is the normal, everyday paid-upgrade flow, not an edge case. **Fixed in [41b5468]** — simpler than H-7 in the end, since it only needed the existing PayPal-cancellation call added, no new re-approval flow.
 3. **M-6's CSP fix silently disabled confirmation dialogs on destructive actions** (delete agent, reset password, void invoice) — those buttons now fire immediately with no "are you sure?" prompt. **Fixed in [7c8a069]** (all 20 affected inline handlers across 13 files, not just the security-relevant ones).
 
 Plus a handful of moderate and minor findings below. Recommend prioritizing 1–3 above everything else in this document.
@@ -35,6 +35,8 @@ The `ForwardedHeaders`/`KnownNetworks` work is real and correctly fixes every ot
 **Fix:** force the header off explicitly in code, after options binding — e.g. `builder.Services.PostConfigure<IpRateLimitOptions>(o => o.RealIpHeader = null);` in both apps — so the library's `RegisterResolvers()` skips the header contributor entirely and falls through to the connection-based resolver (which the existing `ForwardedHeaders` hardening already makes trustworthy).
 
 ### NEW-2. The Upgrade billing path can grant free/under-billed access — same bug class as H-7, different code path, never fixed
+
+**Status: Fixed in [41b5468].** Both Upgrade paths (`ApplyUpgradeWithoutPaymentAsync` and `CapturePaymentAsync`'s generic invoice-capture branch) now call the existing `CancelPayPalSubscriptionAsync` helper on the old subscription's `PayPalSubscriptionId` before marking it Cancelled — the same call already used correctly in `ActivateSubscriptionBillingAsync` and in H-7's downgrade fix. No new approval flow was needed here (unlike H-7): the agent already paid, or was covered by proration credit, for the upgrade itself — this only stops the old subscription from continuing to bill on PayPal's side. Built, deployed, verified via GH Actions + real Azure container logs on both apps.
 
 **This is the single most consequential finding of this review.** H-7 closed the *Downgrade* path's "new Billing row Active with no real PayPal subscription" bug. The *Upgrade* path — the normal, everyday flow every paying customer uses to move to a pricier package — has the identical problem and was never touched:
 
