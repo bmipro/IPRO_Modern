@@ -292,7 +292,7 @@
 </style>
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 function updateTemplatePreview() {
   const preview = document.getElementById('templateBuilderPreview');
   if (!preview) return;

@@ -32,7 +32,7 @@
     {
       <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : "Thank you. Your message was sent to the adviser.")</div>
     }
-    <script>(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('dl');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
+    <script nonce="@Context.GetCspNonce()">(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('dl');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
   }
   else
   {

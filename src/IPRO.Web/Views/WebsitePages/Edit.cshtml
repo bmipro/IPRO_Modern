@@ -432,7 +432,7 @@
 .starter-banner-choice.is-selected .starter-banner-use{color:#198754}
 @@media(max-width:800px){.image-library-toolbar,.starter-banner-toolbar{grid-template-columns:1fr}.starter-banner-grid{grid-template-columns:1fr}.starter-banner-caption{font-size:11px}}
 </style>
-<script>
+<script nonce="@Context.GetCspNonce()">
 document.querySelectorAll('select[name="imageUrl"]').forEach(select => {
   select.addEventListener('change', () => {
     const preview = select.parentElement.querySelector('.block-image-preview');

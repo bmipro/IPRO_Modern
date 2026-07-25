@@ -62,7 +62,7 @@
 </template>
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 (function () {
   const container = document.getElementById('questionsContainer');
   const questionTemplate = document.getElementById('questionTemplate');

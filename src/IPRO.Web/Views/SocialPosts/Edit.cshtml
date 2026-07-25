@@ -56,7 +56,7 @@
 </div>
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 (function () {
   const limits = { twitter: 280, instagram: 2200, linkedin: 3000, facebook: 63206 };
   const textarea = document.getElementById('postBody');

@@ -185,7 +185,7 @@
 }
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 (function () {
   const input = document.getElementById('clientPickerInput');
   const hiddenId = document.getElementById('clientPickerId');

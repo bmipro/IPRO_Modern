@@ -603,7 +603,7 @@
 </style>
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 function updateWebsitePreview() {
   const preview = document.getElementById('websiteTemplatePreview');
   const color = document.getElementById('ThemeColor');

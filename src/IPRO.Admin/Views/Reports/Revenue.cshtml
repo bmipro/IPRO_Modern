@@ -25,7 +25,7 @@
 </div>
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 const labels = [@Html.Raw(string.Join(",", (ViewBag.Invoices as IEnumerable<dynamic> ?? []).Select(i => $"'{i.Label}'")))];
 const data   = [@Html.Raw(string.Join(",", (ViewBag.Invoices as IEnumerable<dynamic> ?? []).Select(i => i.Total)))];
 new Chart(document.getElementById('revenueChart'), {

@@ -203,7 +203,7 @@
 </style>
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 document.querySelectorAll('.starter-banner-choice').forEach(button => {
   button.addEventListener('click', event => {
     event.preventDefault();

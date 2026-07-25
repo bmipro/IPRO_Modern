@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace IPRO.Web.Middleware;
 
 /// <summary>
@@ -12,6 +14,12 @@ public class SecurityHeadersMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         var headers = context.Response.Headers;
+
+        // One random nonce per request, stored where views can read it (CspNonceExtensions) and
+        // interpolated into script-src below -- this is what lets inline <script> blocks that need
+        // server-rendered data keep running without falling back to 'unsafe-inline' for everything.
+        var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+        context.Items["CspNonce"] = nonce;
 
         // Prevent clickjacking
         headers["X-Frame-Options"] = "SAMEORIGIN";
@@ -42,7 +50,7 @@ public class SecurityHeadersMiddleware
         // Content Security Policy
         headers["Content-Security-Policy"] =
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tiny.cloud https://cdn.jsdelivr.net/npm/chart.js@4.4.0; " +
+            $"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tiny.cloud https://cdn.jsdelivr.net/npm/chart.js@4.4.0; " +
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
             "img-src 'self' data: blob: https://*.blob.core.windows.net https://cdn.tiny.cloud; " +
             "font-src 'self' https://cdnjs.cloudflare.com; " +
@@ -61,4 +69,8 @@ public static class SecurityHeadersMiddlewareExtensions
 {
     public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app) =>
         app.UseMiddleware<SecurityHeadersMiddleware>();
+
+    /// <summary>The per-request CSP nonce set by SecurityHeadersMiddleware -- add nonce="@Context.GetCspNonce()" to every inline &lt;script&gt; block.</summary>
+    public static string GetCspNonce(this HttpContext context) =>
+        context.Items["CspNonce"] as string ?? string.Empty;
 }

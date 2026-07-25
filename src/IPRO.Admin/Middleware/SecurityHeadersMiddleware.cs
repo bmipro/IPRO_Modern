@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace IPRO.Admin.Middleware;
 
 /// <summary>
@@ -14,6 +16,10 @@ public class SecurityHeadersMiddleware
     {
         var headers = context.Response.Headers;
 
+        // One random nonce per request -- see IPRO.Web's SecurityHeadersMiddleware for the reasoning.
+        var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+        context.Items["CspNonce"] = nonce;
+
         headers["X-Frame-Options"] = "SAMEORIGIN";
         headers["X-Content-Type-Options"] = "nosniff";
         headers["X-XSS-Protection"] = "1; mode=block";
@@ -28,7 +34,7 @@ public class SecurityHeadersMiddleware
 
         headers["Content-Security-Policy"] =
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+            $"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
             "img-src 'self' data:; " +
             "font-src 'self' https://cdnjs.cloudflare.com; " +
@@ -46,4 +52,8 @@ public static class SecurityHeadersMiddlewareExtensions
 {
     public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app) =>
         app.UseMiddleware<SecurityHeadersMiddleware>();
+
+    /// <summary>The per-request CSP nonce set by SecurityHeadersMiddleware -- add nonce="@Context.GetCspNonce()" to every inline &lt;script&gt; block.</summary>
+    public static string GetCspNonce(this HttpContext context) =>
+        context.Items["CspNonce"] as string ?? string.Empty;
 }

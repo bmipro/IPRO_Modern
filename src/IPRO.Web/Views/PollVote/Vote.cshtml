@@ -108,7 +108,7 @@
   </main>
   @if (!string.IsNullOrWhiteSpace(agentSiteUrl) && (state == "submitted" || state == "already-voted"))
   {
-    <script>
+    <script nonce="@Context.GetCspNonce()">
       (function () {
         var seconds = @redirectSeconds;
         var el = document.getElementById('redirect-countdown');

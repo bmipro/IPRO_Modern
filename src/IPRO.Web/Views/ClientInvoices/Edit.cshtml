@@ -85,7 +85,7 @@
   <a href="/ClientInvoices" class="btn btn-outline-secondary btn-lg">Cancel</a>
 </form>
 
-<script>
+<script nonce="@Context.GetCspNonce()">
   function reindexRows() {
     document.querySelectorAll('#lineItemsTable tbody tr').forEach(function (row, index) {
       row.querySelectorAll('input').forEach(function (input) {

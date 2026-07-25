@@ -103,7 +103,7 @@
 </div></div>
 
 @section Scripts {
-<script>
+<script nonce="@Context.GetCspNonce()">
 (function () {
   var toggle = document.getElementById('isTrialPackageToggle');
   var group = document.getElementById('trialFieldsGroup');
