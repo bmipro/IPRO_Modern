@@ -1077,11 +1077,12 @@ WHERE TABLE_SCHEMA = DATABASE()
     {
         await db.Database.ExecuteSqlRawAsync(alterSql);
     }
-    catch
+    catch (MySqlConnector.MySqlException ex) when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry)
     {
         // Pre-existing duplicate data (from the exact race this index is meant to prevent) would
         // make this ALTER fail - skip rather than crash app startup. Safe to retry automatically
-        // on a later restart once the underlying duplicate rows are cleaned up.
+        // on a later restart once the underlying duplicate rows are cleaned up. Any other error
+        // (typo'd SQL, missing privilege) is not this documented case and should still surface loudly.
     }
 }
 
