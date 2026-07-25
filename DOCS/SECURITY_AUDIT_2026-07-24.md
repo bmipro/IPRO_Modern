@@ -17,9 +17,7 @@ This was **not** a live penetration test — no exploitation was attempted again
 
 The codebase is in better shape than the finding count below might suggest. The multi-tenant data-isolation discipline (the single most important property for a SaaS like this) is consistently well-applied, PayPal webhook signature verification is implemented correctly, password hashing uses a proper modern algorithm throughout, CSRF protection covers essentially every state-changing action, and document/photo uploads have real content-signature validation.
 
-Every Critical and High finding has been fixed except one deliberately-incomplete item (H-7) that needs a product decision rather than a unilateral implementation choice. All 12 Medium findings are resolved except two, deliberately deferred rather than rushed:
-- **M-6** (CSP `unsafe-inline`) — fixing it properly touches 28 view files at once (a CSP directive is all-or-nothing; can't migrate a few pages and leave the rest broken) — a dedicated pass, not a same-night addition.
-- **M-7** (promo/trial redemption uniqueness) — needs your call on how strict to make it; see "Open questions" below.
+Every Critical and High finding has been fixed except one deliberately-incomplete item (H-7) that needs a product decision rather than a unilateral implementation choice. **All 12 Medium findings are now fixed**, including the two initially deferred pending further scoping or a product decision (M-6's CSP nonce migration across 28 view files, and M-7's per-agent redemption check).
 
 Low/Informational findings and the dependency-vulnerability table are still queued for us to review together — nothing there has been changed.
 
@@ -64,10 +62,9 @@ Low/Informational findings and the dependency-vulnerability table are still queu
 | M-12 | Domain automation job had no per-item isolation or logger | [`0ab8ba6`](https://github.com/bmipro/IPRO_Modern/commit/0ab8ba6) |
 | M-8 | Redemption-count increments had a race condition | [`5c9234b`](https://github.com/bmipro/IPRO_Modern/commit/5c9234b) |
 | M-5 | IPRO.Admin had none of IPRO.Web's security response headers | [`3e376e8`](https://github.com/bmipro/IPRO_Modern/commit/3e376e8) |
-
-**Deferred — M-6** (CSP `unsafe-inline`) and **M-7** (redemption uniqueness) — see their entries below and "Open questions."
-
-**M-9** (N+1 queries / unbounded `Take`) — assessed, not fixed; see its entry below for why a cosmetic fix wasn't applied.
+| M-6 | CSP allowed `'unsafe-inline'` scripts (28 view files) | [`48c6251`](https://github.com/bmipro/IPRO_Modern/commit/48c6251) |
+| M-7 | Promo/trial codes had no per-agent redemption uniqueness | [`ddc3ccc`](https://github.com/bmipro/IPRO_Modern/commit/ddc3ccc) |
+| M-9 | N+1 queries and unbounded-`Take` starvation in scheduled jobs | [`eda2ae9`](https://github.com/bmipro/IPRO_Modern/commit/eda2ae9) |
 
 ---
 
@@ -181,14 +178,14 @@ Low/Informational findings and the dependency-vulnerability table are still queu
 
 ### M-6. Content-Security-Policy allows `'unsafe-inline'` scripts
 
-- **Status: Deferred, not attempted.** A CSP directive is all-or-nothing per response — dropping `'unsafe-inline'` while only some scripts have nonces breaks every un-migrated page, not just the risky ones. Checked the actual scope before starting: 28 view files across both apps have inline `<script>` blocks. Fixing this properly (nonce-per-request, tagging all 28) is a dedicated pass, not a same-night fix alongside everything else here.
+- **Status: Fixed in [`48c6251`](https://github.com/bmipro/IPRO_Modern/commit/48c6251).** Per-request cryptographic nonce generated in `SecurityHeadersMiddleware`, exposed via a `GetCspNonce()` extension method, interpolated into `script-src`, and applied via `nonce="@Context.GetCspNonce()"` on all 28 inline `<script>` tags across both apps. `'unsafe-inline'` dropped from `script-src` (kept on `style-src`, out of scope for this finding). Verified via curl CSP-header inspection and a live Browser-tool console-error check on the public Register page — zero CSP violations.
 - **Where:** `src/IPRO.Web/Middleware/SecurityHeadersMiddleware.cs:43-51`.
 - **What:** the rest of the policy is reasonably scoped (named CDN allowlist, `connect-src 'self'`, `frame-ancestors 'self'`) but `'unsafe-inline'` on `script-src`/`style-src` substantially weakens CSP as an XSS backstop, since inline `<script>` is the most common injection payload shape. Also missing (informational): `base-uri 'self'`, `form-action 'self'`.
 - **Fix:** move inline scripts/styles to external files or nonces/hashes and drop `'unsafe-inline'` from `script-src` at minimum.
 
 ### M-7. Promo and trial invite codes have no per-agent redemption uniqueness
 
-- **Status: Deferred — needs your call, not a unilateral fix.** How strict should this be? A simple "one redemption per agent" check is cheap; requiring verified-email before a redemption counts is a bigger change. Still open in the "Open questions" section below.
+- **Status: Fixed in [`ddc3ccc`](https://github.com/bmipro/IPRO_Modern/commit/ddc3ccc) — per-agent redemption check (the cheaper of the two options), your call.** `ValidatePromotionCodeAsync` now takes an optional `agentId` and rejects a code already redeemed by that agent, checked against `PromotionCodeRedemptions`. Only applies to an existing agent re-subscribing (`PayPalBillingService.CreateSubscriptionAsync`, which now passes the agent's own `userId`) — a brand-new registration has no prior redemption history to check, so `AccountController`'s two call sites (registration POST, the anonymous `ValidatePromoCode` AJAX action) are correctly unaffected via the parameter's `null` default. Trial invite codes have no equivalent gap: a trial can only ever be redeemed once, at registration, for an account that doesn't exist yet.
 - **Where:** `src/IPRO.Billing/PayPalBillingService.cs`, `ValidatePromotionCodeAsync` (1801-1813); `src/IPRO.Web/Controllers/AccountController.cs`, `ResolveTrialInviteAsync` (314-329).
 - **What:** neither checks redemption history for the *requesting agent* — only whether the code overall is still active/unexpired/under its max-redemption count. An agent can cancel and resubscribe with the same promo code repeatedly (bounded only by `MaxRedemptions`, which can be unlimited), and the registration "verification code" is a visible anti-bot check, not a proof of email ownership — so the same person can register multiple accounts with different email strings and redeem a capped trial code more times than intended.
 - **Fix:** check for an existing redemption by the requesting agent before allowing another, and/or require a verified email step before a redemption counts.
@@ -202,10 +199,9 @@ Low/Informational findings and the dependency-vulnerability table are still queu
 
 ### M-9. N+1 query patterns in scheduled jobs and entitlement checks
 
-- **Status: Deferred, not attempted.** Assessed both sub-issues rather than doing a cosmetic partial fix: the N+1 batching is a genuine multi-file refactor (`AiDailyDigestJob`, `PackageEntitlementService`, two Admin controllers), not urgent since it's "fine today, slower as it scales." The unbounded-`Take` starvation risk in `ClientLifeEventReminderJob` specifically needs a schema change (a `LastCheckedAt` column, mirroring `DomainAutomationJob`'s already-correct pattern) to actually fix — ordering by `Id` alone would just make the same starvation deterministic instead of solving it, so that wasn't done as a stand-in.
-- **Where:** `AiDailyDigestJob.cs` (5-6 queries per agent per day), `PackageEntitlementService.HasAccessAsync`/`GetAccessAsync` (2-4 queries per call, called once per loop iteration inside `ClientLifeEventReminderJob` and `AiDailyDigestJob`), `AgentsController.DeleteAgentOwnedDataAsync` (Admin — per-client/newsletter/campaign queries when deleting an agent), `TaxRatesController` (per-row lookups, low impact given ~13 rows).
-- **Why it matters:** cost scales linearly with agent/client count; fine today, will get slower as the platform grows. Also: `ClientLifeEventReminderJob.cs:29,61` and a few similar jobs use `Take(500)`/`Take(200)`/`Take(100)` with **no `OrderBy`** — if the matching row count ever exceeds the cap, whichever rows the DB happens to return first get processed every single day and rows beyond the cutoff never get evaluated, with no rotation. `DomainAutomationJob.cs:28-29` already does this correctly (`OrderBy(d => d.LastCheckedAt ?? d.CreatedAt).Take(50)`) — that pattern should be applied to the others.
-- **Fix:** batch the N+1 queries with `.Where(x => idList.Contains(...))`; add `OrderBy` to every unbounded `Take()`.
+- **Status: Fixed in [`eda2ae9`](https://github.com/bmipro/IPRO_Modern/commit/eda2ae9) — real fix for the starvation risk, not a cosmetic stand-in, plus the N+1 batching.** `ClientLifeEventReminderJob`'s starvation risk specifically needed the schema change to actually fix (ordering by `Id` alone would only make the same starvation deterministic, not solve it) — added `ClientLifeEvent.LastCheckedAt` and `Client.BirthdayReminderLastCheckedAt`, ordered both queries oldest-checked-first, and stamp the marker on every evaluated row regardless of outcome, mirroring `DomainAutomationJob`'s already-correct pattern. The other three jobs using unbounded `Take` (`OverdueInvoiceReminderJob`, `DripCampaignJob`, `RecurringClientInvoiceJob`) already self-rotate via a state-changing field, so they only needed a matching `OrderBy` added for explicitness. N+1 batching: added `IPackageEntitlementService.HasAccessBulkAsync`, resolving billing/trial access for many agents in a handful of fixed queries instead of 2-4 per agent — used by `AiDailyDigestJob` and `ClientLifeEventReminderJob`. `AiDailyDigestJob`'s other 5-6 per-agent queries are now precomputed once and grouped in memory. `AgentsController.DeleteAgentOwnedDataAsync` and `TaxRatesController` now batch their per-row lookups with `Where(x => ids.Contains(...))`.
+- **Where:** `AiDailyDigestJob.cs`, `PackageEntitlementService.cs`, `ClientLifeEventReminderJob.cs`, `OverdueInvoiceReminderJob.cs`, `DripCampaignJob.cs`, `RecurringClientInvoiceJob.cs`, `AgentsController.cs` (Admin), `TaxRatesController.cs` (Admin).
+- **Why it mattered:** cost scaled linearly with agent/client count; fine at the time, would have gotten slower as the platform grew. The unbounded-`Take` jobs with no `OrderBy` could have permanently starved rows past the cutoff once active-row counts exceeded the cap.
 
 ### M-10. Exact-equality day math means a missed cron run permanently skips a notification
 
@@ -292,7 +288,18 @@ Noted briefly so the findings above aren't mistaken for the whole picture:
 ## Open questions for discussion
 
 - **H-7** (downgrade doesn't cancel PayPal subscription) — worth a one-time check of current billing data to see if any agent has actually hit this, separate from fixing the code path. Also needs a product decision on how the new (downgraded) package should actually get billed going forward.
-- **M-7** (promo/trial redemption uniqueness) — how strict should this be? A verified-email requirement is a bigger change than a simple "one redemption per agent" check.
-- **M-6** (CSP `unsafe-inline`) — worth scheduling as its own pass (28 view files) rather than folding into a future "medium fixes" batch.
-- **M-9** (N+1 queries / unbounded `Take`) — low priority; revisit if the platform's agent/client counts grow enough to matter.
 - Prioritization and timing for the Low/Informational findings and the dependency-vulnerability table, still untouched.
+
+---
+
+## Production reliability: intermittent crash-loop (both apps, 07-22 onward) — under investigation
+
+Discovered during M-7/M-9 deploy verification on 2026-07-25, not part of the original audit's scope. Documenting here since it's an active production issue, not a code-review finding.
+
+- **What:** both `ipro-prod-web` and `ipro-prod-admin` have been crash-restarting every ~5-15 minutes since 07-22 (near-zero before that date). Confirmed via Azure container logs as a genuine native crash — `Segmentation fault (core dumped) dotnet "IPRO.Web.dll"` — not an Azure platform artifact, exit codes 139 (SIGSEGV) / 134 (SIGABRT), no managed exception logged (consistent with a native-level crash killing the process before .NET's own exception handling runs).
+- **Ruled out:** the runtime container image (unchanged the whole time), circular DI dependencies (checked every `IPRO.Business` service constructor), entity-graph JSON serialization cycles (every `JsonSerializer.Serialize` call site is a plain DTO, never a raw EF entity), the schema-repair connection-wrapper bug class that caused two earlier incidents this session (every `OpenConnectionAsync`/`CloseConnectionAsync` pair in both `Program.cs` files balances correctly), any `unsafe`/native interop code (none exists in the solution), and the MySQL server itself (`ipro-mysql-prod`, Burstable B1ms — checked CPU, connections, storage IO, memory, and CPU credit balance directly via Azure Monitor; all healthy with heavy headroom throughout).
+- **Significant, since it rules out job-specific bugs:** `ipro-prod-admin` runs zero background jobs (dashboard-only view of Web's Hangfire storage, no `AddHangfireServer`) yet shows the identical crash escalation as Web — so the cause is something both apps share, not a bug inside a specific scheduled job.
+- **Leading hypothesis:** CPU/thread-pool starvation on the Basic B1 App Service plan (1 vCPU each). Application Insights (added 2026-07-25 specifically to get real telemetry instead of log archaeology) captured real `System.Net.Sockets.SocketException` ("Connect Timeout expired" / "Command Timeout expired" against MySQL) clustered right around a crash window — client-side timeouts with a demonstrably idle database point at the App Service's own single vCPU being unable to keep up with the burst of concurrent async work at startup (schema-repair checks, EF Core init, Hangfire job registration), not a code defect.
+- **Current status:** both apps have been stable since Application Insights was wired up (which required a restart) — no recurrence yet, longer than any stretch on 07-25 prior. Being monitored; not yet resolved with certainty.
+- **Infrastructure added for this investigation:** `ipro-prod-web-insights` / `ipro-prod-admin-insights` (Application Insights, workspace-based, `canadaeast`) plus their backing Log Analytics workspaces, wired to both apps via codeless auto-instrumentation app settings (no code change). Free-tier eligible; no code deployed.
+- **Next step if it recurs:** scale the affected plan(s) to a tier with a dedicated vCPU (e.g. Standard S1) — a cost-affecting infrastructure change, needs your go-ahead when the time comes.
