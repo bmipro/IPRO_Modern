@@ -9,6 +9,7 @@ using IPRO.Email;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace IPRO.Billing;
@@ -21,13 +22,14 @@ public class PayPalBillingService : IBillingService
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
     private readonly PayPalSettings _settings;
+    private readonly ILogger<PayPalBillingService> _logger;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public PayPalBillingService(IUnitOfWork uow, IPRODbContext db, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings, IConfiguration configuration)
+    public PayPalBillingService(IUnitOfWork uow, IPRODbContext db, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings, IConfiguration configuration, ILogger<PayPalBillingService> logger)
     {
         _uow = uow;
         _db = db;
@@ -35,6 +37,7 @@ public class PayPalBillingService : IBillingService
         _email = email;
         _configuration = configuration;
         _settings = settings.Value;
+        _logger = logger;
     }
 
     public async Task<IPRO.Entities.Billing?> GetActiveSubscriptionAsync(int userId)
@@ -2045,13 +2048,25 @@ public class PayPalBillingService : IBillingService
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var payload = new { reason };
-            await client.PostAsync(
+            using var response = await client.PostAsync(
                 $"{_settings.BaseUrl}/v1/billing/subscriptions/{subscriptionId}/cancel",
                 new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning(
+                    "PayPal subscription cancellation for {SubscriptionId} returned {StatusCode}: {Body}. The local Billing row is still being cancelled, but the real PayPal subscription may keep billing.",
+                    subscriptionId, (int)response.StatusCode, body);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // Local cancellation should still proceed if PayPal is temporarily unavailable.
+            // Local cancellation still proceeds if PayPal is temporarily unavailable, but log it -
+            // otherwise a real cancellation failure leaves the old subscription billing forever with no trail.
+            _logger.LogWarning(ex,
+                "PayPal subscription cancellation for {SubscriptionId} threw. The local Billing row is still being cancelled, but the real PayPal subscription may keep billing.",
+                subscriptionId);
         }
     }
 
