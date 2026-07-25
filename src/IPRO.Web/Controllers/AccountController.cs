@@ -29,8 +29,9 @@ public class AccountController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IBlobStorageService _blob;
     private readonly ILogger<AccountController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration)
     {
         _agents = agents;
         _email = email;
@@ -40,6 +41,7 @@ public class AccountController : Controller
         _entitlements = entitlements;
         _blob = blob;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -82,7 +84,7 @@ public class AccountController : Controller
             var agent = await _agents.InitiatePasswordResetAsync(email);
             if (agent != null)
             {
-                var resetUrl = Url.Action(nameof(ResetPassword), "Account", new { token = agent.PasswordResetToken }, Request.Scheme);
+                var resetUrl = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/Account/ResetPassword?token={System.Net.WebUtility.UrlEncode(agent.PasswordResetToken)}";
                 var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
                 var html = $"""
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
