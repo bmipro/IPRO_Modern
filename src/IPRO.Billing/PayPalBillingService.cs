@@ -3,9 +3,11 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Email;
 using IPRO.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
@@ -14,6 +16,7 @@ namespace IPRO.Billing;
 public class PayPalBillingService : IBillingService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IPRODbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
@@ -24,9 +27,10 @@ public class PayPalBillingService : IBillingService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public PayPalBillingService(IUnitOfWork uow, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings, IConfiguration configuration)
+    public PayPalBillingService(IUnitOfWork uow, IPRODbContext db, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings, IConfiguration configuration)
     {
         _uow = uow;
+        _db = db;
         _httpClientFactory = httpClientFactory;
         _email = email;
         _configuration = configuration;
@@ -1939,8 +1943,13 @@ public class PayPalBillingService : IBillingService
             ? ComputeDiscountedAmount(package.SetupFee, promo.SetupFeeDiscountType, promo.SetupFeeDiscountValue)
             : package.SetupFee;
 
-        promo.RedemptionCount++;
-        _uow.PromotionCodes.Update(promo);
+        // Atomic conditional increment (bypasses the change tracker, straight to the database) so
+        // two concurrent redemptions near the last available slot can't both pass a stale in-memory
+        // RedemptionCount check and over-redeem past MaxRedemptions -- the WHERE clause is
+        // re-evaluated by the database at update time, not read-then-written from memory.
+        await _db.PromotionCodes
+            .Where(p => p.Id == promotionCodeId && (p.MaxRedemptions == null || p.RedemptionCount < p.MaxRedemptions))
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount + 1));
 
         await _uow.PromotionCodeRedemptions.AddAsync(new PromotionCodeRedemption
         {

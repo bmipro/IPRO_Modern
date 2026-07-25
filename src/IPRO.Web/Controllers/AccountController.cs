@@ -279,8 +279,12 @@ public class AccountController : Controller
 
         if (trialInvite != null)
         {
-            trialInvite.RedemptionCount++;
-            _uow.TrialInviteCodes.Update(trialInvite);
+            // Atomic conditional increment, same reasoning as the promo-code redemption fix --
+            // the database re-checks MaxRedemptions at update time instead of trusting a
+            // stale in-memory RedemptionCount read earlier in this request.
+            await _db.TrialInviteCodes
+                .Where(c => c.Id == trialInvite.Id && (c.MaxRedemptions == null || c.RedemptionCount < c.MaxRedemptions))
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.RedemptionCount, c => c.RedemptionCount + 1));
             await _uow.TrialInviteCodeRedemptions.AddAsync(new TrialInviteCodeRedemption
             {
                 TrialInviteCodeId = trialInvite.Id,
