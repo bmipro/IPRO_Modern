@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="HtmlSanitizer" />
     <ProjectReference Include="..\IPRO.Entities\IPRO.Entities.csproj" />
     <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
     <ProjectReference Include="..\IPRO.Utility\IPRO.Utility.csproj" />

@@ -54,7 +54,7 @@ public static class NewsletterHtmlComposer
                     <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0;">
                       {imageHtml}
                       <h3 style="margin:0 0 8px;color:{WebUtility.HtmlEncode(accent)};font-size:17px;">{WebUtility.HtmlEncode(article.Title)}</h3>
-                      <div>{article.Content}</div>
+                      <div>{HtmlContentSanitizer.Sanitize(article.Content)}</div>
                     </div>
                     """;
             }));
@@ -68,7 +68,7 @@ public static class NewsletterHtmlComposer
             """));
 
         var mainColumnInner = $"""
-            {newsletter.HtmlBody}
+            {HtmlContentSanitizer.Sanitize(newsletter.HtmlBody)}
             {articleCardsHtml}
             """;
 

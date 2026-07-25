@@ -40,7 +40,7 @@
                 <div>
                   <div class="small text-uppercase text-muted fw-bold">Step @(i + 1) - @(step.DelayDays == 0 ? "send immediately" : $"wait {step.DelayDays} day{(step.DelayDays == 1 ? "" : "s")}")</div>
                   <div class="fw-bold">@step.Subject</div>
-                  <div class="small text-muted text-truncate step-preview">@Html.Raw(System.Text.RegularExpressions.Regex.Replace(step.HtmlBody, "<.*?>", ""))</div>
+                  <div class="small text-muted text-truncate step-preview">@System.Text.RegularExpressions.Regex.Replace(step.HtmlBody, "<.*?>", "")</div>
                 </div>
                 <div class="d-flex gap-2">
                   <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#editStep@(step.Id)" aria-expanded="false" aria-controls="editStep@(step.Id)">

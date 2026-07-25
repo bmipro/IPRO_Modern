@@ -343,6 +343,7 @@ public class NewsletterController : Controller
         var existing = await _newsletters.GetArticlesAsync(article.NewsLetterId);
         article.SortOrder = existing.Count();
         article.ImageUrl = NormalizeUrl(article.ImageUrl);
+        article.Content = HtmlContentSanitizer.Sanitize(article.Content);
         await _newsletters.AddArticleAsync(article);
         TempData["Success"] = "Article added.";
         return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId });
@@ -572,6 +573,7 @@ public class NewsletterController : Controller
         {
             model.HtmlBody = ConvertPlainTextToHtml(model.TextBody);
         }
+        model.HtmlBody = HtmlContentSanitizer.Sanitize(model.HtmlBody);
 
         foreach (var key in new[]
         {

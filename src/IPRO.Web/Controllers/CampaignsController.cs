@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IPRO.Business.Interfaces;
+using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Web.Models;
@@ -141,7 +142,7 @@ public class CampaignsController : Controller
         {
             DripCampaignId = id,
             Subject = subject.Trim(),
-            HtmlBody = htmlBody.Trim(),
+            HtmlBody = HtmlContentSanitizer.Sanitize(htmlBody.Trim()),
             DelayDays = Math.Max(0, delayDays),
             SortOrder = nextOrder + 10
         });
@@ -181,7 +182,7 @@ public class CampaignsController : Controller
         {
             DripCampaignId = id,
             Subject = newsletter.Subject.Trim(),
-            HtmlBody = body.Trim(),
+            HtmlBody = HtmlContentSanitizer.Sanitize(body.Trim()),
             DelayDays = Math.Max(0, delayDays),
             SortOrder = nextOrder + 10
         });
@@ -235,7 +236,7 @@ public class CampaignsController : Controller
         }
 
         step.Subject = newsletter.Subject.Trim();
-        step.HtmlBody = body.Trim();
+        step.HtmlBody = HtmlContentSanitizer.Sanitize(body.Trim());
         step.DelayDays = Math.Max(0, delayDays);
         await _db.SaveChangesAsync();
 
@@ -262,7 +263,7 @@ public class CampaignsController : Controller
         }
 
         step.Subject = subject.Trim();
-        step.HtmlBody = htmlBody.Trim();
+        step.HtmlBody = HtmlContentSanitizer.Sanitize(htmlBody.Trim());
         step.DelayDays = Math.Max(0, delayDays);
         await _db.SaveChangesAsync();
 

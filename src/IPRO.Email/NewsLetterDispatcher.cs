@@ -232,15 +232,17 @@ public class NewsLetterDispatcher
             ["enrollment_id"] = enrollmentId.ToString()
         };
 
+        var sanitizedHtmlBody = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(step.HtmlBody);
+
         EmailSendResult result;
         if (string.IsNullOrWhiteSpace(unsubscribeToken))
         {
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, step.HtmlBody, customArgs: customArgs);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, sanitizedHtmlBody, customArgs: customArgs);
         }
         else
         {
             var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(step.HtmlBody, unsubscribeUrl), customArgs: customArgs);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl), customArgs: customArgs);
         }
 
         stepSend.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
