@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IPRO.Business.Interfaces;
+using IPRO.Business.Services;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -46,7 +47,7 @@ public class NewsletterTemplatesController : Controller
         model.Name = model.Name?.Trim() ?? string.Empty;
         model.Description = model.Description?.Trim() ?? string.Empty;
         model.Subject = model.Subject?.Trim() ?? string.Empty;
-        model.HtmlBody = model.HtmlBody?.Trim() ?? string.Empty;
+        model.HtmlBody = HtmlContentSanitizer.Sanitize(model.HtmlBody?.Trim());
         model.TextBody = model.TextBody?.Trim() ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(model.Name))

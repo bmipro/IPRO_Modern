@@ -35,6 +35,10 @@ public class Client
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public string? PortalPasswordHash { get; set; }
     public string? PortalInviteToken { get; set; }
+    // Null means either never issued or issued before this field existed - treated as
+    // non-expiring so pre-existing outstanding invites keep working rather than being silently
+    // invalidated by this fix. Every newly-issued invite always gets a real expiry.
+    public DateTime? PortalInviteTokenExpiresAt { get; set; }
     public DateTime? PortalActivatedAt { get; set; }
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<ClientCategory> Categories { get; set; } = new List<ClientCategory>();

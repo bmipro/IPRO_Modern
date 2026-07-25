@@ -220,7 +220,7 @@ public class PollsController : Controller
         };
         if (model.AudienceType == NewsLetterAudienceType.AccountType && model.ClientCategoryId.HasValue)
         {
-            var category = await _db.ClientCategories.FirstOrDefaultAsync(c => c.Id == model.ClientCategoryId.Value);
+            var category = await _db.ClientCategories.FirstOrDefaultAsync(c => c.Id == model.ClientCategoryId.Value && c.AgentUserId == AgentId);
             if (category != null) audienceLabel = $"Account type: {category.Name}";
         }
 

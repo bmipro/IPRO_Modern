@@ -127,6 +127,7 @@ public class ClientsController : Controller
         }
 
         client.PortalInviteToken = Guid.NewGuid().ToString("N");
+        client.PortalInviteTokenExpiresAt = DateTime.UtcNow.AddDays(7);
         client.PortalPasswordHash = null;
         client.PortalActivatedAt = null;
         await _db.SaveChangesAsync();
@@ -706,6 +707,9 @@ public class ClientsController : Controller
 
         if (file == null || file.Length == 0)
         { TempData["Error"] = "Please select a CSV file."; return RedirectToAction(nameof(Index)); }
+
+        if (file.Length > 20 * 1024 * 1024)
+        { TempData["Error"] = "CSV file is too large (20MB max)."; return RedirectToAction(nameof(Index)); }
 
         using var stream = file.OpenReadStream();
         var result = await _importer.ImportCsvAsync(stream, AgentId);

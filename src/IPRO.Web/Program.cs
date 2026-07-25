@@ -206,7 +206,7 @@ app.Use(async (context, next) =>
     // every tab except Billing (and Account, so they can still log out) is blocked until they
     // subscribe. Checked here rather than baked into the auth cookie because access needs to stop
     // working the moment the grace period lapses, not just at the next login.
-    var canUseBilling = path.StartsWith("/Billing", StringComparison.OrdinalIgnoreCase);
+    var canUseBilling = context.Request.Path.StartsWithSegments("/Billing", StringComparison.OrdinalIgnoreCase);
     var canLoginOrLogout = path.StartsWith("/Account/Login", StringComparison.OrdinalIgnoreCase) || canLogout;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
     if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout)
@@ -773,6 +773,8 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
         await EnsureTableColumnAsync(db, "AgentUsers", "TrialEndsAt", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialEndsAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "AgentUsers", "TrialRemindersSentCount", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialRemindersSentCount` int NOT NULL DEFAULT 0");
         await EnsureTableColumnAsync(db, "ClientInvoices", "LastReminderSentAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastReminderSentAt` datetime(6) NULL");
+        await EnsureUniqueIndexAsync(db, "ClientInvoices", "UX_ClientInvoices_Agent_DocumentNumber",
+            "ALTER TABLE `ClientInvoices` ADD UNIQUE INDEX `UX_ClientInvoices_Agent_DocumentNumber` (`AgentUserId`, `DocumentNumber`)");
     }
     finally
     {
@@ -855,6 +857,7 @@ CREATE TABLE IF NOT EXISTS `ExternalCalendarEvents` (
     {
         await EnsureTableColumnAsync(db, "Clients", "PortalPasswordHash", "ALTER TABLE `Clients` ADD COLUMN `PortalPasswordHash` varchar(500) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "Clients", "PortalInviteToken", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteToken` varchar(80) CHARACTER SET utf8mb4 NULL");
+        await EnsureTableColumnAsync(db, "Clients", "PortalInviteTokenExpiresAt", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteTokenExpiresAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "Clients", "PortalActivatedAt", "ALTER TABLE `Clients` ADD COLUMN `PortalActivatedAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ScheduledAt", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ScheduledAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ClientFollowUpId", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ClientFollowUpId` int NULL");
@@ -1200,6 +1203,43 @@ WHERE TABLE_SCHEMA = DATABASE()
     if (!exists)
     {
         await db.Database.ExecuteSqlRawAsync(alterSql);
+    }
+}
+
+static async Task EnsureUniqueIndexAsync(IPRODbContext db, string tableName, string indexName, string alterSql)
+{
+    await using (var command = db.Database.GetDbConnection().CreateCommand())
+    {
+        command.CommandText = @"
+SELECT COUNT(1)
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = @tableName
+  AND INDEX_NAME = @indexName";
+
+        var tableParameter = command.CreateParameter();
+        tableParameter.ParameterName = "@tableName";
+        tableParameter.Value = tableName;
+        command.Parameters.Add(tableParameter);
+
+        var indexParameter = command.CreateParameter();
+        indexParameter.ParameterName = "@indexName";
+        indexParameter.Value = indexName;
+        command.Parameters.Add(indexParameter);
+
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (exists) return;
+    }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(alterSql);
+    }
+    catch
+    {
+        // Pre-existing duplicate data (from the exact race this index is meant to prevent) would
+        // make this ALTER fail - skip rather than crash app startup. Safe to retry automatically
+        // on a later restart once the underlying duplicate rows are cleaned up.
     }
 }
 

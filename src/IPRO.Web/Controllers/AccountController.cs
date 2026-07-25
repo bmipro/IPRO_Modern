@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IPRO.Web.Controllers;
 
@@ -30,8 +31,9 @@ public class AccountController : Controller
     private readonly IBlobStorageService _blob;
     private readonly ILogger<AccountController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory)
     {
         _agents = agents;
         _email = email;
@@ -42,6 +44,7 @@ public class AccountController : Controller
         _blob = blob;
         _logger = logger;
         _configuration = configuration;
+        _scopeFactory = scopeFactory;
     }
 
     [HttpGet]
@@ -97,15 +100,36 @@ public class AccountController : Controller
                       </div>
                     </div>
                     """;
-                var emailSent = await _email.SendDetailedAsync(agent.Email, fullName, "Reset your IPRO Advisers password", html);
-                if (!emailSent.Success)
-                {
-                    _logger.LogWarning("Password reset email was not sent to {Email}: {Message}", agent.Email, emailSent.Message);
-                }
+                // Fired without awaiting so the response time is identical whether or not the
+                // account exists - awaiting it here would leak account existence via timing even
+                // though the response body is the same either way.
+                QueuePasswordResetEmail(agent.Email, fullName, html);
             }
         }
 
         return RedirectToAction(nameof(ForgotPasswordConfirmation));
+    }
+
+    private void QueuePasswordResetEmail(string toEmail, string fullName, string html)
+    {
+        _ = Task.Run(async () =>
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<AccountController>>();
+            try
+            {
+                var emailSent = await email.SendDetailedAsync(toEmail, fullName, "Reset your IPRO Advisers password", html);
+                if (!emailSent.Success)
+                {
+                    logger.LogWarning("Password reset email was not sent to {Email}: {Message}", toEmail, emailSent.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Password reset email failed for {Email}", toEmail);
+            }
+        });
     }
 
     [HttpGet]
