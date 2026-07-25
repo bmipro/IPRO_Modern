@@ -15,30 +15,35 @@ This was **not** a live penetration test — no exploitation was attempted again
 
 ## Executive summary
 
-The codebase is in better shape than the finding count below might suggest. The multi-tenant data-isolation discipline (the single most important property for a SaaS like this) is consistently well-applied, PayPal webhook signature verification is implemented correctly, password hashing uses a proper modern algorithm throughout, CSRF protection covers essentially every state-changing action, and document/photo uploads have real content-signature validation. Two genuinely critical, actively-exploitable issues were found and **fixed tonight** (below). Everything else is queued for us to review and prioritize together — nothing further has been changed.
+The codebase is in better shape than the finding count below might suggest. The multi-tenant data-isolation discipline (the single most important property for a SaaS like this) is consistently well-applied, PayPal webhook signature verification is implemented correctly, password hashing uses a proper modern algorithm throughout, CSRF protection covers essentially every state-changing action, and document/photo uploads have real content-signature validation. Every Critical and High finding has now been fixed except one deliberately-incomplete item (H-7, see below) that needs a product decision rather than a unilateral implementation choice. Medium/Low/Informational findings and the dependency-vulnerability table are still queued for us to review and prioritize together — nothing there has been changed.
 
-### Fixed tonight
+### Fixed — Critical
 
-| # | Issue | Severity | Commit |
-|---|---|---|---|
-| 1 | Any authenticated agent could activate a paid subscription without ever paying | Critical | [`10a48d2`](https://github.com/bmipro/IPRO_Modern/commit/10a48d2) |
-| 2 | IPRO.Web's Hangfire dashboard (`/hangfire`) had no explicit authorization filter | Critical/High | [`9508c81`](https://github.com/bmipro/IPRO_Modern/commit/9508c81) (corrected fix — see note below) |
+| # | Issue | Commit |
+|---|---|---|
+| PayPal `APPROVAL_PENDING` | Any authenticated agent could activate a paid subscription without ever paying | [`10a48d2`](https://github.com/bmipro/IPRO_Modern/commit/10a48d2) |
+| C-1 | Temporary/reset passwords were derived from the agent's own (publicly-visible) last name | [`2997851`](https://github.com/bmipro/IPRO_Modern/commit/2997851) |
 
-**Note on #2:** the first attempt at this fix (`f3601d9`) caused a brief production outage on IPRO.Web — it wrapped the dashboard mapping in an `IsDevelopment()` check, which turned out to also skip initialization that Hangfire's static `RecurringJob.AddOrUpdate` calls depend on, crashing the app on startup. Diagnosed via Azure's container logs and corrected in `9508c81`, which keeps the dashboard mapped unconditionally and instead gates it with an authorization filter (same shape IPRO.Admin already uses) — closes the same gap without touching Hangfire's static wiring. Full incident detail in `09_TROUBLESHOOTING.md`.
+### Fixed — High
 
-### Suggested order for everything else
+| # | Issue | Commit |
+|---|---|---|
+| Hangfire dashboard | IPRO.Web's `/hangfire` had no explicit authorization filter | [`9508c81`](https://github.com/bmipro/IPRO_Modern/commit/9508c81) (corrected — see incident note below) |
+| H-6 | Password-reset link trusted the request's Host header | [`e61d6a8`](https://github.com/bmipro/IPRO_Modern/commit/e61d6a8) |
+| H-5 | Website logo upload had no validation at all (size/extension/content-type/signature) | [`26c3de6`](https://github.com/bmipro/IPRO_Modern/commit/26c3de6) |
+| H-8 | Newsletter/poll dispatch jobs had no per-item error isolation | [`af5c6dd`](https://github.com/bmipro/IPRO_Modern/commit/af5c6dd) |
+| H-2 | Unauthenticated SendGrid webhook could mutate any agent's data | [`aa60478`](https://github.com/bmipro/IPRO_Modern/commit/aa60478) — **needs a manual step, see below** |
+| H-3 / H-4 | Stored XSS in newsletter and drip-campaign HTML bodies | [`fdbb1d0`](https://github.com/bmipro/IPRO_Modern/commit/fdbb1d0) |
+| H-7 | Downgrading didn't cancel the old PayPal subscription | [`12275ad`](https://github.com/bmipro/IPRO_Modern/commit/12275ad) — **partial, see below** |
+| H-1 | Rate limiter trusted a spoofable `X-Real-IP` header instead of the real client IP | [`f356a13`](https://github.com/bmipro/IPRO_Modern/commit/f356a13) |
 
-Roughly cheapest-and-most-dangerous first — not a commitment, just a starting point for discussion:
+**Note on the Hangfire fix:** the first attempt (`f3601d9`) caused a brief production outage on IPRO.Web — it wrapped the dashboard mapping in an `IsDevelopment()` check, which turned out to also skip initialization that Hangfire's static `RecurringJob.AddOrUpdate` calls depend on, crashing the app on startup. Diagnosed via Azure's container logs and corrected in `9508c81`. Full incident detail in `09_TROUBLESHOOTING.md`.
 
-1. **C-1** guessable temporary/reset passwords — one-line fix, closes an account-takeover path
-2. **H-6** password-reset link trusts the request's Host header — same class of risk as C-1, similarly cheap
-3. **H-5** website logo upload has zero validation — mechanical fix, reuse the validator that already exists for photos
-4. **H-8** newsletter/poll dispatch jobs can get permanently stuck on one bad record — mechanical fix, matches a pattern already used everywhere else in the codebase
-5. **H-3 / H-4** stored XSS in newsletter and drip-campaign HTML bodies — needs a sanitizer library added, one shared fix point
-6. **H-7** downgrading doesn't cancel the old PayPal subscription — real fix, worth checking whether any current agent is actually affected today
-7. **H-2** unauthenticated SendGrid webhook can mutate any agent's data — needs signature verification added
-8. **H-1** rate limiting likely can't see real client IPs behind Azure — needs careful `UseForwardedHeaders` setup
-9. Everything else, roughly in severity order below
+**H-2 needs a manual step to actually take effect**: the code now correctly rejects every SendGrid event with a 401 until "Signed Event Webhook Requests" is enabled in the SendGrid dashboard and the resulting public key is set as `Email__SendGridEventWebhookPublicKey` on `ipro-prod-web`'s Azure App Settings. That's the safe, correct default (fail closed, not open) — but newsletter/drip campaign open/click/bounce/unsubscribe tracking won't update until that's done.
+
+**H-7 is only half-fixed, deliberately**: the old PayPal subscription is now genuinely cancelled when a downgrade takes effect, closing the double-billing/entitlement-resurrection bug. But the new, downgraded package's `Billing` row still isn't linked to any real PayPal subscription — this codebase's PayPal integration has no way to create one without the buyer re-approving on PayPal's own page, so silently "fixing" this would either do nothing or grant free permanent access to the lower tier. This needs a product decision (most likely: prompt the agent to re-approve on PayPal at the scheduled downgrade date) before it can be finished.
+
+**H-1 was the highest-risk of the eight** — it touches the same middleware category that caused the Hangfire incident, and Microsoft's own docs warn this specific change can cause an infinite HTTPS redirect loop on Azure Linux App Service if misconfigured. Verified `ASPNETCORE_FORWARDEDHEADERS_ENABLED` wasn't already set before assuming it was needed, used Microsoft's documented Azure-specific `KnownNetworks` ranges, and confirmed after deploy (via real container logs, not just a status code) that there's no redirect loop and no unhandled exception.
 
 ---
 
@@ -46,6 +51,7 @@ Roughly cheapest-and-most-dangerous first — not a commitment, just a starting 
 
 ### C-1. Temporary and admin-reset passwords are guessable from public information
 
+- **Status: Fixed in [`2997851`](https://github.com/bmipro/IPRO_Modern/commit/2997851).**
 - **Where:** `src/IPRO.Web/Controllers/AccountController.cs:754-763` (`GenerateTemporaryPassword`, used at registration) and `src/IPRO.Admin/Controllers/AgentsController.cs:323-327` (`BuildTemporaryPassword`, used by the admin `ResetPassword` action)
 - **What:** both generate the temporary password from the agent's own last name (stripped to alphanumerics), falling back to `firstName+lastName` or a fixed pattern — never a random value.
 - **Why it's exploitable:** every agent runs a public marketing website through this same product, so an agent's full name is normally public. Anyone who knows an agent's registration email and last name can log in directly with the last name as the password during the window before the real user's first login, then use `MustChangePassword` to lock them out and take over billing/client data. The admin-triggered reset path is reachable by any admin under the `AdminAccess` policy, not just `SuperAdmin` (see M-2), which lowers the bar further via social engineering of support staff.
@@ -57,6 +63,7 @@ Roughly cheapest-and-most-dangerous first — not a commitment, just a starting 
 
 ### H-1. Rate limiting can likely be bypassed by spoofing the `X-Real-IP` header
 
+- **Status: Fixed in [`f356a13`](https://github.com/bmipro/IPRO_Modern/commit/f356a13).**
 - **Where:** `src/IPRO.Web/appsettings.json:71`, `src/IPRO.Admin/appsettings.json:8` (`"RealIpHeader": "X-Real-IP"`); no `UseForwardedHeaders`/`KnownProxies` configuration exists in either `Program.cs`.
 - **What:** both apps have well-designed per-endpoint rate limits (login 10/5min, register 5/hour, forgot/reset password 5/5min, public lead/testimonial forms 10/5min, poll vote 20/5min, plus a 120/min global catch-all) — genuinely good baseline protection. But they key on `X-Real-IP`, a header Azure App Service does not set and nothing strips a client-supplied value from. The app's own code elsewhere reads `X-Forwarded-For` instead (`PublicWebsiteController.cs:602`), confirming the mismatch.
 - **Why it matters:** if the rate limiter trusts an arbitrary client-supplied header, an attacker can send a different value on every request and never be throttled — defeating every login/registration/password-reset rate limit in both apps. It also likely means `AccountController.cs:257`'s `RegistrationIpAddress` (used for fraud/abuse investigation) records Azure's internal proxy IP instead of the real signup source.
@@ -64,6 +71,7 @@ Roughly cheapest-and-most-dangerous first — not a commitment, just a starting 
 
 ### H-2. Unauthenticated webhook can mutate any agent's newsletter data
 
+- **Status: Fixed in [`aa60478`](https://github.com/bmipro/IPRO_Modern/commit/aa60478), using the official `SendGrid` package's ECDSA verification (not Ed25519 as first guessed here) rather than hand-rolled crypto. Needs a manual step to actually start working — see the executive summary above.**
 - **Where:** `src/IPRO.Web/Controllers/NewsletterController.cs:415-451` (`[AllowAnonymous] SendGridEvents`) → `src/IPRO.Business/Services/NewsLetterService.cs`, `RecordRecipientEventAsync` (154-265) and `RecordDripStepEventAsync` (267+).
 - **What:** this endpoint has no SendGrid signature verification (confirmed via repo-wide search — none exists), and the sink loads `NewsLetterRecipients`/drip-step-sends by a plain sequential integer ID with no ownership check at all.
 - **Why it's exploitable:** anyone on the internet, with no login, can `POST /Newsletter/SendGridEvents` a crafted event body with an incrementing `newsletter_recipient_id` and silently unsubscribe any agent's clients from newsletters, or forge bounce/open/delivered stats to corrupt any agent's campaign analytics — at platform scale, not just one account.
@@ -71,6 +79,7 @@ Roughly cheapest-and-most-dangerous first — not a commitment, just a starting 
 
 ### H-3 / H-4. Stored XSS in Newsletter and Drip Campaign HTML bodies
 
+- **Status: Fixed in [`fdbb1d0`](https://github.com/bmipro/IPRO_Modern/commit/fdbb1d0) — HtmlSanitizer (Ganss.Xss), wired in at both render time and save time so already-stored content is cleaned going forward too.**
 - **Where:** `src/IPRO.Business/Services/NewsletterHtmlComposer.cs:57,71` (the only two fields not `HtmlEncode`d, out of every field in that composer), `src/IPRO.Web/Views/Newsletter/Preview.cshtml:66` (`@Html.Raw`), `src/IPRO.Web/Views/Campaigns/Details.cshtml:43` (a regex tag-stripper, not real sanitization), and the shared authoring surface `src/IPRO.Web/Views/Shared/_RichEditor.cshtml:34`.
 - **What:** `Newsletter.HtmlBody`, newsletter article content, and drip-campaign step `HtmlBody` are saved with zero sanitization and rendered via `Html.Raw` — both in the agent's own authenticated `/Newsletter/Preview` session and in the actual HTML email sent to real subscribed clients (`NewsLetterDispatcher.cs`).
 - **Why it's exploitable:** an agent account (including a compromised one) can save a payload like `<img src=x onerror="...">` as newsletter or drip content; it executes immediately in the preview and is delivered verbatim to every real client on that campaign. No sanitizer library exists anywhere in the solution today, and the app's CSP allows `'unsafe-inline'` scripts (M-6), so it provides no backstop here.
@@ -78,6 +87,7 @@ Roughly cheapest-and-most-dangerous first — not a commitment, just a starting 
 
 ### H-5. Website logo upload has no validation at all
 
+- **Status: Fixed in [`26c3de6`](https://github.com/bmipro/IPRO_Modern/commit/26c3de6).**
 - **Where:** `src/IPRO.Web/Controllers/WebsiteController.cs`, `Save` action, lines 69-73.
 - **What:** unlike every other upload endpoint in this codebase, this one has no size limit, no extension allowlist, no content-type cross-check, and no magic-byte signature check. The upload form's `accept="image/png,image/jpeg,image/svg+xml"` (client-side only, trivially ignored) explicitly invites SVG, which the other, properly-validated image endpoints deliberately exclude.
 - **Why it matters:** any authenticated agent can upload an SVG containing `<svg onload=...>` (or effectively any file) as their "logo," stored publicly and served back with whatever content-type was declared. Realistic impact is hosting XSS/phishing content on a legitimate Azure Blob Storage URL, plus unmetered storage abuse (this path isn't counted against the storage quota other uploads respect).
@@ -85,12 +95,14 @@ Roughly cheapest-and-most-dangerous first — not a commitment, just a starting 
 
 ### H-6. Password-reset link trusts the request's Host header
 
+- **Status: Fixed in [`e61d6a8`](https://github.com/bmipro/IPRO_Modern/commit/e61d6a8), reusing `PortalUrlHelper.GetAgentPortalBaseUrl` rather than a new `App:BaseUrl` read.**
 - **Where:** `src/IPRO.Web/Controllers/AccountController.cs:85` (`Url.Action(..., Request.Scheme)`, no explicit host); `AllowedHosts: "*"` in both apps' `appsettings.json`; no `UseForwardedHeaders`/host allowlist anywhere.
 - **Why it matters:** Azure App Service is known to largely forward a client-supplied `Host` header as sent. An attacker can plausibly trigger a password-reset email for a victim with a spoofed `Host` header, so the emailed link points at an attacker-controlled domain, harvest the token when the victim clicks it, then replay it against the real app. The codebase already has the correct pattern elsewhere — `NewsLetterDispatcher.cs:131-137`'s `GetBaseUrl()` builds links from the configured `App:BaseUrl` setting rather than trusting the current request, precisely because it's a background job with no request to trust.
 - **Fix:** build the reset link from `App:BaseUrl` the same way, instead of `Request.Scheme`/implicit host.
 
 ### H-7. Downgrading a subscription never cancels the old PayPal subscription
 
+- **Status: Partially fixed in [`12275ad`](https://github.com/bmipro/IPRO_Modern/commit/12275ad) — the old-subscription-cancellation half is done. The "new Billing row has no real PayPal linkage" half needs a product decision (this codebase's PayPal integration can't silently create a new subscription without the buyer re-approving) — see the executive summary above.**
 - **Where:** `src/IPRO.Billing/PayPalBillingService.cs`, `ApplyDuePendingChangesAsync`, lines 1092-1150, contrasted with the correct pattern in `ActivateSubscriptionBillingAsync` (303-315).
 - **What:** when a scheduled downgrade becomes due, the old `Billing` row is marked `Cancelled` only in IPRO's own database — `CancelPayPalSubscriptionAsync` is never called for it, and the new lower-tier `Billing` row is created with no PayPal linkage at all.
 - **Why it matters:** the old, higher-priced PayPal subscription keeps auto-billing the agent. When PayPal's normal recurring-payment webhook later arrives for that still-active subscription, the handler looks it up with no status filter and flips the "cancelled" row back to `Active` — so the agent can end up back on the old tier's access while being charged the old higher price the whole time, unbeknownst to IPRO's own records.
@@ -98,6 +110,7 @@ Roughly cheapest-and-most-dangerous first — not a commitment, just a starting 
 
 ### H-8. Newsletter and Poll dispatch jobs have no per-item error isolation
 
+- **Status: Fixed in [`af5c6dd`](https://github.com/bmipro/IPRO_Modern/commit/af5c6dd).**
 - **Where:** `src/IPRO.Scheduler/NewsLetterDispatchJob.cs:25-29` + `src/IPRO.Email/NewsLetterDispatcher.cs` (no try/catch anywhere in the chain); `src/IPRO.Scheduler/PollDispatchJob.cs:26-30` + `src/IPRO.Email/PollDispatcher.cs:59-87` (identical gap).
 - **Why it matters:** every other scheduled job in this codebase (trial reminders, overdue invoices, life-event reminders, AI digest, recurring invoices, calendar sync, drip campaigns) correctly wraps each loop iteration so one bad record doesn't stop the rest — these two don't. A send is marked `Sending` before the risky work, and if anything throws afterward (most plausibly the batched save after emails are already physically sent), the send is left permanently stuck with no retry, and — because the outer loop also has no try/catch — every *other* due send in that run gets aborted too. Since this job runs every minute and re-fetches the same due list, a stuck send can block everything queued behind it indefinitely.
 - **Fix:** wrap the outer per-send loop and the per-recipient loop in try/catch with logging, matching the pattern already used correctly by every other job in this codebase.
