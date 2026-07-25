@@ -35,7 +35,10 @@ public class ClientLifeEventReminderJob
             {
                 var nextOccurrence = NextOccurrence(lifeEvent.EventDate, today);
                 if (lifeEvent.LastReminderYear == nextOccurrence.Year) continue;
-                if (nextOccurrence.AddDays(-lifeEvent.ReminderDaysBefore) != today) continue;
+                // Catch-up safe: fire once we've reached the reminder window rather than only on
+                // the exact day, so a single missed run doesn't silently skip this year's reminder
+                // entirely. LastReminderYear (checked above) is what actually prevents a repeat.
+                if (today < nextOccurrence.AddDays(-lifeEvent.ReminderDaysBefore)) continue;
 
                 if (!await _entitlements.HasAccessAsync(lifeEvent.Client.AgentUserId, PackageFeatureCodes.LifeEventReminders))
                 {
@@ -69,7 +72,8 @@ public class ClientLifeEventReminderJob
             {
                 var nextBirthday = NextOccurrence(client.DateOfBirth!.Value, today);
                 if (client.LastBirthdayReminderYear == nextBirthday.Year) continue;
-                if (nextBirthday.AddDays(-birthdayReminderDaysBefore) != today) continue;
+                // Catch-up safe, same reasoning as the life-event check above.
+                if (today < nextBirthday.AddDays(-birthdayReminderDaysBefore)) continue;
 
                 if (!await _entitlements.HasAccessAsync(client.AgentUserId, PackageFeatureCodes.LifeEventReminders))
                 {

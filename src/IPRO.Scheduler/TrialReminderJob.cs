@@ -52,23 +52,24 @@ public class TrialReminderJob
                 var trialEndsAt = agent.TrialEndsAt!.Value.Date;
                 var daysRemaining = (trialEndsAt - today).Days;
 
-                if (daysRemaining > 0)
+                // One shared, monotonically-increasing "stage" counter covers all three kinds of
+                // notification (pre-expiry reminders, trial-ended, grace-ended) using the same
+                // catch-up-safe comparison already used for the reminders alone: if a run is missed
+                // and multiple stages become due at once, exactly one email fires -- reflecting the
+                // most current state -- rather than none (a bare "==" check would silently skip it
+                // forever) or a replay of every missed intermediate stage.
+                var offsets = ParseOffsets(packagesById.TryGetValue(agent.PackageId, out var package) ? package.TrialReminderDayOffsets : null);
+                var reminderDue = offsets.Count(o => daysRemaining <= o);
+                var trialEndedDue = daysRemaining <= 0 ? 1 : 0;
+                var graceEndedDue = -daysRemaining >= graceDays ? 1 : 0;
+                var dueCount = reminderDue + trialEndedDue + graceEndedDue;
+
+                if (dueCount > agent.TrialRemindersSentCount)
                 {
-                    var offsets = ParseOffsets(packagesById.TryGetValue(agent.PackageId, out var package) ? package.TrialReminderDayOffsets : null);
-                    var dueCount = offsets.Count(o => daysRemaining <= o);
-                    if (dueCount > agent.TrialRemindersSentCount)
-                    {
-                        await SendReminderEmailAsync(agent, daysRemaining);
-                        agent.TrialRemindersSentCount = dueCount;
-                    }
-                }
-                else if (daysRemaining == 0)
-                {
-                    await SendTrialEndedEmailAsync(agent, graceDays);
-                }
-                else if (-daysRemaining == graceDays)
-                {
-                    await SendGraceEndedEmailAsync(agent);
+                    if (graceEndedDue == 1) await SendGraceEndedEmailAsync(agent);
+                    else if (trialEndedDue == 1) await SendTrialEndedEmailAsync(agent, graceDays);
+                    else await SendReminderEmailAsync(agent, daysRemaining);
+                    agent.TrialRemindersSentCount = dueCount;
                 }
             }
             catch (Exception ex)
