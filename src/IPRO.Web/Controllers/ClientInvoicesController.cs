@@ -4,6 +4,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,15 +21,19 @@ public class ClientInvoicesController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IClientInvoiceService _invoiceService;
     private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientInvoicesController(IPRODbContext db, IPackageEntitlementService entitlements, IClientInvoiceService invoiceService, IEmailService email)
+    public ClientInvoicesController(IPRODbContext db, IPackageEntitlementService entitlements, IClientInvoiceService invoiceService, IEmailService email, IConfiguration configuration)
     {
         _db = db;
         _entitlements = entitlements;
         _invoiceService = invoiceService;
         _email = email;
+        _configuration = configuration;
     }
+
+    private string BuildPublicDocumentUrl(string token) => $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/invoice/{token}";
 
     public async Task<IActionResult> Index(string documentType = "all", string status = "all", int? clientId = null, string? search = null, int page = 1)
     {
@@ -235,7 +240,7 @@ public class ClientInvoicesController : Controller
         if (invoice == null) return NotFound();
 
         ViewBag.Agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
-        ViewBag.PublicUrl = Url.Action("Show", "ClientDocument", new { token = invoice.ViewToken }, Request.Scheme);
+        ViewBag.PublicUrl = BuildPublicDocumentUrl(invoice.ViewToken);
         return View(invoice);
     }
 
@@ -258,7 +263,7 @@ public class ClientInvoicesController : Controller
         invoice.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        var publicUrl = Url.Action("Show", "ClientDocument", new { token = invoice.ViewToken }, Request.Scheme);
+        var publicUrl = BuildPublicDocumentUrl(invoice.ViewToken);
         var docLabel = invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "estimate" : "invoice";
         var senderName = $"{invoice.AgentUser.FirstName} {invoice.AgentUser.LastName}".Trim();
         var html = $"""

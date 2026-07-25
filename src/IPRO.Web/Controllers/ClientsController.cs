@@ -5,6 +5,7 @@ using IPRO.DataAccess.Repositories;
 using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Utility;
+using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -25,13 +26,15 @@ public class ClientsController : Controller
     private readonly IBlobStorageService _blob;
     private readonly IGoogleCalendarService _googleCalendar;
     private readonly IDataProtector _googleTokenProtector;
+    private readonly IConfiguration _configuration;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IBlobStorageService blob, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider)
+    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IBlobStorageService blob, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, IConfiguration configuration)
     {
         _clients = clients; _importer = importer; _uow = uow; _db = db; _entitlements = entitlements; _email = email; _blob = blob;
         _googleCalendar = googleCalendar;
         _googleTokenProtector = dataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1");
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter)
@@ -132,7 +135,7 @@ public class ClientsController : Controller
         client.PortalActivatedAt = null;
         await _db.SaveChangesAsync();
 
-        var activateUrl = Url.Action("Activate", "ClientPortalAccount", new { token = client.PortalInviteToken }, Request.Scheme);
+        var activateUrl = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/ClientPortalAccount/Activate?token={System.Net.WebUtility.UrlEncode(client.PortalInviteToken)}";
         var companyName = client.AgentUser.CompanyName;
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">

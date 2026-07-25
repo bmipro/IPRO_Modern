@@ -3,6 +3,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,13 +16,15 @@ public class TestimonialsController : Controller
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
     private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public TestimonialsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email)
+    public TestimonialsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IConfiguration configuration)
     {
         _db = db;
         _entitlements = entitlements;
         _email = email;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index(string status = "pending")
@@ -164,7 +167,7 @@ public class TestimonialsController : Controller
         }
         await _db.SaveChangesAsync();
 
-        var requestUrl = Url.Action("Show", "TestimonialRequest", new { token = submission.RequestToken }, Request.Scheme);
+        var requestUrl = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/testimonial/{submission.RequestToken}";
         var companyName = client.AgentUser.CompanyName;
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">

@@ -4,6 +4,7 @@ using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -26,6 +27,8 @@ public class BillingController : Controller
         _configuration = configuration;
         _entitlements = entitlements;
     }
+
+    private string BuildBillingActionUrl(string action) => $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/Billing/{action}";
 
     public async Task<IActionResult> Index()
     {
@@ -72,8 +75,8 @@ public class BillingController : Controller
             AgentId,
             billingRuleId,
             period,
-            Url.ActionLink(nameof(PayPalReturn)) ?? $"{Request.Scheme}://{Request.Host}/Billing/PayPalReturn",
-            Url.ActionLink(nameof(Cancel)) ?? $"{Request.Scheme}://{Request.Host}/Billing/Cancel");
+            BuildBillingActionUrl(nameof(PayPalReturn)),
+            BuildBillingActionUrl(nameof(Cancel)));
 
         if (!result.Success)
         {
@@ -121,8 +124,8 @@ public class BillingController : Controller
         var result = await _billing.ResumePaymentAsync(
             AgentId,
             invoiceId,
-            Url.ActionLink(nameof(PayPalReturn)) ?? $"{Request.Scheme}://{Request.Host}/Billing/PayPalReturn",
-            Url.ActionLink(nameof(Cancel)) ?? $"{Request.Scheme}://{Request.Host}/Billing/Cancel");
+            BuildBillingActionUrl(nameof(PayPalReturn)),
+            BuildBillingActionUrl(nameof(Cancel)));
 
         if (!result.Success)
         {
