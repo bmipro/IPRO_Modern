@@ -14,12 +14,21 @@ using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Scheduler;
 using IPRO.Utility;
+using IPRO.Web.Infrastructure;
 using IPRO.Web.Middleware;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Application Insights is enabled via Azure's codeless auto-instrumentation agent
+// (APPLICATIONINSIGHTS_CONNECTION_STRING app setting); adding the SDK here lets
+// XDT_MicrosoftApplicationInsights_PreemptSdk (already set on the App Service) hand off to it, which
+// is what makes the initializer below actually run instead of being bypassed by the bare agent.
+builder.Services.AddApplicationInsightsTelemetry();
+builder.Services.AddSingleton<ITelemetryInitializer, SensitiveDataTelemetryInitializer>();
 
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
              ?? throw new InvalidOperationException("ConnectionString 'DefaultConnection' not found.");

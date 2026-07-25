@@ -27,6 +27,7 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="[8.0.2]" />
     <PackageVersion Include="PayPalCheckoutSdk" Version="[1.0.4]" />
     <PackageVersion Include="Markdig" Version="[0.37.0]" />
+    <PackageVersion Include="Microsoft.ApplicationInsights.AspNetCore" Version="[2.22.0]" />
     <!-- Explicit pins below patch known transitive advisories flagged in the security audit
          (DOCS/SECURITY_AUDIT_2026-07-24.md). AngleSharp (via HtmlSanitizer 9.0.967's exact-pinned
          [0.17.1] dependency) is NOT bumped here - HtmlSanitizer 9.0.967 is its latest release and

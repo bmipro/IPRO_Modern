@@ -9,6 +9,7 @@
   <PackageReference Include="AspNetCoreRateLimit" />
   <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
   <PackageReference Include="Markdig" />
+  <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" />
   <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
   <ProjectReference Include="..\IPRO.Email\IPRO.Email.csproj" />
 </ItemGroup>
