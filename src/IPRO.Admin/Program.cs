@@ -2,6 +2,7 @@ using AspNetCoreRateLimit;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.Storage.MySql;
+using IPRO.Admin.Middleware;
 using Microsoft.AspNetCore.HttpOverrides;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
@@ -110,6 +111,7 @@ app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Admin/Error"); app.UseHsts(); }
 
+app.UseSecurityHeaders();
 app.UseIpRateLimiting();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
