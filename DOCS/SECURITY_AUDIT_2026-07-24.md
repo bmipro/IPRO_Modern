@@ -17,9 +17,11 @@ This was **not** a live penetration test — no exploitation was attempted again
 
 The codebase is in better shape than the finding count below might suggest. The multi-tenant data-isolation discipline (the single most important property for a SaaS like this) is consistently well-applied, PayPal webhook signature verification is implemented correctly, password hashing uses a proper modern algorithm throughout, CSRF protection covers essentially every state-changing action, and document/photo uploads have real content-signature validation.
 
-Every Critical and High finding has been fixed except one deliberately-incomplete item (H-7) that needs a product decision rather than a unilateral implementation choice. **All 12 Medium findings are now fixed**, including the two initially deferred pending further scoping or a product decision (M-6's CSP nonce migration across 28 view files, and M-7's per-agent redemption check).
+**Every Critical and High finding is now fixed, including H-7** (its remaining half needed a product decision rather than a unilateral implementation choice — resolved 2026-07-25). **All 12 Medium findings are now fixed**, including the two initially deferred pending further scoping or a product decision (M-6's CSP nonce migration across 28 view files, and M-7's per-agent redemption check).
 
-**All 15 Low/Informational findings and the dependency-vulnerability table are also now resolved** (13 fixed, 2 reviewed and confirmed to need no code change) — see their sections below for commit links. One dependency (AngleSharp, Moderate) is deliberately left unpatched due to a hard version pin from `HtmlSanitizer`; see the dependency table for why. H-7's product decision is still the only open item from the entire audit.
+**All 15 Low/Informational findings and the dependency-vulnerability table are also now resolved** (13 fixed, 2 reviewed and confirmed to need no code change) — see their sections below for commit links. One dependency (AngleSharp, Moderate) is deliberately left unpatched due to a hard version pin from `HtmlSanitizer`; see the dependency table for why.
+
+**Every finding from this audit is now closed.** The only thing left is a one-time check of current billing data for agents H-7 may have already affected (see its entry below) — a data question, not a code fix.
 
 ### Fixed — Critical
 
@@ -38,14 +40,14 @@ Every Critical and High finding has been fixed except one deliberately-incomplet
 | H-8 | Newsletter/poll dispatch jobs had no per-item error isolation | [`af5c6dd`](https://github.com/bmipro/IPRO_Modern/commit/af5c6dd) |
 | H-2 | Unauthenticated SendGrid webhook could mutate any agent's data | [`aa60478`](https://github.com/bmipro/IPRO_Modern/commit/aa60478) — **needs a manual step, see below** |
 | H-3 / H-4 | Stored XSS in newsletter and drip-campaign HTML bodies | [`fdbb1d0`](https://github.com/bmipro/IPRO_Modern/commit/fdbb1d0) |
-| H-7 | Downgrading didn't cancel the old PayPal subscription | [`12275ad`](https://github.com/bmipro/IPRO_Modern/commit/12275ad) — **partial, see below** |
+| H-7 | Downgrading didn't cancel the old PayPal subscription, and re-activated the new package for free | [`12275ad`](https://github.com/bmipro/IPRO_Modern/commit/12275ad) + [`40eac39`](https://github.com/bmipro/IPRO_Modern/commit/40eac39) |
 | H-1 | Rate limiter trusted a spoofable `X-Real-IP` header instead of the real client IP | [`f356a13`](https://github.com/bmipro/IPRO_Modern/commit/f356a13) |
 
 **Note on the Hangfire fix:** the first attempt (`f3601d9`) caused a brief production outage on IPRO.Web — it wrapped the dashboard mapping in an `IsDevelopment()` check, which turned out to also skip initialization that Hangfire's static `RecurringJob.AddOrUpdate` calls depend on, crashing the app on startup. Diagnosed via Azure's container logs and corrected in `9508c81`. Full incident detail in `09_TROUBLESHOOTING.md`.
 
 **H-2 needs a manual step to actually take effect**: the code now correctly rejects every SendGrid event with a 401 until "Signed Event Webhook Requests" is enabled in the SendGrid dashboard and the resulting public key is set as `Email__SendGridEventWebhookPublicKey` on `ipro-prod-web`'s Azure App Settings. That's the safe, correct default (fail closed, not open) — but newsletter/drip campaign open/click/bounce/unsubscribe tracking won't update until that's done.
 
-**H-7 is only half-fixed, deliberately**: the old PayPal subscription is now genuinely cancelled when a downgrade takes effect, closing the double-billing/entitlement-resurrection bug. But the new, downgraded package's `Billing` row still isn't linked to any real PayPal subscription — this codebase's PayPal integration has no way to create one without the buyer re-approving on PayPal's own page, so silently "fixing" this would either do nothing or grant free permanent access to the lower tier. This needs a product decision (most likely: prompt the agent to re-approve on PayPal at the scheduled downgrade date) before it can be finished.
+**H-7 is now fully fixed**: the old PayPal subscription is genuinely cancelled when a downgrade takes effect, closing the double-billing/entitlement-resurrection bug. The new, downgraded package is deliberately not auto-activated (that would've just moved the free-access bug to the lower tier) — instead the agent is gated to `/Billing` like any other lapsed-billing agent and emailed a prompt to re-approve the new subscription on PayPal there, per your direction.
 
 **H-1 was the highest-risk of the eight** — it touches the same middleware category that caused the Hangfire incident, and Microsoft's own docs warn this specific change can cause an infinite HTTPS redirect loop on Azure Linux App Service if misconfigured. Verified `ASPNETCORE_FORWARDEDHEADERS_ENABLED` wasn't already set before assuming it was needed, used Microsoft's documented Azure-specific `KnownNetworks` ranges, and confirmed after deploy (via real container logs, not just a status code) that there's no redirect loop and no unhandled exception.
 
@@ -123,11 +125,12 @@ Every Critical and High finding has been fixed except one deliberately-incomplet
 
 ### H-7. Downgrading a subscription never cancels the old PayPal subscription
 
-- **Status: Partially fixed in [`12275ad`](https://github.com/bmipro/IPRO_Modern/commit/12275ad) — the old-subscription-cancellation half is done. The "new Billing row has no real PayPal linkage" half needs a product decision (this codebase's PayPal integration can't silently create a new subscription without the buyer re-approving) — see the executive summary above.**
-- **Where:** `src/IPRO.Billing/PayPalBillingService.cs`, `ApplyDuePendingChangesAsync`, lines 1092-1150, contrasted with the correct pattern in `ActivateSubscriptionBillingAsync` (303-315).
-- **What:** when a scheduled downgrade becomes due, the old `Billing` row is marked `Cancelled` only in IPRO's own database — `CancelPayPalSubscriptionAsync` is never called for it, and the new lower-tier `Billing` row is created with no PayPal linkage at all.
-- **Why it matters:** the old, higher-priced PayPal subscription keeps auto-billing the agent. When PayPal's normal recurring-payment webhook later arrives for that still-active subscription, the handler looks it up with no status filter and flips the "cancelled" row back to `Active` — so the agent can end up back on the old tier's access while being charged the old higher price the whole time, unbeknownst to IPRO's own records.
-- **Fix:** call `CancelPayPalSubscriptionAsync` on the old subscription before marking it cancelled (mirroring the activation path), and properly link the new `Billing` row to a real PayPal plan at downgrade time. Worth a one-time check of current data for any agent this may have already affected.
+- **Status: Fixed in [`12275ad`](https://github.com/bmipro/IPRO_Modern/commit/12275ad) (old-subscription cancellation) and [`40eac39`](https://github.com/bmipro/IPRO_Modern/commit/40eac39) (finished, per your direction: prompt to re-approve at downgrade time).**
+- **Where:** `src/IPRO.Billing/PayPalBillingService.cs`, `ApplyDuePendingChangesAsync`, contrasted with the correct pattern in `ActivateSubscriptionBillingAsync` (303-315).
+- **What it was:** when a scheduled downgrade became due, the old `Billing` row was marked `Cancelled` only in IPRO's own database — `CancelPayPalSubscriptionAsync` was never called for it, and the new lower-tier `Billing` row was created `Active` with no PayPal linkage at all (free, permanent access to the lower tier, never actually re-billed).
+- **Why it mattered:** the old, higher-priced PayPal subscription kept auto-billing the agent, and when PayPal's normal recurring-payment webhook later arrived for that still-active subscription, the handler (no status filter on the lookup) flipped the "cancelled" row back to `Active` — so the agent could end up back on the old tier's access while being charged the old higher price the whole time, unbeknownst to IPRO's own records.
+- **Fix:** the old subscription is now genuinely cancelled on PayPal's side (`12275ad`). The new package is deliberately **not** auto-activated (`40eac39`) — this codebase's PayPal integration has no way to create a new subscription without the buyer re-approving on PayPal's own page, so silently activating it would just move the same free-access bug to the lower tier. Instead the agent is left with no active subscription: the existing entitlement gate (`IsAccessGatedAsync`) naturally redirects every request to `/Billing`, identical treatment to any other lapsed-billing agent, and an email prompts them to finish subscribing to the new package there — reusing the exact same PayPal approval flow (`CreateSubscriptionAsync`) a brand-new signup already goes through, so no new payment/approval code was needed.
+- **Still worth doing, separately:** a one-time check of current billing data to see if any agent has actually hit the old bug (double-billed, or riding a downgrade for free) — this is a data question, not a code fix, and hasn't been done.
 
 ### H-8. Newsletter and Poll dispatch jobs have no per-item error isolation
 
@@ -292,7 +295,7 @@ Noted briefly so the findings above aren't mistaken for the whole picture:
 
 ## Open questions for discussion
 
-- **H-7** (downgrade doesn't cancel PayPal subscription) — worth a one-time check of current billing data to see if any agent has actually hit this, separate from fixing the code path. Also needs a product decision on how the new (downgraded) package should actually get billed going forward. **The only open item left in this entire audit.**
+- **H-7** — code path is fully fixed. Still open: a one-time check of current billing data to see if any agent already hit the old bug (double-billed on the old package, or riding a downgrade for free) before the fix landed. This is the only thing left from the entire audit.
 
 ---
 
