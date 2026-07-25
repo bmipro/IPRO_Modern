@@ -141,16 +141,7 @@ public class NewsLetterDispatcher
             send.Id, newsletter.Id, recipients.Count, sentCount > 0);
     }
 
-    private string GetBaseUrl()
-    {
-        var baseUrl = _configuration["App:BaseUrl"];
-        if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("yourdomain.com", StringComparison.OrdinalIgnoreCase))
-        {
-            baseUrl = "https://ipro-prod-web.azurewebsites.net";
-        }
-
-        return baseUrl.TrimEnd('/');
-    }
+    private string GetBaseUrl() => IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
 
     private string BuildUnsubscribeUrl(string token)
     {

@@ -72,14 +72,6 @@ public class OverdueInvoiceReminderJob
         await _db.SaveChangesAsync();
     }
 
-    private string BuildInvoiceUrl(string token)
-    {
-        var baseUrl = _configuration["App:BaseUrl"];
-        if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("yourdomain.com", StringComparison.OrdinalIgnoreCase))
-        {
-            baseUrl = "https://ipro-prod-web.azurewebsites.net";
-        }
-
-        return $"{baseUrl.TrimEnd('/')}/invoice/{token}";
-    }
+    private string BuildInvoiceUrl(string token) =>
+        $"{IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration)}/invoice/{token}";
 }

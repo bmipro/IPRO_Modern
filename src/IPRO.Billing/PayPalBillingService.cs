@@ -1183,16 +1183,7 @@ public class PayPalBillingService : IBillingService
         await _email.SendDetailedAsync(agent.Email, fullName, "Action needed: complete your IPRO Advisers plan change", html);
     }
 
-    private string BuildBillingPageUrl()
-    {
-        var baseUrl = _configuration["App:BaseUrl"];
-        if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("yourdomain.com", StringComparison.OrdinalIgnoreCase))
-        {
-            baseUrl = "https://ipro-prod-web.azurewebsites.net";
-        }
-
-        return $"{baseUrl.TrimEnd('/')}/Billing";
-    }
+    private string BuildBillingPageUrl() => $"{IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration)}/Billing";
 
     private async Task MarkPaymentFailedAsync(int userId, int billingId)
     {
