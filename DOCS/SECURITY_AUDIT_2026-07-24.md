@@ -15,7 +15,13 @@ This was **not** a live penetration test — no exploitation was attempted again
 
 ## Executive summary
 
-The codebase is in better shape than the finding count below might suggest. The multi-tenant data-isolation discipline (the single most important property for a SaaS like this) is consistently well-applied, PayPal webhook signature verification is implemented correctly, password hashing uses a proper modern algorithm throughout, CSRF protection covers essentially every state-changing action, and document/photo uploads have real content-signature validation. Every Critical and High finding has now been fixed except one deliberately-incomplete item (H-7, see below) that needs a product decision rather than a unilateral implementation choice. Medium/Low/Informational findings and the dependency-vulnerability table are still queued for us to review and prioritize together — nothing there has been changed.
+The codebase is in better shape than the finding count below might suggest. The multi-tenant data-isolation discipline (the single most important property for a SaaS like this) is consistently well-applied, PayPal webhook signature verification is implemented correctly, password hashing uses a proper modern algorithm throughout, CSRF protection covers essentially every state-changing action, and document/photo uploads have real content-signature validation.
+
+Every Critical and High finding has been fixed except one deliberately-incomplete item (H-7) that needs a product decision rather than a unilateral implementation choice. All 12 Medium findings are resolved except two, deliberately deferred rather than rushed:
+- **M-6** (CSP `unsafe-inline`) — fixing it properly touches 28 view files at once (a CSP directive is all-or-nothing; can't migrate a few pages and leave the rest broken) — a dedicated pass, not a same-night addition.
+- **M-7** (promo/trial redemption uniqueness) — needs your call on how strict to make it; see "Open questions" below.
+
+Low/Informational findings and the dependency-vulnerability table are still queued for us to review together — nothing there has been changed.
 
 ### Fixed — Critical
 
@@ -44,6 +50,24 @@ The codebase is in better shape than the finding count below might suggest. The 
 **H-7 is only half-fixed, deliberately**: the old PayPal subscription is now genuinely cancelled when a downgrade takes effect, closing the double-billing/entitlement-resurrection bug. But the new, downgraded package's `Billing` row still isn't linked to any real PayPal subscription — this codebase's PayPal integration has no way to create one without the buyer re-approving on PayPal's own page, so silently "fixing" this would either do nothing or grant free permanent access to the lower tier. This needs a product decision (most likely: prompt the agent to re-approve on PayPal at the scheduled downgrade date) before it can be finished.
 
 **H-1 was the highest-risk of the eight** — it touches the same middleware category that caused the Hangfire incident, and Microsoft's own docs warn this specific change can cause an infinite HTTPS redirect loop on Azure Linux App Service if misconfigured. Verified `ASPNETCORE_FORWARDEDHEADERS_ENABLED` wasn't already set before assuming it was needed, used Microsoft's documented Azure-specific `KnownNetworks` ranges, and confirmed after deploy (via real container logs, not just a status code) that there's no redirect loop and no unhandled exception.
+
+### Fixed — Medium
+
+| # | Issue | Commit |
+|---|---|---|
+| M-4 | Admin login form was missing CSRF protection | [`42ce429`](https://github.com/bmipro/IPRO_Modern/commit/42ce429) |
+| M-2 | Agent password reset only required `AdminAccess`, not `SuperAdmin` | [`a1db7ef`](https://github.com/bmipro/IPRO_Modern/commit/a1db7ef) |
+| M-3 | Password change never verified the current password | [`2f03b59`](https://github.com/bmipro/IPRO_Modern/commit/2f03b59) |
+| M-1 | Billing gate misread a ClientPortal user's ID as an AgentId | [`9f24da7`](https://github.com/bmipro/IPRO_Modern/commit/9f24da7) |
+| M-10 | Exact-equality day math skipped notifications on a missed cron run | [`8d930b4`](https://github.com/bmipro/IPRO_Modern/commit/8d930b4) |
+| M-11 | Calendar reminder job had no per-item isolation, logged false successes | [`d3771df`](https://github.com/bmipro/IPRO_Modern/commit/d3771df) |
+| M-12 | Domain automation job had no per-item isolation or logger | [`0ab8ba6`](https://github.com/bmipro/IPRO_Modern/commit/0ab8ba6) |
+| M-8 | Redemption-count increments had a race condition | [`5c9234b`](https://github.com/bmipro/IPRO_Modern/commit/5c9234b) |
+| M-5 | IPRO.Admin had none of IPRO.Web's security response headers | [`3e376e8`](https://github.com/bmipro/IPRO_Modern/commit/3e376e8) |
+
+**Deferred — M-6** (CSP `unsafe-inline`) and **M-7** (redemption uniqueness) — see their entries below and "Open questions."
+
+**M-9** (N+1 queries / unbounded `Take`) — assessed, not fixed; see its entry below for why a cosmetic fix wasn't applied.
 
 ---
 
@@ -121,6 +145,7 @@ The codebase is in better shape than the finding count below might suggest. The 
 
 ### M-1. Shared gating middleware can misread a ClientPortal user's ID as an AgentId
 
+- **Status: Fixed in [`9f24da7`](https://github.com/bmipro/IPRO_Modern/commit/9f24da7).**
 - **Where:** `src/IPRO.Web/Program.cs:189-201`.
 - **What:** the billing-access-gate middleware reads `ClaimTypes.NameIdentifier` from `HttpContext.User` without checking which authentication scheme it came from. For a logged-in ClientPortal user, that ID is a `Client.Id`, but the code feeds it straight into an agent-billing entitlement check.
 - **Impact:** not a cross-tenant data leak — but a client whose numeric ID happens to exceed the highest real `AgentUser.Id` gets incorrectly treated as "gated" and redirected to a page requiring the agent login scheme, effectively locking legitimate clients out of the portal. Availability bug, not confidentiality/integrity.
@@ -128,65 +153,77 @@ The codebase is in better shape than the finding count below might suggest. The 
 
 ### M-2. Admin's agent-password-reset action only requires `AdminAccess`, not `SuperAdmin`
 
+- **Status: Fixed in [`a1db7ef`](https://github.com/bmipro/IPRO_Modern/commit/a1db7ef).**
 - **Where:** `src/IPRO.Admin/Controllers/AgentsController.cs:11` (class-level policy), `ResetPassword` action at 162-179.
 - **Why it matters:** every other credential/financial-config action in Admin requires the stronger `SuperAdmin` policy; this one — resetting any agent's login password — doesn't. Combined with C-1's guessable password, this meaningfully lowers the bar for account takeover via social engineering of lower-privileged support staff.
 - **Fix:** require `SuperAdmin` specifically for this action (or at minimum, fix C-1 first so this gap doesn't compound with a guessable credential).
 
 ### M-3. Changing your password never asks for your current one
 
+- **Status: Fixed in [`2f03b59`](https://github.com/bmipro/IPRO_Modern/commit/2f03b59).**
 - **Where:** `src/IPRO.Web/Controllers/AccountController.cs:623-651` (`ChangePassword(string newPassword, string confirmPassword)` — no current-password parameter at all).
 - **Why it matters:** this same action serves both the forced first-login flow (fine, no real password exists yet) and voluntary later changes (should re-verify). Anyone who gains a valid session — stolen cookie, an unattended logged-in browser — can silently change the password and lock the real owner out with no re-authentication step in the way.
 - **Fix:** require and verify the current password for voluntary changes; skip only for the forced first-time flow.
 
 ### M-4. Admin login form is missing CSRF protection
 
+- **Status: Fixed in [`42ce429`](https://github.com/bmipro/IPRO_Modern/commit/42ce429).**
 - **Where:** `src/IPRO.Admin/Controllers/AdminController.cs:29-30`.
 - **What:** the one gap in an otherwise near-universal `[ValidateAntiForgeryToken]` pattern (140+ POST actions checked across both apps) — agent login and client login both have it, admin login doesn't.
 - **Fix:** add `[ValidateAntiForgeryToken]` to match the other two login actions.
 
 ### M-5. IPRO.Admin has none of IPRO.Web's security response headers
 
+- **Status: Fixed in [`3e376e8`](https://github.com/bmipro/IPRO_Modern/commit/3e376e8) — a dedicated middleware scoped to Admin's actual CDN/frame footprint, not a shared one with Web's broader CSP.**
 - **Where:** `src/IPRO.Web/Middleware/SecurityHeadersMiddleware.cs` (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CSP) is wired up in `IPRO.Web/Program.cs:124`; no equivalent call exists anywhere in `IPRO.Admin/Program.cs`.
 - **Why it matters:** Admin is the SuperAdmin panel — billing rules, admin-user management, audit log. Missing clickjacking/MIME-sniffing protection there is a narrower but real gap.
 - **Fix:** share `SecurityHeadersMiddleware` between both projects and call `UseSecurityHeaders()` in Admin too.
 
 ### M-6. Content-Security-Policy allows `'unsafe-inline'` scripts
 
+- **Status: Deferred, not attempted.** A CSP directive is all-or-nothing per response — dropping `'unsafe-inline'` while only some scripts have nonces breaks every un-migrated page, not just the risky ones. Checked the actual scope before starting: 28 view files across both apps have inline `<script>` blocks. Fixing this properly (nonce-per-request, tagging all 28) is a dedicated pass, not a same-night fix alongside everything else here.
 - **Where:** `src/IPRO.Web/Middleware/SecurityHeadersMiddleware.cs:43-51`.
 - **What:** the rest of the policy is reasonably scoped (named CDN allowlist, `connect-src 'self'`, `frame-ancestors 'self'`) but `'unsafe-inline'` on `script-src`/`style-src` substantially weakens CSP as an XSS backstop, since inline `<script>` is the most common injection payload shape. Also missing (informational): `base-uri 'self'`, `form-action 'self'`.
 - **Fix:** move inline scripts/styles to external files or nonces/hashes and drop `'unsafe-inline'` from `script-src` at minimum.
 
 ### M-7. Promo and trial invite codes have no per-agent redemption uniqueness
 
+- **Status: Deferred — needs your call, not a unilateral fix.** How strict should this be? A simple "one redemption per agent" check is cheap; requiring verified-email before a redemption counts is a bigger change. Still open in the "Open questions" section below.
 - **Where:** `src/IPRO.Billing/PayPalBillingService.cs`, `ValidatePromotionCodeAsync` (1801-1813); `src/IPRO.Web/Controllers/AccountController.cs`, `ResolveTrialInviteAsync` (314-329).
 - **What:** neither checks redemption history for the *requesting agent* — only whether the code overall is still active/unexpired/under its max-redemption count. An agent can cancel and resubscribe with the same promo code repeatedly (bounded only by `MaxRedemptions`, which can be unlimited), and the registration "verification code" is a visible anti-bot check, not a proof of email ownership — so the same person can register multiple accounts with different email strings and redeem a capped trial code more times than intended.
 - **Fix:** check for an existing redemption by the requesting agent before allowing another, and/or require a verified email step before a redemption counts.
 
 ### M-8. Redemption-count increments have a race condition
 
+- **Status: Fixed in [`5c9234b`](https://github.com/bmipro/IPRO_Modern/commit/5c9234b) — EF Core's `ExecuteUpdateAsync` (an atomic conditional UPDATE evaluated by the database at write time) rather than a schema-adding concurrency token.**
 - **Where:** `PayPalBillingService.cs:1937` (`promo.RedemptionCount++`) and `AccountController.cs:280` (`trialInvite.RedemptionCount++`) — both plain read-modify-write with no concurrency token on either entity.
 - **Why it matters:** two concurrent redemptions near the last available slot can both pass the `RedemptionCount < MaxRedemptions` check before either write lands, allowing one more redemption than configured. Narrow, bounded impact (a handful of extra free redemptions at most), but a real gap independently flagged from two different angles during this audit.
 - **Fix:** use an atomic conditional update (`UPDATE ... SET RedemptionCount = RedemptionCount + 1 WHERE RedemptionCount < MaxRedemptions`, checking rows-affected) or add an EF concurrency token.
 
 ### M-9. N+1 query patterns in scheduled jobs and entitlement checks
 
+- **Status: Deferred, not attempted.** Assessed both sub-issues rather than doing a cosmetic partial fix: the N+1 batching is a genuine multi-file refactor (`AiDailyDigestJob`, `PackageEntitlementService`, two Admin controllers), not urgent since it's "fine today, slower as it scales." The unbounded-`Take` starvation risk in `ClientLifeEventReminderJob` specifically needs a schema change (a `LastCheckedAt` column, mirroring `DomainAutomationJob`'s already-correct pattern) to actually fix — ordering by `Id` alone would just make the same starvation deterministic instead of solving it, so that wasn't done as a stand-in.
 - **Where:** `AiDailyDigestJob.cs` (5-6 queries per agent per day), `PackageEntitlementService.HasAccessAsync`/`GetAccessAsync` (2-4 queries per call, called once per loop iteration inside `ClientLifeEventReminderJob` and `AiDailyDigestJob`), `AgentsController.DeleteAgentOwnedDataAsync` (Admin — per-client/newsletter/campaign queries when deleting an agent), `TaxRatesController` (per-row lookups, low impact given ~13 rows).
 - **Why it matters:** cost scales linearly with agent/client count; fine today, will get slower as the platform grows. Also: `ClientLifeEventReminderJob.cs:29,61` and a few similar jobs use `Take(500)`/`Take(200)`/`Take(100)` with **no `OrderBy`** — if the matching row count ever exceeds the cap, whichever rows the DB happens to return first get processed every single day and rows beyond the cutoff never get evaluated, with no rotation. `DomainAutomationJob.cs:28-29` already does this correctly (`OrderBy(d => d.LastCheckedAt ?? d.CreatedAt).Take(50)`) — that pattern should be applied to the others.
 - **Fix:** batch the N+1 queries with `.Where(x => idList.Contains(...))`; add `OrderBy` to every unbounded `Take()`.
 
 ### M-10. Exact-equality day math means a missed cron run permanently skips a notification
 
+- **Status: Fixed in [`8d930b4`](https://github.com/bmipro/IPRO_Modern/commit/8d930b4).**
 - **Where:** `TrialReminderJob.cs:65,69` (one-time "trial ended"/"grace ended" emails, `daysRemaining == 0` / `-daysRemaining == graceDays`); `ClientLifeEventReminderJob.cs:38,72` (life-event and birthday reminders, `!= today`).
 - **Why it matters:** unlike the offset-based trial reminders just above them (which correctly use `<=` plus a persisted sent-count, so a missed run self-heals), these use exact equality with no catch-up. A deploy window, transient crash, or Hangfire downtime on the exact day silently and permanently skips that one notification — no retry, nothing logged as unusual. Confirmed this does **not** affect actual trial access enforcement (`IsAccessGatedAsync` recomputes the real cutoff on every request independently) — this is a support-ticket risk, not a billing-bypass.
 - **Fix:** replace exact-equality checks with a `<=`/range check plus a persisted "already notified this cycle" marker, matching the pattern already used correctly for the offset-based reminders.
 
 ### M-11. Calendar reminder job has no per-item isolation and logs success even when a send fails
 
+- **Status: Fixed in [`d3771df`](https://github.com/bmipro/IPRO_Modern/commit/d3771df).**
 - **Where:** `src/IPRO.Scheduler/CalendarReminderJob.cs:24-32`.
 - **What:** no try/catch around the per-event loop (and because the query window is `StartDate` between now and +1 hour, a crash partway through *permanently* drops the remaining reminders in that batch, not just delays them — by the next hourly run they've already fallen out of the window). Separately, the loop discards `_email.SendAsync`'s boolean result and unconditionally logs "Reminder sent" regardless of whether it actually was.
 - **Fix:** add try/catch per event; check the send result before logging success.
 
 ### M-12. Domain automation job has no per-item isolation and no logger at all
+
+- **Status: Fixed in [`0ab8ba6`](https://github.com/bmipro/IPRO_Modern/commit/0ab8ba6).**
 
 - **Where:** `src/IPRO.Scheduler/DomainAutomationJob.cs:32-35`.
 - **What:** no try/catch around the per-domain loop, and the class has no `ILogger` injected. Partly mitigated because the underlying `DomainCheckService` is itself defensively coded internally, but any exception path not already covered there would silently starve every other agent's domain/SSL automation behind the failing one, every 5 minutes, with no diagnostic trail.
@@ -254,6 +291,8 @@ Noted briefly so the findings above aren't mistaken for the whole picture:
 
 ## Open questions for discussion
 
-- **H-7** (downgrade doesn't cancel PayPal subscription) — worth a one-time check of current billing data to see if any agent has actually hit this, separate from fixing the code path.
+- **H-7** (downgrade doesn't cancel PayPal subscription) — worth a one-time check of current billing data to see if any agent has actually hit this, separate from fixing the code path. Also needs a product decision on how the new (downgraded) package should actually get billed going forward.
 - **M-7** (promo/trial redemption uniqueness) — how strict should this be? A verified-email requirement is a bigger change than a simple "one redemption per agent" check.
-- Prioritization and timing for the rest of the list above.
+- **M-6** (CSP `unsafe-inline`) — worth scheduling as its own pass (28 view files) rather than folding into a future "medium fixes" batch.
+- **M-9** (N+1 queries / unbounded `Take`) — low priority; revisit if the platform's agent/client counts grow enough to matter.
+- Prioritization and timing for the Low/Informational findings and the dependency-vulnerability table, still untouched.
