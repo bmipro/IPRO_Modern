@@ -1114,6 +1114,11 @@ public class PayPalBillingService : IBillingService
                 b.AgentUserId == userId && b.Status == BillingStatus.Active);
             foreach (var subscription in activeSubscriptions)
             {
+                if (!string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId))
+                {
+                    await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by a scheduled IPRO package downgrade.");
+                }
+
                 subscription.Status = BillingStatus.Cancelled;
                 subscription.CancelledAt = now;
                 _uow.Billings.Update(subscription);
