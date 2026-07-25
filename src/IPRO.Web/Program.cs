@@ -208,7 +208,8 @@ app.Use(async (context, next) =>
     // working the moment the grace period lapses, not just at the next login.
     var canUseBilling = path.StartsWith("/Billing", StringComparison.OrdinalIgnoreCase);
     var canLoginOrLogout = path.StartsWith("/Account/Login", StringComparison.OrdinalIgnoreCase) || canLogout;
-    if (isAuthenticated && !mustChangePassword && !canUseBilling && !canLoginOrLogout)
+    var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
+    if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout)
     {
         var idClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (int.TryParse(idClaim, out var gateAgentId))
