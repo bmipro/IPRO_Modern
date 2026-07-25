@@ -159,7 +159,7 @@ public class AgentsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
+    [HttpPost, ValidateAntiForgeryToken, Authorize(Policy = "SuperAdmin")]
     public async Task<IActionResult> ResetPassword(int id)
     {
         var agent = await _agents.GetByIdAsync(id);
