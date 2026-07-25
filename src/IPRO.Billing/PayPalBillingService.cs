@@ -102,7 +102,7 @@ public class PayPalBillingService : IBillingService
             await CancelPendingChangesAsync(userId);
 
             var agent = await _uow.AgentUsers.GetByIdAsync(userId);
-            var promo = await ValidatePromotionCodeAsync(agent?.PromotionCode, requestedPackage.Id);
+            var promo = await ValidatePromotionCodeAsync(agent?.PromotionCode, requestedPackage.Id, userId);
 
             decimal? overrideAmount = null;
             string? overridePlanId = null;
@@ -1807,7 +1807,7 @@ public class PayPalBillingService : IBillingService
         return document.RootElement.GetProperty("id").GetString() ?? string.Empty;
     }
 
-    public async Task<PromotionCode?> ValidatePromotionCodeAsync(string? code, int billingRuleId)
+    public async Task<PromotionCode?> ValidatePromotionCodeAsync(string? code, int billingRuleId, int? agentId = null)
     {
         code = code?.Trim();
         if (string.IsNullOrWhiteSpace(code)) return null;
@@ -1817,6 +1817,17 @@ public class PayPalBillingService : IBillingService
         if (promo.ExpiresAt.HasValue && promo.ExpiresAt.Value < DateTime.UtcNow) return null;
         if (promo.MaxRedemptions.HasValue && promo.RedemptionCount >= promo.MaxRedemptions.Value) return null;
         if (promo.RecurringDiscountType != PromoDiscountType.None && promo.RestrictedBillingRuleId != billingRuleId) return null;
+
+        // Per-agent redemption uniqueness: only checkable when there's an existing agent to check
+        // against (an existing agent choosing to (re)subscribe) -- registration-time validation
+        // calls this with no agentId, since the account doesn't exist yet. Stops an agent from
+        // cancelling and resubscribing with the same promo code repeatedly.
+        if (agentId.HasValue)
+        {
+            var alreadyRedeemed = await _uow.PromotionCodeRedemptions.FirstOrDefaultAsync(r =>
+                r.PromotionCodeId == promo.Id && r.AgentUserId == agentId.Value);
+            if (alreadyRedeemed != null) return null;
+        }
 
         return promo;
     }
