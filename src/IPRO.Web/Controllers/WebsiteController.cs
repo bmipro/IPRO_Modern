@@ -48,6 +48,7 @@ public class WebsiteController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    [RequestSizeLimit(8 * 1024 * 1024)]
     public async Task<IActionResult> Save(AgentWebsite model, IFormFile? logo, bool applyTemplateDefaults = false)
     {
         var gate = await RequireWebsiteAccessAsync();
@@ -68,8 +69,37 @@ public class WebsiteController : Controller
         }
         if (logo != null && logo.Length > 0)
         {
-            using var s = logo.OpenReadStream();
-            model.LogoUrl = await _blob.UploadAsync(s, logo.FileName, "agent-logos", logo.ContentType, isPrivate: false);
+            if (logo.Length > 8 * 1024 * 1024)
+            {
+                TempData["Error"] = "Logo images must be 8 MB or smaller.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var logoExtension = Path.GetExtension(logo.FileName).ToLowerInvariant();
+            var expectedLogoContentType = logoExtension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                _ => string.Empty
+            };
+            if (string.IsNullOrEmpty(expectedLogoContentType) ||
+                !string.Equals(logo.ContentType, expectedLogoContentType, StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed for your logo.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            await using var logoStream = logo.OpenReadStream();
+            if (!await HasValidImageSignatureAsync(logoStream, logoExtension))
+            {
+                TempData["Error"] = "That file does not contain a valid supported image.";
+                return RedirectToAction(nameof(Index));
+            }
+            logoStream.Position = 0;
+
+            model.LogoUrl = await _blob.UploadAsync(logoStream, logo.FileName, "agent-logos", expectedLogoContentType, isPrivate: false);
         }
 
         model.CustomDomain = NormalizeDomain(model.CustomDomain);
@@ -565,5 +595,20 @@ public class WebsiteController : Controller
             .Trim();
 
         return string.IsNullOrWhiteSpace(fullName) ? agent.CompanyName : fullName;
+    }
+
+    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
+    {
+        var header = new byte[12];
+        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
+        if (read < 6) return false;
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
+            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
+            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
+            _ => false
+        };
     }
 }
