@@ -76,6 +76,16 @@ builder.Services.AddAuthorization(o =>
 // ── Rate Limiting ─────────────────────────────────────────
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+// AspNetCoreRateLimit's IpRateLimitOptions.RealIpHeader defaults to "X-Real-IP" INSIDE THE LIBRARY
+// ITSELF - removing the appsettings.json key that used to override it does NOT clear this, since
+// config binding only overwrites keys present in the JSON. With it still set, RegisterResolvers()
+// adds a header-based IP resolver ahead of the connection-based one, and the client-supplied
+// X-Real-IP header (not X-Forwarded-For, and never touched by UseForwardedHeaders) wins every time
+// with zero trust/origin validation - a complete rate-limit bypass (H-1's original bug, security
+// audit 2026-07-24). Forcing it null here makes RegisterResolvers() skip the header resolver
+// entirely and fall through to the connection-based one, which the ForwardedHeaders configuration
+// below has already made trustworthy.
+builder.Services.PostConfigure<IpRateLimitOptions>(o => o.RealIpHeader = null);
 builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
 builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
