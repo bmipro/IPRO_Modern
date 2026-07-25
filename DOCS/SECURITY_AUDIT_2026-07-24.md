@@ -19,7 +19,7 @@ The codebase is in better shape than the finding count below might suggest. The 
 
 Every Critical and High finding has been fixed except one deliberately-incomplete item (H-7) that needs a product decision rather than a unilateral implementation choice. **All 12 Medium findings are now fixed**, including the two initially deferred pending further scoping or a product decision (M-6's CSP nonce migration across 28 view files, and M-7's per-agent redemption check).
 
-Low/Informational findings and the dependency-vulnerability table are still queued for us to review together — nothing there has been changed.
+**All 15 Low/Informational findings and the dependency-vulnerability table are also now resolved** (13 fixed, 2 reviewed and confirmed to need no code change) — see their sections below for commit links. One dependency (AngleSharp, Moderate) is deliberately left unpatched due to a hard version pin from `HtmlSanitizer`; see the dependency table for why. H-7's product decision is still the only open item from the entire audit.
 
 ### Fixed — Critical
 
@@ -229,42 +229,47 @@ Low/Informational findings and the dependency-vulnerability table are still queu
 
 ## Low / Informational
 
-- **L-1.** `PollsController.cs:221-225` — sending a poll can display another agent's `ClientCategory` *name* in the audience-label banner if the category ID is edited in the request (the recipient list itself stays correctly tenant-scoped — only the category name string leaks). The sibling Newsletter feature does this correctly (`NewsLetterService.cs:352-361`); Polls is missing the same `category.AgentUserId == agentId` check.
-- **L-2.** `AccountController.cs:76-107` — `ForgotPassword` awaits the outbound email send only on the "account exists" branch, creating a measurable timing difference that enables user enumeration despite an identical response body. Fix: fire the email send without awaiting it inline.
-- **L-3.** `Client.PortalInviteToken` (`ClientsController.cs:129`) has no expiry, unlike the agent password-reset token (1-hour expiry). High entropy (GUID) so not guessable, but an old invite sitting in a compromised/forwarded inbox stays valid indefinitely.
-- **L-4.** `POST /ClientPortalAccount/Login` has no dedicated rate-limit rule, unlike agent and admin login — only the generic 120/min catch-all applies.
-- **L-5.** The trial-lockout gate's path check (`Program.cs:187`) is a prefix match (`path.StartsWith("/Billing")`), not a segment match — harmless today (no colliding route exists) but would silently bypass the gate if a future route like `/BillingHistory` were ever added.
-- **L-6.** Admin's newsletter *template* HTML body (`NewsletterTemplates/Edit.cshtml:43`) is unsanitized like H-3/H-4, but only SuperAdmins can author these — same fix, lower urgency.
-- **L-7.** `ClientsController.ImportCsv` (697-711) has no server-side file-size limit (client-side only exposure — the file is parsed, never stored/served back).
-- **L-8.** `src/IPRO.Utility/EncryptionService.cs:8-16` — a dead `HashPassword`/`VerifyPassword` pair using plain SHA-256 with one hardcoded global salt. Confirmed unused anywhere in the codebase (real auth uses ASP.NET Identity's `PasswordHasher<T>` throughout) — should be deleted so it can't be wired up by mistake later.
-- **L-9.** `IPRO.Web/Program.cs:120` points its production exception handler at `/Home/Error`, but no `HomeController` or matching view exists anywhere in the project. Doesn't leak stack traces (the real Developer Exception Page is correctly gated to Development only), but an unhandled Production exception currently shows no deliberate error page. Admin's own `Error()` action (`AdminController.cs:113-124`) is a good pattern to copy.
-- **L-10.** A root-level `IPRO_Modern.csproj` (not referenced by `IPRO.sln` at all) and an unused `EntityFrameworkCore.SqlServer` package reference on `IPRO.DataAccess` appear to be leftover scaffolding — no `.UseSqlServer(...)` call exists anywhere; both apps use MySQL exclusively. Removing both is pure hygiene and also drops one of the High-severity transitive dependency advisories below for free.
-- **L-11.** `src/IPRO.Web/Controllers/BillingController.cs.bkup` — a stray backup of an old controller version whose webhook handler had no signature verification at all. Not a `.cs` file so it doesn't compile/run, but should be deleted so it's never mistaken for live code.
-- **L-12.** `ClientInvoiceService.GenerateDocumentNumberAsync` (45-64) picks the next invoice number by checking existing numbers with no DB-level unique constraint on `(AgentUserId, DocumentNumber)` — two near-simultaneous invoice creations for the same agent could produce a duplicate number. Cosmetic/bookkeeping impact only.
-- **L-13.** `src/IPRO.Billing/BillingService.cs` — a complete, entirely unused class that shares a confusing name with the real `PayPalBillingService`/`IBillingService`. Appears to be a superseded early draft; worth deleting to remove the "which one is live" trap for a future reader.
-- **L-14.** Two EF migrations (`20260711143000_RepairWebsiteTemplateColumns.cs:52`, `20260711010200_AddWebsiteTemplateManagement.cs:99`) build DDL via C# string interpolation with manual quote-escaping instead of parameterization. Every call site today passes a hardcoded literal, so it's not currently exploitable — flagged only because it's an easy pattern to copy-paste into a future call site with real input.
-- **L-15.** A few `.cshtml` files interpolate admin-configured package/billing copy directly into HTML attributes (`data-upgrade-title="..."`) before `Html.Raw`-ing the containing element. Source is always admin-authored text, not agent/public input, so no realistic exploitation path was found — noted for completeness only.
+All fixed in three commits on 2026-07-25: [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b) (L-1–L-9, L-12), [`0cb0f6d`](https://github.com/bmipro/IPRO_Modern/commit/0cb0f6d) (L-8, L-10, L-11, L-13), except L-14/L-15 which were reviewed and needed no code change (see their entries).
+
+- **L-1.** ~~`PollsController.cs:221-225` — sending a poll can display another agent's `ClientCategory` *name* in the audience-label banner if the category ID is edited in the request (the recipient list itself stays correctly tenant-scoped — only the category name string leaks). The sibling Newsletter feature does this correctly (`NewsLetterService.cs:352-361`); Polls is missing the same `category.AgentUserId == agentId` check.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — added the same check.
+- **L-2.** ~~`AccountController.cs:76-107` — `ForgotPassword` awaits the outbound email send only on the "account exists" branch, creating a measurable timing difference that enables user enumeration despite an identical response body.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — the send now runs on a background task (its own DI scope, via `IServiceScopeFactory`) so response time no longer depends on whether the account exists.
+- **L-3.** ~~`Client.PortalInviteToken` (`ClientsController.cs:129`) has no expiry, unlike the agent password-reset token (1-hour expiry).~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — added `PortalInviteTokenExpiresAt` (7-day default on new invites; `null` treated as non-expiring so already-issued invites aren't retroactively broken).
+- **L-4.** ~~`POST /ClientPortalAccount/Login` has no dedicated rate-limit rule, unlike agent and admin login.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — added a matching 10/5min rule.
+- **L-5.** ~~The trial-lockout gate's path check (`Program.cs:187`) is a prefix match (`path.StartsWith("/Billing")`), not a segment match.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — switched to `Path.StartsWithSegments`.
+- **L-6.** ~~Admin's newsletter *template* HTML body (`NewsletterTemplates/Edit.cshtml:43`) is unsanitized like H-3/H-4.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — same `HtmlContentSanitizer` call H-3/H-4 already uses.
+- **L-7.** ~~`ClientsController.ImportCsv` (697-711) has no server-side file-size limit.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — added a 20MB cap, matching the limit already used elsewhere in the same controller.
+- **L-8.** ~~`src/IPRO.Utility/EncryptionService.cs:8-16` — a dead `HashPassword`/`VerifyPassword` pair using plain SHA-256 with one hardcoded global salt.~~ **Fixed in [`0cb0f6d`](https://github.com/bmipro/IPRO_Modern/commit/0cb0f6d)** — deleted.
+- **L-9.** ~~`IPRO.Web/Program.cs:120` points its production exception handler at `/Home/Error`, but no `HomeController` or matching view exists anywhere in the project.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — added a minimal, layout-independent `HomeController.Error()` + view. Deliberately never shows exception details (unlike Admin's equivalent): every authenticated Web user is a paying agent or client, not IPRO staff, so there's no elevated role to gate diagnostics behind.
+- **L-10.** ~~A root-level `IPRO_Modern.csproj` (not referenced by `IPRO.sln` at all) and an unused `EntityFrameworkCore.SqlServer` package reference on `IPRO.DataAccess` appear to be leftover scaffolding.~~ **Fixed in [`0cb0f6d`](https://github.com/bmipro/IPRO_Modern/commit/0cb0f6d)** — both deleted; this also removed the Microsoft.Data.SqlClient/Newtonsoft.Json/Azure.Identity/IdentityModel advisories below entirely.
+- **L-11.** ~~`src/IPRO.Web/Controllers/BillingController.cs.bkup` — a stray backup of an old controller version whose webhook handler had no signature verification at all.~~ **Fixed in [`0cb0f6d`](https://github.com/bmipro/IPRO_Modern/commit/0cb0f6d)** — deleted.
+- **L-12.** ~~`ClientInvoiceService.GenerateDocumentNumberAsync` (45-64) picks the next invoice number with no DB-level unique constraint on `(AgentUserId, DocumentNumber)`.~~ **Fixed in [`15fbe8b`](https://github.com/bmipro/IPRO_Modern/commit/15fbe8b)** — added a unique index in both apps' schema repair. Creation is skipped (not failed) if pre-existing duplicate data would violate it, so a bad historical row can't crash app startup.
+- **L-13.** ~~`src/IPRO.Billing/BillingService.cs` — a complete, entirely unused class that shares a confusing name with the real `PayPalBillingService`/`IBillingService`.~~ **Fixed in [`0cb0f6d`](https://github.com/bmipro/IPRO_Modern/commit/0cb0f6d)** — deleted.
+- **L-14.** **Reviewed, no code change.** Two EF migrations (`20260711143000_RepairWebsiteTemplateColumns.cs:52`, `20260711010200_AddWebsiteTemplateManagement.cs:99`) build DDL via C# string interpolation with manual quote-escaping instead of parameterization. Every call site today passes a hardcoded literal, so it's not currently exploitable, and these are already-applied historical migrations — editing them retroactively fixes nothing real. Flagged only as a pattern to avoid copy-pasting into a future call site with real input.
+- **L-15.** **Reviewed, no code change.** A few `.cshtml` files interpolate admin-configured package/billing copy directly into HTML attributes (`data-upgrade-title="..."`) before `Html.Raw`-ing the containing element. Source is always admin-authored text, not agent/public input — no realistic exploitation path found.
 
 ---
 
 ## Dependency vulnerabilities
 
-Live scan via `dotnet list package --vulnerable --include-transitive` against the NuGet Advisory Database. All are **transitive** (none are direct references), and several trace back to the orphaned SqlServer reference in L-10.
+- **Status: Fixed in [`538f777`](https://github.com/bmipro/IPRO_Modern/commit/538f777)**, except AngleSharp (see below).
 
-| Package (resolved) | Severity | Notes |
-|---|---|---|
-| System.Text.Json 8.0.0 | High ×2 | Directly and heavily used (PayPal/Anthropic API response parsing) — most concretely reachable of this list |
-| System.Security.Cryptography.Xml 8.0.0/4.5.0 | High ×6, Moderate | Pulled in transitively; app doesn't process untrusted XML — low direct exposure |
-| Microsoft.Data.SqlClient 5.1.1 | High | Traces back to the unused `EntityFrameworkCore.SqlServer` reference (see L-10) — removing that reference likely removes this entirely |
-| System.Formats.Asn1 8.0.0/5.0.0 | High | ASN.1 parsing DoS, transitive |
-| Newtonsoft.Json 11.0.1 | High | Quite outdated (current major is 13.x) |
-| Azure.Identity 1.7.0 | High, Moderate ×2 | Credential-handling advisories |
-| Microsoft.Extensions.Caching.Memory 8.0.0 | High | DoS via unbounded cache growth; `AddMemoryCache()` and rate-limit counters are actively used, so plausibly reachable |
-| Microsoft.IdentityModel.JsonWebTokens / System.IdentityModel.Tokens.Jwt 6.24.0 | Moderate | Via Azure SDK; app doesn't accept externally-supplied JWTs — low direct exposure |
+Original live scan via `dotnet list package --vulnerable --include-transitive` against the NuGet Advisory Database. All were **transitive** (none direct references), and several traced back to the orphaned SqlServer reference in L-10.
 
-**Fix:** `Directory.Packages.props` already uses Central Package Management with transitive pinning enabled — adding explicit `<PackageVersion>` entries at current patched versions in that one file flows the fix to every project.
+| Package (resolved) | Severity | Notes | Resolution |
+|---|---|---|---|
+| System.Text.Json 8.0.0 | High ×2 | Directly and heavily used (PayPal/Anthropic API response parsing) | Pinned to 8.0.6 |
+| System.Security.Cryptography.Xml 8.0.0/4.5.0 | High ×6, Moderate | Pulled in transitively; app doesn't process untrusted XML | Pinned to 8.0.4 |
+| Microsoft.Data.SqlClient 5.1.1 | High | Traced back to the unused `EntityFrameworkCore.SqlServer` reference | Gone entirely once L-10 removed that reference |
+| System.Formats.Asn1 8.0.0/5.0.0 | High | ASN.1 parsing DoS, transitive | Pinned to 8.0.2 |
+| Newtonsoft.Json 11.0.1 | High | Quite outdated (current major is 13.x) | Gone entirely once L-10 removed the SqlServer reference |
+| Azure.Identity 1.7.0 | High, Moderate ×2 | Credential-handling advisories | Gone entirely once L-10 removed the SqlServer reference |
+| Microsoft.Extensions.Caching.Memory 8.0.0 | High | DoS via unbounded cache growth; `AddMemoryCache()` and rate-limit counters are actively used | Pinned to 8.0.1 (pulled in a matching bump to `Microsoft.Extensions.Logging.Abstractions` 8.0.3 and `Microsoft.Extensions.Options` 8.0.2 to satisfy its own updated dependency range) |
+| Microsoft.IdentityModel.JsonWebTokens / System.IdentityModel.Tokens.Jwt 6.24.0 | Moderate | Via Azure SDK; app doesn't accept externally-supplied JWTs | Gone entirely once L-10 removed the SqlServer reference |
+| AngleSharp 0.17.1 | Moderate | New since the original scan — pulled in by `HtmlSanitizer` (H-3/H-4's fix) | **Not fixed, deliberately.** `HtmlSanitizer` 9.0.967 (its own latest release) exact-pins AngleSharp to `[0.17.1]`; forcing a newer AngleSharp via central transitive pinning would break the H-3/H-4 sanitizer fix. Revisit once HtmlSanitizer ships a version compatible with a patched AngleSharp. |
 
-**Also noted:** all projects target `net8.0`, which is in Maintenance support until **November 10, 2026** (~3.5 months out) — not urgent, but worth planning a move to .NET 10 (current LTS) before then.
+Verified via a fresh `dotnet list package --vulnerable --include-transitive` against both apps post-fix — only the AngleSharp entry remains.
+
+**Also noted:** all projects target `net8.0`, which is in Maintenance support until **November 10, 2026** — not urgent, but worth planning a move to .NET 10 (current LTS) before then.
 
 ---
 
@@ -287,8 +292,7 @@ Noted briefly so the findings above aren't mistaken for the whole picture:
 
 ## Open questions for discussion
 
-- **H-7** (downgrade doesn't cancel PayPal subscription) — worth a one-time check of current billing data to see if any agent has actually hit this, separate from fixing the code path. Also needs a product decision on how the new (downgraded) package should actually get billed going forward.
-- Prioritization and timing for the Low/Informational findings and the dependency-vulnerability table, still untouched.
+- **H-7** (downgrade doesn't cancel PayPal subscription) — worth a one-time check of current billing data to see if any agent has actually hit this, separate from fixing the code path. Also needs a product decision on how the new (downgraded) package should actually get billed going forward. **The only open item left in this entire audit.**
 
 ---
 
