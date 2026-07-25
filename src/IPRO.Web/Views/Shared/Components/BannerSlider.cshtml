@@ -31,11 +31,11 @@
     </div>
     @if (Model.Count() > 1)
     {
-        <button class="slider-nav prev" onclick="iproSlider.prev()">&#10094;</button>
-        <button class="slider-nav next" onclick="iproSlider.next()">&#10095;</button>
+        <button class="slider-nav prev">&#10094;</button>
+        <button class="slider-nav next">&#10095;</button>
         <div class="slider-dots">
             @for (int d = 0; d < Model.Count(); d++)
-            { <span class="dot @(d == 0 ? "active" : "")" onclick="iproSlider.goTo(@d)"></span> }
+            { <span class="dot @(d == 0 ? "active" : "")" data-goto="@d"></span> }
         </div>
     }
 </div>
@@ -73,4 +73,9 @@ const iproSlider = (() => {
     start();
     return { prev: () => { show(current - 1); reset(); }, next: () => { show(current + 1); reset(); }, goTo: (n) => { show(n); reset(); } };
 })();
+document.querySelector('#iproBannerSlider .slider-nav.prev')?.addEventListener('click', () => iproSlider.prev());
+document.querySelector('#iproBannerSlider .slider-nav.next')?.addEventListener('click', () => iproSlider.next());
+document.querySelectorAll('#iproBannerSlider .dot').forEach(dot => {
+    dot.addEventListener('click', () => iproSlider.goTo(Number(dot.dataset.goto)));
+});
 </script>

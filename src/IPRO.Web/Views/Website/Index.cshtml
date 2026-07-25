@@ -344,7 +344,7 @@
 
           <div class="d-flex gap-2 mt-4">
             <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i>Save Website Settings</button>
-            <button type="submit" name="applyTemplateDefaults" value="true" class="btn btn-outline-secondary btn-lg" onclick="return confirm('Replace your theme color, font, background, button style, section spacing, and hero style with this template\'s suggested defaults?');"><i class="fas fa-rotate-left me-2"></i>Reset to Template Defaults</button>
+            <button type="submit" name="applyTemplateDefaults" value="true" class="btn btn-outline-secondary btn-lg js-confirm-submit" data-confirm-message="Replace your theme color, font, background, button style, section spacing, and hero style with this template's suggested defaults?"><i class="fas fa-rotate-left me-2"></i>Reset to Template Defaults</button>
             @if (!isPublished)
             {
               <button type="submit" formaction="/Website/Publish" formmethod="post" formnovalidate class="btn btn-success btn-lg"><i class="fas fa-rocket me-2"></i>Publish</button>

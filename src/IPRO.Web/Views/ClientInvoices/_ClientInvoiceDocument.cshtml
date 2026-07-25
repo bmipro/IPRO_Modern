@@ -159,7 +159,7 @@
         <a class="btn" href="/ClientInvoices/Edit/@Model.Id">Edit</a>
       }
     }
-    <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+    <button id="printDocumentButton" class="btn btn-primary">Print / Save PDF</button>
   </div>
 
   @if (!isPublicView)
@@ -204,9 +204,9 @@
           </form>
           @if (Model.Status is not (IPRO.Entities.ClientInvoiceStatus.Paid or IPRO.Entities.ClientInvoiceStatus.Void))
           {
-            <form method="post" action="/ClientInvoices/Void/@Model.Id" onclick="return confirm('Void this document?');">
+            <form method="post" action="/ClientInvoices/Void/@Model.Id">
               @Html.AntiForgeryToken()
-              <button type="submit" class="btn btn-danger">Void</button>
+              <button type="submit" class="btn btn-danger js-confirm-submit" data-confirm-message="Void this document?">Void</button>
             </form>
           }
         </div>
@@ -351,5 +351,8 @@
       </div>
     </section>
   </main>
+  <script nonce="@Context.GetCspNonce()">
+document.getElementById('printDocumentButton')?.addEventListener('click', () => window.print());
+  </script>
 </body>
 </html>

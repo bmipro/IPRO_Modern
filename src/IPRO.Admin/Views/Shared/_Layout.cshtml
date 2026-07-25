@@ -218,6 +218,35 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script nonce="@Context.GetCspNonce()">
+// Shared confirm-before-submit for any button with class="js-confirm-submit" and a
+// data-confirm-message attribute - replaces inline onclick="return confirm(...)" handlers, which
+// CSP's script-src silently drops as of the M-6 nonce migration (nonces only cover <script>
+// elements, not inline event-handler attributes).
+document.addEventListener('submit', event => {
+    const submitter = event.submitter;
+    if (submitter && submitter.classList.contains('js-confirm-submit')) {
+        const message = submitter.dataset.confirmMessage || 'Are you sure?';
+        if (!confirm(message)) {
+            event.preventDefault();
+        }
+    }
+});
+// Same reasoning as js-confirm-submit above: these were all inline onclick/onchange attributes
+// silently dropped by the M-6 CSP migration.
+document.querySelectorAll('.js-copy-to-clipboard').forEach(button => {
+    button.addEventListener('click', () => {
+        const input = button.closest('.input-group')?.querySelector('input');
+        if (input) navigator.clipboard.writeText(input.value);
+    });
+});
+document.querySelectorAll('.js-select-on-click').forEach(input => {
+    input.addEventListener('click', () => input.select());
+});
+document.querySelectorAll('.js-auto-submit').forEach(el => {
+    el.addEventListener('change', () => el.form?.submit());
+});
+</script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

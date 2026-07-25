@@ -349,7 +349,7 @@
 <body>
   <div class="toolbar">
     <a class="btn" href="/Billing">Back to Billing</a>
-    <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+    <button id="printButton" class="btn btn-primary">Print / Save PDF</button>
   </div>
 
   <main class="invoice">
@@ -470,5 +470,8 @@
       </div>
     </section>
   </main>
+  <script nonce="@Context.GetCspNonce()">
+document.getElementById('printButton')?.addEventListener('click', () => window.print());
+  </script>
 </body>
 </html>

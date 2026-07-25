@@ -36,8 +36,8 @@
           <td>@(packageNames.TryGetValue(code.BillingRuleId, out var name) ? name : "-")</td>
           <td>
             <div class="input-group input-group-sm" style="max-width:320px;">
-              <input type="text" class="form-control form-control-sm" value="@link" readonly onclick="this.select()"/>
-              <button type="button" class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText('@link')" title="Copy link"><i class="fas fa-copy"></i></button>
+              <input type="text" class="form-control form-control-sm js-select-on-click" value="@link" readonly/>
+              <button type="button" class="btn btn-outline-secondary js-copy-to-clipboard" title="Copy link"><i class="fas fa-copy"></i></button>
             </div>
           </td>
           <td>

@@ -52,7 +52,7 @@
           </div>
           @if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
           {
-            <button type="submit" form="removePhotoForm" class="btn btn-sm btn-outline-danger mt-2" onclick="return confirm('Remove your profile photo?');"><i class="fas fa-trash me-1"></i>Remove Photo</button>
+            <button type="submit" form="removePhotoForm" class="btn btn-sm btn-outline-danger mt-2 js-confirm-submit" data-confirm-message="Remove your profile photo?"><i class="fas fa-trash me-1"></i>Remove Photo</button>
           }
         </div>
       </div>

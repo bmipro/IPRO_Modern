@@ -128,7 +128,7 @@
                 <label class="form-label small text-uppercase text-muted fw-bold">PayPal webhook URL</label>
                 <div class="input-group mb-3">
                     <input class="form-control font-monospace small" value="@Model.ExpectedWebhookUrl" readonly />
-                    <button type="button" class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText('@Model.ExpectedWebhookUrl')">
+                    <button type="button" class="btn btn-outline-secondary js-copy-to-clipboard">
                         <i class="fas fa-copy"></i>
                     </button>
                 </div>

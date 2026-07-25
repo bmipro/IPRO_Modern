@@ -22,7 +22,7 @@
   <form method="post" action="/SupportTickets/SetStatus/@Model.Id" class="d-flex gap-2 align-items-center">
     @Html.AntiForgeryToken()
     <span class="badge @statusClass">@Model.Status</span>
-    <select name="status" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm js-auto-submit" style="width:auto">
       @foreach (var s in Enum.GetValues<IPRO.Entities.SupportTicketStatus>())
       {
         <option value="@s" selected="@(Model.Status == s)">@s</option>

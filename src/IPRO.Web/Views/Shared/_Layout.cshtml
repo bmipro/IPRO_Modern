@@ -244,6 +244,19 @@ if (sidebarToggle) {
         document.getElementById('agentSidebar')?.classList.toggle('show');
     });
 }
+// Shared confirm-before-submit for any button with class="js-confirm-submit" and a
+// data-confirm-message attribute - replaces inline onclick="return confirm(...)" handlers, which
+// CSP's script-src silently drops as of the M-6 nonce migration (nonces only cover <script>
+// elements, not inline event-handler attributes).
+document.addEventListener('submit', event => {
+    const submitter = event.submitter;
+    if (submitter && submitter.classList.contains('js-confirm-submit')) {
+        const message = submitter.dataset.confirmMessage || 'Are you sure?';
+        if (!confirm(message)) {
+            event.preventDefault();
+        }
+    }
+});
 </script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>

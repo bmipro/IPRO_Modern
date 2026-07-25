@@ -70,11 +70,11 @@
                             <a href="/Agents/Edit/@a.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-pen"></i></a>
                             <form asp-action="ResetPassword" asp-route-id="@a.Id" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-dark" title="Reset password" onclick="return confirm('Reset @a.UserName password to their last name and force password change?')"><i class="fas fa-key"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-dark js-confirm-submit" title="Reset password" data-confirm-message="Reset @a.UserName password to their last name and force password change?"><i class="fas fa-key"></i></button>
                             </form>
                             <form asp-action="Delete" asp-route-id="@a.Id" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete @a.UserName permanently? This cannot be undone.')"><i class="fas fa-trash"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" title="Delete" data-confirm-message="Delete @a.UserName permanently? This cannot be undone."><i class="fas fa-trash"></i></button>
                             </form>
                         </div>
                     </td>

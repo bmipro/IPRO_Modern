@@ -16,7 +16,7 @@
   <div class="card-body p-4">
     <form method="get" class="row g-2 mb-3">
       <div class="col-md-3">
-        <select name="status" class="form-select" onchange="this.form.submit()">
+        <select name="status" class="form-select js-auto-submit">
           @foreach (var (key, label) in new[] { ("all", "All"), ("open", "Open"), ("inprogress", "In Progress"), ("resolved", "Resolved"), ("closed", "Closed") })
           {
             <option value="@key" selected="@(status == key)">@label</option>
