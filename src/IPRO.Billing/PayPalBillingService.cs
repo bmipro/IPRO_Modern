@@ -260,9 +260,14 @@ public class PayPalBillingService : IBillingService
         }
 
         var activeSubscriptions = await _uow.Billings.FindAsync(b =>
-            b.AgentUserId == userId && b.Status == BillingStatus.Active);
+            b.AgentUserId == userId && b.Status == BillingStatus.Active && b.Id != billing.Id);
         foreach (var subscription in activeSubscriptions)
         {
+            if (!string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId))
+            {
+                await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by an upgraded IPRO subscription.");
+            }
+
             subscription.Status = BillingStatus.Cancelled;
             subscription.CancelledAt = DateTime.UtcNow;
             _uow.Billings.Update(subscription);
@@ -1005,6 +1010,10 @@ public class PayPalBillingService : IBillingService
     private async Task<BillingChangeResult> ApplyUpgradeWithoutPaymentAsync(int userId, IPRO.Entities.Billing activeSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period, decimal credit, decimal charge)
     {
         var now = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(activeSubscription.PayPalSubscriptionId))
+        {
+            await CancelPayPalSubscriptionAsync(activeSubscription.PayPalSubscriptionId, "Replaced by an upgraded IPRO subscription.");
+        }
         activeSubscription.Status = BillingStatus.Cancelled;
         activeSubscription.CancelledAt = now;
         _uow.Billings.Update(activeSubscription);
