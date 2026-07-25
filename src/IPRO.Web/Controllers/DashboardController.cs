@@ -41,11 +41,11 @@ public class DashboardController : Controller
                 stillActionable = dailyInsight.SuggestedActionType switch
                 {
                     AgentDailyInsightActionTypes.OverdueFollowUp => await _db.ClientFollowUps.AnyAsync(f =>
-                        f.Id == dailyInsight.RelatedEntityId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+                        f.Id == dailyInsight.RelatedEntityId && f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
                     AgentDailyInsightActionTypes.StaleLead => await _db.WebsiteLeads.AnyAsync(l =>
-                        l.Id == dailyInsight.RelatedEntityId && l.Status == WebsiteLeadStatuses.New),
+                        l.Id == dailyInsight.RelatedEntityId && l.AgentUserId == agentId && l.Status == WebsiteLeadStatuses.New),
                     AgentDailyInsightActionTypes.NoFollowUp => await _db.Clients.AnyAsync(c =>
-                        c.Id == dailyInsight.RelatedEntityId && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted)),
+                        c.Id == dailyInsight.RelatedEntityId && c.AgentUserId == agentId && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted)),
                     _ => true
                 };
             }
