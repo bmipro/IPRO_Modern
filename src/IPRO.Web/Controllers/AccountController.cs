@@ -58,7 +58,15 @@ public class AccountController : Controller
     public async Task<IActionResult> Login(string username, string password, bool rememberMe = false, string? returnUrl = null)
     {
         var user = await _agents.AuthenticateAsync(username, password);
-        if (user == null) { ModelState.AddModelError("", "Invalid username or password."); return View(); }
+        if (user == null)
+        {
+            // AuthenticateAsync returns immediately (skipping password-hash verification entirely)
+            // when the account doesn't exist, which is measurably faster than the wrong-password
+            // case and lets an attacker enumerate valid usernames/emails by timing. A flat delay on
+            // every failure (matching Admin's login) swamps that few-millisecond gap.
+            await Task.Delay(1500);
+            ModelState.AddModelError("", "Invalid username or password."); return View();
+        }
         var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
         await SignInAgentAsync(user, props);
         await _agents.UpdateLastLoginAsync(user.Id);

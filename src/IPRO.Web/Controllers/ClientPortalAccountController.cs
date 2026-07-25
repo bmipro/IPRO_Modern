@@ -46,6 +46,11 @@ public class ClientPortalAccountController : Controller
 
         if (matches.Count == 0)
         {
+            // When no candidate row matches the email, VerifyHashedPassword above never actually
+            // runs (LINQ short-circuits over an empty list) - measurably faster than the
+            // wrong-password case below, which lets an attacker enumerate registered client emails
+            // by timing. A flat delay on every failure swamps that gap.
+            await Task.Delay(1500);
             ModelState.AddModelError("", "Invalid email or password.");
             ViewData["ReturnUrl"] = returnUrl;
             return View();
