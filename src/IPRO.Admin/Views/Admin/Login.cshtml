@@ -21,6 +21,7 @@ body{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);min-height:100vh
         @if (!ViewData.ModelState.IsValid)
         { <div class="alert alert-danger py-2 small">@Html.ValidationSummary()</div> }
         <form asp-action="Login" method="post">
+            @Html.AntiForgeryToken()
             <div class="mb-3">
                 <label class="form-label fw-semibold small">Username</label>
                 <div class="input-group">

@@ -26,7 +26,7 @@ public class AdminController : Controller
 
     [HttpGet] public IActionResult Login() => View();
 
-    [HttpPost]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password)
     {
         var normalizedUsername = (username ?? string.Empty).Trim();
