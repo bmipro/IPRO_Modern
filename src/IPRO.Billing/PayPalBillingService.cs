@@ -1128,34 +1128,58 @@ public class PayPalBillingService : IBillingService
                 _uow.Billings.Update(subscription);
             }
 
-            var amount = GetAmount(requestedPackage, change.Period);
-            var billing = new IPRO.Entities.Billing
-            {
-                AgentUserId = userId,
-                BillingRuleId = requestedPackage.Id,
-                Amount = amount,
-                Currency = change.Currency,
-                Status = BillingStatus.Active,
-                Period = change.Period,
-                StartDate = now,
-                NextBillingDate = GetNextBillingDate(now, change.Period),
-                CreatedAt = now
-            };
-
-            await _uow.Billings.AddAsync(billing);
-            await _uow.SaveChangesAsync();
-
-            change.BillingId = billing.Id;
+            // The old (higher-priced) subscription is genuinely cancelled above. The new,
+            // downgraded package is deliberately NOT auto-activated here: PayPal has no way to
+            // create a new subscription without the buyer re-approving on PayPal's own page, so
+            // marking a Billing row Active with no real PayPal linkage would grant free permanent
+            // access to the lower tier - this is the exact bug this fix closes (H-7, security
+            // audit 2026-07-24). Instead the agent is left with no active subscription - the
+            // existing entitlement gate (IsAccessGatedAsync) naturally redirects every request to
+            // /Billing, same as any other lapsed-billing agent - and prompted by email to finish
+            // subscribing to the new package there, which goes through the exact same PayPal
+            // approval flow (CreateSubscriptionAsync) a brand-new signup already uses.
             change.Status = SubscriptionChangeStatus.Applied;
             change.AppliedAt = now;
             _uow.SubscriptionChanges.Update(change);
             await _uow.SaveChangesAsync();
 
-            await CreateInvoiceAsync(billing.Id, userId, requestedPackage, change.Period, amount, 0, true);
+            await SendDowngradeReadyToCompleteEmailAsync(userId, requestedPackage);
             applied++;
         }
 
         return applied;
+    }
+
+    private async Task SendDowngradeReadyToCompleteEmailAsync(int userId, BillingRule requestedPackage)
+    {
+        var agent = await _uow.AgentUsers.GetByIdAsync(userId);
+        if (agent == null || string.IsNullOrWhiteSpace(agent.Email)) return;
+
+        var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+        var billingUrl = BuildBillingPageUrl();
+        var html = $"""
+            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+              <div style="padding:22px;background:#193f82;color:white"><h1 style="margin:0;font-size:24px">IPRO Advisers</h1></div>
+              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
+                <p>Hi {System.Net.WebUtility.HtmlEncode(fullName)},</p>
+                <p>Your scheduled downgrade to <strong>{System.Net.WebUtility.HtmlEncode(requestedPackage.PackageName)}</strong> is now in effect, and your previous subscription has been cancelled.</p>
+                <p>One step left: PayPal requires you to re-approve a new subscription any time the plan changes, so please visit Billing to finish subscribing to {System.Net.WebUtility.HtmlEncode(requestedPackage.PackageName)} at its lower price. Until then, your account will be limited to the Billing page.</p>
+                <p><a href="{billingUrl}" style="display:inline-block;padding:11px 18px;background:#193f82;color:white;text-decoration:none;border-radius:6px">Complete My Subscription</a></p>
+              </div>
+            </div>
+            """;
+        await _email.SendDetailedAsync(agent.Email, fullName, "Action needed: complete your IPRO Advisers plan change", html);
+    }
+
+    private string BuildBillingPageUrl()
+    {
+        var baseUrl = _configuration["App:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("yourdomain.com", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = "https://ipro-prod-web.azurewebsites.net";
+        }
+
+        return $"{baseUrl.TrimEnd('/')}/Billing";
     }
 
     private async Task MarkPaymentFailedAsync(int userId, int billingId)
