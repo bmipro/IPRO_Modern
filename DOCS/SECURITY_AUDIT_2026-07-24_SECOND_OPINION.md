@@ -66,21 +66,39 @@ Dropping `'unsafe-inline'` from `script-src` (correctly, for the XSS-hardening g
 ## Moderate
 
 ### M-NEW-1. PayPal cancellation failures are silently swallowed
+
+**Status: Fixed in [cfd7483].** Added an `ILogger<PayPalBillingService>` and a warning log on both non-success HTTP responses and thrown exceptions from `CancelPayPalSubscriptionAsync`; local cancellation still proceeds either way, but a real failure now leaves a diagnostic trail.
+
 `CancelPayPalSubscriptionAsync` has a bare `catch` with no status-code check and no logging — if a PayPal cancellation call ever actually fails, the local `Billing` row is still marked Cancelled regardless, while the real subscription keeps billing, with no diagnostic trail. Same file/area as NEW-2; worth fixing together.
 
 ### M-NEW-2. `GoogleCalendarSyncJob.cs` has the same missing-per-item-isolation gap H-8/M-11/M-12 fixed elsewhere, but this job was never touched
+
+**Status: Fixed in [e3a6004].** Wrapped the per-follow-up `CreateEventAsync` call in its own try/catch (same pattern as H-8/M-11/M-12) so one failure no longer loses already-set `GoogleEventId`s for earlier follow-ups in the batch, and added `OrderBy(f => f.DueAt)` to the `Take(100)`.
+
 A failure partway through syncing a batch of follow-ups to Google Calendar can create a live Google Calendar event without persisting that event's ID locally (the `SaveChangesAsync` is deferred to the end of the loop) — the next run re-selects the same follow-up and creates a **duplicate** event. Also missing an `OrderBy` on its `Take(100)`, inconsistent with every sibling job fixed today.
 
 ### M-NEW-3. H-6's Host-header-trust pattern was fixed in one place, not generalized — independently found by two separate review agents
+
+**Status: Fixed in [ac1b58e].** All four spots now build their links off `PortalUrlHelper.GetAgentPortalBaseUrl`, the same configured-base-URL approach H-6 used for `ForgotPassword`.
+
 The exact anti-pattern H-6 fixed in `ForgotPassword` (building an emailed link from the ambient, spoofable `Host` header) still exists in: the client-portal invite email (`ClientsController.cs`), invoice/estimate view links (`ClientInvoicesController.cs`), testimonial request emails (`TestimonialsController.cs`), and PayPal return/cancel URLs (`BillingController.cs`). Lower severity than the original H-6 (these all require an already-authenticated agent acting on their own data, not a pre-auth attack against an arbitrary victim), but a compromised or malicious agent session could send a genuinely-signed IPRO email whose link points at a look-alike domain — a more convincing phishing vector than a spoofed-from-scratch email, since it rides on IPRO's real sending reputation and carries a real token.
 
 ### M-NEW-4. Login timing side-channel enables user/email enumeration (Web agent login + ClientPortal login)
+
+**Status: Fixed in [c9eea50].** Added the same flat 1.5s delay on every login failure (matching Admin's existing mitigation) to both Web agent login (`AccountController.Login`) and ClientPortal login (`ClientPortalAccountController.Login`).
+
 Both `AgentService.AuthenticateAsync` and `ClientPortalAccountController`'s login skip password-hash verification entirely when the account doesn't exist, creating a measurable timing difference. Admin's login has a mitigating flat 1.5s delay on any failed attempt; Web and ClientPortal logins don't. This is exactly the kind of gap the original audit's own "Authentication, sessions, password handling, CSRF" pass should have caught.
 
 ### M-NEW-5. New stored (self-)XSS via uploaded filename on the Website Pages editor
+
+**Status: Fixed in [71bcf59].** Replaced all 3 `innerHTML` template-literal call sites with a shared `setStatusLabelMessage` helper that builds the `<strong>` element via DOM APIs and sets `.textContent`, so the filename is always treated as plain text.
+
 An uploaded image's filename is stored verbatim (`Path.GetFileName` only strips directory components, not HTML metacharacters) and later concatenated into `innerHTML` client-side when the editor shows a "saving to block" status message. Scoped to the uploading agent's own browser session only — no cross-tenant or admin impact found — and classic `onerror=`/`onclick=` payloads are already blocked by M-6's CSP `script-src` hardening, but a CSS-based exfiltration vector remains via `style-src`'s still-permitted `'unsafe-inline'`. Pre-existing, not introduced by today's fixes.
 
 ### M-NEW-6. Application Insights will log live password-reset tokens by default
+
+**Status: Fixed in [88ef125].** Application Insights turned out to be enabled purely via Azure's codeless auto-instrumentation agent (no SDK reference anywhere in the code). Added `Microsoft.ApplicationInsights.AspNetCore` to both apps, called `AddApplicationInsightsTelemetry()` (which lets the existing `XDT_MicrosoftApplicationInsights_PreemptSdk` app setting hand off from the bare agent to the in-process SDK), and registered a `SensitiveDataTelemetryInitializer` in each app that redacts `token`/`subscription_id` query parameters from `RequestTelemetry.Url` before it's sent.
+
 Application Insights' default request-telemetry captures full URLs including query strings. The existing password-reset link design puts a real, valid, single-use token directly in the URL (`?token=...`), and there's no `ITelemetryInitializer` scrubbing sensitive query parameters. That token will be visible in App Insights telemetry (queryable by anyone with read access to that Azure resource) for its ~1-hour validity window and retained in logs beyond that. Lower-sensitivity tokens (admin template preview, lead-magnet download) have the same exposure.
 
 ---
