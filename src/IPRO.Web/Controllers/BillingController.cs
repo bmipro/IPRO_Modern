@@ -37,9 +37,26 @@ public class BillingController : Controller
         ViewBag.PendingChange = await _billing.GetPendingChangeAsync(AgentId);
         ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);
         ViewBag.PackageFeatures = await _uow.PackageFeatures.GetAllAsync();
-        ViewBag.IsAccessGated = await _entitlements.IsAccessGatedAsync(AgentId);
+        var isAccessGated = await _entitlements.IsAccessGatedAsync(AgentId);
+        ViewBag.IsAccessGated = isAccessGated;
         var agent = await _uow.AgentUsers.GetByIdAsync(AgentId);
         ViewBag.TrialEndsAt = agent?.TrialEndsAt;
+
+        if (isAccessGated)
+        {
+            // Distinguishes "just downgraded, pick your new package back up" from an otherwise
+            // identical-looking generic lapsed-billing gate (H-7 follow-up, second-opinion audit
+            // 2026-07-25) - without this, an agent who scheduled a downgrade has no on-page cue
+            // that they're here to finish that specific switch, only the email that was sent.
+            var appliedDowngrades = await _uow.SubscriptionChanges.FindAsync(c =>
+                c.AgentUserId == AgentId && c.ChangeType == SubscriptionChangeType.Downgrade && c.Status == SubscriptionChangeStatus.Applied);
+            var mostRecentDowngrade = appliedDowngrades.OrderByDescending(c => c.AppliedAt).FirstOrDefault();
+            if (mostRecentDowngrade != null)
+            {
+                ViewBag.PendingDowngradeCompletionPackage = await _uow.BillingRules.GetByIdAsync(mostRecentDowngrade.RequestedBillingRuleId);
+            }
+        }
+
         return View();
     }
 
