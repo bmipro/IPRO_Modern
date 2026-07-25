@@ -260,7 +260,7 @@ public class AccountController : Controller
         {
             agent.TrialEndsAt = DateTime.UtcNow.AddDays(submittedPackage.TrialDurationDays ?? 14);
         }
-        var temporaryPassword = GenerateTemporaryPassword(model.FirstName, model.LastName);
+        var temporaryPassword = GenerateTemporaryPassword();
         try
         {
             await _agents.RegisterAsync(agent, temporaryPassword);
@@ -751,16 +751,7 @@ public class AccountController : Controller
         return Regex.Replace(value, "[^A-Za-z0-9]", "");
     }
 
-    private static string GenerateTemporaryPassword(string firstName, string lastName)
-    {
-        var password = NormalizeIdentifier(lastName);
-        if (string.IsNullOrWhiteSpace(password))
-        {
-            password = NormalizeIdentifier($"{firstName}{lastName}");
-        }
-
-        return string.IsNullOrWhiteSpace(password) ? "ChangeMe123!" : password;
-    }
+    private static string GenerateTemporaryPassword() => EncryptionService.GenerateToken(12);
 
     private static RegistrationWelcomeModel BuildWelcomeModel(AgentUser model, string temporaryPassword) => new()
     {

@@ -165,7 +165,7 @@ public class AgentsController : Controller
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
 
-        var temporaryPassword = BuildTemporaryPassword(agent);
+        var temporaryPassword = BuildTemporaryPassword();
         agent.PasswordHash = _hasher.HashPassword(agent, temporaryPassword);
         agent.MustChangePassword = true;
         agent.PasswordChangedAt = null;
@@ -320,11 +320,7 @@ public class AgentsController : Controller
         }
     }
 
-    private static string BuildTemporaryPassword(AgentUser agent)
-    {
-        var lastName = new string((agent.LastName ?? "").Where(char.IsLetterOrDigit).ToArray());
-        return string.IsNullOrWhiteSpace(lastName) ? $"IPRO-{agent.Id:000000}" : lastName;
-    }
+    private static string BuildTemporaryPassword() => EncryptionService.GenerateToken(12);
 
     private static AgentEditViewModel ToEditModel(AgentUser agent) => new()
     {
