@@ -414,7 +414,11 @@ public class AccountController : Controller
 
     [Authorize]
     [HttpGet]
-    public IActionResult ChangePassword() => View();
+    public IActionResult ChangePassword()
+    {
+        ViewBag.RequireCurrentPassword = !User.HasClaim(c => c.Type == "MustChangePassword" && c.Value == "true");
+        return View();
+    }
 
     [Authorize]
     [HttpGet]
@@ -624,16 +628,33 @@ public class AccountController : Controller
 
     [Authorize]
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ChangePassword(string newPassword, string confirmPassword)
+    public async Task<IActionResult> ChangePassword(string? currentPassword, string newPassword, string confirmPassword)
     {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idValue, out var id)) return RedirectToAction(nameof(Login));
+
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return RedirectToAction(nameof(Login));
+
+        ViewBag.RequireCurrentPassword = !agent.MustChangePassword;
+
+        // The forced first-login flow has no meaningful "current password" to check -- the
+        // temporary one was just handed to the agent and exists only to get them here.
+        // A voluntary change later must re-verify it, so a hijacked/unattended session can't
+        // silently lock the real owner out.
+        if (!agent.MustChangePassword)
+        {
+            if (string.IsNullOrWhiteSpace(currentPassword) ||
+                await _agents.AuthenticateAsync(agent.UserName, currentPassword) == null)
+            {
+                ModelState.AddModelError("", "Current password is incorrect.");
+            }
+        }
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
             ModelState.AddModelError("", "New password must be at least 8 characters.");
         if (newPassword != confirmPassword)
             ModelState.AddModelError("", "Passwords do not match.");
         if (!ModelState.IsValid) return View();
-
-        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(idValue, out var id)) return RedirectToAction(nameof(Login));
 
         await _agents.ChangePasswordAsync(id, newPassword);
         var user = await _agents.GetByIdAsync(id);
