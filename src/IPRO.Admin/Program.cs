@@ -2,6 +2,7 @@ using AspNetCoreRateLimit;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.Storage.MySql;
+using Microsoft.AspNetCore.HttpOverrides;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
@@ -83,7 +84,29 @@ builder.Services.AddInMemoryRateLimiting();
 builder.Services.AddControllersWithViews();
 builder.Services.AddSession(o => { o.IdleTimeout = TimeSpan.FromMinutes(20); o.Cookie.HttpOnly = true; });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Azure App Service's front-end always sits directly in front of this container -- the
+    // platform does not allow a public request to reach Kestrel without passing through it --
+    // so trusting X-Forwarded-For/-Proto from whatever connects directly to us is equivalent to
+    // trusting Azure's own edge here, not "trust anyone." Azure's internal network presents as
+    // IPv4-mapped IPv6 addresses on these private ranges.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+    foreach (var cidr in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16" })
+    {
+        var parts = cidr.Split('/');
+        var prefix = System.Net.IPAddress.Parse(parts[0]);
+        var length = int.Parse(parts[1]);
+        options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, length));
+        options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix.MapToIPv6(), length + 96));
+    }
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Admin/Error"); app.UseHsts(); }
 
