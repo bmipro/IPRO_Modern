@@ -24,8 +24,15 @@ public class NewsLetterDispatchJob
 
         foreach (var send in due)
         {
-            _logger.LogInformation("Dispatching newsletter send {SendId} for newsletter {NewsletterId}", send.Id, send.NewsLetterId);
-            await _dispatcher.DispatchSendAsync(send.Id);
+            try
+            {
+                _logger.LogInformation("Dispatching newsletter send {SendId} for newsletter {NewsletterId}", send.Id, send.NewsLetterId);
+                await _dispatcher.DispatchSendAsync(send.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Newsletter send {SendId} failed", send.Id);
+            }
         }
     }
 }

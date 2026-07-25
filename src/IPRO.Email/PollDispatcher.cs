@@ -58,32 +58,44 @@ public class PollDispatcher
         var failedCount = 0;
         foreach (var recipient in recipients)
         {
-            var voteUrl = BuildVoteUrl(recipient.VoteToken);
-            var result = await _email.SendDetailedAsync(
-                recipient.Email,
-                recipient.RecipientName,
-                survey.Subject,
-                BuildEmailHtml(survey, voteUrl),
-                BuildEmailText(survey, voteUrl),
-                new Dictionary<string, string>
-                {
-                    ["ipro_entity"] = "poll",
-                    ["poll_id"] = survey.Id.ToString(),
-                    ["poll_send_id"] = send.Id.ToString(),
-                    ["poll_recipient_id"] = recipient.Id.ToString(),
-                    ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
-                    ["agent_user_id"] = send.AgentUserId.ToString()
-                });
+            try
+            {
+                var voteUrl = BuildVoteUrl(recipient.VoteToken);
+                var result = await _email.SendDetailedAsync(
+                    recipient.Email,
+                    recipient.RecipientName,
+                    survey.Subject,
+                    BuildEmailHtml(survey, voteUrl),
+                    BuildEmailText(survey, voteUrl),
+                    new Dictionary<string, string>
+                    {
+                        ["ipro_entity"] = "poll",
+                        ["poll_id"] = survey.Id.ToString(),
+                        ["poll_send_id"] = send.Id.ToString(),
+                        ["poll_recipient_id"] = recipient.Id.ToString(),
+                        ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
+                        ["agent_user_id"] = send.AgentUserId.ToString()
+                    });
 
-            recipient.Status = result.Success ? PollRecipientStatus.Sent : PollRecipientStatus.Failed;
-            recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
-            recipient.SentAt = result.Success ? DateTime.UtcNow : null;
-            recipient.FailedAt = result.Success ? null : DateTime.UtcNow;
-            recipient.FailureReason = result.Success ? string.Empty : result.Message;
-            recipient.UpdatedAt = DateTime.UtcNow;
+                recipient.Status = result.Success ? PollRecipientStatus.Sent : PollRecipientStatus.Failed;
+                recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
+                recipient.SentAt = result.Success ? DateTime.UtcNow : null;
+                recipient.FailedAt = result.Success ? null : DateTime.UtcNow;
+                recipient.FailureReason = result.Success ? string.Empty : result.Message;
+                recipient.UpdatedAt = DateTime.UtcNow;
 
-            if (result.Success) sentCount++;
-            else failedCount++;
+                if (result.Success) sentCount++;
+                else failedCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Poll send {SendId} failed for recipient {RecipientId}", send.Id, recipient.Id);
+                recipient.Status = PollRecipientStatus.Failed;
+                recipient.FailedAt = DateTime.UtcNow;
+                recipient.FailureReason = ex.Message;
+                recipient.UpdatedAt = DateTime.UtcNow;
+                failedCount++;
+            }
         }
 
         send.Status = sentCount > 0 ? PollSendStatus.Sent : PollSendStatus.Failed;

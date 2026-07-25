@@ -25,8 +25,15 @@ public class PollDispatchJob
 
         foreach (var send in due)
         {
-            _logger.LogInformation("Dispatching poll send {SendId} for poll {PollId}", send.Id, send.PollSurveyId);
-            await _dispatcher.DispatchSendAsync(send.Id);
+            try
+            {
+                _logger.LogInformation("Dispatching poll send {SendId} for poll {PollId}", send.Id, send.PollSurveyId);
+                await _dispatcher.DispatchSendAsync(send.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Poll send {SendId} failed", send.Id);
+            }
         }
     }
 }

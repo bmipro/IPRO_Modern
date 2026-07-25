@@ -86,35 +86,48 @@ public class NewsLetterDispatcher
         var sentCount = 0;
         foreach (var recipient in recipients)
         {
-            var unsubscribeUrl = BuildUnsubscribeUrl(recipient.UnsubscribeToken);
-            var result = await _email.SendDetailedAsync(
-                recipient.Email,
-                recipient.RecipientName,
-                newsletter.Subject,
-                AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl),
-                AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl),
-                new Dictionary<string, string>
-                {
-                    ["ipro_entity"] = "newsletter",
-                    ["newsletter_id"] = newsletter.Id.ToString(),
-                    ["newsletter_send_id"] = send.Id.ToString(),
-                    ["newsletter_recipient_id"] = recipient.Id.ToString(),
-                    ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
-                    ["agent_user_id"] = send.AgentUserId.ToString()
-                });
-
-            recipient.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
-            recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
-            recipient.LastEvent = result.Success ? "processed" : "failed";
-            recipient.SentAt = result.Success ? DateTime.UtcNow : null;
-            recipient.FailedAt = result.Success ? null : DateTime.UtcNow;
-            recipient.FailureReason = result.Success ? string.Empty : result.Message;
-            recipient.UpdatedAt = DateTime.UtcNow;
-            _uow.NewsLetterRecipients.Update(recipient);
-
-            if (result.Success)
+            try
             {
-                sentCount++;
+                var unsubscribeUrl = BuildUnsubscribeUrl(recipient.UnsubscribeToken);
+                var result = await _email.SendDetailedAsync(
+                    recipient.Email,
+                    recipient.RecipientName,
+                    newsletter.Subject,
+                    AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl),
+                    AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl),
+                    new Dictionary<string, string>
+                    {
+                        ["ipro_entity"] = "newsletter",
+                        ["newsletter_id"] = newsletter.Id.ToString(),
+                        ["newsletter_send_id"] = send.Id.ToString(),
+                        ["newsletter_recipient_id"] = recipient.Id.ToString(),
+                        ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
+                        ["agent_user_id"] = send.AgentUserId.ToString()
+                    });
+
+                recipient.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
+                recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
+                recipient.LastEvent = result.Success ? "processed" : "failed";
+                recipient.SentAt = result.Success ? DateTime.UtcNow : null;
+                recipient.FailedAt = result.Success ? null : DateTime.UtcNow;
+                recipient.FailureReason = result.Success ? string.Empty : result.Message;
+                recipient.UpdatedAt = DateTime.UtcNow;
+                _uow.NewsLetterRecipients.Update(recipient);
+
+                if (result.Success)
+                {
+                    sentCount++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Newsletter send {SendId} failed for recipient {RecipientId}", send.Id, recipient.Id);
+                recipient.Status = NewsLetterRecipientStatus.Failed;
+                recipient.LastEvent = "failed";
+                recipient.FailedAt = DateTime.UtcNow;
+                recipient.FailureReason = ex.Message;
+                recipient.UpdatedAt = DateTime.UtcNow;
+                _uow.NewsLetterRecipients.Update(recipient);
             }
         }
 
