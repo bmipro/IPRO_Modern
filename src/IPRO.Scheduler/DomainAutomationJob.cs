@@ -2,6 +2,7 @@ using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace IPRO.Scheduler;
 
@@ -9,11 +10,13 @@ public class DomainAutomationJob
 {
     private readonly IPRODbContext _db;
     private readonly IDomainCheckService _domainCheck;
+    private readonly ILogger<DomainAutomationJob> _logger;
 
-    public DomainAutomationJob(IPRODbContext db, IDomainCheckService domainCheck)
+    public DomainAutomationJob(IPRODbContext db, IDomainCheckService domainCheck, ILogger<DomainAutomationJob> logger)
     {
         _db = db;
         _domainCheck = domainCheck;
+        _logger = logger;
     }
 
     public async Task RunAsync()
@@ -31,7 +34,14 @@ public class DomainAutomationJob
 
         foreach (var domain in domains)
         {
-            await _domainCheck.CheckAsync(domain);
+            try
+            {
+                await _domainCheck.CheckAsync(domain);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Domain automation check failed for domain {DomainId}", domain.Id);
+            }
         }
 
         await _db.SaveChangesAsync();
