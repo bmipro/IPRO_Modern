@@ -25,8 +25,10 @@ public class NewsletterController : Controller
     private readonly IPRODbContext _db;
     private readonly NewsLetterDispatcher _dispatcher;
     private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<NewsletterController> _logger;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email, IConfiguration configuration, ILogger<NewsletterController> logger) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; _configuration = configuration; _logger = logger; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
@@ -415,35 +417,91 @@ public class NewsletterController : Controller
     [AllowAnonymous]
     [HttpPost]
     [IgnoreAntiforgeryToken]
-    public async Task<IActionResult> SendGridEvents([FromBody] JsonElement events)
+    public async Task<IActionResult> SendGridEvents()
     {
-        if (events.ValueKind != JsonValueKind.Array)
+        var publicKey = _configuration["Email:SendGridEventWebhookPublicKey"];
+        var signature = Request.Headers["X-Twilio-Email-Event-Webhook-Signature"].ToString();
+        var timestamp = Request.Headers["X-Twilio-Email-Event-Webhook-Timestamp"].ToString();
+
+        Request.EnableBuffering();
+        string rawBody;
+        using (var reader = new StreamReader(Request.Body, leaveOpen: true))
+        {
+            rawBody = await reader.ReadToEndAsync();
+        }
+        Request.Body.Position = 0;
+
+        if (string.IsNullOrWhiteSpace(publicKey))
+        {
+            _logger.LogWarning("Rejected SendGrid event webhook call: Email:SendGridEventWebhookPublicKey is not configured.");
+            return Unauthorized();
+        }
+        if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp))
+        {
+            _logger.LogWarning("Rejected SendGrid event webhook call: missing signature or timestamp header.");
+            return Unauthorized();
+        }
+
+        bool verified;
+        try
+        {
+            var validator = new SendGrid.Helpers.EventWebhook.RequestValidator();
+            var ecdsaKey = validator.ConvertPublicKeyToECDSA(publicKey);
+            verified = validator.VerifySignature(ecdsaKey, rawBody, signature, timestamp);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Rejected SendGrid event webhook call: signature verification threw.");
+            verified = false;
+        }
+
+        if (!verified)
+        {
+            _logger.LogWarning("Rejected SendGrid event webhook call: signature did not verify.");
+            return Unauthorized();
+        }
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(rawBody);
+        }
+        catch (JsonException)
         {
             return BadRequest();
         }
 
-        foreach (var item in events.EnumerateArray())
+        using (document)
         {
-            var eventName = ReadString(item, "event");
-            var providerMessageId = ReadString(item, "sg_message_id");
-            var reason = ReadString(item, "reason");
-            if (string.IsNullOrWhiteSpace(reason))
+            var events = document.RootElement;
+            if (events.ValueKind != JsonValueKind.Array)
             {
-                reason = ReadString(item, "response");
-            }
-            var occurredAt = ReadUnixTimestamp(item, "timestamp") ?? DateTime.UtcNow;
-
-            var recipientId = ReadCustomInt(item, "newsletter_recipient_id");
-            if (recipientId > 0)
-            {
-                await _newsletters.RecordRecipientEventAsync(recipientId, eventName, providerMessageId, reason, occurredAt);
-                continue;
+                return BadRequest();
             }
 
-            var dripStepSendId = ReadCustomInt(item, "drip_step_send_id");
-            if (dripStepSendId > 0)
+            foreach (var item in events.EnumerateArray())
             {
-                await _newsletters.RecordDripStepEventAsync(dripStepSendId, eventName, providerMessageId, reason, occurredAt);
+                var eventName = ReadString(item, "event");
+                var providerMessageId = ReadString(item, "sg_message_id");
+                var reason = ReadString(item, "reason");
+                if (string.IsNullOrWhiteSpace(reason))
+                {
+                    reason = ReadString(item, "response");
+                }
+                var occurredAt = ReadUnixTimestamp(item, "timestamp") ?? DateTime.UtcNow;
+
+                var recipientId = ReadCustomInt(item, "newsletter_recipient_id");
+                if (recipientId > 0)
+                {
+                    await _newsletters.RecordRecipientEventAsync(recipientId, eventName, providerMessageId, reason, occurredAt);
+                    continue;
+                }
+
+                var dripStepSendId = ReadCustomInt(item, "drip_step_send_id");
+                if (dripStepSendId > 0)
+                {
+                    await _newsletters.RecordDripStepEventAsync(dripStepSendId, eventName, providerMessageId, reason, occurredAt);
+                }
             }
         }
 
