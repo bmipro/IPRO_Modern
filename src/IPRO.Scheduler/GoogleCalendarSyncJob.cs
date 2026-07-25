@@ -70,16 +70,30 @@ public class GoogleCalendarSyncJob
         var unsyncedFollowUps = await _db.ClientFollowUps
             .Include(f => f.Client)
             .Where(f => f.Client.AgentUserId == connection.AgentUserId && f.GoogleEventId == null && !f.IsCompleted)
+            .OrderBy(f => f.DueAt)
             .Take(100)
             .ToListAsync();
 
+        var anySynced = false;
         foreach (var followUp in unsyncedFollowUps)
         {
-            var googleEventId = await _googleCalendar.CreateEventAsync(accessToken, connection.GoogleCalendarId, followUp.Title, followUp.DueAt, null);
-            followUp.GoogleEventId = googleEventId;
+            try
+            {
+                var googleEventId = await _googleCalendar.CreateEventAsync(accessToken, connection.GoogleCalendarId, followUp.Title, followUp.DueAt, null);
+                followUp.GoogleEventId = googleEventId;
+                anySynced = true;
+            }
+            catch (Exception ex)
+            {
+                // Isolate per follow-up: if this one call throws, earlier follow-ups in this batch
+                // already have a real Google event created and their GoogleEventId set in memory -
+                // letting the exception propagate here would skip the SaveChangesAsync below and lose
+                // that event ID, causing a duplicate Google event to be created for them next run.
+                _logger.LogError(ex, "Google Calendar event creation failed for follow-up {FollowUpId}, agent {AgentUserId}", followUp.Id, connection.AgentUserId);
+            }
         }
 
-        if (unsyncedFollowUps.Count > 0)
+        if (anySynced)
         {
             await _db.SaveChangesAsync();
         }
