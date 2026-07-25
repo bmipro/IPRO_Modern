@@ -23,12 +23,26 @@ public class CalendarReminderJob
 
         foreach (var ev in events)
         {
-            var agent = await _uow.AgentUsers.GetByIdAsync(ev.AgentUserId);
-            if (agent == null) continue;
-            await _email.SendAsync(agent.Email, $"{agent.FirstName} {agent.LastName}",
-                $"Reminder: {ev.Title}",
-                $"<p>This is a reminder for your event: <strong>{ev.Title}</strong></p><p>Starts at: {ev.StartDate:f}</p><p>{ev.Description}</p>");
-            _logger.LogInformation("Reminder sent for event {Id} to agent {AgentId}", ev.Id, ev.AgentUserId);
+            try
+            {
+                var agent = await _uow.AgentUsers.GetByIdAsync(ev.AgentUserId);
+                if (agent == null) continue;
+                var sent = await _email.SendAsync(agent.Email, $"{agent.FirstName} {agent.LastName}",
+                    $"Reminder: {ev.Title}",
+                    $"<p>This is a reminder for your event: <strong>{ev.Title}</strong></p><p>Starts at: {ev.StartDate:f}</p><p>{ev.Description}</p>");
+                if (sent)
+                {
+                    _logger.LogInformation("Reminder sent for event {Id} to agent {AgentId}", ev.Id, ev.AgentUserId);
+                }
+                else
+                {
+                    _logger.LogWarning("Reminder email for event {Id} to agent {AgentId} was not sent", ev.Id, ev.AgentUserId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Calendar reminder for event {Id} failed", ev.Id);
+            }
         }
     }
 }
