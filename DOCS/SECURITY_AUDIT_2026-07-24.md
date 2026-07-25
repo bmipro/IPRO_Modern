@@ -21,7 +21,7 @@ The codebase is in better shape than the finding count below might suggest. The 
 
 **All 15 Low/Informational findings and the dependency-vulnerability table are also now resolved** (13 fixed, 2 reviewed and confirmed to need no code change) — see their sections below for commit links. One dependency (AngleSharp, Moderate) is deliberately left unpatched due to a hard version pin from `HtmlSanitizer`; see the dependency table for why.
 
-**Every finding from this audit is now closed.** The only thing left is a one-time check of current billing data for agents H-7 may have already affected (see its entry below) — a data question, not a code fix.
+**Every finding from this audit is now closed, including the one-time billing-data check.** A direct query of production data (2026-07-25) confirmed zero downgrades have ever been recorded and zero accounts are sitting in the old bug's free-access state — the H-7 bug never actually fired for any agent. See its entry below.
 
 ### Fixed — Critical
 
@@ -130,7 +130,7 @@ The codebase is in better shape than the finding count below might suggest. The 
 - **What it was:** when a scheduled downgrade became due, the old `Billing` row was marked `Cancelled` only in IPRO's own database — `CancelPayPalSubscriptionAsync` was never called for it, and the new lower-tier `Billing` row was created `Active` with no PayPal linkage at all (free, permanent access to the lower tier, never actually re-billed).
 - **Why it mattered:** the old, higher-priced PayPal subscription kept auto-billing the agent, and when PayPal's normal recurring-payment webhook later arrived for that still-active subscription, the handler (no status filter on the lookup) flipped the "cancelled" row back to `Active` — so the agent could end up back on the old tier's access while being charged the old higher price the whole time, unbeknownst to IPRO's own records.
 - **Fix:** the old subscription is now genuinely cancelled on PayPal's side (`12275ad`). The new package is deliberately **not** auto-activated (`40eac39`) — this codebase's PayPal integration has no way to create a new subscription without the buyer re-approving on PayPal's own page, so silently activating it would just move the same free-access bug to the lower tier. Instead the agent is left with no active subscription: the existing entitlement gate (`IsAccessGatedAsync`) naturally redirects every request to `/Billing`, identical treatment to any other lapsed-billing agent, and an email prompts them to finish subscribing to the new package there — reusing the exact same PayPal approval flow (`CreateSubscriptionAsync`) a brand-new signup already goes through, so no new payment/approval code was needed.
-- **Still worth doing, separately:** a one-time check of current billing data to see if any agent has actually hit the old bug (double-billed, or riding a downgrade for free) — this is a data question, not a code fix, and hasn't been done.
+- **One-time billing-data check: done (2026-07-25).** `SELECT ChangeType, Status, COUNT(*) FROM SubscriptionChanges WHERE ChangeType = 'Downgrade' GROUP BY ChangeType, Status` returned zero rows — no agent has ever reached a scheduled downgrade's effective date, so the bug never had a chance to fire. Confirmed with a second query for defense in depth: `SELECT Id, AgentUserId, BillingRuleId, CreatedAt FROM Billings WHERE Status = 'Active' AND (PayPalSubscriptionId IS NULL OR PayPalSubscriptionId = '')` also returned zero rows — no account is currently sitting in the old bug's free-access state either. No data cleanup needed.
 
 ### H-8. Newsletter and Poll dispatch jobs have no per-item error isolation
 
@@ -295,7 +295,7 @@ Noted briefly so the findings above aren't mistaken for the whole picture:
 
 ## Open questions for discussion
 
-- **H-7** — code path is fully fixed. Still open: a one-time check of current billing data to see if any agent already hit the old bug (double-billed on the old package, or riding a downgrade for free) before the fix landed. This is the only thing left from the entire audit.
+- **H-7** — resolved. Code path fixed, and the one-time production billing-data check confirmed the bug never actually fired for any agent (zero downgrades ever recorded). Nothing left from this audit.
 
 ---
 
