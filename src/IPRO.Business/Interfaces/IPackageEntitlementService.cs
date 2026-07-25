@@ -7,6 +7,11 @@ public interface IPackageEntitlementService
     Task<PackageFeatureAccess> GetAccessAsync(int agentId, string featureCode);
     Task<bool> HasAccessAsync(int agentId, string featureCode);
 
+    /// Batched form of HasAccessAsync for jobs that loop over many agents - resolves every
+    /// agent's billing rule and feature access in a handful of fixed queries instead of
+    /// 2-4 queries per agent.
+    Task<Dictionary<int, bool>> HasAccessBulkAsync(IEnumerable<int> agentIds, string featureCode);
+
     /// True if the agent has no active paid subscription and is outside their trial + grace
     /// window (or was never on a trial at all) - i.e. every paid feature should be blocked and
     /// they should be routed to Billing to subscribe.

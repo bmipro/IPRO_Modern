@@ -23,16 +23,34 @@ public class ClientLifeEventReminderJob
     {
         var today = DateTime.UtcNow.Date;
 
+        // Ordered by LastCheckedAt (oldest-checked-first, nulls -- never checked -- come first via
+        // CreatedAt) so that if there are ever more active rows than the cap, every row still gets
+        // a turn on a rotating basis instead of the same 500 winning every single day forever.
         var events = await _db.ClientLifeEvents
             .Include(e => e.Client)
             .Where(e => e.IsActive)
+            .OrderBy(e => e.LastCheckedAt ?? e.CreatedAt)
             .Take(500)
             .ToListAsync();
+
+        var birthdayClients = await _db.Clients
+            .Where(c => c.DateOfBirth != null)
+            .OrderBy(c => c.BirthdayReminderLastCheckedAt ?? c.CreatedAt)
+            .Take(500)
+            .ToListAsync();
+
+        // Batched instead of one HasAccessAsync call per row (up to 1000 rows here) - see
+        // PackageEntitlementService.HasAccessBulkAsync.
+        var accessByAgent = await _entitlements.HasAccessBulkAsync(
+            events.Select(e => e.Client.AgentUserId).Concat(birthdayClients.Select(c => c.AgentUserId)),
+            PackageFeatureCodes.LifeEventReminders);
 
         foreach (var lifeEvent in events)
         {
             try
             {
+                lifeEvent.LastCheckedAt = DateTime.UtcNow;
+
                 var nextOccurrence = NextOccurrence(lifeEvent.EventDate, today);
                 if (lifeEvent.LastReminderYear == nextOccurrence.Year) continue;
                 // Catch-up safe: fire once we've reached the reminder window rather than only on
@@ -40,7 +58,7 @@ public class ClientLifeEventReminderJob
                 // entirely. LastReminderYear (checked above) is what actually prevents a repeat.
                 if (today < nextOccurrence.AddDays(-lifeEvent.ReminderDaysBefore)) continue;
 
-                if (!await _entitlements.HasAccessAsync(lifeEvent.Client.AgentUserId, PackageFeatureCodes.LifeEventReminders))
+                if (!accessByAgent.GetValueOrDefault(lifeEvent.Client.AgentUserId))
                 {
                     continue;
                 }
@@ -59,23 +77,20 @@ public class ClientLifeEventReminderJob
             }
         }
 
-        var birthdayClients = await _db.Clients
-            .Where(c => c.DateOfBirth != null)
-            .Take(500)
-            .ToListAsync();
-
         const int birthdayReminderDaysBefore = 7;
 
         foreach (var client in birthdayClients)
         {
             try
             {
+                client.BirthdayReminderLastCheckedAt = DateTime.UtcNow;
+
                 var nextBirthday = NextOccurrence(client.DateOfBirth!.Value, today);
                 if (client.LastBirthdayReminderYear == nextBirthday.Year) continue;
                 // Catch-up safe, same reasoning as the life-event check above.
                 if (today < nextBirthday.AddDays(-birthdayReminderDaysBefore)) continue;
 
-                if (!await _entitlements.HasAccessAsync(client.AgentUserId, PackageFeatureCodes.LifeEventReminders))
+                if (!accessByAgent.GetValueOrDefault(client.AgentUserId))
                 {
                     continue;
                 }

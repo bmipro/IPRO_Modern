@@ -1,16 +1,20 @@
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Business.Services;
 
 public class PackageEntitlementService : IPackageEntitlementService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IPRODbContext _db;
 
-    public PackageEntitlementService(IUnitOfWork uow)
+    public PackageEntitlementService(IUnitOfWork uow, IPRODbContext db)
     {
         _uow = uow;
+        _db = db;
     }
 
     public async Task<bool> HasAccessAsync(int agentId, string featureCode)
@@ -69,6 +73,103 @@ public class PackageEntitlementService : IPackageEntitlementService
         var settings = await _uow.TrialSettings.GetByIdAsync(1);
         var graceDays = settings?.GracePeriodDays ?? 1;
         return DateTime.UtcNow > agent.TrialEndsAt.Value.AddDays(graceDays);
+    }
+
+    public async Task<Dictionary<int, bool>> HasAccessBulkAsync(IEnumerable<int> agentIds, string featureCode)
+    {
+        var ids = agentIds.Distinct().ToList();
+        var result = new Dictionary<int, bool>();
+        if (ids.Count == 0) return result;
+
+        var billingRuleIdByAgent = await ResolveBillingRuleIdsBulkAsync(ids);
+
+        var ruleIds = billingRuleIdByAgent.Values.Where(v => v.HasValue).Select(v => v!.Value).Distinct().ToList();
+        var includedRuleIds = ruleIds.Count == 0
+            ? new HashSet<int>()
+            : (await _db.PackageFeatures
+                .Where(f => ruleIds.Contains(f.BillingRuleId) && f.FeatureCode == featureCode && f.IsIncluded)
+                .Select(f => f.BillingRuleId)
+                .ToListAsync()).ToHashSet();
+
+        foreach (var id in ids)
+        {
+            result[id] = billingRuleIdByAgent.TryGetValue(id, out var ruleId) && ruleId.HasValue && includedRuleIds.Contains(ruleId.Value);
+        }
+
+        return result;
+    }
+
+    // Bulk equivalent of ResolveBillingRuleIdAsync + IsAccessGatedAsync's gating check, combined -
+    // must stay logically identical to both (active billing wins; otherwise only an agent still
+    // inside their trial+grace window falls back to their directly-assigned package).
+    private async Task<Dictionary<int, int?>> ResolveBillingRuleIdsBulkAsync(List<int> agentIds)
+    {
+        var result = new Dictionary<int, int?>();
+
+        var activeBillings = await _db.Billings
+            .Where(b => agentIds.Contains(b.AgentUserId) && b.Status == BillingStatus.Active)
+            .ToListAsync();
+        var billingRuleIdByBilledAgent = activeBillings
+            .GroupBy(b => b.AgentUserId)
+            .ToDictionary(g => g.Key, g => (int?)g.First().BillingRuleId);
+
+        var unbilledAgentIds = agentIds.Where(id => !billingRuleIdByBilledAgent.ContainsKey(id)).ToList();
+
+        var unbilledAgentsById = unbilledAgentIds.Count == 0
+            ? new Dictionary<int, AgentUser>()
+            : await _db.AgentUsers.Where(a => unbilledAgentIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id);
+
+        var graceDays = unbilledAgentsById.Count == 0
+            ? 1
+            : (await _db.TrialSettings.FirstOrDefaultAsync(t => t.Id == 1))?.GracePeriodDays ?? 1;
+
+        var withinTrialAgents = unbilledAgentsById.Values
+            .Where(a => a.TrialEndsAt.HasValue && DateTime.UtcNow <= a.TrialEndsAt.Value.AddDays(graceDays))
+            .ToList();
+
+        var candidatePackageIds = withinTrialAgents.Select(a => a.PackageId).Where(pid => pid > 0).Distinct().ToList();
+        var billingRulesById = candidatePackageIds.Count == 0
+            ? new Dictionary<int, BillingRule>()
+            : await _db.BillingRules.Where(p => candidatePackageIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+
+        var legacyNameByPackageId = new Dictionary<int, string> { [2] = "IPro Silver", [3] = "IPro Gold", [4] = "IPro Platinum" };
+        var legacyNames = legacyNameByPackageId.Values.ToList();
+        var billingRulesByName = (await _db.BillingRules.Where(p => legacyNames.Contains(p.PackageName)).ToListAsync())
+            .GroupBy(p => p.PackageName)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        foreach (var id in agentIds)
+        {
+            if (billingRuleIdByBilledAgent.TryGetValue(id, out var billedRuleId))
+            {
+                result[id] = billedRuleId;
+                continue;
+            }
+
+            if (!unbilledAgentsById.TryGetValue(id, out var agent)
+                || !agent.TrialEndsAt.HasValue
+                || DateTime.UtcNow > agent.TrialEndsAt.Value.AddDays(graceDays)
+                || agent.PackageId <= 0)
+            {
+                result[id] = null;
+                continue;
+            }
+
+            if (billingRulesById.TryGetValue(agent.PackageId, out var directRule))
+            {
+                result[id] = directRule.Id;
+            }
+            else if (legacyNameByPackageId.TryGetValue(agent.PackageId, out var legacyName) && billingRulesByName.TryGetValue(legacyName, out var legacyRule))
+            {
+                result[id] = legacyRule.Id;
+            }
+            else
+            {
+                result[id] = null;
+            }
+        }
+
+        return result;
     }
 
     private async Task<int?> ResolveBillingRuleIdAsync(int agentId)

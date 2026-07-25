@@ -25,6 +25,7 @@ public class RecurringClientInvoiceJob
             .Include(s => s.Client)
             .Include(s => s.LineItems)
             .Where(s => s.IsActive && s.NextRunDate <= DateTime.UtcNow)
+            .OrderBy(s => s.NextRunDate)
             .Take(100)
             .ToListAsync();
 

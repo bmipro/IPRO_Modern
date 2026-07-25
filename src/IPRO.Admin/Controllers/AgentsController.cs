@@ -280,22 +280,16 @@ public class AgentsController : Controller
     private async Task DeleteAgentOwnedDataAsync(int agentId)
     {
         var clients = (await _uow.Clients.FindAsync(x => x.AgentUserId == agentId)).ToList();
-        foreach (var client in clients)
-        {
-            RemoveEach(await _uow.ClientComments.FindAsync(x => x.ClientId == client.Id), _uow.ClientComments);
-        }
+        var clientIds = clients.Select(c => c.Id).ToList();
+        RemoveEach(await _uow.ClientComments.FindAsync(x => clientIds.Contains(x.ClientId)), _uow.ClientComments);
 
         var newsletters = (await _uow.NewsLetters.FindAsync(x => x.AgentUserId == agentId)).ToList();
-        foreach (var newsletter in newsletters)
-        {
-            RemoveEach(await _uow.NewsLetterArticles.FindAsync(x => x.NewsLetterId == newsletter.Id), _uow.NewsLetterArticles);
-        }
+        var newsletterIds = newsletters.Select(n => n.Id).ToList();
+        RemoveEach(await _uow.NewsLetterArticles.FindAsync(x => newsletterIds.Contains(x.NewsLetterId)), _uow.NewsLetterArticles);
 
         var dripCampaigns = (await _uow.DripCampaigns.FindAsync(x => x.AgentUserId == agentId)).ToList();
-        foreach (var campaign in dripCampaigns)
-        {
-            RemoveEach(await _uow.DripCampaignSteps.FindAsync(x => x.DripCampaignId == campaign.Id), _uow.DripCampaignSteps);
-        }
+        var dripCampaignIds = dripCampaigns.Select(d => d.Id).ToList();
+        RemoveEach(await _uow.DripCampaignSteps.FindAsync(x => dripCampaignIds.Contains(x.DripCampaignId)), _uow.DripCampaignSteps);
 
         RemoveEach(await _uow.OperateLogs.FindAsync(x => x.AgentUserId == agentId), _uow.OperateLogs);
         RemoveEach(await _uow.Invoices.FindAsync(x => x.AgentUserId == agentId), _uow.Invoices);

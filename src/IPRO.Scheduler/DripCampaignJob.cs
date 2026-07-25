@@ -33,6 +33,7 @@ public class DripCampaignJob
             .Where(e => e.Status == DripCampaignEnrollmentStatus.Active &&
                         e.NextSendAt <= DateTime.UtcNow &&
                         e.DripCampaign.IsActive)
+            .OrderBy(e => e.NextSendAt)
             .Take(100)
             .ToListAsync();
 

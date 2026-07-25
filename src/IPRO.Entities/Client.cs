@@ -8,6 +8,10 @@ public class Client
     public string LastName { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
     public int? LastBirthdayReminderYear { get; set; }
+    // Fair-rotation marker for ClientLifeEventReminderJob's birthday check -- see
+    // ClientLifeEvent.LastCheckedAt for the reasoning. Distinct from LastBirthdayReminderYear,
+    // which tracks whether this year's reminder was already sent.
+    public DateTime? BirthdayReminderLastCheckedAt { get; set; }
     public string CompanyName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Email2 { get; set; } = string.Empty;

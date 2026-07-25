@@ -35,10 +35,12 @@ public class TaxRatesController : Controller
             return View(model);
         }
 
+        var ids = model.Rates.Select(r => r.Id).ToList();
+        var taxRatesById = (await _uow.ProvinceTaxRates.FindAsync(x => ids.Contains(x.Id))).ToDictionary(x => x.Id);
+
         foreach (var row in model.Rates)
         {
-            var taxRate = await _uow.ProvinceTaxRates.GetByIdAsync(row.Id);
-            if (taxRate == null) continue;
+            if (!taxRatesById.TryGetValue(row.Id, out var taxRate)) continue;
 
             taxRate.ProvinceCode = row.ProvinceCode.Trim().ToUpperInvariant();
             taxRate.ProvinceName = row.ProvinceName.Trim();

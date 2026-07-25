@@ -37,6 +37,7 @@ public class OverdueInvoiceReminderJob
                      && i.Status == ClientInvoiceStatus.Sent
                      && i.DueDate != null && i.DueDate < today
                      && (i.LastReminderSentAt == null || i.LastReminderSentAt < resendCutoff))
+            .OrderBy(i => i.LastReminderSentAt ?? DateTime.MinValue)
             .Take(200)
             .ToListAsync();
 

@@ -715,6 +715,8 @@ CREATE TABLE IF NOT EXISTS `ClientLifeEvents` (
     try
     {
         await EnsureTableColumnAsync(db, "Clients", "LastBirthdayReminderYear", "ALTER TABLE `Clients` ADD COLUMN `LastBirthdayReminderYear` int NULL");
+        await EnsureTableColumnAsync(db, "ClientLifeEvents", "LastCheckedAt", "ALTER TABLE `ClientLifeEvents` ADD COLUMN `LastCheckedAt` datetime(6) NULL");
+        await EnsureTableColumnAsync(db, "Clients", "BirthdayReminderLastCheckedAt", "ALTER TABLE `Clients` ADD COLUMN `BirthdayReminderLastCheckedAt` datetime(6) NULL");
     }
     finally
     {

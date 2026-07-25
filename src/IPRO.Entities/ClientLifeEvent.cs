@@ -18,5 +18,11 @@ public class ClientLifeEvent
     public bool IsActive { get; set; } = true;
     public int? LastReminderYear { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Fair-rotation marker, distinct from LastReminderYear (which tracks whether THIS year's
+    // reminder was already sent). Updated every time the job evaluates this row, whether or not
+    // a reminder was due, so an unbounded Take() ordered by this column can't permanently starve
+    // rows past the cutoff once there are more active rows than the cap.
+    public DateTime? LastCheckedAt { get; set; }
     public Client Client { get; set; } = null!;
 }
