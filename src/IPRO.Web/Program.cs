@@ -1269,68 +1269,93 @@ CREATE TABLE IF NOT EXISTS `WebsiteFormSubmissionAnswers` (
 ) CHARACTER SET=utf8mb4;");
 }
 
+// Self-managing: opens its own connection unless the caller already has one open (detected via
+// connection.State), so a bare call from anywhere - a brand-new Ensure*SchemaAsync method, a nested
+// helper, whatever - is always safe. This is deliberate: this exact "caller forgot to wrap the call
+// in OpenConnectionAsync/CloseConnectionAsync" mistake has taken production down three times
+// (2026-07-16, 2026-07-24, 2026-07-26 - see 09_TROUBLESHOOTING.md). A documented convention wasn't
+// enough; making the helper foolproof is.
 static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)
 {
-    await using var command = db.Database.GetDbConnection().CreateCommand();
-    command.CommandText = @"
+    var ownsConnection = db.Database.GetDbConnection().State != System.Data.ConnectionState.Open;
+    if (ownsConnection) await db.Database.OpenConnectionAsync();
+    try
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = @"
 SELECT COUNT(1)
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = @tableName
   AND COLUMN_NAME = @columnName";
 
-    var tableParameter = command.CreateParameter();
-    tableParameter.ParameterName = "@tableName";
-    tableParameter.Value = tableName;
-    command.Parameters.Add(tableParameter);
+        var tableParameter = command.CreateParameter();
+        tableParameter.ParameterName = "@tableName";
+        tableParameter.Value = tableName;
+        command.Parameters.Add(tableParameter);
 
-    var parameter = command.CreateParameter();
-    parameter.ParameterName = "@columnName";
-    parameter.Value = columnName;
-    command.Parameters.Add(parameter);
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "@columnName";
+        parameter.Value = columnName;
+        command.Parameters.Add(parameter);
 
-    var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
-    if (!exists)
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (!exists)
+        {
+            await db.Database.ExecuteSqlRawAsync(alterSql);
+        }
+    }
+    finally
     {
-        await db.Database.ExecuteSqlRawAsync(alterSql);
+        if (ownsConnection) await db.Database.CloseConnectionAsync();
     }
 }
 
+// Self-managing for the same reason as EnsureTableColumnAsync above.
 static async Task EnsureUniqueIndexAsync(IPRODbContext db, string tableName, string indexName, string alterSql)
 {
-    await using (var command = db.Database.GetDbConnection().CreateCommand())
+    var ownsConnection = db.Database.GetDbConnection().State != System.Data.ConnectionState.Open;
+    if (ownsConnection) await db.Database.OpenConnectionAsync();
+    try
     {
-        command.CommandText = @"
+        await using (var command = db.Database.GetDbConnection().CreateCommand())
+        {
+            command.CommandText = @"
 SELECT COUNT(1)
 FROM INFORMATION_SCHEMA.STATISTICS
 WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = @tableName
   AND INDEX_NAME = @indexName";
 
-        var tableParameter = command.CreateParameter();
-        tableParameter.ParameterName = "@tableName";
-        tableParameter.Value = tableName;
-        command.Parameters.Add(tableParameter);
+            var tableParameter = command.CreateParameter();
+            tableParameter.ParameterName = "@tableName";
+            tableParameter.Value = tableName;
+            command.Parameters.Add(tableParameter);
 
-        var indexParameter = command.CreateParameter();
-        indexParameter.ParameterName = "@indexName";
-        indexParameter.Value = indexName;
-        command.Parameters.Add(indexParameter);
+            var indexParameter = command.CreateParameter();
+            indexParameter.ParameterName = "@indexName";
+            indexParameter.Value = indexName;
+            command.Parameters.Add(indexParameter);
 
-        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
-        if (exists) return;
+            var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+            if (exists) return;
+        }
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(alterSql);
+        }
+        catch (MySqlConnector.MySqlException ex) when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry)
+        {
+            // Pre-existing duplicate data (from the exact race this index is meant to prevent) would
+            // make this ALTER fail - skip rather than crash app startup. Safe to retry automatically
+            // on a later restart once the underlying duplicate rows are cleaned up. Any other error
+            // (typo'd SQL, missing privilege) is not this documented case and should still surface loudly.
+        }
     }
-
-    try
+    finally
     {
-        await db.Database.ExecuteSqlRawAsync(alterSql);
-    }
-    catch (MySqlConnector.MySqlException ex) when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry)
-    {
-        // Pre-existing duplicate data (from the exact race this index is meant to prevent) would
-        // make this ALTER fail - skip rather than crash app startup. Safe to retry automatically
-        // on a later restart once the underlying duplicate rows are cleaned up. Any other error
-        // (typo'd SQL, missing privilege) is not this documented case and should still surface loudly.
+        if (ownsConnection) await db.Database.CloseConnectionAsync();
     }
 }
 

@@ -422,6 +422,8 @@ Same bug class as the 2026-07-16 and 2026-07-24 incidents above, a third time: t
 
 **This is now three occurrences of an identical mistake, each caught by the "sharper prevention rule" written after the previous one, but not prevented by it.** A documentation-only prevention rule has now failed twice to stop this from recurring a third time. The actual fix that would make this structurally impossible — having `EnsureTableColumnAsync` open and close its own connection internally, so no caller ever needs to remember the wrapper — was not made here (it touches every existing call site across both `Program.cs` files, a larger change than this incident's fix, and wasn't asked for). Recorded as a real backlog item rather than a third repeat of the same "remember the rule" advice: see "Make `EnsureTableColumnAsync` self-contained" under Recommended Next Tasks.
 
+**Resolved, same day**: `EnsureTableColumnAsync`/`EnsureUniqueIndexAsync` now check `db.Database.GetDbConnection().State` and open/close the connection themselves only if it isn't already open, so a bare unwrapped call — this exact recurring mistake — is now safe by construction rather than by convention. None of the existing wrapped call sites needed to change; the guard just makes their wrapper redundant-but-harmless. See item 42 in the roadmap doc.
+
 ## Incident: Agents Locked Out Of Their Own Portal On Their Own Domain (2026-07-24)
 
 A user-reported chain of four related bugs, all on the same day, around the "agents manage their whole portal from their own domain (temporary `*.247advisers.com` or a custom domain like `www.4ipro.com`), not an Azure URL" requirement.
