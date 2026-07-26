@@ -17,6 +17,7 @@ public class AgentWebsite
     public string ButtonStyleOverride { get; set; } = string.Empty;
     public string SectionSpacingOverride { get; set; } = string.Empty;
     public string HeroStyleOverride { get; set; } = string.Empty;
+    public string SidebarPositionOverride { get; set; } = string.Empty;
     public string HeaderSettingsJson { get; set; } = "{}";
     public string FooterSettingsJson { get; set; } = "{}";
     public bool IsPublished { get; set; } = false;

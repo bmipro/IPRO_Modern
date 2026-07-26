@@ -3,6 +3,8 @@
 @{
     var agent = Model.Website.AgentUser;
     var blocks = Model.CurrentPage?.Blocks.Where(b => b.IsVisible).OrderBy(b => b.SortOrder).ToList() ?? new();
+    var sidebarPosition = ViewBag.SidebarPosition as string ?? "none";
+    var hasSidebar = sidebarPosition != "none";
 }
 <style>
   .modern-page { background:#fff; }
@@ -70,6 +72,11 @@
   .modern-page .mp-cta-card .mp-lead { margin-left:auto; margin-right:auto; }
   @@media(max-width:820px){.modern-page .mp-hero-grid,.modern-page .mp-split{grid-template-columns:1fr;gap:32px}.modern-page .mp-hero{min-height:0}.modern-page .mp-hero h1{font-size:44px}.modern-page .mp-grid,.modern-page .mp-icon-grid{grid-template-columns:1fr}.modern-page .mp-hero-media{min-height:240px}.modern-page .mp-hero-media img{min-height:240px}}
 </style>
+<div class="site-sidebar-shell">
+@if (hasSidebar)
+{
+  @await Html.PartialAsync("_WebsiteSidebarRail", Model)
+}
 <main class="modern-page">
 @foreach (var block in blocks)
 {
@@ -209,3 +216,4 @@
   }
 }
 </main>
+</div>

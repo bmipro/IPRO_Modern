@@ -38,6 +38,18 @@ public static class WebsiteTemplateSeeder
             template.TemplateKey = NormalizeTemplateKey(template.Name);
         }
 
+        // Backfill: a Classic Sidebar row seeded before SidebarPosition existed won't have it in its
+        // LayoutJson, so FromTemplate would silently fall back to "none" instead of the new "left" default.
+        foreach (var template in templates.Where(t => t.TemplateKey == ClassicSidebarTemplateKey))
+        {
+            var design = WebsiteTemplateDesign.FromTemplate(template);
+            if (design.SidebarPosition == "none")
+            {
+                design.SidebarPosition = "left";
+                template.LayoutJson = design.ToLayoutJson();
+            }
+        }
+
         if (!templates.Any(t => t.IsDefault))
         {
             var defaultTemplate = templates.FirstOrDefault(t => t.TemplateKey == DefaultTemplateKey)
@@ -89,7 +101,8 @@ public static class WebsiteTemplateSeeder
             HeaderStyle = "sidebar",
             HeroLayout = "split",
             SectionSpacing = "comfortable",
-            ButtonStyle = "square"
+            ButtonStyle = "square",
+            SidebarPosition = "left"
         }.ToLayoutJson(),
         IsActive = true,
         IsDefault = false,

@@ -17,8 +17,10 @@
         BackgroundColor = website.BackgroundColorOverride,
         ButtonStyle = website.ButtonStyleOverride,
         SectionSpacing = website.SectionSpacingOverride,
-        HeroStyle = website.HeroStyleOverride
+        HeroStyle = website.HeroStyleOverride,
+        SidebarPosition = website.SidebarPositionOverride
     });
+    ViewBag.SidebarPosition = design.SidebarPosition;
     var theme = design.AccentColor;
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
@@ -116,7 +118,7 @@
   </style>
   @await Html.PartialAsync("_ManagedPageStyles")
 </head>
-<body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle">
+<body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle sidebar-@design.SidebarPosition">
   @if (ViewBag.IsUnsavedPreview == true)
   {
     <div class="template-preview-banner unsaved-preview-banner"><i class="fas fa-pen me-2"></i>Unsaved preview — showing your current changes to this block. Nothing has been saved yet.</div>

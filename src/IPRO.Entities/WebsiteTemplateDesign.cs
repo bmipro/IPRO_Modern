@@ -15,6 +15,7 @@ public class WebsiteTemplateDesign
     public string HeroLayout { get; set; } = "split";
     public string SectionSpacing { get; set; } = "spacious";
     public string ButtonStyle { get; set; } = "soft";
+    public string SidebarPosition { get; set; } = "none";
     public int Version { get; set; } = 1;
 
     public static WebsiteTemplateDesign FromTemplate(WebsiteTemplate? template, AgentDesignOverrides? overrides = null)
@@ -93,6 +94,11 @@ public class WebsiteTemplateDesign
                 design.ButtonStyle = NormalizeOption(buttonStyle, new[] { "square", "soft", "pill" }, design.ButtonStyle);
             }
 
+            if (TryGetString(root, "sidebarPosition", out var sidebarPosition))
+            {
+                design.SidebarPosition = NormalizeOption(sidebarPosition, new[] { "none", "left", "right" }, design.SidebarPosition);
+            }
+
             if (root.TryGetProperty("version", out var versionElement) &&
                 versionElement.ValueKind == JsonValueKind.Number &&
                 versionElement.TryGetInt32(out var version))
@@ -153,6 +159,11 @@ public class WebsiteTemplateDesign
             design.HeroStyle = NormalizeOption(overrides.HeroStyle, new[] { "gradient", "clean", "classic" }, design.HeroStyle);
         }
 
+        if (!string.IsNullOrWhiteSpace(overrides.SidebarPosition))
+        {
+            design.SidebarPosition = NormalizeOption(overrides.SidebarPosition, new[] { "none", "left", "right" }, design.SidebarPosition);
+        }
+
         return design;
     }
 
@@ -169,6 +180,7 @@ public class WebsiteTemplateDesign
         heroLayout = HeroLayout,
         sectionSpacing = SectionSpacing,
         buttonStyle = ButtonStyle,
+        sidebarPosition = SidebarPosition,
         version = Math.Max(1, Version)
     }, new JsonSerializerOptions { WriteIndented = true });
 
@@ -226,4 +238,5 @@ public record AgentDesignOverrides
     public string? ButtonStyle { get; init; }
     public string? SectionSpacing { get; init; }
     public string? HeroStyle { get; init; }
+    public string? SidebarPosition { get; init; }
 }

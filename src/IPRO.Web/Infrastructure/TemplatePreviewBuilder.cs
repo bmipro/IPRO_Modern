@@ -60,6 +60,7 @@ public static class TemplatePreviewBuilder
             ButtonStyleOverride = useDefaults ? string.Empty : website.ButtonStyleOverride,
             SectionSpacingOverride = useDefaults ? string.Empty : website.SectionSpacingOverride,
             HeroStyleOverride = useDefaults ? string.Empty : website.HeroStyleOverride,
+            SidebarPositionOverride = useDefaults ? string.Empty : website.SidebarPositionOverride,
             HeaderSettingsJson = string.IsNullOrWhiteSpace(website.HeaderSettingsJson) ? "{}" : website.HeaderSettingsJson,
             FooterSettingsJson = string.IsNullOrWhiteSpace(website.FooterSettingsJson) ? "{}" : website.FooterSettingsJson,
             IsPublished = website.IsPublished,

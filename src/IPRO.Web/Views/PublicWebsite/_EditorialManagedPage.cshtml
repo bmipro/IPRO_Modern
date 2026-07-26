@@ -12,6 +12,8 @@
     var agent = Model.Website.AgentUser;
     var blocks = Model.CurrentPage?.Blocks.Where(b => b.IsVisible).OrderBy(b => b.SortOrder).ToList() ?? new();
     var index = 0;
+    var sidebarPosition = ViewBag.SidebarPosition as string ?? "none";
+    var hasSidebar = sidebarPosition != "none";
 }
 <style>
   .editorial-page { background:#fbfaf7; color:#211e1a; }
@@ -80,6 +82,11 @@
   .editorial-page .ep-cta-card { max-width:760px; margin:0 auto; padding:44px; border:1px solid #3a342c; text-align:center; }
   @@media(max-width:820px){.editorial-page .ep-section{padding:64px 24px}.editorial-page .ep-hero{grid-template-columns:1fr}.editorial-page .ep-hero-copy{padding:60px 24px}.editorial-page .ep-hero h1{font-size:48px}.editorial-page .ep-hero-visual{min-height:280px;order:-1}.editorial-page .ep-feature,.editorial-page .ep-feature.reverse,.editorial-page .ep-contact,.editorial-page .ep-card-grid,.editorial-page .ep-icon-row,.editorial-page .ep-quote-grid{grid-template-columns:1fr;gap:30px}.editorial-page .ep-feature.reverse .ep-heading{order:0}.editorial-page .ep-agent-band{flex-direction:column;align-items:center;text-align:center;gap:20px}}
 </style>
+<div class="site-sidebar-shell">
+@if (hasSidebar)
+{
+  @await Html.PartialAsync("_WebsiteSidebarRail", Model)
+}
 <main class="editorial-page">
 @foreach(var block in blocks)
 {
@@ -217,3 +224,4 @@
   }
 }
 </main>
+</div>

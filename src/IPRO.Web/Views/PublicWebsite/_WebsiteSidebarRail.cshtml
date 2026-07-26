@@ -1,0 +1,41 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    var website = Model.Website;
+    var agent = website.AgentUser;
+    var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+}
+<aside class="site-sidebar-rail">
+  @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
+  {
+    <img class="site-sidebar-rail__logo" src="@website.LogoUrl" alt="@website.SiteTitle" />
+  }
+  @if (!string.IsNullOrWhiteSpace(agent.PhotoUrl))
+  {
+    <img class="site-sidebar-rail__photo" src="@agent.PhotoUrl" alt="@fullName" />
+  }
+  @if (!string.IsNullOrWhiteSpace(fullName))
+  {
+    <div class="site-sidebar-rail__name">@fullName</div>
+  }
+  @if (!string.IsNullOrWhiteSpace(agent.Designation))
+  {
+    <div class="site-sidebar-rail__meta">@agent.Designation</div>
+  }
+  @if (!string.IsNullOrWhiteSpace(agent.CompanyName))
+  {
+    <div class="site-sidebar-rail__meta">@agent.CompanyName</div>
+  }
+  @if (!string.IsNullOrWhiteSpace(agent.Phone) || !string.IsNullOrWhiteSpace(agent.Email))
+  {
+    <div class="site-sidebar-rail__contact">
+      @if (!string.IsNullOrWhiteSpace(agent.Phone))
+      {
+        <a href="tel:@agent.Phone"><i class="fas fa-phone me-2"></i>@agent.Phone</a>
+      }
+      @if (!string.IsNullOrWhiteSpace(agent.Email))
+      {
+        <a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>@agent.Email</a>
+      }
+    </div>
+  }
+</aside>
