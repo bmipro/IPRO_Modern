@@ -949,7 +949,16 @@ CREATE TABLE IF NOT EXISTS `SocialPostDrafts` (
     `UpdatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
-    await EnsureTableColumnAsync(db, "SocialPostDrafts", "ScheduledAt", "ALTER TABLE `SocialPostDrafts` ADD COLUMN `ScheduledAt` datetime(6) NULL");
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await EnsureTableColumnAsync(db, "SocialPostDrafts", "ScheduledAt", "ALTER TABLE `SocialPostDrafts` ADD COLUMN `ScheduledAt` datetime(6) NULL");
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
 }
 
 static async Task EnsureTestimonialSubmissionSchemaAsync(IPRODbContext db)
