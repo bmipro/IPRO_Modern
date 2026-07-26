@@ -668,6 +668,7 @@ public class PublicWebsiteController : Controller
             : new List<TestimonialSubmission>();
 
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
+        var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
 
         return View("Index", new PublicWebsiteViewModel
         {
@@ -675,7 +676,8 @@ public class PublicWebsiteController : Controller
             Pages = pages,
             CurrentPage = currentPage,
             ApprovedTestimonials = approvedTestimonials,
-            PollResultsByBlockId = pollResultsByBlockId
+            PollResultsByBlockId = pollResultsByBlockId,
+            FormsByBlockId = formsByBlockId
         });
     }
 
