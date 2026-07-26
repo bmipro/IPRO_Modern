@@ -14,10 +14,11 @@ public static class WebsiteBlockTypes
     public const string Reviews = "Reviews";
     public const string AgentInfo = "AgentInfo";
     public const string Maps = "Maps";
+    public const string Form = "Form";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form
     };
 
     public static string DisplayName(string type) => type switch
@@ -28,6 +29,7 @@ public static class WebsiteBlockTypes
         Reviews => "Review Badge",
         AgentInfo => "Agent Info Card",
         Maps => "Map",
+        Form => "Custom Form",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

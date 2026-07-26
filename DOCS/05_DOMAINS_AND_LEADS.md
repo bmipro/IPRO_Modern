@@ -102,6 +102,10 @@ A successful signup updates or creates the CRM client and enables newsletter sub
 
 Visitors see a short form (name and email) instead of a direct download link. Submitting it creates a website lead the same way a Contact Form submission does, and reveals a "Download Now" button that unlocks the file. If you haven't uploaded any documents yet, the block shows a reminder to do that first instead of a file picker.
 
+## Add a Custom Form Block
+
+Build a reusable form with your own text fields, checkboxes, dropdowns, and section headers under **Forms** (Agent Portal menu), then attach it to any page with a **Custom Form** block and pick which form to display. Submissions land in Website Leads as a **Form submission**-type lead, with a **View Answers** link showing every field and its answer individually. See [DOCS/17_FORMS.md](17_FORMS.md) for the full walkthrough.
+
 ## Website Lead Processing
 
 Public submissions are handled as follows:

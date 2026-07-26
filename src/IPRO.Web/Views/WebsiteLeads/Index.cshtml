@@ -99,7 +99,12 @@
                     <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                         @if (!lead.IsRead) { <span class="badge bg-primary">Unread</span> }
                         <span class="badge @StatusClass(lead.Status)">@lead.Status</span>
-                        <span class="badge bg-info-subtle text-info-emphasis">@(lead.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter ? "Newsletter signup" : "Contact request")</span>
+                        <span class="badge bg-info-subtle text-info-emphasis">@(lead.SubmissionType switch {
+                            IPRO.Entities.WebsiteLeadTypes.Newsletter => "Newsletter signup",
+                            IPRO.Entities.WebsiteLeadTypes.LeadMagnet => "Lead magnet download",
+                            IPRO.Entities.WebsiteLeadTypes.CustomForm => "Form submission",
+                            _ => "Contact request"
+                        })</span>
                     </div>
                     <h5 class="fw-bold mb-1">@lead.FirstName @lead.LastName</h5>
                     <div class="d-flex gap-3 flex-wrap small">
@@ -126,6 +131,10 @@
                 </div>
                 </div>
                 <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    @if (lead.SubmissionType == IPRO.Entities.WebsiteLeadTypes.CustomForm)
+                    {
+                        <a class="btn btn-outline-primary" href="/WebsiteLeads/Details/@lead.Id"><i class="fas fa-list-check me-1"></i>View Answers</a>
+                    }
                     @if (lead.ClientId.HasValue)
                     {
                         <a class="btn btn-outline-primary" href="/Clients/Details/@lead.ClientId"><i class="fas fa-address-card me-1"></i>Open CRM Contact</a>

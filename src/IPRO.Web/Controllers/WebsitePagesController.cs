@@ -273,13 +273,18 @@ public class WebsitePagesController : Controller
             .Where(d => d.AgentUserId == AgentId)
             .OrderByDescending(d => d.UploadedAt)
             .ToListAsync();
+        var availableForms = await _db.WebsiteForms
+            .Where(f => f.AgentUserId == AgentId && f.IsActive)
+            .OrderByDescending(f => f.UpdatedAt)
+            .ToListAsync();
         return View(new WebsitePageEditViewModel
         {
             Page = page,
             AvailableParents = await GetParentChoicesAsync(page.AgentWebsiteId, page.Id),
             MediaAssets = await GetMediaAssetsAsync(page.AgentWebsiteId),
             AvailableSentPolls = sentPolls,
-            AvailableAgentDocuments = agentDocuments
+            AvailableAgentDocuments = agentDocuments,
+            AvailableForms = availableForms
         });
     }
 
@@ -313,7 +318,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard")
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0)
     {
         var ownedPageId = await _db.WebsiteContentBlocks
             .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
@@ -336,7 +341,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight);
+            mapAddress, mapHeight, websiteFormId);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -365,6 +370,7 @@ public class WebsitePagesController : Controller
             : new List<TestimonialSubmission>();
 
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, AgentId, page, isOwnerPreview: true);
+        var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, AgentId, page);
 
         return new PublicWebsiteViewModel
         {
@@ -372,7 +378,8 @@ public class WebsitePagesController : Controller
             Pages = pages,
             CurrentPage = page,
             ApprovedTestimonials = approvedTestimonials,
-            PollResultsByBlockId = pollResultsByBlockId
+            PollResultsByBlockId = pollResultsByBlockId,
+            FormsByBlockId = formsByBlockId
         };
     }
 
@@ -616,6 +623,15 @@ public class WebsitePagesController : Controller
                 return RedirectToAction(nameof(Edit), new { id = pageId });
             }
         }
+        if (blockType == WebsiteBlockTypes.Form)
+        {
+            var formAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.CustomForms);
+            if (!formAccess.IsIncluded)
+            {
+                TempData["Error"] = formAccess.UpgradeMessage;
+                return RedirectToAction(nameof(Edit), new { id = pageId });
+            }
+        }
         var order = await _db.WebsiteContentBlocks.CountAsync(b => b.WebsitePageId == pageId);
         _db.WebsiteContentBlocks.Add(NewBlock(pageId, blockType, order));
         await _db.SaveChangesAsync();
@@ -631,7 +647,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard")
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -642,7 +658,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight);
+            mapAddress, mapHeight, websiteFormId);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -658,7 +674,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId, int agentDocumentId,
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
-        bool showContactPhoto, string mapAddress, string mapHeight)
+        bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId)
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -729,6 +745,14 @@ public class WebsitePagesController : Controller
             {
                 Address = mapAddress?.Trim() ?? string.Empty,
                 Height = mapHeight
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.Form)
+        {
+            var formBelongsToAgent = websiteFormId > 0 && await _db.WebsiteForms.AnyAsync(f => f.Id == websiteFormId && f.AgentUserId == AgentId);
+            block.SettingsJson = new WebsiteFormSettings
+            {
+                WebsiteFormId = formBelongsToAgent ? websiteFormId : 0
             }.ToJson();
         }
     }
@@ -861,6 +885,7 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.Reviews => "What our clients say",
             WebsiteBlockTypes.AgentInfo => "Meet Your Agent",
             WebsiteBlockTypes.Maps => "Find Us",
+            WebsiteBlockTypes.Form => "Get in touch",
             _ => "New content section"
         },
         Subheading = "Add a short supporting message.",

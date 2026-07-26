@@ -150,6 +150,13 @@
       <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@(string.IsNullOrWhiteSpace(block.Heading) ? editorialPollData.Title : block.Heading)</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_PollResults", editorialPollData)</div>@if((ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true) && editorialPollData.TotalResponded < 10){<p class="text-muted small mt-2">Preview only — hidden on your live site until this poll reaches 10 responses (currently @editorialPollData.TotalResponded).</p>}</div></section>
     }
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Form)
+  {
+    if(Model.FormsByBlockId.TryGetValue(block.Id, out var editorialFormData))
+    {
+      <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@(string.IsNullOrWhiteSpace(block.Heading) ? editorialFormData.Title : block.Heading)</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_WebsiteCustomForm", editorialFormData)</div></div></section>
+    }
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.LeadMagnet)
   {
     <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.LeadMagnet, LeadMagnetBlockId = block.Id })</div></div></section>

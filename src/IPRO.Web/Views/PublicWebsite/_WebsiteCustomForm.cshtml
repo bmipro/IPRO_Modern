@@ -1,0 +1,141 @@
+@model IPRO.Web.Models.PublicFormBlockData
+@using Microsoft.AspNetCore.DataProtection
+@inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
+@{
+    var formId = $"website-form-{Guid.NewGuid():N}";
+    var submitted = Context.Request.Query["submitted"].ToString();
+    var submittedFormId = Context.Request.Query["formId"].ToString();
+    var captchaLeft = Random.Shared.Next(2, 10);
+    var captchaRight = Random.Shared.Next(2, 10);
+    var publicReturnPath = Context.Items.TryGetValue("IproPublicPath", out var originalPath) && originalPath is string { Length: > 0 } originalPathValue
+        ? originalPathValue
+        : Context.Request.Path.ToString();
+    var captchaToken = DataProtectionProvider
+        .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
+        .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+    var answerIndex = 0;
+}
+<div class="website-lead-form-shell">
+  @if (submitted == "form" && submittedFormId == Model.WebsiteFormId.ToString())
+  {
+    <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @Model.SuccessMessage</div>
+    <script nonce="@Context.GetCspNonce()">(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('formId');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
+  }
+  else
+  {
+    @if (TempData["PublicFormError"] is string formError)
+    {
+      <div class="website-lead-error" role="alert">@formError</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.Description))
+    {
+      <p class="website-form-description">@Model.Description</p>
+    }
+    <form id="@formId" method="post" action="/PublicWebsite/SubmitCustomForm" class="website-lead-form">
+      @Html.AntiForgeryToken()
+      <input type="hidden" name="WebsiteFormId" value="@Model.WebsiteFormId" />
+      <input type="hidden" name="ReturnPath" value="@publicReturnPath" />
+      <input type="hidden" name="FormStartedAt" value="@DateTimeOffset.UtcNow.ToUnixTimeSeconds()" />
+      <input type="hidden" name="CaptchaToken" value="@captchaToken" />
+      <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
+      <div class="website-lead-grid">
+        <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
+        <label><span>Last name</span><input name="LastName" maxlength="80" autocomplete="family-name" /></label>
+        <label><span>Email *</span><input type="email" name="Email" maxlength="200" autocomplete="email" required /></label>
+        <label><span>Phone</span><input name="Phone" maxlength="40" autocomplete="tel" /></label>
+      </div>
+
+      @foreach (var field in Model.Fields)
+      {
+        if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Section)
+        {
+          <div class="website-form-section">
+            <h4>@field.Label</h4>
+            @if (!string.IsNullOrWhiteSpace(field.HelpText))
+            {
+              <p class="website-form-section-help">@field.HelpText</p>
+            }
+          </div>
+        }
+        else
+        {
+          var idx = answerIndex;
+          answerIndex++;
+          <div class="website-form-field">
+            <input type="hidden" name="Answers[@idx].FieldId" value="@field.FieldId" />
+            <label>
+              <span>@field.Label @(field.IsRequired ? "*" : "")</span>
+              @if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Textarea)
+              {
+                <textarea name="Answers[@idx].Values" maxlength="4000" rows="4" placeholder="@field.Placeholder" required="@(field.IsRequired ? "required" : null)"></textarea>
+              }
+              else if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Dropdown)
+              {
+                <select name="Answers[@idx].Values" required="@(field.IsRequired ? "required" : null)">
+                  <option value="">Choose...</option>
+                  @foreach (var opt in field.Options)
+                  {
+                    <option value="@opt">@opt</option>
+                  }
+                </select>
+              }
+              else if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.CheckboxGroup)
+              {
+                <span class="website-form-checkbox-options">
+                  @foreach (var opt in field.Options)
+                  {
+                    <label class="website-form-checkbox-option"><input type="checkbox" name="Answers[@idx].Values" value="@opt" /> @opt</label>
+                  }
+                </span>
+              }
+              else
+              {
+                <input type="text" name="Answers[@idx].Values" maxlength="500" placeholder="@field.Placeholder" required="@(field.IsRequired ? "required" : null)" />
+              }
+            </label>
+            @if (!string.IsNullOrWhiteSpace(field.HelpText))
+            {
+              <div class="website-form-help">@field.HelpText</div>
+            }
+          </div>
+        }
+      }
+
+      <label class="website-lead-captcha">
+        <span>Security check *</span>
+        <span class="website-lead-captcha-row">
+          <span class="website-lead-captcha-question">What is @captchaLeft + @captchaRight?</span>
+          <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
+        </span>
+      </label>
+      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>I agree that this adviser may use my information to respond to this request.</span></label>
+      <button type="submit" class="website-lead-submit"><i class="fas fa-paper-plane"></i> @Model.SubmitButtonText</button>
+    </form>
+  }
+</div>
+<style>
+  .website-lead-form-shell{width:100%;}
+  .website-lead-form{display:grid;gap:16px;}
+  .website-lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .website-lead-form label{display:grid;gap:6px;font:700 13px/1.4 Arial,sans-serif;color:inherit;}
+  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea,.website-lead-form select{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#17223a;font:400 15px/1.4 Arial,sans-serif;}
+  .website-lead-form input:focus,.website-lead-form textarea:focus,.website-lead-form select:focus{outline:3px solid color-mix(in srgb,var(--site-theme,#1457d9) 20%,transparent);border-color:var(--site-theme,#1457d9);}
+  .website-lead-captcha-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .website-lead-captcha-question{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:6px;background:color-mix(in srgb,var(--site-theme,#1457d9) 10%,#fff);border:1px solid color-mix(in srgb,var(--site-theme,#1457d9) 30%,#cbd5e1);font:800 14px Arial,sans-serif;color:#17223a;}
+  .website-lead-captcha input{max-width:110px;}
+  .website-lead-consent{display:flex!important;grid-template-columns:auto 1fr!important;align-items:start;gap:9px!important;font-weight:400!important;}
+  .website-lead-consent input{margin-top:3px;}
+  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:0;border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:#fff;font:800 14px Arial,sans-serif;}
+  .website-lead-success,.website-lead-error{padding:14px;border-radius:6px;font:700 14px/1.5 Arial,sans-serif;}
+  .website-lead-success{background:#dcfce7;color:#166534;border:1px solid #86efac;}
+  .website-lead-error{margin-bottom:12px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .website-lead-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
+  .website-form-description{font:400 15px/1.5 Arial,sans-serif;color:inherit;margin:0 0 4px;}
+  .website-form-section{margin-top:6px;padding-top:14px;border-top:1px solid #e2e8f0;}
+  .website-form-section h4{margin:0 0 4px;font:800 16px Arial,sans-serif;color:inherit;}
+  .website-form-section-help{margin:0;font:400 13px/1.4 Arial,sans-serif;color:#64748b;}
+  .website-form-help{font:400 12px/1.4 Arial,sans-serif;color:#64748b;}
+  .website-form-checkbox-options{display:grid;gap:6px;}
+  .website-form-checkbox-option{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:8px;font-weight:400!important;}
+  @@media(max-width:640px){.website-lead-grid{grid-template-columns:1fr}}
+</style>

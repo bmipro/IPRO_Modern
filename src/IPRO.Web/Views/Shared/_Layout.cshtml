@@ -13,7 +13,8 @@
             IPRO.Entities.PackageFeatureCodes.InstantWebsite,
             IPRO.Entities.PackageFeatureCodes.VisitorTracking,
             IPRO.Entities.PackageFeatureCodes.TestimonialManager,
-            IPRO.Entities.PackageFeatureCodes.PollSurveys
+            IPRO.Entities.PackageFeatureCodes.PollSurveys,
+            IPRO.Entities.PackageFeatureCodes.CustomForms
         })
         {
             navAccess[featureCode] = await PackageEntitlements.GetAccessAsync(layoutAgentId, featureCode);
@@ -154,6 +155,7 @@
         <a class="nav-link @NavActive("WebsiteLeads")" href="/WebsiteLeads"><i class="fas fa-inbox"></i>Website Leads</a>
         <a class="nav-link @NavActive("WebsiteAnalytics")" href="/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking))><i class="fas fa-chart-line"></i>Analytics</a>
         <a class="nav-link @NavActive("Testimonials")" href="/Testimonials" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.TestimonialManager))><i class="fas fa-quote-left"></i>Testimonials</a>
+        <a class="nav-link @NavActive("Forms")" href="/Forms" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CustomForms))><i class="fas fa-rectangle-list"></i>Forms</a>
 
         <div class="nav-section">Billing</div>
         <a class="nav-link @NavActive("Billing")" href="/Billing"><i class="fas fa-credit-card"></i>Billing</a>

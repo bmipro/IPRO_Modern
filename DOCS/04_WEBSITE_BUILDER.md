@@ -200,6 +200,7 @@ Available block types include:
 - Lead Magnet Download
 - Review Badge
 - Agent Info Card
+- Custom Form
 
 Use the arrows to reorder blocks and the trash icon to remove one — this is also how you place an Agent Info Card wherever you want it on the page, since it's an ordinary block like any other.
 
@@ -212,6 +213,8 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 **Lead Magnet Download** gates a file you've already uploaded to [Documents](12_AGENT_DOCUMENT_LIBRARY.md) behind the site's standard lead-capture form — a visitor gives their name and email to unlock a "Download Now" link. See [DOCS/05_DOMAINS_AND_LEADS.md](05_DOMAINS_AND_LEADS.md) for the full walkthrough.
 
 **Review Badge** shows a star rating, review count, and a "Read Reviews" button linking out to your Google or Facebook review page — a quick trust signal for visitors. Enter your platform, review page URL, current rating, and review count when you add the block; there's no live sync with Google/Facebook, so update the numbers here yourself whenever they change. Available on every package — no upgrade required.
+
+**Custom Form** displays a form you've built in **Forms** (Agent Portal menu) — pick which one from the dropdown that appears when you add the block. Submissions become Website Leads with the visitor's answers attached. See [DOCS/17_FORMS.md](17_FORMS.md) for building forms with text fields, checkboxes, dropdowns, and section headers.
 
 **Agent Info Card** shows your photo, name, designation/company, full mailing address, phone, and email, pulled from your Profile — tick or untick which pieces to show when you add the block (for example, show your photo and name but hide your address). Add it once and move it anywhere on any page with the reorder arrows. On the Editorial template it renders as a full byline-style card; on Modern and Classic it currently uses the same plain contact-card style as the Review Badge block, ahead of a matching visual refresh for those two templates.
 

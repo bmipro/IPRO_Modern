@@ -1,0 +1,194 @@
+@model IPRO.Web.Models.FormBuilderViewModel
+@{
+    ViewData["Title"] = "Edit Form";
+}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-1"><i class="fas fa-rectangle-list me-2 text-primary"></i>Edit Form</h2>
+  <div class="text-muted">Add a title and one or more fields. Attach this form to a page later using the Custom Form block.</div>
+</div>
+
+<div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+<form asp-action="Edit" method="post" id="formBuilderForm">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id"/>
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Form Title</label>
+        <input asp-for="Title" class="form-control" maxlength="200"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Description (optional)</label>
+        <textarea asp-for="Description" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Submit Button Text</label>
+          <input asp-for="SubmitButtonText" class="form-control" maxlength="100"/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Success Message</label>
+          <input asp-for="SuccessMessage" class="form-control" maxlength="500"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="fieldsContainer"></div>
+
+  <button type="button" id="addFieldBtn" class="btn btn-outline-primary mb-4"><i class="fas fa-plus me-1"></i>Add Field</button>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Save Changes</button>
+    <a href="/Forms" class="btn btn-link">Cancel</a>
+  </div>
+</form>
+
+<template id="fieldTemplate">
+  <div class="card border-0 shadow-sm mb-3 field-card">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <label class="form-label small fw-semibold text-muted mb-0">Field Type</label>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
+      </div>
+      <select class="form-select mb-3 field-type">
+        <option value="Text">Text (single line)</option>
+        <option value="Textarea">Text (multi-line)</option>
+        <option value="CheckboxGroup">Checkboxes (select multiple)</option>
+        <option value="Dropdown">Dropdown (select one)</option>
+        <option value="Section">Section header</option>
+      </select>
+
+      <div class="mb-3 field-label-group">
+        <label class="form-label small fw-semibold text-muted">Label</label>
+        <input type="text" class="form-control field-label" maxlength="300" placeholder="What is your question or field name?"/>
+      </div>
+
+      <div class="mb-3 field-placeholder-group">
+        <label class="form-label small fw-semibold text-muted">Placeholder (optional)</label>
+        <input type="text" class="form-control field-placeholder" maxlength="200"/>
+      </div>
+
+      <div class="mb-3 field-helptext-group">
+        <label class="form-label small fw-semibold text-muted">Help Text (optional)</label>
+        <input type="text" class="form-control field-helptext" maxlength="500"/>
+      </div>
+
+      <div class="mb-3 field-options-group">
+        <label class="form-label small fw-semibold text-muted">Answer Options (2 or more)</label>
+        <div class="options-container"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary add-option-btn mt-2"><i class="fas fa-plus me-1"></i>Add Option</button>
+      </div>
+
+      <div class="form-check field-required-group">
+        <label class="form-check-label small">
+          <input type="checkbox" class="form-check-input field-required"> Required
+        </label>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="optionTemplate">
+  <div class="input-group mb-2 option-row">
+    <input type="text" class="form-control option-text" maxlength="300" placeholder="Answer option"/>
+    <button type="button" class="btn btn-outline-danger remove-option-btn"><i class="fas fa-times"></i></button>
+  </div>
+</template>
+
+@section Scripts {
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  const container = document.getElementById('fieldsContainer');
+  const fieldTemplate = document.getElementById('fieldTemplate');
+  const optionTemplate = document.getElementById('optionTemplate');
+  const form = document.getElementById('formBuilderForm');
+  const typesWithOptions = ['CheckboxGroup', 'Dropdown'];
+  const typesWithPlaceholder = ['Text', 'Textarea'];
+
+  function addOption(optionsContainer, value) {
+    const node = optionTemplate.content.cloneNode(true);
+    const input = node.querySelector('.option-text');
+    input.value = value || '';
+    node.querySelector('.remove-option-btn').addEventListener('click', function () {
+      const row = this.closest('.option-row');
+      if (optionsContainer.querySelectorAll('.option-row').length > 2) {
+        row.remove();
+      }
+    });
+    optionsContainer.appendChild(node);
+  }
+
+  function applyTypeVisibility(card, type) {
+    card.querySelector('.field-options-group').style.display = typesWithOptions.includes(type) ? '' : 'none';
+    card.querySelector('.field-placeholder-group').style.display = typesWithPlaceholder.includes(type) ? '' : 'none';
+    card.querySelector('.field-required-group').style.display = type === 'Section' ? 'none' : '';
+    card.querySelector('.field-label-group label').textContent = type === 'Section' ? 'Section Heading' : 'Label';
+  }
+
+  function addField(data) {
+    data = data || {};
+    const node = fieldTemplate.content.cloneNode(true);
+    const card = node.querySelector('.field-card');
+    const typeSelect = card.querySelector('.field-type');
+    typeSelect.value = data.fieldType || 'Text';
+    card.querySelector('.field-label').value = data.label || '';
+    card.querySelector('.field-placeholder').value = data.placeholder || '';
+    card.querySelector('.field-helptext').value = data.helpText || '';
+    card.querySelector('.field-required').checked = !!data.isRequired;
+
+    const optionsContainer = card.querySelector('.options-container');
+    (data.options && data.options.length ? data.options : ['', '']).forEach(function (o) { addOption(optionsContainer, o); });
+    card.querySelector('.add-option-btn').addEventListener('click', function () { addOption(optionsContainer, ''); });
+
+    applyTypeVisibility(card, typeSelect.value);
+    typeSelect.addEventListener('change', function () { applyTypeVisibility(card, this.value); });
+
+    card.querySelector('.remove-field-btn').addEventListener('click', function () {
+      if (container.querySelectorAll('.field-card').length > 1) {
+        card.remove();
+      }
+    });
+    container.appendChild(node);
+  }
+
+  document.getElementById('addFieldBtn').addEventListener('click', function () { addField({}); });
+
+  const initialFields = @Html.Raw(Json.Serialize(Model.Fields));
+  if (initialFields && initialFields.length) {
+    initialFields.forEach(function (f) {
+      addField({ fieldType: f.fieldType, label: f.label, placeholder: f.placeholder, helpText: f.helpText, isRequired: f.isRequired, options: f.options });
+    });
+  } else {
+    addField({});
+  }
+
+  form.addEventListener('submit', function () {
+    document.querySelectorAll('input[name^="Fields["]').forEach(function (el) { el.remove(); });
+
+    const fieldCards = container.querySelectorAll('.field-card');
+    fieldCards.forEach(function (card, fIndex) {
+      function addHidden(name, value) {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = name;
+        hidden.value = value;
+        form.appendChild(hidden);
+      }
+
+      addHidden('Fields[' + fIndex + '].FieldType', card.querySelector('.field-type').value);
+      addHidden('Fields[' + fIndex + '].Label', card.querySelector('.field-label').value);
+      addHidden('Fields[' + fIndex + '].Placeholder', card.querySelector('.field-placeholder').value);
+      addHidden('Fields[' + fIndex + '].HelpText', card.querySelector('.field-helptext').value);
+      addHidden('Fields[' + fIndex + '].IsRequired', card.querySelector('.field-required').checked ? 'true' : 'false');
+
+      card.querySelectorAll('.option-text').forEach(function (optInput, oIndex) {
+        addHidden('Fields[' + fIndex + '].Options[' + oIndex + ']', optInput.value);
+      });
+    });
+  });
+})();
+</script>
+}

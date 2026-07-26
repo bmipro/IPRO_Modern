@@ -345,6 +345,28 @@
               }
             </div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Form)
+          {
+            var formSettings = IPRO.Entities.WebsiteFormSettings.FromJson(block.SettingsJson);
+            <div class="col-12">
+              <label class="form-label fw-semibold">Which form?</label>
+              @if (Model.AvailableForms.Any())
+              {
+                <select name="websiteFormId" class="form-select">
+                  <option value="0">Choose a form...</option>
+                  @foreach (var availableForm in Model.AvailableForms)
+                  {
+                    <option value="@availableForm.Id" selected="@(formSettings.WebsiteFormId == availableForm.Id ? "selected" : null)">@availableForm.Title</option>
+                  }
+                </select>
+                <div class="form-text">Submissions land in your <a href="/WebsiteLeads">Website Leads</a> inbox.</div>
+              }
+              else
+              {
+                <div class="alert alert-info mb-0">Build a form first from <a href="/Forms/Create">Forms</a>, then come back here to attach it.</div>
+              }
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
           {
             var reviewSettings = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);

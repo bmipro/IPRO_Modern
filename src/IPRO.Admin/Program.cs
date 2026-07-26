@@ -167,6 +167,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureSocialPostSchemaAsync(db);
     await EnsureTestimonialSubmissionSchemaAsync(db);
     await EnsurePollSchemaAsync(db);
+    await EnsureWebsiteFormSchemaAsync(db);
     await EnsureAgentDailyInsightSchemaAsync(db);
     await EnsureAiUsageSchemaAsync(db);
     await EnsureTrialFeatureSchemaAsync(db);
@@ -1018,6 +1019,65 @@ CREATE TABLE IF NOT EXISTS `PollAnswers` (
     PRIMARY KEY (`Id`),
     UNIQUE KEY `ux_poll_answers_recipient_question` (`PollRecipientId`, `PollQuestionId`),
     KEY `idx_poll_answers_option` (`PollOptionId`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureWebsiteFormSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteForms` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `Title` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Description` varchar(2000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SubmitButtonText` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SuccessMessage` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_website_forms_agent` (`AgentUserId`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteFormFields` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `WebsiteFormId` int NOT NULL,
+    `FieldType` varchar(50) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Label` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Placeholder` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `HelpText` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `IsRequired` tinyint(1) NOT NULL DEFAULT 0,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_website_form_fields_form` (`WebsiteFormId`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteFormFieldOptions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `WebsiteFormFieldId` int NOT NULL,
+    `Text` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SortOrder` int NOT NULL DEFAULT 0,
+    PRIMARY KEY (`Id`),
+    KEY `idx_website_form_field_options_field` (`WebsiteFormFieldId`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteFormSubmissionAnswers` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `WebsiteLeadId` int NOT NULL,
+    `WebsiteFormId` int NOT NULL,
+    `WebsiteFormFieldId` int NOT NULL,
+    `FieldLabel` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `FieldType` varchar(50) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Value` varchar(4000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_website_form_submission_answers_lead` (`WebsiteLeadId`),
+    KEY `idx_website_form_submission_answers_form` (`WebsiteFormId`)
 ) CHARACTER SET=utf8mb4;");
 }
 

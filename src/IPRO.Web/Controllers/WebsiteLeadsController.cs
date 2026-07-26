@@ -69,7 +69,13 @@ public class WebsiteLeadsController : Controller
                 CsvEscape(lead.Email),
                 CsvEscape(lead.Phone),
                 CsvEscape(lead.Status),
-                CsvEscape(lead.SubmissionType == WebsiteLeadTypes.Newsletter ? "Newsletter signup" : "Contact request"),
+                CsvEscape(lead.SubmissionType switch
+                {
+                    WebsiteLeadTypes.Newsletter => "Newsletter signup",
+                    WebsiteLeadTypes.LeadMagnet => "Lead magnet download",
+                    WebsiteLeadTypes.CustomForm => "Form submission",
+                    _ => "Contact request"
+                }),
                 CsvEscape(lead.SourceDomain),
                 CsvEscape(lead.WebsitePage?.Title ?? string.Empty),
                 CsvEscape(lead.Message)));
@@ -77,6 +83,21 @@ public class WebsiteLeadsController : Controller
 
         var bytes = Encoding.UTF8.GetBytes(csv.ToString());
         return File(bytes, "text/csv", $"website-leads-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv");
+    }
+
+    public async Task<IActionResult> Details(int id)
+    {
+        var lead = await _db.WebsiteLeads
+            .Include(x => x.Client)
+            .Include(x => x.WebsitePage)
+            .FirstOrDefaultAsync(x => x.Id == id && x.AgentUserId == AgentId);
+        if (lead == null) return NotFound();
+
+        ViewBag.Answers = await _db.WebsiteFormSubmissionAnswers
+            .Where(a => a.WebsiteLeadId == id)
+            .OrderBy(a => a.SortOrder)
+            .ToListAsync();
+        return View(lead);
     }
 
     [HttpPost, ValidateAntiForgeryToken]

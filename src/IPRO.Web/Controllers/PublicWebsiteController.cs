@@ -308,6 +308,192 @@ public class PublicWebsiteController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitCustomForm(WebsiteCustomFormViewModel model)
+    {
+        var returnPath = NormalizeReturnPath(model.ReturnPath);
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        if (website == null)
+        {
+            return NotFound();
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.HoneypotField))
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, returnPath);
+            return LocalRedirect(AddResult(returnPath, "submitted", "form", "formId", model.WebsiteFormId.ToString()));
+        }
+
+        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
+        if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
+            TempData["PublicFormError"] = "Please refresh the page and try the form again.";
+            return LocalRedirect(returnPath);
+        }
+
+        if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Captcha, returnPath);
+            TempData["PublicFormError"] = "Please complete the security check and try again.";
+            return LocalRedirect(returnPath);
+        }
+
+        model.FirstName = model.FirstName?.Trim() ?? string.Empty;
+        model.LastName = model.LastName?.Trim() ?? string.Empty;
+        model.Email = (model.Email?.Trim() ?? string.Empty).ToLowerInvariant();
+        model.Phone = model.Phone?.Trim() ?? string.Empty;
+
+        if (!ModelState.IsValid || !model.ConsentGiven)
+        {
+            TempData["PublicFormError"] = "Please provide your name, a valid email address, and consent so the adviser can respond.";
+            return LocalRedirect(returnPath);
+        }
+
+        // Re-load the form and its fields server-side - never trust posted field labels/types, only the
+        // posted values matched against the field IDs that actually belong to this form for this agent.
+        var form = await _db.WebsiteForms.FirstOrDefaultAsync(f => f.Id == model.WebsiteFormId && f.AgentUserId == website.AgentUserId && f.IsActive);
+        if (form == null)
+        {
+            return NotFound();
+        }
+
+        var fields = await _db.WebsiteFormFields.Where(f => f.WebsiteFormId == form.Id).OrderBy(f => f.SortOrder).ToListAsync();
+        var fieldIds = fields.Select(f => f.Id).ToList();
+        var options = await _db.WebsiteFormFieldOptions.Where(o => fieldIds.Contains(o.WebsiteFormFieldId)).ToListAsync();
+
+        var postedAnswers = (model.Answers ?? new List<CustomAnswerInput>())
+            .GroupBy(a => a.FieldId)
+            .ToDictionary(g => g.Key, g => g.SelectMany(a => a.Values ?? new List<string>()).Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()).ToList());
+
+        var missingRequired = fields.Any(f => f.FieldType != WebsiteFormFieldTypes.Section && f.IsRequired &&
+            (!postedAnswers.TryGetValue(f.Id, out var values) || values.Count == 0));
+        if (missingRequired)
+        {
+            TempData["PublicFormError"] = "Please fill in all required fields.";
+            return LocalRedirect(returnPath);
+        }
+
+        var pageId = model.PageId.HasValue && await _db.WebsitePages.AnyAsync(p => p.Id == model.PageId && p.AgentWebsiteId == website.Id)
+            ? model.PageId
+            : null;
+        var duplicateCutoff = DateTime.UtcNow.AddMinutes(-5);
+        if (await _db.WebsiteLeads.AnyAsync(l =>
+                l.AgentUserId == website.AgentUserId &&
+                l.Email == model.Email &&
+                l.SubmissionType == WebsiteLeadTypes.CustomForm &&
+                l.CreatedAt >= duplicateCutoff))
+        {
+            return LocalRedirect(AddResult(returnPath, "submitted", "form", "formId", form.Id.ToString()));
+        }
+
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.AgentUserId == website.AgentUserId && c.Email == model.Email);
+        var processingNote = string.Empty;
+        if (client == null)
+        {
+            var access = await _entitlements.GetAccessAsync(website.AgentUserId, PackageFeatureCodes.Contacts);
+            var currentCount = await _db.Clients.CountAsync(c => c.AgentUserId == website.AgentUserId);
+            var canCreate = access.IsIncluded && (!access.LimitValue.HasValue || access.LimitValue.Value < 0 || currentCount < access.LimitValue.Value);
+            if (canCreate)
+            {
+                client = new Client
+                {
+                    AgentUserId = website.AgentUserId,
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    Email = model.Email,
+                    Phone = model.Phone,
+                    Notes = $"Created from a custom form submission on {Request.Host.Host}.",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.Clients.Add(client);
+                await _db.SaveChangesAsync();
+            }
+            else
+            {
+                processingNote = "Saved as a website lead but not added to contacts because the package contact limit was reached.";
+            }
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(client.Phone) && !string.IsNullOrWhiteSpace(model.Phone)) client.Phone = model.Phone;
+            if (string.IsNullOrWhiteSpace(client.FirstName)) client.FirstName = model.FirstName;
+            if (string.IsNullOrWhiteSpace(client.LastName) && !string.IsNullOrWhiteSpace(model.LastName)) client.LastName = model.LastName;
+            client.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var summaryLines = new List<string>();
+        var answerRows = new List<WebsiteFormSubmissionAnswer>();
+        var sortOrder = 0;
+        foreach (var field in fields.Where(f => f.FieldType != WebsiteFormFieldTypes.Section))
+        {
+            if (!postedAnswers.TryGetValue(field.Id, out var values) || values.Count == 0) continue;
+
+            var validValues = values;
+            if (WebsiteFormFieldTypes.SupportsOptions(field.FieldType))
+            {
+                var validOptionTexts = options.Where(o => o.WebsiteFormFieldId == field.Id).Select(o => o.Text).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                validValues = values.Where(v => validOptionTexts.Contains(v)).ToList();
+                if (validValues.Count == 0) continue;
+            }
+
+            var joined = Truncate(string.Join(", ", validValues), 4000);
+            summaryLines.Add($"{field.Label}: {joined}");
+            answerRows.Add(new WebsiteFormSubmissionAnswer
+            {
+                WebsiteFormId = form.Id,
+                WebsiteFormFieldId = field.Id,
+                FieldLabel = field.Label,
+                FieldType = field.FieldType,
+                Value = joined,
+                SortOrder = sortOrder++
+            });
+        }
+
+        var sourcePage = returnPath.Length > 500 ? returnPath[..500] : returnPath;
+        var lead = new WebsiteLead
+        {
+            AgentUserId = website.AgentUserId,
+            AgentWebsiteId = website.Id,
+            WebsitePageId = pageId,
+            ClientId = client?.Id,
+            SubmissionType = WebsiteLeadTypes.CustomForm,
+            FirstName = model.FirstName,
+            LastName = model.LastName,
+            Email = model.Email,
+            Phone = model.Phone,
+            Message = Truncate(string.Join(Environment.NewLine, summaryLines), 4000),
+            SourceDomain = NormalizeHost(Request.Host.Host),
+            SourcePage = sourcePage,
+            Referrer = Truncate(Request.Headers.Referer.ToString(), 1000),
+            IpAddress = Truncate(GetRequestIpAddress(), 64),
+            ConsentGiven = model.ConsentGiven,
+            ProcessingNote = processingNote,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        _db.WebsiteLeads.Add(lead);
+        await _db.SaveChangesAsync();
+
+        foreach (var row in answerRows)
+        {
+            row.WebsiteLeadId = lead.Id;
+        }
+        _db.WebsiteFormSubmissionAnswers.AddRange(answerRows);
+
+        if (client != null)
+        {
+            var note = $"Custom form submission ({form.Title}) from {lead.SourceDomain}{sourcePage}.";
+            _db.ClientComments.Add(new ClientComment { ClientId = client.Id, Comment = Truncate(note, 4000), CreatedAt = DateTime.UtcNow });
+        }
+
+        await _db.SaveChangesAsync();
+        await NotifyAgentAsync(website, lead);
+
+        return LocalRedirect(AddResult(returnPath, "submitted", "form", "formId", form.Id.ToString()));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SubmitTestimonial(TestimonialFormViewModel model)
     {
         var returnPath = NormalizeReturnPath(model.ReturnPath);

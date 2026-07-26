@@ -76,6 +76,10 @@ public class IPRODbContext : DbContext
     public DbSet<PollSend> PollSends => Set<PollSend>();
     public DbSet<PollRecipient> PollRecipients => Set<PollRecipient>();
     public DbSet<PollAnswer> PollAnswers => Set<PollAnswer>();
+    public DbSet<WebsiteForm> WebsiteForms => Set<WebsiteForm>();
+    public DbSet<WebsiteFormField> WebsiteFormFields => Set<WebsiteFormField>();
+    public DbSet<WebsiteFormFieldOption> WebsiteFormFieldOptions => Set<WebsiteFormFieldOption>();
+    public DbSet<WebsiteFormSubmissionAnswer> WebsiteFormSubmissionAnswers => Set<WebsiteFormSubmissionAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

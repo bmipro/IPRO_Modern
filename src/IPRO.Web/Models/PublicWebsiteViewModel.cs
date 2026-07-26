@@ -9,4 +9,5 @@ public class PublicWebsiteViewModel
     public WebsitePage? CurrentPage { get; set; }
     public List<TestimonialSubmission> ApprovedTestimonials { get; set; } = new();
     public Dictionary<int, PollResultsBlockData> PollResultsByBlockId { get; set; } = new();
+    public Dictionary<int, PublicFormBlockData> FormsByBlockId { get; set; } = new();
 }

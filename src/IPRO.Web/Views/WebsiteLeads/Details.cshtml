@@ -1,0 +1,59 @@
+@model IPRO.Entities.WebsiteLead
+@{
+    ViewData["Title"] = "Lead Details";
+    var answers = ViewBag.Answers as IReadOnlyCollection<IPRO.Entities.WebsiteFormSubmissionAnswer> ?? new List<IPRO.Entities.WebsiteFormSubmissionAnswer>();
+    string StatusClass(string value) => value switch
+    {
+        IPRO.Entities.WebsiteLeadStatuses.Contacted => "bg-success-subtle text-success",
+        IPRO.Entities.WebsiteLeadStatuses.Dismissed => "bg-light text-muted",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/WebsiteLeads">Website Leads</a></li><li class="breadcrumb-item active">@Model.FirstName @Model.LastName</li></ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-1">@Model.FirstName @Model.LastName</h3>
+    <div class="d-flex gap-2 flex-wrap small">
+      <a href="mailto:@Model.Email"><i class="fas fa-envelope me-1"></i>@Model.Email</a>
+      @if (!string.IsNullOrWhiteSpace(Model.Phone)) { <a href="tel:@Model.Phone"><i class="fas fa-phone me-1"></i>@Model.Phone</a> }
+    </div>
+  </div>
+  <span class="badge @StatusClass(Model.Status)">@Model.Status</span>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="small text-muted mb-3">
+      Submitted @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+      @if (!string.IsNullOrWhiteSpace(Model.SourceDomain)) { <span> · @Model.SourceDomain</span> }
+      @if (Model.WebsitePage != null) { <span> · Page: @Model.WebsitePage.Title</span> }
+    </div>
+
+    @if (answers.Any())
+    {
+      <div class="vstack gap-3">
+        @foreach (var answer in answers)
+        {
+          <div>
+            <div class="small text-uppercase text-muted fw-bold">@answer.FieldLabel</div>
+            <div style="white-space:pre-wrap">@(string.IsNullOrWhiteSpace(answer.Value) ? "—" : answer.Value)</div>
+          </div>
+        }
+      </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(Model.Message))
+    {
+      <div style="white-space:pre-wrap">@Model.Message</div>
+    }
+    else
+    {
+      <div class="text-muted">No additional details were submitted.</div>
+    }
+  </div>
+</div>
+
+<a class="btn btn-outline-secondary" href="/WebsiteLeads"><i class="fas fa-arrow-left me-1"></i>Back to Website Leads</a>
