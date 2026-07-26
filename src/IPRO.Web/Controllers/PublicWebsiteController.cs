@@ -310,7 +310,9 @@ public class PublicWebsiteController : Controller
     [HttpGet]
     public async Task<IActionResult> Form(int id)
     {
-        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        // A form sent directly (e.g. via a Campaign email) is a standalone resource - it
+        // shouldn't require the agent's whole marketing website to be published first.
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host), requirePublished: false);
         if (website == null) return NotFound();
 
         var formData = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildForFormAsync(_db, id, website.AgentUserId);
@@ -324,7 +326,10 @@ public class PublicWebsiteController : Controller
     public async Task<IActionResult> SubmitCustomForm(WebsiteCustomFormViewModel model)
     {
         var returnPath = NormalizeReturnPath(model.ReturnPath);
-        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        // Matches Form(id)'s relaxed publish requirement above - a visitor reaching this action
+        // already has a valid antiforgery token, which only comes from a page that rendered the
+        // form (either the standalone route or an embedded page, which still requires publish).
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host), requirePublished: false);
         if (website == null)
         {
             return NotFound();
@@ -590,7 +595,7 @@ public class PublicWebsiteController : Controller
         return await BuildWebsiteViewAsync(website, slug);
     }
 
-    private async Task<IPRO.Entities.AgentWebsite?> FindWebsiteForHostAsync(string host)
+    private async Task<IPRO.Entities.AgentWebsite?> FindWebsiteForHostAsync(string host, bool requirePublished = true)
     {
         var hostMatches = BuildHostMatches(host);
         var domainMatch = await _db.AgentDomains
@@ -601,7 +606,7 @@ public class PublicWebsiteController : Controller
                 hostMatches.Contains(d.RootDomain.ToLower()) ||
                 hostMatches.Contains(d.WwwDomain.ToLower()));
 
-        if (domainMatch?.AgentWebsite?.IsPublished == true)
+        if (domainMatch?.AgentWebsite != null && (domainMatch.AgentWebsite.IsPublished || !requirePublished))
         {
             return domainMatch.AgentWebsite;
         }
@@ -611,7 +616,7 @@ public class PublicWebsiteController : Controller
             var websiteQuery = _db.AgentWebsites
                 .Include(w => w.AgentUser)
                 .Include(w => w.Template)
-                .Where(w => w.IsPublished);
+                .Where(w => w.IsPublished || !requirePublished);
 
             if (domainMatch.AgentWebsiteId > 0)
             {
@@ -629,7 +634,7 @@ public class PublicWebsiteController : Controller
         return await _db.AgentWebsites
             .Include(w => w.AgentUser)
             .Include(w => w.Template)
-            .FirstOrDefaultAsync(w => w.IsPublished &&
+            .FirstOrDefaultAsync(w => (w.IsPublished || !requirePublished) &&
                 (hostMatches.Contains(w.CustomDomain.ToLower()) || hostMatches.Contains(w.AgentUser.DomainName.ToLower())));
     }
 

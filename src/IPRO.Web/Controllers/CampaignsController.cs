@@ -218,9 +218,27 @@ public class CampaignsController : Controller
 
         var formUrl = $"https://{domain}/PublicWebsite/Form/{form.Id}";
         var intro = string.IsNullOrWhiteSpace(form.Description) ? "Please take a moment to fill out this form." : form.Description;
+
+        var formData = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildForFormAsync(_db, form.Id, AgentId);
+        var fieldLabels = (formData?.Fields ?? new List<PublicFormField>())
+            .Where(f => f.FieldType != WebsiteFormFieldTypes.Section)
+            .Select(f => f.Label)
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .ToList();
+        var fieldListHtml = fieldLabels.Count == 0
+            ? ""
+            : "<ul style=\"margin:0 0 20px;padding-left:20px;color:#334155;font:400 14px/1.6 Arial,sans-serif;\">"
+              + string.Join("", fieldLabels.Select(l => $"<li>{System.Net.WebUtility.HtmlEncode(l)}</li>"))
+              + "</ul>";
+
         var htmlBody = $"""
-            <p>{System.Net.WebUtility.HtmlEncode(intro)}</p>
-            <p><a href="{formUrl}" style="display:inline-block;padding:12px 24px;background:#1457d9;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;">{System.Net.WebUtility.HtmlEncode(form.SubmitButtonText)}</a></p>
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:24px;max-width:520px;font-family:Arial,sans-serif;">
+              <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a;">{System.Net.WebUtility.HtmlEncode(form.Title)}</h2>
+              <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.5;">{System.Net.WebUtility.HtmlEncode(intro)}</p>
+              {fieldListHtml}
+              <a href="{formUrl}" style="display:inline-block;padding:12px 28px;background:#1457d9;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:15px;">{System.Net.WebUtility.HtmlEncode(form.SubmitButtonText)}</a>
+              <p style="margin:16px 0 0;color:#94a3b8;font-size:12px;">Takes less than a minute.</p>
+            </div>
             """;
 
         var nextOrder = await _db.DripCampaignSteps
