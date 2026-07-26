@@ -73,6 +73,21 @@ public class FormsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    public async Task<IActionResult> Preview(int id)
+    {
+        var gate = await RequireFormAccessAsync();
+        if (gate != null) return gate;
+
+        var formData = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildForFormAsync(_db, id, AgentId);
+        if (formData == null) return NotFound();
+
+        var website = await _db.AgentWebsites.Include(w => w.AgentUser).FirstOrDefaultAsync(w => w.AgentUserId == AgentId);
+        ViewBag.Website = website;
+        ViewBag.Agent = website?.AgentUser ?? await _db.AgentUsers.FirstOrDefaultAsync(a => a.Id == AgentId);
+        ViewBag.IsFormPreview = true;
+        return View("~/Views/PublicWebsite/StandaloneForm.cshtml", formData);
+    }
+
     public async Task<IActionResult> Edit(int id)
     {
         var gate = await RequireFormAccessAsync();

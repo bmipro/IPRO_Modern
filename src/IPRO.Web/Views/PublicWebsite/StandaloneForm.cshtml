@@ -1,12 +1,13 @@
 @model IPRO.Web.Models.PublicFormBlockData
 @{
     Layout = null;
-    var website = (IPRO.Entities.AgentWebsite)ViewBag.Website;
-    var agent = website.AgentUser;
-    var siteTitle = string.IsNullOrWhiteSpace(website.SiteTitle)
-        ? $"{agent.FirstName} {agent.LastName}".Trim()
-        : website.SiteTitle;
-    var theme = string.IsNullOrWhiteSpace(website.ThemeColor) ? "#1457d9" : website.ThemeColor;
+    var website = ViewBag.Website as IPRO.Entities.AgentWebsite;
+    var agent = website?.AgentUser ?? ViewBag.Agent as IPRO.Entities.AgentUser;
+    var siteTitle = !string.IsNullOrWhiteSpace(website?.SiteTitle)
+        ? website!.SiteTitle
+        : agent != null ? $"{agent.FirstName} {agent.LastName}".Trim() : "Your Website";
+    var theme = string.IsNullOrWhiteSpace(website?.ThemeColor) ? "#1457d9" : website!.ThemeColor;
+    var isPreview = ViewBag.IsFormPreview == true;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -25,14 +26,19 @@
     .standalone-form-header span { font-weight: 800; font-size: 18px; }
     .standalone-form-card { background: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(15,23,42,.08); padding: 32px; }
     .standalone-form-title { font-weight: 800; font-size: 24px; margin-bottom: 4px; }
+    .standalone-form-preview-banner { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 16px; font-weight: 700; font-size: 14px; margin-bottom: 16px; }
   </style>
 </head>
 <body>
   <div class="container" style="max-width:680px;">
+    @if (isPreview)
+    {
+      <div class="standalone-form-preview-banner mt-4"><i class="fas fa-eye me-1"></i>Preview only — this is how visitors will see this form. Nothing you submit here is saved as a real lead unless your website is published.</div>
+    }
     <div class="standalone-form-header">
-      @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
+      @if (!string.IsNullOrWhiteSpace(website?.LogoUrl))
       {
-        <img src="@website.LogoUrl" alt="@siteTitle" />
+        <img src="@website!.LogoUrl" alt="@siteTitle" />
       }
       <span>@siteTitle</span>
     </div>
