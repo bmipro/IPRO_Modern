@@ -495,15 +495,27 @@ Closed three "small loose ends" from the backlog, deliberately scoped to pure-co
 
 The "forgot the `OpenConnectionAsync`/`CloseConnectionAsync` wrapper" schema-repair bug has now taken production down three separate times (2026-07-16, 2026-07-24, 2026-07-26 — see `09_TROUBLESHOOTING.md`), each one caught by the "prevention rule" written after the previous occurrence, and each one not actually prevented by it. A documentation-only rule has proven insufficient. The real fix: have `EnsureTableColumnAsync` (and its sibling `EnsureUniqueIndexAsync`) open and close their own connection internally, so no future caller can get this wrong regardless of whether they remember the convention. Scoped as its own task rather than folded into a future feature's schema-repair work, since it touches every existing call site across both `Program.cs` files (`IPRO.Web` and `IPRO.Admin`) and deserves its own careful build-and-verify pass rather than being a rushed side-effect of unrelated feature work.
 
-### AI Assistant — where this could expand next
-Items 1 (the "why" line, item 26) and 2 (social post drafting, item 27) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
-1. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
-2. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
-3. **Client activity summarization** (Client Details page) — a higher-risk tier: client notes/timeline would leave the system in the API call, so this needs a PII-handling/redaction and consent decision made deliberately before writing any code, not bolted on after.
-4. **Drip campaign generation** — a full multi-step sequence from one prompt, bigger scope than any single-shot draft above.
-5. **Weekly/portfolio-wide digest** — a broader version of today's daily per-agent digest, e.g. "across your whole book, here's who needs attention this week."
+### 43. Newsletter draft generation (done, 2026-07-26)
 
-The throughline for all six: AI drafts or suggests, the agent always reviews and acts — the same "never auto-send" instinct already used throughout IPRO (testimonial approval queue, Draft-only recurring invoices, agent-triggered newsletter/poll sends).
+A "Draft with AI" button in the Newsletter composer (`/Newsletter/Create` only — deliberately not added to Edit, to avoid the AI silently overwriting a newsletter an agent has already substantially authored). Topic in, subject + HTML body out via a new `IAiSuggestionService.DraftNewsletterAsync(topic)`, reusing the exact same `AnthropicAiSuggestionService` call plumbing and `PackageFeatureCodes.AiDailyAssistant` gate as the existing social-post drafter — no new package feature, no new AI-service infrastructure. The model returns `SUBJECT: ...` / `BODY:\n...` in a fixed, prompt-instructed format that the service parses with a plain string split (no JSON tool-use schema, matching this codebase's existing minimal-complexity approach to AI calls). The agent always reviews and edits before saving/sending, same as every other AI-assisted feature in IPRO.
+
+**AI token cost analysis (for reference — this exact question will likely come up again for future AI features)**:
+- Model: **Claude Haiku 4.5**, priced (per `AiUsageRecorder.cs`, the same rate the app already uses for its own real usage tracking) at **$1 per million input tokens, $5 per million output tokens**.
+- The existing social-post drafter is cheap because its output is capped at 120 tokens (a short post) with a tiny prompt — roughly $0.0005-0.0006 per draft.
+- A newsletter draft is a full subject + 300-500 word HTML body — call it ~150-300 input tokens (system prompt + topic) and ~600-1,000 output tokens (body text plus light HTML markup).
+- Estimated cost: **~$0.0002-0.0003 input + ~$0.003-0.005 output ≈ $0.004-0.008 per newsletter drafted** — roughly half a cent to under a cent each.
+- At scale: even 200 agents drafting 2 newsletters/month each (400 drafts) comes to **roughly $2-3/month** in added AI spend — negligible next to what already shows on the SuperAdmin AI Usage page.
+- This estimate assumes a single-shot draft with no extra context fed in (e.g., no prior newsletters, no agent bio for style-matching). Feeding in more context would grow input tokens roughly proportionally, but input tokens are 5x cheaper than output here, so even a much richer prompt wouldn't meaningfully change the total.
+- The real, exact number is only known once actual agent usage accumulates on the AI Usage page — this is a grounded estimate from the same pricing constants the app itself bills against, not a live-measured figure.
+
+### AI Assistant — where this could expand next
+Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
+1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
+2. **Client activity summarization** (Client Details page) — a higher-risk tier: client notes/timeline would leave the system in the API call, so this needs a PII-handling/redaction and consent decision made deliberately before writing any code, not bolted on after.
+3. **Drip campaign generation** — a full multi-step sequence from one prompt, bigger scope than any single-shot draft above.
+4. **Weekly/portfolio-wide digest** — a broader version of today's daily per-agent digest, e.g. "across your whole book, here's who needs attention this week."
+
+The throughline for all: AI drafts or suggests, the agent always reviews and acts — the same "never auto-send" instinct already used throughout IPRO (testimonial approval queue, Draft-only recurring invoices, agent-triggered newsletter/poll sends).
 
 ## Bigger Product Ideas
 

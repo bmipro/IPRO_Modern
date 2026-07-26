@@ -25,10 +25,11 @@ public class NewsletterController : Controller
     private readonly IPRODbContext _db;
     private readonly NewsLetterDispatcher _dispatcher;
     private readonly IEmailService _email;
+    private readonly IAiSuggestionService _aiSuggestions;
     private readonly IConfiguration _configuration;
     private readonly ILogger<NewsletterController> _logger;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email, IConfiguration configuration, ILogger<NewsletterController> logger) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; _configuration = configuration; _logger = logger; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email, IAiSuggestionService aiSuggestions, IConfiguration configuration, ILogger<NewsletterController> logger) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; _aiSuggestions = aiSuggestions; _configuration = configuration; _logger = logger; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
@@ -38,6 +39,7 @@ public class NewsletterController : Controller
 
         await LoadNewsletterContextAsync();
         await LoadTemplatePickerAsync();
+        ViewBag.AiAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
         return View(new NewsLetter());
     }
     [HttpGet("Newsletter/CreateFromTemplate/{templateId}")]
@@ -77,6 +79,36 @@ public class NewsletterController : Controller
         TempData["Success"] = "Newsletter draft saved.";
         return RedirectToAction(nameof(Preview), new { id = nl.Id });
     }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DraftWithAi(string topic)
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
+        if (!access.IsIncluded)
+        {
+            return Json(new { success = false, error = access.UpgradeMessage });
+        }
+
+        if (string.IsNullOrWhiteSpace(topic))
+        {
+            return Json(new { success = false, error = "Enter a topic first, then draft with AI." });
+        }
+
+        var result = await _aiSuggestions.DraftNewsletterAsync(topic.Trim());
+        if (result.InputTokens > 0 || result.OutputTokens > 0)
+        {
+            await AiUsageRecorder.RecordAsync(_db, 1, result.InputTokens, result.OutputTokens);
+            await _db.SaveChangesAsync();
+        }
+
+        if (string.IsNullOrWhiteSpace(result.BodyHtml))
+        {
+            return Json(new { success = false, error = "AI drafting isn't available right now — try again in a moment, or write the newsletter yourself." });
+        }
+
+        return Json(new { success = true, subject = result.Subject ?? "", body = result.BodyHtml });
+    }
+
     public async Task<IActionResult> Edit(int id)
     {
         var gate = await RequireNewsletterAccessAsync();

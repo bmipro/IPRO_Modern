@@ -1,5 +1,9 @@
 @model IPRO.Entities.NewsLetter
-@{ ViewData["Title"] = "Create Newsletter"; }
+@{
+    ViewData["Title"] = "Create Newsletter";
+    var aiAccess = ViewBag.AiAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+    var aiLocked = aiAccess?.IsIncluded != true;
+}
 
 <div class="row mb-4">
   <div class="col">
@@ -47,6 +51,21 @@
         <form asp-action="Create" method="post">
           @Html.AntiForgeryToken()
           <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Draft with AI <span class="text-muted fw-normal">(optional)</span></label>
+            <div class="d-flex gap-2">
+              <input type="text" id="nlTopic" class="form-control" maxlength="200" placeholder="e.g. Preparing for tax season"/>
+              <button type="button" id="draftAiBtn" class="btn btn-outline-primary text-nowrap"
+                      data-upgrade-lock="@(aiLocked ? "true" : "false")"
+                      data-upgrade-title="@(aiAccess?.FeatureName ?? "AI Assistant")"
+                      data-upgrade-message="@(aiAccess?.UpgradeMessage ?? "AI drafting requires a package upgrade.")">
+                <i class="fas fa-wand-magic-sparkles me-1"></i>Draft with AI
+              </button>
+            </div>
+            <div class="form-text">Enter a topic and AI will draft a subject line and body below for you to review and edit.</div>
+          </div>
+
           <div class="mb-4">
             <label class="form-label fw-semibold">Subject Line <span class="text-danger">*</span></label>
             <input asp-for="Subject" class="form-control form-control-lg" placeholder="Enter a compelling subject line..." required/>
@@ -156,5 +175,41 @@ document.querySelectorAll('.starter-banner-choice').forEach(button => {
     preview.classList.remove('d-none');
   });
 });
+
+(function () {
+  const draftBtn = document.getElementById('draftAiBtn');
+  if (!draftBtn || draftBtn.dataset.upgradeLock === 'true') return;
+
+  draftBtn.addEventListener('click', async function () {
+    const topic = document.getElementById('nlTopic').value.trim();
+    if (!topic) { alert('Enter a topic first, then draft with AI.'); return; }
+    const original = draftBtn.innerHTML;
+    draftBtn.disabled = true;
+    draftBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Drafting...';
+    try {
+      const formData = new FormData();
+      formData.append('topic', topic);
+      formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+      const res = await fetch('/Newsletter/DraftWithAi', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('Subject').value = data.subject;
+        const hidden = document.getElementById('nlBody');
+        const visual = document.getElementById('nlBody-visual');
+        const source = document.getElementById('nlBody-source');
+        if (hidden) hidden.value = data.body;
+        if (visual) visual.innerHTML = data.body;
+        if (source) source.value = data.body;
+      } else {
+        alert(data.error || 'Could not draft a newsletter right now.');
+      }
+    } catch (e) {
+      alert('Could not draft a newsletter right now.');
+    } finally {
+      draftBtn.disabled = false;
+      draftBtn.innerHTML = original;
+    }
+  });
+})();
 </script>
 }

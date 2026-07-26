@@ -32,11 +32,45 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
         "no hashtag spam (at most 2 relevant hashtags), no financial promises or guarantees. " +
         "No preamble, no quotation marks, just the post text.";
 
+    private const string NewsletterSystemPrompt =
+        "You draft a newsletter for a financial/insurance advisor to send to their clients. " +
+        "Write a compelling subject line and a warm, professional body of 300-500 words in 2-4 short paragraphs. " +
+        "Format the body as simple HTML using only <p> and <strong> tags - no headings, images, links, or lists. " +
+        "No financial promises or guarantees, no preamble. " +
+        "Respond in exactly this format and nothing else:\n" +
+        "SUBJECT: <subject line>\n" +
+        "BODY:\n<html body>";
+
     public Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default) =>
         CallAnthropicAsync(SystemPrompt, situation, 60, cancellationToken);
 
     public Task<AiActionReasonResult> DraftSocialPostAsync(string topic, CancellationToken cancellationToken = default) =>
         CallAnthropicAsync(SocialPostSystemPrompt, $"Topic: {topic}", 120, cancellationToken);
+
+    public async Task<AiNewsletterDraftResult> DraftNewsletterAsync(string topic, CancellationToken cancellationToken = default)
+    {
+        var result = await CallAnthropicAsync(NewsletterSystemPrompt, $"Topic: {topic}", 900, cancellationToken);
+        if (string.IsNullOrWhiteSpace(result.Reason))
+        {
+            return new AiNewsletterDraftResult(null, null, result.InputTokens, result.OutputTokens);
+        }
+
+        var text = result.Reason;
+        var bodyIndex = text.IndexOf("BODY:", StringComparison.OrdinalIgnoreCase);
+        if (bodyIndex < 0)
+        {
+            return new AiNewsletterDraftResult(null, text, result.InputTokens, result.OutputTokens);
+        }
+
+        var subjectPart = text[..bodyIndex];
+        var subjectIndex = subjectPart.IndexOf("SUBJECT:", StringComparison.OrdinalIgnoreCase);
+        var subject = subjectIndex >= 0
+            ? subjectPart[(subjectIndex + "SUBJECT:".Length)..].Trim()
+            : subjectPart.Trim();
+        var body = text[(bodyIndex + "BODY:".Length)..].Trim();
+
+        return new AiNewsletterDraftResult(subject, body, result.InputTokens, result.OutputTokens);
+    }
 
     private async Task<AiActionReasonResult> CallAnthropicAsync(string systemPrompt, string userMessage, int maxTokens, CancellationToken cancellationToken)
     {
