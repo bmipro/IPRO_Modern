@@ -79,7 +79,7 @@ else if (subscription == null && trialEndsAt.HasValue)
     </div>
     <form asp-action="CancelSubscription" method="post">
       @Html.AntiForgeryToken()
-      <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Cancel your subscription? Your site will go offline at the end of the billing period.">Cancel Subscription</button>
+      <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Cancel your subscription? Your site will go offline at the end of the billing period.">Cancel Subscription</button>
     </form>
   </div>
 }
@@ -141,7 +141,7 @@ else if (currentPackage == null)
             <form asp-action="CancelPendingPayment" method="post">
               @Html.AntiForgeryToken()
               <input type="hidden" name="invoiceId" value="@invoice.Id"/>
-              <button type="submit" class="btn btn-outline-secondary btn-sm" data-confirm="Cancel this pending checkout?">Cancel Checkout</button>
+              <button type="submit" class="btn btn-outline-secondary btn-sm js-confirm-submit" data-confirm-message="Cancel this pending checkout?">Cancel Checkout</button>
             </form>
           </div>
         </div>

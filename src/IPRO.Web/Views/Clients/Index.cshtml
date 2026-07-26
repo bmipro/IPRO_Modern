@@ -161,7 +161,7 @@
                             <a href="/Clients/Edit/@c.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
                             <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" data-confirm="Delete @c.FirstName @c.LastName?"><i class="fas fa-trash"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" title="Delete" data-confirm-message="Delete @c.FirstName @c.LastName?"><i class="fas fa-trash"></i></button>
                             </form>
                         </div>
                     </td>

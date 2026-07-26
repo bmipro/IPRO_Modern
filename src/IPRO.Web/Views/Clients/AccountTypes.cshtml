@@ -62,7 +62,7 @@
               </form>
               <form asp-action="DeleteAccountType" asp-route-id="@type.Id" method="post" class="mt-2 text-end">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete this account type? Existing clients will be ungrouped from it.">
+                <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Delete this account type? Existing clients will be ungrouped from it.">
                   <i class="fas fa-trash me-1"></i>Delete
                 </button>
               </form>

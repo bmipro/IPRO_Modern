@@ -51,7 +51,7 @@
                   {
                     <form asp-action="Delete" asp-route-id="@poll.Id" method="post" class="d-inline">
                       @Html.AntiForgeryToken()
-                      <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete this poll?"><i class="fas fa-trash"></i></button>
+                      <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Delete this poll?"><i class="fas fa-trash"></i></button>
                     </form>
                   }
                 </td>

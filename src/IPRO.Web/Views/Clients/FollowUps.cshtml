@@ -91,7 +91,7 @@
               <form asp-action="DeleteFollowUp" asp-route-id="@followUp.Id" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
-                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" data-confirm="Delete this follow-up?"><i class="fas fa-trash"></i></button>
+                <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" title="Delete" data-confirm-message="Delete this follow-up?"><i class="fas fa-trash"></i></button>
               </form>
             </div>
           </td>

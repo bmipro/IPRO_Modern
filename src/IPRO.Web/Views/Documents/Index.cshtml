@@ -100,7 +100,7 @@
                   <a class="btn btn-sm btn-outline-secondary" href="/Documents/Download/@doc.Id">Download</a>
                   <form asp-action="Delete" asp-route-id="@doc.Id" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete @doc.FileName?"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Delete @doc.FileName?"><i class="fas fa-trash"></i></button>
                   </form>
                 </td>
               </tr>
