@@ -63,3 +63,11 @@ If the link is a PayPal.me link, IPRO automatically appends the invoice's exact 
 ## Exporting
 
 Click **Export CSV** on the Client Invoices list to download every document matching the current filters (document number, type, status, client, dates, and totals).
+
+### Exporting to QuickBooks
+
+Click **Export for QuickBooks** on the Client Invoices list to download a CSV formatted for QuickBooks Online's own **Import Invoices** wizard (in QuickBooks: **Settings → Import Data → Invoices**). A few things to know:
+
+- Only **invoices** are included — estimates aren't a QuickBooks concept, so they're left out.
+- The file has one row per line item, with the invoice number, customer, dates, and terms repeated on each row — this is the exact shape QuickBooks' import wizard expects.
+- Paid/unpaid status is included in the file for your own reference, but importing it does **not** mark anything as paid inside QuickBooks. After importing, reconcile payments there the same way you normally would.
