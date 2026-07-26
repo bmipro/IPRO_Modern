@@ -16,10 +16,10 @@ public class SendGridEmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null) =>
-        (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody, customArgs, replyToEmail, replyToName)).Success;
+    public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null, string? listUnsubscribeUrl = null) =>
+        (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody, customArgs, replyToEmail, replyToName, listUnsubscribeUrl)).Success;
 
-    public async Task<EmailSendResult> SendDetailedAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null)
+    public async Task<EmailSendResult> SendDetailedAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null, string? listUnsubscribeUrl = null)
     {
         try
         {
@@ -58,6 +58,13 @@ public class SendGridEmailService : IEmailService
                 {
                     msg.AddCustomArg(arg.Key, arg.Value ?? string.Empty);
                 }
+            }
+            if (!string.IsNullOrWhiteSpace(listUnsubscribeUrl))
+            {
+                // RFC 8058 one-click unsubscribe - required by Gmail/Yahoo for bulk senders to
+                // avoid spam-folder placement, and a strong deliverability signal regardless.
+                msg.AddHeader("List-Unsubscribe", $"<{listUnsubscribeUrl}>");
+                msg.AddHeader("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
             }
 
             var response = await client.SendEmailAsync(msg);

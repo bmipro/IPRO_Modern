@@ -106,7 +106,8 @@ public class NewsLetterDispatcher
                         ["agent_user_id"] = send.AgentUserId.ToString()
                     },
                     replyToEmail: sendingAgent?.Email,
-                    replyToName: newsletterReplyToName);
+                    replyToName: newsletterReplyToName,
+                    listUnsubscribeUrl: unsubscribeUrl);
 
                 recipient.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
@@ -239,7 +240,7 @@ public class NewsLetterDispatcher
         else
         {
             var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName, listUnsubscribeUrl: unsubscribeUrl);
         }
 
         stepSend.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;

@@ -219,16 +219,25 @@ public class CampaignsController : Controller
         var formUrl = $"https://{domain}/PublicWebsite/Form/{form.Id}";
         var intro = string.IsNullOrWhiteSpace(form.Description) ? "Please take a moment to fill out this form." : form.Description;
 
+        static string DescribeField(PublicFormField f)
+        {
+            var label = (f.Label ?? string.Empty).Trim();
+            var suffix = f.IsRequired ? " (required)" : "";
+            var supportsOptions = f.FieldType == WebsiteFormFieldTypes.CheckboxGroup || f.FieldType == WebsiteFormFieldTypes.Dropdown;
+            return supportsOptions && f.Options.Count > 0
+                ? $"{label}{suffix} — choose from: {string.Join(", ", f.Options)}"
+                : $"{label}{suffix}";
+        }
+
         var formData = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildForFormAsync(_db, form.Id, AgentId);
-        var fieldLabels = (formData?.Fields ?? new List<PublicFormField>())
-            .Where(f => f.FieldType != WebsiteFormFieldTypes.Section)
-            .Select(f => f.Label)
-            .Where(l => !string.IsNullOrWhiteSpace(l))
+        var fieldDescriptions = (formData?.Fields ?? new List<PublicFormField>())
+            .Where(f => f.FieldType != WebsiteFormFieldTypes.Section && !string.IsNullOrWhiteSpace(f.Label))
+            .Select(DescribeField)
             .ToList();
-        var fieldListHtml = fieldLabels.Count == 0
+        var fieldListHtml = fieldDescriptions.Count == 0
             ? ""
             : "<ul style=\"margin:0 0 20px;padding-left:20px;color:#334155;font:400 14px/1.6 Arial,sans-serif;\">"
-              + string.Join("", fieldLabels.Select(l => $"<li>{System.Net.WebUtility.HtmlEncode(l)}</li>"))
+              + string.Join("", fieldDescriptions.Select(d => $"<li>{System.Net.WebUtility.HtmlEncode(d)}</li>"))
               + "</ul>";
 
         var htmlBody = $"""
