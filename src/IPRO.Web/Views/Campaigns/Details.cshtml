@@ -121,6 +121,11 @@
               <i class="fas fa-envelope-open-text me-1"></i>Existing newsletter
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="form-step-tab" data-bs-toggle="tab" data-bs-target="#form-step-pane" type="button" role="tab" aria-controls="form-step-pane" aria-selected="false">
+              <i class="fas fa-rectangle-list me-1"></i>Forms
+            </button>
+          </li>
         </ul>
 
         <div class="tab-content">
@@ -173,6 +178,36 @@
                   </div>
                 </div>
                 <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-file-import me-1"></i>Add Newsletter as Step</button>
+              </form>
+            }
+          </div>
+
+          <div class="tab-pane fade" id="form-step-pane" role="tabpanel" aria-labelledby="form-step-tab">
+            @if (!Model.Forms.Any())
+            {
+              <div class="alert alert-info mb-0">No reusable forms yet. Create one from the <a href="/Forms/Create">Forms</a> area, then it will appear here.</div>
+            }
+            else
+            {
+              <form asp-action="AddStepFromForm" asp-route-id="@Model.Campaign.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="row g-3">
+                  <div class="col-md-8">
+                    <label class="form-label fw-semibold">Form</label>
+                    <select name="formId" class="form-select" required>
+                      <option value="">Choose form...</option>
+                      @foreach (var form in Model.Forms)
+                      {
+                        <option value="@form.Id">@form.Title</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">Delay days</label>
+                    <input name="delayDays" class="form-control" type="number" min="0" value="0" required />
+                  </div>
+                </div>
+                <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-rectangle-list me-1"></i>Add Form as Step</button>
               </form>
             }
           </div>

@@ -29,6 +29,10 @@ A form is fully editable and deletable at any time — editing a form updates it
 
 The same form can be attached to more than one page or block.
 
+## Send a Form Through a Campaign
+
+A form doesn't need to be on a page to be sent out — from a Campaign's **Details** screen, add a step from the **Forms** tab and pick one of your forms. This adds an email step with a link to that form, hosted on your own site, that clients can click straight from their inbox. Your site needs to be published for the link to work, since the form page lives on your site's own domain.
+
 ## What Visitors See
 
 Every Custom Form block always asks for a first name and email address (required), plus an optional phone number, above your own custom fields — this is what lets a submission become a real lead in your CRM. The form includes the same spam protections as every other public form on your site (a hidden honeypot field, a timing check, and a simple math question).

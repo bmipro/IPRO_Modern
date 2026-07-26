@@ -114,6 +114,10 @@ public class CampaignsController : Controller
             Newsletters = await _db.NewsLetters
                 .Where(n => n.AgentUserId == AgentId)
                 .OrderByDescending(n => n.CreatedAt)
+                .ToListAsync(),
+            Forms = await _db.WebsiteForms
+                .Where(f => f.AgentUserId == AgentId && f.IsActive)
+                .OrderByDescending(f => f.UpdatedAt)
                 .ToListAsync()
         });
     }
@@ -189,6 +193,52 @@ public class CampaignsController : Controller
 
         await _db.SaveChangesAsync();
         TempData["Success"] = $"Newsletter \"{newsletter.Subject}\" added as a campaign step.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddStepFromForm(int id, int formId, int delayDays)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (campaign == null) return NotFound();
+
+        var form = await _db.WebsiteForms.FirstOrDefaultAsync(f => f.Id == formId && f.AgentUserId == AgentId && f.IsActive);
+        if (form == null) return NotFound();
+
+        var website = await _db.AgentWebsites.Include(w => w.AgentUser).FirstOrDefaultAsync(w => w.AgentUserId == AgentId);
+        var domain = !string.IsNullOrWhiteSpace(website?.CustomDomain) ? website!.CustomDomain : website?.AgentUser.DomainName;
+        if (website == null || string.IsNullOrWhiteSpace(domain))
+        {
+            TempData["Error"] = "Set up your website domain before sending a form in a campaign.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var formUrl = $"https://{domain}/PublicWebsite/Form/{form.Id}";
+        var intro = string.IsNullOrWhiteSpace(form.Description) ? "Please take a moment to fill out this form." : form.Description;
+        var htmlBody = $"""
+            <p>{System.Net.WebUtility.HtmlEncode(intro)}</p>
+            <p><a href="{formUrl}" style="display:inline-block;padding:12px 24px;background:#1457d9;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;">{System.Net.WebUtility.HtmlEncode(form.SubmitButtonText)}</a></p>
+            """;
+
+        var nextOrder = await _db.DripCampaignSteps
+            .Where(s => s.DripCampaignId == id)
+            .Select(s => (int?)s.SortOrder)
+            .MaxAsync() ?? 0;
+
+        _db.DripCampaignSteps.Add(new DripCampaignStep
+        {
+            DripCampaignId = id,
+            Subject = form.Title.Trim(),
+            HtmlBody = HtmlContentSanitizer.Sanitize(htmlBody),
+            DelayDays = Math.Max(0, delayDays),
+            SortOrder = nextOrder + 10
+        });
+
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"Form \"{form.Title}\" added as a campaign step.";
         return RedirectToAction(nameof(Details), new { id });
     }
 

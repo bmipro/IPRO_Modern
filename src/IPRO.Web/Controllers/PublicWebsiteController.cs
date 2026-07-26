@@ -307,6 +307,19 @@ public class PublicWebsiteController : Controller
         return File(stream, contentType, document.FileName);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Form(int id)
+    {
+        var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
+        if (website == null) return NotFound();
+
+        var formData = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildForFormAsync(_db, id, website.AgentUserId);
+        if (formData == null) return NotFound();
+
+        ViewBag.Website = website;
+        return View("StandaloneForm", formData);
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SubmitCustomForm(WebsiteCustomFormViewModel model)
     {
