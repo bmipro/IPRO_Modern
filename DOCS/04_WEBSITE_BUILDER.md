@@ -25,6 +25,14 @@ Changing templates preserves pages and content. Templates change layout, typogra
 
 Previewing a template should not overwrite page content. It only shows how the current pages would look with that template.
 
+## Choose a Complete Theme
+
+1. Open **My Website**.
+2. Under **Website Themes**, click a theme card (for example Heritage Green, Modern Minimal, or Classic Navy).
+3. Click **Save Website Settings**.
+
+Each theme sets a complete, coordinated look — accent color, background, font, heading/body size, button style, section spacing, and hero style — all at once, designed to work together. This is the fastest way to get a polished result; use the individual color, font, and style controls below afterward only if you want to fine-tune one piece of it.
+
 ## Change the Theme Color
 
 1. Click a **Color Palette** swatch for a quick, coordinated theme and background color, or choose a color using the color control directly.
@@ -54,13 +62,21 @@ Font and size changes apply to section headings (such as Services, Testimonials,
 
 These settings apply across the whole site and are kept when you switch templates, the same way Theme Color and Font are kept.
 
+## Choose a Sidebar Position
+
+1. Open **My Website**.
+2. Under **Sidebar Position**, choose **No sidebar**, **Sidebar left**, or **Sidebar right** — or leave it set to **Match template** to use the current template's suggested position.
+3. Click **Save Website Settings**.
+
+A sidebar adds a persistent rail — your logo, your photo, and your name/company/contact details — beside your content on every page, not just one. It works with any template, not only Classic Sidebar. If you have not uploaded a logo or photo, the rail simply shows whatever you do have (your name and contact details are always shown). This setting is kept when you switch templates, the same way your other design choices are.
+
 ## Reset to Template Defaults
 
 1. Open **My Website**.
 2. Click **Reset to Template Defaults**.
 3. Confirm the prompt.
 
-This replaces your Theme Color, Font, Background Color, Button Style, Section Spacing, and Hero Style with the currently selected template's suggested defaults. It does not change your pages, content blocks, logo, site title, tagline, or domains.
+This replaces your Theme Color, Font, Background Color, Button Style, Section Spacing, Hero Style, and Sidebar Position with the currently selected template's suggested defaults. It does not change your pages, content blocks, logo, site title, tagline, or domains.
 
 ## Upload a Logo
 
