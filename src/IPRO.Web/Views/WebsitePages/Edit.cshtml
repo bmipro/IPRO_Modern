@@ -5,6 +5,8 @@
     ViewData["Title"] = isNew ? "Create Website Page" : $"Edit {sitePage.Title}";
 }
 @functions {
+    private static string StripHtml(string? html) => string.IsNullOrWhiteSpace(html) ? "" : System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", " ").Trim();
+
     private static string ImageKey(string? value)
     {
         var text = value?.Trim() ?? string.Empty;
@@ -201,6 +203,7 @@
       <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 py-3">
         <div><span class="badge bg-primary-subtle text-primary me-2">@IPRO.Entities.WebsiteBlockTypes.DisplayName(block.BlockType)</span><span class="fw-bold">@(string.IsNullOrWhiteSpace(block.Heading) ? "Untitled block" : block.Heading)</span></div>
         <div class="d-flex gap-1">
+          <a href="/SocialPosts/Create?topic=@Uri.EscapeDataString(block.Heading ?? "")&seedBody=@Uri.EscapeDataString(StripHtml(block.Body))" class="btn btn-sm btn-outline-secondary" title="Share to Social"><i class="fas fa-share-nodes"></i></a>
           <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="up" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button></form>
           <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
           <form method="post" action="/WebsitePages/DeleteBlock/@block.Id" onsubmit="return confirm('Remove this content block?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Remove"><i class="fas fa-trash"></i></button></form>

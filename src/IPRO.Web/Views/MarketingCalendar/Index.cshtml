@@ -1,0 +1,227 @@
+@model IEnumerable<IPRO.Web.Models.MarketingCalendarEvent>
+@{
+    ViewData["Title"] = "Marketing Calendar";
+    var monthStart = (DateTime)(ViewBag.MonthStart ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1));
+    var previousMonth = (DateTime)(ViewBag.PreviousMonth ?? monthStart.AddMonths(-1));
+    var nextMonth = (DateTime)(ViewBag.NextMonth ?? monthStart.AddMonths(1));
+    var firstVisibleDay = monthStart.AddDays(-(int)monthStart.DayOfWeek);
+    var eventsByDate = Model
+        .GroupBy(e => e.Date.Date)
+        .ToDictionary(g => g.Key, g => g.OrderBy(e => e.Type).ToList());
+
+    string MonthUrl(DateTime date) => $"/MarketingCalendar?year={date.Year}&month={date.Month}";
+    string DayCellClass(DateTime day)
+    {
+        var classes = new List<string> { "calendar-day" };
+        if (day.Month != monthStart.Month) classes.Add("is-muted");
+        if (day.Date == DateTime.Today) classes.Add("is-today");
+        return string.Join(" ", classes);
+    }
+
+    string EventClass(IPRO.Web.Models.MarketingCalendarEvent evt) => evt.Type switch
+    {
+        "Newsletter" => "calendar-event is-newsletter",
+        "Social" => "calendar-event is-social",
+        "Campaign" => "calendar-event is-campaign",
+        _ => "calendar-event"
+    };
+
+    string EventIcon(IPRO.Web.Models.MarketingCalendarEvent evt) => evt.Type switch
+    {
+        "Newsletter" => "fas fa-envelope",
+        "Social" => "fas fa-share-nodes",
+        "Campaign" => "fas fa-bullhorn",
+        _ => "fas fa-calendar"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="/Dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item active">Marketing Calendar</li>
+      </ol>
+    </nav>
+    <h2 class="fw-bold mb-0"><i class="fas fa-calendar-days me-2 text-primary"></i>Marketing Calendar</h2>
+    <small class="text-muted">Newsletters, drip campaigns, and social posts, all in one view.</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/Newsletter" class="btn btn-outline-secondary"><i class="fas fa-envelope me-1"></i>Newsletter</a>
+    <a href="/Campaigns" class="btn btn-outline-secondary"><i class="fas fa-bullhorn me-1"></i>Campaigns</a>
+    <a href="/SocialPosts" class="btn btn-outline-secondary"><i class="fas fa-share-nodes me-1"></i>Social Posts</a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 p-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <a href="@MonthUrl(previousMonth)" class="btn btn-outline-primary">
+        <i class="fas fa-chevron-left me-1"></i>@previousMonth.ToString("MMM yyyy")
+      </a>
+      <div class="text-center">
+        <h4 class="fw-bold mb-1">@monthStart.ToString("MMMM yyyy")</h4>
+        <div class="text-muted small">@Model.Count() marketing event@(Model.Count() == 1 ? "" : "s") this month</div>
+      </div>
+      <a href="@MonthUrl(nextMonth)" class="btn btn-outline-primary">
+        @nextMonth.ToString("MMM yyyy")<i class="fas fa-chevron-right ms-1"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="calendar-weekdays px-4">
+    @foreach (var dayName in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+    {
+      <div>@dayName</div>
+    }
+  </div>
+
+  <div class="calendar-grid px-4 pb-4">
+    @for (var index = 0; index < 42; index++)
+    {
+      var day = firstVisibleDay.AddDays(index);
+      var dayEvents = eventsByDate.TryGetValue(day.Date, out var items)
+          ? items
+          : new List<IPRO.Web.Models.MarketingCalendarEvent>();
+
+      <div class="@DayCellClass(day)">
+        <div class="calendar-day-number">@day.Day</div>
+        @if (dayEvents.Any())
+        {
+          <div class="calendar-events">
+          @foreach (var evt in dayEvents)
+          {
+            <div class="@EventClass(evt)">
+              @if (!string.IsNullOrWhiteSpace(evt.Url))
+              {
+                <a href="@evt.Url" class="calendar-event-title"><i class="@EventIcon(evt) me-1"></i>@evt.Title</a>
+              }
+              else
+              {
+                <div class="calendar-event-title"><i class="@EventIcon(evt) me-1"></i>@evt.Title</div>
+              }
+            </div>
+          }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<div class="d-flex gap-3 flex-wrap mt-3 small text-muted">
+  <span><span class="legend-dot bg-info"></span>Newsletter</span>
+  <span><span class="legend-dot bg-primary"></span>Social Post</span>
+  <span><span class="legend-dot bg-warning"></span>Drip Campaign</span>
+</div>
+
+<style>
+  .calendar-weekdays,
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar-weekdays {
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .calendar-weekdays > div {
+    border-top: 1px solid #e2e8f0;
+    padding: .75rem;
+  }
+
+  .calendar-day {
+    background: #fff;
+    border-right: 1px solid #e2e8f0;
+    border-top: 1px solid #e2e8f0;
+    min-height: 145px;
+    padding: .65rem;
+  }
+
+  .calendar-day:nth-child(7n+1) {
+    border-left: 1px solid #e2e8f0;
+  }
+
+  .calendar-day:nth-last-child(-n+7) {
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .calendar-day.is-muted {
+    background: #f8fafc;
+    color: #94a3b8;
+  }
+
+  .calendar-day.is-today {
+    box-shadow: inset 0 0 0 2px #2563eb;
+  }
+
+  .calendar-day-number {
+    font-size: .9rem;
+    font-weight: 800;
+    margin-bottom: .5rem;
+  }
+
+  .calendar-events {
+    display: grid;
+    gap: .45rem;
+  }
+
+  .calendar-event {
+    background: #eff6ff;
+    border-left: 4px solid #2563eb;
+    border-radius: 6px;
+    padding: .45rem .5rem;
+  }
+
+  .calendar-event.is-newsletter {
+    background: #eff9ff;
+    border-left-color: #0dcaf0;
+  }
+
+  .calendar-event.is-social {
+    background: #eff6ff;
+    border-left-color: #2563eb;
+  }
+
+  .calendar-event.is-campaign {
+    background: #fffbeb;
+    border-left-color: #f59e0b;
+  }
+
+  .calendar-event-title {
+    color: #0f172a;
+    display: block;
+    font-size: .78rem;
+    font-weight: 700;
+    line-height: 1.25;
+    text-decoration: none;
+  }
+
+  .legend-dot {
+    border-radius: 999px;
+    display: inline-block;
+    height: .65rem;
+    margin-right: .35rem;
+    width: .65rem;
+  }
+
+  @@media (max-width: 900px) {
+    .calendar-weekdays {
+      display: none;
+    }
+
+    .calendar-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .calendar-day {
+      border: 1px solid #e2e8f0;
+      min-height: auto;
+    }
+  }
+</style>

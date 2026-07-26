@@ -97,6 +97,59 @@ public class ClientInvoicesController : Controller
         return File(bytes, "text/csv", $"client-invoices-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv");
     }
 
+    // Invoices only (not Estimates, a separate QuickBooks concept) - one row per line item, invoice
+    // fields repeated per row, matching the flat-file shape QuickBooks Online's own "Import Invoices"
+    // wizard expects (Settings -> Import Data). There's no product/service catalog anywhere in this
+    // app, so "Product/Service" is a fixed "Services" value QBO will auto-create as an Item on first
+    // import; the actual line-item text goes in Description. This can't make QBO mark anything paid -
+    // a plain CSV import only creates/updates invoice records, not payment application - so PaidDate
+    // is informational only.
+    public async Task<IActionResult> ExportQuickBooks(string status = "all", int? clientId = null, string? search = null)
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        var invoices = await BuildFilteredQuery("invoice", status, clientId, search)
+            .Include(i => i.LineItems)
+            .OrderByDescending(i => i.IssueDate)
+            .ToListAsync();
+
+        var csv = new StringBuilder();
+        csv.AppendLine("InvoiceNo,Customer,InvoiceDate,DueDate,Terms,Product/Service,Description,Qty,Rate,Amount,Currency,Status,PaidDate");
+        foreach (var invoice in invoices)
+        {
+            var customer = $"{invoice.Client?.FirstName} {invoice.Client?.LastName}".Trim();
+            var terms = invoice.DueDate.HasValue ? $"Net {Math.Max(0, (invoice.DueDate.Value.Date - invoice.IssueDate.Date).Days)}" : string.Empty;
+            var lineItems = invoice.LineItems.OrderBy(l => l.SortOrder).ToList();
+            if (lineItems.Count == 0)
+            {
+                // Still emit one row so the invoice itself isn't silently dropped from the export.
+                lineItems.Add(new ClientInvoiceLineItem { Description = string.Empty, Quantity = 1, UnitPrice = invoice.Total, Amount = invoice.Total });
+            }
+
+            foreach (var line in lineItems)
+            {
+                csv.AppendLine(string.Join(",",
+                    CsvEscape(invoice.DocumentNumber),
+                    CsvEscape(customer),
+                    CsvEscape(invoice.IssueDate.ToString("yyyy-MM-dd")),
+                    CsvEscape(invoice.DueDate?.ToString("yyyy-MM-dd") ?? string.Empty),
+                    CsvEscape(terms),
+                    CsvEscape("Services"),
+                    CsvEscape(line.Description),
+                    CsvEscape(line.Quantity.ToString("0.##")),
+                    CsvEscape(line.UnitPrice.ToString("0.00")),
+                    CsvEscape(line.Amount.ToString("0.00")),
+                    CsvEscape(invoice.Currency),
+                    CsvEscape(invoice.Status.ToString()),
+                    CsvEscape(invoice.PaidAt?.ToString("yyyy-MM-dd") ?? string.Empty)));
+            }
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(csv.ToString());
+        return File(bytes, "text/csv", $"quickbooks-invoices-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv");
+    }
+
     public async Task<IActionResult> Create(ClientInvoiceDocumentType documentType = ClientInvoiceDocumentType.Invoice)
     {
         var gate = await RequireClientInvoicingAccessAsync();

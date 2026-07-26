@@ -41,10 +41,10 @@ public class SocialPostsController : Controller
         return View(await query.OrderByDescending(p => p.UpdatedAt).ToListAsync());
     }
 
-    public async Task<IActionResult> Create()
+    public async Task<IActionResult> Create(string? topic = null, string? seedBody = null)
     {
         ViewBag.AiAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
-        return View(new SocialPostDraft());
+        return View(new SocialPostDraft { Topic = topic?.Trim() ?? "", Body = seedBody?.Trim() ?? "" });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -63,7 +63,8 @@ public class SocialPostsController : Controller
         {
             AgentUserId = AgentId,
             Topic = model.Topic,
-            Body = model.Body
+            Body = model.Body,
+            ScheduledAt = model.ScheduledAt
         });
         await _db.SaveChangesAsync();
 
@@ -95,6 +96,7 @@ public class SocialPostsController : Controller
 
         post.Topic = model.Topic;
         post.Body = model.Body;
+        post.ScheduledAt = model.ScheduledAt;
         post.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
