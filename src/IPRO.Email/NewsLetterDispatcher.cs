@@ -54,6 +54,7 @@ public class NewsLetterDispatcher
         if (newsletter == null) return;
 
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(newsletter.AgentUserId);
+        var newsletterReplyToName = sendingAgent == null ? null : $"{sendingAgent.FirstName} {sendingAgent.LastName}".Trim();
         var articles = await _uow.NewsLetterArticles.FindAsync(a => a.NewsLetterId == newsletter.Id);
         var sidebarCtas = NewsLetterSidebarCtas.FromJson(newsletter.SidebarCtasJson);
         var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl(), articles, sidebarCtas);
@@ -103,7 +104,9 @@ public class NewsLetterDispatcher
                         ["newsletter_recipient_id"] = recipient.Id.ToString(),
                         ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
                         ["agent_user_id"] = send.AgentUserId.ToString()
-                    });
+                    },
+                    replyToEmail: sendingAgent?.Email,
+                    replyToName: newsletterReplyToName);
 
                 recipient.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
@@ -197,6 +200,9 @@ public class NewsLetterDispatcher
         var campaign = await _uow.DripCampaigns.GetByIdAsync(campaignId);
         if (campaign == null || !campaign.IsActive) return;
 
+        var sendingAgent = await _uow.AgentUsers.GetByIdAsync(campaign.AgentUserId);
+        var replyToName = sendingAgent == null ? null : $"{sendingAgent.FirstName} {sendingAgent.LastName}".Trim();
+
         var steps = (await _uow.DripCampaignSteps.FindAsync(s => s.DripCampaignId == campaignId))
             .OrderBy(s => s.SortOrder).ToList();
 
@@ -228,12 +234,12 @@ public class NewsLetterDispatcher
         EmailSendResult result;
         if (string.IsNullOrWhiteSpace(unsubscribeToken))
         {
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, sanitizedHtmlBody, customArgs: customArgs);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, sanitizedHtmlBody, customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName);
         }
         else
         {
             var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl), customArgs: customArgs);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName);
         }
 
         stepSend.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;

@@ -16,10 +16,10 @@ public class SendGridEmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null) =>
-        (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody, customArgs)).Success;
+    public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null) =>
+        (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody, customArgs, replyToEmail, replyToName)).Success;
 
-    public async Task<EmailSendResult> SendDetailedAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null)
+    public async Task<EmailSendResult> SendDetailedAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null)
     {
         try
         {
@@ -44,7 +44,11 @@ public class SendGridEmailService : IEmailService
                 new EmailAddress(_settings.FromEmail, _settings.FromName),
                 new EmailAddress(toEmail, toName),
                 subject, textBody ?? string.Empty, htmlBody);
-            if (!string.IsNullOrWhiteSpace(_settings.ReplyToEmail))
+            if (!string.IsNullOrWhiteSpace(replyToEmail))
+            {
+                msg.SetReplyTo(new EmailAddress(replyToEmail, string.IsNullOrWhiteSpace(replyToName) ? null : replyToName));
+            }
+            else if (!string.IsNullOrWhiteSpace(_settings.ReplyToEmail))
             {
                 msg.SetReplyTo(new EmailAddress(_settings.ReplyToEmail));
             }
