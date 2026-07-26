@@ -481,6 +481,20 @@ User asked for a third Campaign step source alongside Fresh Content and Existing
 - Shared SendGrid IP occasionally shows up on a minor blocklist (SpamCop/Mailspike, roughly −0.5–1.5) — not code-fixable; SendGrid manages shared-pool reputation, and it varies run to run. A dedicated IP is the only real lever here and isn't worth it at current volume.
 - The reply-to-your-agent design still trades a small SpamAssassin signal (personal-domain Reply-To against a different From domain) for real UX value; a `reply+agentId@iproadvisers.com` alias-forwarding system would remove that signal entirely but is new inbound-email infrastructure, not scoped.
 
+### 41. QuickBooks export, reuse content as social post, and a Marketing Calendar (done, 2026-07-26)
+
+Closed three "small loose ends" from the backlog, deliberately scoped to pure-code items with no external vendor/API dependency (Google Calendar OAuth issues, Stripe-dependent failed-payment tracking, and per-platform social auto-publish stayed untouched — those need an external account/decision first).
+
+- **QuickBooks export**: `ClientInvoices/ExportQuickBooks` — a CSV shaped for QuickBooks Online's own "Import Invoices" wizard (not an IIF file, not a live API push — this app has no product/service catalog and no QBO vendor account), one row per line item, invoice-level fields repeated per row, scoped to `DocumentType == Invoice`. Paid/unpaid status is informational only; the export does not attempt to mark anything paid in QuickBooks.
+- **Reuse Newsletter/Website content as a Social Post**: rather than a new "convert" endpoint or duplicated AI-drafting logic, `/SocialPosts/Create` gained optional `topic`/`seedBody` query params that pre-fill the existing composer (which already has its own "Draft with AI" button). "Share to Social" links were added next to the Newsletter subject, per Newsletter article, and per Website Page content block.
+- **Marketing Calendar**: a new `/MarketingCalendar` page mirroring the existing Clients/Calendar's server-rendered month grid (no JS calendar library, consistent with the only calendar this app already has). Merges Newsletter sends (`NewsLetterSend.ScheduledAt`/`SentAt`), Social Posts, and Drip Campaign sends (`DripCampaignStepSend.SentAt`, grouped per campaign+date into "sent to N") into one month view scoped to the agent. Since Social Posts previously had no forward-looking date (only `PostedAt` once actually posted), added `SocialPostDraft.ScheduledAt` (nullable) with a "Schedule for" date field on Create/Edit, so a post can be planned ahead rather than only logged after the fact.
+
+**A same-day production incident, found and fixed the same session**: the `SocialPostDrafts.ScheduledAt` schema-repair call used a raw ADO.NET command against `db.Database.GetDbConnection()` without the `OpenConnectionAsync`/`CloseConnectionAsync` wrapper every sibling schema-repair call in `Program.cs` uses. It ran immediately after a raw `CREATE TABLE IF NOT EXISTS` (which implicitly opens and closes its own connection), so it hit a connection that had already been closed and threw an unhandled `InvalidOperationException` on every startup — both `ipro-prod-web` and `ipro-prod-admin` crash-looped (exit code 134) and Azure auto-blocked them after repeated cold-start failures. Root-caused from the container's actual failure log (not just live-tail, which replays stale history first and can obscure a fresh crash), fixed by wrapping the call in the same pattern as every other caller, redeployed, and verified via a fresh log download that both apps started cleanly with no further crashes. See the matching incident write-up in `09_TROUBLESHOOTING.md`.
+
+### 42. Make `EnsureTableColumnAsync` self-contained (not started)
+
+The "forgot the `OpenConnectionAsync`/`CloseConnectionAsync` wrapper" schema-repair bug has now taken production down three separate times (2026-07-16, 2026-07-24, 2026-07-26 — see `09_TROUBLESHOOTING.md`), each one caught by the "prevention rule" written after the previous occurrence, and each one not actually prevented by it. A documentation-only rule has proven insufficient. The real fix: have `EnsureTableColumnAsync` (and its sibling `EnsureUniqueIndexAsync`) open and close their own connection internally, so no future caller can get this wrong regardless of whether they remember the convention. Scoped as its own task rather than folded into a future feature's schema-repair work, since it touches every existing call site across both `Program.cs` files (`IPRO.Web` and `IPRO.Admin`) and deserves its own careful build-and-verify pass rather than being a rushed side-effect of unrelated feature work.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26) and 2 (social post drafting, item 27) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Newsletter draft generation** — a "Draft with AI" button in the Newsletter composer: topic in, subject + HTML body out, agent edits before sending.
@@ -496,7 +510,7 @@ The throughline for all six: AI drafts or suggests, the agent always reviews and
 ### Agent invoicing and billing system (v1 done — see item 13 below; automatic overdue reminders — see item 23 above)
 The core of this shipped: estimates/invoices with line items, per-client tax, a no-login client view/approve/pay link, manual paid-tracking, recurring auto-drafted invoices, CSV export, and automatic overdue reminders. Still open for a future pass:
 - Track failed/declined payments (today, payment itself happens outside IPRO, so there's nothing to detect automatically).
-- QuickBooks export (CSV export exists; QuickBooks-specific format does not).
+- QuickBooks export (done — see item 41 above: a QuickBooks Online-compatible CSV via the Import Invoices wizard shape).
 - Let clients view/pay through a real logged-in client portal instead of a one-off signed link (see "Client portal" below).
 
 ### Vertical starter packs
@@ -577,8 +591,8 @@ The user shared a legacy version's newsletter templates (`index.htm` through `in
 ### Reputation and social media
 - Collect and approve testimonials (done 2026-07-20 — see `DOCS/15_TESTIMONIALS.md`: open public submission form + agent review queue; targeted per-client request links done 2026-07-20, see item 23 above). Star ratings and photo upload were considered but remain deferred.
 - Publish social posts (done — see item 18: draft/track composer; live auto-publishing directly to a platform is still a separate, larger future item).
-- Reuse newsletter/page content as social content.
-- Campaign calendar for email and social.
+- Reuse newsletter/page content as social content (done — see item 41 above).
+- Campaign calendar for email and social (done — see item 41 above).
 
 ### Broker/team/white-label model (not built — designed 2026-07-22)
 
