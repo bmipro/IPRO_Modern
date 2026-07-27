@@ -534,6 +534,16 @@ Asked two questions in one message: whether the Agent Document Library can share
 
 **Verification**: build succeeded after one fix (a loop variable named `page` collided with Razor's reserved `@page` directive keyword — a syntax gotcha, not a logic bug — renamed to `sitePage`). Deployed and confirmed via a fresh container-log download that `ipro-prod-web` started cleanly (`Site started` at the new deployment version, no new exceptions) — not just an HTTP check.
 
+### 46. Poll Duplicate: reuse a poll instead of building it from scratch each time (done, 2026-07-27)
+
+Asked whether a poll could be reused/resent to other emails or users. Investigated the actual Poll data model and controller before answering (via a research subagent, then verified directly) rather than guessing: recipients are already chosen via audience selection (all newsletter-subscribed clients / one account type / one individual client) — never arbitrary typed-in email addresses, mirroring how Newsletter and Marketing Calendar audiences work. Once a poll leaves Draft status, `PollsController` permanently hides the Edit/Send buttons and blocks those actions server-side — and there was no Duplicate/Resend/Clone action anywhere. The user's framing cut straight to the point: "There is no point to create a poll for one time use."
+
+**Why a true in-place resend was rejected**: `PollDispatcher.DispatchSendAsync` mints a brand-new `PollRecipient` row (with a fresh `VoteToken`) for every matched client on every dispatch, with no check for a prior recipient row from an earlier send of the same survey. Reopening the Send action on an already-sent poll would let anyone who already voted vote again — a real double-vote bug, not a hypothetical one.
+
+**What shipped**: a `Duplicate` action on `PollsController`, directly modeled on `NewsLetterService.DuplicateAsync` (Newsletter already had this exact pattern — Poll didn't). Copies title (suffixed "(copy)"), subject, intro text, and all questions/options into a brand-new Draft survey with its own `Id`; the original poll, its sends, and its votes are completely untouched, so there's no double-vote risk — the duplicate is simply sent independently, like any other draft. Poll's controller has no service layer (unlike Newsletter's `INewsLetterService`), so this was added as a plain controller action using the same direct-`_db` style already used throughout `PollsController.cs`, rather than introducing a service abstraction for one method. Duplicate button added to the Polls list (every poll, not just Drafts) and to the Preview page's action bar, plus an inline note on sent/scheduled polls explaining why Edit/Send are gone and pointing at Duplicate instead.
+
+**Verification**: build succeeded clean. Deployed and confirmed via a fresh container-log download that `ipro-prod-web` started cleanly at the new deployment version with no exceptions.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.

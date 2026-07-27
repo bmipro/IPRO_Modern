@@ -39,6 +39,10 @@ Once a recipient submits (or reopens a link they've already used), they're shown
 
 Add a **Poll Results** block to any page in the Website Builder, then pick which sent poll it should show. The block stays hidden on your live site until that poll has at least 10 responses — enough that no single answer can be traced back to one client — then displays the live percentage breakdown for each question, updating automatically as more people respond.
 
+## Reuse a Poll
+
+Once a poll leaves Draft status (it's been sent or scheduled), it can no longer be edited or sent again directly — this protects existing results and prevents the same recipient from voting twice on the same poll. To reuse it, click **Duplicate** (available from the Polls list or a poll's Preview page, on any poll regardless of status). This copies the title, subject, intro text, and all questions/options into a brand-new Draft poll, which you then edit and send like any other — to the same audience again, a different one, or just to catch people who missed the first round. The original poll and its results are untouched.
+
 ## Deleting a Poll
 
 Only polls that are still Drafts (never sent) can be deleted. Once a poll has an actual send — even a cancelled one — it's kept permanently so its results stay available.
