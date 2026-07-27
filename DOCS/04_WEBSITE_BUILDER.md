@@ -183,16 +183,19 @@ A small arrow icon linking to the agent portal sign-in page always appears in th
 2. Click **Footer**.
 3. Enter copyright text, phone, email, and address. Leave any field blank to omit it from the footer.
 4. Add social links by choosing a platform and pasting the profile URL.
-5. Add legal links such as Privacy Policy or Terms of Service.
+5. Add legal links such as Privacy Policy or Terms of Service. Under **Link to**, pick one of your own pages to auto-fill its URL, or leave it set to **Custom URL…** and type/paste any external link.
 6. Optionally enable the disclaimer and enter its text.
 7. Click **Save Footer**.
 
 The footer appears on every published page across all templates, including the temporary domain and any connected custom domains. Footer style automatically matches the selected template; no separate footer design controls are needed.
 
+To link a legal link to a page you don't want in the main menu (for example, a Privacy Policy page), create the page under **Pages**, turn off **Show in navigation** on it, then pick it from the **Link to** dropdown here — the page stays off the menu but is still reachable from the footer link.
+
 ### Troubleshooting
 
 - If a footer field does not appear on the public site, confirm it was saved from **Footer** and not left blank.
 - The disclaimer only appears when **Show disclaimer** is enabled and disclaimer text is entered.
+- The **Link to** dropdown only lists pages that already exist — create the page first, then come back to Footer to link it.
 
 ## Add a Content Block
 
