@@ -47,6 +47,10 @@
                 <td class="small text-muted">@poll.UpdatedAt.ToString("MMM d, yyyy")</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-secondary" href="/Polls/Preview/@poll.Id">View</a>
+                  <form asp-action="Duplicate" asp-route-id="@poll.Id" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplicate"><i class="fas fa-copy"></i></button>
+                  </form>
                   @if (poll.Status == IPRO.Entities.PollSurveyStatus.Draft)
                   {
                     <form asp-action="Delete" asp-route-id="@poll.Id" method="post" class="d-inline">

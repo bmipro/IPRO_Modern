@@ -167,6 +167,47 @@ public class PollsController : Controller
         return View(survey);
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Duplicate(int id)
+    {
+        var gate = await RequirePollAccessAsync();
+        if (gate != null) return gate;
+
+        var source = await _db.PollSurveys.FirstOrDefaultAsync(p => p.Id == id && p.AgentUserId == AgentId);
+        if (source == null) return NotFound();
+
+        var copy = new PollSurvey
+        {
+            AgentUserId = AgentId,
+            Title = $"{source.Title} (copy)",
+            Subject = source.Subject,
+            IntroText = source.IntroText,
+            Status = PollSurveyStatus.Draft
+        };
+        _db.PollSurveys.Add(copy);
+        await _db.SaveChangesAsync();
+
+        var questions = await _db.PollQuestions.Where(q => q.PollSurveyId == id).OrderBy(q => q.SortOrder).ToListAsync();
+        var questionIds = questions.Select(q => q.Id).ToList();
+        var options = await _db.PollOptions.Where(o => questionIds.Contains(o.PollQuestionId)).OrderBy(o => o.SortOrder).ToListAsync();
+
+        foreach (var question in questions)
+        {
+            var newQuestion = new PollQuestion { PollSurveyId = copy.Id, Text = question.Text, SortOrder = question.SortOrder };
+            _db.PollQuestions.Add(newQuestion);
+            await _db.SaveChangesAsync();
+
+            foreach (var option in options.Where(o => o.PollQuestionId == question.Id))
+            {
+                _db.PollOptions.Add(new PollOption { PollQuestionId = newQuestion.Id, Text = option.Text, SortOrder = option.SortOrder });
+            }
+            await _db.SaveChangesAsync();
+        }
+
+        TempData["Success"] = "Poll copied as a new reusable draft.";
+        return RedirectToAction(nameof(Edit), new { id = copy.Id });
+    }
+
     public async Task<IActionResult> Send(int id)
     {
         var gate = await RequirePollAccessAsync();
