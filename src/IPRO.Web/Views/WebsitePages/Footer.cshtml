@@ -55,12 +55,23 @@
 
 <div class="card border-0 shadow-sm">
   <div class="card-body p-4">
-    <h4 class="fw-bold mb-1">Legal Links</h4><div class="text-muted small mb-3">Add links such as Privacy Policy or Terms of Service.</div>
-    <form method="post" action="/WebsitePages/AddLegalLink" class="row g-2 align-items-end mb-3">
+    <h4 class="fw-bold mb-1">Legal Links</h4><div class="text-muted small mb-3">Add links such as Privacy Policy or Terms of Service — either one of your own pages, or a complete external URL.</div>
+    <form method="post" action="/WebsitePages/AddLegalLink" class="row g-2 align-items-end mb-3" id="legalLinkForm">
       @Html.AntiForgeryToken()
       <div class="col-md-4"><label class="form-label small fw-semibold">Label</label><input name="label" class="form-control" placeholder="Privacy Policy" required /></div>
-      <div class="col-md-6"><label class="form-label small fw-semibold">Complete URL</label><input name="url" type="url" class="form-control" placeholder="https://example.com/privacy" required /></div>
-      <div class="col-md-2"><button class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>Add</button></div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Link to</label>
+        <select id="legalLinkPageId" class="form-select">
+          <option value="">Custom URL&hellip;</option>
+          @foreach (var sitePage in Model.Pages)
+          {
+            var path = sitePage.IsHomePage ? "/" : $"/{sitePage.Slug.Trim('/')}";
+            <option value="@path">@sitePage.Title@(sitePage.ShowInNavigation ? "" : " (hidden from menu)")</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-4"><label class="form-label small fw-semibold">URL</label><input name="url" id="legalLinkUrl" type="text" class="form-control" placeholder="https://example.com/privacy" required /></div>
+      <div class="col-12"><button class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add</button></div>
     </form>
     @foreach (var link in Model.Footer.LegalLinks.OrderBy(l => l.SortOrder))
     {
@@ -71,3 +82,21 @@
     }
   </div>
 </div>
+
+<script>
+  (function () {
+    var pageSelect = document.getElementById('legalLinkPageId');
+    var urlInput = document.getElementById('legalLinkUrl');
+    if (!pageSelect || !urlInput) return;
+    pageSelect.addEventListener('change', function () {
+      if (pageSelect.value) {
+        urlInput.value = pageSelect.value;
+        urlInput.readOnly = true;
+      } else {
+        urlInput.value = '';
+        urlInput.readOnly = false;
+        urlInput.focus();
+      }
+    });
+  })();
+</script>

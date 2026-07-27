@@ -166,10 +166,17 @@ public class WebsitePagesController : Controller
         if (access != null) return access;
         var website = await GetWebsiteAsync();
         if (website == null) return RedirectToAction("Index", "Website");
+        var pages = await _db.WebsitePages
+            .AsNoTracking()
+            .Where(p => p.AgentWebsiteId == website.Id)
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Title)
+            .ToListAsync();
         return View(new WebsiteFooterViewModel
         {
             Website = website,
-            Footer = WebsiteFooterSettings.FromJson(website.FooterSettingsJson)
+            Footer = WebsiteFooterSettings.FromJson(website.FooterSettingsJson),
+            Pages = pages
         });
     }
 

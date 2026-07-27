@@ -6,4 +6,5 @@ public class WebsiteFooterViewModel
 {
     public AgentWebsite Website { get; set; } = null!;
     public WebsiteFooterSettings Footer { get; set; } = new();
+    public List<WebsitePage> Pages { get; set; } = new();
 }
