@@ -253,7 +253,7 @@ app.MapControllerRoute(
     "legacy-register",
     "pub/register.aspx",
     new { controller = "Account", action = "Register" });
-app.MapControllerRoute("default", "{controller=Dashboard}/{action=Index}/{id?}");
+app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
     IsReadOnlyFunc = _ => false,

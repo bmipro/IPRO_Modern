@@ -1,5 +1,8 @@
+using IPRO.DataAccess;
+using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Web.Controllers;
 
@@ -9,5 +12,42 @@ namespace IPRO.Web.Controllers;
 [AllowAnonymous]
 public class HomeController : Controller
 {
+    private readonly IPRODbContext _db;
+
+    public HomeController(IPRODbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<IActionResult> Index()
+    {
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return RedirectToAction("Index", "Dashboard");
+        }
+
+        var packages = await _db.BillingRules
+            .AsNoTracking()
+            .Where(p => p.IsActive && !p.IsTrialPackage)
+            .ToListAsync();
+
+        var ordered = packages
+            .OrderBy(GetPackageRank)
+            .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
+            .ThenBy(p => p.PackageName)
+            .ToList();
+
+        return View(ordered);
+    }
+
     public IActionResult Error() => View();
+
+    private static int GetPackageRank(BillingRule package) => package.PackageName switch
+    {
+        "IPro Silver" => 1,
+        "IPro Gold" => 2,
+        "IPro Platinum" => 3,
+        "Broker Package" => 4,
+        _ => 50
+    };
 }

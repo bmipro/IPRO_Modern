@@ -1,0 +1,164 @@
+@model List<IPRO.Entities.BillingRule>
+@{
+    ViewData["Title"] = "IPRO Advisers";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IPRO Advisers - Website, CRM &amp; Marketing for Growing Businesses</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  body{color:#1e293b;}
+  .ipro-hero{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);color:#fff;}
+  .ipro-nav{background:rgba(255,255,255,0.08);}
+  .brand-icon{color:#fff;}
+  .feature-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.06);height:100%;}
+  .feature-icon{width:52px;height:52px;border-radius:12px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:1.4rem;}
+  .price-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.08);height:100%;}
+  .price-card.featured{box-shadow:0 16px 40px rgba(37,99,235,0.25);border:2px solid #2563eb;}
+  .price-amount{font-size:2.5rem;font-weight:800;color:#1a3a6b;}
+  .section-eyebrow{letter-spacing:.08em;font-weight:700;font-size:.8rem;color:#2563eb;text-transform:uppercase;}
+</style></head>
+<body>
+
+<div class="ipro-hero">
+  <nav class="navbar navbar-expand ipro-nav py-3">
+    <div class="container d-flex justify-content-between align-items-center">
+      <span class="fw-bold fs-4"><i class="fas fa-shield-alt me-2"></i>IPRO Advisers</span>
+      <div>
+        <a href="/Account/Login" class="btn btn-outline-light me-2">Sign In</a>
+        <a href="/Account/Register" class="btn btn-light fw-semibold">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-5 text-center">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+        <h1 class="fw-bold display-5 mb-3">A business growth platform for advisers and small businesses</h1>
+        <p class="fs-5 mb-4" style="color:#dbeafe;">A website, CRM, email campaigns, client follow-ups, billing, a client portal, and automation — all in one place, built for insurance, mortgage, and financial advisers.</p>
+        <a href="/Account/Register" class="btn btn-light btn-lg fw-semibold px-4 me-2">Start Your Free Account</a>
+        <a href="#pricing" class="btn btn-outline-light btn-lg px-4">See Pricing</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <div class="text-center mb-5">
+    <div class="section-eyebrow mb-2">Everything included</div>
+    <h2 class="fw-bold">Run your whole business from one portal</h2>
+  </div>
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-4">
+      <div class="card feature-card p-4">
+        <div class="feature-icon mb-3"><i class="fas fa-globe"></i></div>
+        <h5 class="fw-bold">Website Builder</h5>
+        <p class="text-muted mb-0">A professional, mobile-friendly website with your own domain, built-in lead forms, and a library of ready-made templates and themes — no design work required.</p>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="card feature-card p-4">
+        <div class="feature-icon mb-3"><i class="fas fa-address-book"></i></div>
+        <h5 class="fw-bold">CRM &amp; Follow-Ups</h5>
+        <p class="text-muted mb-0">Track clients, notes, and account types, and never miss a follow-up, renewal, or birthday with automatic reminders synced to your calendar.</p>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="card feature-card p-4">
+        <div class="feature-icon mb-3"><i class="fas fa-envelope-open-text"></i></div>
+        <h5 class="fw-bold">Newsletters &amp; Campaigns</h5>
+        <p class="text-muted mb-0">Send branded newsletters and automated drip campaigns to your client list, with real delivery, open, and click tracking.</p>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="card feature-card p-4">
+        <div class="feature-icon mb-3"><i class="fas fa-file-invoice-dollar"></i></div>
+        <h5 class="fw-bold">Client Invoicing</h5>
+        <p class="text-muted mb-0">Send estimates and invoices with automatic tax calculation, recurring billing, and a link your clients use to view and pay — no separate accounting tool needed.</p>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="card feature-card p-4">
+        <div class="feature-icon mb-3"><i class="fas fa-user-lock"></i></div>
+        <h5 class="fw-bold">Client Portal</h5>
+        <p class="text-muted mb-0">Give your clients their own secure login to message you, book appointments, view invoices, and manage their information.</p>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="card feature-card p-4">
+        <div class="feature-icon mb-3"><i class="fas fa-robot"></i></div>
+        <h5 class="fw-bold">AI Daily Assistant</h5>
+        <p class="text-muted mb-0">A daily digest that surfaces which clients need attention today, plus AI-drafted newsletters and social posts to save you time.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bg-light py-5" id="pricing">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="section-eyebrow mb-2">Pricing</div>
+      <h2 class="fw-bold">Simple plans that grow with you</h2>
+    </div>
+    @if (Model.Any())
+    {
+      <div class="row g-4 justify-content-center">
+        @foreach (var package in Model)
+        {
+          var isFeatured = package.PackageName == "IPro Gold";
+          <div class="col-md-6 col-lg-4">
+            <div class="card price-card p-4 @(isFeatured ? "featured" : "")">
+              @if (isFeatured)
+              {
+                <div class="badge bg-primary align-self-start mb-2">Most Popular</div>
+              }
+              <h4 class="fw-bold">@package.PackageName</h4>
+              @if (!string.IsNullOrWhiteSpace(package.Description))
+              {
+                <p class="text-muted small">@package.Description</p>
+              }
+              <div class="my-3">
+                @if (package.MonthlyPrice > 0)
+                {
+                  <span class="price-amount">@package.MonthlyPrice.ToString("C0")</span><span class="text-muted">/month</span>
+                }
+                else
+                {
+                  <span class="price-amount">Contact Us</span>
+                }
+              </div>
+              @if (package.AnnualPrice > 0)
+              {
+                <p class="text-muted small mb-3">or @package.AnnualPrice.ToString("C0")/year</p>
+              }
+              <a href="/Account/Register" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100 fw-semibold mt-2">Get Started</a>
+            </div>
+          </div>
+        }
+      </div>
+    }
+    else
+    {
+      <p class="text-center text-muted">Pricing is being updated — <a href="/Account/Register">start your registration</a> and we'll follow up with plan details.</p>
+    }
+  </div>
+</div>
+
+<div class="ipro-hero py-5">
+  <div class="container text-center">
+    <h3 class="fw-bold mb-3">Ready to grow your business?</h3>
+    <a href="/Account/Register" class="btn btn-light btn-lg fw-semibold px-5">Start Your Free Account</a>
+  </div>
+</div>
+
+<footer class="py-4 bg-white border-top">
+  <div class="container d-flex flex-wrap justify-content-between align-items-center small text-muted">
+    <span>&copy; @DateTime.UtcNow.Year IPRO Advisers</span>
+    <span><a href="/Account/Login" class="text-muted me-3">Sign In</a><a href="/Account/Register" class="text-muted">Register</a></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body></html>
