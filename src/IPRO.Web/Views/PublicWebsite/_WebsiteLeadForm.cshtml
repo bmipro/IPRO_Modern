@@ -6,6 +6,7 @@
     var isLeadMagnet = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.LeadMagnet;
     var isDidYouKnow = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.DidYouKnow;
     var showFullFields = !isNewsletter && !isLeadMagnet && !isDidYouKnow;
+    var showLastName = showFullFields || isDidYouKnow;
     // Preview (WebsitePages/Preview and PreviewUnsaved) renders this same partial under the portal's
     // own host (app.iproadvisers.com), which never resolves to a real agent site -- submitting for
     // real here always 404s. Disable submission and say so, rather than let it fail silently.
@@ -23,7 +24,7 @@
         .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
         .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
 }
-<div class="website-lead-form-shell" id="@(isDidYouKnow ? $"dyk-form-{Model.DidYouKnowBlockId}" : null)">
+<div class="website-lead-form-shell@(isDidYouKnow ? " dyk-form-panel" : null)" id="@(isDidYouKnow ? $"dyk-form-{Model.DidYouKnowBlockId}" : null)" hidden="@(isDidYouKnow && submitted != expectedResult ? "hidden" : null)">
   @if (submitted == expectedResult)
   {
     @if (isLeadMagnet && !string.IsNullOrEmpty(dlToken))
@@ -49,6 +50,11 @@
     {
       <div class="website-lead-preview-note" role="note"><i class="fas fa-circle-info"></i> Preview only -- this form can't be submitted here. Test it on your live site.</div>
     }
+    @if (isDidYouKnow)
+    {
+      <button type="button" class="dyk-back-link" data-dyk-show="dyk-cards-@Model.DidYouKnowBlockId" data-dyk-hide="dyk-form-@Model.DidYouKnowBlockId"><i class="fas fa-arrow-left"></i> Back to articles</button>
+      <p class="dyk-form-intro">Enter your details below and we'll email you the full article(s) shortly.</p>
+    }
     <form id="@formId" method="post" action="/PublicWebsite/SubmitLead" class="website-lead-form">
       @Html.AntiForgeryToken()
       <input type="hidden" name="SubmissionType" value="@Model.SubmissionType" />
@@ -67,7 +73,7 @@
       <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
       <div class="website-lead-grid">
         <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
-        @if (showFullFields)
+        @if (showLastName)
         {
           <label><span>Last name</span><input name="LastName" maxlength="80" autocomplete="family-name" /></label>
         }
@@ -86,10 +92,31 @@
         </span>
       </label>
       <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : isLeadMagnet ? "I agree that this adviser may use my information to follow up about this download." : isDidYouKnow ? "I agree to receive these articles by email and understand I can unsubscribe later." : "I agree that this adviser may use my information to respond to this request.")</span></label>
-      <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas @(isNewsletter ? "fa-envelope" : isLeadMagnet ? "fa-download" : isDidYouKnow ? "fa-lightbulb" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : isLeadMagnet ? "Get the Download" : isDidYouKnow ? "Show Me" : "Send message")</button>
+      <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas @(isNewsletter ? "fa-envelope" : isLeadMagnet ? "fa-download" : isDidYouKnow ? "fa-envelope" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : isLeadMagnet ? "Get the Download" : isDidYouKnow ? "Email Me the Article(s)" : "Send message")</button>
     </form>
   }
 </div>
+@if (isDidYouKnow)
+{
+  <script nonce="@Context.GetCspNonce()">
+  (function () {
+    if (window.__dykWired) return;
+    window.__dykWired = true;
+    document.addEventListener('click', function (event) {
+      var trigger = event.target.closest('[data-dyk-show]');
+      if (!trigger) return;
+      event.preventDefault();
+      var showEl = document.getElementById(trigger.getAttribute('data-dyk-show'));
+      var hideEl = document.getElementById(trigger.getAttribute('data-dyk-hide'));
+      if (hideEl) hideEl.hidden = true;
+      if (showEl) {
+        showEl.hidden = false;
+        showEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  })();
+  </script>
+}
 <style>
   .website-lead-form-shell{width:100%;}
   .website-lead-form{display:grid;gap:16px;}
@@ -110,5 +137,8 @@
   .website-lead-success{background:#dcfce7;color:#166534;border:1px solid #86efac;}
   .website-lead-error{margin-bottom:12px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
   .website-lead-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
+  .dyk-back-link{display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;padding:0;border:0;background:none;font:700 13px Arial,sans-serif;color:var(--muted,#5e6b80);cursor:pointer;}
+  .dyk-back-link:hover{color:var(--site-theme,#1457d9);}
+  .dyk-form-intro{margin:0 0 16px;font:400 14px/1.5 Arial,sans-serif;color:var(--muted,#5e6b80);}
   @@media(max-width:640px){.website-lead-grid{grid-template-columns:1fr}.website-lead-full{grid-column:auto}}
 </style>
