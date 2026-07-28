@@ -86,7 +86,7 @@ SendGrid event webhooks update these results. Open tracking can be affected by p
 
 ## Write a Reusable Article
 
-1. Select **Newsletter**, then the **Articles** tab.
+1. Select **Articles** (under the Marketing section of the left nav).
 2. Create an article: title, a short summary (used as the teaser line on the website's Did You Know block), and content with the full rich-text editor (bold, italic, underline, lists, links).
 3. Optionally attach an image and mark it Published.
 4. Articles aren't sent anywhere on their own — pull one into a Drip Campaign step (below) to actually deliver it, or reuse the same content elsewhere as you write new campaigns and newsletters.
