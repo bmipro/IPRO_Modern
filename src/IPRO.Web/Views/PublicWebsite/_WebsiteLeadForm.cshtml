@@ -6,6 +6,10 @@
     var isLeadMagnet = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.LeadMagnet;
     var isDidYouKnow = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.DidYouKnow;
     var showFullFields = !isNewsletter && !isLeadMagnet && !isDidYouKnow;
+    // Preview (WebsitePages/Preview and PreviewUnsaved) renders this same partial under the portal's
+    // own host (app.iproadvisers.com), which never resolves to a real agent site -- submitting for
+    // real here always 404s. Disable submission and say so, rather than let it fail silently.
+    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true;
     var formId = $"website-lead-{Guid.NewGuid():N}";
     var submitted = Context.Request.Query["submitted"].ToString();
     var dlToken = Context.Request.Query["dl"].ToString();
@@ -52,6 +56,10 @@
     {
       <div class="website-lead-error" role="alert">@formError</div>
     }
+    @if (isPreview)
+    {
+      <div class="website-lead-preview-note" role="note"><i class="fas fa-circle-info"></i> Preview only -- this form can't be submitted here. Test it on your live site.</div>
+    }
     <form id="@formId" method="post" action="/PublicWebsite/SubmitLead" class="website-lead-form">
       @Html.AntiForgeryToken()
       <input type="hidden" name="SubmissionType" value="@Model.SubmissionType" />
@@ -89,7 +97,7 @@
         </span>
       </label>
       <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : isLeadMagnet ? "I agree that this adviser may use my information to follow up about this download." : isDidYouKnow ? "I agree to receive this article series by email and understand I can unsubscribe later." : "I agree that this adviser may use my information to respond to this request.")</span></label>
-      <button type="submit" class="website-lead-submit"><i class="fas @(isNewsletter ? "fa-envelope" : isLeadMagnet ? "fa-download" : isDidYouKnow ? "fa-lightbulb" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : isLeadMagnet ? "Get the Download" : isDidYouKnow ? "Show Me" : "Send message")</button>
+      <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas @(isNewsletter ? "fa-envelope" : isLeadMagnet ? "fa-download" : isDidYouKnow ? "fa-lightbulb" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : isLeadMagnet ? "Get the Download" : isDidYouKnow ? "Show Me" : "Send message")</button>
     </form>
   }
 </div>
@@ -107,6 +115,8 @@
   .website-lead-consent{display:flex!important;grid-template-columns:auto 1fr!important;align-items:start;gap:9px!important;font-weight:400!important;}
   .website-lead-consent input{margin-top:3px;}
   .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:0;border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:#fff;font:800 14px Arial,sans-serif;}
+  .website-lead-submit:disabled{opacity:.55;cursor:not-allowed;}
+  .website-lead-preview-note{padding:10px 14px;margin-bottom:2px;border-radius:6px;background:#fef9c3;color:#854d0e;border:1px solid #fde68a;font:700 13px/1.5 Arial,sans-serif;}
   .website-lead-success,.website-lead-error{padding:14px;border-radius:6px;font:700 14px/1.5 Arial,sans-serif;}
   .website-lead-success{background:#dcfce7;color:#166534;border:1px solid #86efac;}
   .website-lead-article{text-align:left;}
