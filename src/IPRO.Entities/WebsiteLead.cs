@@ -6,6 +6,7 @@ public static class WebsiteLeadTypes
     public const string Newsletter = "Newsletter";
     public const string LeadMagnet = "LeadMagnet";
     public const string CustomForm = "CustomForm";
+    public const string DidYouKnow = "DidYouKnow";
 }
 
 public static class WebsiteLeadStatuses

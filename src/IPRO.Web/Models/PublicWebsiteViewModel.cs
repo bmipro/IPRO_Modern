@@ -10,4 +10,5 @@ public class PublicWebsiteViewModel
     public List<TestimonialSubmission> ApprovedTestimonials { get; set; } = new();
     public Dictionary<int, PollResultsBlockData> PollResultsByBlockId { get; set; } = new();
     public Dictionary<int, PublicFormBlockData> FormsByBlockId { get; set; } = new();
+    public Dictionary<int, DidYouKnowBlockData> DidYouKnowByBlockId { get; set; } = new();
 }

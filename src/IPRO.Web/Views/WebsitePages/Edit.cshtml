@@ -370,6 +370,28 @@
               }
             </div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.DidYouKnow)
+          {
+            var didYouKnowSettings = IPRO.Entities.WebsiteDidYouKnowSettings.FromJson(block.SettingsJson);
+            <div class="col-12">
+              <label class="form-label fw-semibold">Which drip campaign?</label>
+              @if (Model.AvailableDripCampaigns.Any())
+              {
+                <select name="dripCampaignId" class="form-select">
+                  <option value="0">Choose a campaign...</option>
+                  @foreach (var campaign in Model.AvailableDripCampaigns)
+                  {
+                    <option value="@campaign.Id" selected="@(didYouKnowSettings.DripCampaignId == campaign.Id ? "selected" : null)">@campaign.Name (@campaign.Steps.Count step@(campaign.Steps.Count == 1 ? "" : "s"))</option>
+                  }
+                </select>
+                <div class="form-text">Shows a teaser for each step's subject line. A visitor who submits their name and email sees the first step's content right away and is enrolled in the campaign for the rest, delivered on each step's own schedule.</div>
+              }
+              else
+              {
+                <div class="alert alert-info mb-0">Build a drip campaign first from <a href="/Campaigns">Campaigns</a> (add at least one step), then come back here to attach it.</div>
+              }
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
           {
             var reviewSettings = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);

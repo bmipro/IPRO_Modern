@@ -15,10 +15,11 @@ public static class WebsiteBlockTypes
     public const string AgentInfo = "AgentInfo";
     public const string Maps = "Maps";
     public const string Form = "Form";
+    public const string DidYouKnow = "DidYouKnow";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow
     };
 
     public static string DisplayName(string type) => type switch
@@ -30,6 +31,7 @@ public static class WebsiteBlockTypes
         AgentInfo => "Agent Info Card",
         Maps => "Map",
         Form => "Custom Form",
+        DidYouKnow => "Did You Know Teaser",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

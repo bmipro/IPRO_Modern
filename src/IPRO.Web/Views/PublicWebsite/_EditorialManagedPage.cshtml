@@ -168,6 +168,21 @@
   {
     <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.LeadMagnet, LeadMagnetBlockId = block.Id })</div></div></section>
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.DidYouKnow)
+  {
+    var dykData = Model.DidYouKnowByBlockId.GetValueOrDefault(block.Id);
+    <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}
+    @if (dykData != null && dykData.Teasers.Any())
+    {
+      <ul style="list-style:none;padding:0;margin:0 0 24px;">
+      @foreach (var teaser in dykData.Teasers)
+      {
+        <li class="ep-copy" style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,.08);"><i class="fas fa-lightbulb me-2" style="color:var(--site-theme,#1457d9);"></i>@teaser</li>
+      }
+      </ul>
+    }
+    <div style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.DidYouKnow, DidYouKnowBlockId = block.Id })</div></div></section>
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
   {
     var epReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);

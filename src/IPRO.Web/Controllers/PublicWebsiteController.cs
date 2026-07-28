@@ -248,7 +248,66 @@ public class PublicWebsiteController : Controller
             }
         }
 
+        if (submissionType == WebsiteLeadTypes.DidYouKnow)
+        {
+            var firstArticle = await TryEnrollDidYouKnowSeriesAsync(website, model.DidYouKnowBlockId, client);
+            if (firstArticle != null)
+            {
+                TempData["DidYouKnowSubject"] = firstArticle.Value.Subject;
+                TempData["DidYouKnowBody"] = firstArticle.Value.HtmlBody;
+            }
+        }
+
         return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
+    }
+
+    private async Task<(string Subject, string HtmlBody)?> TryEnrollDidYouKnowSeriesAsync(AgentWebsite website, int? blockId, Client? client)
+    {
+        if (!blockId.HasValue) return null;
+
+        var block = await _db.WebsiteContentBlocks
+            .Include(b => b.WebsitePage)
+            .FirstOrDefaultAsync(b => b.Id == blockId.Value
+                && b.WebsitePage.AgentWebsiteId == website.Id
+                && b.BlockType == WebsiteBlockTypes.DidYouKnow);
+        if (block == null) return null;
+
+        var campaignId = WebsiteDidYouKnowSettings.FromJson(block.SettingsJson).DripCampaignId;
+        if (campaignId <= 0) return null;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == campaignId && c.AgentUserId == website.AgentUserId && c.IsActive);
+        if (campaign == null) return null;
+
+        var steps = await _db.DripCampaignSteps
+            .Where(s => s.DripCampaignId == campaign.Id)
+            .OrderBy(s => s.SortOrder)
+            .ToListAsync();
+        if (steps.Count == 0) return null;
+
+        if (client != null)
+        {
+            var alreadyEnrolled = await _db.DripCampaignEnrollments.AnyAsync(e =>
+                e.DripCampaignId == campaign.Id && e.ClientId == client.Id && e.Status == DripCampaignEnrollmentStatus.Active);
+            if (!alreadyEnrolled)
+            {
+                // Step 0 is shown on-page immediately below, so enrollment starts at step 1 - the
+                // dispatcher job should never re-send the same article the visitor just read.
+                _db.DripCampaignEnrollments.Add(new DripCampaignEnrollment
+                {
+                    AgentUserId = website.AgentUserId,
+                    DripCampaignId = campaign.Id,
+                    ClientId = client.Id,
+                    Status = DripCampaignEnrollmentStatus.Active,
+                    NextStepIndex = 1,
+                    StartedAt = DateTime.UtcNow,
+                    NextSendAt = steps.Count > 1 ? DateTime.UtcNow.AddDays(Math.Max(0, steps[1].DelayDays)) : DateTime.UtcNow,
+                    UnsubscribeToken = Guid.NewGuid().ToString("N")
+                });
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        return (steps[0].Subject, steps[0].HtmlBody);
     }
 
     private async Task<string?> TryIssueLeadMagnetTokenAsync(AgentWebsite website, int? blockId)
@@ -669,6 +728,7 @@ public class PublicWebsiteController : Controller
 
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
         var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
+        var didYouKnowByBlockId = await IPRO.Web.Infrastructure.DidYouKnowBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
 
         return View("Index", new PublicWebsiteViewModel
         {
@@ -677,7 +737,8 @@ public class PublicWebsiteController : Controller
             CurrentPage = currentPage,
             ApprovedTestimonials = approvedTestimonials,
             PollResultsByBlockId = pollResultsByBlockId,
-            FormsByBlockId = formsByBlockId
+            FormsByBlockId = formsByBlockId,
+            DidYouKnowByBlockId = didYouKnowByBlockId
         });
     }
 
@@ -852,6 +913,7 @@ public class PublicWebsiteController : Controller
     {
         if (string.Equals(submissionType, WebsiteLeadTypes.Newsletter, StringComparison.OrdinalIgnoreCase)) return WebsiteLeadTypes.Newsletter;
         if (string.Equals(submissionType, WebsiteLeadTypes.LeadMagnet, StringComparison.OrdinalIgnoreCase)) return WebsiteLeadTypes.LeadMagnet;
+        if (string.Equals(submissionType, WebsiteLeadTypes.DidYouKnow, StringComparison.OrdinalIgnoreCase)) return WebsiteLeadTypes.DidYouKnow;
         return WebsiteLeadTypes.Contact;
     }
 }
