@@ -618,6 +618,17 @@ The user tried the scroll-to-form version shipped in item 52 and rejected it: "I
 
 **Verification**: build clean. Cannot log in as an agent — did not click through the toggle live; said so plainly. `DOCS/04_WEBSITE_BUILDER.md` updated.
 
+### 54. Did You Know: stagger article emails instead of sending a burst (done, 2026-07-28)
+
+The user raised two follow-up concerns about item 52/53's email delivery: a long article ("a few pages") could push a combined email past Gmail's ~102KB clipping threshold, and sending 4-6 emails to the same inbox in the same instant is itself a spam signal regardless of size. Agreed plan: one article per email (removes the size risk and the need for any "read more" link back to the site), staggered several minutes apart rather than fired all at once.
+
+- New `DidYouKnowEmailQueueItem` entity (`ArticleId`, `ClientId`, `ScheduledForUtc`, `SentAtUtc`) + `CREATE TABLE IF NOT EXISTS` schema repair in both `IPRO.Web/Program.cs` and `IPRO.Admin/Program.cs`, matching the established pattern (e.g. `DripCampaignStepSends`).
+- `PublicWebsiteController.QueueDidYouKnowArticleEmailsAsync` (replacing the old `SendDidYouKnowArticlesEmailAsync`) no longer sends inline during the POST — it inserts one queue row per selected article, first one ~1 minute out, each subsequent one jittered 4-8 minutes after the last (`Random.Shared.Next(4, 9)` per step), so a 4-6 article block finishes delivering over roughly 15-40 minutes with non-uniform spacing.
+- New `DidYouKnowEmailDispatchJob` (`IPRO.Scheduler`, registered `Cron.Minutely` in `IPRO.Web/Program.cs` only — `IPRO.Admin` never runs `AddHangfireServer`) drains due, unsent rows every minute: one article's full content per email, subject = article title, reply-to = the agent, per-item try/catch isolation matching every other dispatch job this session (`NewsLetterDispatchJob`, `OverdueInvoiceReminderJob`, etc.) so one bad row can't stall the batch.
+- `_WebsiteLeadForm.cshtml`'s Did You Know success message reworded to set the right expectation ("they'll land in your inbox one at a time over the next little while") instead of implying instant delivery.
+
+**Verification**: both `IPRO.Web` and `IPRO.Admin` build clean, grepped for dangling references to the removed method name — none found. Cannot log in as an agent or receive real test emails, and the staggered timing in particular can't be verified without waiting through a live send — said so plainly. `DOCS/04_WEBSITE_BUILDER.md` updated.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
