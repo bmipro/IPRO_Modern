@@ -28,6 +28,7 @@ public class HomeController : Controller
 
         var packages = await _db.BillingRules
             .AsNoTracking()
+            .Include(p => p.Features)
             .Where(p => p.IsActive && !p.IsTrialPackage)
             .ToListAsync();
 

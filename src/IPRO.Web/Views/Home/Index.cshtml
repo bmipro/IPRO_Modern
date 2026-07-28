@@ -104,10 +104,21 @@
     </div>
     @if (Model.Any())
     {
+      var highlightCount = 6;
+      // Union of every feature code across the loaded packages, in a stable order, so the
+      // comparison table has one row per feature regardless of which package(s) include it.
+      var allFeatures = Model
+        .SelectMany(p => p.Features)
+        .GroupBy(f => f.FeatureCode)
+        .Select(g => g.OrderBy(f => f.SortOrder).First())
+        .OrderBy(f => f.SortOrder)
+        .ToList();
+
       <div class="row g-4 justify-content-center">
         @foreach (var package in Model)
         {
           var isFeatured = package.PackageName == "IPro Gold";
+          var included = package.Features.Where(f => f.IsIncluded).OrderBy(f => f.SortOrder).ToList();
           <div class="col-md-6 col-lg-4">
             <div class="card price-card p-4 @(isFeatured ? "featured" : "")">
               @if (isFeatured)
@@ -133,11 +144,74 @@
               {
                 <p class="text-muted small mb-3">or $@package.AnnualPrice.ToString("N0")/year</p>
               }
+              @if (included.Any())
+              {
+                <ul class="list-unstyled text-start small mb-3">
+                  @foreach (var feature in included.Take(highlightCount))
+                  {
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>@feature.FeatureName@(string.IsNullOrWhiteSpace(feature.LimitLabel) ? "" : $" ({feature.LimitLabel})")</li>
+                  }
+                </ul>
+                @if (included.Count > highlightCount)
+                {
+                  <p class="small text-muted mb-3">+ @(included.Count - highlightCount) more features</p>
+                }
+              }
               <a href="/Account/Register" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100 fw-semibold mt-2">Get Started</a>
             </div>
           </div>
         }
       </div>
+
+      @if (allFeatures.Any())
+      {
+        <div class="text-center mt-4">
+          <button class="btn btn-link fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#compareFeatures" aria-expanded="false" aria-controls="compareFeatures">
+            Compare all features <i class="fas fa-chevron-down ms-1 small"></i>
+          </button>
+        </div>
+        <div class="collapse mt-3" id="compareFeatures">
+          <div class="table-responsive bg-white rounded-4 shadow-sm p-2">
+            <table class="table table-borderless align-middle mb-0">
+              <thead>
+                <tr>
+                  <th class="text-muted small text-uppercase">Feature</th>
+                  @foreach (var package in Model)
+                  {
+                    <th class="text-center">@package.PackageName</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var feature in allFeatures)
+                {
+                  <tr>
+                    <td class="small">@feature.FeatureName</td>
+                    @foreach (var package in Model)
+                    {
+                      var match = package.Features.FirstOrDefault(f => f.FeatureCode == feature.FeatureCode);
+                      <td class="text-center">
+                        @if (match != null && match.IsIncluded)
+                        {
+                          <i class="fas fa-check text-success"></i>
+                          @if (!string.IsNullOrWhiteSpace(match.LimitLabel))
+                          {
+                            <div class="small text-muted">@match.LimitLabel</div>
+                          }
+                        }
+                        else
+                        {
+                          <i class="fas fa-minus text-muted opacity-50"></i>
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
     }
     else
     {
