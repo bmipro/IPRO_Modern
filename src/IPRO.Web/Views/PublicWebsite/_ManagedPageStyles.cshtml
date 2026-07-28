@@ -87,8 +87,14 @@
   .site-sidebar-rail__contact { margin-top: 18px; }
   .site-sidebar-rail__contact a { display: block; color: var(--ink, #172033); text-decoration: none; padding: 6px 0; font-weight: 700; }
   .site-sidebar-rail__contact a i { color: var(--site-theme, #1457d9); width: 20px; }
+  .dyk-teasers { list-style: none; padding: 0; margin: 0 0 24px; }
+  .dyk-card { padding: 16px 0; border-bottom: 1px solid rgba(0,0,0,.08); }
+  .dyk-card-title { display: flex; align-items: center; margin: 0 0 8px; font-size: 17px; font-weight: 800; }
+  .dyk-card-excerpt { margin: 0 0 10px; color: var(--muted, #5e6b80); font-size: 14px; line-height: 1.6; }
+  .dyk-readmore { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: var(--site-theme, #1457d9); text-decoration: none; }
+  .dyk-readmore:hover { text-decoration: underline; }
   .dyk-teasers.dyk-grid-2x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .dyk-teasers.dyk-grid-2x3 li { border-bottom: 0 !important; background: rgba(0,0,0,.03); border-radius: 8px; }
+  .dyk-teasers.dyk-grid-2x3 .dyk-card { border-bottom: 0; padding: 16px; background: rgba(0,0,0,.03); border-radius: 8px; }
   @@media (min-width: 901px) {
     body.header-sidebar { padding-left: 240px; }
     .header-sidebar .public-site-header { position: fixed; inset: 0 auto 0 0; width: 240px; border-right: 1px solid #dce4ef; border-bottom: 0; }

@@ -142,10 +142,14 @@
     <section class="cp-section"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}
     @if (dykData != null && dykData.Teasers.Any())
     {
-      <ul class="dyk-teasers @(dykData.LayoutStyle == "grid-2x3" ? "dyk-grid-2x3" : "dyk-auto")" style="list-style:none;padding:0;margin:0 0 24px;">
+      <ul class="dyk-teasers @(dykData.LayoutStyle == "grid-2x3" ? "dyk-grid-2x3" : "dyk-auto")">
       @foreach (var teaser in dykData.Teasers)
       {
-        <li class="cp-copy" style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,.08);"><i class="fas fa-lightbulb me-2" style="color:var(--site-theme,#1457d9);"></i>@teaser</li>
+        <li class="dyk-card">
+          <h4 class="dyk-card-title"><i class="fas fa-lightbulb me-2" style="color:var(--site-theme,#1457d9);"></i>@teaser.Title</h4>
+          <p class="dyk-card-excerpt">@teaser.Excerpt</p>
+          <a class="dyk-readmore" href="#dyk-form-@block.Id"><i class="fas fa-circle-plus"></i> Read More</a>
+        </li>
       }
       </ul>
     }

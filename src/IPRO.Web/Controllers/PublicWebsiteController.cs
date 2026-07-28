@@ -250,35 +250,33 @@ public class PublicWebsiteController : Controller
 
         if (submissionType == WebsiteLeadTypes.DidYouKnow)
         {
-            var firstArticle = await TryUnlockDidYouKnowArticlesAsync(website, model.DidYouKnowBlockId);
-            if (firstArticle != null)
-            {
-                TempData["DidYouKnowSubject"] = firstArticle.Value.Subject;
-                TempData["DidYouKnowBody"] = firstArticle.Value.HtmlBody;
-            }
+            await SendDidYouKnowArticlesEmailAsync(website, model.DidYouKnowBlockId, client);
         }
 
         return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
     }
 
-    private async Task<(string Subject, string HtmlBody)?> TryUnlockDidYouKnowArticlesAsync(AgentWebsite website, int? blockId)
+    // Emails every article selected on the block, immediately and all at once -- no scheduled/
+    // delayed delivery. An agent who wants content paced out over days should build a real Drip
+    // Campaign from the same Articles (Campaigns -> Add step from Article) instead.
+    private async Task SendDidYouKnowArticlesEmailAsync(AgentWebsite website, int? blockId, Client? client)
     {
-        if (!blockId.HasValue) return null;
+        if (!blockId.HasValue || client == null || string.IsNullOrWhiteSpace(client.Email)) return;
 
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage)
             .FirstOrDefaultAsync(b => b.Id == blockId.Value
                 && b.WebsitePage.AgentWebsiteId == website.Id
                 && b.BlockType == WebsiteBlockTypes.DidYouKnow);
-        if (block == null) return null;
+        if (block == null) return;
 
         var articleIds = WebsiteDidYouKnowSettings.FromJson(block.SettingsJson).ArticleIds;
-        if (articleIds.Count == 0) return null;
+        if (articleIds.Count == 0) return;
 
         var articles = await _db.Articles
             .Where(a => articleIds.Contains(a.Id) && a.AgentUserId == website.AgentUserId && a.IsPublished)
             .ToListAsync();
-        if (articles.Count == 0) return null;
+        if (articles.Count == 0) return;
 
         // Preserve the agent's chosen order, not whatever order the DB returned.
         var ordered = articleIds
@@ -286,21 +284,38 @@ public class PublicWebsiteController : Controller
             .Where(a => a != null)
             .Select(a => a!)
             .ToList();
-        if (ordered.Count == 0) return null;
+        if (ordered.Count == 0) return;
 
-        // Every selected article unlocks immediately on submit -- no scheduled/delayed delivery.
-        // An agent who wants content paced out over days should build a real Drip Campaign from
-        // the same Articles (Campaigns -> Add step from Article) instead.
-        var combinedBody = string.Join(
-            "",
-            ordered.Select(a => $"""
-                <div class="website-lead-article-item">
-                  <h3 class="website-lead-article-title">{System.Net.WebUtility.HtmlEncode(a.Title)}</h3>
-                  <div class="website-lead-article-body">{a.Content}</div>
-                </div>
-                """));
+        var companyName = string.IsNullOrWhiteSpace(website.AgentUser.CompanyName)
+            ? $"{website.AgentUser.FirstName} {website.AgentUser.LastName}".Trim()
+            : website.AgentUser.CompanyName;
+        var subject = ordered.Count == 1
+            ? ordered[0].Title
+            : $"Did You Know? {ordered.Count} articles from {companyName}";
 
-        return (ordered.Count == 1 ? ordered[0].Title : string.Empty, combinedBody);
+        var articlesHtml = string.Join("", ordered.Select(a => $"""
+            <div style="margin-bottom:28px;padding-bottom:28px;border-bottom:1px solid #e2e8f0;">
+              <h2 style="margin:0 0 10px;font-size:20px;color:#0f172a;">{System.Net.WebUtility.HtmlEncode(a.Title)}</h2>
+              <div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#334155;">{a.Content}</div>
+            </div>
+            """));
+        var html = $"""
+            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+              <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:22px">Did You Know?</h1></div>
+              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
+                {articlesHtml}
+              </div>
+            </div>
+            """;
+
+        var clientName = $"{client.FirstName} {client.LastName}".Trim();
+        await _email.SendDetailedAsync(
+            client.Email,
+            string.IsNullOrWhiteSpace(clientName) ? client.Email : clientName,
+            subject,
+            html,
+            replyToEmail: website.AgentUser.Email,
+            replyToName: companyName);
     }
 
     private async Task<string?> TryIssueLeadMagnetTokenAsync(AgentWebsite website, int? blockId)

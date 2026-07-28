@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Web.Models;
@@ -7,9 +8,11 @@ namespace IPRO.Web.Infrastructure;
 
 public static class DidYouKnowBuilder
 {
-    // Only exposes each Article's Summary as a teaser - never Content. The full article is the
-    // whole point of the email-gate this block exists to drive; leaking it into the public page
-    // markup before a visitor submits their email would defeat the mechanism entirely.
+    private const int ExcerptLength = 150;
+
+    // Only exposes a short excerpt of each Article's Content as a teaser - never the full body.
+    // The full article is the whole point of the email-gate this block exists to drive; leaking
+    // it into the public page markup before a visitor submits their email would defeat it.
     public static async Task<Dictionary<int, DidYouKnowBlockData>> BuildAsync(IPRODbContext db, int agentUserId, WebsitePage? currentPage)
     {
         var result = new Dictionary<int, DidYouKnowBlockData>();
@@ -35,7 +38,12 @@ public static class DidYouKnowBuilder
                 .ToList();
 
             var teasers = ordered
-                .Select(a => string.IsNullOrWhiteSpace(a.Summary) ? a.Title : a.Summary)
+                .Select(a => new DidYouKnowTeaser
+                {
+                    ArticleId = a.Id,
+                    Title = a.Title,
+                    Excerpt = BuildExcerpt(a.Content)
+                })
                 .ToList();
             if (teasers.Count == 0) continue;
 
@@ -47,5 +55,16 @@ public static class DidYouKnowBuilder
         }
 
         return result;
+    }
+
+    private static string BuildExcerpt(string html)
+    {
+        var text = Regex.Replace(html ?? string.Empty, "<.*?>", " ");
+        text = Regex.Replace(text, @"\s+", " ").Trim();
+        if (text.Length <= ExcerptLength) return text;
+
+        var cut = text.LastIndexOf(' ', ExcerptLength);
+        if (cut <= 0) cut = ExcerptLength;
+        return text[..cut].TrimEnd() + "…";
     }
 }
