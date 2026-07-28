@@ -26,6 +26,7 @@ public class CampaignDetailsViewModel
     public List<Client> Clients { get; set; } = new();
     public List<NewsLetter> Newsletters { get; set; } = new();
     public List<WebsiteForm> Forms { get; set; } = new();
+    public List<Article> Articles { get; set; } = new();
     public Dictionary<int, CampaignStepPerformance> StepPerformance { get; set; } = new();
 }
 

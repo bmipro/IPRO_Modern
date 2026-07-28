@@ -331,7 +331,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int dripCampaignId = 0)
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int dripCampaignId = 0, string layoutStyle = "auto")
     {
         var ownedPageId = await _db.WebsiteContentBlocks
             .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
@@ -354,7 +354,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, dripCampaignId);
+            mapAddress, mapHeight, websiteFormId, dripCampaignId, layoutStyle);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -671,7 +671,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int dripCampaignId = 0)
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int dripCampaignId = 0, string layoutStyle = "auto")
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -682,7 +682,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, dripCampaignId);
+            mapAddress, mapHeight, websiteFormId, dripCampaignId, layoutStyle);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -698,7 +698,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId, int agentDocumentId,
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
-        bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int dripCampaignId)
+        bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int dripCampaignId, string layoutStyle = "auto")
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -784,7 +784,8 @@ public class WebsitePagesController : Controller
             var campaignBelongsToAgent = dripCampaignId > 0 && await _db.DripCampaigns.AnyAsync(c => c.Id == dripCampaignId && c.AgentUserId == AgentId);
             block.SettingsJson = new WebsiteDidYouKnowSettings
             {
-                DripCampaignId = campaignBelongsToAgent ? dripCampaignId : 0
+                DripCampaignId = campaignBelongsToAgent ? dripCampaignId : 0,
+                LayoutStyle = layoutStyle == "grid-2x3" ? "grid-2x3" : "auto"
             }.ToJson();
         }
     }

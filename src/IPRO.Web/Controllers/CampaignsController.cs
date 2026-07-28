@@ -118,6 +118,10 @@ public class CampaignsController : Controller
             Forms = await _db.WebsiteForms
                 .Where(f => f.AgentUserId == AgentId && f.IsActive)
                 .OrderByDescending(f => f.UpdatedAt)
+                .ToListAsync(),
+            Articles = await _db.Articles
+                .Where(a => a.AgentUserId == AgentId)
+                .OrderByDescending(a => a.UpdatedAt)
                 .ToListAsync()
         });
     }
@@ -193,6 +197,71 @@ public class CampaignsController : Controller
 
         await _db.SaveChangesAsync();
         TempData["Success"] = $"Newsletter \"{newsletter.Subject}\" added as a campaign step.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddStepFromArticle(int id, int articleId, int delayDays)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (campaign == null) return NotFound();
+
+        var article = await _db.Articles.FirstOrDefaultAsync(a => a.Id == articleId && a.AgentUserId == AgentId);
+        if (article == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(article.Title) || string.IsNullOrWhiteSpace(article.Content))
+        {
+            TempData["Error"] = "That article does not have enough content to use as a campaign step.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var nextOrder = await _db.DripCampaignSteps
+            .Where(s => s.DripCampaignId == id)
+            .Select(s => (int?)s.SortOrder)
+            .MaxAsync() ?? 0;
+
+        _db.DripCampaignSteps.Add(new DripCampaignStep
+        {
+            DripCampaignId = id,
+            Subject = article.Title.Trim(),
+            HtmlBody = HtmlContentSanitizer.Sanitize(article.Content.Trim()),
+            DelayDays = Math.Max(0, delayDays),
+            SortOrder = nextOrder + 10
+        });
+
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"Article \"{article.Title}\" added as a campaign step.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReplaceStepWithArticle(int id, int stepId, int articleId, int delayDays)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (campaign == null) return NotFound();
+
+        var step = await _db.DripCampaignSteps.FirstOrDefaultAsync(s => s.Id == stepId && s.DripCampaignId == id);
+        var article = await _db.Articles.FirstOrDefaultAsync(a => a.Id == articleId && a.AgentUserId == AgentId);
+        if (step == null || article == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(article.Title) || string.IsNullOrWhiteSpace(article.Content))
+        {
+            TempData["Error"] = "That article does not have enough content to use as a campaign step.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        step.Subject = article.Title.Trim();
+        step.HtmlBody = HtmlContentSanitizer.Sanitize(article.Content.Trim());
+        step.DelayDays = Math.Max(0, delayDays);
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Campaign step replaced with article content.";
         return RedirectToAction(nameof(Details), new { id });
     }
 

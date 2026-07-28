@@ -87,6 +87,8 @@
   .site-sidebar-rail__contact { margin-top: 18px; }
   .site-sidebar-rail__contact a { display: block; color: var(--ink, #172033); text-decoration: none; padding: 6px 0; font-weight: 700; }
   .site-sidebar-rail__contact a i { color: var(--site-theme, #1457d9); width: 20px; }
+  .dyk-teasers.dyk-grid-2x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .dyk-teasers.dyk-grid-2x3 li { border-bottom: 0 !important; background: rgba(0,0,0,.03); border-radius: 8px; }
   @@media (min-width: 901px) {
     body.header-sidebar { padding-left: 240px; }
     .header-sidebar .public-site-header { position: fixed; inset: 0 auto 0 0; width: 240px; border-right: 1px solid #dce4ef; border-bottom: 0; }
@@ -108,5 +110,6 @@
     .managed-hero__layout { grid-template-columns: 1fr; }
     .site-sidebar-shell { grid-template-columns: 1fr; }
     .site-sidebar-shell > .site-sidebar-rail { grid-column: 1; }
+    .dyk-teasers.dyk-grid-2x3 { grid-template-columns: 1fr; }
   }
 </style>

@@ -103,6 +103,33 @@
                     </div>
                   </form>
                 }
+
+                @if (Model.Articles.Any())
+                {
+                  <form asp-action="ReplaceStepWithArticle" asp-route-id="@Model.Campaign.Id" asp-route-stepId="@step.Id" method="post" class="border rounded-3 bg-white p-3 mt-3">
+                    @Html.AntiForgeryToken()
+                    <div class="small text-uppercase text-muted fw-bold mb-2">Replace with existing article</div>
+                    <div class="row g-3 align-items-end">
+                      <div class="col-md-8">
+                        <label class="form-label fw-semibold">Article</label>
+                        <select name="articleId" class="form-select" required>
+                          <option value="">Choose article...</option>
+                          @foreach (var article in Model.Articles)
+                          {
+                            <option value="@article.Id">@article.Title</option>
+                          }
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label fw-semibold">Delay days</label>
+                        <input name="delayDays" class="form-control" type="number" min="0" value="@step.DelayDays" required />
+                      </div>
+                      <div class="col-12 d-flex justify-content-end">
+                        <button class="btn btn-outline-primary" type="submit"><i class="fas fa-file-import me-1"></i>Use Article Content</button>
+                      </div>
+                    </div>
+                  </form>
+                }
               </div>
             </div>
           }
@@ -124,6 +151,11 @@
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="form-step-tab" data-bs-toggle="tab" data-bs-target="#form-step-pane" type="button" role="tab" aria-controls="form-step-pane" aria-selected="false">
               <i class="fas fa-rectangle-list me-1"></i>Forms
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="article-step-tab" data-bs-toggle="tab" data-bs-target="#article-step-pane" type="button" role="tab" aria-controls="article-step-pane" aria-selected="false">
+              <i class="fas fa-file-lines me-1"></i>Articles
             </button>
           </li>
         </ul>
@@ -208,6 +240,36 @@
                   </div>
                 </div>
                 <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-rectangle-list me-1"></i>Add Form as Step</button>
+              </form>
+            }
+          </div>
+
+          <div class="tab-pane fade" id="article-step-pane" role="tabpanel" aria-labelledby="article-step-tab">
+            @if (!Model.Articles.Any())
+            {
+              <div class="alert alert-info mb-0">No articles yet. Write one under <a href="/Articles/Create">Newsletter &rarr; Articles</a>, then it will appear here.</div>
+            }
+            else
+            {
+              <form asp-action="AddStepFromArticle" asp-route-id="@Model.Campaign.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="row g-3">
+                  <div class="col-md-8">
+                    <label class="form-label fw-semibold">Article</label>
+                    <select name="articleId" class="form-select" required>
+                      <option value="">Choose article...</option>
+                      @foreach (var article in Model.Articles)
+                      {
+                        <option value="@article.Id">@article.Title</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">Delay days</label>
+                    <input name="delayDays" class="form-control" type="number" min="0" value="0" required />
+                  </div>
+                </div>
+                <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-file-import me-1"></i>Add Article as Step</button>
               </form>
             }
           </div>

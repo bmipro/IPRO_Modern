@@ -35,7 +35,8 @@ public static class DidYouKnowBuilder
             result[block.Id] = new DidYouKnowBlockData
             {
                 CampaignName = campaign.Name,
-                Teasers = teasers
+                Teasers = teasers,
+                LayoutStyle = settings.LayoutStyle
             };
         }
 

@@ -84,13 +84,20 @@ SendGrid event webhooks update these results. Open tracking can be affected by p
 3. Newsletter emails include an unsubscribe path.
 4. An unsubscribe updates the CRM client's newsletter preference.
 
+## Write a Reusable Article
+
+1. Select **Newsletter**, then the **Articles** tab.
+2. Create an article: title, a short summary (used as the teaser line on the website's Did You Know block), and content with the full rich-text editor (bold, italic, underline, lists, links).
+3. Optionally attach an image and mark it Published.
+4. Articles aren't sent anywhere on their own — pull one into a Drip Campaign step (below) to actually deliver it, or reuse the same content elsewhere as you write new campaigns and newsletters.
+
 ## Create a Drip Campaign
 
 1. Select **Campaigns**.
 2. Create a campaign name and description.
 3. Add steps in the order they should be sent.
 4. For each step, set the subject, content (same rich editor used for newsletters), and delay in days.
-5. Alternatively, reuse an existing newsletter as a campaign step.
+5. Alternatively, pull in an existing newsletter, form, or **Article** as a step instead of writing fresh content.
 6. Edit, replace, reorder, or delete steps as needed.
 
 Each campaign's **Performance** section shows sent, delivered, opened, and clicked counts plus open/click rate percentages per step, based on the same SendGrid delivery tracking used for newsletters.
