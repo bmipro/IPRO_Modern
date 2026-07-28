@@ -113,6 +113,24 @@
         else { <p class="text-muted">No articles added yet.</p> }
 
         <hr/>
+        @{ var availableArticles = ViewBag.AvailableArticles as List<IPRO.Entities.Article> ?? new(); }
+        @if (availableArticles.Any())
+        {
+          <h6 class="fw-bold">Insert from Articles</h6>
+          <form asp-action="AddArticleFromLibrary" method="post" class="d-flex gap-2 mb-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="newsletterId" value="@Model.Id"/>
+            <select name="articleId" class="form-select form-select-sm" required>
+              <option value="">Choose an article...</option>
+              @foreach (var article in availableArticles)
+              {
+                <option value="@article.Id">@article.Title</option>
+              }
+            </select>
+            <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap"><i class="fas fa-file-import me-1"></i>Insert</button>
+          </form>
+          <hr/>
+        }
         <h6 class="fw-bold">Add Article</h6>
         <form asp-action="AddArticle" method="post">
           @Html.AntiForgeryToken()

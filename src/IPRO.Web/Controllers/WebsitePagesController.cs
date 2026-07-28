@@ -284,10 +284,9 @@ public class WebsitePagesController : Controller
             .Where(f => f.AgentUserId == AgentId && f.IsActive)
             .OrderByDescending(f => f.UpdatedAt)
             .ToListAsync();
-        var dripCampaigns = await _db.DripCampaigns
-            .Where(c => c.AgentUserId == AgentId && c.IsActive)
-            .Include(c => c.Steps)
-            .OrderBy(c => c.Name)
+        var articles = await _db.Articles
+            .Where(a => a.AgentUserId == AgentId)
+            .OrderByDescending(a => a.UpdatedAt)
             .ToListAsync();
         return View(new WebsitePageEditViewModel
         {
@@ -297,7 +296,7 @@ public class WebsitePagesController : Controller
             AvailableSentPolls = sentPolls,
             AvailableAgentDocuments = agentDocuments,
             AvailableForms = availableForms,
-            AvailableDripCampaigns = dripCampaigns
+            AvailableArticles = articles
         });
     }
 
@@ -331,7 +330,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int dripCampaignId = 0, string layoutStyle = "auto")
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0)
     {
         var ownedPageId = await _db.WebsiteContentBlocks
             .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
@@ -354,7 +353,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, dripCampaignId, layoutStyle);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -385,6 +384,7 @@ public class WebsitePagesController : Controller
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, AgentId, page, isOwnerPreview: true);
         var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, AgentId, page);
         var didYouKnowByBlockId = await IPRO.Web.Infrastructure.DidYouKnowBuilder.BuildAsync(_db, AgentId, page);
+        var articleContentByBlockId = await IPRO.Web.Infrastructure.ArticleContentBuilder.BuildAsync(_db, AgentId, page);
 
         return new PublicWebsiteViewModel
         {
@@ -394,7 +394,8 @@ public class WebsitePagesController : Controller
             ApprovedTestimonials = approvedTestimonials,
             PollResultsByBlockId = pollResultsByBlockId,
             FormsByBlockId = formsByBlockId,
-            DidYouKnowByBlockId = didYouKnowByBlockId
+            DidYouKnowByBlockId = didYouKnowByBlockId,
+            ArticleContentByBlockId = articleContentByBlockId
         };
     }
 
@@ -647,12 +648,12 @@ public class WebsitePagesController : Controller
                 return RedirectToAction(nameof(Edit), new { id = pageId });
             }
         }
-        if (blockType == WebsiteBlockTypes.DidYouKnow)
+        if (blockType == WebsiteBlockTypes.DidYouKnow || blockType == WebsiteBlockTypes.ArticleContent)
         {
-            var dripAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.MarketingCampaign);
-            if (!dripAccess.IsIncluded)
+            var articlesAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.Newsletters);
+            if (!articlesAccess.IsIncluded)
             {
-                TempData["Error"] = dripAccess.UpgradeMessage;
+                TempData["Error"] = articlesAccess.UpgradeMessage;
                 return RedirectToAction(nameof(Edit), new { id = pageId });
             }
         }
@@ -671,7 +672,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int dripCampaignId = 0, string layoutStyle = "auto")
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0)
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -682,7 +683,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, dripCampaignId, layoutStyle);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -698,7 +699,7 @@ public class WebsitePagesController : Controller
         int pollSurveyId, int agentDocumentId,
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
-        bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int dripCampaignId, string layoutStyle = "auto")
+        bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int[]? articleIds, string layoutStyle = "auto", int articleId = 0)
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -781,11 +782,23 @@ public class WebsitePagesController : Controller
         }
         else if (block.BlockType == WebsiteBlockTypes.DidYouKnow)
         {
-            var campaignBelongsToAgent = dripCampaignId > 0 && await _db.DripCampaigns.AnyAsync(c => c.Id == dripCampaignId && c.AgentUserId == AgentId);
+            var requestedArticleIds = (articleIds ?? Array.Empty<int>()).Where(id => id > 0).Distinct().ToList();
+            var ownedArticleIds = requestedArticleIds.Count == 0
+                ? new List<int>()
+                : await _db.Articles.Where(a => requestedArticleIds.Contains(a.Id) && a.AgentUserId == AgentId).Select(a => a.Id).ToListAsync();
             block.SettingsJson = new WebsiteDidYouKnowSettings
             {
-                DripCampaignId = campaignBelongsToAgent ? dripCampaignId : 0,
+                // Preserve the order the agent picked them in, not whatever order the DB returned.
+                ArticleIds = requestedArticleIds.Where(id => ownedArticleIds.Contains(id)).ToList(),
                 LayoutStyle = layoutStyle == "grid-2x3" ? "grid-2x3" : "auto"
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.ArticleContent)
+        {
+            var articleBelongsToAgent = articleId > 0 && await _db.Articles.AnyAsync(a => a.Id == articleId && a.AgentUserId == AgentId);
+            block.SettingsJson = new WebsiteArticleContentSettings
+            {
+                ArticleId = articleBelongsToAgent ? articleId : 0
             }.ToJson();
         }
     }

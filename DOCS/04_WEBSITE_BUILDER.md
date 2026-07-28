@@ -221,6 +221,7 @@ Available block types include:
 - Agent Info Card
 - Custom Form
 - Did You Know Teaser
+- Article Page
 
 Use the arrows to reorder blocks and the trash icon to remove one — this is also how you place an Agent Info Card wherever you want it on the page, since it's an ordinary block like any other.
 
@@ -236,7 +237,9 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 
 **Custom Form** displays a form you've built in **Forms** (Agent Portal menu) — pick which one from the dropdown that appears when you add the block. Submissions become Website Leads with the visitor's answers attached. See [DOCS/17_FORMS.md](17_FORMS.md) for building forms with text fields, checkboxes, dropdowns, and section headers.
 
-**Did You Know Teaser** turns a Drip Campaign (Agent Portal → **Campaigns**) into a lead-generating teaser on your site. Write the article content once as a reusable **Article** (Agent Portal → **Articles**, in the Marketing section — full rich-text editing with bold, italic, lists, and links), then pull it into a Drip Campaign step from the campaign's **Details** page (each step's subject becomes a teaser question — "Did you know..."). Add this block and pick that campaign from the dropdown, and choose how the teasers are arranged: **Auto-arrange** (a simple stacked list) or **Grid (2 rows × 3 columns)**. Visitors see the teaser questions in your chosen layout; anyone who submits their name and email sees the first step's full content immediately on the page, and is automatically enrolled in the rest of the campaign — the remaining steps arrive by email on whatever schedule you set for each step in Campaigns, so you control the pacing without touching this block again. Requires the Marketing Campaign package feature.
+**Did You Know Teaser** is a lead-generating teaser built directly from your **Articles** (Agent Portal → **Articles**, in the Marketing section — full rich-text editing with bold, italic, lists, and links; no separate campaign to build first). Add this block, check which articles to include, and choose how the teasers are arranged: **Auto-arrange** (a simple stacked list) or **Grid (2 rows × 3 columns)**. Each article's Summary is shown as its teaser question ("Did you know..."). A visitor who submits their name and email immediately sees the full content of every checked article — there's no delayed, multi-day email delivery. If you want content paced out over several days instead, build a real **Drip Campaign** (Agent Portal → **Campaigns**) and pull the same Articles in as steps. Requires the Newsletters package feature (the same one Articles requires).
+
+**Article Page** shows one Article's title, image, and full content as an ordinary page on your site. Add this block to any Website Page, pick the Article, and — if you want it reachable from your site's navigation — give that page a spot in the menu the same way you would any other page (Page Settings → Show in navigation). This is the way to publish an Article as its own standalone page rather than a teaser.
 
 **Agent Info Card** shows your photo, name, designation/company, full mailing address, phone, and email, pulled from your Profile — tick or untick which pieces to show when you add the block (for example, show your photo and name but hide your address). Add it once and move it anywhere on any page with the reorder arrows. On the Editorial template it renders as a full byline-style card; on Modern and Classic it currently uses the same plain contact-card style as the Review Badge block, ahead of a matching visual refresh for those two templates.
 

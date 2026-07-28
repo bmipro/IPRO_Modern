@@ -120,6 +120,10 @@ public class NewsletterController : Controller
         await LoadNewsletterContextAsync();
         ViewBag.Articles = await _newsletters.GetArticlesAsync(id);
         ViewBag.Recipients = await _newsletters.GetRecipientsAsync(id);
+        ViewBag.AvailableArticles = await _db.Articles
+            .Where(a => a.AgentUserId == AgentId)
+            .OrderByDescending(a => a.UpdatedAt)
+            .ToListAsync();
         return View(nl);
     }
     [HttpPost, ValidateAntiForgeryToken]
@@ -379,6 +383,30 @@ public class NewsletterController : Controller
         await _newsletters.AddArticleAsync(article);
         TempData["Success"] = "Article added.";
         return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddArticleFromLibrary(int newsletterId, int articleId)
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+        var owned = await _newsletters.GetByIdAsync(newsletterId);
+        if (owned == null || owned.AgentUserId != AgentId) return NotFound();
+
+        var source = await _db.Articles.FirstOrDefaultAsync(a => a.Id == articleId && a.AgentUserId == AgentId);
+        if (source == null) return NotFound();
+
+        var existing = await _newsletters.GetArticlesAsync(newsletterId);
+        await _newsletters.AddArticleAsync(new NewsLetterArticle
+        {
+            NewsLetterId = newsletterId,
+            Title = source.Title,
+            Content = HtmlContentSanitizer.Sanitize(source.Content),
+            ImageUrl = NormalizeUrl(source.ImageUrl),
+            SortOrder = existing.Count()
+        });
+        TempData["Success"] = $"\"{source.Title}\" added from your Articles library.";
+        return RedirectToAction(nameof(Edit), new { id = newsletterId });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

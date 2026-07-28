@@ -7,7 +7,7 @@ namespace IPRO.Web.Infrastructure;
 
 public static class DidYouKnowBuilder
 {
-    // Only exposes each step's Subject as a teaser - never HtmlBody. The full article is the
+    // Only exposes each Article's Summary as a teaser - never Content. The full article is the
     // whole point of the email-gate this block exists to drive; leaking it into the public page
     // markup before a visitor submits their email would defeat the mechanism entirely.
     public static async Task<Dictionary<int, DidYouKnowBlockData>> BuildAsync(IPRODbContext db, int agentUserId, WebsitePage? currentPage)
@@ -20,21 +20,27 @@ public static class DidYouKnowBuilder
         foreach (var block in blocks)
         {
             var settings = WebsiteDidYouKnowSettings.FromJson(block.SettingsJson);
-            if (settings.DripCampaignId <= 0) continue;
+            if (settings.ArticleIds.Count == 0) continue;
 
-            var campaign = await db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == settings.DripCampaignId && c.AgentUserId == agentUserId && c.IsActive);
-            if (campaign == null) continue;
-
-            var teasers = await db.DripCampaignSteps
-                .Where(s => s.DripCampaignId == campaign.Id)
-                .OrderBy(s => s.SortOrder)
-                .Select(s => s.Subject)
+            var articles = await db.Articles
+                .Where(a => settings.ArticleIds.Contains(a.Id) && a.AgentUserId == agentUserId && a.IsPublished)
                 .ToListAsync();
+            if (articles.Count == 0) continue;
+
+            // Preserve the agent's chosen order rather than whatever order the query returned.
+            var ordered = settings.ArticleIds
+                .Select(id => articles.FirstOrDefault(a => a.Id == id))
+                .Where(a => a != null)
+                .Select(a => a!)
+                .ToList();
+
+            var teasers = ordered
+                .Select(a => string.IsNullOrWhiteSpace(a.Summary) ? a.Title : a.Summary)
+                .ToList();
             if (teasers.Count == 0) continue;
 
             result[block.Id] = new DidYouKnowBlockData
             {
-                CampaignName = campaign.Name,
                 Teasers = teasers,
                 LayoutStyle = settings.LayoutStyle
             };

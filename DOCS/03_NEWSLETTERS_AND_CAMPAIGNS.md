@@ -16,6 +16,14 @@ Every newsletter sends inside a branded wrapper: your banner (if chosen), a colo
 
 Super Admin manages the library of starter templates agents can choose from (see `07_SUPER_ADMIN.md`).
 
+## Add Extra Articles to a Newsletter
+
+Beyond the main subject/body, a newsletter can carry extra article cards (each with its own title, image, and content) that render below the main body inside the same branded wrapper. From the **Edit** page:
+- **Insert from Articles**: pick one of your existing library Articles from the dropdown and click Insert — copies its title, image, and content in as a new article card. Fastest way to reuse something you already wrote for Did You Know or a Drip Campaign.
+- **Add Article**: write something fresh, specific to this one newsletter issue, right there in the form (own rich-text editor, own optional image).
+
+Either way, remove one with the trash icon next to it; order follows the order you added them in.
+
 ## Edit, Duplicate, or Reuse a Newsletter
 
 1. Open **Newsletter**.
@@ -89,7 +97,7 @@ SendGrid event webhooks update these results. Open tracking can be affected by p
 1. Select **Articles** (under the Marketing section of the left nav).
 2. Create an article: title, a short summary (used as the teaser line on the website's Did You Know block), and content with the full rich-text editor (bold, italic, underline, lists, links).
 3. Optionally attach an image and mark it Published.
-4. Articles aren't sent anywhere on their own — pull one into a Drip Campaign step (below) to actually deliver it, or reuse the same content elsewhere as you write new campaigns and newsletters.
+4. Articles aren't sent anywhere on their own — pick published articles directly on a Did You Know website block, attach one to its own page with the Article Page block, pull one into a Drip Campaign step, or insert one into a newsletter. Write once, reuse everywhere.
 
 ## Create a Drip Campaign
 

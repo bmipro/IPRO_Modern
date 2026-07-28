@@ -374,21 +374,24 @@
           {
             var didYouKnowSettings = IPRO.Entities.WebsiteDidYouKnowSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Which drip campaign?</label>
-              @if (Model.AvailableDripCampaigns.Any())
+              <label class="form-label fw-semibold">Which articles?</label>
+              @if (Model.AvailableArticles.Any())
               {
-                <select name="dripCampaignId" class="form-select">
-                  <option value="0">Choose a campaign...</option>
-                  @foreach (var campaign in Model.AvailableDripCampaigns)
+                <div class="border rounded-3 p-3" style="max-height:240px;overflow-y:auto">
+                  @foreach (var article in Model.AvailableArticles)
                   {
-                    <option value="@campaign.Id" selected="@(didYouKnowSettings.DripCampaignId == campaign.Id ? "selected" : null)">@campaign.Name (@campaign.Steps.Count step@(campaign.Steps.Count == 1 ? "" : "s"))</option>
+                    var checkId = $"dykArticle{block.Id}_{article.Id}";
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="@checkId" name="articleIds" value="@article.Id" checked="@(didYouKnowSettings.ArticleIds.Contains(article.Id) ? "checked" : null)" />
+                      <label class="form-check-label" for="@checkId">@article.Title <span class="badge rounded-pill @(article.IsPublished ? "bg-success" : "bg-secondary") ms-1">@(article.IsPublished ? "Published" : "Draft")</span></label>
+                    </div>
                   }
-                </select>
-                <div class="form-text">Shows a teaser for each step's subject line. A visitor who submits their name and email sees the first step's content right away and is enrolled in the campaign for the rest, delivered on each step's own schedule.</div>
+                </div>
+                <div class="form-text">Shows each article's summary as a teaser. A visitor who submits their name and email sees the full content of every checked article immediately.</div>
               }
               else
               {
-                <div class="alert alert-info mb-0">Build a drip campaign first from <a href="/Campaigns">Campaigns</a> (add at least one step), then come back here to attach it. Write the step content once as a reusable <a href="/Articles">Article</a>, then pull it in from the campaign.</div>
+                <div class="alert alert-info mb-0">Write an <a href="/Articles/Create">Article</a> first, then come back here to attach it.</div>
               }
             </div>
             <div class="col-12">
@@ -397,6 +400,28 @@
                 <option value="auto" selected="@(didYouKnowSettings.LayoutStyle != "grid-2x3" ? "selected" : null)">Auto-arrange</option>
                 <option value="grid-2x3" selected="@(didYouKnowSettings.LayoutStyle == "grid-2x3" ? "selected" : null)">Grid (2 rows &times; 3 columns)</option>
               </select>
+            </div>
+          }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ArticleContent)
+          {
+            var articleContentSettings = IPRO.Entities.WebsiteArticleContentSettings.FromJson(block.SettingsJson);
+            <div class="col-12">
+              <label class="form-label fw-semibold">Which article?</label>
+              @if (Model.AvailableArticles.Any())
+              {
+                <select name="articleId" class="form-select">
+                  <option value="0">Choose an article...</option>
+                  @foreach (var article in Model.AvailableArticles)
+                  {
+                    <option value="@article.Id" selected="@(articleContentSettings.ArticleId == article.Id ? "selected" : null)">@article.Title (@(article.IsPublished ? "Published" : "Draft"))</option>
+                  }
+                </select>
+                <div class="form-text">Shows the full article on this page -- title, image, and content. Give this page a spot in your site's navigation menu (Page Settings) to link it from any menu.</div>
+              }
+              else
+              {
+                <div class="alert alert-info mb-0">Write an <a href="/Articles/Create">Article</a> first, then come back here to attach it.</div>
+              }
             </div>
           }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)

@@ -194,6 +194,21 @@
     }
     <div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.DidYouKnow, DidYouKnowBlockId = block.Id })</div></div></section>
   }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ArticleContent)
+  {
+    var articleContent = Model.ArticleContentByBlockId.GetValueOrDefault(block.Id);
+    if (articleContent != null)
+    {
+      <section class="mp-section"><div class="mp-inner" style="max-width:760px">
+        @if (!string.IsNullOrWhiteSpace(articleContent.ImageUrl))
+        {
+          <img src="@articleContent.ImageUrl" alt="" style="width:100%;border-radius:12px;margin-bottom:24px;object-fit:cover;max-height:420px" />
+        }
+        <h2 class="display-6">@articleContent.Title</h2>
+        <div class="mp-lead">@Html.Raw(articleContent.Content)</div>
+      </div></section>
+    }
+  }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
   {
     var mpReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);

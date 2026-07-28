@@ -250,7 +250,7 @@ public class PublicWebsiteController : Controller
 
         if (submissionType == WebsiteLeadTypes.DidYouKnow)
         {
-            var firstArticle = await TryEnrollDidYouKnowSeriesAsync(website, model.DidYouKnowBlockId, client);
+            var firstArticle = await TryUnlockDidYouKnowArticlesAsync(website, model.DidYouKnowBlockId);
             if (firstArticle != null)
             {
                 TempData["DidYouKnowSubject"] = firstArticle.Value.Subject;
@@ -261,7 +261,7 @@ public class PublicWebsiteController : Controller
         return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
     }
 
-    private async Task<(string Subject, string HtmlBody)?> TryEnrollDidYouKnowSeriesAsync(AgentWebsite website, int? blockId, Client? client)
+    private async Task<(string Subject, string HtmlBody)?> TryUnlockDidYouKnowArticlesAsync(AgentWebsite website, int? blockId)
     {
         if (!blockId.HasValue) return null;
 
@@ -272,42 +272,35 @@ public class PublicWebsiteController : Controller
                 && b.BlockType == WebsiteBlockTypes.DidYouKnow);
         if (block == null) return null;
 
-        var campaignId = WebsiteDidYouKnowSettings.FromJson(block.SettingsJson).DripCampaignId;
-        if (campaignId <= 0) return null;
+        var articleIds = WebsiteDidYouKnowSettings.FromJson(block.SettingsJson).ArticleIds;
+        if (articleIds.Count == 0) return null;
 
-        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == campaignId && c.AgentUserId == website.AgentUserId && c.IsActive);
-        if (campaign == null) return null;
-
-        var steps = await _db.DripCampaignSteps
-            .Where(s => s.DripCampaignId == campaign.Id)
-            .OrderBy(s => s.SortOrder)
+        var articles = await _db.Articles
+            .Where(a => articleIds.Contains(a.Id) && a.AgentUserId == website.AgentUserId && a.IsPublished)
             .ToListAsync();
-        if (steps.Count == 0) return null;
+        if (articles.Count == 0) return null;
 
-        if (client != null)
-        {
-            var alreadyEnrolled = await _db.DripCampaignEnrollments.AnyAsync(e =>
-                e.DripCampaignId == campaign.Id && e.ClientId == client.Id && e.Status == DripCampaignEnrollmentStatus.Active);
-            if (!alreadyEnrolled)
-            {
-                // Step 0 is shown on-page immediately below, so enrollment starts at step 1 - the
-                // dispatcher job should never re-send the same article the visitor just read.
-                _db.DripCampaignEnrollments.Add(new DripCampaignEnrollment
-                {
-                    AgentUserId = website.AgentUserId,
-                    DripCampaignId = campaign.Id,
-                    ClientId = client.Id,
-                    Status = DripCampaignEnrollmentStatus.Active,
-                    NextStepIndex = 1,
-                    StartedAt = DateTime.UtcNow,
-                    NextSendAt = steps.Count > 1 ? DateTime.UtcNow.AddDays(Math.Max(0, steps[1].DelayDays)) : DateTime.UtcNow,
-                    UnsubscribeToken = Guid.NewGuid().ToString("N")
-                });
-                await _db.SaveChangesAsync();
-            }
-        }
+        // Preserve the agent's chosen order, not whatever order the DB returned.
+        var ordered = articleIds
+            .Select(id => articles.FirstOrDefault(a => a.Id == id))
+            .Where(a => a != null)
+            .Select(a => a!)
+            .ToList();
+        if (ordered.Count == 0) return null;
 
-        return (steps[0].Subject, steps[0].HtmlBody);
+        // Every selected article unlocks immediately on submit -- no scheduled/delayed delivery.
+        // An agent who wants content paced out over days should build a real Drip Campaign from
+        // the same Articles (Campaigns -> Add step from Article) instead.
+        var combinedBody = string.Join(
+            "",
+            ordered.Select(a => $"""
+                <div class="website-lead-article-item">
+                  <h3 class="website-lead-article-title">{System.Net.WebUtility.HtmlEncode(a.Title)}</h3>
+                  <div class="website-lead-article-body">{a.Content}</div>
+                </div>
+                """));
+
+        return (ordered.Count == 1 ? ordered[0].Title : string.Empty, combinedBody);
     }
 
     private async Task<string?> TryIssueLeadMagnetTokenAsync(AgentWebsite website, int? blockId)
@@ -729,6 +722,7 @@ public class PublicWebsiteController : Controller
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
         var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
         var didYouKnowByBlockId = await IPRO.Web.Infrastructure.DidYouKnowBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
+        var articleContentByBlockId = await IPRO.Web.Infrastructure.ArticleContentBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
 
         return View("Index", new PublicWebsiteViewModel
         {
@@ -738,7 +732,8 @@ public class PublicWebsiteController : Controller
             ApprovedTestimonials = approvedTestimonials,
             PollResultsByBlockId = pollResultsByBlockId,
             FormsByBlockId = formsByBlockId,
-            DidYouKnowByBlockId = didYouKnowByBlockId
+            DidYouKnowByBlockId = didYouKnowByBlockId,
+            ArticleContentByBlockId = articleContentByBlockId
         });
     }
 

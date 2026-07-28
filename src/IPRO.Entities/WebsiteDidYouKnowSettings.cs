@@ -4,7 +4,7 @@ namespace IPRO.Entities;
 
 public class WebsiteDidYouKnowSettings
 {
-    public int DripCampaignId { get; set; }
+    public List<int> ArticleIds { get; set; } = new();
     public string LayoutStyle { get; set; } = "auto";
 
     public static WebsiteDidYouKnowSettings FromJson(string? json)
