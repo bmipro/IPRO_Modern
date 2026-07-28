@@ -609,6 +609,15 @@ The user supplied a screenshot of the legacy "Did you know?" module from one of 
 
 **Verification**: build clean, grepped for dangling references to the removed TempData keys and the old method name — none found. Cannot log in as an agent or receive a real test email — said so plainly; verification is build success and structural review, not a live click-through or inbox check. `DOCS/04_WEBSITE_BUILDER.md` updated.
 
+### 53. Did You Know: show/hide Read More panel + Last Name field (done, 2026-07-28)
+
+The user tried the scroll-to-form version shipped in item 52 and rejected it: "I click on Read more and technically nothing happens then I need to assume that I have to fill the form below to get them No way someone will feel/think that way." Two changes:
+
+- `_WebsiteLeadForm.cshtml`: added a `LastName` field for Did You Know submissions (previously First Name + Email only, like Newsletter/LeadMagnet). Wrapped the form panel in `hidden` by default and added a "Back to articles" button plus a short intro line above the fields, DYK-only.
+- Each Read More in the 3 managed-page partials (`_ModernManagedPage.cshtml`, `_ClassicManagedPage.cshtml`, `_EditorialManagedPage.cshtml`) changed from a plain anchor to a `<button data-dyk-show="dyk-form-@block.Id" data-dyk-hide="dyk-cards-@block.Id">`, and the card list is now wrapped in its own `id="dyk-cards-@block.Id"` panel. A small guarded event-delegation `<script>` (CSP-nonced, added once per page in `_WebsiteLeadForm.cshtml`) toggles the native `hidden` attribute on click — Read More visibly swaps the cards out for the capture panel, and "Back to articles" swaps back, instead of a silent scroll.
+
+**Verification**: build clean. Cannot log in as an agent — did not click through the toggle live; said so plainly. `DOCS/04_WEBSITE_BUILDER.md` updated.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
