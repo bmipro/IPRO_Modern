@@ -197,7 +197,20 @@
                     <dt class="col-md-3 text-muted">Fax</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.BusinessFax) ? "-" : Model.BusinessFax)</dd>
                     <dt class="col-md-3 text-muted">Mobile Phone</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.CellPhone) ? "-" : Model.CellPhone)</dd>
                     <dt class="col-md-3 text-muted">Terms Accepted</dt><dd class="col-md-9">@(Model.TermsAcceptedAt.HasValue ? Model.TermsAcceptedAt.Value.ToString("MMM d, yyyy h:mm tt") : "-")</dd>
-                    <dt class="col-md-3 text-muted">Registration IP</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.RegistrationIpAddress) ? "-" : Model.RegistrationIpAddress)</dd>
+                    <dt class="col-md-3 text-muted">Registration IP</dt>
+                    <dd class="col-md-9">
+                        @if (string.IsNullOrWhiteSpace(Model.RegistrationIpAddress))
+                        {
+                            @:-
+                        }
+                        else
+                        {
+                            var lookupIp = Model.RegistrationIpAddress.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase)
+                                ? Model.RegistrationIpAddress["::ffff:".Length..]
+                                : Model.RegistrationIpAddress;
+                            <a href="https://ipinfo.io/@lookupIp" target="_blank" rel="noopener noreferrer">@Model.RegistrationIpAddress <i class="fas fa-external-link-alt ms-1 small"></i></a>
+                        }
+                    </dd>
                 </dl>
             </div>
         </div>
