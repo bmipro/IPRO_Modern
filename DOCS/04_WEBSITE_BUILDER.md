@@ -220,6 +220,7 @@ Available block types include:
 - Review Badge
 - Agent Info Card
 - Custom Form
+- Did You Know Teaser
 
 Use the arrows to reorder blocks and the trash icon to remove one — this is also how you place an Agent Info Card wherever you want it on the page, since it's an ordinary block like any other.
 
@@ -234,6 +235,8 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 **Review Badge** shows a star rating, review count, and a "Read Reviews" button linking out to your Google or Facebook review page — a quick trust signal for visitors. Enter your platform, review page URL, current rating, and review count when you add the block; there's no live sync with Google/Facebook, so update the numbers here yourself whenever they change. Available on every package — no upgrade required.
 
 **Custom Form** displays a form you've built in **Forms** (Agent Portal menu) — pick which one from the dropdown that appears when you add the block. Submissions become Website Leads with the visitor's answers attached. See [DOCS/17_FORMS.md](17_FORMS.md) for building forms with text fields, checkboxes, dropdowns, and section headers.
+
+**Did You Know Teaser** turns a Drip Campaign (Agent Portal → **Campaigns**) into a lead-generating teaser on your site: build a campaign first, add at least one step (each step's subject becomes a teaser question — "Did you know..."). Add this block and pick that campaign from the dropdown. Visitors see the list of teaser questions; anyone who submits their name and email sees the first step's full content immediately on the page, and is automatically enrolled in the rest of the campaign — the remaining steps arrive by email on whatever schedule you set for each step in Campaigns, so you control the pacing without touching this block again. Requires the Marketing Campaign package feature.
 
 **Agent Info Card** shows your photo, name, designation/company, full mailing address, phone, and email, pulled from your Profile — tick or untick which pieces to show when you add the block (for example, show your photo and name but hide your address). Add it once and move it anywhere on any page with the reorder arrows. On the Editorial template it renders as a full byline-style card; on Modern and Classic it currently uses the same plain contact-card style as the Review Badge block, ahead of a matching visual refresh for those two templates.
 
