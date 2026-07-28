@@ -250,16 +250,18 @@ public class PublicWebsiteController : Controller
 
         if (submissionType == WebsiteLeadTypes.DidYouKnow)
         {
-            await SendDidYouKnowArticlesEmailAsync(website, model.DidYouKnowBlockId, client);
+            await QueueDidYouKnowArticleEmailsAsync(website, model.DidYouKnowBlockId, client);
         }
 
         return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
     }
 
-    // Emails every article selected on the block, immediately and all at once -- no scheduled/
-    // delayed delivery. An agent who wants content paced out over days should build a real Drip
-    // Campaign from the same Articles (Campaigns -> Add step from Article) instead.
-    private async Task SendDidYouKnowArticlesEmailAsync(AgentWebsite website, int? blockId, Client? client)
+    // Queues one email per selected article rather than sending immediately -- a visitor
+    // receiving 4-6 emails in the same second is itself a spam signal to mail providers, so
+    // sends are staggered a few jittered minutes apart and drained by DidYouKnowEmailDispatchJob
+    // (runs every minute). Each email carries one article's full content, so there's no
+    // "read more" link back to the site to worry about either.
+    private async Task QueueDidYouKnowArticleEmailsAsync(AgentWebsite website, int? blockId, Client? client)
     {
         if (!blockId.HasValue || client == null || string.IsNullOrWhiteSpace(client.Email)) return;
 
@@ -286,36 +288,21 @@ public class PublicWebsiteController : Controller
             .ToList();
         if (ordered.Count == 0) return;
 
-        var companyName = string.IsNullOrWhiteSpace(website.AgentUser.CompanyName)
-            ? $"{website.AgentUser.FirstName} {website.AgentUser.LastName}".Trim()
-            : website.AgentUser.CompanyName;
-        var subject = ordered.Count == 1
-            ? ordered[0].Title
-            : $"Did You Know? {ordered.Count} articles from {companyName}";
+        var now = DateTime.UtcNow;
+        var scheduledFor = now.AddMinutes(1);
+        foreach (var article in ordered)
+        {
+            _db.DidYouKnowEmailQueueItems.Add(new DidYouKnowEmailQueueItem
+            {
+                ArticleId = article.Id,
+                ClientId = client.Id,
+                ScheduledForUtc = scheduledFor,
+                CreatedAt = now
+            });
+            scheduledFor = scheduledFor.AddMinutes(Random.Shared.Next(4, 9));
+        }
 
-        var articlesHtml = string.Join("", ordered.Select(a => $"""
-            <div style="margin-bottom:28px;padding-bottom:28px;border-bottom:1px solid #e2e8f0;">
-              <h2 style="margin:0 0 10px;font-size:20px;color:#0f172a;">{System.Net.WebUtility.HtmlEncode(a.Title)}</h2>
-              <div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#334155;">{a.Content}</div>
-            </div>
-            """));
-        var html = $"""
-            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
-              <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:22px">Did You Know?</h1></div>
-              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                {articlesHtml}
-              </div>
-            </div>
-            """;
-
-        var clientName = $"{client.FirstName} {client.LastName}".Trim();
-        await _email.SendDetailedAsync(
-            client.Email,
-            string.IsNullOrWhiteSpace(clientName) ? client.Email : clientName,
-            subject,
-            html,
-            replyToEmail: website.AgentUser.Email,
-            replyToName: companyName);
+        await _db.SaveChangesAsync();
     }
 
     private async Task<string?> TryIssueLeadMagnetTokenAsync(AgentWebsite website, int? blockId)

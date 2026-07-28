@@ -36,7 +36,7 @@
     }
     else
     {
-      <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : isDidYouKnow ? "Thanks! Check your inbox -- we've sent you the full article(s)." : "Thank you. Your message was sent to the adviser.")</div>
+      <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : isDidYouKnow ? "Thanks! We're emailing you the full article(s) -- they'll land in your inbox one at a time over the next little while." : "Thank you. Your message was sent to the adviser.")</div>
     }
     <script nonce="@Context.GetCspNonce()">(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('dl');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
   }

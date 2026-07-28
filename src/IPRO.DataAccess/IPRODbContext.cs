@@ -44,6 +44,7 @@ public class IPRODbContext : DbContext
     public DbSet<DripCampaignStepSend> DripCampaignStepSends => Set<DripCampaignStepSend>();
     public DbSet<Scheduler> Schedulers => Set<Scheduler>();
     public DbSet<Article> Articles => Set<Article>();
+    public DbSet<DidYouKnowEmailQueueItem> DidYouKnowEmailQueueItems => Set<DidYouKnowEmailQueueItem>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
     public DbSet<Testimonial> Testimonials => Set<Testimonial>();

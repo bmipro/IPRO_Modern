@@ -262,6 +262,7 @@ app.MapHangfireDashboard("/hangfire", new DashboardOptions
 
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
+RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DripCampaignJob>("drip-campaigns", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<CalendarReminderJob>("calendar-reminders", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<SubscriptionBillingJob>("subscription-billing", job => job.RunAsync(), Cron.Hourly);
@@ -283,6 +284,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureDripCampaignEnrollmentSchemaAsync(db);
     await EnsureNewsLetterTemplateSchemaAsync(db);
     await EnsureDripCampaignStepSendSchemaAsync(db);
+    await EnsureDidYouKnowEmailQueueSchemaAsync(db);
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
     await EnsureSupportTicketSchemaAsync(db);
     await EnsurePromotionCodeSchemaAsync(db);
@@ -619,6 +621,21 @@ CREATE TABLE IF NOT EXISTS `DripCampaignStepSends` (
     `CreatedAt` datetime(6) NOT NULL,
     `UpdatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureDidYouKnowEmailQueueSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `DidYouKnowEmailQueueItems` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ArticleId` int NOT NULL,
+    `ClientId` int NOT NULL,
+    `ScheduledForUtc` datetime(6) NOT NULL,
+    `SentAtUtc` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `IX_DidYouKnowEmailQueueItems_Dispatch` (`SentAtUtc`, `ScheduledForUtc`)
 ) CHARACTER SET=utf8mb4;");
 }
 

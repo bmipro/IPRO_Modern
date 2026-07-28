@@ -160,6 +160,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureDripCampaignEnrollmentSchemaAsync(db);
     await EnsureNewsLetterTemplateSchemaAsync(db);
     await EnsureDripCampaignStepSendSchemaAsync(db);
+    await EnsureDidYouKnowEmailQueueSchemaAsync(db);
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
     await EnsureAdminUserSchemaAsync(db, app.Configuration);
     await EnsureSupportTicketSchemaAsync(db);
@@ -363,6 +364,21 @@ CREATE TABLE IF NOT EXISTS `NewsLetterTemplates` (
 ) CHARACTER SET=utf8mb4;");
 
     await NewsLetterTemplateSeeder.SeedAsync(db);
+}
+
+static async Task EnsureDidYouKnowEmailQueueSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `DidYouKnowEmailQueueItems` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ArticleId` int NOT NULL,
+    `ClientId` int NOT NULL,
+    `ScheduledForUtc` datetime(6) NOT NULL,
+    `SentAtUtc` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `IX_DidYouKnowEmailQueueItems_Dispatch` (`SentAtUtc`, `ScheduledForUtc`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsureDripCampaignStepSendSchemaAsync(IPRODbContext db)
