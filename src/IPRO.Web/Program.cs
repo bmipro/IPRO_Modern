@@ -142,10 +142,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     // platform does not allow a public request to reach Kestrel without passing through it --
     // so trusting X-Forwarded-For/-Proto from whatever connects directly to us is equivalent to
     // trusting Azure's own edge here, not "trust anyone." Azure's internal network presents as
-    // IPv4-mapped IPv6 addresses on these private ranges.
+    // IPv4-mapped IPv6 addresses on these private ranges, including the 169.254.0.0/16 link-local
+    // range the front-end actually connects from - omitting it left every request untrusted and
+    // silently falling back to that internal hop address instead of the real client IP (caught
+    // 2026-07-28 via a RegistrationIpAddress showing 169.254.x.x instead of a real client IP).
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
-    foreach (var cidr in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16" })
+    foreach (var cidr in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16" })
     {
         var (prefix, length) = ParseCidr(cidr);
         options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, length));
