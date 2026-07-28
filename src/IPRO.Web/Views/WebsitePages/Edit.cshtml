@@ -110,13 +110,23 @@
           <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Upload Image</button>
         </form>
       </div>
-      @if (sitePage.Blocks.Any())
+      @{
+        // Only Hero and Text blocks actually render a block's ImageUrl on the public site --
+        // every other block type (Contact Form, Testimonials, Reviews, etc.) ignores it, so
+        // offering them here would silently save an image that never appears anywhere.
+        var imageDestinationBlocks = sitePage.Blocks
+            .Where(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero || b.BlockType == IPRO.Entities.WebsiteBlockTypes.Text)
+            .OrderByDescending(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
+            .ThenBy(b => b.SortOrder)
+            .ToList();
+      }
+      @if (imageDestinationBlocks.Any())
       {
         <div class="image-library-toolbar mb-3">
           <div>
             <label for="uploadedImageTarget" class="form-label small fw-semibold mb-1">Apply uploaded image to</label>
             <select id="uploadedImageTarget" class="form-select form-select-sm">
-              @foreach (var targetBlock in sitePage.Blocks.OrderByDescending(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero).ThenBy(b => b.SortOrder))
+              @foreach (var targetBlock in imageDestinationBlocks)
               {
                 <option value="@targetBlock.Id">@IPRO.Entities.WebsiteBlockTypes.DisplayName(targetBlock.BlockType) - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
               }
@@ -124,6 +134,10 @@
           </div>
           <div id="uploadedImageStatus" class="small text-muted" role="status">Choose a destination, then click <strong>Use this image</strong>. It saves to that block immediately.</div>
         </div>
+      }
+      else
+      {
+        <div class="small text-muted mb-3">Add a Hero or Text block to this page to apply an uploaded image to it.</div>
       }
       @if (Model.MediaAssets.Any())
       {
@@ -134,7 +148,7 @@
               <div class="border rounded p-2 h-100">
                 <img src="@asset.BlobUrl" alt="" class="w-100 rounded mb-2" style="aspect-ratio:16/10;object-fit:cover" />
               <div class="small text-truncate mb-2" title="@asset.OriginalFileName">@asset.OriginalFileName</div>
-                @if (sitePage.Blocks.Any())
+                @if (imageDestinationBlocks.Any())
                 {
                   <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2 uploaded-image-choice" data-image-url="@asset.BlobUrl" data-image-name="@asset.OriginalFileName"><i class="fas fa-check me-1"></i>Use this image</button>
                 }
@@ -152,13 +166,13 @@
       }
       <details class="starter-banner-library mt-4">
         <summary><i class="fas fa-wand-magic-sparkles me-2 text-primary"></i><strong>Browse shared starter banners</strong><span class="text-muted ms-2">@Model.StarterBanners.Count reusable images</span></summary>
-        @if (sitePage.Blocks.Any())
+        @if (imageDestinationBlocks.Any())
         {
           <div class="starter-banner-toolbar mt-3">
             <div>
               <label for="starterBannerTarget" class="form-label small fw-semibold mb-1">Apply selected banner to</label>
               <select id="starterBannerTarget" class="form-select form-select-sm">
-                @foreach (var targetBlock in sitePage.Blocks.OrderByDescending(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero).ThenBy(b => b.SortOrder))
+                @foreach (var targetBlock in imageDestinationBlocks)
                 {
                   <option value="@targetBlock.Id">@IPRO.Entities.WebsiteBlockTypes.DisplayName(targetBlock.BlockType) - @(string.IsNullOrWhiteSpace(targetBlock.Heading) ? "Untitled block" : targetBlock.Heading)</option>
                 }
@@ -169,12 +183,12 @@
         }
         else
         {
-          <div class="alert alert-info mt-3 mb-0">Add a content block first, then you can apply a starter banner to it.</div>
+          <div class="alert alert-info mt-3 mb-0">Add a Hero or Text block to this page first, then you can apply a starter banner to it.</div>
         }
         <div class="starter-banner-grid mt-3">
           @foreach (var banner in Model.StarterBanners)
           {
-            <button type="button" class="starter-banner-choice" data-banner-url="@banner.Url" data-banner-name="@banner.Name" disabled="@(!sitePage.Blocks.Any())">
+            <button type="button" class="starter-banner-choice" data-banner-url="@banner.Url" data-banner-name="@banner.Name" disabled="@(!imageDestinationBlocks.Any())">
               <img src="@banner.Url" alt="@banner.Name" loading="lazy" />
               <span class="starter-banner-caption"><strong>@banner.Name</strong><span>@banner.Category</span></span>
               <span class="starter-banner-use"><i class="fas fa-check me-1"></i>Use this banner</span>
