@@ -3,6 +3,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Utility;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
@@ -16,21 +17,45 @@ public class GoogleCalendarController : Controller
     private readonly IPRODbContext _db;
     private readonly IGoogleCalendarService _googleCalendar;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IConfiguration _configuration;
     private readonly IDataProtector _stateProtector;
     private readonly IDataProtector _tokenProtector;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public GoogleCalendarController(IPRODbContext db, IGoogleCalendarService googleCalendar, IPackageEntitlementService entitlements, IDataProtectionProvider dataProtectionProvider)
+    public GoogleCalendarController(IPRODbContext db, IGoogleCalendarService googleCalendar, IPackageEntitlementService entitlements, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider)
     {
         _db = db;
         _googleCalendar = googleCalendar;
         _entitlements = entitlements;
+        _configuration = configuration;
         _stateProtector = dataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.State.v1");
         _tokenProtector = dataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1");
     }
 
+    // Google's OAuth client only has a couple of fixed redirect URIs registered (the canonical
+    // portal host + the azurewebsites.net fallback). Agents can reach this same action from their
+    // own custom/temporary domain (e.g. someagent.247advisers.com/Account/Profile), and Url.ActionLink
+    // would then build a redirect_uri Google has never seen, failing with redirect_uri_mismatch. Bounce
+    // to the canonical host first so the redirect_uri we send always matches what's registered.
+    private IActionResult? RedirectToCanonicalHostIfNeeded()
+    {
+        var canonicalBaseUrl = PortalUrlHelper.GetAgentPortalBaseUrl(_configuration);
+        var canonicalHost = new Uri(canonicalBaseUrl).Host;
+        var currentHost = Request.Host.Host;
+        if (string.Equals(currentHost, canonicalHost, StringComparison.OrdinalIgnoreCase)
+            || currentHost.EndsWith(".azurewebsites.net", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return Redirect($"{canonicalBaseUrl}{Request.Path}{Request.QueryString}");
+    }
+
     public async Task<IActionResult> Connect()
     {
+        var hostRedirect = RedirectToCanonicalHostIfNeeded();
+        if (hostRedirect != null) return hostRedirect;
+
         var gate = await RequireGoogleCalendarAccessAsync();
         if (gate != null) return gate;
 
