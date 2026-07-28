@@ -440,6 +440,18 @@ A user-reported chain of four related bugs, all on the same day, around the "age
 
 **Prevention rule**: when building anything host- or route-based, prefer deriving the "is this a real app route" answer from the actual route table (reflection, in this case) over a hand-maintained allowlist — a single missed entry in a list like that is exactly what caused Bug 1, and it's the kind of gap that fails silently (looks like "page not found," not an error) rather than loudly.
 
+## Incident: Google Calendar Reconnect Failed With redirect_uri_mismatch (2026-07-28)
+
+Related to the incident above (same underlying "agent portal is reachable from the agent's own custom/temporary domain" fact), but a distinct root cause. Reported as a recurring Google Calendar reconnect failure for agent 22 — the earlier fix that session (adding the redirect URI to Google Cloud Console) didn't hold.
+
+**Root cause**: `GoogleCalendarController.Connect()`/`Callback()` built the OAuth `redirect_uri` via `Url.ActionLink(...)`, which reflects whatever host the request actually arrived on. The agent was on `raniahmotamed.247advisers.com/Account/Profile` (confirmed by asking directly what URL was in the browser's address bar) — a host Google's OAuth client had never had registered, since only the canonical portal host and the `azurewebsites.net` fallback were. Every other feature that builds an absolute portal URL already goes through `PortalUrlHelper.GetAgentPortalBaseUrl` (a fixed, configured base URL) for exactly this reason; `GoogleCalendarController` was the one remaining holdout still deriving it from the live request.
+
+**Why the obvious fix isn't free**: simply swapping in the fixed canonical URL would break session continuity, not just redirect_uri matching. The portal's auth cookie has no explicit `Cookie.Domain` set, so it's host-only — a session established on `raniahmotamed.247advisers.com` doesn't carry over to `app.iproadvisers.com`. If `Callback()` landed on the canonical host, the agent would simply be logged out there.
+
+**Fix**: added a canonical-host bounce at the top of `Connect()` only — if the current host isn't the canonical portal host (or the `azurewebsites.net` fallback), redirect there first (preserving path+query) before doing anything else. This means: if already authenticated on the canonical host, it proceeds straight through; if not, `[Authorize]` naturally bounces to `/Account/Login` there (a one-time re-login, standard behavior for any protected page), and by the time `Url.ActionLink` builds the redirect_uri, `Request.Host` is already correct. `Callback()` needed no changes — Google will only ever hit it at the now-always-canonical registered URI.
+
+**Prevention rule**: any new feature that builds an absolute portal callback/redirect URL (a future OAuth integration, a webhook) should default to `PortalUrlHelper`'s fixed base URL, not `Request.Host`/`Url.ActionLink` — and if the action is `[Authorize]`-gated and could legitimately be reached from a non-canonical host (as this one could), add the same canonical-host bounce rather than assuming the fixed URL alone is sufficient.
+
 ## Incident: Hangfire Security Fix Crashed IPRO.Web ("JobStorage instance has not been initialized") (2026-07-24)
 
 Fixing a real finding from the security audit below (`IPRO.Web`'s `/hangfire` dashboard had no explicit authorization filter) caused a genuine production outage, not the false-alarm kind seen in earlier incidents.
