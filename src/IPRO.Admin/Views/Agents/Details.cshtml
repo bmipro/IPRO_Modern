@@ -5,6 +5,7 @@
     <div>
         <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1"><li class="breadcrumb-item"><a href="/Agents">Agents</a></li><li class="breadcrumb-item active">@Model.UserName</li></ol></nav>
         <h4 class="fw-bold mb-0">@Model.FirstName @Model.LastName
+            <span class="badge bg-light text-muted fw-normal ms-1">#@Model.Id</span>
             @if (Model.IsActive) { <span class="badge badge-status-active ms-2">Active</span> }
             else { <span class="badge badge-status-inactive ms-2">Inactive</span> }
         </h4>

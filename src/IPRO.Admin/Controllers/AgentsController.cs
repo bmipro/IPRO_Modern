@@ -34,10 +34,14 @@ public class AgentsController : Controller
     {
         var all = await _agents.GetAllAsync();
         if (!string.IsNullOrWhiteSpace(search))
-            all = all.Where(a => a.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)
+        {
+            all = int.TryParse(search, out var searchId)
+                ? all.Where(a => a.Id == searchId)
+                : all.Where(a => a.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)
                               || a.Email.Contains(search, StringComparison.OrdinalIgnoreCase)
                               || a.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase)
                               || a.LastName.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
         if (status == "active")   all = all.Where(a => a.IsActive);
         if (status == "inactive") all = all.Where(a => !a.IsActive);
 
