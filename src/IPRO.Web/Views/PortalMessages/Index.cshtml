@@ -1,6 +1,7 @@
 @{
     ViewData["Title"] = "Portal Messages";
     var rows = (ViewBag.Rows as List<IPRO.Web.Controllers.PortalMessageInboxRow>) ?? new List<IPRO.Web.Controllers.PortalMessageInboxRow>();
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
 }
 
 <div class="mb-4">
@@ -26,7 +27,7 @@
           {
             <span class="badge bg-primary rounded-pill mb-1">@row.UnreadCount new</span>
           }
-          <div class="small text-muted">@row.LastMessage.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt")</div>
+          <div class="small text-muted">@IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(row.LastMessage.CreatedAt, agentTimeZone).ToString("MMM d, h:mm tt")</div>
         </div>
       </a>
     }

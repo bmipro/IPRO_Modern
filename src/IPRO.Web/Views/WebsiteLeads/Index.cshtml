@@ -12,6 +12,7 @@
     var unreadCount = (int)(ViewBag.UnreadCount ?? 0);
     var newCount = (int)(ViewBag.NewCount ?? 0);
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     var exportUrl = $"/WebsiteLeads/Export?status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}&fromDate={Uri.EscapeDataString(fromDate ?? "")}&toDate={Uri.EscapeDataString(toDate ?? "")}&sort={Uri.EscapeDataString(sort)}";
     string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
     string StatusClass(string value) => value switch
@@ -116,7 +117,7 @@
                         <div class="lead-message mt-3">@lead.Message</div>
                     }
                     <div class="small text-muted mt-3">
-                        <span>@lead.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span>
+                        <span>@IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(lead.CreatedAt, agentTimeZone).ToString("MMM d, yyyy h:mm tt")</span>
                         @if (!string.IsNullOrWhiteSpace(lead.SourceDomain)) { <span> · @lead.SourceDomain</span> }
                         @if (lead.WebsitePage != null) { <span> · Page: @lead.WebsitePage.Title</span> }
                     </div>

@@ -3,6 +3,7 @@
     ViewData["Title"] = "My Website";
     var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.WebsiteTemplate> ?? Enumerable.Empty<IPRO.Entities.WebsiteTemplate>()).ToList();
     var temporaryDomain = ViewBag.TemporaryDomain as string ?? "";
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     var dnsTarget = ViewBag.WebsiteDnsTarget as string ?? "ipro-prod-web.azurewebsites.net";
     var siteTitle = Model?.SiteTitle ?? "";
     var tagLine = Model?.TagLine ?? "";
@@ -513,7 +514,7 @@
             }
             @if (primaryDomain.LastCheckedAt.HasValue)
             {
-              <div class="small text-muted">Last checked: @primaryDomain.LastCheckedAt.Value.ToLocalTime().ToString("MMM d, h:mm tt")</div>
+              <div class="small text-muted">Last checked: @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(primaryDomain.LastCheckedAt.Value, agentTimeZone).ToString("MMM d, h:mm tt")</div>
             }
             @if (!string.IsNullOrWhiteSpace(primaryDomain.LastError))
             {

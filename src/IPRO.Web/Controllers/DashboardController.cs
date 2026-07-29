@@ -3,6 +3,7 @@ using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -98,6 +99,7 @@ public class DashboardController : Controller
             .OrderByDescending(x => x.CreatedAt)
             .Take(5)
             .ToListAsync();
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, agentId);
         return View();
     }
 

@@ -1,3 +1,6 @@
+using IPRO.DataAccess;
+using Microsoft.EntityFrameworkCore;
+
 namespace IPRO.Web.Infrastructure;
 
 public static class AgentTimeZoneHelper
@@ -35,6 +38,16 @@ public static class AgentTimeZoneHelper
 
     public static string Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? DefaultTimeZone : value.Trim();
+
+    public static async Task<string> ResolveForAgentAsync(IPRODbContext db, int agentId)
+    {
+        var timeZone = await db.AgentUsers
+            .AsNoTracking()
+            .Where(a => a.Id == agentId)
+            .Select(a => a.TimeZone)
+            .FirstOrDefaultAsync();
+        return Normalize(timeZone);
+    }
 
     private static TimeZoneInfo FindTimeZone(string? agentTimeZone)
     {

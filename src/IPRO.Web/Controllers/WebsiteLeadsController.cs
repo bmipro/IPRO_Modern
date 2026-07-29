@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,7 @@ public class WebsiteLeadsController : Controller
         ViewBag.TotalCount = totalCount;
         ViewBag.UnreadCount = await _db.WebsiteLeads.CountAsync(x => x.AgentUserId == AgentId && !x.IsRead);
         ViewBag.NewCount = await _db.WebsiteLeads.CountAsync(x => x.AgentUserId == AgentId && x.Status == WebsiteLeadStatuses.New);
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
 
         var leads = await ApplySort(query, sort)
             .Skip((page - 1) * PageSize)
@@ -57,13 +59,14 @@ public class WebsiteLeadsController : Controller
         search = search?.Trim();
 
         var leads = await ApplySort(BuildFilteredQuery(status, search, fromDate, toDate), sort).ToListAsync();
+        var agentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
 
         var csv = new StringBuilder();
         csv.AppendLine("Date,First Name,Last Name,Email,Phone,Status,Type,Source Domain,Page,Message");
         foreach (var lead in leads)
         {
             csv.AppendLine(string.Join(",",
-                CsvEscape(lead.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")),
+                CsvEscape(AgentTimeZoneHelper.FromUtc(lead.CreatedAt, agentTimeZone).ToString("yyyy-MM-dd HH:mm")),
                 CsvEscape(lead.FirstName),
                 CsvEscape(lead.LastName),
                 CsvEscape(lead.Email),
@@ -97,6 +100,7 @@ public class WebsiteLeadsController : Controller
             .Where(a => a.WebsiteLeadId == id)
             .OrderBy(a => a.SortOrder)
             .ToListAsync();
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
         return View(lead);
     }
 

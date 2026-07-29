@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Portal Requests";
     var status = (string)(ViewBag.Status ?? "pending");
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
 }
 
@@ -30,7 +31,7 @@
           <div class="fw-bold">@request.Client.FirstName @request.Client.LastName</div>
           <div class="small text-muted">@request.Notes</div>
           <div class="small text-muted">
-            Requested @request.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")
+            Requested @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(request.CreatedAt, agentTimeZone).ToString("MMM d, yyyy")
             @(request.PreferredDate.HasValue ? $"— preferred {request.PreferredDate.Value:MMM d, yyyy}" : "")
           </div>
         </div>

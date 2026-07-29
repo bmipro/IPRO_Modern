@@ -271,6 +271,7 @@ public class WebsiteController : Controller
             .ThenBy(d => d.DomainName)
             .ToListAsync();
         ViewBag.DomainAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.MultiDomainSupport);
+        ViewBag.AgentTimeZone = AgentTimeZoneHelper.Normalize(agent?.TimeZone);
     }
 
     private static string NormalizeThemeColor(string? value)

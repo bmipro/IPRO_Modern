@@ -3,6 +3,7 @@ using System.Security.Claims;
 using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,7 @@ public class PortalRequestsController : Controller
         };
 
         ViewBag.Status = status;
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
         return View(await query.OrderByDescending(r => r.CreatedAt).ToListAsync());
     }
 

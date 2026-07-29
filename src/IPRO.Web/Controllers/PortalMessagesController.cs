@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ public class PortalMessagesController : Controller
             .ToListAsync();
 
         ViewBag.Rows = clientsWithMessages.Select(x => new PortalMessageInboxRow(x.Client, x.LastMessage, x.UnreadCount)).ToList();
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
         return View();
     }
 
@@ -51,6 +53,7 @@ public class PortalMessagesController : Controller
         }
 
         ViewBag.Client = client;
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
         return View(messages);
     }
 

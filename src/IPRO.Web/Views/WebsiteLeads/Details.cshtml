@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Lead Details";
     var answers = ViewBag.Answers as IReadOnlyCollection<IPRO.Entities.WebsiteFormSubmissionAnswer> ?? new List<IPRO.Entities.WebsiteFormSubmissionAnswer>();
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     string StatusClass(string value) => value switch
     {
         IPRO.Entities.WebsiteLeadStatuses.Contacted => "bg-success-subtle text-success",
@@ -28,7 +29,7 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
     <div class="small text-muted mb-3">
-      Submitted @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+      Submitted @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(Model.CreatedAt, agentTimeZone).ToString("MMM d, yyyy h:mm tt")
       @if (!string.IsNullOrWhiteSpace(Model.SourceDomain)) { <span> · @Model.SourceDomain</span> }
       @if (Model.WebsitePage != null) { <span> · Page: @Model.WebsitePage.Title</span> }
     </div>
