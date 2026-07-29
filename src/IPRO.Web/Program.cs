@@ -287,6 +287,30 @@ using (var scope = app.Services.CreateScope())
     await EnsureWebsiteContentBlockSchemaAsync(db);
     await EnsureDripCampaignEnrollmentSchemaAsync(db);
     await EnsureNewsLetterTemplateSchemaAsync(db);
+
+    // Starter content is optional: an agent can work without a card design or a letter template,
+    // so a failure here must never stop the app from booting. This is the same isolation the
+    // background jobs already use, applied to startup -- learned the hard way, when a seeding
+    // failure took both sites down with an unhandled exception during startup.
+    //
+    // Structural seeders above (entitlements, tax rates, website templates) are deliberately NOT
+    // wrapped: an agent genuinely cannot function without those, so failing loudly is correct.
+    try
+    {
+        await NewsLetterTemplateSeeder.SeedAsync(db);
+        await ECardDesignSeeder.SeedAsync(db);
+        await ELetterTemplateSeeder.SeedAsync(db);
+    }
+    catch (Exception ex)
+    {
+        var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("StarterContentSeeding");
+        seedLogger.LogError(ex, "Starter content seeding failed. The app is starting anyway; " +
+                                "newsletter templates, e-card designs or e-letter templates may be missing.");
+        // Also to stderr: the container log is readable even when telemetry never flushes.
+        Console.Error.WriteLine("[StarterContentSeeding] FAILED: " + ex);
+    }
+
     await EnsureDripCampaignStepSendSchemaAsync(db);
     await EnsureDidYouKnowEmailQueueSchemaAsync(db);
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
@@ -305,6 +329,16 @@ using (var scope = app.Services.CreateScope())
     await EnsureTrialFeatureSchemaAsync(db);
     await EnsureECardSchemaAsync(db);
     await EnsureELetterSchemaAsync(db);
+    // Wrapped for the same reason as the seeders below: these two tables back an admin-only
+    // content library, and a DDL failure here must not stop the whole app from serving.
+    try
+    {
+        await EnsureECardDesignSchemaAsync(db);
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine("[ECardDesignSchema] FAILED: " + ex);
+    }
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -602,7 +636,6 @@ CREATE TABLE IF NOT EXISTS `NewsLetterTemplates` (
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
 
-    await NewsLetterTemplateSeeder.SeedAsync(db);
 }
 
 static async Task EnsureDripCampaignStepSendSchemaAsync(IPRODbContext db)
@@ -989,6 +1022,47 @@ CREATE TABLE IF NOT EXISTS `SocialPostDrafts` (
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureECardDesignSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ECardDesigns` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Key` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Occasion` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Name` varchar(120) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Kind` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'image',
+    `DefaultHeaderText` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `DefaultMessage` varchar(600) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `ImageUrl` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Width` int NOT NULL DEFAULT 0,
+    `Height` int NOT NULL DEFAULT 0,
+    `Accent` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Emoji` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `IsDark` tinyint(1) NOT NULL DEFAULT 1,
+    `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE INDEX `IX_ECardDesigns_Key` (`Key`)
+) CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ELetterTemplates` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Key` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Name` varchar(120) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Description` varchar(400) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Body` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE INDEX `IX_ELetterTemplates_Key` (`Key`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsureECardSchemaAsync(IPRODbContext db)

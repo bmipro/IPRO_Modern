@@ -48,7 +48,9 @@ else
         <tbody>
           @foreach (var letter in Model)
           {
-            var template = IPRO.Entities.ELetterTemplates.Find(letter.TemplateKey);
+            var templates = ViewBag.Templates as IDictionary<string, IPRO.Entities.ELetterTemplate>;
+            IPRO.Entities.ELetterTemplate? template = null;
+            templates?.TryGetValue(letter.TemplateKey ?? string.Empty, out template);
             <tr>
               <td class="fw-semibold">@letter.Subject</td>
               <td class="small text-muted">@(template?.Name ?? "Blank letter")</td>

@@ -32,3 +32,15 @@ There's no tracking pixel or click-through link beyond your own reply-to address
 - Illustrated artwork is served from the portal, so a recipient's mail client needs to load images to see it. Your greeting and contact details are real text, not part of the picture, so they still read if images are blocked.
 - Sending is per-recipient (like Newsletter), so one bounced or invalid address never blocks the rest of the list.
 - Scheduled e-cards are picked up within a minute of their scheduled time by the same background dispatcher that sends Newsletters and Did You Know follow-ups.
+
+## For SuperAdmin
+
+**Agent Portal Admin → Cards & Letters → E-Card Designs** manages the whole library.
+
+- **New Design** — pick Artwork (an illustration you upload) or Simple (a colour panel with an emoji), set the occasion, name, default greeting, and sort order.
+- **Occasion** groups the design in the agent's picker, so cards for the same occasion sit together.
+- **Greeting background** should match the artwork — dark for a night scene, light for pale artwork — because the greeting sits below the picture on that colour.
+- **Retire** (the eye icon) stops offering a design to agents. It is never deleted: every e-card already sent finds its artwork through the design's key, so removing one would blank the picture in an agent's history. A card already scheduled with a retired design still goes out with that design.
+- The **key** is permanent once saved. Changing it would orphan every card sent with the old one.
+
+**Card & Letter Activity** shows the most recent 200 e-card and e-letter sends across all agents, with delivered and failed counts. It shows recipient counts only, never who an agent wrote to.

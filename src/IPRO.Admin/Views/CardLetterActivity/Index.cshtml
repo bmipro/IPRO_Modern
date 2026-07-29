@@ -1,0 +1,92 @@
+@model IEnumerable<IPRO.Admin.Controllers.CardLetterActivityController.ActivityRow>
+@{
+    ViewData["Title"] = "E-Card & E-Letter Activity";
+    var totalCards = ViewBag.TotalCardsSent as int? ?? 0;
+    var totalLetters = ViewBag.TotalLettersSent as int? ?? 0;
+    var failures = ViewBag.FailureCount as int? ?? 0;
+}
+
+<div class="mb-4">
+  <h4 class="fw-bold mb-1"><i class="fas fa-paper-plane me-2 text-primary"></i>E-Card &amp; E-Letter Activity</h4>
+  <div class="text-muted">The most recent 200 sends across every agent.</div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase fw-semibold">E-cards delivered</div>
+      <div class="fs-3 fw-bold">@totalCards</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase fw-semibold">E-letters delivered</div>
+      <div class="fs-3 fw-bold">@totalLetters</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase fw-semibold">Sends with failures</div>
+      <div class="fs-3 fw-bold @(failures > 0 ? "text-danger" : "")">@failures</div>
+    </div></div>
+  </div>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="fas fa-paper-plane fa-3x text-muted opacity-25 mb-3 d-block"></i>
+      <h5 class="fw-bold">Nothing sent yet</h5>
+      <p class="text-muted mb-0">E-cards and e-letters will appear here as agents send them.</p>
+    </div>
+  </div>
+}
+else
+{
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Agent</th>
+            <th>Subject</th>
+            <th>Design / template</th>
+            <th>Delivered</th>
+            <th>Status</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+        @foreach (var row in Model)
+        {
+          <tr>
+            <td><span class="badge @(row.Kind == "E-Card" ? "bg-primary-subtle text-primary" : "bg-info-subtle text-info")">@row.Kind</span></td>
+            <td class="fw-semibold">@row.AgentName</td>
+            <td class="small" style="max-width:260px;">@row.Label</td>
+            <td class="small text-muted">@row.Design</td>
+            <td class="text-nowrap">
+              @row.TotalSent / @row.TotalRecipients
+              @if (row.HasFailures)
+              {
+                <span class="badge bg-danger-subtle text-danger ms-1">@row.Failed failed</span>
+              }
+            </td>
+            <td><span class="badge @(row.Status == "Sent" ? "bg-success-subtle text-success" : row.Status == "Failed" ? "bg-danger-subtle text-danger" : "bg-warning-subtle text-warning-emphasis")">@row.Status</span></td>
+            <td class="text-nowrap small text-muted">
+              @((row.SentAt ?? row.ScheduledAt).ToString("MMM d, yyyy HH:mm")) UTC
+            </td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="text-muted small mt-3 mb-0">
+    <i class="fas fa-info-circle me-1"></i>
+    Recipient counts only — this page never lists who an agent wrote to. Times are UTC, not the
+    agent's local time zone.
+  </p>
+}

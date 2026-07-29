@@ -1,0 +1,118 @@
+@model IPRO.Entities.ELetterTemplate
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "New E-Letter Template" : $"Edit {Model.Name}";
+    var mergeFields = (ViewBag.MergeFields as IEnumerable<IPRO.Business.Services.MergeFieldResolver.MergeField>)
+        ?? Enumerable.Empty<IPRO.Business.Services.MergeFieldResolver.MergeField>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="/ELetterTemplates">E-Letter Templates</a></li><li class="breadcrumb-item active">@(isNew ? "New" : Model.Name)</li></ol>
+    </nav>
+    <h4 class="fw-bold mb-0">@(isNew ? "New E-Letter Template" : Model.Name)</h4>
+  </div>
+</div>
+
+<form method="post" action="/ELetterTemplates/Edit">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id" />
+
+  <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label fw-semibold">Template name</label>
+              <input asp-for="Name" class="form-control" placeholder="e.g. Birthday wishes" />
+              <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Order</label>
+              <input asp-for="SortOrder" class="form-control" type="number" />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <div class="form-check">
+                <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                <label asp-for="IsActive" class="form-check-label">Offer</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Description</label>
+              <input asp-for="Description" class="form-control" placeholder="One line telling the agent when to use this." />
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Key</label>
+              <input asp-for="Key" class="form-control" placeholder="left blank, derived from the name" />
+              <div class="form-text">Permanent. Labels the template on letters already sent.</div>
+              <span asp-validation-for="Key" class="text-danger small"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Subject</label>
+            <input asp-for="Subject" class="form-control" id="subjectInput" maxlength="200" />
+            <span asp-validation-for="Subject" class="text-danger small"></span>
+          </div>
+          <div>
+            <label class="form-label fw-semibold">Letter body</label>
+            <textarea asp-for="Body" class="form-control" id="bodyInput" rows="18" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;"></textarea>
+            <span asp-validation-for="Body" class="text-danger small"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h6 class="fw-bold mb-1">Merge fields</h6>
+          <div class="text-muted small mb-3">Click to insert at the cursor. Anything else in square brackets is rejected on save — it would reach the client as literal text.</div>
+          <div class="d-flex flex-wrap gap-2">
+            @foreach (var field in mergeFields)
+            {
+              <button type="button" class="btn btn-sm btn-outline-secondary merge-chip" data-token="@field.Token" title="@field.Description">@field.Token</button>
+            }
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100"><i class="fas fa-save me-1"></i>Save template</button>
+      <a href="/ELetterTemplates" class="btn btn-link w-100 mt-2">Cancel</a>
+    </div>
+  </div>
+</form>
+
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  // Insert into whichever field the admin was last editing, so the chips work for the subject
+  // line too rather than always dumping into the body.
+  var subject = document.getElementById('subjectInput');
+  var body = document.getElementById('bodyInput');
+  var lastFocused = body;
+
+  [subject, body].forEach(function (el) {
+    el.addEventListener('focus', function () { lastFocused = el; });
+  });
+
+  document.querySelectorAll('.merge-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var token = chip.dataset.token;
+      var el = lastFocused;
+      var start = el.selectionStart || 0;
+      var end = el.selectionEnd || 0;
+      el.value = el.value.slice(0, start) + token + el.value.slice(end);
+      el.focus();
+      el.selectionStart = el.selectionEnd = start + token.length;
+    });
+  });
+})();
+</script>

@@ -745,6 +745,71 @@ Both changes come from the **first real live send** — the user sent a Hallowee
 
 **Known cosmetic point, not fixed:** the anniversary artwork has a blank white note-card designed into it, clearly meant to hold the greeting. With the uniform banner approach that area now sits empty and the greeting reads below it. Overlaying *only* that design would degrade safely (dark text, light fallback ground — the failure mode the Halloween cards had is specific to light text on dark art), so it's a reasonable future exception if the empty panel bothers anyone.
 
+### 65. SuperAdmin management for E-Cards and E-Letters (done, 2026-07-29)
+
+The user asked how SuperAdmin manages these features. Investigation gave an uncomfortable answer: **it couldn't**. The only references to either feature anywhere in IPRO.Admin were the schema-repair statements that create their tables. Card designs, artwork, greeting copy and all four letter templates were hardcoded C# arrays — adding an occasion meant a code change and a deploy.
+
+The comparison that makes it obvious is Newsletter Templates, which has had a full SuperAdmin CRUD screen all along. Newsletter content was the product owner's to manage at runtime; e-card and e-letter content was the developer's to manage at compile time. Same class of asset, opposite treatment, and the difference was never a decision — both features were built agent-side and the admin half was simply never written.
+
+**Content moved from code to data.** New `ECardDesign` and `ELetterTemplate` tables replace `ECardTemplateCatalog` and `ELetterTemplates`, seeded once from the exact arrays that shipped so nothing is lost and agents see no change. The seeders bail if their table is non-empty — they must never re-run over an admin's edits.
+
+**Three new SuperAdmin screens**, under a new "Cards & Letters" nav section:
+- **E-Card Designs** — list/create/edit/retire, artwork upload, occasion, default greeting, dark-or-light ground, sort order.
+- **E-Letter Templates** — same shape, plus merge-field chips that insert at the cursor into whichever field was last focused.
+- **Card & Letter Activity** — read-only, most recent 200 sends across all agents, with delivered-vs-failed counts. Aggregate only: it reports *how many* recipients a send had and never *who*, because the counts answer the actual question and the recipient rows are an agent's own client list.
+
+**Three deliberate constraints, each protecting something real:**
+- **No hard delete on card designs** (unlike Newsletter Templates, which has one). Every sent e-card resolves its thumbnail through the design `Key`, so a delete would blank the artwork across an agent's whole history. Retire is the only exit.
+- **Retired designs still send.** `ECardDispatcher` resolves a scheduled card's design regardless of `IsActive` — a card scheduled last week must go out with the artwork the agent chose, not silently swap to something else. It now fails the card loudly if the key resolves to nothing, rather than falling back.
+- **Unknown merge tokens are rejected on save.** A typo like `[Advisor Mobile]` would otherwise reach a client as literal text. The editor lists the eight real tokens and refuses anything else in square brackets.
+
+**Two bugs caught before shipping, both invisible to a passing build:**
+- `IBlobStorageService` was never registered in IPRO.Admin, so the artwork upload would have thrown a DI error the first time anyone used it.
+- The blob client throws in its own constructor when the storage connection string is absent — which, injected normally, would have taken down the entire E-Card Designs screen including listing and retiring, neither of which touches storage. It's now resolved lazily on the upload path only, so a misconfiguration produces one clear message instead of a dead page.
+
+**Verified by rendering, and by diff.** The throwaway harness from item 64 was repointed at `ECardDesignSeeder.BuildDefaults()` and re-rendered all 14 designs through the real composer. Output is **byte-identical** to the pre-refactor render once line endings are normalised — good evidence the data migration changed nothing an agent would see.
+
+> ⚠️ **One manual step remains before artwork upload works.** `ipro-prod-admin` has no `Azure__StorageConnectionString` / `Azure__StorageAccountName` app setting — only `ipro-prod-web` does. Copy both across (values are on the web app) or upload will report that storage isn't configured. Everything else on the three screens works without it.
+
+**Not click-through verified** — no SuperAdmin credentials this session, so none of the three screens has been loaded in a browser. Backed by clean builds of both apps, the byte-identical render diff, and a post-deploy log check.
+
+> 🔥 **This took production down on the first attempt, and the root cause is still unknown.**
+>
+> Commit `378a5e6` crashed **both** apps on startup — exit 134 (SIGABRT), container never reached a
+> listening state. Azure then blocked both sites after repeated cold-start failures, so they stayed
+> down rather than self-healing. Recovery needed a revert (`9fac47a`) plus a re-run of the web
+> deploy, which had independently failed at `azure/login` with a federated-token error.
+>
+> **Why the verification missed it.** Clean builds prove compilation. The byte-identical render
+> diff proves the composer and seed data are right. Neither exercises *application startup against
+> a real MySQL database*, which is exactly where it failed. Schema repair plus two seeders went to
+> production having never been run against a database.
+>
+> **Diagnosis attempts, all dead ends:**
+> - Application Insights has **no exception and no trace** in the crash window — the process aborts
+>   before telemetry flushes.
+> - The container log captured orchestrator lines only, no .NET stack trace.
+> - No Docker or MySQL on the dev machine, so startup could not be reproduced locally.
+> - *Ruled out by evidence:* EF's pending-model-changes check. That throws in EF 9; this is on
+>   EF 8.0.0 where it only warns, and DbSet-without-migration is the established pattern here
+>   (ECards, ELetters, Polls and Forms all ship that way).
+> - *Unconfirmed hypothesis:* the seeders write emoji (four-byte UTF-8) into MySQL for what would
+>   be the first time in this database. Plausible, never proven.
+>
+> **What changed on the re-land** (this is the durable lesson, independent of the cause):
+> starter-content seeding is now wrapped and non-fatal. A failure logs to both `ILogger` and
+> stderr, and the app boots anyway with the content missing. The new schema repair is wrapped the
+> same way. This is the isolation the background jobs already had (items H-8, M-11, M-12) finally
+> applied to startup — a card design is optional, and nothing optional should be able to take the
+> site down. The structural seeders above it (entitlements, tax rates, website templates) are
+> deliberately left unwrapped: an agent genuinely cannot function without those, so failing loudly
+> is the right behaviour there.
+>
+> Empty tables degrade gracefully everywhere — the admin screens show their empty states, the
+> agent's card picker offers nothing and the Create action reports it, and the e-letter composer
+> opens blank. So if the unknown cause fires again, the outcome is a log line and an inert feature
+> rather than an outage, and that log is what will finally identify it.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
