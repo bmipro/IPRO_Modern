@@ -176,6 +176,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureAgentDailyInsightSchemaAsync(db);
     await EnsureAiUsageSchemaAsync(db);
     await EnsureTrialFeatureSchemaAsync(db);
+    await EnsureECardSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -812,6 +813,42 @@ CREATE TABLE IF NOT EXISTS `SocialPostDrafts` (
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureECardSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ECards` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `Occasion` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Birthday',
+    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Message` varchar(2000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Draft',
+    `ScheduledAt` datetime(6) NOT NULL,
+    `SentAt` datetime(6) NULL,
+    `TotalRecipients` int NOT NULL DEFAULT 0,
+    `TotalSent` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ECardRecipients` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ECardId` int NOT NULL,
+    `ClientId` int NOT NULL,
+    `Email` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `RecipientName` varchar(160) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Queued',
+    `SendGridMessageId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `FailureReason` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SentAt` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    INDEX `IX_ECardRecipients_ECardId` (`ECardId`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsureTestimonialSubmissionSchemaAsync(IPRODbContext db)

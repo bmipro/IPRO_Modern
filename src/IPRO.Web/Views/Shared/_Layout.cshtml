@@ -14,7 +14,8 @@
             IPRO.Entities.PackageFeatureCodes.VisitorTracking,
             IPRO.Entities.PackageFeatureCodes.TestimonialManager,
             IPRO.Entities.PackageFeatureCodes.PollSurveys,
-            IPRO.Entities.PackageFeatureCodes.CustomForms
+            IPRO.Entities.PackageFeatureCodes.CustomForms,
+            IPRO.Entities.PackageFeatureCodes.PreDesignedECard
         })
         {
             navAccess[featureCode] = await PackageEntitlements.GetAccessAsync(layoutAgentId, featureCode);
@@ -147,6 +148,7 @@
         <div class="nav-section">Marketing</div>
         <a class="nav-link @NavActive("Newsletter")" href="/Newsletter" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-envelope"></i>Newsletter</a>
         <a class="nav-link @NavActive("Articles")" href="/Articles" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-file-lines"></i>Articles</a>
+        <a class="nav-link @NavActive("ECards")" href="/ECards" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PreDesignedECard))><i class="fas fa-gift"></i>E-Cards</a>
         <a class="nav-link @NavActive("Campaigns")" href="/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign))><i class="fas fa-bullhorn"></i>Campaigns</a>
         <a class="nav-link @NavActive("SocialPosts")" href="/SocialPosts"><i class="fas fa-share-nodes"></i>Social Posts</a>
         <a class="nav-link @NavActive("Polls")" href="/Polls" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PollSurveys))><i class="fas fa-square-poll-vertical"></i>Polls</a>

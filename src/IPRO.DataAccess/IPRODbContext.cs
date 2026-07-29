@@ -71,6 +71,8 @@ public class IPRODbContext : DbContext
     public DbSet<ClientLifeEvent> ClientLifeEvents => Set<ClientLifeEvent>();
     public DbSet<AgentDocument> AgentDocuments => Set<AgentDocument>();
     public DbSet<SocialPostDraft> SocialPostDrafts => Set<SocialPostDraft>();
+    public DbSet<ECard> ECards => Set<ECard>();
+    public DbSet<ECardRecipient> ECardRecipients => Set<ECardRecipient>();
     public DbSet<PollSurvey> PollSurveys => Set<PollSurvey>();
     public DbSet<PollQuestion> PollQuestions => Set<PollQuestion>();
     public DbSet<PollOption> PollOptions => Set<PollOption>();

@@ -676,7 +676,22 @@ Two new block types, following the same `SettingsJson`-per-block pattern every o
 
 Both blocks add layout-variant support the same way Reviews/Text/etc. do (`WebsiteBlockLayoutVariants.Gallery = { "grid", "carousel" }`), and render in all 3 templates (Modern/Classic/Editorial) with template-appropriate styling (aspect-ratio grid or `scroll-snap` carousel; responsive iframe embed via the standard 56.25% padding-bottom trick).
 
-**Not yet live-verified** — no SuperAdmin or agent login credentials available this session to click through the editor UI or a real published page; verification rests on a clean build plus a post-deploy container-log check (established practice this session), not an actual click-through. Worth a manual pass through the page editor next time credentials are available.
+**Live-verified** on `raniahmotamed.247advisers.com/drop-page` (public page, no login needed) after the user reported two follow-up issues, both fixed same session:
+- Gallery thumbnails crop to fill the grid/carousel with no way to see the full photo — added a click-to-enlarge lightbox (per-template CSS/JS, only emitted on pages with a Gallery block) so clicking any thumbnail opens it full-size, uncropped, in an overlay.
+- A pasted YouTube link didn't render at all — the original regex required `v=` to be the literal first query parameter after `watch?`, so any real share link with other params first (very common) silently failed to match, and the whole block rendered nothing. Rewrote `WebsiteVideoSettings.BuildEmbedUrl()` to parse the URL structurally (host + path segments + query, independent of param order) — handles `youtu.be`, `m.youtube.com`/`music.youtube.com`, `/embed/`, `/shorts/`, `/live/`, and `watch?v=` in any position, while still rejecting spoofed hosts like `evilyoutube.com`.
+
+### 61. Add E-Cards feature (done, 2026-07-29)
+
+Revived a legacy feature (Communication → E-Card in the old SuxessPoint tool, confirmed from a recorded demo video the user provided): agents pick an occasion-themed card, select clients, type a short personal message, and send/schedule it as an email. `PackageFeatureCodes.PreDesignedECard` already existed in the codebase as a seeded-but-unused feature flag — a clear leftover from the original tool, now wired up for real.
+
+**Design decisions (confirmed with the user)** before building:
+- The typed message is overlaid onto the card graphic itself (not shown as plain text below it) — cards are entirely code-generated HTML/CSS (gradient background, no image assets), following the same table-based email-safe layout `NewsletterHtmlComposer.Wrap` already uses.
+- Ships with 4 occasions to start (Birthday, Thank You, Season's Greetings, Congratulations) rather than recreating the legacy tool's full ~30-template catalog.
+- Reuses Newsletter/Campaign sending infrastructure: same `IEmailService`/SendGrid path, same per-recipient send loop (no bulk-expose), same Hangfire polling pattern for scheduled sends.
+
+**New pieces**: `ECard`/`ECardRecipient` entities (new tables via the same raw-SQL schema-repair pattern every table in this app uses — no real EF migrations), `ECardHtmlComposer.Wrap` (gradient = agent's own `PortalAccentColor` → a per-occasion accent, occasion headline, overlaid message, then a contact-card footer extending Newsletter's footer with Designation/Fax/Cell to match the legacy card's full signature block), `ECardDispatcher` + `ECardDispatchJob` (mirrors `NewsLetterDispatcher`/`NewsLetterDispatchJob` exactly), and `ECardsController` with a genuinely new checkbox-based multi-client picker — investigation confirmed no existing feature actually supports picking specific individual clients today (Newsletter's `SelectedClients` audience type is a defined-but-dead enum case with no UI and no dispatcher handling).
+
+**Not yet live-verified** — no SuperAdmin or agent login credentials available this session to click through the Create form or confirm a real sent email; verification rests on a clean build across both apps plus (pending) a post-deploy container-log check. Worth a manual send-through next time credentials are available.
 
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:

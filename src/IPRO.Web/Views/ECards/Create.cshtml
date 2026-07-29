@@ -1,0 +1,193 @@
+@{
+    ViewData["Title"] = "Send an E-Card";
+    var occasions = (ViewBag.Occasions as IEnumerable<string>) ?? IPRO.Entities.ECardOccasions.All;
+    var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
+    var agentNow = ViewBag.AgentNow as DateTime? ?? DateTime.Now;
+    var scheduledMinValue = agentNow.ToString("yyyy-MM-ddTHH:mm");
+    var scheduledDefaultValue = agentNow.AddHours(1).ToString("yyyy-MM-ddTHH:mm");
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="/ECards">E-Cards</a></li><li class="breadcrumb-item active">Send</li></ol>
+    </nav>
+    <h2 class="fw-bold mb-1"><i class="fas fa-gift me-2 text-primary"></i>Send an E-Card</h2>
+    <div class="text-muted">Pick an occasion, write a short message, choose your clients.</div>
+  </div>
+</div>
+
+<form asp-action="Create" method="post">
+  @Html.AntiForgeryToken()
+  <div class="row g-4">
+    <div class="col-lg-8">
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <h5 class="fw-bold mb-1">Occasion</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="occasion-grid">
+            @foreach (var occasion in occasions)
+            {
+              <label class="occasion-choice">
+                <input type="radio" name="occasion" value="@occasion" class="d-none occasion-input" checked="@(occasion == occasions.First() ? "checked" : null)" />
+                <span class="occasion-emoji">@IPRO.Entities.ECardOccasions.EmojiFor(occasion)</span>
+                <span class="occasion-name">@IPRO.Entities.ECardOccasions.DisplayName(occasion)</span>
+              </label>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <h5 class="fw-bold mb-1">Message</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email subject</label>
+            <input name="subject" class="form-control" maxlength="200" required />
+          </div>
+          <div>
+            <label class="form-label fw-semibold">Your message <span class="text-muted fw-normal">(shows on the card itself)</span></label>
+            <textarea id="messageInput" name="message" class="form-control" rows="4" maxlength="600" placeholder="A short personal note..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <h5 class="fw-bold mb-1">Clients</h5>
+          <div class="text-muted small">Only clients with an email address on file can be selected.</div>
+        </div>
+        <div class="card-body p-4">
+          @if (!clients.Any())
+          {
+            <div class="alert alert-info mb-0">None of your clients have an email address on file yet.</div>
+          }
+          else
+          {
+            <input id="clientSearch" type="text" class="form-control mb-3" placeholder="Search clients by name or email..." />
+            <div class="d-flex gap-3 mb-2">
+              <button type="button" id="selectAllClients" class="btn btn-sm btn-link p-0">Select all</button>
+              <button type="button" id="clearAllClients" class="btn btn-sm btn-link p-0">Clear all</button>
+            </div>
+            <div class="client-checklist border rounded-3 p-2">
+              @foreach (var client in clients)
+              {
+                var name = $"{client.FirstName} {client.LastName}".Trim();
+                <div class="form-check client-row" data-search="@($"{name} {client.Email}".ToLowerInvariant())">
+                  <input class="form-check-input" type="checkbox" name="clientIds" value="@client.Id" id="client_@client.Id" />
+                  <label class="form-check-label" for="client_@client.Id">@name <span class="text-muted small">@client.Email</span></label>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <h5 class="fw-bold mb-1">Timing</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="timing-option">
+                <input class="form-check-input" type="radio" name="sendNow" id="sendNow" value="true" checked />
+                <label class="form-check-label" for="sendNow"><strong>Send now</strong><span>Queued for the next send cycle.</span></label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="timing-option">
+                <input class="form-check-input" type="radio" name="sendNow" id="sendLater" value="false" />
+                <label class="form-check-label" for="sendLater"><strong>Schedule for later</strong><span>Pick a date and time.</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label fw-semibold">Scheduled date &amp; time</label>
+            <input id="scheduledAtInput" name="scheduledAt" type="datetime-local" class="form-control" value="@scheduledDefaultValue" min="@scheduledMinValue" disabled />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm sticky-top" style="top: 90px;">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <h5 class="fw-bold mb-0"><i class="fas fa-eye me-2 text-primary"></i>Live Preview</h5>
+        </div>
+        <div class="card-body p-3">
+          <iframe id="cardPreview" title="Card preview" style="width:100%;height:420px;border:1px solid #e2e8f0;border-radius:8px;"></iframe>
+          <button type="submit" class="btn btn-primary btn-lg w-100 mt-3"><i class="fas fa-paper-plane me-2"></i>Send E-Card</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<style>
+  .occasion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .occasion-choice { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 10px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; text-align: center; transition: border-color .15s, background .15s; }
+  .occasion-choice:hover { border-color: #93c5fd; }
+  .occasion-input:checked + .occasion-emoji { transform: scale(1.1); }
+  .occasion-choice:has(.occasion-input:checked) { border-color: #1457d9; background: #eef4ff; }
+  .occasion-emoji { font-size: 30px; line-height: 1; }
+  .occasion-name { font-weight: 600; font-size: 13px; }
+  .client-checklist { max-height: 280px; overflow-y: auto; }
+  .client-row { padding: 6px 8px; border-radius: 6px; }
+  .client-row:hover { background: #f8fafc; }
+  .timing-option { border: 1px solid #dbe5f2; border-radius: 12px; padding: 16px 18px; background: #fff; display: grid; grid-template-columns: auto minmax(0,1fr); column-gap: 12px; row-gap: 4px; align-items: start; }
+  .timing-option label { display: flex; flex-direction: column; gap: 2px; }
+  .timing-option span { color: #64748b; font-size: .9rem; }
+</style>
+
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  var occasionInputs = document.querySelectorAll('.occasion-input');
+  var messageInput = document.getElementById('messageInput');
+  var preview = document.getElementById('cardPreview');
+
+  function refreshPreview() {
+    var checked = document.querySelector('.occasion-input:checked');
+    var occasion = checked ? checked.value : '';
+    var params = new URLSearchParams({ occasion: occasion, message: messageInput.value });
+    preview.src = '/ECards/PreviewCard?' + params.toString();
+  }
+
+  occasionInputs.forEach(function (input) { input.addEventListener('change', refreshPreview); });
+  var debounceTimer;
+  messageInput.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(refreshPreview, 400);
+  });
+  refreshPreview();
+
+  var sendNow = document.getElementById('sendNow');
+  var sendLater = document.getElementById('sendLater');
+  var scheduledAt = document.getElementById('scheduledAtInput');
+  function syncScheduledInput() { scheduledAt.disabled = sendNow.checked; }
+  sendNow.addEventListener('change', syncScheduledInput);
+  sendLater.addEventListener('change', syncScheduledInput);
+
+  var search = document.getElementById('clientSearch');
+  if (search) {
+    search.addEventListener('input', function () {
+      var term = search.value.trim().toLowerCase();
+      document.querySelectorAll('.client-row').forEach(function (row) {
+        row.style.display = row.dataset.search.includes(term) ? '' : 'none';
+      });
+    });
+  }
+  var selectAll = document.getElementById('selectAllClients');
+  var clearAll = document.getElementById('clearAllClients');
+  if (selectAll) selectAll.addEventListener('click', function () {
+    document.querySelectorAll('.client-row:not([style*="none"]) input[type=checkbox]').forEach(function (cb) { cb.checked = true; });
+  });
+  if (clearAll) clearAll.addEventListener('click', function () {
+    document.querySelectorAll('.client-checklist input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
+  });
+})();
+</script>
