@@ -316,6 +316,37 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
       });
   });
 })();
+
+(function () {
+  var provinceSelect = document.getElementById('Province');
+  var timeZoneSelect = document.getElementById('TimeZone');
+  if (!provinceSelect || !timeZoneSelect) return;
+
+  var provinceTimeZones = {
+    'Alberta': '(GMT-07:00) Mountain Time (US & Canada)',
+    'British Columbia': '(GMT-08:00) Pacific Time (US & Canada)',
+    'Manitoba': '(GMT-06:00) Central Time (US & Canada)',
+    'New Brunswick': '(GMT-04:00) Atlantic Time (Canada)',
+    'Newfoundland': '(GMT-03:30) Newfoundland',
+    'Northwest Territories': '(GMT-07:00) Mountain Time (US & Canada)',
+    'Nova Scotia': '(GMT-04:00) Atlantic Time (Canada)',
+    'Nunavut': '(GMT-05:00) Eastern Time (US & Canada)',
+    'Ontario': '(GMT-05:00) Eastern Time (US & Canada)',
+    'Prince Edward Island': '(GMT-04:00) Atlantic Time (Canada)',
+    'Quebec': '(GMT-05:00) Eastern Time (US & Canada)',
+    'Saskatchewan': '(GMT-06:00) Central Time (US & Canada)',
+    'Yukon Territory': '(GMT-07:00) Mountain Time (US & Canada)'
+  };
+
+  var timeZoneTouched = false;
+  timeZoneSelect.addEventListener('change', function () { timeZoneTouched = true; });
+
+  provinceSelect.addEventListener('change', function () {
+    if (timeZoneTouched) return;
+    var mapped = provinceTimeZones[provinceSelect.value];
+    if (mapped) timeZoneSelect.value = mapped;
+  });
+})();
 </script>
 </body>
 </html>
