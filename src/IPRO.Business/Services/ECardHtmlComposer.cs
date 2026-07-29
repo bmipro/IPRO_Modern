@@ -84,7 +84,8 @@ public static class ECardHtmlComposer
     // with the agent's photo to the right at the original 132px.
     private static string BuildContactBlock(AgentUser agent, string accent, string textColor, string mutedColor, bool dark)
     {
-        var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
+        // "Ms. Raniah Motamed" or "Raniah Motamed, CFP" -- see AgentNameFormatter.
+        var agentName = AgentNameFormatter.FullName(agent);
         var linkColor = dark ? "#8fc0ff" : accent;
         // nowrap keeps "web site:" on one line on the narrower artwork cards (467px).
         var labelStyle = $"font-style:italic;font-weight:bold;white-space:nowrap;color:{mutedColor};";
@@ -113,7 +114,7 @@ public static class ECardHtmlComposer
             <table cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="vertical-align:top;font-size:12px;line-height:1.9;">
-                  <div><strong style="color:{textColor};font-size:14px;">{WebUtility.HtmlEncode(agentName)}</strong>{(string.IsNullOrWhiteSpace(agent.Designation) ? "" : $"""<span style="color:{mutedColor};font-size:11px;">&nbsp;{WebUtility.HtmlEncode(agent.Designation)}</span>""")}</div>
+                  <div><strong style="color:{textColor};font-size:14px;">{WebUtility.HtmlEncode(agentName)}</strong></div>
                   {(string.IsNullOrWhiteSpace(agent.CompanyName) ? "" : $"""<div style="color:{textColor};font-weight:bold;margin-bottom:6px;">{WebUtility.HtmlEncode(agent.CompanyName)}</div>""")}
                   <table cellpadding="0" cellspacing="0" border="0">{string.Concat(lines)}</table>
                 </td>

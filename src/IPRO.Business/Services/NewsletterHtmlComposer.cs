@@ -14,7 +14,8 @@ public static class NewsletterHtmlComposer
             ? $"{DateTime.UtcNow:MMMM yyyy} Newsletter"
             : newsletter.Edition!;
         var siteUrl = string.IsNullOrWhiteSpace(agent.DomainName) ? null : $"https://{agent.DomainName}";
-        var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
+        // "Ms. Raniah Motamed" or "Raniah Motamed, CFP" -- see AgentNameFormatter.
+        var agentName = AgentNameFormatter.FullName(agent);
 
         var absoluteBannerUrl = ToAbsoluteUrl(newsletter.BannerUrl, baseUrl);
         var bannerRow = string.IsNullOrWhiteSpace(absoluteBannerUrl)

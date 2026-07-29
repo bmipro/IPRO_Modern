@@ -15,7 +15,8 @@ public static class ELetterHtmlComposer
     public static string Wrap(ELetter letter, AgentUser agent, Client? client)
     {
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
-        var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
+        // "Ms. Raniah Motamed" or "Raniah Motamed, CFP" -- see AgentNameFormatter.
+        var agentName = AgentNameFormatter.FullName(agent);
         var siteUrl = string.IsNullOrWhiteSpace(agent.DomainName) ? null : $"https://{agent.DomainName}";
 
         var resolvedBody = client == null
@@ -41,7 +42,6 @@ public static class ELetterHtmlComposer
               """;
 
         var signatureDetails = new List<string>();
-        if (!string.IsNullOrWhiteSpace(agent.Designation)) signatureDetails.Add(WebUtility.HtmlEncode(agent.Designation));
         if (!string.IsNullOrWhiteSpace(agent.Phone)) signatureDetails.Add($"tel: {WebUtility.HtmlEncode(agent.Phone)}");
         if (!string.IsNullOrWhiteSpace(agent.CellPhone)) signatureDetails.Add($"cell: {WebUtility.HtmlEncode(agent.CellPhone)}");
         if (!string.IsNullOrWhiteSpace(agent.Email)) signatureDetails.Add($"""<a href="mailto:{WebUtility.HtmlEncode(agent.Email)}" style="color:{WebUtility.HtmlEncode(accent)};text-decoration:none;">{WebUtility.HtmlEncode(agent.Email)}</a>""");

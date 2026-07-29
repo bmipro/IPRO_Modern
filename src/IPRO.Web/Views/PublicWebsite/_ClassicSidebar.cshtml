@@ -2,7 +2,8 @@
 @{
     var website = Model.Website;
     var agent = website.AgentUser;
-    var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+    // Designation belongs in the name -- "Ms. Raniah Motamed", not a line below it.
+    var fullName = IPRO.Entities.AgentNameFormatter.FullName(agent);
     var title = string.IsNullOrWhiteSpace(website.SiteTitle) ? fullName : website.SiteTitle;
     var tagline = string.IsNullOrWhiteSpace(website.TagLine)
         ? "Helpful advice, timely updates, and professional service."
@@ -329,10 +330,6 @@
       <aside class="classic-sidebar" id="contact">
         <div class="profile-box">
           <div class="profile-name">@fullName</div>
-          @if (!string.IsNullOrWhiteSpace(agent.Designation))
-          {
-            <div class="profile-meta">@agent.Designation</div>
-          }
           <div class="profile-meta mt-2">@company</div>
           <div class="profile-meta">@agent.City, @agent.Province</div>
         </div>

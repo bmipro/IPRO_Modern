@@ -243,13 +243,17 @@
   {
     var epAgentInfo = IPRO.Entities.WebsiteAgentInfoSettings.FromJson(block.SettingsJson);
     var epAddressLines = epAgentInfo.ShowAddress ? agent.GetFormattedAddressLines() : new List<string>();
-    var epDesignationLine = string.Join(" · ", new[] { agent.Designation, agent.CompanyName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    // Designation belongs in the name ("Ms. Raniah Motamed" / "Raniah Motamed, CFP"),
+    // not on the line below -- so the second line carries the company only.
+    var epAgentName = epAgentInfo.ShowDesignation
+        ? IPRO.Entities.AgentNameFormatter.FullName(agent)
+        : $"{agent.FirstName} {agent.LastName}".Trim();
     <section class="ep-section"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy" style="max-width:720px">@block.Body</p>}
       <div class="ep-agent-band">
         @if(epAgentInfo.ShowPhoto && !string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="ep-agent-photo" />}
         <div>
-          <div class="ep-agent-name">@($"{agent.FirstName} {agent.LastName}".Trim())</div>
-          @if(epAgentInfo.ShowDesignation && !string.IsNullOrWhiteSpace(epDesignationLine)){<div class="ep-agent-role">@epDesignationLine</div>}
+          <div class="ep-agent-name">@epAgentName</div>
+          @if(epAgentInfo.ShowDesignation && !string.IsNullOrWhiteSpace(agent.CompanyName)){<div class="ep-agent-role">@agent.CompanyName</div>}
           @if(epAddressLines.Any()){<div class="ep-agent-detail">@foreach(var line in epAddressLines){<div>@line</div>}</div>}
           @if(epAgentInfo.ShowPhone && !string.IsNullOrWhiteSpace(agent.Phone)){<div class="ep-agent-detail mt-2"><a href="tel:@agent.Phone">@agent.Phone</a></div>}
           @if(epAgentInfo.ShowEmail && !string.IsNullOrWhiteSpace(agent.Email)){<div class="ep-agent-detail"><a href="mailto:@agent.Email">@agent.Email</a></div>}

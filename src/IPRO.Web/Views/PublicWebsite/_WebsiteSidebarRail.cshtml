@@ -2,7 +2,8 @@
 @{
     var website = Model.Website;
     var agent = website.AgentUser;
-    var fullName = $"{agent.FirstName} {agent.LastName}".Trim();
+    // Designation belongs in the name -- "Ms. Raniah Motamed", not a line below it.
+    var fullName = IPRO.Entities.AgentNameFormatter.FullName(agent);
 }
 <aside class="site-sidebar-rail">
   @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
@@ -16,10 +17,6 @@
   @if (!string.IsNullOrWhiteSpace(fullName))
   {
     <div class="site-sidebar-rail__name">@fullName</div>
-  }
-  @if (!string.IsNullOrWhiteSpace(agent.Designation))
-  {
-    <div class="site-sidebar-rail__meta">@agent.Designation</div>
   }
   @if (!string.IsNullOrWhiteSpace(agent.CompanyName))
   {
