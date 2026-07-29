@@ -4,7 +4,10 @@
 
 A quick way to send a client a pre-designed occasion card by email — pick a card design, add a short personal message, and it goes out with your own contact card (name, designation, company, phone, cell, fax, email, website, photo) attached underneath. Nothing to design or upload; the artwork is supplied, and your details are filled in from your profile.
 
-Card designs currently available: **Halloween** (7 illustrated designs), **Anniversary** (2), and **Birthday** (1). More occasions are being added.
+Two kinds of card to pick from:
+
+- **Simple** (4 designs) — a clean colour panel in your own accent colour: Birthday, Thank You, Season's Greetings, Congratulations. These suit any occasion and any tone, and they're listed first because most of the time they're all you need.
+- **Illustrated** — licensed artwork for specific occasions: **Halloween** (7 designs), **Anniversary** (2), **Birthday** (1). More occasions are being added.
 
 ## Send an E-Card
 
@@ -18,12 +21,14 @@ Card designs currently available: **Halloween** (7 illustrated designs), **Anniv
 
 ## What Recipients See
 
-The card artwork with your greeting set over it (or beneath, where the artwork already carries its own lettering), followed by your contact block — details on one side, your photo on the other. There's no tracking pixel or click-through link beyond your own reply-to address; a reply goes straight to your inbox.
+The card face, then your greeting on the card's own background, then your contact block — details on one side, your photo on the other. The greeting is never printed over the picture: text on top of artwork is hard to read, and how hard depends on the design and on how much you typed, so it gets its own clear space instead.
+
+There's no tracking pixel or click-through link beyond your own reply-to address; a reply goes straight to your inbox.
 
 ## Notes
 
 - Your **photo, designation, company, phone, fax, cell, email, and domain** come from your Profile — update them there, not per e-card. A missing field is simply left out rather than shown blank.
-- Your **accent color** (Agent Portal → **My Website** → **Portal Accent Color**) tints the links in the contact block.
-- Card artwork is served from the portal, so a recipient's mail client needs to load images to see it. The greeting text is real HTML, not baked into the picture, so it still reads if images are blocked.
+- Your **accent color** (Agent Portal → **My Website** → **Portal Accent Color**) colours the Simple cards and tints the links in the contact block.
+- Illustrated artwork is served from the portal, so a recipient's mail client needs to load images to see it. Your greeting and contact details are real text, not part of the picture, so they still read if images are blocked.
 - Sending is per-recipient (like Newsletter), so one bounced or invalid address never blocks the rest of the list.
 - Scheduled e-cards are picked up within a minute of their scheduled time by the same background dispatcher that sends Newsletters and Did You Know follow-ups.

@@ -54,7 +54,14 @@ else
                 @if (cardTemplate != null)
                 {
                   <span class="d-inline-flex align-items-center gap-2">
-                    <img src="@cardTemplate.Url" alt="" style="width:54px;height:40px;object-fit:cover;border-radius:4px;" />
+                    @if (cardTemplate.IsArtwork)
+                    {
+                      <img src="@cardTemplate.Url" alt="" style="width:54px;height:40px;object-fit:cover;border-radius:4px;" />
+                    }
+                    else
+                    {
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:54px;height:40px;border-radius:4px;font-size:20px;line-height:1;background:linear-gradient(135deg,#1457d9 0%,@cardTemplate.Accent 100%);">@cardTemplate.Emoji</span>
+                    }
                     <span><span class="fw-semibold">@cardTemplate.Occasion</span><br /><span class="text-muted small">@cardTemplate.Name</span></span>
                   </span>
                 }

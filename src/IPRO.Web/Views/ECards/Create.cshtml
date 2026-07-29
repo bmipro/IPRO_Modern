@@ -37,7 +37,14 @@
                   <input type="radio" name="occasion" value="@template.Key" class="d-none occasion-input"
                          data-header="@template.DefaultHeaderText" data-message="@template.DefaultMessage"
                          checked="@(template.Key == templates.First().Key ? "checked" : null)" />
-                  <img src="@template.Url" alt="@template.Name" loading="lazy" />
+                  @if (template.IsArtwork)
+                  {
+                    <img src="@template.Url" alt="@template.Name" loading="lazy" />
+                  }
+                  else
+                  {
+                    <span class="occasion-swatch" style="background:linear-gradient(135deg,#1457d9 0%,@template.Accent 100%);">@template.Emoji</span>
+                  }
                   <span class="occasion-name">@template.Name</span>
                 </label>
               }
@@ -141,6 +148,7 @@
   .occasion-choice:hover { border-color: #93c5fd; }
   .occasion-choice:has(.occasion-input:checked) { border-color: #1457d9; background: #eef4ff; }
   .occasion-choice img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; }
+  .occasion-swatch { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 4/3; border-radius: 6px; font-size: 34px; line-height: 1; }
   .occasion-name { display: block; margin-top: 6px; font-weight: 600; font-size: 12px; color: #334155; }
   .client-checklist { max-height: 280px; overflow-y: auto; }
   .client-row { padding: 6px 8px; border-radius: 6px; }

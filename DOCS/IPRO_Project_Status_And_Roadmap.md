@@ -731,6 +731,20 @@ Closes the placeholder warning on item 61. The user supplied genuine card artwor
 
 **Licensing note (raised, not resolved):** the user described these as "purchased licensed images." Since e-cards are redistributed to third parties by email, the licence needs to permit commercial redistribution — worth confirming against the original purchase terms before this is promoted widely.
 
+### 64. E-Cards: restore the simple cards, and stop printing text over artwork (done, 2026-07-29)
+
+Both changes come from the **first real live send** — the user sent a Halloween card to themselves and sent back the screenshot. That one email did more for this feature than three rounds of clean builds.
+
+**The generated cards are back, as a first-class card kind rather than a fallback.** Item 63 deleted the four gradient cards on the theory that real artwork made them obsolete. Wrong call: the user liked them precisely because they're "very simple and easy," and they're the only cards that work for an occasion with no artwork. `ECardTemplate` now carries a `Kind` (`image` / `generated`) with `ECardTemplate.Art(...)` / `ECardTemplate.Generated(...)` factories, and the four Simple cards are listed **first** in the catalog — an agent in a hurry shouldn't scroll past seven zombies to find Thank You.
+
+**The greeting no longer sits on the artwork.** The screenshot showed white serif text landing mid-frame on a busy zombie illustration, effectively unreadable. This isn't tunable: every design's clear area is somewhere different, agents type their own wording at unpredictable lengths, and the CSS that would carry a translucent scrim (`rgba`, `background-size`) is exactly what Outlook's Word engine drops. So the composer now stacks three panels — card face, greeting on the card's own solid ground, contact block. It gives up some of the legacy layered look and buys text that is legible in every client, at every length, on every design. `ECardLayouts` is gone; a single `IsDark` flag picks a black or white ground so the card still reads as one object.
+
+**Old rows keep rendering.** `ECardTemplateCatalog.Find` now falls back through a legacy-key map (`Birthday` → `simple-birthday`, and so on), so e-cards sent before the catalog existed still show a real card in the list instead of a raw string.
+
+**Verified by rendering, not by reading.** A throwaway console harness referencing IPRO.Business rendered all 14 catalog entries — including one with a deliberately long agent-typed message — to HTML, screenshotted in the browser at 2.2× and checked design by design. That caught the `web site:` label wrapping onto two lines on the 467px anniversary cards (fixed with `white-space:nowrap`), which no amount of code-reading would have surfaced.
+
+**Known cosmetic point, not fixed:** the anniversary artwork has a blank white note-card designed into it, clearly meant to hold the greeting. With the uniform banner approach that area now sits empty and the greeting reads below it. Overlaying *only* that design would degrade safely (dark text, light fallback ground — the failure mode the Halloween cards had is specific to light text on dark art), so it's a reasonable future exception if the empty panel bothers anyone.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.

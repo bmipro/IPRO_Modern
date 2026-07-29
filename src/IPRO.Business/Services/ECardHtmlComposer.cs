@@ -3,11 +3,16 @@ using IPRO.Entities;
 
 namespace IPRO.Business.Services;
 
-// Rebuilds the legacy e-card composition: artwork panel with the greeting set over (or under) it,
-// then the agent's contact block. Structure follows the original 2010 templates recovered from the
-// legacy database -- 24px italic serif headline, bold sub-line, contact table with a 132px photo --
-// but rendered as one hero image plus HTML rather than the original's sliced-GIF tables, which no
-// longer survive modern mail clients.
+// Builds an e-card as three stacked panels: the card face (licensed artwork, or a generated
+// gradient), the greeting, then the agent's contact block.
+//
+// The greeting is deliberately NOT set on top of the artwork. The first live send proved why:
+// over a full-bleed illustration the text landed on busy mid-tones and was unreadable, and there
+// is no reliable fix for that -- every design has its clear area somewhere different, agents type
+// their own wording at unpredictable lengths, and the CSS that would carry a translucent scrim
+// (rgba, background-size) is exactly what Outlook's Word rendering engine drops. Giving the
+// greeting its own solid band costs a little of the original's layered look and buys text that is
+// legible in every client, at every message length, on every design.
 public static class ECardHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
@@ -16,30 +21,27 @@ public static class ECardHtmlComposer
     {
         var template = ECardTemplateCatalog.Find(card.Occasion) ?? ECardTemplateCatalog.Default;
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
-        var artUrl = $"{baseUrl.TrimEnd('/')}{template.Url}";
 
         var header = string.IsNullOrWhiteSpace(card.Subject) ? template.DefaultHeaderText : card.Subject;
         var message = string.IsNullOrWhiteSpace(card.Message) ? template.DefaultMessage : card.Message;
 
         var dark = template.IsDark;
-        var shellBg = dark ? "#000000" : "#ffffff";
+        var shellBg = dark ? "#111111" : "#ffffff";
         var textColor = dark ? "#ffffff" : "#1f2937";
-        var mutedColor = dark ? "#d6d6d6" : "#5b6472";
-        var width = Math.Min(template.Width, 620);
+        var mutedColor = dark ? "#cfd4da" : "#5b6472";
+        var width = template.IsArtwork ? Math.Min(template.Width, 620) : 600;
 
-        var artPanel = template.Layout switch
-        {
-            ECardLayouts.DarkOverlay => BuildOverlayPanel(artUrl, header, message, width, template, "#ffffff", "#ffffff", 44),
-            ECardLayouts.LightOverlay => BuildOverlayPanel(artUrl, header, message, width, template, "#12305e", "#25405f", 34),
-            _ => BuildBannerPanel(artUrl, header, message, width, textColor, mutedColor),
-        };
+        var face = template.IsArtwork
+            ? BuildArtworkFace($"{baseUrl.TrimEnd('/')}{template.Url}", width, template)
+            : BuildGeneratedFace(template, accent);
 
         return $"""
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
               <tr><td align="center">
                 <table cellpadding="0" cellspacing="0" border="0" width="{width}" style="max-width:{width}px;background:{shellBg};border-radius:10px;overflow:hidden;">
-                  {artPanel}
-                  <tr><td style="height:26px;line-height:26px;font-size:0;">&nbsp;</td></tr>
+                  {face}
+                  {BuildGreeting(header, message, textColor, mutedColor)}
+                  <tr><td style="height:20px;line-height:20px;font-size:0;">&nbsp;</td></tr>
                   <tr><td style="padding:0 34px 30px;">
                     {BuildContactBlock(agent, accent, textColor, mutedColor, dark)}
                   </td></tr>
@@ -49,41 +51,34 @@ public static class ECardHtmlComposer
             """;
     }
 
-    // Greeting sits on the artwork. The art is both a background-image (so text can sit over it)
-    // and, for clients that drop backgrounds, the panel keeps a solid fallback colour underneath.
-    private static string BuildOverlayPanel(string artUrl, string header, string message, int width,
-        ECardTemplate template, string headerColor, string messageColor, int topPad)
-    {
-        var height = (int)Math.Round(template.Height * (width / (double)template.Width));
-        return $"""
-            <tr>
-              <td background="{WebUtility.HtmlEncode(artUrl)}" bgcolor="{(template.IsDark ? "#000000" : "#f3e9ea")}" width="{width}" height="{height}"
-                  style="background-image:url('{WebUtility.HtmlEncode(artUrl)}');background-size:{width}px {height}px;background-repeat:no-repeat;background-position:center top;width:{width}px;height:{height}px;">
-                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                  <tr><td style="padding:{topPad}px 30px 0;text-align:center;">
-                    <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;line-height:1.25;color:{headerColor};">{WebUtility.HtmlEncode(header)}</div>
-                    <div style="margin-top:12px;font-size:14px;font-weight:bold;line-height:1.5;color:{messageColor};">{WebUtility.HtmlEncode(message)}</div>
-                  </td></tr>
-                </table>
-              </td>
-            </tr>
-            """;
-    }
+    private static string BuildArtworkFace(string artUrl, int width, ECardTemplate template) =>
+        $"""
+        <tr><td style="padding:0;line-height:0;font-size:0;">
+          <img src="{WebUtility.HtmlEncode(artUrl)}" width="{width}" alt="{WebUtility.HtmlEncode(template.Name)}"
+               style="display:block;width:100%;max-width:{width}px;height:auto;border:0;" />
+        </td></tr>
+        """;
 
-    // Artwork already carries its own lettering, so the greeting goes beneath it instead.
-    private static string BuildBannerPanel(string artUrl, string header, string message, int width,
-        string textColor, string mutedColor)
-    {
-        return $"""
-            <tr><td style="padding:0;line-height:0;font-size:0;">
-              <img src="{WebUtility.HtmlEncode(artUrl)}" width="{width}" alt="" style="display:block;width:100%;max-width:{width}px;height:auto;border:0;" />
-            </td></tr>
-            <tr><td style="padding:26px 34px 0;text-align:center;">
-              <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;line-height:1.25;color:{textColor};">{WebUtility.HtmlEncode(header)}</div>
-              <div style="margin-top:10px;font-size:14px;line-height:1.6;color:{mutedColor};">{WebUtility.HtmlEncode(message)}</div>
-            </td></tr>
-            """;
-    }
+    // The simple cards: a gradient from the agent's own accent to the card's, with the emoji as
+    // the whole face. Outlook ignores the gradient and falls back to the flat accent, which is fine.
+    private static string BuildGeneratedFace(ECardTemplate template, string agentAccent) =>
+        $"""
+        <tr>
+          <td align="center" bgcolor="{WebUtility.HtmlEncode(agentAccent)}"
+              style="background:linear-gradient(135deg,{WebUtility.HtmlEncode(agentAccent)} 0%,{WebUtility.HtmlEncode(template.Accent)} 100%);background-color:{WebUtility.HtmlEncode(agentAccent)};padding:52px 32px;font-size:60px;line-height:1;">
+            {template.Emoji}
+          </td>
+        </tr>
+        """;
+
+    // The greeting always gets its own band on the card's solid ground -- never over the art.
+    private static string BuildGreeting(string header, string message, string textColor, string mutedColor) =>
+        $"""
+        <tr><td style="padding:30px 34px 0;text-align:center;">
+          <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:26px;line-height:1.25;color:{textColor};">{WebUtility.HtmlEncode(header)}</div>
+          <div style="margin-top:12px;font-size:15px;line-height:1.65;color:{mutedColor};">{WebUtility.HtmlEncode(message).Replace("\n", "<br>")}</div>
+        </td></tr>
+        """;
 
     // Mirrors the legacy signature block: name, title, company, tel/fax/cell, email and website,
     // with the agent's photo to the right at the original 132px.
@@ -91,7 +86,8 @@ public static class ECardHtmlComposer
     {
         var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
         var linkColor = dark ? "#8fc0ff" : accent;
-        var labelStyle = $"font-style:italic;font-weight:bold;color:{mutedColor};";
+        // nowrap keeps "web site:" on one line on the narrower artwork cards (467px).
+        var labelStyle = $"font-style:italic;font-weight:bold;white-space:nowrap;color:{mutedColor};";
 
         var lines = new List<string>();
         if (!string.IsNullOrWhiteSpace(agent.Phone))
