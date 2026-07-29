@@ -468,6 +468,30 @@ Fixing a real finding from the security audit below (`IPRO.Web`'s `/hangfire` da
 
 **Prevention rule**: a fix aimed at *removing* exposure (skipping a route mapping, disabling a feature outright) needs the same "did I verify this actually still starts" scrutiny as one that adds code — "the diff only deletes/guards something" is not a safety guarantee when the removed call has framework-internal side effects that aren't visible from the call site alone. When in doubt, prefer restricting *access* to a capability (an authorization filter) over conditionally skipping the code that wires it up.
 
+## Incident: Website Image Library Let Agents Apply Images To Blocks That Never Render Them (2026-07-28)
+
+An agent applied an uploaded image to a **Contact Form** block via the page editor's "Apply uploaded image to" picker. The admin UI showed the image as successfully applied (no error, checkmark shown), but the image never appeared anywhere on the live public page.
+
+**Root cause**: `WebsitePagesController.ApplyImageToBlock` sets `block.ImageUrl` unconditionally for any block type, and the "Apply uploaded image to" / starter-banner dropdowns (`Views/WebsitePages/Edit.cshtml`) listed **every** block on the page as a valid destination with no filtering. But across all 3 public templates (`_ModernManagedPage`, `_ClassicManagedPage`, `_EditorialManagedPage`), only the **Hero** and **Text** block types ever read `block.ImageUrl` when rendering. Contact Form, Testimonials, Reviews, Polls, Custom Form, Lead Magnet, Did You Know, Article Content, Services, Maps, Call To Action, Newsletter Signup, and Agent Info all silently ignore it — an agent could apply an image to any of these and it would save with no error, then never show up anywhere.
+
+**Fix**: both destination pickers (and their per-item "Use this image"/"Use this banner" buttons) now only list Hero and Text blocks, with a plain message when a page has none — commit `c6707ed`.
+
+**Related discovery — the Image Library is site-wide, not page-scoped, and "Remove" permanently deletes the file**: `WebsitePagesController.DeleteImage` scopes by `AgentWebsiteId`, not the current page, and blanks `ImageUrl` on **every block on every page** that references the same uploaded file, then calls `_blob.DeleteAsync` — an irreversible deletion of the actual file, not just an unlink. An agent removed a stock photo from one page's Image Library (to undo the dead-end case above) and it silently disappeared from a completely different page (`/underdrop1`) that happened to reuse the same upload. The confirm dialog ("Remove this image from the library and any content blocks using it?") does warn about this, but doesn't make clear it's site-wide — worth revisiting the wording if this recurs.
+
+**Prevention rule**: when adding a new website block type, check whether it needs an `ImageUrl` before assuming the Image Library "just works" for it — the picker's filter (`Views/WebsitePages/Edit.cshtml`, `imageDestinationBlocks`) needs updating in lockstep with any template partial that starts reading `block.ImageUrl` for a new block type, or the same dead-end returns for that type.
+
+## Incident: Hero/Text Images Render As Tiny Thumbnails In Split/Image-Left Layouts (2026-07-28)
+
+After fixing the above, an agent applied a real image to a Hero block (Classic template, `layout-split`) and it did display — but as a small ~150x100px thumbnail floating next to the text instead of filling its half of the section, confirmed live on `raniahmotamed.247advisers.com/about`.
+
+**Root cause**: the Hero/Text-image grid layouts (`.cp-hero.layout-split`, `.cp-hero.layout-image-left`, `.cp-text-grid` in Classic; `.mp-split` in Modern) use `<img>` as a **direct CSS Grid item** with `grid-template-columns` in `fr` units. A grid item's `min-width` defaults to `auto`, not `0` — for a replaced element like `<img>`, this interferes with `fr`-track distribution during layout, and the computed column widths came out badly skewed (measured `240px 160px` instead of the intended roughly-proportional split of the available width) with the image column collapsing toward the image's own minimum content size rather than filling its `1.2fr` share. Modern's and Editorial's **Hero** blocks were unaffected because they wrap the image in a container `<div>` (`.mp-hero-media`, `.ep-hero-visual`) that is the actual grid item, with the `<img>` inside sized via explicit `width:100%; height:100%` — a `<div>` grid item doesn't have the same replaced-element minimum-size interaction.
+
+**Fix**: added `min-width:0` to Classic's `.cp-image` (shared by Hero and Text image-left/right) and Modern's `.mp-split > img` (Text image-left/right) — commit `dcb44fe`. This is the standard fix for "flex/grid item won't shrink or fill its track" when the item is a replaced element (img/video) rather than a block container.
+
+**Diagnosis method, for next time**: the public site needs no login, so `javascript_tool` against the live URL is faster than guessing from CSS source — `document.querySelector('.cp-hero-image').getBoundingClientRect()` plus `getComputedStyle(sectionEl).gridTemplateColumns` immediately showed the actual (wrong) column widths and confirmed the fix's mechanism before writing any code.
+
+**Prevention rule**: any future grid-based image-beside-text layout should either (a) wrap the `<img>` in a container `<div>` and size the img to `width:100%; height:100%` inside it (the pattern already used safely for both Hero blocks in Modern/Editorial), or (b) if the `<img>` must be a direct grid/flex item, always pair its `width:100%` with `min-width:0`.
+
 ## Release Build Commands
 
 From the repository root:

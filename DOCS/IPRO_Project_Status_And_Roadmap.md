@@ -629,6 +629,22 @@ The user raised two follow-up concerns about item 52/53's email delivery: a long
 
 **Verification**: both `IPRO.Web` and `IPRO.Admin` build clean, grepped for dangling references to the removed method name — none found. Cannot log in as an agent or receive real test emails, and the staggered timing in particular can't be verified without waiting through a live send — said so plainly. `DOCS/04_WEBSITE_BUILDER.md` updated.
 
+### 55. Nav: disambiguate Marketing's "Calendar" from Clients' "Calendar" (done, 2026-07-28)
+
+User asked why Calendar sits under Marketing; the answer is it's a separate content-planning calendar (newsletters/social posts/polls, item 152) from Clients → Calendar (appointment scheduling). Both were labeled just "Calendar" one nav section apart, which is a genuine collision. Renamed the Marketing nav link to "Marketing Calendar" (the page itself already used that label throughout — only the nav text was truncated). One-line change in `_Layout.cshtml`, built, deployed, verified via fresh container logs.
+
+### 56. Website editor: filter image-destination pickers to Hero/Text only (done, 2026-07-28)
+
+User reported an image applied to a Contact Form block via the page editor's Image Library never showed up on the live page. Root cause and fix, plus a related discovery about the Image Library being site-wide (not page-scoped) and "Remove" permanently deleting the file, are written up in full in `DOCS/09_TROUBLESHOOTING.md` under "Website Image Library Let Agents Apply Images To Blocks That Never Render Them" — see that entry for the details. Summary: the "Apply uploaded image to" / starter-banner pickers now only offer Hero and Text blocks as destinations, since those are the only block types that render `block.ImageUrl` in any of the 3 public templates.
+
+**Verification**: build clean, deployed, verified via fresh container logs. Cannot log in as an agent — did not click through the picker live.
+
+### 57. Fix Hero/Text images rendering as tiny thumbnails in split/image-left layouts (done, 2026-07-28)
+
+Follow-up to item 56: once an agent could correctly apply an image to a Hero block, it displayed but as a small ~150x100px thumbnail instead of filling its half of the section (confirmed live on `raniahmotamed.247advisers.com/about`). Full root cause (a classic CSS Grid `min-width:auto` pitfall on an `<img>` used as a direct grid item) and fix are written up in `DOCS/09_TROUBLESHOOTING.md` under "Hero/Text Images Render As Tiny Thumbnails In Split/Image-Left Layouts". Summary: added `min-width:0` to Classic's `.cp-image` and Modern's `.mp-split > img`; Modern's and Editorial's Hero blocks were already unaffected since they wrap the image in a container div.
+
+**Verification**: build clean, deployed, verified via fresh container logs and directly on the live public page (`javascript_tool` against the real URL — no login needed for a public page) confirming the grid columns and image sizing before and after.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
