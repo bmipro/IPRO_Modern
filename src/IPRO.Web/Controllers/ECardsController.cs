@@ -56,7 +56,8 @@ public class ECardsController : Controller
         var gate = await RequireECardAccessAsync();
         if (gate != null) return gate;
 
-        occasion = ECardOccasions.All.Contains(occasion) ? occasion : ECardOccasions.Birthday;
+        // `occasion` carries the template key -- see the note on ECard.Occasion.
+        occasion = (ECardTemplateCatalog.Find(occasion) ?? ECardTemplateCatalog.Default).Key;
         subject = subject?.Trim() ?? string.Empty;
         message = message?.Trim() ?? string.Empty;
         var selectedIds = (clientIds ?? Array.Empty<int>()).Distinct().ToList();
@@ -116,20 +117,26 @@ public class ECardsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> PreviewCard(string occasion, string message)
+    public async Task<IActionResult> PreviewCard(string occasion, string subject, string message)
     {
         var agent = await _db.AgentUsers.FirstOrDefaultAsync(a => a.Id == AgentId);
         if (agent == null) return NotFound();
 
-        occasion = ECardOccasions.All.Contains(occasion) ? occasion : ECardOccasions.Birthday;
-        var card = new ECard { Occasion = occasion, Message = message ?? string.Empty };
-        var html = ECardHtmlComposer.Wrap(card, agent);
+        var template = ECardTemplateCatalog.Find(occasion) ?? ECardTemplateCatalog.Default;
+        var card = new ECard
+        {
+            Occasion = template.Key,
+            Subject = subject ?? string.Empty,
+            Message = message ?? string.Empty,
+        };
+        // Relative art URLs are fine here -- the preview renders inside the portal, same origin.
+        var html = ECardHtmlComposer.Wrap(card, agent, string.Empty);
         return Content(html, "text/html");
     }
 
     private async Task LoadCreateContextAsync()
     {
-        ViewBag.Occasions = ECardOccasions.All;
+        ViewBag.Templates = ECardTemplateCatalog.All;
         ViewBag.Clients = await _db.Clients
             .Where(c => c.AgentUserId == AgentId && !string.IsNullOrWhiteSpace(c.Email))
             .OrderBy(c => c.LastName).ThenBy(c => c.FirstName)

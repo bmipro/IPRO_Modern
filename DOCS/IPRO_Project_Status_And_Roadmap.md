@@ -693,15 +693,7 @@ Revived a legacy feature (Communication → E-Card in the old SuxessPoint tool, 
 
 **Not yet live-verified** — no SuperAdmin or agent login credentials available this session to click through the Create form or confirm a real sent email; verification rests on a clean build across both apps plus a post-deploy container-log check. Worth a manual send-through next time credentials are available.
 
-> ⚠️ **What shipped is a placeholder, not a match for the legacy feature.** After this was deployed, the user supplied two screenshots of real legacy cards (an illustrated Halloween scene, a decorative "You're invited!" design) and clarified the legacy library held **54 designed templates**, not a handful. Those are commissioned illustrations with the agent's contact block composited beneath — nothing CSS can reproduce. What's live today (a gradient + emoji + headline) is functionally correct plumbing wearing the wrong clothes.
->
-> **Legacy copy has been recovered**: `X:\ipro_related\Suxesspoint project\Cards content.docx` holds the real greeting text for ~33 designs across 19 occasions, and the wording matches the screenshots exactly (Halloween: *"Have a very special and happy Halloween"*). Critically, the real occasion list is far broader and more culturally inclusive than the 4 shipped — it covers **Norooz, Eid al-Adha, Hanukkah, and Passover** alongside Christmas/Easter/Thanksgiving/Canada Day. For a Canadian advisor product serving diverse clients, that breadth is the point, not a nice-to-have.
->
-> **To finish this properly** (blocked on the user locating the original HTML/artwork):
-> 1. Change the template model from a code-generated enum to **stored HTML fragments + image assets**.
-> 2. Upload artwork to blob storage — email needs absolute image URLs, so files can't stay local.
-> 3. Seed the real occasion catalog and greeting copy from the docx above.
-> 4. Keep the generated contact-card footer and the whole send/schedule pipeline — that part of the current build carries over unchanged.
+> ⚠️ **What shipped in this item was a placeholder, not a match for the legacy feature.** After it deployed, the user supplied screenshots of real legacy cards and clarified the legacy library held **54 designed templates**, not a handful — commissioned illustrations with the agent's contact block composited beneath, which nothing CSS can reproduce. The gradient-and-emoji build was functionally correct plumbing wearing the wrong clothes. **Superseded by item 63**, which replaced the generated artwork with the real thing; the send/schedule pipeline described above carried over unchanged.
 
 ### 62. Add E-Letters + the merge-field engine (done, 2026-07-29)
 
@@ -720,6 +712,24 @@ The third leg of the legacy Communication trio, after E-Cards (item 61). User de
 **Editor UX**: template cards swap subject+body on click; merge-field chips insert at cursor; the preview pane resolves against the first *actually selected* client, so an agent sees "Dear Sarah" — not "Dear [First Name]" — before committing to a send.
 
 **Not yet live-verified** — no agent login this session to click through the composer or watch a real merged email arrive. Rests on a clean build of both apps plus a post-deploy container-log check. A real send-through is the thing to do next time credentials are available, especially to confirm merge output on a client with an empty `CompanyName`.
+
+### 63. E-Cards: replace generated artwork with the real legacy designs (done, 2026-07-29)
+
+Closes the placeholder warning on item 61. The user supplied genuine card artwork at `D:\ecards`, and the 2014 SQL dump (`X:\ipro_related\DB\247advisers_DB_Sept_05_2014 ....sql`) yielded the original catalog — 68 e-card rows recovered, extracted to `X:\ipro_related\DB\extracted_templates\ecard.json`. Greeting copy in the new catalog is taken **verbatim** from that dump, not rewritten.
+
+**Which uploaded files were usable, and why it mattered.** The upload mixed two kinds of image. The 700×525 and 467×311 files are bare artwork (file dates Oct 27 2013; dimensions match the recovered manifest exactly). The 591×685 / 539×561 files are *composed screenshots* — they already have a contact block with someone else's details baked into the pixels, so using them would ship a stranger's fake phone number inside every agent's card. Only the 10 bare files were taken.
+
+**Composition approach — HTML over the image, not a sliced-table clone.** The legacy system built each card as a sliced-GIF table. Rebuilt instead as one hero image plus real HTML text, which means the greeting still reads when a mail client blocks images, and the agent's contact details are never baked into a picture. New `ECardTemplate` record + `ECardTemplateCatalog` (IPRO.Entities) carry image, dimensions, layout family, and stock copy per design; `ECardHtmlComposer` was rewritten around it — `dark-overlay` / `light-overlay` set text over the art, `light-banner` sets it beneath, and the contact block reproduces the legacy signature layout (details one side, 132px photo the other).
+
+**No schema migration.** `ECard.Occasion` already existed as a string column; it now holds a template key instead of an enum name. Old rows fall back to a plain text label when the key doesn't resolve. `ECardOccasions` was deleted.
+
+**Artwork is served from `wwwroot/images/ecard-art/`** (10 files, ~792KB), not blob storage as item 61 anticipated — these are *shared system assets* identical for every agent, matching how the app already treats newsletter banners, so per-agent blob upload would have been the wrong shape. Email needs absolute URLs, so `ECardDispatcher` now threads a base URL through via `WebAppUrlHelper`; the in-portal preview passes an empty base URL and stays same-origin.
+
+**Coverage is partial and should be stated plainly**: 3 occasions have artwork (Halloween ×7, Anniversary ×2, Birthday ×1) against a recovered catalog spanning 19 — Norooz, Eid al-Adha, Hanukkah, Passover and the rest still need image files. The catalog is data, so each new occasion is an artwork drop plus one array entry, not a code change.
+
+**Still not live-verified** — same gap as items 61 and 62: no agent credentials this session, so nobody has clicked Send and looked at a delivered card. Clean build on both apps plus a post-deploy log check is all that backs this.
+
+**Licensing note (raised, not resolved):** the user described these as "purchased licensed images." Since e-cards are redistributed to third parties by email, the licence needs to permit commercial redistribution — worth confirming against the original purchase terms before this is promoted widely.
 
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:

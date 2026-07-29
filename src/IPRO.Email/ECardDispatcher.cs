@@ -2,6 +2,7 @@ using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace IPRO.Email;
@@ -10,12 +11,14 @@ public class ECardDispatcher
 {
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<ECardDispatcher> _logger;
 
-    public ECardDispatcher(IPRODbContext db, IEmailService email, ILogger<ECardDispatcher> logger)
+    public ECardDispatcher(IPRODbContext db, IEmailService email, IConfiguration configuration, ILogger<ECardDispatcher> logger)
     {
         _db = db;
         _email = email;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -30,7 +33,8 @@ public class ECardDispatcher
         card.Status = ECardStatuses.Sending;
         await _db.SaveChangesAsync();
 
-        var html = ECardHtmlComposer.Wrap(card, agent);
+        // Card artwork lives in the web app's wwwroot, so the email needs absolute URLs.
+        var html = ECardHtmlComposer.Wrap(card, agent, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration));
         var replyToName = $"{agent.FirstName} {agent.LastName}".Trim();
 
         var recipients = await _db.ECardRecipients

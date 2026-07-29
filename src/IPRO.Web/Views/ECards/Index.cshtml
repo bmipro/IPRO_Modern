@@ -49,7 +49,20 @@ else
           @foreach (var card in Model)
           {
             <tr>
-              <td><span class="fw-semibold">@IPRO.Entities.ECardOccasions.EmojiFor(card.Occasion) @IPRO.Entities.ECardOccasions.DisplayName(card.Occasion)</span></td>
+              @{ var cardTemplate = IPRO.Entities.ECardTemplateCatalog.Find(card.Occasion); }
+              <td>
+                @if (cardTemplate != null)
+                {
+                  <span class="d-inline-flex align-items-center gap-2">
+                    <img src="@cardTemplate.Url" alt="" style="width:54px;height:40px;object-fit:cover;border-radius:4px;" />
+                    <span><span class="fw-semibold">@cardTemplate.Occasion</span><br /><span class="text-muted small">@cardTemplate.Name</span></span>
+                  </span>
+                }
+                else
+                {
+                  <span class="text-muted">@card.Occasion</span>
+                }
+              </td>
               <td>@card.Subject</td>
               <td>@card.TotalSent / @card.TotalRecipients sent</td>
               <td><span class="badge @StatusClass(card.Status)">@card.Status</span></td>
