@@ -693,6 +693,24 @@ Revived a legacy feature (Communication → E-Card in the old SuxessPoint tool, 
 
 **Not yet live-verified** — no SuperAdmin or agent login credentials available this session to click through the Create form or confirm a real sent email; verification rests on a clean build across both apps plus (pending) a post-deploy container-log check. Worth a manual send-through next time credentials are available.
 
+### 62. Add E-Letters + the merge-field engine (done, 2026-07-29)
+
+The third leg of the legacy Communication trio, after E-Cards (item 61). User described the spectrum directly: an e-card is "short and sweet, occasion based," a newsletter is "longer, in most cases you will attach a full article" — an e-letter sits between them as a written letter addressed to a person. Like `PreDesignedECard`, `PackageFeatureCodes.PreDesignedELetters` already existed as a seeded-but-unused flag.
+
+**Mail merge, finally built.** Investigation found a *third* dormant flag — `PackageFeatureCodes.MailMerge` — and confirmed **no token-replacement engine existed anywhere in the app**; Newsletter emails have never personalized the recipient's name. New `MergeFieldResolver` (IPRO.Business) resolves 8 friendly tokens (`[First Name]`, `[Company]`, `[Advisor Phone]`, …) against a `Client` + `AgentUser`.
+- **Square brackets with spaces**, not `{{snake_case}}`: agents type these by hand into a letter body, so they have to read like English and survive retyping. Matching is case-insensitive and tolerant of inner whitespace.
+- **Values are HTML-encoded on substitution** (`ResolveHtml`) — client names and company names are user-entered data being injected into an HTML email body, so an apostrophe or angle bracket in a real name must render as text, never markup. A separate `ResolveText` handles subject lines, which aren't HTML.
+- **Single-pass regex replacement**, so a substituted value that happens to look token-shaped can't be re-expanded.
+- Deliberately built generic, not letter-specific — Newsletter and E-Cards could adopt it later without change.
+
+**Structural difference from E-Cards worth noting**: `ECardDispatcher` composes the HTML *once* and reuses it for every recipient. `ELetterDispatcher` **rebuilds subject and body inside the per-recipient loop**, since merge output differs per person. Same send plumbing otherwise (`IEmailService`, per-recipient loop, Hangfire minutely poll).
+
+**Ships with 4 starter letters** (Welcome/new client, Annual review request, Policy renewal reminder, Thanks for the referral) as full editable drafts with merge tokens already baked in — an agent discovers the feature by seeing it work rather than reading docs. The catalog is a static array in `ELetterTemplates`; adding an occasion is a few lines.
+
+**Editor UX**: template cards swap subject+body on click; merge-field chips insert at cursor; the preview pane resolves against the first *actually selected* client, so an agent sees "Dear Sarah" — not "Dear [First Name]" — before committing to a send.
+
+**Not yet live-verified** — no agent login this session to click through the composer or watch a real merged email arrive. Rests on a clean build of both apps plus a post-deploy container-log check. A real send-through is the thing to do next time credentials are available, especially to confirm merge output on a client with an empty `CompanyName`.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.

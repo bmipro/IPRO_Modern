@@ -177,6 +177,7 @@ using (var scope = app.Services.CreateScope())
     await EnsureAiUsageSchemaAsync(db);
     await EnsureTrialFeatureSchemaAsync(db);
     await EnsureECardSchemaAsync(db);
+    await EnsureELetterSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -848,6 +849,42 @@ CREATE TABLE IF NOT EXISTS `ECardRecipients` (
     `UpdatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`),
     INDEX `IX_ECardRecipients_ECardId` (`ECardId`)
+) CHARACTER SET=utf8mb4;");
+}
+
+static async Task EnsureELetterSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ELetters` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `TemplateKey` varchar(60) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Body` longtext CHARACTER SET utf8mb4 NOT NULL,
+    `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Draft',
+    `ScheduledAt` datetime(6) NOT NULL,
+    `SentAt` datetime(6) NULL,
+    `TotalRecipients` int NOT NULL DEFAULT 0,
+    `TotalSent` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ELetterRecipients` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `ELetterId` int NOT NULL,
+    `ClientId` int NOT NULL,
+    `Email` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `RecipientName` varchar(160) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Queued',
+    `SendGridMessageId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `FailureReason` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SentAt` datetime(6) NULL,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    INDEX `IX_ELetterRecipients_ELetterId` (`ELetterId`)
 ) CHARACTER SET=utf8mb4;");
 }
 

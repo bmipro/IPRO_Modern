@@ -73,6 +73,8 @@ public class IPRODbContext : DbContext
     public DbSet<SocialPostDraft> SocialPostDrafts => Set<SocialPostDraft>();
     public DbSet<ECard> ECards => Set<ECard>();
     public DbSet<ECardRecipient> ECardRecipients => Set<ECardRecipient>();
+    public DbSet<ELetter> ELetters => Set<ELetter>();
+    public DbSet<ELetterRecipient> ELetterRecipients => Set<ELetterRecipient>();
     public DbSet<PollSurvey> PollSurveys => Set<PollSurvey>();
     public DbSet<PollQuestion> PollQuestions => Set<PollQuestion>();
     public DbSet<PollOption> PollOptions => Set<PollOption>();
