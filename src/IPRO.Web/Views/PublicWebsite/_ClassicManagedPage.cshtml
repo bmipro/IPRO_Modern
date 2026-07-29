@@ -84,6 +84,12 @@
   .classic-managed .cp-gallery-grid img { width:100%; aspect-ratio:4/3; object-fit:cover; border:1px solid var(--line); }
   .classic-managed .cp-gallery-carousel { display:flex; gap:16px; margin-top:24px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:8px; }
   .classic-managed .cp-gallery-carousel img { flex:0 0 auto; width:280px; height:210px; object-fit:cover; border:1px solid var(--line); scroll-snap-align:start; }
+  .classic-managed .cp-gallery-grid img,.classic-managed .cp-gallery-carousel img { cursor:zoom-in; }
+  .cp-lightbox { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; padding:36px; background:rgba(14,33,66,.92); }
+  .cp-lightbox.is-open { display:flex; }
+  .cp-lightbox img { max-width:92vw; max-height:92vh; object-fit:contain; box-shadow:0 24px 70px rgba(0,0,0,.5); }
+  .cp-lightbox-close { position:absolute; top:22px; right:28px; width:44px; height:44px; border:0; border-radius:50%; background:rgba(255,255,255,.12); color:#fff; font-size:22px; line-height:1; cursor:pointer; }
+  .cp-lightbox-close:hover { background:rgba(255,255,255,.22); }
   @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list,.classic-managed .cp-card-grid,.classic-managed .cp-icon-row,.classic-managed .cp-quote-grid,.classic-managed .cp-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid,.classic-managed .cp-cta-split-grid{grid-template-columns:1fr}}
 </style>
 <main class="classic-managed">
@@ -289,6 +295,24 @@
       }
     </section>
   }
+}
+@if (blocks.Any(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Gallery))
+{
+  <div class="cp-lightbox" id="cp-lightbox"><button type="button" class="cp-lightbox-close" aria-label="Close">&times;</button><img src="" alt="" /></div>
+  <script nonce="@Context.GetCspNonce()">
+  (function () {
+    var lightbox = document.getElementById('cp-lightbox');
+    if (!lightbox) return;
+    var img = lightbox.querySelector('img');
+    function open(src, alt) { img.src = src; img.alt = alt || ''; lightbox.classList.add('is-open'); }
+    function close() { lightbox.classList.remove('is-open'); img.src = ''; }
+    document.querySelectorAll('.cp-gallery-grid img, .cp-gallery-carousel img').forEach(function (el) {
+      el.addEventListener('click', function () { open(el.src, el.alt); });
+    });
+    lightbox.addEventListener('click', function (e) { if (e.target === lightbox || e.target.closest('.cp-lightbox-close')) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  })();
+  </script>
 }
 </div>
 </div>
