@@ -80,7 +80,13 @@
   .modern-page .mp-cta-banner .mp-lead { margin-left:auto; margin-right:auto; }
   .modern-page .mp-cta-card { max-width:820px; margin:0 auto; padding:44px; border-radius:12px; border:1px solid #dce5f1; box-shadow:0 12px 30px rgba(15,35,70,.06); text-align:center; }
   .modern-page .mp-cta-card .mp-lead { margin-left:auto; margin-right:auto; }
-  @@media(max-width:820px){.modern-page .mp-hero-grid,.modern-page .mp-split{grid-template-columns:1fr;gap:32px}.modern-page .mp-hero{min-height:0}.modern-page .mp-hero h1{font-size:44px}.modern-page .mp-grid,.modern-page .mp-icon-grid{grid-template-columns:1fr}.modern-page .mp-hero-media{min-height:240px}.modern-page .mp-hero-media img{min-height:240px}}
+  .modern-page .mp-video-frame { position:relative; width:100%; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:8px; margin-top:20px; }
+  .modern-page .mp-video-frame iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .modern-page .mp-gallery-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:24px; }
+  .modern-page .mp-gallery-grid img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; }
+  .modern-page .mp-gallery-carousel { display:flex; gap:16px; margin-top:24px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:8px; }
+  .modern-page .mp-gallery-carousel img { flex:0 0 auto; width:280px; height:210px; object-fit:cover; border-radius:8px; scroll-snap-align:start; }
+  @@media(max-width:820px){.modern-page .mp-hero-grid,.modern-page .mp-split{grid-template-columns:1fr;gap:32px}.modern-page .mp-hero{min-height:0}.modern-page .mp-hero h1{font-size:44px}.modern-page .mp-grid,.modern-page .mp-icon-grid,.modern-page .mp-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modern-page .mp-hero-media{min-height:240px}.modern-page .mp-hero-media img{min-height:240px}}
 </style>
 <div class="site-sidebar-shell">
 @if (hasSidebar)
@@ -246,6 +252,25 @@
         <div class="fw-bold fs-4 mt-2">@mpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></div>
         @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button mt-3" href="@mpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
       </div></div></section>
+    }
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Video)
+  {
+    var mpVideo = IPRO.Entities.WebsiteVideoSettings.FromJson(block.SettingsJson);
+    var mpVideoEmbedUrl = mpVideo.BuildEmbedUrl();
+    if (!string.IsNullOrWhiteSpace(mpVideoEmbedUrl))
+    {
+      <section class="mp-section"><div class="mp-inner" style="max-width:900px"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-video-frame"><iframe src="@mpVideoEmbedUrl" title="@block.Heading" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div></div></section>
+    }
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Gallery)
+  {
+    var mpGallery = IPRO.Entities.WebsiteGallerySettings.FromJson(block.SettingsJson);
+    if (mpGallery.Images.Any())
+    {
+      <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}
+        <div class="@(block.LayoutVariant == "carousel" ? "mp-gallery-carousel" : "mp-gallery-grid")">@foreach(var galleryImage in mpGallery.Images){<img src="@galleryImage.Url" alt="@galleryImage.Caption" loading="lazy" />}</div>
+      </div></section>
     }
   }
   else

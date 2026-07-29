@@ -288,6 +288,14 @@ public class WebsitePagesController : Controller
             .Where(a => a.AgentUserId == AgentId)
             .OrderByDescending(a => a.UpdatedAt)
             .ToListAsync();
+        if (page.Blocks.Any(b => b.BlockType == WebsiteBlockTypes.Gallery))
+        {
+            var storageAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
+            var documentBytes = await _db.AgentDocuments.Where(d => d.AgentUserId == AgentId).SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
+            var galleryBytes = await GetGalleryBytesUsedAsync(AgentId);
+            ViewBag.StorageAccess = storageAccess;
+            ViewBag.StorageUsedMb = Math.Round((documentBytes + galleryBytes) / 1024.0 / 1024.0, 1);
+        }
         return View(new WebsitePageEditViewModel
         {
             Page = page,
@@ -330,7 +338,8 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0)
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
+        string videoUrl = "")
     {
         var ownedPageId = await _db.WebsiteContentBlocks
             .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
@@ -353,7 +362,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -469,6 +478,106 @@ public class WebsitePagesController : Controller
         await _db.SaveChangesAsync();
         TempData["Success"] = "Image removed from the media library.";
         return RedirectToAction(nameof(Edit), new { id = pageId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [RequestSizeLimit(8 * 1024 * 1024)]
+    public async Task<IActionResult> UploadGalleryImage(int blockId, IFormFile? image)
+    {
+        var block = await _db.WebsiteContentBlocks
+            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
+            .FirstOrDefaultAsync(b => b.Id == blockId && b.BlockType == WebsiteBlockTypes.Gallery && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
+        if (block == null) return NotFound();
+
+        if (image == null || image.Length == 0)
+        {
+            TempData["Error"] = "Choose an image to upload.";
+            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+        }
+        if (image.Length > 8 * 1024 * 1024)
+        {
+            TempData["Error"] = "Images must be 8 MB or smaller.";
+            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+        }
+
+        var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
+        var expectedContentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => string.Empty
+        };
+        if (string.IsNullOrEmpty(expectedContentType) ||
+            !string.Equals(image.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed.";
+            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+        }
+
+        await using var stream = image.OpenReadStream();
+        if (!await HasValidImageSignatureAsync(stream, extension))
+        {
+            TempData["Error"] = "That file does not contain a valid supported image.";
+            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+        }
+        stream.Position = 0;
+
+        // Gallery photos share the same per-package storage pool as Agent Documents, rather than
+        // getting a separate quota to configure -- see the "gallery images" section of the file
+        // upload capacity feature in DOCS.
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
+        var limitBytes = (long)(access.LimitValue ?? 0) * 1024 * 1024;
+        var documentBytes = await _db.AgentDocuments.Where(d => d.AgentUserId == AgentId).SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
+        var galleryBytes = await GetGalleryBytesUsedAsync(AgentId);
+        var usedBytes = documentBytes + galleryBytes;
+        if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
+        {
+            var usedMb = Math.Round(usedBytes / 1024.0 / 1024.0, 1);
+            var limitMb = access.LimitValue ?? 0;
+            TempData["Error"] = $"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used). Delete unused documents or gallery photos to free up space, or contact us to increase your storage.";
+            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+        }
+
+        var url = await _blob.UploadAsync(stream, image.FileName, "website-gallery", expectedContentType, isPrivate: false);
+        var gallerySettings = WebsiteGallerySettings.FromJson(block.SettingsJson);
+        gallerySettings.Images.Add(new WebsiteGalleryImage { Url = url, FileSizeBytes = image.Length });
+        block.SettingsJson = gallerySettings.ToJson();
+        block.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = "Photo added to gallery.";
+        return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteGalleryImage(int blockId, string url)
+    {
+        var block = await _db.WebsiteContentBlocks
+            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
+            .FirstOrDefaultAsync(b => b.Id == blockId && b.BlockType == WebsiteBlockTypes.Gallery && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
+        if (block == null) return NotFound();
+
+        var gallerySettings = WebsiteGallerySettings.FromJson(block.SettingsJson);
+        if (gallerySettings.Images.RemoveAll(i => i.Url == url) > 0)
+        {
+            await _blob.DeleteAsync(url);
+            block.SettingsJson = gallerySettings.ToJson();
+            block.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            TempData["Success"] = "Photo removed from gallery.";
+        }
+        return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+    }
+
+    private async Task<long> GetGalleryBytesUsedAsync(int agentId)
+    {
+        var galleryJsons = await _db.WebsiteContentBlocks
+            .Where(b => b.BlockType == WebsiteBlockTypes.Gallery && b.WebsitePage.AgentWebsite.AgentUserId == agentId)
+            .Select(b => b.SettingsJson)
+            .ToListAsync();
+        return galleryJsons.Sum(json => WebsiteGallerySettings.FromJson(json).TotalBytes());
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -672,7 +781,8 @@ public class WebsitePagesController : Controller
         int pollSurveyId = 0, int agentDocumentId = 0,
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
-        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0)
+        bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
+        string videoUrl = "")
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -683,7 +793,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -699,7 +809,8 @@ public class WebsitePagesController : Controller
         int pollSurveyId, int agentDocumentId,
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
-        bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int[]? articleIds, string layoutStyle = "auto", int articleId = 0)
+        bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int[]? articleIds, string layoutStyle = "auto", int articleId = 0,
+        string videoUrl = "")
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -801,6 +912,15 @@ public class WebsitePagesController : Controller
                 ArticleId = articleBelongsToAgent ? articleId : 0
             }.ToJson();
         }
+        else if (block.BlockType == WebsiteBlockTypes.Video)
+        {
+            block.SettingsJson = new WebsiteVideoSettings
+            {
+                VideoUrl = videoUrl?.Trim() ?? string.Empty
+            }.ToJson();
+        }
+        // Gallery's SettingsJson (the image list) is managed entirely by UploadGalleryImage/DeleteGalleryImage --
+        // deliberately not touched here so that saving the block's Heading/Subheading/Body never clobbers it.
     }
 
     [HttpGet]
@@ -932,6 +1052,8 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.AgentInfo => "Meet Your Agent",
             WebsiteBlockTypes.Maps => "Find Us",
             WebsiteBlockTypes.Form => "Get in touch",
+            WebsiteBlockTypes.Video => "Watch Our Video",
+            WebsiteBlockTypes.Gallery => "Photo Gallery",
             _ => "New content section"
         },
         Subheading = "Add a short supporting message.",

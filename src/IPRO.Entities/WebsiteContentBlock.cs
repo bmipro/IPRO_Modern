@@ -17,10 +17,12 @@ public static class WebsiteBlockTypes
     public const string Form = "Form";
     public const string DidYouKnow = "DidYouKnow";
     public const string ArticleContent = "ArticleContent";
+    public const string Video = "Video";
+    public const string Gallery = "Gallery";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery
     };
 
     public static string DisplayName(string type) => type switch
@@ -34,6 +36,7 @@ public static class WebsiteBlockTypes
         Form => "Custom Form",
         DidYouKnow => "Did You Know Teaser",
         ArticleContent => "Article Page",
+        Gallery => "Photo Gallery",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

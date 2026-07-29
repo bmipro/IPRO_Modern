@@ -8,6 +8,7 @@ public static class WebsiteBlockLayoutVariants
     public static readonly string[] Reviews = { "badge", "banner" };
     public static readonly string[] TestimonialForm = { "list", "grid" };
     public static readonly string[] Maps = { "full", "narrow" };
+    public static readonly string[] Gallery = { "grid", "carousel" };
 
     public static string[] AllowedFor(string blockType) => blockType switch
     {
@@ -17,6 +18,7 @@ public static class WebsiteBlockLayoutVariants
         WebsiteBlockTypes.Reviews => Reviews,
         WebsiteBlockTypes.TestimonialForm => TestimonialForm,
         WebsiteBlockTypes.Maps => Maps,
+        WebsiteBlockTypes.Gallery => Gallery,
         _ => Array.Empty<string>()
     };
 

@@ -55,7 +55,7 @@ public class SecurityHeadersMiddleware
             "img-src 'self' data: blob: https://*.blob.core.windows.net https://cdn.tiny.cloud; " +
             "font-src 'self' https://cdnjs.cloudflare.com; " +
             "connect-src 'self'; " +
-            "frame-src 'self' https://www.google.com; " +
+            "frame-src 'self' https://www.google.com https://www.youtube-nocookie.com; " +
             "frame-ancestors 'self';";
 
         // HSTS — force HTTPS for 1 year

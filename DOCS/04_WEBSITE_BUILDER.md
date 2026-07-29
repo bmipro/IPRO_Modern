@@ -222,6 +222,8 @@ Available block types include:
 - Custom Form
 - Did You Know Teaser
 - Article Page
+- Video
+- Photo Gallery
 
 Use the arrows to reorder blocks and the trash icon to remove one — this is also how you place an Agent Info Card wherever you want it on the page, since it's an ordinary block like any other.
 
@@ -243,15 +245,20 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 
 **Agent Info Card** shows your photo, name, designation/company, full mailing address, phone, and email, pulled from your Profile — tick or untick which pieces to show when you add the block (for example, show your photo and name but hide your address). Add it once and move it anywhere on any page with the reorder arrows. On the Editorial template it renders as a full byline-style card; on Modern and Classic it currently uses the same plain contact-card style as the Review Badge block, ahead of a matching visual refresh for those two templates.
 
+**Video** embeds a YouTube video on your page. Paste any YouTube video, watch, or share link when you add the block — nothing shows on your live site until the link is recognized as a valid YouTube video. Available on every package — no upgrade required.
+
+**Photo Gallery** shows a set of photos in a grid or a horizontally-scrolling carousel. Add the block, then upload photos to it directly from the page editor (JPG, PNG, GIF, or WebP, 8 MB per photo) — there's no separate step to attach existing files. Gallery photos share the same storage limit as your [Documents](12_AGENT_DOCUMENT_LIBRARY.md) library (visible as a usage bar on the block itself once you add your first photo); delete unused documents or gallery photos to free up space if you're close to the limit.
+
 ## Change a Block's Layout
 
-Services, Call to Action, Text, Review Badge, and Testimonial Submission Form blocks offer a **Layout** dropdown independent of your selected template:
+Services, Call to Action, Text, Review Badge, Testimonial Submission Form, and Photo Gallery blocks offer a **Layout** dropdown independent of your selected template:
 
 - **Services**: Cards, List, or Icons.
 - **Call to Action**: Banner, Card, or Split.
 - **Text**: Image on the left or Image on the right — only takes effect when the block has an image selected.
 - **Review Badge**: Badge (a centered card) or Banner (a full-width, colored strip matching your Call to Action banner style).
 - **Testimonial Submission Form**: List or Grid — changes how the approved testimonials below the form are arranged.
+- **Photo Gallery**: Grid or Carousel (a horizontally-scrolling row).
 
 Leave **Match template default** to use the arrangement your selected template normally uses for that block type. Changing the layout only affects that one block; other blocks and pages are unaffected. Save the block after changing its layout.
 

@@ -266,7 +266,7 @@
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
           }
-          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm or IPRO.Entities.WebsiteBlockTypes.Maps)
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm or IPRO.Entities.WebsiteBlockTypes.Maps or IPRO.Entities.WebsiteBlockTypes.Gallery)
           {
             <div class="col-md-4">
               <label class="form-label fw-semibold">Layout</label>
@@ -303,6 +303,11 @@
                 {
                   <option value="full" selected="@(block.LayoutVariant == "full" ? "selected" : null)">Full width</option>
                   <option value="narrow" selected="@(block.LayoutVariant == "narrow" ? "selected" : null)">Narrow (centered)</option>
+                }
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Gallery)
+                {
+                  <option value="grid" selected="@(block.LayoutVariant == "grid" ? "selected" : null)">Grid</option>
+                  <option value="carousel" selected="@(block.LayoutVariant == "carousel" ? "selected" : null)">Carousel (scrolling row)</option>
                 }
               </select>
               <div class="form-text">Changes how this block's items are arranged. Leave as default to match your template's usual style.@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Text ? " Only affects blocks with an image selected." : "")@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm ? " Only affects approved testimonials shown below the form." : "")</div>
@@ -463,6 +468,15 @@
               <div class="form-text">Enter your current rating and count from @reviewSettings.Platform — update here whenever they change.</div>
             </div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Video)
+          {
+            var videoSettings = IPRO.Entities.WebsiteVideoSettings.FromJson(block.SettingsJson);
+            <div class="col-12">
+              <label class="form-label fw-semibold">YouTube Video URL</label>
+              <input type="text" name="videoUrl" class="form-control" value="@videoSettings.VideoUrl" placeholder="https://www.youtube.com/watch?v=..." />
+              <div class="form-text">Paste any YouTube video, watch, or share link. @(string.IsNullOrWhiteSpace(videoSettings.BuildEmbedUrl()) && !string.IsNullOrWhiteSpace(videoSettings.VideoUrl) ? "That link doesn't look like a valid YouTube video -- nothing will show on your site until it's fixed." : "")</div>
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.AgentInfo)
           {
             var agentInfoSettings = IPRO.Entities.WebsiteAgentInfoSettings.FromJson(block.SettingsJson);
@@ -504,6 +518,53 @@
           <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><div class="d-flex gap-2"><button type="submit" formaction="/WebsitePages/PreviewUnsaved" formtarget="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview without Saving</button><button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div></div>
         </div>
       </form>
+      @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Gallery)
+      {
+        var gallerySettings = IPRO.Entities.WebsiteGallerySettings.FromJson(block.SettingsJson);
+        var storageAccess = ViewBag.StorageAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+        var storageUsedMb = (double)(ViewBag.StorageUsedMb ?? 0.0);
+        var storageLimitMb = storageAccess?.LimitValue ?? 0;
+        var storageUsedPct = storageLimitMb > 0 ? Math.Min(100.0, storageUsedMb / storageLimitMb * 100.0) : 0;
+        var storageBarClass = storageUsedPct >= 90 ? "bg-danger" : storageUsedPct >= 70 ? "bg-warning" : "bg-primary";
+        <div class="px-4 pb-4">
+          <div class="border rounded-3 p-3 mb-3" style="background:#f7faff">
+            <div class="d-flex justify-content-between align-items-center small mb-1">
+              <span class="fw-semibold">Storage used (shared with your Documents)</span>
+              <span class="text-muted">@storageUsedMb MB of @storageLimitMb MB</span>
+            </div>
+            <div class="progress" style="height:8px"><div class="progress-bar @storageBarClass" style="width:@storageUsedPct.ToString("0.0")%"></div></div>
+          </div>
+          @if (gallerySettings.Images.Any())
+          {
+            <div class="row g-3 mb-3">
+              @foreach (var galleryImage in gallerySettings.Images)
+              {
+                <div class="col-6 col-md-3 col-xl-2">
+                  <div class="border rounded p-2 h-100">
+                    <img src="@galleryImage.Url" alt="" class="w-100 rounded mb-2" style="aspect-ratio:4/3;object-fit:cover" />
+                    <form method="post" action="/WebsitePages/DeleteGalleryImage" onsubmit="return confirm('Remove this photo from the gallery?');">
+                      @Html.AntiForgeryToken()
+                      <input type="hidden" name="blockId" value="@block.Id" />
+                      <input type="hidden" name="url" value="@galleryImage.Url" />
+                      <button class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash me-1"></i>Remove</button>
+                    </form>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          else
+          {
+            <div class="border rounded p-4 text-center text-muted mb-3"><i class="fas fa-images me-2"></i>No photos in this gallery yet.</div>
+          }
+          <form method="post" action="/WebsitePages/UploadGalleryImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="blockId" value="@block.Id" />
+            <div><label class="form-label small fw-semibold mb-1">Add a photo (JPG, PNG, GIF, or WebP, maximum 8 MB)</label><input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
+            <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Add Photo</button>
+          </form>
+        </div>
+      }
     </section>
   }
 }

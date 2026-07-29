@@ -78,7 +78,13 @@
   .classic-managed .cp-cta-band.cp-cta-split { text-align:left; }
   .classic-managed .cp-cta-split-grid { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:24px; align-items:center; }
   .classic-managed .cp-cta-split-grid .cp-copy { margin-left:0; }
-  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list,.classic-managed .cp-card-grid,.classic-managed .cp-icon-row,.classic-managed .cp-quote-grid{grid-template-columns:1fr}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid,.classic-managed .cp-cta-split-grid{grid-template-columns:1fr}}
+  .classic-managed .cp-video-frame { position:relative; width:100%; padding-bottom:56.25%; height:0; overflow:hidden; border:1px solid var(--line); margin-top:20px; }
+  .classic-managed .cp-video-frame iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .classic-managed .cp-gallery-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:24px; }
+  .classic-managed .cp-gallery-grid img { width:100%; aspect-ratio:4/3; object-fit:cover; border:1px solid var(--line); }
+  .classic-managed .cp-gallery-carousel { display:flex; gap:16px; margin-top:24px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:8px; }
+  .classic-managed .cp-gallery-carousel img { flex:0 0 auto; width:280px; height:210px; object-fit:cover; border:1px solid var(--line); scroll-snap-align:start; }
+  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list,.classic-managed .cp-card-grid,.classic-managed .cp-icon-row,.classic-managed .cp-quote-grid,.classic-managed .cp-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid,.classic-managed .cp-cta-split-grid{grid-template-columns:1fr}}
 </style>
 <main class="classic-managed">
 <div class="site-sidebar-shell">
@@ -245,6 +251,25 @@
       @if(cpAgentInfo.ShowPhone && !string.IsNullOrWhiteSpace(agent.Phone)){<div class="mt-2"><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}
       @if(cpAgentInfo.ShowEmail && !string.IsNullOrWhiteSpace(agent.Email)){<div class="mt-1"><i class="fas fa-envelope me-2"></i><a href="mailto:@agent.Email">@agent.Email</a></div>}
     </div></section>
+  }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Video)
+  {
+    var cpVideo = IPRO.Entities.WebsiteVideoSettings.FromJson(block.SettingsJson);
+    var cpVideoEmbedUrl = cpVideo.BuildEmbedUrl();
+    if (!string.IsNullOrWhiteSpace(cpVideoEmbedUrl))
+    {
+      <section class="cp-section"><div style="max-width:900px;margin:0 auto"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-video-frame"><iframe src="@cpVideoEmbedUrl" title="@block.Heading" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div></div></section>
+    }
+  }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Gallery)
+  {
+    var cpGallery = IPRO.Entities.WebsiteGallerySettings.FromJson(block.SettingsJson);
+    if (cpGallery.Images.Any())
+    {
+      <section class="cp-section cp-alt"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}
+        <div class="@(block.LayoutVariant == "carousel" ? "cp-gallery-carousel" : "cp-gallery-grid")">@foreach(var galleryImage in cpGallery.Images){<img src="@galleryImage.Url" alt="@galleryImage.Caption" loading="lazy" />}</div>
+      </section>
+    }
   }
   else
   {
