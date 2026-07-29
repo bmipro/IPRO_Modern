@@ -691,7 +691,17 @@ Revived a legacy feature (Communication → E-Card in the old SuxessPoint tool, 
 
 **New pieces**: `ECard`/`ECardRecipient` entities (new tables via the same raw-SQL schema-repair pattern every table in this app uses — no real EF migrations), `ECardHtmlComposer.Wrap` (gradient = agent's own `PortalAccentColor` → a per-occasion accent, occasion headline, overlaid message, then a contact-card footer extending Newsletter's footer with Designation/Fax/Cell to match the legacy card's full signature block), `ECardDispatcher` + `ECardDispatchJob` (mirrors `NewsLetterDispatcher`/`NewsLetterDispatchJob` exactly), and `ECardsController` with a genuinely new checkbox-based multi-client picker — investigation confirmed no existing feature actually supports picking specific individual clients today (Newsletter's `SelectedClients` audience type is a defined-but-dead enum case with no UI and no dispatcher handling).
 
-**Not yet live-verified** — no SuperAdmin or agent login credentials available this session to click through the Create form or confirm a real sent email; verification rests on a clean build across both apps plus (pending) a post-deploy container-log check. Worth a manual send-through next time credentials are available.
+**Not yet live-verified** — no SuperAdmin or agent login credentials available this session to click through the Create form or confirm a real sent email; verification rests on a clean build across both apps plus a post-deploy container-log check. Worth a manual send-through next time credentials are available.
+
+> ⚠️ **What shipped is a placeholder, not a match for the legacy feature.** After this was deployed, the user supplied two screenshots of real legacy cards (an illustrated Halloween scene, a decorative "You're invited!" design) and clarified the legacy library held **54 designed templates**, not a handful. Those are commissioned illustrations with the agent's contact block composited beneath — nothing CSS can reproduce. What's live today (a gradient + emoji + headline) is functionally correct plumbing wearing the wrong clothes.
+>
+> **Legacy copy has been recovered**: `X:\ipro_related\Suxesspoint project\Cards content.docx` holds the real greeting text for ~33 designs across 19 occasions, and the wording matches the screenshots exactly (Halloween: *"Have a very special and happy Halloween"*). Critically, the real occasion list is far broader and more culturally inclusive than the 4 shipped — it covers **Norooz, Eid al-Adha, Hanukkah, and Passover** alongside Christmas/Easter/Thanksgiving/Canada Day. For a Canadian advisor product serving diverse clients, that breadth is the point, not a nice-to-have.
+>
+> **To finish this properly** (blocked on the user locating the original HTML/artwork):
+> 1. Change the template model from a code-generated enum to **stored HTML fragments + image assets**.
+> 2. Upload artwork to blob storage — email needs absolute image URLs, so files can't stay local.
+> 3. Seed the real occasion catalog and greeting copy from the docx above.
+> 4. Keep the generated contact-card footer and the whole send/schedule pipeline — that part of the current build carries over unchanged.
 
 ### 62. Add E-Letters + the merge-field engine (done, 2026-07-29)
 
