@@ -655,6 +655,17 @@ Item 31 fixed Editorial's weak Hero "no image" fallback and lack of section vari
 
 **Verification**: build clean. Verified live on `raniahmotamed.247advisers.com` (Classic, no login needed — public pages): the Home page's Hero has no image and `layout-split` — confirmed the monogram fallback renders correctly, including the `hero-style-clean` body-class variant (light box, dark monogram) actually being the active variant on this site. Confirmed the new `.cp-alt` tint renders on both a Services block ("How we can help") and a Reviews block ("So proud of this achievment") on two different pages of the same site. Could not verify Modern live — no known live Modern-template site available this session, and no SuperAdmin/agent login credentials to create one — so Modern's fix rests on build success and the same code pattern already proven correct by Editorial's and Classic's live-verified implementations, not an actual click-through.
 
+### 59. Fix agent-facing timestamps showing raw UTC instead of agent's timezone (done, 2026-07-29)
+
+User noticed a lead-submission timestamp on the Dashboard showing a time several hours off from Eastern for a demo account. Root cause: 16 places across both apps used `DateTime.ToLocalTime()`, which converts to the *server's* OS timezone — Azure App Service runs UTC by default, so it was a silent no-op, effectively displaying raw UTC everywhere it was used. `AgentTimeZoneHelper` (`FromUtc`/`ToUtc`/`Normalize`, keyed off `AgentUser.TimeZone`) already existed and was already used correctly by Newsletter and Polls — it just hadn't been applied everywhere.
+
+Fixed the 8 agent-facing spots in IPRO.Web: Dashboard's "New Website Leads" widget, Website Leads list/details/CSV export, Portal Messages inbox/thread, Portal Requests list, and the Website page's domain last-checked timestamp. Added `AgentTimeZoneHelper.ResolveForAgentAsync(IPRODbContext, agentId)` so each controller doesn't need its own copy of the "load agent, normalize timezone" boilerplate that Newsletter/Polls each had separately.
+
+**Deliberately left for a separate pass** (scoped out with the user):
+- **Client Portal pages** (`ClientPortalAppointments`/`Documents`/`Messages`) — viewed by clients, not the agent; showing "the agent's timezone" here needs an extra client→agent lookup per view.
+- **SuperAdmin pages in IPRO.Admin** (`Agents/Details`, `Domains`, `EmailSetup`, `WebsiteLeads`) — viewed by internal staff across many agents at once, so converting to any single "the" agent's timezone may not even be the right call there.
+- **`PortalRequestsController.Schedule`** — noticed in passing: this action takes a `datetime-local` value straight from the agent's own form post and saves it with no UTC conversion at all (unlike everything above, which reads a true-UTC column and just displayed it wrong). Left untouched since it currently round-trips correctly for its own display, but anything else that compares `PortalAppointmentRequest.ScheduledAt`/`ClientFollowUp.DueAt` against `DateTime.UtcNow` (e.g. a future reminder job) would see a multi-hour skew. Worth a dedicated look if follow-up reminders on scheduled portal appointments are ever built.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
