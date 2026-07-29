@@ -1,9 +1,9 @@
 @{
     ViewData["Title"] = "Write a Letter";
-    var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.ELetterTemplate>) ?? Enumerable.Empty<IPRO.Entities.ELetterTemplate>();
+    var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.ELetterTemplate>) ?? IPRO.Entities.ELetterTemplates.All;
     var mergeFields = (ViewBag.MergeFields as IEnumerable<IPRO.Business.Services.MergeFieldResolver.MergeField>) ?? Enumerable.Empty<IPRO.Business.Services.MergeFieldResolver.MergeField>();
     var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
-    var selected = ViewBag.SelectedTemplate as IPRO.Entities.ELetterTemplate;
+    var selected = ViewBag.SelectedTemplate as IPRO.Entities.ELetterTemplate ?? IPRO.Entities.ELetterTemplates.All[0];
     var agentNow = ViewBag.AgentNow as DateTime? ?? DateTime.Now;
     var scheduledMinValue = agentNow.ToString("yyyy-MM-ddTHH:mm");
     var scheduledDefaultValue = agentNow.AddHours(1).ToString("yyyy-MM-ddTHH:mm");
@@ -21,7 +21,7 @@
 
 <form asp-action="Create" method="post">
   @Html.AntiForgeryToken()
-  <input type="hidden" name="templateKey" id="templateKey" value="@(selected?.Key)" />
+  <input type="hidden" name="templateKey" id="templateKey" value="@selected.Key" />
   <div class="row g-4">
     <div class="col-lg-7">
 
@@ -34,7 +34,7 @@
           <div class="template-grid">
             @foreach (var template in templates)
             {
-              <button type="button" class="template-choice @(template.Key == selected?.Key ? "is-selected" : "")"
+              <button type="button" class="template-choice @(template.Key == selected.Key ? "is-selected" : "")"
                       data-key="@template.Key"
                       data-subject="@template.Subject"
                       data-body="@template.Body">
@@ -53,11 +53,11 @@
         <div class="card-body p-4">
           <div class="mb-3">
             <label class="form-label fw-semibold">Email subject</label>
-            <input id="subjectInput" name="subject" class="form-control" maxlength="200" value="@(selected?.Subject)" required />
+            <input id="subjectInput" name="subject" class="form-control" maxlength="200" value="@selected.Subject" required />
           </div>
           <div class="mb-2">
             <label class="form-label fw-semibold">Letter body</label>
-            <textarea id="bodyInput" name="body" class="form-control" rows="16" required>@(selected?.Body)</textarea>
+            <textarea id="bodyInput" name="body" class="form-control" rows="16" required>@selected.Body</textarea>
           </div>
           <div class="merge-help">
             <div class="small fw-semibold mb-2">Insert a personalized field <span class="text-muted fw-normal">— click to add at your cursor</span></div>

@@ -17,10 +17,9 @@ public static class ECardHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
 
-    // The design is passed in rather than looked up: the composer runs inside the dispatcher's
-    // per-send loop and inside the preview action, both of which already have a DbContext open.
-    public static string Wrap(ECard card, AgentUser agent, ECardDesign template, string baseUrl)
+    public static string Wrap(ECard card, AgentUser agent, string baseUrl)
     {
+        var template = ECardTemplateCatalog.Find(card.Occasion) ?? ECardTemplateCatalog.Default;
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
 
         var header = string.IsNullOrWhiteSpace(card.Subject) ? template.DefaultHeaderText : card.Subject;
@@ -33,7 +32,7 @@ public static class ECardHtmlComposer
         var width = template.IsArtwork ? Math.Min(template.Width, 620) : 600;
 
         var face = template.IsArtwork
-            ? BuildArtworkFace(ResolveArtUrl(template.ImageUrl, baseUrl), width, template)
+            ? BuildArtworkFace($"{baseUrl.TrimEnd('/')}{template.Url}", width, template)
             : BuildGeneratedFace(template, accent);
 
         return $"""
@@ -52,15 +51,7 @@ public static class ECardHtmlComposer
             """;
     }
 
-    // Designs seeded into wwwroot carry a site-relative path and need the base URL prepended for
-    // email; anything uploaded to blob storage since is already absolute and must be left alone.
-    private static string ResolveArtUrl(string imageUrl, string baseUrl) =>
-        imageUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-        imageUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-            ? imageUrl
-            : $"{baseUrl.TrimEnd('/')}{imageUrl}";
-
-    private static string BuildArtworkFace(string artUrl, int width, ECardDesign template) =>
+    private static string BuildArtworkFace(string artUrl, int width, ECardTemplate template) =>
         $"""
         <tr><td style="padding:0;line-height:0;font-size:0;">
           <img src="{WebUtility.HtmlEncode(artUrl)}" width="{width}" alt="{WebUtility.HtmlEncode(template.Name)}"
@@ -70,7 +61,7 @@ public static class ECardHtmlComposer
 
     // The simple cards: a gradient from the agent's own accent to the card's, with the emoji as
     // the whole face. Outlook ignores the gradient and falls back to the flat accent, which is fine.
-    private static string BuildGeneratedFace(ECardDesign template, string agentAccent) =>
+    private static string BuildGeneratedFace(ECardTemplate template, string agentAccent) =>
         $"""
         <tr>
           <td align="center" bgcolor="{WebUtility.HtmlEncode(agentAccent)}"

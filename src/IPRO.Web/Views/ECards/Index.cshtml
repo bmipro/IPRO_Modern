@@ -49,18 +49,14 @@ else
           @foreach (var card in Model)
           {
             <tr>
-              @{
-                var designs = ViewBag.Designs as IDictionary<string, IPRO.Entities.ECardDesign>;
-                IPRO.Entities.ECardDesign? cardTemplate = null;
-                designs?.TryGetValue(card.Occasion ?? string.Empty, out cardTemplate);
-              }
+              @{ var cardTemplate = IPRO.Entities.ECardTemplateCatalog.Find(card.Occasion); }
               <td>
                 @if (cardTemplate != null)
                 {
                   <span class="d-inline-flex align-items-center gap-2">
                     @if (cardTemplate.IsArtwork)
                     {
-                      <img src="@cardTemplate.ImageUrl" alt="" style="width:54px;height:40px;object-fit:cover;border-radius:4px;" />
+                      <img src="@cardTemplate.Url" alt="" style="width:54px;height:40px;object-fit:cover;border-radius:4px;" />
                     }
                     else
                     {

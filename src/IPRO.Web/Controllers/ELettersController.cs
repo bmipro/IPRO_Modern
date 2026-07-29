@@ -36,8 +36,6 @@ public class ELettersController : Controller
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();
-        // Every template, including retired ones -- the list has to label historical letters.
-        ViewBag.Templates = await _db.ELetterTemplates.AsNoTracking().ToDictionaryAsync(t => t.Key);
         return View(letters);
     }
 
@@ -47,7 +45,7 @@ public class ELettersController : Controller
         if (gate != null) return gate;
 
         await LoadCreateContextAsync();
-        ViewBag.SelectedTemplate = await ResolveTemplateAsync(template);
+        ViewBag.SelectedTemplate = ELetterTemplates.Find(template) ?? ELetterTemplates.All[0];
         return View();
     }
 
@@ -66,7 +64,7 @@ public class ELettersController : Controller
         {
             TempData["Error"] = "Enter a subject and letter body, and select at least one client.";
             await LoadCreateContextAsync();
-            ViewBag.SelectedTemplate = await ResolveTemplateAsync(templateKey);
+            ViewBag.SelectedTemplate = ELetterTemplates.Find(templateKey) ?? ELetterTemplates.All[0];
             return View();
         }
 
@@ -77,7 +75,7 @@ public class ELettersController : Controller
         {
             TempData["Error"] = "None of the selected clients have an email address on file.";
             await LoadCreateContextAsync();
-            ViewBag.SelectedTemplate = await ResolveTemplateAsync(templateKey);
+            ViewBag.SelectedTemplate = ELetterTemplates.Find(templateKey) ?? ELetterTemplates.All[0];
             return View();
         }
 
@@ -85,9 +83,7 @@ public class ELettersController : Controller
         var letter = new ELetter
         {
             AgentUserId = AgentId,
-            // The template is only a starting point -- Subject and Body are already copies the
-            // agent has edited. The key is kept purely so the list can label the letter.
-            TemplateKey = (await ResolveTemplateAsync(templateKey))?.Key ?? string.Empty,
+            TemplateKey = ELetterTemplates.Find(templateKey)?.Key ?? string.Empty,
             Subject = subject,
             Body = body,
             Status = ELetterStatuses.Scheduled,
@@ -139,7 +135,7 @@ public class ELettersController : Controller
 
     private async Task LoadCreateContextAsync()
     {
-        ViewBag.Templates = await ActiveTemplatesAsync();
+        ViewBag.Templates = ELetterTemplates.All;
         ViewBag.MergeFields = MergeFieldResolver.AvailableFields;
         ViewBag.Clients = await _db.Clients
             .Where(c => c.AgentUserId == AgentId && !string.IsNullOrWhiteSpace(c.Email))
@@ -148,20 +144,6 @@ public class ELettersController : Controller
         var timeZone = await GetAgentTimeZoneAsync();
         ViewBag.AgentTimeZone = timeZone;
         ViewBag.AgentNow = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, timeZone);
-    }
-
-    private async Task<List<ELetterTemplate>> ActiveTemplatesAsync() =>
-        await _db.ELetterTemplates.AsNoTracking()
-            .Where(t => t.IsActive)
-            .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)
-            .ToListAsync();
-
-    // Falls back to the first active template so the composer always opens with something in it,
-    // even if the requested key was retired between the agent loading the page and posting it.
-    private async Task<ELetterTemplate?> ResolveTemplateAsync(string? key)
-    {
-        var templates = await ActiveTemplatesAsync();
-        return templates.FirstOrDefault(t => t.Key == key) ?? templates.FirstOrDefault();
     }
 
     private async Task<string> GetAgentTimeZoneAsync()

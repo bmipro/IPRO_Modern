@@ -75,8 +75,6 @@ public class IPRODbContext : DbContext
     public DbSet<ECardRecipient> ECardRecipients => Set<ECardRecipient>();
     public DbSet<ELetter> ELetters => Set<ELetter>();
     public DbSet<ELetterRecipient> ELetterRecipients => Set<ELetterRecipient>();
-    public DbSet<ECardDesign> ECardDesigns => Set<ECardDesign>();
-    public DbSet<ELetterTemplate> ELetterTemplates => Set<ELetterTemplate>();
     public DbSet<PollSurvey> PollSurveys => Set<PollSurvey>();
     public DbSet<PollQuestion> PollQuestions => Set<PollQuestion>();
     public DbSet<PollOption> PollOptions => Set<PollOption>();

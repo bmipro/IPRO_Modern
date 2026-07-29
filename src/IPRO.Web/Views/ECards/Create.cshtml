@@ -1,6 +1,6 @@
 @{
     ViewData["Title"] = "Send an E-Card";
-    var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.ECardDesign>) ?? Enumerable.Empty<IPRO.Entities.ECardDesign>();
+    var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.ECardTemplate>) ?? IPRO.Entities.ECardTemplateCatalog.All;
     var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
     var agentNow = ViewBag.AgentNow as DateTime? ?? DateTime.Now;
     var scheduledMinValue = agentNow.ToString("yyyy-MM-ddTHH:mm");
@@ -39,7 +39,7 @@
                          checked="@(template.Key == templates.First().Key ? "checked" : null)" />
                   @if (template.IsArtwork)
                   {
-                    <img src="@template.ImageUrl" alt="@template.Name" loading="lazy" />
+                    <img src="@template.Url" alt="@template.Name" loading="lazy" />
                   }
                   else
                   {

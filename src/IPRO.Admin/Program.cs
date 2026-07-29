@@ -48,8 +48,6 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAgentService, AgentService>();
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
 builder.Services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
-// Admin uploads e-card artwork, so it needs blob storage too -- same registration as IPRO.Web.
-builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
@@ -180,7 +178,6 @@ using (var scope = app.Services.CreateScope())
     await EnsureTrialFeatureSchemaAsync(db);
     await EnsureECardSchemaAsync(db);
     await EnsureELetterSchemaAsync(db);
-    await EnsureECardDesignSchemaAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -369,8 +366,6 @@ CREATE TABLE IF NOT EXISTS `NewsLetterTemplates` (
 ) CHARACTER SET=utf8mb4;");
 
     await NewsLetterTemplateSeeder.SeedAsync(db);
-    await ECardDesignSeeder.SeedAsync(db);
-    await ELetterTemplateSeeder.SeedAsync(db);
 }
 
 static async Task EnsureDidYouKnowEmailQueueSchemaAsync(IPRODbContext db)
@@ -819,47 +814,6 @@ CREATE TABLE IF NOT EXISTS `SocialPostDrafts` (
     {
         await db.Database.CloseConnectionAsync();
     }
-}
-
-static async Task EnsureECardDesignSchemaAsync(IPRODbContext db)
-{
-    await db.Database.ExecuteSqlRawAsync(@"
-CREATE TABLE IF NOT EXISTS `ECardDesigns` (
-    `Id` int NOT NULL AUTO_INCREMENT,
-    `Key` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Occasion` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Name` varchar(120) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Kind` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'image',
-    `DefaultHeaderText` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `DefaultMessage` varchar(600) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `ImageUrl` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Width` int NOT NULL DEFAULT 0,
-    `Height` int NOT NULL DEFAULT 0,
-    `Accent` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Emoji` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `IsDark` tinyint(1) NOT NULL DEFAULT 1,
-    `IsActive` tinyint(1) NOT NULL DEFAULT 1,
-    `SortOrder` int NOT NULL DEFAULT 0,
-    `CreatedAt` datetime(6) NOT NULL,
-    `UpdatedAt` datetime(6) NOT NULL,
-    PRIMARY KEY (`Id`),
-    UNIQUE INDEX `IX_ECardDesigns_Key` (`Key`)
-) CHARACTER SET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS `ELetterTemplates` (
-    `Id` int NOT NULL AUTO_INCREMENT,
-    `Key` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Name` varchar(120) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Description` varchar(400) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Subject` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-    `Body` longtext CHARACTER SET utf8mb4 NOT NULL,
-    `IsActive` tinyint(1) NOT NULL DEFAULT 1,
-    `SortOrder` int NOT NULL DEFAULT 0,
-    `CreatedAt` datetime(6) NOT NULL,
-    `UpdatedAt` datetime(6) NOT NULL,
-    PRIMARY KEY (`Id`),
-    UNIQUE INDEX `IX_ELetterTemplates_Key` (`Key`)
-) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsureECardSchemaAsync(IPRODbContext db)

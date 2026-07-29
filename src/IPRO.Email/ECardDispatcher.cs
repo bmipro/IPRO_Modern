@@ -30,24 +30,11 @@ public class ECardDispatcher
         var agent = await _db.AgentUsers.FirstOrDefaultAsync(a => a.Id == card.AgentUserId);
         if (agent == null) return;
 
-        // Resolve the design even if SuperAdmin has since retired it -- a scheduled card must
-        // still send with the artwork the agent picked, not silently fall back to something else.
-        var design = await _db.ECardDesigns.AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Key == card.Occasion);
-        if (design == null)
-        {
-            _logger.LogError("E-card {ECardId} references unknown design '{Key}' -- not sending.", card.Id, card.Occasion);
-            card.Status = ECardStatuses.Failed;
-            card.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-            return;
-        }
-
         card.Status = ECardStatuses.Sending;
         await _db.SaveChangesAsync();
 
         // Card artwork lives in the web app's wwwroot, so the email needs absolute URLs.
-        var html = ECardHtmlComposer.Wrap(card, agent, design, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration));
+        var html = ECardHtmlComposer.Wrap(card, agent, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration));
         var replyToName = $"{agent.FirstName} {agent.LastName}".Trim();
 
         var recipients = await _db.ECardRecipients

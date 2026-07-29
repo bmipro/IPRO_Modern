@@ -131,19 +131,6 @@
         }
         @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
         {
-          <div class="nav-section">Cards &amp; Letters</div>
-          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "ECardDesigns" ? "active" : "")" href="/ECardDesigns">
-              <i class="fas fa-gift"></i>E-Card Designs
-          </a>
-          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "ELetterTemplates" ? "active" : "")" href="/ELetterTemplates">
-              <i class="fas fa-file-lines"></i>E-Letter Templates
-          </a>
-          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "CardLetterActivity" ? "active" : "")" href="/CardLetterActivity">
-              <i class="fas fa-paper-plane"></i>Card &amp; Letter Activity
-          </a>
-        }
-        @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
-        {
           <div class="nav-section">Billing</div>
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Packages" ? "active" : "")" href="/Packages">
               <i class="fas fa-box"></i>Packages

@@ -37,8 +37,6 @@ public class ECardsController : Controller
             .ToListAsync();
         var timeZone = await GetAgentTimeZoneAsync();
         ViewBag.AgentTimeZone = timeZone;
-        // Every design, including retired ones -- the list has to render historical sends.
-        ViewBag.Designs = await _db.ECardDesigns.AsNoTracking().ToDictionaryAsync(d => d.Key);
         return View(cards);
     }
 
@@ -58,17 +56,8 @@ public class ECardsController : Controller
         var gate = await RequireECardAccessAsync();
         if (gate != null) return gate;
 
-        // `occasion` carries the design key -- see the note on ECard.Occasion. Only an active
-        // design may be chosen; anything else falls back to the first one on offer.
-        var chosen = await _db.ECardDesigns.AsNoTracking()
-            .FirstOrDefaultAsync(d => d.IsActive && d.Key == occasion)
-            ?? await FirstActiveDesignAsync();
-        if (chosen == null)
-        {
-            TempData["Error"] = "No e-card designs are available right now.";
-            return RedirectToAction(nameof(Index));
-        }
-        occasion = chosen.Key;
+        // `occasion` carries the template key -- see the note on ECard.Occasion.
+        occasion = (ECardTemplateCatalog.Find(occasion) ?? ECardTemplateCatalog.Default).Key;
         subject = subject?.Trim() ?? string.Empty;
         message = message?.Trim() ?? string.Empty;
         var selectedIds = (clientIds ?? Array.Empty<int>()).Distinct().ToList();
@@ -133,23 +122,21 @@ public class ECardsController : Controller
         var agent = await _db.AgentUsers.FirstOrDefaultAsync(a => a.Id == AgentId);
         if (agent == null) return NotFound();
 
-        var design = await _db.ECardDesigns.AsNoTracking().FirstOrDefaultAsync(d => d.Key == occasion)
-            ?? await FirstActiveDesignAsync();
-        if (design == null) return NotFound();
+        var template = ECardTemplateCatalog.Find(occasion) ?? ECardTemplateCatalog.Default;
         var card = new ECard
         {
-            Occasion = design.Key,
+            Occasion = template.Key,
             Subject = subject ?? string.Empty,
             Message = message ?? string.Empty,
         };
         // Relative art URLs are fine here -- the preview renders inside the portal, same origin.
-        var html = ECardHtmlComposer.Wrap(card, agent, design, string.Empty);
+        var html = ECardHtmlComposer.Wrap(card, agent, string.Empty);
         return Content(html, "text/html");
     }
 
     private async Task LoadCreateContextAsync()
     {
-        ViewBag.Templates = await ActiveDesignsAsync();
+        ViewBag.Templates = ECardTemplateCatalog.All;
         ViewBag.Clients = await _db.Clients
             .Where(c => c.AgentUserId == AgentId && !string.IsNullOrWhiteSpace(c.Email))
             .OrderBy(c => c.LastName).ThenBy(c => c.FirstName)
@@ -158,18 +145,6 @@ public class ECardsController : Controller
         ViewBag.AgentTimeZone = timeZone;
         ViewBag.AgentNow = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, timeZone);
     }
-
-    private async Task<List<ECardDesign>> ActiveDesignsAsync() =>
-        await _db.ECardDesigns.AsNoTracking()
-            .Where(d => d.IsActive)
-            .OrderBy(d => d.SortOrder).ThenBy(d => d.Id)
-            .ToListAsync();
-
-    private async Task<ECardDesign?> FirstActiveDesignAsync() =>
-        await _db.ECardDesigns.AsNoTracking()
-            .Where(d => d.IsActive)
-            .OrderBy(d => d.SortOrder).ThenBy(d => d.Id)
-            .FirstOrDefaultAsync();
 
     private async Task<string> GetAgentTimeZoneAsync()
     {
