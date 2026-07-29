@@ -19,67 +19,117 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>IPRO Advisers Registration</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet"/>
 <style>
-:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#d7deea;--soft:#f6f8fb;--blue:#1457d9;--blue2:#0d3f9e;--gold:#f2b400;--danger:#c9182b;}
+:root{
+  color-scheme:light;
+  --ink:#172033;--muted:#667085;--line:#dbe2ee;--soft:#f6f8fb;
+  --blue:#1457d9;--blue2:#0d3f9e;--navy:#0a1c37;
+  --blue-soft:#eef4ff;--blue-soft-line:#d7e4fb;
+  --gold:#e8ab1f;--gold-soft:#fff6e2;
+  --danger:#c9182b;--danger-soft:#fff2f4;
+}
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;min-height:100%;background:linear-gradient(180deg,#f7f9fd 0%,#edf2f8 100%);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,Helvetica,sans-serif;font-size:15px;}
-body:before{content:"";position:fixed;inset:0 0 auto 0;height:180px;background:linear-gradient(90deg,#102445,#1d59c9);z-index:-1;}
-.page{width:min(1080px,calc(100% - 32px));margin:0 auto 48px;padding-top:28px;}
-.shell{background:#fff;border:1px solid rgba(215,222,234,.8);box-shadow:0 24px 70px rgba(18,38,73,.16);border-radius:18px;overflow:hidden;}
-.hero{display:flex;justify-content:space-between;gap:24px;align-items:center;padding:30px 34px;border-bottom:1px solid #cbd5e1;background:linear-gradient(180deg,#e6ebf3 0%,#dbe3ee 100%);}
-.brand-mark{display:flex;align-items:center;justify-content:center;max-width:430px;padding:10px 0;}
-.logo{display:block;width:min(380px,100%);height:auto;filter:drop-shadow(0 8px 16px rgba(16,32,51,.16));}
-.hero-copy{max-width:360px;text-align:right;}
-.eyebrow{font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
-.hero h1{font-size:28px;line-height:1.1;margin:0 0 8px;font-weight:800;}
+html,body{margin:0;padding:0;min-height:100%;background:#eef2f8;color:var(--ink);font-family:"Segoe UI",Roboto,Arial,Helvetica,sans-serif;font-size:15px;}
+body:before{
+  content:"";position:fixed;inset:0 0 auto 0;height:280px;
+  background:
+    radial-gradient(900px 420px at 12% -10%,rgba(255,255,255,.10),transparent 60%),
+    linear-gradient(115deg,var(--navy) 0%,var(--blue2) 55%,var(--blue) 100%);
+  z-index:-1;
+}
+.page{width:min(1080px,calc(100% - 32px));margin:0 auto 56px;padding-top:44px;}
+.shell{background:#fff;border:1px solid rgba(215,222,234,.7);box-shadow:0 30px 80px rgba(10,28,55,.28);border-radius:20px;overflow:hidden;}
+
+.hero{
+  position:relative;display:flex;justify-content:space-between;gap:24px;align-items:center;
+  padding:36px 38px;border-bottom:1px solid #e2e8f2;overflow:hidden;
+  background:
+    radial-gradient(520px 220px at 100% -20%,rgba(232,171,31,.14),transparent 65%),
+    linear-gradient(180deg,#f3f6fb 0%,#e8edf6 100%);
+}
+.hero:after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--blue),var(--navy));}
+.brand-mark{display:flex;align-items:center;justify-content:center;max-width:400px;padding:6px 0;}
+.logo{display:block;width:min(340px,100%);height:auto;filter:drop-shadow(0 8px 16px rgba(16,32,51,.16));}
+.hero-copy{max-width:380px;text-align:right;}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--blue2);text-transform:uppercase;letter-spacing:.09em;margin-bottom:10px;}
+.eyebrow:before{content:"";width:16px;height:2px;background:var(--gold);border-radius:2px;}
+.hero h1{font-family:Georgia,Cambria,"Times New Roman",serif;font-size:30px;line-height:1.15;margin:0 0 10px;font-weight:700;color:var(--navy);}
 .hint{margin:0;color:var(--muted);font-size:13px;}
 .required{color:var(--danger);font-weight:800;}
-.validation{margin:24px 34px 0;padding:14px 16px;border:1px solid #f1adb6;background:#fff2f4;color:#8a0010;border-radius:10px;font-size:14px;}
-form{padding:28px 34px 34px;}
+
+.validation{margin:24px 38px 0;padding:14px 16px;border:1px solid #f1adb6;background:var(--danger-soft);color:#8a0010;border-radius:10px;font-size:14px;}
+
+form{padding:32px 38px 38px;display:flex;flex-direction:column;gap:22px;}
+
+.field-card{border:1px solid var(--line);background:var(--soft);border-radius:16px;padding:22px 24px 26px;}
+.field-card-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.field-card-icon{
+  display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;
+  background:var(--blue-soft);color:var(--blue2);font-size:14px;flex:none;
+  box-shadow:inset 0 0 0 1px var(--blue-soft-line);
+}
+.field-card-head h2{margin:0;font-size:13px;font-weight:800;color:#344054;text-transform:uppercase;letter-spacing:.07em;}
+
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;}
-.section{grid-column:1/-1;margin:8px 0 -2px;padding-bottom:10px;border-bottom:1px solid #e8edf5;font-size:13px;font-weight:800;color:#344054;text-transform:uppercase;letter-spacing:.06em;}
 .form-row{display:flex;flex-direction:column;gap:7px;margin:0;}
 .form-row label{font-size:13px;font-weight:700;color:#26364f;}
 input[type=text],input[type=email],input[type=password],select,textarea{width:100%;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s,background .15s;}
 input[type=text],input[type=email],input[type=password],select{height:43px;padding:9px 12px;}
-input:focus,select:focus,textarea:focus{border-color:#6d96ee;box-shadow:0 0 0 4px rgba(20,87,217,.12);}
+input:focus,select:focus,textarea:focus{border-color:#6d96ee;box-shadow:0 0 0 4px rgba(20,87,217,.14);}
 select{appearance:auto;}
+
 .agreement-row{grid-column:1/-1;}
-textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.45;white-space:pre-wrap;background:#fbfcff;}
-.verify-row{display:grid;grid-template-columns:minmax(160px,260px) auto 1fr;gap:12px;align-items:end;}
+.terms-box{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:inset 0 2px 10px rgba(16,32,51,.05);overflow:hidden;}
+.terms-box-head{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f4f7fb;border-bottom:1px solid var(--line);font-size:12px;font-weight:800;color:#4a5670;text-transform:uppercase;letter-spacing:.06em;}
+.terms-box-head i{color:var(--blue2);}
+textarea{height:200px;padding:14px;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;background:#fbfcff;border:0;border-radius:0;}
+textarea:focus{box-shadow:none;}
+
+.verify-row{display:grid;grid-template-columns:minmax(160px,240px) auto 1fr;gap:12px;align-items:end;}
 .verify-row label{grid-column:1/-1;}
-.verify-code{display:inline-flex;align-items:center;gap:3px;min-height:43px;padding:0 12px;border:1px dashed #c6cfdd;border-radius:9px;background:#f9fbff;font-weight:800;font-size:20px;letter-spacing:4px;font-family:Georgia,serif;vertical-align:middle;}
-.verify-code span:nth-child(4n+1){color:#d10000;transform:rotate(-8deg);display:inline-block;}
-.verify-code span:nth-child(4n+2){color:#111;transform:rotate(8deg);display:inline-block;}
-.verify-code span:nth-child(4n+3){color:#1746d8;transform:rotate(-5deg);display:inline-block;}
-.verify-code span:nth-child(4n+4){color:#009a63;transform:rotate(6deg);display:inline-block;}
-.terms-check{grid-column:1/-1;display:flex;align-items:flex-start;gap:10px;margin-top:4px;font-size:14px;color:#344054;}
+.verify-code{
+  display:inline-flex;align-items:center;gap:7px;min-height:43px;padding:0 16px;border-radius:9px;
+  background:linear-gradient(180deg,var(--navy),var(--blue2));color:#fff;
+  font-weight:800;font-size:19px;letter-spacing:6px;font-family:Georgia,serif;vertical-align:middle;
+  box-shadow:0 8px 18px rgba(13,63,158,.28);
+}
+.verify-hint{grid-column:1/-1;margin:-4px 0 0;font-size:12.5px;color:var(--muted);}
+
+.terms-check{display:flex;align-items:flex-start;gap:10px;margin-top:14px;font-size:14px;color:#344054;}
 .terms-check input{width:18px;height:18px;margin-top:1px;accent-color:var(--blue);}
-.footer-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:8px;padding-top:22px;border-top:1px solid #e8edf5;}
-.payment img{display:block;width:150px;height:auto;}
-.submit-row{display:flex;align-items:center;gap:16px;}
-.submit-button{min-width:176px;height:46px;border:0;border-radius:999px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;font-size:15px;font-weight:800;letter-spacing:.2px;box-shadow:0 10px 22px rgba(20,87,217,.25);cursor:pointer;transition:transform .15s,box-shadow .15s,filter .15s;}
-.submit-button:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(20,87,217,.3);filter:saturate(1.08);}
-.signin{font-size:14px;color:var(--blue);font-weight:700;text-decoration:none;}
+
+.footer-bar{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-top:4px;}
+.payment{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;}
+.payment img{display:block;width:140px;height:auto;}
+.submit-row{display:flex;align-items:center;gap:18px;}
+.submit-button{
+  display:inline-flex;align-items:center;gap:10px;min-width:196px;height:48px;padding:0 26px;border:0;border-radius:999px;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;font-size:15px;font-weight:800;letter-spacing:.2px;
+  box-shadow:0 12px 26px rgba(20,87,217,.3);cursor:pointer;transition:transform .15s,box-shadow .15s,filter .15s;
+}
+.submit-button:hover{transform:translateY(-1px);box-shadow:0 16px 32px rgba(20,87,217,.36);filter:saturate(1.08);}
+.signin{font-size:14px;color:var(--blue2);font-weight:700;text-decoration:none;}
 .signin:hover{text-decoration:underline;}
+
 @@media(max-width:760px){
-  body:before{height:130px;}
-  .page{width:calc(100% - 20px);margin-bottom:24px;padding-top:10px;}
+  .page{width:calc(100% - 20px);margin-bottom:24px;padding-top:22px;}
   .shell{border-radius:14px;}
-  .hero{display:block;padding:22px 18px;}
+  .hero{display:block;padding:24px 20px;}
   .brand-mark{max-width:none;padding:15px 16px;}
   .hero-copy{text-align:left;margin-top:18px;}
   .hero h1{font-size:23px;}
-  form{padding:20px 18px 24px;}
+  form{padding:20px 18px 26px;gap:16px;}
+  .field-card{padding:18px 16px 20px;}
   .form-grid{grid-template-columns:1fr;gap:15px;}
   .validation{margin:18px 18px 0;}
   textarea{height:210px;}
   .verify-row{grid-template-columns:1fr auto;}
   .verify-code{justify-content:center;}
-  .footer-actions{display:block;}
-  .payment{margin-bottom:18px;}
+  .footer-bar{display:block;}
+  .payment{margin-bottom:16px;}
   .submit-row{align-items:stretch;flex-direction:column;}
-  .submit-button{width:100%;}
+  .submit-button{width:100%;justify-content:center;}
 }
 </style>
 </head>
@@ -103,7 +153,7 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
   }
   @if (trialPackage != null)
   {
-    <div class="validation" style="background:#eef5ff;border-color:#cfe0ff;color:#244575;">
+    <div class="validation" style="background:var(--blue-soft);border-color:var(--blue-soft-line);color:#244575;">
       You're claiming your invited free trial of <strong>@trialPackage.PackageName</strong>@(trialPackage.TrialDurationDays.HasValue ? $" ({trialPackage.TrialDurationDays} days)" : "").
     </div>
   }
@@ -118,162 +168,180 @@ textarea{height:220px;padding:14px;font-family:Consolas,"Courier New",monospace;
     {
       <input type="hidden" asp-for="TrialCode" />
     }
-    <div class="form-grid">
 
-    <div class="section">Contact Information</div>
-    <div class="form-row">
-      <label><span class="required">*</span>First Name:</label>
-      <input asp-for="FirstName" class="short" maxlength="80" required/>
-    </div>
-    <div class="form-row">
-      <label><span class="required">*</span>Last Name:</label>
-      <input asp-for="LastName" class="short" maxlength="80" required/>
-    </div>
-    <div class="form-row">
-      <label>Designation:</label>
-      <input asp-for="Designation" class="short" maxlength="80"/>
-    </div>
-    <div class="form-row">
-      <label><span class="required">*</span>Email:</label>
-      <input asp-for="Email" type="email" class="short" maxlength="200" required/>
+    <div class="field-card">
+      <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-user"></i></span><h2>Contact Information</h2></div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label><span class="required">*</span>First Name:</label>
+          <input asp-for="FirstName" class="short" maxlength="80" required/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Last Name:</label>
+          <input asp-for="LastName" class="short" maxlength="80" required/>
+        </div>
+        <div class="form-row">
+          <label>Designation:</label>
+          <input asp-for="Designation" class="short" maxlength="80"/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Email:</label>
+          <input asp-for="Email" type="email" class="short" maxlength="200" required/>
+        </div>
+      </div>
     </div>
 
-    <div class="section">Company Details</div>
-    <div class="form-row">
-      <label><span class="required">*</span>Company Name:</label>
-      <input asp-for="CompanyName" class="short" maxlength="150" required/>
+    <div class="field-card">
+      <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-building"></i></span><h2>Company Details</h2></div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label><span class="required">*</span>Company Name:</label>
+          <input asp-for="CompanyName" class="short" maxlength="150" required/>
+        </div>
+        <div class="form-row">
+          <label>Company Address:</label>
+          <input asp-for="CompanyAddress" class="short" maxlength="200"/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>City:</label>
+          <input asp-for="City" class="short" maxlength="80" required/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Province:</label>
+          <select asp-for="Province" class="medium" required>
+            <option>Alberta</option>
+            <option>British Columbia</option>
+            <option>Manitoba</option>
+            <option>New Brunswick</option>
+            <option>Newfoundland</option>
+            <option>Northwest Territories</option>
+            <option>Nova Scotia</option>
+            <option>Nunavut</option>
+            <option>Ontario</option>
+            <option>Prince Edward Island</option>
+            <option>Quebec</option>
+            <option>Saskatchewan</option>
+            <option>Yukon Territory</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Postal Code:</label>
+          <input asp-for="PostalCode" class="short" maxlength="20" required/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Country:</label>
+          <select asp-for="Country" class="medium" required>
+            <option>Canada</option>
+            <option>United States</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Time Zone:</label>
+          <select asp-for="TimeZone" class="wide">
+            @foreach (var zone in timeZones)
+            {
+              <option value="@zone">@zone</option>
+            }
+          </select>
+        </div>
+      </div>
     </div>
-    <div class="form-row">
-      <label>Company Address:</label>
-      <input asp-for="CompanyAddress" class="short" maxlength="200"/>
-    </div>
-    <div class="form-row">
-      <label><span class="required">*</span>City:</label>
-      <input asp-for="City" class="short" maxlength="80" required/>
-    </div>
-    <div class="form-row">
-      <label><span class="required">*</span>Province:</label>
-      <select asp-for="Province" class="medium" required>
-        <option>Alberta</option>
-        <option>British Columbia</option>
-        <option>Manitoba</option>
-        <option>New Brunswick</option>
-        <option>Newfoundland</option>
-        <option>Northwest Territories</option>
-        <option>Nova Scotia</option>
-        <option>Nunavut</option>
-        <option>Ontario</option>
-        <option>Prince Edward Island</option>
-        <option>Quebec</option>
-        <option>Saskatchewan</option>
-        <option>Yukon Territory</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label><span class="required">*</span>Postal Code:</label>
-      <input asp-for="PostalCode" class="short" maxlength="20" required/>
-    </div>
-    <div class="form-row">
-      <label><span class="required">*</span>Country:</label>
-      <select asp-for="Country" class="medium" required>
-        <option>Canada</option>
-        <option>United States</option>
-        <option>Other</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>Time Zone:</label>
-      <select asp-for="TimeZone" class="wide">
-        @foreach (var zone in timeZones)
+
+    <div class="field-card">
+      <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-phone"></i></span><h2>Phone and Plan</h2></div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label><span class="required">*</span>Business Phone:</label>
+          <input asp-for="Phone" class="short" maxlength="40" required/>
+        </div>
+        <div class="form-row">
+          <label>Fax:</label>
+          <input asp-for="BusinessFax" class="short" maxlength="40"/>
+        </div>
+        <div class="form-row">
+          <label>Mobile Phone:</label>
+          <input asp-for="CellPhone" class="short" maxlength="40"/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Business Type:</label>
+          <select asp-for="BusinessType" class="short" required>
+            <option value="">Click here</option>
+            <option>Accountants</option>
+            <option>Insurance / Financial</option>
+            <option>Mortgage</option>
+          </select>
+        </div>
+        @if (trialPackage != null)
         {
-          <option value="@zone">@zone</option>
+          <div class="form-row">
+            <label><span class="required">*</span>Package:</label>
+            <input type="text" class="short" value="@trialPackage.PackageName (free trial)" readonly/>
+            <input type="hidden" asp-for="PackageId" value="@trialPackage.Id" />
+          </div>
         }
-      </select>
-    </div>
-
-    <div class="section">Phone and Plan</div>
-    <div class="form-row">
-      <label><span class="required">*</span>Business Phone:</label>
-      <input asp-for="Phone" class="short" maxlength="40" required/>
-    </div>
-    <div class="form-row">
-      <label>Fax:</label>
-      <input asp-for="BusinessFax" class="short" maxlength="40"/>
-    </div>
-    <div class="form-row">
-      <label>Mobile Phone:</label>
-      <input asp-for="CellPhone" class="short" maxlength="40"/>
-    </div>
-    <div class="form-row">
-      <label><span class="required">*</span>Business Type:</label>
-      <select asp-for="BusinessType" class="short" required>
-        <option value="">Click here</option>
-        <option>Accountants</option>
-        <option>Insurance / Financial</option>
-        <option>Mortgage</option>
-      </select>
-    </div>
-    @if (trialPackage != null)
-    {
-      <div class="form-row">
-        <label><span class="required">*</span>Package:</label>
-        <input type="text" class="short" value="@trialPackage.PackageName (free trial)" readonly/>
-        <input type="hidden" asp-for="PackageId" value="@trialPackage.Id" />
-      </div>
-    }
-    else
-    {
-      <div class="form-row">
-        <label><span class="required">*</span>Packages:</label>
-        <select asp-for="PackageId" id="packageSelect" class="short" required>
-          <option value="">Click here</option>
-          @foreach (var package in packages)
-          {
-            <option value="@package.Id">@package.PackageName</option>
-          }
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Promotion Code:</label>
-        <span>
-          <input asp-for="PromotionCode" id="promoCodeInput" maxlength="60" autocomplete="off" placeholder="Optional" />
-          <button type="button" id="applyPromoCodeButton">Apply</button>
-          <div id="promoCodeResult" style="margin-top:6px;font-size:0.9em;"></div>
-        </span>
-      </div>
-    }
-
-    <div class="section">Terms and Verification</div>
-    <div class="form-row agreement-row">
-      <label>Terms and Conditions:</label>
-      <textarea readonly>@agreement</textarea>
-    </div>
-
-    <div class="form-row verify-row">
-      <label>Verify Code:</label>
-      <input type="text" name="verificationCode" class="short" maxlength="4" autocomplete="off" required/>
-      <span class="verify-code" aria-label="Verify code @verificationDisplayCode">
-        @foreach (var digit in verificationDisplayCode)
+        else
         {
-          <span>@digit</span>
+          <div class="form-row">
+            <label><span class="required">*</span>Packages:</label>
+            <select asp-for="PackageId" id="packageSelect" class="short" required>
+              <option value="">Click here</option>
+              @foreach (var package in packages)
+              {
+                <option value="@package.Id">@package.PackageName</option>
+              }
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Promotion Code:</label>
+            <span>
+              <input asp-for="PromotionCode" id="promoCodeInput" maxlength="60" autocomplete="off" placeholder="Optional" />
+              <button type="button" id="applyPromoCodeButton">Apply</button>
+              <div id="promoCodeResult" style="margin-top:6px;font-size:0.9em;"></div>
+            </span>
+          </div>
         }
-      </span>
+      </div>
     </div>
 
-    <div class="terms-check">
-      <input type="checkbox" value="true" name="acceptTerms" id="acceptTerms" required/>
-      <label for="acceptTerms">Yes, I have read and accept the General Terms and Conditions.</label>
+    <div class="field-card">
+      <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-file-contract"></i></span><h2>Terms and Verification</h2></div>
+      <div class="form-grid">
+        <div class="form-row agreement-row">
+          <label>Terms and Conditions:</label>
+          <div class="terms-box">
+            <div class="terms-box-head"><i class="fas fa-scroll"></i> Online Subscription Agreement</div>
+            <textarea readonly>@agreement</textarea>
+          </div>
+        </div>
+
+        <div class="form-row verify-row">
+          <label>Verify Code:</label>
+          <input type="text" name="verificationCode" class="short" maxlength="4" autocomplete="off" required/>
+          <span class="verify-code" aria-label="Verify code @verificationDisplayCode">
+            @foreach (var digit in verificationDisplayCode)
+            {
+              <span>@digit</span>
+            }
+          </span>
+          <p class="verify-hint">Type the 4 digits shown to confirm you're not a robot.</p>
+        </div>
+
+        <div class="terms-check" style="grid-column:1/-1;">
+          <input type="checkbox" value="true" name="acceptTerms" id="acceptTerms" required/>
+          <label for="acceptTerms">Yes, I have read and accept the General Terms and Conditions.</label>
+        </div>
+      </div>
     </div>
 
-    <div class="footer-actions">
+    <div class="footer-bar">
       <div class="payment">
         <img src="/images/paypalverified.gif" alt="PayPal Verified"/>
       </div>
       <div class="submit-row">
-        <button class="submit-button" type="submit">Submit Registration</button>
         <a class="signin" href="/Account/Login">Already registered? Sign in</a>
+        <button class="submit-button" type="submit"><i class="fas fa-arrow-right-to-bracket"></i>Submit Registration</button>
       </div>
-    </div>
     </div>
   </form>
   </div>
