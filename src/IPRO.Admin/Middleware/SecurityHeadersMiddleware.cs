@@ -4,13 +4,24 @@ namespace IPRO.Admin.Middleware;
 
 /// <summary>
 /// Same protections as IPRO.Web's SecurityHeadersMiddleware, scoped to what this app actually
-/// loads (no rich-text-editor CDN, no Google Maps frame-src, no blob-storage images).
+/// loads (no rich-text-editor CDN, no Google Maps frame-src).
 /// </summary>
 public class SecurityHeadersMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly string _imgSrc;
 
-    public SecurityHeadersMiddleware(RequestDelegate next) => _next = next;
+    public SecurityHeadersMiddleware(RequestDelegate next, IConfiguration configuration)
+    {
+        _next = next;
+
+        // E-card artwork is served by the agent portal (seeded designs, in its wwwroot) and by
+        // blob storage (anything uploaded since). Both are cross-origin from admin's point of
+        // view, so both must be allowed here -- otherwise the browser blocks every thumbnail
+        // silently, with a correct URL and no server-side error to show for it.
+        var portalOrigin = IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(configuration);
+        _imgSrc = $"img-src 'self' data: blob: {portalOrigin} https://*.blob.core.windows.net; ";
+    }
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -36,7 +47,7 @@ public class SecurityHeadersMiddleware
             "default-src 'self'; " +
             $"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-            "img-src 'self' data:; " +
+            _imgSrc +
             "font-src 'self' https://cdnjs.cloudflare.com; " +
             "connect-src 'self'; " +
             "frame-src 'none'; " +
