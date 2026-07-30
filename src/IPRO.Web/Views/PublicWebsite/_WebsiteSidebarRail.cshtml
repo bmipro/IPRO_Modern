@@ -4,18 +4,19 @@
     var agent = website.AgentUser;
     // Designation belongs in the name -- "Ms. Raniah Motamed", not a line below it.
     var fullName = IPRO.Entities.AgentNameFormatter.FullName(agent);
-    var hasContactCard = !string.IsNullOrWhiteSpace(website.LogoUrl) || !string.IsNullOrWhiteSpace(agent.PhotoUrl) ||
+    // The header (_PublicNavigation.cshtml) already shows the site logo -- repeating it here
+    // reads as a second, competing brand mark right below the first. This card sticks to what the
+    // header doesn't already cover: the agent's photo and personal contact details.
+    var hasContactCard = !string.IsNullOrWhiteSpace(agent.PhotoUrl) ||
         !string.IsNullOrWhiteSpace(fullName) || !string.IsNullOrWhiteSpace(agent.CompanyName) ||
         !string.IsNullOrWhiteSpace(agent.Phone) || !string.IsNullOrWhiteSpace(agent.Email);
     // Same tree _PublicNavigation.cshtml renders as a top-nav dropdown -- here it's the legacy
-    // pattern instead, where the sidebar itself is the site's real menu.
+    // pattern instead, where the sidebar itself is the site's real menu. _PublicNavigation hides
+    // its own copy of these links whenever a sidebar is active, so this is the only place they
+    // appear, not a second copy of them.
     var topPages = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
 }
 <aside class="site-sidebar-rail">
-  @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
-  {
-    <img class="site-sidebar-rail__logo" src="@website.LogoUrl" alt="@website.SiteTitle" />
-  }
   @if (!string.IsNullOrWhiteSpace(agent.PhotoUrl))
   {
     <img class="site-sidebar-rail__photo" src="@agent.PhotoUrl" alt="@fullName" />
