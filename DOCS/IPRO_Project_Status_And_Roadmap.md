@@ -1044,6 +1044,45 @@ Four defects surfaced within an hour of item 65 going live, and one non-defect t
 
 Full detail, including the cross-app prevention rule, in `DOCS/09_TROUBLESHOOTING.md`.
 
+### 68. Found and fixed the real cause of the 2026-07-29 startup outage (done, 2026-07-30)
+
+Item 65's outage was patched (seeding made non-fatal) but never diagnosed — the fix prevented a
+recurrence without knowing what actually threw. Asked explicitly to dig for the root cause rather
+than leave it as an open question, since an unexplained production crash is exactly the kind of
+thing that comes back bigger later.
+
+**Found it, evidenced rather than guessed:** `ECardDesignSeeder` and `ELetterTemplateSeeder` both
+check "is the table empty?" then bulk-insert if so, with no lock. Both `ipro-prod-web` and
+`ipro-prod-admin` run every seeder on every startup against the **same shared MySQL database**,
+triggered by the **same git push**, with the two deploy pipelines having no coordination with each
+other or the database. `ECardDesigns.Key` / `ELetterTemplates.Key` both got a **new UNIQUE INDEX**
+in that same commit. Two seeders racing past the empty-check on a genuinely new table both insert;
+whichever commits second hits a duplicate-key exception — which was unhandled, and an unhandled
+.NET exception escaping `Main` on Linux exits via SIGABRT (134) by design of the CoreCLR PAL. Not a
+native crash — the ordinary signature for "something threw before the app started."
+
+The same unguarded pattern already existed in two older seeders with no unique key to expose it —
+meaning this exact race has likely fired silently before, producing duplicate rows rather than a
+crash. The unique index didn't introduce a new bug, it gave an old one a way to surface loudly.
+
+**Fix:** `SeedGuard` wraps the check-and-insert in a MySQL advisory lock (`GET_LOCK`/`RELEASE_LOCK`),
+applied to all four seeders sharing this shape. Same primitive Hangfire's own `Upgrade()` path
+already uses correctly elsewhere in this codebase's dependencies (its sibling `Install()` path does
+not — a real latent risk found by decompiling the library, but not this incident's cause, since
+Hangfire's tables have existed for months without issue).
+
+**Two things found along the way, reported rather than silently fixed:**
+- Application Insights returns **zero data for either app**, even hours into confirmed-healthy
+  operation — not a crash-timing artifact. Config is verified correct (SDK wired in code, connection
+  string/AppId match the right resource). Telemetry for this project is not flowing, for reasons
+  still unidentified; treat its silence as a known blind spot, not as evidence.
+- `Hangfire.Storage.MySql`'s `Install()` path has no advisory lock (unlike its own `Upgrade()`),
+  confirmed by decompiling the DLL. A latent risk if Hangfire's tables were ever reset, out of scope
+  to fix here since they've run fine for months.
+
+Full mechanism, the self-caught type-coercion mistake in the first draft of `SeedGuard`, and exactly
+what was and wasn't verified before shipping: `DOCS/09_TROUBLESHOOTING.md`.
+
 The strongest path is not just "website builder" or "CRM". The winning position is:
 
 > A vertical-ready business growth platform that gives small businesses a website, CRM, email campaigns, follow-ups, billing, client portal, and automation in one place.

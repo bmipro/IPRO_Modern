@@ -499,17 +499,51 @@ failed to start — exit code **134** (SIGABRT), container never reached a liste
 blocked both sites after repeated cold-start failures, so they stayed down (~25 min) instead of
 self-healing.
 
-**Root cause: still unidentified.** Everything below was tried and produced nothing:
-- Application Insights had **no exception and no trace** in the window. A later control query showed
-  it returns no data for these apps *at all*, even while they serve traffic — so its emptiness was
-  never evidence of anything. Do not treat "App Insights is clean" as a signal here.
+**Root cause, found the next morning (2026-07-30) — evidenced, not guessed:**
+
+- `ECardDesignSeeder` and `ELetterTemplateSeeder` both use a check-then-act pattern:
+  `AnyAsync()` to see if the table is empty, then `AddRange` + `SaveChangesAsync` if so.
+- Both `ipro-prod-web` and `ipro-prod-admin` run **every** seeder on **every** startup, against the
+  **same shared MySQL database** (`ipro_crm` — confirmed directly from each app's connection
+  string), triggered by the **same git push** — the two GitHub Actions workflows (`on: push:
+  branches: [main]`) have no dependency on each other and no coordination with the database.
+- `ECardDesigns.Key` and `ELetterTemplates.Key` both carry a **new UNIQUE INDEX**, added in the
+  same commit. Two seeders racing past the `AnyAsync()` check on a genuinely-empty new table both
+  proceed to insert; whichever commits second hits a duplicate-key violation.
+- That exception was unhandled in the original commit. **An unhandled .NET exception escaping
+  `Main` on Linux exits via SIGABRT (128+6=134) by design of the CoreCLR PAL** — this is the
+  ordinary signature for "something threw before `app.Run()`", not evidence of a native crash or
+  memory corruption. This resolves what looked like a scary, exotic failure mode into a mundane
+  platform fact: any unhandled exception on Linux looks exactly like this.
+- The check-then-act shape already existed, unguarded, in two *older* seeders
+  (`NewsLetterTemplateSeeder`, `WebsiteStarterContentSeeder`) for as long as this project has had
+  two apps sharing one database. Neither of their tables has a unique key, so the identical race
+  there produces silently duplicated rows instead of a crash — this bug class is not new, the
+  unique index just gave it, for the first time, a way to surface loudly.
+- *Ruled out by evidence, not assumption:* EF's pending-model-changes check. It throws in EF 9;
+  this repo is on EF **8.0.0** where it only warns, and DbSet-without-migration is the established
+  pattern here (ECards, ELetters, Polls, Forms all ship that way).
+- *Found and decompiled while investigating, but NOT the cause:* `Hangfire.Storage.MySql`
+  (`2.1.0-beta`)'s own `MySqlObjectsInstaller.Install()` has the *exact same* TOCTOU shape (a bare
+  `SHOW TABLES LIKE` check, then a bare `CREATE TABLE` with no `IF NOT EXISTS` and no advisory
+  lock — confirmed by decompiling the DLL with `ilspycmd`), called unguarded from `MySqlStorage`'s
+  constructor on every app startup. Its sibling `Upgrade()` path, in the same class, *is* correctly
+  guarded with a named `GET_LOCK`-based `ResourceLock`. This is a real latent risk in that
+  dependency, but very unlikely to be this incident's cause, since Hangfire's own tables have
+  existed in this database for months without issue — `Install()` short-circuits to a no-op the
+  moment its tables already exist.
+
+**Diagnostic dead ends, for the next time this happens:**
+- Application Insights had **no exception and no trace** in the crash window. A same-day control
+  query, run hours later while both apps were demonstrably healthy and serving traffic, showed **zero
+  requests, zero traces — nothing at all** for either app's resource, even in steady state. The
+  connection string, instrumentation key, and `AppId` were all confirmed to match the correct
+  resource, and the SDK is wired in code (`AddApplicationInsightsTelemetry()` in `Program.cs`), not
+  just via the codeless agent. **Telemetry for these two apps is not flowing at all, for reasons
+  still unknown** — treat "App Insights is empty" as a known blind spot for this project, not as
+  evidence about whatever you're investigating.
 - The container docker log carries orchestrator lines only; the app's own stdout/stderr is not in it.
 - No Docker and no MySQL on the dev machine, so startup could not be reproduced locally.
-- *Ruled out by evidence:* EF's pending-model-changes check. It throws in EF 9; this repo is on
-  EF **8.0.0** where it only warns, and DbSet-without-migration is the established pattern here
-  (ECards, ELetters, Polls, Forms all ship that way).
-- *Unproven hypothesis:* the seeders write emoji (4-byte UTF-8) into MySQL for what would be the
-  first time in this database.
 
 **Recovery.** Revert (`9fac47a`), then **re-run the web deploy** — its first run had independently
 failed at `azure/login` with "Failed to fetch federated token from GitHub", so admin recovered and
@@ -524,6 +558,32 @@ rates, website templates) are deliberately left unwrapped — an agent cannot fu
 against a real database*, which is where this failed. Anything touching both `Program.cs` files plus
 new tables deserves more than a build check. And no optional-content seeder should ever be able to
 abort the process.
+
+**The actual fix (2026-07-30), once the mechanism was known.** `SeedGuard` (`IPRO.DataAccess`) wraps
+a seeder's check-and-insert in a MySQL advisory lock (`GET_LOCK`/`RELEASE_LOCK`, keyed per seeder
+name), so only one process performs it at a time — the same primitive Hangfire's own `Upgrade()`
+path already uses correctly elsewhere in this dependency tree. Applied to all four seeders with the
+check-then-act shape: `ECardDesignSeeder`, `ELetterTemplateSeeder`, `NewsLetterTemplateSeeder`,
+`WebsiteStarterContentSeeder`. The structural seeders (entitlements, tax rates, website templates)
+use a different per-row upsert pattern and were left alone.
+
+One self-caught mistake worth recording: the first draft of `SeedGuard` checked `result is long and
+1` to read `GET_LOCK`'s return value, assuming the driver boxes a MySQL integer scalar as a CLR
+`long`. That assumption was never verified against a live connection (no local MySQL to test
+against), and if wrong, the lock would **silently never acquire** — worse than no lock at all, since
+seeding would then quietly stop working on every future deploy with no error anywhere. Rewritten to
+`Convert.ToInt64(result) == 1L`, which is correct regardless of whether the driver boxes it as `int`
+or `long`.
+
+**Verification, precisely stated.** Every touched seeder's content (all 14 card designs, 4 letter
+templates, 4 newsletter templates, all starter-page content) was diffed byte-for-byte against the
+pre-change version via a normalized line-multiset comparison — confirmed only the wrapper structure
+changed, no seeded content was altered. The lock's actual `GET_LOCK`/`RELEASE_LOCK` round-trip against
+live MySQL could **not** be tested before shipping — no local MySQL, and running a program with
+production DB credentials was correctly blocked by the environment's safety classifier. It was
+instead observed on the real deploy: both apps came up healthy and **neither logged the
+`[StarterContentSeeding] FAILED` stderr line**, meaning the new SQL executed without throwing in both
+apps, against production, for real — the closest available substitute for a pre-deploy test.
 
 ## Incident: Three Cross-App Assumptions, One Feature (2026-07-29)
 
