@@ -26,17 +26,24 @@ public class ECardDesignsController : Controller
     private readonly IPRODbContext _db;
     private readonly IServiceProvider _services;
     private readonly IAdminAuditLogService _auditLog;
+    private readonly IConfiguration _configuration;
 
     // Blob storage is resolved lazily rather than injected. Its client throws on construction when
     // the storage connection string isn't configured, and that would take down this whole screen --
     // including listing and retiring designs, which need no storage at all. Resolving it only on
     // the upload path keeps the page usable and turns a misconfiguration into a clear message.
-    public ECardDesignsController(IPRODbContext db, IServiceProvider services, IAdminAuditLogService auditLog)
+    public ECardDesignsController(IPRODbContext db, IServiceProvider services,
+        IAdminAuditLogService auditLog, IConfiguration configuration)
     {
         _db = db;
         _services = services;
         _auditLog = auditLog;
+        _configuration = configuration;
     }
+
+    // Seeded artwork lives in IPRO.Web's wwwroot, so admin thumbnails have to point at the web
+    // app's host. Resolving against admin's own host is what left every thumbnail blank.
+    private string WebBaseUrl => WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
@@ -46,16 +53,22 @@ public class ECardDesignsController : Controller
         var designs = await _db.ECardDesigns.AsNoTracking()
             .OrderBy(d => d.SortOrder).ThenBy(d => d.Id)
             .ToListAsync();
+        ViewBag.WebBaseUrl = WebBaseUrl;
+        ViewBag.ActiveCount = designs.Count(d => d.IsActive);
         return View(designs);
     }
 
-    public IActionResult Create() =>
-        View("Edit", new ECardDesign { IsActive = true, Kind = ECardArtKinds.Image, IsDark = true, SortOrder = 100 });
+    public IActionResult Create()
+    {
+        ViewBag.WebBaseUrl = WebBaseUrl;
+        return View("Edit", new ECardDesign { IsActive = true, Kind = ECardArtKinds.Image, IsDark = true, SortOrder = 100 });
+    }
 
     public async Task<IActionResult> Edit(int id)
     {
         var design = await _db.ECardDesigns.FirstOrDefaultAsync(d => d.Id == id);
         if (design == null) return NotFound();
+        ViewBag.WebBaseUrl = WebBaseUrl;
         return View(design);
     }
 
@@ -107,7 +120,7 @@ public class ECardDesignsController : Controller
             ModelState.AddModelError("artwork", "Upload the card artwork.");
         }
 
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) { ViewBag.WebBaseUrl = WebBaseUrl; return View(model); }
 
         if (uploadedUrl != null) model.ImageUrl = uploadedUrl;
 

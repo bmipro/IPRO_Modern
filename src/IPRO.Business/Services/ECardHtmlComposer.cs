@@ -33,7 +33,7 @@ public static class ECardHtmlComposer
         var width = template.IsArtwork ? Math.Min(template.Width, 620) : 600;
 
         var face = template.IsArtwork
-            ? BuildArtworkFace(ResolveArtUrl(template.ImageUrl, baseUrl), width, template)
+            ? BuildArtworkFace(template.AbsoluteImageUrl(baseUrl), width, template)
             : BuildGeneratedFace(template, accent);
 
         return $"""
@@ -51,14 +51,6 @@ public static class ECardHtmlComposer
             </table>
             """;
     }
-
-    // Designs seeded into wwwroot carry a site-relative path and need the base URL prepended for
-    // email; anything uploaded to blob storage since is already absolute and must be left alone.
-    private static string ResolveArtUrl(string imageUrl, string baseUrl) =>
-        imageUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-        imageUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-            ? imageUrl
-            : $"{baseUrl.TrimEnd('/')}{imageUrl}";
 
     private static string BuildArtworkFace(string artUrl, int width, ECardDesign template) =>
         $"""

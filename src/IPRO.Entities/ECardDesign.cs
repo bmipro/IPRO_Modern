@@ -52,4 +52,22 @@ public class ECardDesign
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public bool IsArtwork => Kind == ECardArtKinds.Image;
+
+    /// <summary>
+    /// Artwork URL that works from outside the web app. The seeded designs live in IPRO.Web's
+    /// wwwroot and carry a site-relative path, which resolves correctly on the agent portal but
+    /// 404s anywhere else -- that is why every thumbnail was blank on the admin screens, and why
+    /// an e-card email needs this too. Anything uploaded to blob storage is already absolute and
+    /// is returned untouched.
+    /// </summary>
+    public string AbsoluteImageUrl(string baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(ImageUrl)) return string.Empty;
+        if (ImageUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            ImageUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return ImageUrl;
+        }
+        return $"{(baseUrl ?? string.Empty).TrimEnd('/')}{ImageUrl}";
+    }
 }

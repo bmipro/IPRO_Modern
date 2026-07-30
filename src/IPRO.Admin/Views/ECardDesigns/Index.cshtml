@@ -1,12 +1,16 @@
 @model IEnumerable<IPRO.Entities.ECardDesign>
 @{
     ViewData["Title"] = "E-Card Designs";
+    // Seeded artwork is served by the agent portal, not by admin -- resolve against that host.
+    var webBaseUrl = ViewBag.WebBaseUrl as string ?? string.Empty;
+    var activeCount = ViewBag.ActiveCount as int? ?? Model.Count(d => d.IsActive);
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h4 class="fw-bold mb-1"><i class="fas fa-gift me-2 text-primary"></i>E-Card Designs</h4>
     <div class="text-muted">The card library agents pick from. Grouped by occasion in their picker.</div>
+    <div class="small text-muted mt-1"><strong>@Model.Count()</strong> design(s), <strong>@activeCount</strong> offered to agents.</div>
   </div>
   <a href="/ECardDesigns/Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Design</a>
 </div>
@@ -45,7 +49,7 @@ else
               <div class="d-flex align-items-center gap-2">
                 @if (design.IsArtwork && !string.IsNullOrWhiteSpace(design.ImageUrl))
                 {
-                  <img src="@design.ImageUrl" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:4px;" />
+                  <img src="@design.AbsoluteImageUrl(webBaseUrl)" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:4px;" />
                 }
                 else
                 {
