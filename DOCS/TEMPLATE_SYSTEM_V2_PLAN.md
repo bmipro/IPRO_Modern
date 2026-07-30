@@ -235,6 +235,15 @@ this session — the public sidebar rail needs no login at all.)
 
 ## Open next steps
 
+- **Revisit this Claude Design exploration once a direction is picked:**
+  `https://claude.ai/design/p/a20028e9-0e41-49fe-81d6-2d510b4437a6?file=Adviser+Site.dc.html` — a
+  "Adviser Site" concept built 2026-07-30 (under the user's own Claude account, not exported here).
+  Editorial aesthetic (serif headlines, generous white space, warm paper tones) for a financial
+  adviser site; built through a guided Q&A covering sections (hero, feature grid, logo strip, slim
+  footer), nav style (logo left, links right), tone (warm and human), and interactions (scroll
+  reveals, mobile menu), with 2-3 layout directions planned. Worth comparing against whatever
+  direction comes back from the outside consultant brief (`TEMPLATE_SYSTEM_CONSULTANT_BRIEF.md`) —
+  not yet decided whether/how to use it.
 - Review a same-topic sample across `Client Paragraphs` / `Prospect Paragraphs` / `Edited Articles`
   (e.g. Term Life) to see exactly how the three depths differ, before finalizing the content model
   shape.
