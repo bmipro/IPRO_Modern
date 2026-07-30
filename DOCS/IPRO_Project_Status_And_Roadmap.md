@@ -1115,6 +1115,28 @@ warrant its own isolated prototype.
 Full detail, the legacy-site findings, the content inventory, and the tooling comparison table:
 `DOCS/TEMPLATE_SYSTEM_V2_PLAN.md`.
 
+### 70. Template system V2, phase 1: Site Menu sidebar element (done, 2026-07-30)
+
+First of three build phases from item 69. The page tree the legacy sites relied on for sidebar
+navigation was not actually missing (`WebsitePage.ParentPageId`/`ChildPages`, already rendering as
+the top-nav's two-level dropdown in `_PublicNavigation.cshtml`) — the only gap was a sidebar
+rendering of that same data, since "sidebar" previously only ever meant the contact card.
+
+Added a "Site Menu" section to `_WebsiteSidebarRail.cshtml`, stacked below the existing contact
+card with a divider, reusing `Model.Pages`/`Model.CurrentPage` already on `PublicWebsiteViewModel` —
+no new entities, schema, or controller wiring. Parents with children use a zero-JS `<details>`/
+`<summary>` expandable group (open by default only on the active branch); plain top-level pages
+render as ordinary links. Verified live against a real sidebar-right production site
+(`raniahmotamed.247advisers.com`): the tree rendered correctly (Home/About/Services/Contact plus an
+expandable "Drop_nav → UnderDrop1" branch), positioned and styled consistently with the existing
+contact card.
+
+Known minor rough edge, left as-is rather than adding JS to fix: a parent page that has children is
+sometimes not reliably clickable-to-navigate (a click can toggle the `<details>` instead of
+following the nested link, depending on exactly where it lands) — an inherent property of nesting an
+`<a>` inside `<summary>`, not a functional defect. Worth revisiting only if agents actually use
+parent pages as real content pages rather than pure categories.
+
 The strongest path is not just "website builder" or "CRM". The winning position is:
 
 > A vertical-ready business growth platform that gives small businesses a website, CRM, email campaigns, follow-ups, billing, client portal, and automation in one place.

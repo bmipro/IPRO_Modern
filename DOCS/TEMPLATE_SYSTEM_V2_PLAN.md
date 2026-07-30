@@ -222,12 +222,15 @@ mechanism does not depend on having that content today.
 
 ### Build order
 
-1. Site Menu sidebar element (smallest, reuses existing data, no schema changes).
-2. Calculator block type + first 7 calculators.
-3. Glossary category field + Glossary block.
+1. **Site Menu sidebar element — done, 2026-07-30.** Shipped and verified live on a real
+   sidebar-right production site. Full detail: roadmap item 70.
+2. Calculator block type + first 7 calculators. In progress.
+3. Glossary category field + Glossary block, per-vertical via `WebsiteStarterArticle`.
 
-Each phase: build, verify via SuperAdmin preview, commit, push, deploy, update docs — the same
-discipline used for every other feature this session.
+Each phase: build, verify against real data, commit, push, deploy, update docs — the same
+discipline used for every other feature this session. (Verification for phase 1 used the live
+public site directly rather than the SuperAdmin preview tool, since no admin session was available
+this session — the public sidebar rail needs no login at all.)
 
 ## Open next steps
 
