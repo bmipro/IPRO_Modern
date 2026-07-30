@@ -37,6 +37,39 @@ public static class WebsiteStarterContentSeeder
             await db.SaveChangesAsync();
         });
 
+    // Nav v2: Services is retired from the default starter-page set (a future "Resources" nav
+    // mechanism takes over that role) and replaced with Testimonials / Free Newsletter / Request
+    // Meeting. Separately guarded from SeedAsync above -- that one is already fully seeded in
+    // production and its body never runs again, so this needs its own one-time run.
+    public static async Task SeedNavV2AdditionsAsync(IPRODbContext db, Microsoft.Extensions.Logging.ILogger? logger = null) =>
+        await SeedGuard.RunAsync(db, "WebsiteStarterPages_NavV2", logger, async () =>
+        {
+            if (await db.WebsiteStarterPages.AnyAsync(p => p.Slug == "testimonials")) return;
+
+            foreach (var servicesPage in await db.WebsiteStarterPages.Where(p => p.Slug == "services").ToListAsync())
+            {
+                servicesPage.IsActive = false;
+            }
+
+            AddNavV2Set(db, "All", "your business", "professional services");
+            AddNavV2Set(db, "Insurance / Financial", "your financial future", "insurance and financial guidance");
+            AddNavV2Set(db, "Mortgage", "your home financing goals", "mortgage advice and financing solutions");
+            AddNavV2Set(db, "Accountants", "your financial records and decisions", "accounting and business support");
+
+            await db.SaveChangesAsync();
+        });
+
+    private static void AddNavV2Set(IPRODbContext db, string businessType, string goal, string serviceDescription)
+    {
+        db.WebsiteStarterPages.AddRange(
+            Page(businessType, "Testimonials", "testimonials", false, 2,
+                Block(WebsiteBlockTypes.TestimonialForm, "What clients say", $"Real feedback from people we've helped with {goal}.", "Have you worked with us? We would love to hear about your experience.", "", "", 0)),
+            Page(businessType, "Free Newsletter", "free-newsletter", false, 4,
+                Block(WebsiteBlockTypes.NewsletterSignup, "Stay in the loop", "Get occasional updates on topics that matter to you.", $"Sign up for our free newsletter covering {serviceDescription} and more.", "", "", 0)),
+            Page(businessType, "Request Meeting", "request-meeting", false, 5,
+                Block(WebsiteBlockTypes.ContactForm, "Request a meeting", $"Book time to talk through {goal}.", "Share a few details and we will follow up to find a time that works.", "Request a meeting", "", 0)));
+    }
+
     private static void AddSet(IPRODbContext db, string businessType, string goal, string serviceDescription, string[] services)
     {
         db.WebsiteStarterPages.AddRange(

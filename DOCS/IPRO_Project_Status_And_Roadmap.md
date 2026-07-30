@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: July 20, 2026
+Last updated: July 30, 2026
 
 ## Standing Convention: Every Paid Feature Must Be Package-Gated
 
@@ -1172,6 +1172,13 @@ Hebrew/Arabic/Syriac/Thaana Unicode range text in the rendered body — none fou
 of the broken layout rather than a separate defect, but flagged rather than assumed, since it was
 never independently confirmed one way or the other.
 
+**Superseded, 2026-07-30 (see item 72):** even fixed, the sidebar-as-navigation concept this item
+built was the wrong shape — the user's actual intent was top nav and side nav as complementary
+systems, not one replacing the other. The Site Menu section, the sidebar Position picker, and
+`_WebsiteSidebarRail.cshtml` described above are all retired. The page-tree/dropdown data this item
+correctly identified as reusable (`WebsitePage.ParentPageId`/`ChildPages`) remains the right
+foundation and is exactly what item 72's "Resources" direction is expected to build on next.
+
 ### 71. Template system V2, phase 2: Calculator block, 7 calculators (done, 2026-07-30)
 
 Second of three build phases from item 69. Reading the legacy `cal1` suite's actual source showed
@@ -1211,6 +1218,61 @@ to a real page, which requires agent-portal access not available here — so tha
 open, flagged rather than assumed.
 
 Full detail, the source-math analysis, and the jurisdiction reasoning: `DOCS/TEMPLATE_SYSTEM_V2_PLAN.md`.
+
+### 72. Nav v2, phase 1-2: retire sidebar-as-navigation, restore always-on top nav (done, 2026-07-30)
+
+Direct correction of items 70-71's underlying premise, not a continuation of them. After seeing the
+Site Menu live, the user's verdict was that a sidebar acting as a second, parallel navigation system
+was never the goal — top nav should stay the single navigation surface, full stop. The user's own
+new direction (attributed to outside input from "Gem"/Gemini, evaluated and agreed with directly):
+retire the sidebar-as-navigation concept entirely, and instead add a **Resources** (or "Info
+Center") top-nav item whose dropdown holds pre-written, per-vertical content — each entry a real,
+reusable `Article` (so it can also go out via newsletter), with agents able to add/remove entries.
+Regular top-nav pages (Home/About/Testimonials/Contact/Free Newsletter/Request Meeting) stay mostly
+blank starter pages agents customize themselves. A template that has its own built-in sidebar (only
+Classic does) keeps it, but purely for agent-populated contact/profile content — not as a navigation
+mechanism.
+
+This is the first two of four planned phases; phases 3-4 (new starter-page set, the Resources
+mechanism itself) are tracked separately and not yet built.
+
+**What shipped:**
+- `_PublicNavigation.cshtml`'s top nav now always renders on all 3 templates — the conditional that
+  hid it whenever a sidebar position was active (added by item 70's postscript fix) is gone, since
+  there's no longer a second nav surface for it to defer to.
+- Deleted `_WebsiteSidebarRail.cshtml` and its CSS (`.site-sidebar-shell`/`.site-sidebar-rail`/
+  `.site-sidebar-menu`, including the hard-won `grid-row:1` fix from item 70 — moot once the whole
+  mechanism is gone).
+- Removed the Sidebar Position picker from both the agent-facing My Website page and the SuperAdmin
+  template editor, including the JS left dangling once the form field disappeared.
+- Removed `SidebarPosition`/`ViewBag.SidebarPosition` plumbing from all 3 outer template shells and
+  from `WebsiteController`. `AgentWebsite.SidebarPositionOverride` and
+  `WebsiteTemplateDesign.SidebarPosition` are left in the entity/DB layer, unused, rather than
+  dropping a column live on a database shared by two apps — same reasoning as every other
+  soft-retirement in this codebase.
+- Classic's own always-on sidebar (shown when an agent has no published pages yet — the common case
+  is otherwise covered by starter pages) now shows the agent's photo and full mailing address
+  (`AgentUser.GetFormattedAddressLines()`) instead of just city/province, and drops three
+  placeholder links (Latest News / Tools & Resources / Client Support) that never went anywhere.
+- Along the way, found and fixed a second, previously unnoticed instance of the same wrapping bug
+  class item 70 hit: `_ClassicManagedPage.cshtml` had its own extra unstyled `<div>` wrapper around
+  the block-rendering loop (never closed, silently relying on browser auto-recovery) layered *inside*
+  Classic's own hardcoded sidebar shell — meaning Classic could have rendered two nested sidebars
+  whenever a Position override was also set. Removed with the rest of the Position plumbing.
+
+**Verified live**, not just by build: `dotnet build` on both `IPRO.Web` and `IPRO.Admin` (Razor views
+compile at build time in this project, so this does catch `.cshtml` syntax errors, not just C#).
+After deploy + `az webapp restart` on both apps, checked `raniahmotamed.247advisers.com` (Modern
+template, public — no login needed) directly against the DOM: exactly one `.public-site-header`,
+one `.public-site-nav`, one `.public-site-brand` (the item-70 duplication bug's exact signature,
+confirmed absent), zero leftover `.site-sidebar-*` elements anywhere in the page, and the `sidebar-*`
+body class is gone. Checked both desktop and mobile widths. Editorial and Classic's outer-shell and
+managed-page edits are structurally identical to Modern's (line-by-line diffed to confirm), so they're
+verified by code review rather than a second live domain — no other real agent domain was available
+this session to check them directly the same way. Classic's own sidebar photo/address/dead-link fix
+is code-correct and was read back after editing, but the specific branch it lives in (zero published
+pages) couldn't be triggered on a real production agent, since every real agent already has starter
+pages — flagged rather than assumed fixed.
 
 The strongest path is not just "website builder" or "CRM". The winning position is:
 

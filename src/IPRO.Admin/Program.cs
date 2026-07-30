@@ -219,6 +219,7 @@ using (var scope = app.Services.CreateScope())
     await TaxRateSeeder.SeedAsync(db);
     await WebsiteTemplateSeeder.SeedAsync(db);
     await WebsiteStarterContentSeeder.SeedAsync(db, seedLogger);
+    await WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db, seedLogger);
 }
 
 app.Run();
