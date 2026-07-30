@@ -1083,6 +1083,38 @@ Hangfire's tables have existed for months without issue).
 Full mechanism, the self-caught type-coercion mistake in the first draft of `SeedGuard`, and exactly
 what was and wasn't verified before shipping: `DOCS/09_TROUBLESHOOTING.md`.
 
+### 69. Template system V2 — planning only, no code yet (2026-07-30)
+
+Raised as a standing dissatisfaction with the template system: both the editing process
+("confusing redundancy") and the visual output (quality varies by template and by sidebar
+presence) — and a related discovery that per-vertical content population was never actually
+done, unlike the legacy predecessor platform.
+
+Two archived legacy sites (`4ipro.com` accountant vertical, `girardfinancial.com` financial
+vertical — same "Powered by I Pro Advisers" platform family) confirmed the previous generation's
+real information architecture: an expandable sidebar navigation tree carrying embedded
+calculators, articles, and a vertical-specific "Get a Quote" form. Confirmed real content already
+on hand to populate a rebuilt system: ~48 portable PHP calculators (`X:\ipro_related\calculators\
+cal1\calculators\`; a second, ionCube-encoded bundle in the same folder is redundant and not
+portable) and per-vertical Word-document content across six folders (client-facing paragraphs,
+prospect-facing paragraphs, long-form articles, accountant-vertical legacy content, and marketing
+copy).
+
+Tooling researched (Puck, Craft.js, GrapesJS, Vue-Grid-Layout) — three of the four would require
+adopting React or Vue into a stack that is currently 100% server-rendered Razor with no frontend
+framework; GrapesJS is the only framework-agnostic option. No tooling decision made yet.
+
+**Decision made:** build the next-generation system on a feature branch inside the existing
+solution as strictly additive code (new files/routes/tables, no edits to the live template render
+path until cut-over), not as a separate throwaway project — because the page builder is deeply
+coupled to entities and conventions already built (agent/theme data, CSS theme tokens, Admin/Web
+split), and a separate project would just relocate today's risk into a harder re-integration
+project later. Exception: a full frontend-framework swap, if ever pursued, is a big enough bet to
+warrant its own isolated prototype.
+
+Full detail, the legacy-site findings, the content inventory, and the tooling comparison table:
+`DOCS/TEMPLATE_SYSTEM_V2_PLAN.md`.
+
 The strongest path is not just "website builder" or "CRM". The winning position is:
 
 > A vertical-ready business growth platform that gives small businesses a website, CRM, email campaigns, follow-ups, billing, client portal, and automation in one place.
