@@ -7,8 +7,13 @@ namespace IPRO.DataAccess;
 
 public static class NewsLetterTemplateSeeder
 {
-    public static async Task SeedAsync(IPRODbContext db)
-    {
+    // Guarded by SeedGuard: this same check-then-insert shape, run by both apps against the same
+    // shared database on every deploy, is what produced a duplicate-key crash elsewhere in this
+    // seeder family on 2026-07-29. This table has no unique constraint, so an unguarded race here
+    // would not crash -- it would silently double every row instead. See SeedGuard's comment.
+    public static async Task SeedAsync(IPRODbContext db, Microsoft.Extensions.Logging.ILogger? logger = null) =>
+        await SeedGuard.RunAsync(db, "NewsLetterTemplates", logger, async () =>
+        {
         if (await db.NewsLetterTemplates.AnyAsync())
         {
             return;
@@ -53,5 +58,5 @@ public static class NewsLetterTemplateSeeder
             });
 
         await db.SaveChangesAsync();
-    }
+        });
 }

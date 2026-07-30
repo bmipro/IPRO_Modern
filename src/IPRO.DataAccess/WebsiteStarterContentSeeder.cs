@@ -8,29 +8,34 @@ namespace IPRO.DataAccess;
 
 public static class WebsiteStarterContentSeeder
 {
-    public static async Task SeedAsync(IPRODbContext db)
-    {
-        if (await db.WebsiteStarterPages.AnyAsync()) return;
+    // Guarded by SeedGuard: this same check-then-insert shape, run by both apps against the same
+    // shared database on every deploy, is what produced a duplicate-key crash elsewhere in this
+    // seeder family on 2026-07-29. This table has no unique constraint, so an unguarded race here
+    // would not crash -- it would silently double every starter page instead. See SeedGuard.
+    public static async Task SeedAsync(IPRODbContext db, Microsoft.Extensions.Logging.ILogger? logger = null) =>
+        await SeedGuard.RunAsync(db, "WebsiteStarterPages", logger, async () =>
+        {
+            if (await db.WebsiteStarterPages.AnyAsync()) return;
 
-        AddSet(db, "All", "your business", "professional services", new[]
-        {
-            "Personalized service", "Clear answers and practical support", "A convenient way to stay connected"
-        });
-        AddSet(db, "Insurance / Financial", "your financial future", "insurance and financial guidance", new[]
-        {
-            "Insurance planning", "Retirement and investment guidance", "Ongoing reviews and client support"
-        });
-        AddSet(db, "Mortgage", "your home financing goals", "mortgage advice and financing solutions", new[]
-        {
-            "First-time home buyers", "Renewals and refinancing", "Investment property financing"
-        });
-        AddSet(db, "Accountants", "your financial records and decisions", "accounting and business support", new[]
-        {
-            "Tax preparation and planning", "Bookkeeping and reporting", "Business advisory services"
-        });
+            AddSet(db, "All", "your business", "professional services", new[]
+            {
+                "Personalized service", "Clear answers and practical support", "A convenient way to stay connected"
+            });
+            AddSet(db, "Insurance / Financial", "your financial future", "insurance and financial guidance", new[]
+            {
+                "Insurance planning", "Retirement and investment guidance", "Ongoing reviews and client support"
+            });
+            AddSet(db, "Mortgage", "your home financing goals", "mortgage advice and financing solutions", new[]
+            {
+                "First-time home buyers", "Renewals and refinancing", "Investment property financing"
+            });
+            AddSet(db, "Accountants", "your financial records and decisions", "accounting and business support", new[]
+            {
+                "Tax preparation and planning", "Bookkeeping and reporting", "Business advisory services"
+            });
 
-        await db.SaveChangesAsync();
-    }
+            await db.SaveChangesAsync();
+        });
 
     private static void AddSet(IPRODbContext db, string businessType, string goal, string serviceDescription, string[] services)
     {

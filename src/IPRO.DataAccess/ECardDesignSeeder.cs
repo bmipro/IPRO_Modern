@@ -14,12 +14,17 @@ namespace IPRO.DataAccess;
 // Greeting copy is the legacy wording recovered verbatim from the 2014 database dump.
 public static class ECardDesignSeeder
 {
-    public static async Task SeedAsync(IPRODbContext db)
-    {
-        if (await db.ECardDesigns.AnyAsync()) return;
-        db.ECardDesigns.AddRange(BuildDefaults());
-        await db.SaveChangesAsync();
-    }
+    // Guarded by SeedGuard: this exact check-then-insert shape, racing against the identical
+    // seeder running in the other app at the same moment, is what produced a duplicate-key
+    // exception and crashed both apps on 2026-07-29. See SeedGuard's own comment for the full
+    // mechanism.
+    public static async Task SeedAsync(IPRODbContext db, Microsoft.Extensions.Logging.ILogger? logger = null) =>
+        await SeedGuard.RunAsync(db, "ECardDesigns", logger, async () =>
+        {
+            if (await db.ECardDesigns.AnyAsync()) return;
+            db.ECardDesigns.AddRange(BuildDefaults());
+            await db.SaveChangesAsync();
+        });
 
     // Public so the shipped library can be rendered and eyeballed without a database.
     public static List<ECardDesign> BuildDefaults()

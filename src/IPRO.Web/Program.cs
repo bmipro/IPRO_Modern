@@ -295,16 +295,16 @@ using (var scope = app.Services.CreateScope())
     //
     // Structural seeders above (entitlements, tax rates, website templates) are deliberately NOT
     // wrapped: an agent genuinely cannot function without those, so failing loudly is correct.
+    var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("StarterContentSeeding");
     try
     {
-        await NewsLetterTemplateSeeder.SeedAsync(db);
-        await ECardDesignSeeder.SeedAsync(db);
-        await ELetterTemplateSeeder.SeedAsync(db);
+        await NewsLetterTemplateSeeder.SeedAsync(db, seedLogger);
+        await ECardDesignSeeder.SeedAsync(db, seedLogger);
+        await ELetterTemplateSeeder.SeedAsync(db, seedLogger);
     }
     catch (Exception ex)
     {
-        var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("StarterContentSeeding");
         seedLogger.LogError(ex, "Starter content seeding failed. The app is starting anyway; " +
                                 "newsletter templates, e-card designs or e-letter templates may be missing.");
         // Also to stderr: the container log is readable even when telemetry never flushes.
@@ -343,7 +343,7 @@ using (var scope = app.Services.CreateScope())
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
     await WebsiteTemplateSeeder.SeedAsync(db);
-    await WebsiteStarterContentSeeder.SeedAsync(db);
+    await WebsiteStarterContentSeeder.SeedAsync(db, seedLogger);
 
     var blob = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
     await blob.EnsureContainerAccessAsync("portal-documents", isPrivate: true);
