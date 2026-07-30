@@ -1,0 +1,292 @@
+@model IPRO.Web.Models.CalculatorBlockViewModel
+@{
+    var kind = IPRO.Entities.CalculatorKinds.Normalize(Model.CalculatorKind);
+    var fieldId = $"calc-{Model.BlockId}";
+}
+<div class="calc-block" data-calculator-kind="@kind" id="@fieldId">
+  <div class="calc-fields">
+    @switch (kind)
+    {
+        case IPRO.Entities.CalculatorKinds.MortgagePayment:
+            <label><span>Home price</span><input data-field="price" type="number" step="1000" value="500000" /></label>
+            <label><span>Down payment</span><input data-field="downPayment" type="number" step="1000" value="100000" /></label>
+            <label><span>Interest rate (%)</span><input data-field="rate" type="number" step="0.01" value="5.5" /></label>
+            <label><span>Amortization (years)</span><input data-field="years" type="number" step="1" value="25" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.Refinance:
+            <label><span>Current loan balance</span><input data-field="currentBalance" type="number" step="1000" value="350000" /></label>
+            <label><span>Current rate (%)</span><input data-field="currentRate" type="number" step="0.01" value="6.5" /></label>
+            <label><span>Years remaining</span><input data-field="yearsRemaining" type="number" step="1" value="20" /></label>
+            <label><span>New rate (%)</span><input data-field="newRate" type="number" step="0.01" value="5.25" /></label>
+            <label><span>New term (years)</span><input data-field="newYears" type="number" step="1" value="25" /></label>
+            <label><span>Closing costs</span><input data-field="closingCosts" type="number" step="100" value="3000" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.RentVsBuy:
+            <label><span>Home price</span><input data-field="price" type="number" step="1000" value="500000" /></label>
+            <label><span>Down payment</span><input data-field="downPayment" type="number" step="1000" value="100000" /></label>
+            <label><span>Mortgage rate (%)</span><input data-field="rate" type="number" step="0.01" value="5.5" /></label>
+            <label><span>Amortization (years)</span><input data-field="years" type="number" step="1" value="25" /></label>
+            <label><span>Property tax rate (%/yr)</span><input data-field="propertyTaxRate" type="number" step="0.01" value="1.0" /></label>
+            <label><span>Home insurance rate (%/yr)</span><input data-field="insuranceRate" type="number" step="0.01" value="0.35" /></label>
+            <label><span>Comparable monthly rent</span><input data-field="monthlyRent" type="number" step="10" value="2200" /></label>
+            <label><span>Investment return, if renting (%/yr)</span><input data-field="investReturn" type="number" step="0.01" value="6" /></label>
+            <label><span>Home appreciation (%/yr)</span><input data-field="appreciationRate" type="number" step="0.01" value="3" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.Retirement:
+            <label><span>Starting balance</span><input data-field="startBalance" type="number" step="100" value="20000" /></label>
+            <label><span>Monthly contribution</span><input data-field="monthlyContribution" type="number" step="10" value="500" /></label>
+            <label><span>Years until retirement</span><input data-field="yearsToRetirement" type="number" step="1" value="25" /></label>
+            <label><span>Pre-retirement annual return (%)</span><input data-field="preReturn" type="number" step="0.01" value="6.5" /></label>
+            <label><span>Post-retirement annual return (%)</span><input data-field="postReturn" type="number" step="0.01" value="5" /></label>
+            <label><span>Annual inflation (%)</span><input data-field="inflation" type="number" step="0.01" value="2.5" /></label>
+            <label><span>Annual contribution increase (%)</span><input data-field="contributionIncrease" type="number" step="0.01" value="2" /></label>
+            <label><span>Desired monthly withdrawal (today's dollars)</span><input data-field="desiredMonthlyWithdrawal" type="number" step="50" value="3000" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.TaxAdvantageComparison:
+            <label><span>Annual contribution (pre-tax dollars)</span><input data-field="annualContribution" type="number" step="100" value="6000" /></label>
+            <label><span>Years until withdrawal</span><input data-field="years" type="number" step="1" value="25" /></label>
+            <label><span>Expected annual growth (%)</span><input data-field="growthRate" type="number" step="0.01" value="6" /></label>
+            <label><span>Your tax rate now (%)</span><input data-field="currentTaxRate" type="number" step="0.1" value="30" /></label>
+            <label><span>Your expected tax rate at withdrawal (%)</span><input data-field="futureTaxRate" type="number" step="0.1" value="25" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.LoanAmortization:
+            <label><span>Loan amount</span><input data-field="loanAmount" type="number" step="1000" value="400000" /></label>
+            <label><span>Interest rate (%)</span><input data-field="rate" type="number" step="0.01" value="5.5" /></label>
+            <label><span>Term (months)</span><input data-field="months" type="number" step="1" value="300" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.Apr:
+            <label><span>Loan amount</span><input data-field="loanAmount" type="number" step="1000" value="400000" /></label>
+            <label><span>Interest rate (%)</span><input data-field="rate" type="number" step="0.01" value="5.5" /></label>
+            <label><span>Term (years)</span><input data-field="years" type="number" step="1" value="25" /></label>
+            <label><span>Origination fee (%)</span><input data-field="originationPercent" type="number" step="0.01" value="0.5" /></label>
+            <label><span>Points paid (%)</span><input data-field="pointsPercent" type="number" step="0.01" value="0" /></label>
+            <label><span>Other fees</span><input data-field="otherFees" type="number" step="50" value="1500" /></label>
+            break;
+    }
+  </div>
+  <button type="button" class="calc-run"><i class="fas fa-calculator"></i> Calculate</button>
+  <div class="calc-results" hidden></div>
+</div>
+@if (ViewBag.CalculatorScriptRendered != true)
+{
+    ViewBag.CalculatorScriptRendered = true;
+    <script nonce="@Context.GetCspNonce()">
+    (function () {
+      if (window.__iproCalcWired) return;
+      window.__iproCalcWired = true;
+
+      function num(el) { var v = parseFloat(el.value); return isNaN(v) ? 0 : v; }
+      function fmtMoney(n) {
+        var sign = n < 0 ? '-' : '';
+        return sign + '$' + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      // Canadian mortgages compound semi-annually by convention regardless of payment frequency --
+      // this converts a nominal annual rate into the equivalent effective monthly rate.
+      function monthlyRateFromAnnual(ratePercent) {
+        var semiAnnual = ratePercent / 100 / 2;
+        return Math.pow(1 + semiAnnual, 1 / 6) - 1;
+      }
+      function paymentFor(principal, ratePercent, numMonths) {
+        if (principal <= 0 || numMonths <= 0) return 0;
+        var i = monthlyRateFromAnnual(ratePercent);
+        if (i <= 0) return principal / numMonths;
+        var f = Math.pow(1 + i, numMonths);
+        return principal * i * f / (f - 1);
+      }
+      function futureValueLumpSum(pv, rate, n) { return pv * Math.pow(1 + rate, n); }
+      function futureValueAnnuity(payment, rate, n) { return rate <= 0 ? payment * n : payment * (Math.pow(1 + rate, n) - 1) / rate; }
+
+      var calculators = {};
+
+      calculators.MortgagePayment = function (v, out) {
+        var loan = Math.max(0, v.price - v.downPayment);
+        var months = v.years * 12;
+        var payment = paymentFor(loan, v.rate, months);
+        var totalPaid = payment * months;
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Loan amount</span><strong>' + fmtMoney(loan) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Monthly payment</span><strong>' + fmtMoney(payment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Estimated accelerated bi-weekly</span><strong>' + fmtMoney(payment / 2) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Total paid over ' + v.years + ' years</span><strong>' + fmtMoney(totalPaid) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Total interest</span><strong>' + fmtMoney(totalPaid - loan) + '</strong></div>' +
+          '<p class="calc-note">Compounds semi-annually, the standard convention for Canadian mortgages. Does not include property tax, insurance, or condo fees.</p>';
+      };
+
+      calculators.Refinance = function (v, out) {
+        var currentPayment = paymentFor(v.currentBalance, v.currentRate, v.yearsRemaining * 12);
+        var newPayment = paymentFor(v.currentBalance, v.newRate, v.newYears * 12);
+        var monthlySavings = currentPayment - newPayment;
+        var breakEvenMonths = monthlySavings > 0 ? (v.closingCosts / monthlySavings) : null;
+        var currentTotalInterest = currentPayment * v.yearsRemaining * 12 - v.currentBalance;
+        var newTotalInterest = newPayment * v.newYears * 12 - v.currentBalance;
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Current payment</span><strong>' + fmtMoney(currentPayment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>New payment</span><strong>' + fmtMoney(newPayment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Monthly savings</span><strong>' + fmtMoney(monthlySavings) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Months to break even on closing costs</span><strong>' + (breakEvenMonths != null ? Math.ceil(breakEvenMonths) + ' months' : 'N/A -- new payment is not lower') + '</strong></div>' +
+          '<div class="calc-result-row"><span>Remaining interest, current loan</span><strong>' + fmtMoney(currentTotalInterest) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Total interest, new loan</span><strong>' + fmtMoney(newTotalInterest) + '</strong></div>' +
+          '<p class="calc-note">Simplified comparison -- does not include mortgage default insurance premiums, which vary by lender and down payment size.</p>';
+      };
+
+      calculators.RentVsBuy = function (v, out) {
+        var loan = Math.max(0, v.price - v.downPayment);
+        var months = v.years * 12;
+        var monthlyPI = paymentFor(loan, v.rate, months);
+        var monthlyTax = v.price * v.propertyTaxRate / 100 / 12;
+        var monthlyIns = v.price * v.insuranceRate / 100 / 12;
+        var monthlyOwn = monthlyPI + monthlyTax + monthlyIns;
+        var monthlyDiff = monthlyOwn - v.monthlyRent;
+        var investMonthlyRate = v.investReturn / 100 / 12;
+        var investedDownPayment = futureValueLumpSum(v.downPayment, investMonthlyRate, months);
+        var investedDifference = monthlyDiff > 0 ? futureValueAnnuity(monthlyDiff, investMonthlyRate, months) : 0;
+        var rentingNetWorth = investedDownPayment + investedDifference;
+        var homeValueThen = v.price * Math.pow(1 + v.appreciationRate / 100, v.years);
+        var i = monthlyRateFromAnnual(v.rate);
+        var remainingBalance = loan > 0 ? Math.max(0, loan * Math.pow(1 + i, months) - monthlyPI * ((Math.pow(1 + i, months) - 1) / (i || 1))) : 0;
+        var buyingNetWorth = homeValueThen - remainingBalance;
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Monthly cost of owning (P&amp;I + tax + insurance)</span><strong>' + fmtMoney(monthlyOwn) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Monthly rent</span><strong>' + fmtMoney(v.monthlyRent) + '</strong></div>' +
+          '<div class="calc-result-row"><span>' + (monthlyDiff >= 0 ? 'Renting is cheaper by' : 'Owning is cheaper by') + ' (per month)</span><strong>' + fmtMoney(Math.abs(monthlyDiff)) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Est. net worth after ' + v.years + ' years, renting + investing</span><strong>' + fmtMoney(rentingNetWorth) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Est. net worth after ' + v.years + ' years, buying (home equity)</span><strong>' + fmtMoney(buyingNetWorth) + '</strong></div>' +
+          '<p class="calc-note">Assumes the down payment and any monthly savings from renting are invested at the return rate entered, and the home appreciates at the rate entered. Does not include maintenance, condo/HOA fees, selling costs, or tax differences.</p>';
+      };
+
+      calculators.Retirement = function (v, out) {
+        var balance = v.startBalance;
+        var contribution = v.monthlyContribution;
+        var preMonthly = v.preReturn / 100 / 12;
+        var inflation = v.inflation / 100;
+        var contribIncrease = v.contributionIncrease / 100;
+        for (var y = 0; y < v.yearsToRetirement; y++) {
+          for (var m = 0; m < 12; m++) { balance = balance * (1 + preMonthly) + contribution; }
+          contribution = contribution * (1 + contribIncrease);
+        }
+        var withdrawal = v.desiredMonthlyWithdrawal * Math.pow(1 + inflation, v.yearsToRetirement);
+        var postMonthly = v.postReturn / 100 / 12;
+        var yearsLasting = 0;
+        var runningBalance = balance;
+        var lastsIndefinitely = false;
+        while (runningBalance > 0 && yearsLasting < 100) {
+          var annualWithdrawal = withdrawal * 12;
+          var annualGrowth = runningBalance * postMonthly * 12;
+          if (yearsLasting > 0 && annualGrowth >= annualWithdrawal) { lastsIndefinitely = true; break; }
+          for (var mm = 0; mm < 12 && runningBalance > 0; mm++) {
+            runningBalance = runningBalance * (1 + postMonthly) - withdrawal;
+          }
+          withdrawal = withdrawal * (1 + inflation);
+          yearsLasting++;
+        }
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Balance at retirement</span><strong>' + fmtMoney(balance) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Required monthly withdrawal at retirement</span><strong>' + fmtMoney(withdrawal) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Your savings will last</span><strong>' + (lastsIndefinitely ? 'Indefinitely -- growth outpaces withdrawals' : (yearsLasting >= 100 ? '100+ years' : yearsLasting + ' years')) + '</strong></div>' +
+          '<p class="calc-note">The withdrawal amount grows with inflation each year to preserve today\'s purchasing power. Estimates only, not guarantees.</p>';
+      };
+
+      calculators.TaxAdvantageComparison = function (v, out) {
+        var growth = v.growthRate / 100;
+        var afterTaxContribution = v.annualContribution * (1 - v.currentTaxRate / 100);
+        var taxFreeBalance = 0;
+        var deferredBalance = 0;
+        for (var y = 0; y < v.years; y++) {
+          taxFreeBalance = taxFreeBalance * (1 + growth) + afterTaxContribution;
+          deferredBalance = deferredBalance * (1 + growth) + v.annualContribution;
+        }
+        var deferredNet = deferredBalance * (1 - v.futureTaxRate / 100);
+        var better = taxFreeBalance > deferredNet ? 'tax-free' : (deferredNet > taxFreeBalance ? 'tax-deferred' : null);
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Tax-deferred account, after-tax value</span><strong>' + fmtMoney(deferredNet) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Tax-free account, after-tax value</span><strong>' + fmtMoney(taxFreeBalance) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Based on your numbers</span><strong>' + (better ? ('the ' + better + ' account leaves you further ahead') : 'both leave you in the same after-tax position') + '</strong></div>' +
+          '<p class="calc-note">A tax-deferred account (e.g. RRSP, Traditional IRA) and a tax-free account (e.g. TFSA, Roth IRA) end up equal if your tax rate never changes -- the deferred account wins if your rate is lower at withdrawal, the tax-free account wins if it\'s higher. Does not account for contribution limits; consult a tax professional for your specific situation.</p>';
+      };
+
+      calculators.LoanAmortization = function (v, out) {
+        var months = Math.max(1, Math.round(v.months));
+        var payment = paymentFor(v.loanAmount, v.rate, months);
+        var monthlyRate = monthlyRateFromAnnual(v.rate);
+        var balance = v.loanAmount;
+        var totalInterest = 0;
+        var capped = months > 360;
+        var showMonths = capped ? 360 : months;
+        var rows = '';
+        for (var m = 1; m <= showMonths; m++) {
+          var interest = balance * monthlyRate;
+          var principal = Math.min(payment - interest, balance);
+          balance = Math.max(0, balance - principal);
+          totalInterest += interest;
+          rows += '<tr><td>' + m + '</td><td>' + fmtMoney(payment) + '</td><td>' + fmtMoney(interest) + '</td><td>' + fmtMoney(principal) + '</td><td>' + fmtMoney(balance) + '</td></tr>';
+        }
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Monthly payment</span><strong>' + fmtMoney(payment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Total interest' + (capped ? ' (first 360 months)' : '') + '</span><strong>' + fmtMoney(totalInterest) + '</strong></div>' +
+          (capped ? '<p class="calc-note">Schedule shown for the first 360 months (30 years).</p>' : '') +
+          '<div class="calc-table-wrap"><table class="calc-table"><thead><tr><th>#</th><th>Payment</th><th>Interest</th><th>Principal</th><th>Balance</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      };
+
+      calculators.Apr = function (v, out) {
+        var months = v.years * 12;
+        var basePayment = paymentFor(v.loanAmount, v.rate, months);
+        var originationCost = v.loanAmount * v.originationPercent / 100;
+        var pointsCost = v.loanAmount * v.pointsPercent / 100;
+        var totalFees = originationCost + pointsCost + v.otherFees;
+        var effectiveLoan = v.loanAmount + totalFees;
+        var paymentWithFees = paymentFor(effectiveLoan, v.rate, months);
+        var trialRate = v.rate;
+        var trialPayment = basePayment;
+        var iterations = 0;
+        while (trialPayment < paymentWithFees && iterations < 2000) {
+          trialRate += 0.01;
+          trialPayment = paymentFor(v.loanAmount, trialRate, months);
+          iterations++;
+        }
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Total closing costs</span><strong>' + fmtMoney(totalFees) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Monthly payment</span><strong>' + fmtMoney(basePayment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Annual Percentage Rate (APR)</span><strong>' + trialRate.toFixed(3) + '%</strong></div>' +
+          '<p class="calc-note">APR reflects the true cost of the loan once fees are included, and is always at or above the stated interest rate.</p>';
+      };
+
+      function collectInputs(root) {
+        var values = {};
+        root.querySelectorAll('[data-field]').forEach(function (el) { values[el.getAttribute('data-field')] = num(el); });
+        return values;
+      }
+
+      document.addEventListener('click', function (event) {
+        var button = event.target.closest('.calc-run');
+        if (!button) return;
+        var block = button.closest('.calc-block');
+        if (!block) return;
+        var kind = block.getAttribute('data-calculator-kind');
+        var fn = calculators[kind];
+        var out = block.querySelector('.calc-results');
+        if (!fn || !out) return;
+        out.hidden = false;
+        fn(collectInputs(block), out);
+      });
+    })();
+    </script>
+}
+<style>
+  .calc-block { width: 100%; }
+  .calc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .calc-fields label { display: grid; gap: 6px; font: 700 13px/1.4 Arial, sans-serif; color: inherit; }
+  .calc-fields input { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #17223a; font: 400 15px/1.4 Arial, sans-serif; }
+  .calc-fields input:focus { outline: 3px solid color-mix(in srgb, var(--site-theme, #1457d9) 20%, transparent); border-color: var(--site-theme, #1457d9); }
+  .calc-run { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border: 0; border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: #fff; font: 800 14px Arial, sans-serif; cursor: pointer; }
+  .calc-results { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e3eaf3; display: grid; gap: 10px; }
+  .calc-result-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; font: 400 14px/1.4 Arial, sans-serif; color: #45526b; }
+  .calc-result-row strong { font: 800 16px Arial, sans-serif; color: #0c1933; }
+  .calc-result-row .calc-hint { font-size: 12px; color: #8a93a6; }
+  .calc-note { margin: 4px 0 0; font: 400 12.5px/1.5 Arial, sans-serif; color: #8a93a6; }
+  .calc-table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; border: 1px solid #e3eaf3; border-radius: 6px; }
+  .calc-table { width: 100%; border-collapse: collapse; font: 400 13px/1.4 Arial, sans-serif; }
+  .calc-table th, .calc-table td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #eef2f7; white-space: nowrap; }
+  .calc-table th:first-child, .calc-table td:first-child { text-align: left; }
+  .calc-table thead th { position: sticky; top: 0; background: #f8fbff; font-weight: 800; color: #45526b; }
+  @@media (max-width: 640px) { .calc-fields { grid-template-columns: 1fr; } }
+</style>

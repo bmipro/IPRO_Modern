@@ -19,10 +19,11 @@ public static class WebsiteBlockTypes
     public const string ArticleContent = "ArticleContent";
     public const string Video = "Video";
     public const string Gallery = "Gallery";
+    public const string Calculator = "Calculator";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator
     };
 
     public static string DisplayName(string type) => type switch
@@ -37,6 +38,7 @@ public static class WebsiteBlockTypes
         DidYouKnow => "Did You Know Teaser",
         ArticleContent => "Article Page",
         Gallery => "Photo Gallery",
+        Calculator => "Calculator",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

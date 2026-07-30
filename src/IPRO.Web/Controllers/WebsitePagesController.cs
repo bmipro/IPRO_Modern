@@ -339,7 +339,7 @@ public class WebsitePagesController : Controller
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
         bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
-        string videoUrl = "")
+        string videoUrl = "", string calculatorKind = "")
     {
         var ownedPageId = await _db.WebsiteContentBlocks
             .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
@@ -362,7 +362,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl, calculatorKind);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -782,7 +782,7 @@ public class WebsitePagesController : Controller
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
         bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
-        string videoUrl = "")
+        string videoUrl = "", string calculatorKind = "")
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -793,7 +793,7 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl, calculatorKind);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -810,7 +810,7 @@ public class WebsitePagesController : Controller
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
         bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int[]? articleIds, string layoutStyle = "auto", int articleId = 0,
-        string videoUrl = "")
+        string videoUrl = "", string calculatorKind = "")
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -855,6 +855,13 @@ public class WebsitePagesController : Controller
                 ReviewUrl = NormalizeUrl(reviewUrl),
                 Rating = reviewRating,
                 ReviewCount = reviewCount
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.Calculator)
+        {
+            block.SettingsJson = new WebsiteCalculatorSettings
+            {
+                CalculatorKind = CalculatorKinds.Normalize(calculatorKind)
             }.ToJson();
         }
         else if (block.BlockType == WebsiteBlockTypes.AgentInfo)
@@ -1054,6 +1061,7 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.Form => "Get in touch",
             WebsiteBlockTypes.Video => "Watch Our Video",
             WebsiteBlockTypes.Gallery => "Photo Gallery",
+            WebsiteBlockTypes.Calculator => "Try Our Calculator",
             _ => "New content section"
         },
         Subheading = "Add a short supporting message.",

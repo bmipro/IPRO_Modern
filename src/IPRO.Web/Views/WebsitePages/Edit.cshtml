@@ -498,6 +498,20 @@
               <div class="form-text">Uses your profile photo from My Website. Turn off to show your name and contact details here without a photo — your photo still appears elsewhere (Agent Info card, newsletter, header) unless removed from your profile.</div>
             </div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Calculator)
+          {
+            var calculatorSettings = IPRO.Entities.WebsiteCalculatorSettings.FromJson(block.SettingsJson);
+            <div class="col-12">
+              <label class="form-label fw-semibold">Calculator</label>
+              <select name="calculatorKind" class="form-select">
+                @foreach (var kind in IPRO.Entities.CalculatorKinds.All)
+                {
+                  <option value="@kind" selected="@(calculatorSettings.CalculatorKind == kind ? "selected" : null)">@IPRO.Entities.CalculatorKinds.DisplayName(kind)</option>
+                }
+              </select>
+              <div class="form-text">Visitors enter their own numbers and calculate on the page — nothing is sent to you. Estimates only, not financial advice.</div>
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Maps)
           {
             var mapSettings = IPRO.Entities.WebsiteMapSettings.FromJson(block.SettingsJson);

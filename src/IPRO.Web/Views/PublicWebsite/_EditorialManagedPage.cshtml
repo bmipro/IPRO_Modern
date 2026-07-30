@@ -280,6 +280,11 @@
       </div></section>
     }
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Calculator)
+  {
+    var epCalcSettings = IPRO.Entities.WebsiteCalculatorSettings.FromJson(block.SettingsJson);
+    <section class="ep-section ep-alt"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div>@await Html.PartialAsync("_CalculatorBlock", new IPRO.Web.Models.CalculatorBlockViewModel { BlockId = block.Id, CalculatorKind = epCalcSettings.CalculatorKind })</div></div></section>
+  }
   else
   {
     var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);
