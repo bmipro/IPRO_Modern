@@ -71,7 +71,7 @@ else
               {
                 <form method="post" action="/ECardDesigns/Deactivate/@design.Id" class="d-inline">
                   @Html.AntiForgeryToken()
-                  <button class="btn btn-sm btn-outline-warning" type="submit" title="Stop offering this design to agents"><i class="fas fa-eye-slash"></i></button>
+                  <button class="btn btn-sm btn-outline-warning js-confirm-submit" type="submit" title="Stop offering this design to agents" data-confirm-message="Retire &quot;@design.Name&quot;? Agents will no longer be able to pick it. E-cards already sent with it are unaffected, and you can offer it again at any time."><i class="fas fa-eye-slash"></i></button>
                 </form>
               }
               else

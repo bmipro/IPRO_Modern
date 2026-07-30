@@ -54,7 +54,7 @@ else
               {
                 <form method="post" action="/ELetterTemplates/Deactivate/@template.Id" class="d-inline">
                   @Html.AntiForgeryToken()
-                  <button class="btn btn-sm btn-outline-warning" type="submit" title="Stop offering this template to agents"><i class="fas fa-eye-slash"></i></button>
+                  <button class="btn btn-sm btn-outline-warning js-confirm-submit" type="submit" title="Stop offering this template to agents" data-confirm-message="Retire &quot;@template.Name&quot;? Agents will no longer be able to start from it. Letters already written are unaffected, and you can offer it again at any time."><i class="fas fa-eye-slash"></i></button>
                 </form>
               }
               else
