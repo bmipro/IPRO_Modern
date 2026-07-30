@@ -810,6 +810,26 @@ The comparison that makes it obvious is Newsletter Templates, which has had a fu
 > opens blank. So if the unknown cause fires again, the outcome is a log line and an inert feature
 > rather than an outage, and that log is what will finally identify it.
 
+**Two follow-up defects after the re-land, both the same shape.** Every artwork thumbnail was
+blank on the admin screens while the four generated cards rendered fine. The artwork lives in
+IPRO.Web's wwwroot and `ImageUrl` is stored site-relative, so admin resolved it against its own
+host — confirmed with curl: all ten files 200 on `app.iproadvisers.com`, 404 on
+`admin.iproadvisers.com`. `ECardDesign.AbsoluteImageUrl(baseUrl)` now owns that rule and
+`ECardHtmlComposer`'s private copy of it was deleted.
+
+Fixing the URL wasn't enough: admin's CSP was `img-src 'self' data:`, so the browser blocked the
+cross-origin image anyway — correct URL, HTTP 200 at the other end, no server-side error and
+nothing in any log. `img-src` now allows the agent portal origin (config-driven, same value the
+views resolve against) plus blob storage.
+
+Both defects, and the missing `Azure__StorageConnectionString` on the admin app, are the same
+class: **a cross-app assumption that a build and a local render cannot catch.** Anything one app
+serves and another displays needs the URL, the credential, and the CSP checked on *both* sides.
+
+A third symptom turned out not to be a defect at all: the agent picker offered 12 of 14 designs
+because `halloween-1` and `birthday-audi` had been retired through the new admin UI. The list now
+shows a count ("14 design(s), 12 offered to agents") so that state is visible instead of inferred.
+
 ### AI Assistant — where this could expand next
 Items 1 (the "why" line, item 26), 2 (social post drafting, item 27), and 3 (newsletter draft generation, item 43 above) are done. Remaining ideas from the original "AI-assisted business tools" list, in priority order for a future pass:
 1. **Website copy generation by vertical** — ties into the "Vertical starter packs" idea below.
