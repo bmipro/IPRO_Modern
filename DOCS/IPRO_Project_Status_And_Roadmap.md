@@ -1137,6 +1137,19 @@ following the nested link, depending on exactly where it lands) — an inherent 
 `<a>` inside `<summary>`, not a functional defect. Worth revisiting only if agents actually use
 parent pages as real content pages rather than pure categories.
 
+**Real defect found and fixed the same day, reported live with a screenshot:** the initial ship
+added the Site Menu *alongside* the header's existing navigation instead of replacing it, so a
+sidebar-enabled site showed the logo and every page link twice — once in the header, once again in
+the sidebar. Exactly the "confusing redundancy" this whole rework exists to remove, made worse
+instead of better. Fixed: `_PublicNavigation.cshtml` now hides its own page links whenever a
+sidebar position is active (the sidebar carries that job instead, matching how the legacy reference
+sites actually worked), and `_WebsiteSidebarRail.cshtml` no longer repeats the logo the header
+already shows. Verified live with a screenshot after the fix, not just re-read in code. One
+operational note: the fix didn't take effect on the first deploy despite GitHub Actions reporting
+success — an explicit `az webapp restart` was needed before the running instance picked it up.
+Worth remembering for future same-day fixes: a successful deploy notification doesn't always mean
+the live site is serving the new bits immediately.
+
 ### 71. Template system V2, phase 2: Calculator block, 7 calculators (done, 2026-07-30)
 
 Second of three build phases from item 69. Reading the legacy `cal1` suite's actual source showed
