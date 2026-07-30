@@ -168,7 +168,8 @@ public class AdminUsersController : Controller
         page = Math.Max(1, page);
         action = action?.Trim();
 
-        var entries = (await _uow.AdminAuditLogEntries.GetAllAsync()).AsEnumerable();
+        var allEntries = (await _uow.AdminAuditLogEntries.GetAllAsync()).ToList();
+        var entries = allEntries.AsEnumerable();
 
         if (adminUserId.HasValue)
         {
@@ -202,6 +203,12 @@ public class AdminUsersController : Controller
         ViewBag.Page = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalCount = totalCount;
+        // The unfiltered size too: "0 total entries" next to an active filter reads as "the audit
+        // log is empty", which is a different and much more alarming statement than "nothing
+        // matched". Showing both makes it impossible to confuse the two.
+        ViewBag.UnfilteredCount = allEntries.Count;
+        ViewBag.IsFiltered = adminUserId.HasValue || !string.IsNullOrWhiteSpace(action)
+                             || from.HasValue || to.HasValue;
 
         return View(ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList());
     }
