@@ -144,15 +144,6 @@
                   <option value="pill" selected="@(design.ButtonStyle == "pill")">Pill</option>
                 </select>
               </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Sidebar Position (default)</label>
-                <select id="sidebarPosition" class="form-select">
-                  <option value="none" selected="@(design.SidebarPosition == "none")">No sidebar</option>
-                  <option value="left" selected="@(design.SidebarPosition == "left")">Sidebar left</option>
-                  <option value="right" selected="@(design.SidebarPosition == "right")">Sidebar right</option>
-                </select>
-                <div class="form-text">Agents can still override this per-site from My Website regardless of this default.</div>
-              </div>
             </div>
             <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
               <div class="fw-semibold">Responsive preview</div>
@@ -333,7 +324,6 @@ function syncTemplateJson() {
     heroLayout: document.getElementById('heroLayout')?.value || 'split',
     sectionSpacing: document.getElementById('sectionSpacing')?.value || 'spacious',
     buttonStyle: document.getElementById('buttonStyle')?.value || 'soft',
-    sidebarPosition: document.getElementById('sidebarPosition')?.value || 'none',
     version: @design.Version
   };
   const target = document.getElementById('LayoutJson');
@@ -343,7 +333,7 @@ function syncTemplateJson() {
   updateTemplatePreview();
 }
 
-['templateRenderer', 'accentColor', 'backgroundColor', 'fontFamily', 'headingFontSize', 'bodyFontSize', 'heroStyle', 'headerStyle', 'heroLayout', 'sectionSpacing', 'buttonStyle', 'sidebarPosition'].forEach(id => {
+['templateRenderer', 'accentColor', 'backgroundColor', 'fontFamily', 'headingFontSize', 'bodyFontSize', 'heroStyle', 'headerStyle', 'heroLayout', 'sectionSpacing', 'buttonStyle'].forEach(id => {
   document.getElementById(id)?.addEventListener('change', syncTemplateJson);
   document.getElementById(id)?.addEventListener('input', syncTemplateJson);
 });

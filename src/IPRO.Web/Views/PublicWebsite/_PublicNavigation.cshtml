@@ -4,10 +4,6 @@
     var topPages = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
     var header = IPRO.Entities.WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
     var headerClasses = $"public-site-header style-{header.Style} logo-{header.LogoPosition} logo-size-{header.LogoSize}" + (header.Sticky ? " is-sticky" : "");
-    // The sidebar rail already renders this same page list as a menu when a sidebar position is
-    // active -- showing the same links again here would just duplicate them, so the header keeps
-    // only branding and contact actions in that case.
-    var sidebarCarriesNavigation = (ViewBag.SidebarPosition as string ?? "none") != "none";
 }
 <header class="@headerClasses">
   <div class="public-site-header__inner">
@@ -21,33 +17,30 @@
         @website.AgentUser.CompanyName
       }
     </a>
-    @if (!sidebarCarriesNavigation)
-    {
-      <nav class="public-site-nav" aria-label="Main navigation">
-        @foreach (var sitePage in topPages)
-        {
-          var children = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == sitePage.Id).OrderBy(p => p.SortOrder).ToList();
-          var isCurrent = sitePage.Id == Model.CurrentPage?.Id;
-          var childIsCurrent = children.Any(child => child.Id == Model.CurrentPage?.Id);
-          <div class="public-site-nav__item">
-            <a href="@(sitePage.IsHomePage ? "/" : "/" + sitePage.Slug)" class="@((isCurrent || childIsCurrent) ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
-            @if (children.Any())
-            {
-              <div class="public-site-nav__children">
-                @foreach (var child in children)
-                {
-                  <a href="/@child.Slug" class="@(child.Id == Model.CurrentPage?.Id ? "is-active" : "")" aria-current="@(child.Id == Model.CurrentPage?.Id ? "page" : null)">@child.NavigationLabel</a>
-                }
-              </div>
-            }
-          </div>
-        }
-        @foreach (var link in header.CustomLinks.OrderBy(link => link.SortOrder))
-        {
-          <div class="public-site-nav__item"><a href="@link.Url">@link.Label</a></div>
-        }
-      </nav>
-    }
+    <nav class="public-site-nav" aria-label="Main navigation">
+      @foreach (var sitePage in topPages)
+      {
+        var children = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == sitePage.Id).OrderBy(p => p.SortOrder).ToList();
+        var isCurrent = sitePage.Id == Model.CurrentPage?.Id;
+        var childIsCurrent = children.Any(child => child.Id == Model.CurrentPage?.Id);
+        <div class="public-site-nav__item">
+          <a href="@(sitePage.IsHomePage ? "/" : "/" + sitePage.Slug)" class="@((isCurrent || childIsCurrent) ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
+          @if (children.Any())
+          {
+            <div class="public-site-nav__children">
+              @foreach (var child in children)
+              {
+                <a href="/@child.Slug" class="@(child.Id == Model.CurrentPage?.Id ? "is-active" : "")" aria-current="@(child.Id == Model.CurrentPage?.Id ? "page" : null)">@child.NavigationLabel</a>
+              }
+            </div>
+          }
+        </div>
+      }
+      @foreach (var link in header.CustomLinks.OrderBy(link => link.SortOrder))
+      {
+        <div class="public-site-nav__item"><a href="@link.Url">@link.Label</a></div>
+      }
+    </nav>
     <div class="public-site-actions">
       @if (header.ShowPhone && !string.IsNullOrWhiteSpace(website.AgentUser.Phone))
       {

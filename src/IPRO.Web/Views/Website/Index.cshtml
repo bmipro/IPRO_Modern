@@ -18,7 +18,6 @@
     var buttonStyleOverride = Model?.ButtonStyleOverride ?? "";
     var sectionSpacingOverride = Model?.SectionSpacingOverride ?? "";
     var heroStyleOverride = Model?.HeroStyleOverride ?? "";
-    var sidebarPositionOverride = Model?.SidebarPositionOverride ?? "";
     var selectedDesign = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(selectedTemplate, new IPRO.Entities.AgentDesignOverrides
     {
         ThemeColor = themeColor,
@@ -28,8 +27,7 @@
         BackgroundColor = backgroundColorOverride,
         ButtonStyle = buttonStyleOverride,
         SectionSpacing = sectionSpacingOverride,
-        HeroStyle = heroStyleOverride,
-        SidebarPosition = sidebarPositionOverride
+        HeroStyle = heroStyleOverride
     });
     var isPublished = Model?.IsPublished == true;
     var liveDomain = string.IsNullOrWhiteSpace(customDomain) ? temporaryDomain : customDomain;
@@ -232,34 +230,6 @@
                 <option value="classic" selected="@(heroStyleOverride == "classic" ? "selected" : null)">Classic</option>
               </select>
               <div class="form-text">Background treatment behind your hero banner.</div>
-            </div>
-            <div class="col-12">
-              <label class="form-label fw-semibold">Sidebar Position</label>
-              <select name="SidebarPositionOverride" id="SidebarPositionOverride" class="d-none" aria-hidden="true">
-                <option value="" selected="@(string.IsNullOrWhiteSpace(sidebarPositionOverride) ? "selected" : null)">Match template default</option>
-                <option value="none" selected="@(sidebarPositionOverride == "none" ? "selected" : null)">No sidebar</option>
-                <option value="left" selected="@(sidebarPositionOverride == "left" ? "selected" : null)">Sidebar left</option>
-                <option value="right" selected="@(sidebarPositionOverride == "right" ? "selected" : null)">Sidebar right</option>
-              </select>
-              <div class="position-gallery" role="group" aria-label="Sidebar position">
-                <button type="button" class="position-card @(string.IsNullOrWhiteSpace(sidebarPositionOverride) ? "is-selected" : "")" data-position="">
-                  <span class="position-card__diagram position-card__diagram--default"><span></span></span>
-                  <span class="position-card__name">Match template</span>
-                </button>
-                <button type="button" class="position-card @(sidebarPositionOverride == "none" ? "is-selected" : "")" data-position="none">
-                  <span class="position-card__diagram"><span></span></span>
-                  <span class="position-card__name">No sidebar</span>
-                </button>
-                <button type="button" class="position-card @(sidebarPositionOverride == "left" ? "is-selected" : "")" data-position="left">
-                  <span class="position-card__diagram position-card__diagram--left"><i></i><span></span></span>
-                  <span class="position-card__name">Sidebar left</span>
-                </button>
-                <button type="button" class="position-card @(sidebarPositionOverride == "right" ? "is-selected" : "")" data-position="right">
-                  <span class="position-card__diagram position-card__diagram--right"><span></span><i></i></span>
-                  <span class="position-card__name">Sidebar right</span>
-                </button>
-              </div>
-              <div class="form-text">Adds a persistent rail (your logo, photo, and contact info) beside your content on every page — works with any design above.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Temporary Website Domain</label>
@@ -695,14 +665,6 @@ document.querySelectorAll('.theme-card').forEach(card => {
       preview.classList.toggle('buttons-square', card.dataset.button === 'square');
       preview.classList.toggle('buttons-pill', card.dataset.button === 'pill');
     }
-    updateWebsitePreview();
-  });
-});
-document.querySelectorAll('.position-card').forEach(card => {
-  card.addEventListener('click', () => {
-    const select = document.getElementById('SidebarPositionOverride');
-    if (select) select.value = card.dataset.position;
-    document.querySelectorAll('.position-card').forEach(c => c.classList.toggle('is-selected', c === card));
     updateWebsitePreview();
   });
 });

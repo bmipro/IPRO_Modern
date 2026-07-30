@@ -17,10 +17,8 @@
         BackgroundColor = website.BackgroundColorOverride,
         ButtonStyle = website.ButtonStyleOverride,
         SectionSpacing = website.SectionSpacingOverride,
-        HeroStyle = website.HeroStyleOverride,
-        SidebarPosition = website.SidebarPositionOverride
+        HeroStyle = website.HeroStyleOverride
     });
-    ViewBag.SidebarPosition = design.SidebarPosition;
     var theme = design.AccentColor;
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
@@ -184,6 +182,14 @@
       padding: 20px;
       margin-bottom: 18px;
     }
+    .profile-photo {
+      display: block;
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 14px;
+    }
     .profile-name {
       font-weight: 900;
       font-size: 20px;
@@ -259,7 +265,7 @@
   </style>
   @await Html.PartialAsync("_ManagedPageStyles")
 </head>
-<body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle sidebar-@design.SidebarPosition">
+<body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle">
   @if (ViewBag.IsUnsavedPreview == true)
   {
     <div class="template-preview-banner unsaved-preview-banner"><i class="fas fa-pen me-2"></i>Unsaved preview — showing your current changes to this block. Nothing has been saved yet.</div>
@@ -329,15 +335,16 @@
 
       <aside class="classic-sidebar" id="contact">
         <div class="profile-box">
+          @if (!string.IsNullOrWhiteSpace(agent.PhotoUrl))
+          {
+            <img src="@agent.PhotoUrl" alt="@fullName" class="profile-photo" />
+          }
           <div class="profile-name">@fullName</div>
           <div class="profile-meta mt-2">@company</div>
-          <div class="profile-meta">@agent.City, @agent.Province</div>
-        </div>
-
-        <div class="profile-box">
-          <a class="side-link" href="#"><i class="fas fa-newspaper"></i>Latest News</a>
-          <a class="side-link" href="#"><i class="fas fa-calculator"></i>Tools & Resources</a>
-          <a class="side-link" href="#"><i class="fas fa-comments"></i>Client Support</a>
+          @foreach (var line in agent.GetFormattedAddressLines())
+          {
+            <div class="profile-meta">@line</div>
+          }
         </div>
 
         <div class="profile-box">

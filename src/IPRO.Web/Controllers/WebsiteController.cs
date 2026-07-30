@@ -118,7 +118,6 @@ public class WebsiteController : Controller
             model.ButtonStyleOverride = string.Empty;
             model.SectionSpacingOverride = string.Empty;
             model.HeroStyleOverride = string.Empty;
-            model.SidebarPositionOverride = string.Empty;
         }
         else
         {
@@ -129,7 +128,6 @@ public class WebsiteController : Controller
             model.ButtonStyleOverride = NormalizeOptionalOption(model.ButtonStyleOverride, "square", "soft", "pill");
             model.SectionSpacingOverride = NormalizeOptionalOption(model.SectionSpacingOverride, "compact", "comfortable", "spacious");
             model.HeroStyleOverride = NormalizeOptionalOption(model.HeroStyleOverride, "gradient", "clean", "classic");
-            model.SidebarPositionOverride = NormalizeOptionalOption(model.SidebarPositionOverride, "none", "left", "right");
         }
 
         if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
@@ -175,7 +173,6 @@ public class WebsiteController : Controller
             existing.ButtonStyleOverride = model.ButtonStyleOverride;
             existing.SectionSpacingOverride = model.SectionSpacingOverride;
             existing.HeroStyleOverride = model.HeroStyleOverride;
-            existing.SidebarPositionOverride = model.SidebarPositionOverride;
             existing.TemplateId = model.TemplateId;
             existing.CustomDomain = model.CustomDomain;
             if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl;
