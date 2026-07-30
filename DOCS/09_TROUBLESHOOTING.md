@@ -492,6 +492,98 @@ After fixing the above, an agent applied a real image to a Hero block (Classic t
 
 **Prevention rule**: any future grid-based image-beside-text layout should either (a) wrap the `<img>` in a container `<div>` and size the img to `width:100%; height:100%` inside it (the pattern already used safely for both Hero blocks in Modern/Editorial), or (b) if the `<img>` must be a direct grid/flex item, always pair its `width:100%` with `min-width:0`.
 
+## Incident: SuperAdmin Card/Letter Feature Crashed Both Apps On Startup (2026-07-29)
+
+**Symptom.** Commit `378a5e6` deployed cleanly and then both `ipro-prod-web` and `ipro-prod-admin`
+failed to start — exit code **134** (SIGABRT), container never reached a listening state. Azure
+blocked both sites after repeated cold-start failures, so they stayed down (~25 min) instead of
+self-healing.
+
+**Root cause: still unidentified.** Everything below was tried and produced nothing:
+- Application Insights had **no exception and no trace** in the window. A later control query showed
+  it returns no data for these apps *at all*, even while they serve traffic — so its emptiness was
+  never evidence of anything. Do not treat "App Insights is clean" as a signal here.
+- The container docker log carries orchestrator lines only; the app's own stdout/stderr is not in it.
+- No Docker and no MySQL on the dev machine, so startup could not be reproduced locally.
+- *Ruled out by evidence:* EF's pending-model-changes check. It throws in EF 9; this repo is on
+  EF **8.0.0** where it only warns, and DbSet-without-migration is the established pattern here
+  (ECards, ELetters, Polls, Forms all ship that way).
+- *Unproven hypothesis:* the seeders write emoji (4-byte UTF-8) into MySQL for what would be the
+  first time in this database.
+
+**Recovery.** Revert (`9fac47a`), then **re-run the web deploy** — its first run had independently
+failed at `azure/login` with "Failed to fetch federated token from GitHub", so admin recovered and
+web did not. Check both workflow runs, not just one.
+
+**Fix (the durable part).** Starter-content seeding and the new schema repair are now wrapped: a
+failure logs to `ILogger` *and* stderr and the app boots anyway. This is the isolation H-8/M-11/M-12
+already gave the background jobs, finally applied to startup. Structural seeders (entitlements, tax
+rates, website templates) are deliberately left unwrapped — an agent cannot function without those.
+
+**Prevention.** A clean build and a locally-rendered component do not exercise *application startup
+against a real database*, which is where this failed. Anything touching both `Program.cs` files plus
+new tables deserves more than a build check. And no optional-content seeder should ever be able to
+abort the process.
+
+## Incident: Three Cross-App Assumptions, One Feature (2026-07-29)
+
+All three surfaced within an hour of the card/letter admin screens going live, and all three share a
+shape that a build and a local render are blind to: **one app serves it, another app consumes it.**
+
+1. **`IBlobStorageService` was never registered in IPRO.Admin.** Artwork upload would have thrown a
+   DI error on first use. Worse, `AzureBlobStorageService` throws in its *constructor* when the
+   connection string is absent, so injecting it normally would have killed the whole designs screen
+   including list and retire — neither of which touches storage. Now resolved lazily, on the upload
+   path only.
+2. **Blank artwork thumbnails in Admin.** Artwork lives in IPRO.Web's `wwwroot` and `ImageUrl` is
+   stored site-relative, so admin resolved it against its own host. Confirmed with curl: all ten
+   files 200 on `app.iproadvisers.com`, 404 on `admin.iproadvisers.com`.
+   `ECardDesign.AbsoluteImageUrl(baseUrl)` now owns that rule.
+3. **Fixing the URL was not enough** — admin's CSP was `img-src 'self' data:`, so the browser blocked
+   the cross-origin image anyway. Correct URL, HTTP 200 at the other end, **no server-side error and
+   nothing in any log**; the failure existed only in the browser. `img-src` now allows the agent
+   portal origin (config-driven) plus blob storage.
+
+**Prevention.** When one app displays an asset another app serves, check three things on *both*
+sides: the URL, the credential, and the CSP. Also still outstanding:
+`Azure__StorageConnectionString` / `Azure__StorageAccountName` are set on `ipro-prod-web` but **not**
+on `ipro-prod-admin`, so uploading new artwork reports storage is not configured.
+
+## Incident: Two Misleading Admin Readouts Sent Investigations The Wrong Way (2026-07-29)
+
+Neither was a functional bug; both cost real time by stating something false.
+
+- **E-Card Designs list.** Two designs had been retired, so the agent picker offered 12 of 14 — which
+  looked like a query bug. The status was only visible as a small badge per row. The list now shows
+  a count: *"14 design(s), 12 offered to agents."*
+- **Audit Log.** The header read *"0 total entries · every action a Super Admin or Support user takes
+  across the portal"* while a filter was active, but that count is computed **after** filtering. A
+  search that matched nothing was indistinguishable from an empty audit log. The page now shows both
+  numbers when filtered and the empty state says which case it is.
+
+**Also fixed:** retiring a design or template fired from a single unguarded click. Both now use the
+`js-confirm-submit` / `data-confirm-message` convention this codebase already applies to every other
+destructive admin action.
+
+## Feature: Designation Renders Before The Name, Everywhere (2026-07-29)
+
+Reported on an e-card as "Raniah Motamed  Ms."; on the websites the designation sat on the line
+below the name.
+
+The complication: `AgentUser.Designation` holds two kinds of value with **opposite** placement rules.
+`Ms.` is an honorific and belongs before the name; `CFP` is a credential and belongs after it,
+comma-separated. Moving the field unconditionally would have produced "CFP Raniah Motamed".
+
+`AgentNameFormatter.FullName` (IPRO.Entities) recognises honorifics — Mr/Mrs/Ms/Miss/Mx/Dr/Prof/Rev/
+Sir/Dame plus M/Mme/Mlle — and places those first; anything else is appended after a comma.
+Punctuation is preserved exactly as typed: adding a period produces "Miss." and "Sir.", and "Ms"
+without one is correct British style, so the helper decides placement only, never spelling.
+
+Applied at every render site so no template decides this for itself: e-card contact block, e-letter
+signature, newsletter footer (which previously showed no designation at all), the Modern/Classic/
+Editorial Agent Info blocks, `_ModernProfessional`, `_ClassicSidebar`, `_WebsiteSidebarRail`.
+Admin → Agents → Details is deliberately untouched — that is a labelled field readout, not a name.
+
 ## Release Build Commands
 
 From the repository root:

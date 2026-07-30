@@ -1009,6 +1009,41 @@ public class Broker
 
 ## Product Direction
 
+### 66. Designation renders before the name, everywhere (done, 2026-07-29)
+
+Reported on a live e-card ("Raniah Motamed  Ms.") and visible on the websites as a designation
+stranded on the line below the name. The trap: `Designation` holds two kinds of value with opposite
+placement rules — `Ms.` is an honorific and goes first, `CFP` is a credential and goes last after a
+comma. Moving the field unconditionally would have shipped "CFP Raniah Motamed" to every credentialed
+advisor's website.
+
+New `AgentNameFormatter` (IPRO.Entities) recognises honorifics and places them first; anything else is
+treated as a credential. Punctuation is preserved as typed — appending a period yields "Miss." and
+"Sir.", so the helper decides placement only. Applied at all eight render sites (e-card, e-letter,
+newsletter footer, three Agent Info blocks, two site shells and the sidebar rail) so no template makes
+this call for itself again. Verified against 13 real-shaped inputs plus a rendered comparison.
+
+Full detail in `DOCS/09_TROUBLESHOOTING.md`.
+
+### 67. Post-launch fixes to the card/letter admin screens (done, 2026-07-29)
+
+Four defects surfaced within an hour of item 65 going live, and one non-defect that looked like one.
+
+- **Artwork thumbnails blank in Admin** — two chained cross-app faults: a site-relative `ImageUrl`
+  resolved against the wrong host, and then a CSP (`img-src 'self' data:`) that blocked the
+  cross-origin image even once the URL was right. Both fixed; `ECardDesign.AbsoluteImageUrl` now owns
+  the URL rule and the composer's private copy of it is gone.
+- **`IBlobStorageService` unregistered in IPRO.Admin** — artwork upload would have thrown on first
+  use; also now resolved lazily so a missing storage credential cannot take down the whole screen.
+- **Retire fired from one unguarded click** — now uses the `js-confirm-submit` convention already
+  standard for destructive admin actions.
+- **Audit Log said "0 total entries" while filtered** — the count was post-filter, making "no matches"
+  indistinguishable from "the log is empty". Now shows both numbers.
+- **Not a defect:** the agent picker offering 12 of 14 was correct — two designs were retired. The new
+  count line on the admin list ("14 design(s), 12 offered to agents") makes that state explicit.
+
+Full detail, including the cross-app prevention rule, in `DOCS/09_TROUBLESHOOTING.md`.
+
 The strongest path is not just "website builder" or "CRM". The winning position is:
 
 > A vertical-ready business growth platform that gives small businesses a website, CRM, email campaigns, follow-ups, billing, client portal, and automation in one place.
