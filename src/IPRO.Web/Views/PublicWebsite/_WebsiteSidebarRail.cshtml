@@ -4,6 +4,12 @@
     var agent = website.AgentUser;
     // Designation belongs in the name -- "Ms. Raniah Motamed", not a line below it.
     var fullName = IPRO.Entities.AgentNameFormatter.FullName(agent);
+    var hasContactCard = !string.IsNullOrWhiteSpace(website.LogoUrl) || !string.IsNullOrWhiteSpace(agent.PhotoUrl) ||
+        !string.IsNullOrWhiteSpace(fullName) || !string.IsNullOrWhiteSpace(agent.CompanyName) ||
+        !string.IsNullOrWhiteSpace(agent.Phone) || !string.IsNullOrWhiteSpace(agent.Email);
+    // Same tree _PublicNavigation.cshtml renders as a top-nav dropdown -- here it's the legacy
+    // pattern instead, where the sidebar itself is the site's real menu.
+    var topPages = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
 }
 <aside class="site-sidebar-rail">
   @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
@@ -34,5 +40,33 @@
         <a href="mailto:@agent.Email"><i class="fas fa-envelope me-2"></i>@agent.Email</a>
       }
     </div>
+  }
+  @if (topPages.Any())
+  {
+    <nav class="site-sidebar-menu @(hasContactCard ? "has-divider" : "")" aria-label="Site menu">
+      @foreach (var sitePage in topPages)
+      {
+        var children = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == sitePage.Id).OrderBy(p => p.SortOrder).ToList();
+        var isCurrent = sitePage.Id == Model.CurrentPage?.Id;
+        var childIsCurrent = children.Any(child => child.Id == Model.CurrentPage?.Id);
+        var href = sitePage.IsHomePage ? "/" : "/" + sitePage.Slug;
+        if (children.Any())
+        {
+          <details class="site-sidebar-menu__group" open="@(isCurrent || childIsCurrent)">
+            <summary><a href="@href" class="@((isCurrent || childIsCurrent) ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a></summary>
+            <div class="site-sidebar-menu__children">
+              @foreach (var child in children)
+              {
+                <a href="/@child.Slug" class="@(child.Id == Model.CurrentPage?.Id ? "is-active" : "")" aria-current="@(child.Id == Model.CurrentPage?.Id ? "page" : null)">@child.NavigationLabel</a>
+              }
+            </div>
+          </details>
+        }
+        else
+        {
+          <a class="site-sidebar-menu__link @(isCurrent ? "is-active" : "")" href="@href" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
+        }
+      }
+    </nav>
   }
 </aside>

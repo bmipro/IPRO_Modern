@@ -87,6 +87,18 @@
   .site-sidebar-rail__contact { margin-top: 18px; }
   .site-sidebar-rail__contact a { display: block; color: var(--ink, #172033); text-decoration: none; padding: 6px 0; font-weight: 700; }
   .site-sidebar-rail__contact a i { color: var(--site-theme, #1457d9); width: 20px; }
+  .site-sidebar-menu { margin-top: 18px; display: flex; flex-direction: column; }
+  .site-sidebar-menu.has-divider { margin-top: 24px; padding-top: 20px; border-top: 1px solid #dce4ef; }
+  .site-sidebar-menu__link, .site-sidebar-menu__group summary a { display: block; padding: 9px 0; color: var(--ink, #273348); text-decoration: none; font-weight: 700; font-size: 14px; }
+  .site-sidebar-menu__link:hover, .site-sidebar-menu__group summary a:hover,
+  .site-sidebar-menu__link.is-active, .site-sidebar-menu__group summary a.is-active { color: var(--site-theme, #1457d9); }
+  .site-sidebar-menu__group summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; list-style: none; }
+  .site-sidebar-menu__group summary::marker, .site-sidebar-menu__group summary::-webkit-details-marker { display: none; content: ''; }
+  .site-sidebar-menu__group summary::after { content: ''; flex: none; width: 7px; height: 7px; margin-right: 2px; border-right: 2px solid #8a93a6; border-bottom: 2px solid #8a93a6; transform: rotate(45deg); transition: transform .15s ease; }
+  .site-sidebar-menu__group[open] summary::after { transform: rotate(-135deg); }
+  .site-sidebar-menu__children { display: flex; flex-direction: column; padding-left: 14px; margin: 2px 0 8px; border-left: 2px solid #e7ecf3; }
+  .site-sidebar-menu__children a { display: block; padding: 7px 0 7px 10px; color: var(--muted, #55617a); text-decoration: none; font-size: 13px; font-weight: 600; }
+  .site-sidebar-menu__children a:hover, .site-sidebar-menu__children a.is-active { color: var(--site-theme, #1457d9); }
   .dyk-teasers { list-style: none; padding: 0; margin: 0 0 24px; }
   .dyk-card { padding: 16px 0; border-bottom: 1px solid rgba(0,0,0,.08); }
   .dyk-card-title { display: flex; align-items: center; margin: 0 0 8px; font-size: 17px; font-weight: 800; }
