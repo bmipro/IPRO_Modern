@@ -1144,11 +1144,33 @@ the sidebar. Exactly the "confusing redundancy" this whole rework exists to remo
 instead of better. Fixed: `_PublicNavigation.cshtml` now hides its own page links whenever a
 sidebar position is active (the sidebar carries that job instead, matching how the legacy reference
 sites actually worked), and `_WebsiteSidebarRail.cshtml` no longer repeats the logo the header
-already shows. Verified live with a screenshot after the fix, not just re-read in code. One
-operational note: the fix didn't take effect on the first deploy despite GitHub Actions reporting
-success — an explicit `az webapp restart` was needed before the running instance picked it up.
-Worth remembering for future same-day fixes: a successful deploy notification doesn't always mean
-the live site is serving the new bits immediately.
+already shows. One operational note: the fix didn't take effect on the first deploy despite GitHub
+Actions reporting success — an explicit `az webapp restart` was needed before the running instance
+picked it up, and this repeated for every follow-up fix below. Worth remembering going forward: a
+successful deploy notification doesn't guarantee the live site is serving the new bits immediately.
+
+**Second, unrelated real defect found while checking the first fix, reported live with a
+screenshot:** a huge blank gap appeared above all page content on a sidebar-enabled site (hero,
+services, everything), with the sidebar rendering correctly but disconnected above it. Confirmed
+via `getBoundingClientRect` this was a genuine, previously-latent CSS Grid bug in the *original*
+Position/sidebar feature (item 157-164) — not something the Site Menu introduced, it just took
+building next to it for anyone to look closely enough to notice. Root cause: `.site-sidebar-rail`
+had an explicit `grid-column` in the sidebar-shell grid; its sibling (the actual page content) was
+left to CSS Grid's automatic placement. Only one item having an explicit position is a genuine CSS
+Grid footgun — it can make the auto-placed sibling land in a whole new implicit row instead of the
+empty column next to it. First fix attempt (giving the sibling an explicit `grid-column` too) was
+verified insufficient by re-measuring live — `grid-template-rows` still computed as two rows, not
+one. Second attempt, pinning `grid-row: 1` on both explicitly, verified correct: both elements'
+`getBoundingClientRect().top` now match, and `grid-template-rows` computes as a single row. Every
+step this time was checked against real DOM measurements, not a screenshot glance, specifically
+because the first two "fixed" claims this session turned out not to be.
+
+A third symptom appeared in the reported screenshot alongside the blank gap — a sliver of
+unexplained non-Latin script text at the right edge of the viewport. It could not be reproduced in
+any automated check before or after the grid fix, and does not appear in the DOM (checked for any
+Hebrew/Arabic/Syriac/Thaana Unicode range text in the rendered body — none found). Likely a symptom
+of the broken layout rather than a separate defect, but flagged rather than assumed, since it was
+never independently confirmed one way or the other.
 
 ### 71. Template system V2, phase 2: Calculator block, 7 calculators (done, 2026-07-30)
 
