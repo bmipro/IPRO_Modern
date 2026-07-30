@@ -224,7 +224,8 @@ mechanism does not depend on having that content today.
 
 1. **Site Menu sidebar element — done, 2026-07-30.** Shipped and verified live on a real
    sidebar-right production site. Full detail: roadmap item 70.
-2. Calculator block type + first 7 calculators. In progress.
+2. **Calculator block, 7 calculators — done, 2026-07-30.** Shipped; deploy and regression
+   verified live, formulas verified numerically. Full detail: roadmap item 71.
 3. Glossary category field + Glossary block, per-vertical via `WebsiteStarterArticle`.
 
 Each phase: build, verify against real data, commit, push, deploy, update docs — the same

@@ -1137,6 +1137,46 @@ following the nested link, depending on exactly where it lands) — an inherent 
 `<a>` inside `<summary>`, not a functional defect. Worth revisiting only if agents actually use
 parent pages as real content pages rather than pure categories.
 
+### 71. Template system V2, phase 2: Calculator block, 7 calculators (done, 2026-07-30)
+
+Second of three build phases from item 69. Reading the legacy `cal1` suite's actual source showed
+the `.php` files are just form shells — the real math already lived in plain client-side `.js`
+files — so this was modernizing existing formulas, not translating PHP.
+
+New `WebsiteBlockTypes.Calculator` + `WebsiteCalculatorSettings`, following the same pattern as
+every other block type. One shared `_CalculatorBlock.cshtml` partial (matching the established
+`_WebsiteLeadForm.cshtml`-style shared-partial convention) renders all 7 calculators across all
+3 templates: Mortgage Payment, Refinance break-even, Rent vs. Buy, Retirement savings/drawdown,
+Loan amortization schedule, and APR. Runs entirely client-side, matching this app's no-framework/
+CSP-nonce convention — nothing is sent to the agent or IPRO.
+
+Two deliberate departures from a literal port, both to avoid hardcoding stale or
+wrong-jurisdiction numbers into a live tool real advisors' clients might use:
+- Mortgage/refinance/rent-vs-buy math uses **semi-annual compounding**, the Canadian mortgage
+  convention — matching what `cal1/mortgage.js` already did, confirming this suite already leaned
+  Canadian in places.
+- The "RRSP/Roth" slot's source (`roth.js`) was a 2008-era literal US Roth-vs-Traditional-IRA
+  calculator with a hardcoded $4,000 contribution cap and an IRS age-70½ RMD table — neither
+  transfers to RRSP/TFSA. Replaced with a generic **tax-deferred vs. tax-free savings comparison**
+  (contribution, growth rate, tax-rate-now vs. tax-rate-later as plain inputs, no hardcoded
+  limits) — fits RRSP/TFSA or Traditional/Roth without false precision about one country's rules.
+
+Every formula was verified numerically (via a standalone Node script), not just compiled: the
+$400k/5%/25yr mortgage payment matches the ~$2,326-2,328 range published Canadian mortgage
+calculators produce for the same inputs; the amortization schedule's principal column sums exactly
+to the loan amount with a zero ending balance; the tax comparison is provably identical when
+current and future tax rates are equal (the textbook result) and correctly favours the deferred
+side when the future rate is lower; APR is always at or above the stated rate.
+
+Deployed and regression-checked live: an existing page with a Contact Form block and the item 70
+Site Menu both still render correctly post-deploy, confirming the new block type's insertion into
+each template's block-type chain didn't disturb existing types. The Calculator block's own
+rendered output could not be visually confirmed live this session — that needs an agent to add one
+to a real page, which requires agent-portal access not available here — so that check is still
+open, flagged rather than assumed.
+
+Full detail, the source-math analysis, and the jurisdiction reasoning: `DOCS/TEMPLATE_SYSTEM_V2_PLAN.md`.
+
 The strongest path is not just "website builder" or "CRM". The winning position is:
 
 > A vertical-ready business growth platform that gives small businesses a website, CRM, email campaigns, follow-ups, billing, client portal, and automation in one place.
