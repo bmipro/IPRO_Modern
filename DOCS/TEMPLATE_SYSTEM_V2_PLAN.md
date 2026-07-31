@@ -4,6 +4,13 @@ Working notes from the 2026-07-30 discussion about replacing dissatisfaction wit
 template system with a deliberate plan, before any code is written. This is a living planning
 document, not a shipped-feature manual — update it as decisions are made or reversed.
 
+**Superseded, same day (2026-07-30):** the "Site Menu sidebar element" design below shipped, was
+found to duplicate the header nav, was fixed twice, and was then retired entirely — sidebar-as-
+navigation was the wrong shape, not a bug to keep patching. The "Glossary / Info-Centre" design below
+also did not ship as written; a related but different mechanism ("Resources") shipped instead. Both
+are marked inline below. Full detail: roadmap items 72-73, and the "Incident: Sidebar-As-Navigation
+Shipped Wrong Twice" entry in `09_TROUBLESHOOTING.md`.
+
 ## Why this is being revisited
 
 Two separate complaints, not one:
@@ -160,6 +167,12 @@ both toggle later only if agents actually ask for it. Keep two-level depth as-is
 reviewing the legacy side-menu Word docs (`IPro_accountants/files/side_menu/side_menu.doc`) shows a
 real three-level requirement. **No new entities or schema needed for this piece.**
 
+**Retired, 2026-07-30 (roadmap item 72):** shipped, duplicated the header nav, was fixed twice (see
+`09_TROUBLESHOOTING.md`), and was then removed entirely along with the whole Position/sidebar-as-
+navigation mechanism — top nav is now the single navigation surface on every template. The insight
+that the page tree already exists end-to-end (above) turned out to be the durable part of this
+section; "render it again in a sidebar" was not the right use of that insight.
+
 ### Calculator block type
 
 New block type following the existing pattern (`WebsiteContentBlock.BlockType` plus a `*Settings`
@@ -220,13 +233,32 @@ folders (the closest match, "Did you know?", is already built) — the `WebsiteS
 starts empty and gets populated per vertical once real glossary content is written or sourced; the
 mechanism does not depend on having that content today.
 
-### Build order
+**Superseded, 2026-07-30 (roadmap item 73) — shipped related but different from this design.** The
+user's own direction, arrived at the same day with outside input, replaced "glossary" with
+"Resources": a top-nav dropdown (not a listing block) whose entries are individually real, reusable
+`Article` pages, each becoming its own page in the nav tree rather than rows in one alphabetized
+glossary page. What actually shipped: `WebsiteStarterArticle` did ship (`BusinessType`, `Title`,
+`Summary`, `Content`, `ImageUrl`, `IsActive`, `SortOrder`) — no `Category` field, since there is only
+one per-agent Resources tree, not multiple categorized content types sharing one Articles table.
+`Article` itself was **not** extended with a `Category` field. No `Glossary` block type was built;
+each Resources entry instead uses the existing `ArticleContent` block (one per child page) rather than
+one listing block enumerating many. `WebsiteStarterResourcesHelper.EnsureResourcesAsync` is the
+provisioning step this section anticipated, structurally close to the design above but writing a real
+page tree (`WebsitePage`/`WebsiteContentBlock`) instead of flat `Articles` rows with no page
+presence. The starter content itself is 8 short real articles across the 4 business types (not a
+term/definition glossary) — see roadmap item 73 for the full list and reasoning.
 
-1. **Site Menu sidebar element — done, 2026-07-30.** Shipped and verified live on a real
-   sidebar-right production site. Full detail: roadmap item 70.
-2. **Calculator block, 7 calculators — done, 2026-07-30.** Shipped; deploy and regression
-   verified live, formulas verified numerically. Full detail: roadmap item 71.
-3. Glossary category field + Glossary block, per-vertical via `WebsiteStarterArticle`.
+### Build order (superseded — see final status per line)
+
+1. ~~Site Menu sidebar element~~ — shipped 2026-07-30, then **retired the same week** (roadmap
+   item 72). Position/sidebar-as-navigation no longer exists in this codebase.
+2. **Calculator block, 7 calculators — done, 2026-07-30, still current.** Shipped; deploy and
+   regression verified live, formulas verified numerically. Full detail: roadmap item 71. Unaffected
+   by the sidebar retirement — the Calculator block lives on a page, not in a sidebar.
+3. ~~Glossary category field + Glossary block~~ — superseded by **Resources** (roadmap item 73,
+   done 2026-07-30): per-vertical starter content via `WebsiteStarterArticle`, same idea, shipped as
+   a top-nav dropdown of real Article pages rather than a glossary listing block. See the superseded
+   note in the Glossary section above for exactly what differs.
 
 Each phase: build, verify against real data, commit, push, deploy, update docs — the same
 discipline used for every other feature this session. (Verification for phase 1 used the live
@@ -247,10 +279,10 @@ this session — the public sidebar rail needs no login at all.)
 - Review a same-topic sample across `Client Paragraphs` / `Prospect Paragraphs` / `Edited Articles`
   (e.g. Term Life) to see exactly how the three depths differ, before finalizing the content model
   shape.
-- Design the content model itself: page/category tree (sidebar navigation), an embeddable
-  calculator/tool block type, and a glossary/Info-Centre content type — needed regardless of which
-  editing UI is eventually chosen.
-- Only after the content model is settled, revisit the editing-UX tooling question (GrapesJS
-  integration vs. improving the current Razor-form-based block editor).
-- Rewrite the `cal1` calculator formulas from PHP into whatever the new tool/block type ends up
-  being; do not depend on the ionCube-encoded `cal` bundle.
+- ~~Design the content model itself~~ — done. Page tree via top nav (not a sidebar), Calculator
+  block (roadmap item 71), and Resources in place of a glossary (roadmap item 73).
+- Now that the content model is settled, revisit the editing-UX tooling question (GrapesJS
+  integration vs. improving the current Razor-form-based block editor) — this is the one piece of
+  the original plan not yet picked back up.
+- ~~Rewrite the `cal1` calculator formulas~~ — done (roadmap item 71); ported to client-side JS,
+  verified numerically, the ionCube-encoded `cal` bundle was never needed.

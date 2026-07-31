@@ -641,8 +641,69 @@ without one is correct British style, so the helper decides placement only, neve
 
 Applied at every render site so no template decides this for itself: e-card contact block, e-letter
 signature, newsletter footer (which previously showed no designation at all), the Modern/Classic/
-Editorial Agent Info blocks, `_ModernProfessional`, `_ClassicSidebar`, `_WebsiteSidebarRail`.
+Editorial Agent Info blocks, `_ModernProfessional`, `_ClassicSidebar`, `_WebsiteSidebarRail` (this
+last file was deleted 2026-07-30 — see "Incident: Sidebar-As-Navigation" below).
 Admin → Agents → Details is deliberately untouched — that is a labelled field readout, not a name.
+
+## Incident: Sidebar-As-Navigation Shipped Wrong Twice, Then Turned Out To Be The Wrong Feature (2026-07-30)
+
+**Symptom, first report, with a screenshot.** A "Site Menu" feature (a page-tree sidebar, meant to
+sit alongside the header) shipped showing every page link **twice** — two logos, two Home, two About,
+two Services, one set in the header and an identical set again in the new sidebar.
+
+**Root cause.** The sidebar was built additively, next to the existing header nav, instead of the two
+being coordinated. This was not a small coding slip — it came from misreading what the user actually
+wanted from reference material that showed *both* a working top nav and a working side nav on the
+same legacy site, without confirming first whether the new sidebar was meant to complement the top nav
+or partly replace it. **First fix:** `_PublicNavigation.cshtml` hides its own page links whenever a
+sidebar position is active, and the sidebar rail stopped repeating the logo the header already shows.
+
+**Symptom, second report, same day, with a screenshot.** With the duplication fixed, a large blank gap
+appeared above all page content on any sidebar-enabled site — hero, services, everything — with the
+sidebar itself rendering correctly but visually disconnected above the gap.
+
+**Root cause, evidenced via `getBoundingClientRect`/`getComputedStyle`, not assumed from the
+screenshot.** A genuine CSS Grid footgun: `.site-sidebar-rail` had an explicit `grid-column` in the
+sidebar-shell grid; its sibling (the actual page content) was left to CSS Grid's automatic placement.
+Only one grid item having an explicit position can make the auto-placed sibling land in a whole new
+implicit row instead of the empty column beside it. **First fix attempt** — giving the sibling an
+explicit `grid-column` too — was deployed, then **re-verified live before being reported as fixed**:
+`getBoundingClientRect()` on both elements showed different `top` values and `grid-template-rows`
+still computed as two rows, not one. That failure was caught and told to the user directly rather than
+being reported as resolved. **Second, correct fix:** pin `grid-row: 1` explicitly on both grid
+children, removing all ambiguity for the placement algorithm. Verified afterward the same way —
+`getBoundingClientRect().top` matched on both elements, `grid-template-rows` computed as a single row.
+
+**The actual resolution, one day later.** Neither bug fix was the real fix. After living with the
+(by-then genuinely working) sidebar for another day, the user's own conclusion — arrived at with
+outside input — was that a sidebar acting as a second, parallel navigation system was never the right
+shape: top nav should be the only navigation surface, full stop. Two rounds of patching a feature that
+kept producing visible defects turned out to be a signal about the feature's fundamental shape, not
+about needing a third patch. The whole sidebar-as-navigation mechanism (the Position picker on both
+the agent-facing My Website page and the SuperAdmin template editor, `_WebsiteSidebarRail.cshtml`, and
+its CSS — including the hard-won `grid-row: 1` fix above) was retired the same week in favor of
+top-nav-only navigation, plus a new "Resources" top-nav dropdown built on the page tree's existing
+`ParentPageId`/`ChildPages` mechanism, which needed no new navigation code at all.
+
+**A third, independently-found bug, while removing the retired mechanism.** Grepping for every file
+that referenced the Position/sidebar plumbing turned up a previously unnoticed instance of the exact
+same wrapping-bug class in `_ClassicManagedPage.cshtml`: an extra, unstyled, **never-closed** `<div>`
+wrapper around the block-rendering loop, sitting *inside* Classic's own separate, always-on hardcoded
+sidebar. Classic could have rendered two nested sidebars whenever a Position override was also set —
+never reported by the user, found only by systematically checking every file the retirement touched
+rather than assuming the bug pattern was unique to the two files already known to have it.
+
+**Prevention.**
+- Don't assume how a new feature "inspired by" reference material relates to existing working
+  behavior — confirm explicitly before implementing, especially when the implementation would change
+  or remove something that already works. (See `feedback_confirm_before_replacing_working_nav` in the
+  assistant's own memory system for the durable version of this lesson.)
+- Verify layout claims against real DOM measurements (`getBoundingClientRect`, `getComputedStyle`)
+  before reporting a fix as done — a screenshot alone had already produced one false "fixed" claim
+  earlier the same day; the second fix attempt was caught as still-broken *before* it reached the user
+  a second time, purely because it was re-measured rather than re-screenshotted.
+- Repeated bug reports on the same feature, especially from the same root cause class, are worth
+  treating as a possible signal about the feature's design, not only as more bugs to patch.
 
 ## Release Build Commands
 
