@@ -16,6 +16,7 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteMediaAsset> WebsiteMediaAssets => Set<WebsiteMediaAsset>();
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
+    public DbSet<WebsiteStarterArticle> WebsiteStarterArticles => Set<WebsiteStarterArticle>();
     public DbSet<WebsiteLead> WebsiteLeads => Set<WebsiteLead>();
     public DbSet<WebsiteSpamAttempt> WebsiteSpamAttempts => Set<WebsiteSpamAttempt>();
     public DbSet<WebsitePageView> WebsitePageViews => Set<WebsitePageView>();
@@ -262,6 +263,14 @@ public class IPRODbContext : DbContext
              .WithMany(p => p.Blocks)
              .HasForeignKey(b => b.WebsiteStarterPageId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WebsiteStarterArticle>(e =>
+        {
+            e.Property(a => a.BusinessType).HasMaxLength(80).IsRequired();
+            e.Property(a => a.Title).HasMaxLength(200).IsRequired();
+            e.Property(a => a.Summary).HasMaxLength(500);
+            e.Property(a => a.ImageUrl).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<Client>(e =>

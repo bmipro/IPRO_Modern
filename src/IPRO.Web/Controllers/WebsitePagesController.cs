@@ -39,6 +39,7 @@ public class WebsitePagesController : Controller
         }
 
         await EnsureStarterPagesAsync(website);
+        await EnsureResourcesAsync(website);
         var pages = await _db.WebsitePages
             .AsNoTracking()
             .Where(p => p.AgentWebsiteId == website.Id)
@@ -69,6 +70,7 @@ public class WebsitePagesController : Controller
         var website = await GetWebsiteAsync();
         if (website == null) return RedirectToAction("Index", "Website");
         await EnsureStarterPagesAsync(website);
+        await EnsureResourcesAsync(website);
         return View(new WebsiteNavigationViewModel
         {
             Website = website,
@@ -992,6 +994,9 @@ public class WebsitePagesController : Controller
 
     private Task EnsureStarterPagesAsync(AgentWebsite website) =>
         IPRO.Web.Infrastructure.WebsiteStarterPagesHelper.EnsureStarterPagesAsync(_db, website, AgentId);
+
+    private Task EnsureResourcesAsync(AgentWebsite website) =>
+        IPRO.Web.Infrastructure.WebsiteStarterResourcesHelper.EnsureResourcesAsync(_db, website, AgentId);
 
     private async Task<List<WebsitePage>> GetParentChoicesAsync(int websiteId, int excludedId) => await _db.WebsitePages
         .AsNoTracking().Where(p => p.AgentWebsiteId == websiteId && p.Id != excludedId && p.ParentPageId == null)

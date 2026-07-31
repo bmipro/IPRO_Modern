@@ -214,6 +214,7 @@ public class WebsiteController : Controller
         }
 
         await WebsiteStarterPagesHelper.EnsureStarterPagesAsync(_db, existing, AgentId);
+        await WebsiteStarterResourcesHelper.EnsureResourcesAsync(_db, existing, AgentId);
 
         TempData["Success"] = "Your website is now live!";
         return RedirectToAction(nameof(Index));

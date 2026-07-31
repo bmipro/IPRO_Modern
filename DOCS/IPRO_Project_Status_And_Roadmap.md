@@ -1233,8 +1233,8 @@ blank starter pages agents customize themselves. A template that has its own bui
 Classic does) keeps it, but purely for agent-populated contact/profile content — not as a navigation
 mechanism.
 
-This is the first two of four planned phases; phases 3-4 (new starter-page set, the Resources
-mechanism itself) are tracked separately and not yet built.
+This is phases 1-2 of a four-phase plan; phase 3 (new starter-page set) shipped the same day, see
+below, and phase 4 (the Resources mechanism itself) is item 73.
 
 **What shipped:**
 - `_PublicNavigation.cshtml`'s top nav now always renders on all 3 templates — the conditional that
@@ -1273,6 +1273,80 @@ this session to check them directly the same way. Classic's own sidebar photo/ad
 is code-correct and was read back after editing, but the specific branch it lives in (zero published
 pages) couldn't be triggered on a real production agent, since every real agent already has starter
 pages — flagged rather than assumed fixed.
+
+**Phase 3, same day:** the default starter-page set changes from Home/About/Services/Contact to
+Home/About/Testimonials/Contact/Free Newsletter/Request Meeting. `WebsiteStarterContentSeeder`'s
+original seed method already fully ran in production (guarded by a one-time check), so this couldn't
+just edit that method's body — it needed its own separately-guarded seed step
+(`SeedNavV2AdditionsAsync`), which deactivates the existing "services" starter pages
+(`IsActive = false` — new agents stop getting them; agents who already have a real Services page keep
+it untouched) and adds Testimonials (`TestimonialForm` block), Free Newsletter (`NewsletterSignup`),
+and Request Meeting (`ContactForm`, reused with meeting-oriented copy rather than inventing a new
+block type). Verified live the same way as phases 1-2 — checked `raniahmotamed.247advisers.com`
+again post-deploy and confirmed its existing Home/About/Services/Contact pages were completely
+unaffected, since `IsActive` on the starter-page *template* only changes what brand-new agents get at
+first provisioning, never touching an already-provisioned agent's real pages. The new pages
+themselves could not be checked live the same way, since they only appear for new signups and
+creating a real test account was out of scope for this session to do directly.
+
+### 73. Nav v2, phase 4: the Resources mechanism (done, 2026-07-30)
+
+Closes out the four-phase Nav v2 plan from item 72. Confirmed early in planning and holds up in the
+implementation: "Resources" needed no new navigation code at all. It is a real `WebsitePage` (parent)
+with one real child `WebsitePage` per article, using the exact `ParentPageId`/`ChildPages` two-level
+dropdown `_PublicNavigation.cshtml` already renders for *any* page — the same mechanism item 70
+mistakenly tried to duplicate in a sidebar. Each child page holds one `ArticleContent` block (already
+built for a different purpose in item 51-52) pointing at a real, per-agent `Article` row — deliberately
+a real `Article`, not a plain copied block, because the user's explicit requirement was that each
+Resources entry needs to also be sendable as a newsletter later, which only works against something
+that exists as a real `Article`.
+
+**New pieces:**
+- `WebsiteStarterArticle` entity (`BusinessType`, `Title`, `Summary`, `Content`, `ImageUrl`,
+  `IsActive`, `SortOrder`) — a template table, parallel to `WebsiteStarterPage` but deliberately not
+  reusing it: `WebsiteStarterPage`/`WebsiteStarterBlock` copy straight from template row to real row,
+  but an `ArticleContent` block's `SettingsJson` needs a real, database-assigned `Article.Id` that
+  doesn't exist until *after* a real `Article` has been inserted — a genuinely different shape that
+  doesn't fit the existing copy-template mechanism.
+- A small, real starter set (`WebsiteStarterArticleSeeder`) — two genuinely useful short articles per
+  business type (8 total: two general, two Insurance/Financial, two Mortgage, two Accountants) written
+  as real HTML (`ArticleContent` renders `Content` via `Html.Raw`, confirmed by reading the existing
+  renderer before writing a single word — this is intentionally raw HTML, not plain text, since
+  Articles are already authored through a rich-text editor everywhere else in the product).
+  Deliberately not a port of the full Word-doc content library at `X:\ipro_related` — that is a much
+  larger, separate effort the user explicitly scoped out of this one.
+- `WebsiteStarterResourcesHelper.EnsureResourcesAsync` — the provisioning logic, called from the same
+  three places `EnsureStarterPagesAsync` already is (`WebsitePagesController.Index`/`Navigation`,
+  `WebsiteController.Publish`). Two-phase save, and it has to be: phase 1 inserts the real `Article`
+  rows and saves (so each gets its real `Id`); phase 2 builds the Resources parent page plus one child
+  page per article, each child's single block's `SettingsJson` now referencing the real `ArticleId`
+  from phase 1. Deliberately **not** gated on "agent has zero pages" the way `EnsureStarterPagesAsync`
+  is — Resources is new, additive content and should backfill onto agents who already have a full set
+  of real pages too, not just brand-new signups; it is instead gated on "this agent doesn't already
+  have a page with slug `resources`", so it runs at most once per agent regardless of when they
+  registered. Child page slugs are generated from each article's title and de-duplicated against the
+  agent's existing page slugs (`title-2`, `title-3`, ...) defensively, in case an agent ever happens to
+  already have a page with a colliding slug — cheap to guard against, expensive to debug if it ever
+  silently threw and blocked that one agent's Pages screen on every future load.
+- Schema: new `WebsiteStarterArticles` table (`CREATE TABLE IF NOT EXISTS`, both apps, same
+  established convention as every other new table this session). Both the schema-repair call and the
+  seed call are wrapped in the same non-fatal try/catch this session's e-card/newsletter-template
+  seeders already use — Resources is optional content, same reasoning as those, and a failure here
+  must never be able to repeat the 2026-07-29 startup outage (item 68).
+
+**Verification, honestly scoped:** `dotnet build` on `IPRO.DataAccess`, `IPRO.Web`, and `IPRO.Admin`
+individually, all clean. This phase's actual effect — new `Article` rows and a new page tree appearing
+for an agent — only fires the first time an existing agent without a `resources` page visits their
+Pages/Navigation screen, or the first time a brand-new agent publishes their site. Neither could be
+triggered live this session without either creating a real test agent account (out of scope to do
+directly) or logging into an existing agent's account (not available this session). Confirmed instead,
+as far as is honestly possible without that: clean builds across all three affected projects, a full
+line-by-line re-read of the provisioning helper for the two-phase-save ordering (the one genuinely new
+pattern in this feature — everything else follows an established convention directly), and confirming
+via the code (not by running it) that `ArticleContentBuilder.BuildAsync`'s existing render-time filter
+(`a.AgentUserId == agentId && a.IsPublished`) is satisfied by what the provisioning helper writes. This
+is real code-level verification, not a live-traffic confirmation — flagged as such rather than
+overstated.
 
 The strongest path is not just "website builder" or "CRM". The winning position is:
 

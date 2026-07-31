@@ -311,6 +311,18 @@ using (var scope = app.Services.CreateScope())
         Console.Error.WriteLine("[StarterContentSeeding] FAILED: " + ex);
     }
 
+    try
+    {
+        await EnsureWebsiteStarterArticleSchemaAsync(db);
+        await WebsiteStarterArticleSeeder.SeedAsync(db, seedLogger);
+    }
+    catch (Exception ex)
+    {
+        seedLogger.LogError(ex, "Website starter article seeding failed. The app is starting anyway; " +
+                                "the Resources starter article library may be missing.");
+        Console.Error.WriteLine("[WebsiteStarterArticleSeeding] FAILED: " + ex);
+    }
+
     await EnsureDripCampaignStepSendSchemaAsync(db);
     await EnsureDidYouKnowEmailQueueSchemaAsync(db);
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
@@ -1283,6 +1295,24 @@ SET `TrialEndsAt` = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
 WHERE `TrialEndsAt` IS NULL
   AND NOT EXISTS (SELECT 1 FROM `Billings` WHERE `Billings`.`AgentUserId` = `AgentUsers`.`Id` AND `Billings`.`Status` = 1);");
     }
+}
+
+static async Task EnsureWebsiteStarterArticleSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteStarterArticles` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `BusinessType` varchar(80) CHARACTER SET utf8mb4 NOT NULL,
+    `Title` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `Summary` varchar(500) CHARACTER SET utf8mb4 NULL,
+    `Content` longtext CHARACTER SET utf8mb4 NULL,
+    `ImageUrl` varchar(1000) CHARACTER SET utf8mb4 NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)
