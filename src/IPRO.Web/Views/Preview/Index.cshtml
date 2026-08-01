@@ -1,6 +1,7 @@
 @{
     ViewData["Title"] = "See Your Website";
     Layout = null;
+    var carriedPackage = ViewBag.CarriedPackage as string;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -27,6 +28,11 @@
       <p class="text-muted mb-0">Tell us your name and what you do — we'll show you a real, working preview.</p>
     </div>
     <form method="get" action="/Preview/Show">
+      @if (carriedPackage != null)
+      {
+        <input type="hidden" name="package" value="@carriedPackage" />
+        <div class="alert alert-light border small py-2 px-3 mb-3"><i class="fas fa-circle-info me-1 text-primary"></i>Showing you the <strong>@carriedPackage</strong> plan.</div>
+      }
       <div class="mb-3">
         <label class="form-label fw-semibold">First name</label>
         <input type="text" name="firstName" class="form-control" maxlength="80" required autofocus/>

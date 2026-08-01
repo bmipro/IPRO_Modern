@@ -17,7 +17,13 @@ public class PreviewController : Controller
     public PreviewController(IPRODbContext db) { _db = db; }
 
     [HttpGet]
-    public IActionResult Index() => View();
+    public IActionResult Index([FromQuery] string? package = null)
+    {
+        // Carried from a Home pricing card's "See a live X site in 30s" link -- threaded into the
+        // form as a hidden field so submitting doesn't silently drop back to the default package.
+        ViewBag.CarriedPackage = ProspectPreviewInput.ValidPackages.Contains(package) ? package : null;
+        return View();
+    }
 
     [HttpGet]
     public async Task<IActionResult> Show([FromQuery] ProspectPreviewInput input)
