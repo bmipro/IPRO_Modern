@@ -1400,3 +1400,92 @@ The strongest path is not just "website builder" or "CRM". The winning position 
 > A vertical-ready business growth platform that gives small businesses a website, CRM, email campaigns, follow-ups, billing, client portal, and automation in one place.
 
 The website builder is dependable, website leads connect into CRM, and agent-to-client invoicing (v1) now exists. The next phase should focus on the testimonial/poll/engagement backlog and a real client portal to build on top of the invoicing foundation.
+
+### 74. Instant Prospect Preview: unauthenticated "see your site before you sign up" (done, 2026-08-01)
+
+Asked directly what would be a genuine "game changer" to get a prospective agent excited enough to
+sign up, the answer landed on: stop asking prospects to trust a sales pitch, let them **see the
+finished product with their own name on it before they create an account**. The pitch has two halves:
+their real vertical starter website (Nav v2 + Resources, items 72-73), and a taste of the AI Daily
+Assistant so the pitch reads as "an assistant that runs your day," not just another website builder.
+
+Built entirely as a **zero-database-write** rendering path — nothing a prospect does here ever calls
+`Add`/`SaveChangesAsync`. Proven safe before writing any code (3 parallel research passes, all
+findings verified directly against source) by confirming three things already true in production:
+`TemplatePreviewBuilder.cs` already proves a fully in-memory `AgentWebsite`/`AgentUser` renders
+correctly through the real public-site pipeline; `WebsitePagesController.PreviewUnsaved` already
+proves in-memory-only `WebsitePage`/block objects render through that same pipeline today; and every
+partial under `Views/PublicWebsite/` only uses `Id` fields as same-request dictionary keys, never live
+query keys. That made the whole feature a matter of composition, not novel risk.
+
+**New pieces:**
+- `ProspectPreviewInput` (`src/IPRO.Web/Models/`) — first name, last name, company name, one of the 3
+  real `BusinessType` strings, and an optional page slug. Normalizes with sensible fallbacks
+  ("Alex"/"Morgan"/"Your Company") so a stripped-down or adversarial querystring can't break the
+  render, and deliberately excludes the page slug from `ToIdentityQueryString()` so the "identity"
+  half of the URL stays stable while navigating between pages.
+- `ProspectWebsitePreviewBuilder` (`src/IPRO.Web/Infrastructure/`) — builds a fake `AgentUser`/
+  `AgentWebsite` (negative IDs from a shared decrementing counter, real `WebsiteTemplate` FK), the same
+  starter page set a real new agent gets today, a Resources parent + child pages mirroring
+  `WebsiteStarterResourcesHelper`'s selection logic collapsed into one in-memory pass (no two-phase
+  save needed — a fake ID does the same job the real save exists to produce), and 2 fabricated approved
+  testimonials per vertical so the Testimonials page isn't an empty demo moment. Picks one template per
+  vertical automatically (Accountants → Classic Sidebar, Mortgage → Editorial Visual, Insurance/
+  Financial and fallback → Modern Professional) rather than adding a picker, to keep the input form to
+  3 fields.
+- `MockDailyInsightCatalog` (`src/IPRO.Web/Infrastructure/`) — hand-written, realistic canned copy
+  keyed by vertical, mirroring the real `AgentDailyInsight` shape. Deliberately does not call the real
+  `IAiSuggestionService`: that would draw on the same shared, prepaid Anthropic budget paying agents
+  use, with no per-visitor ceiling the way the real once-a-day cron job has.
+- `PreviewController` (`[AllowAnonymous]`) — `Index` (input form), `Show` (mocked AI card +
+  `<iframe>`), `Site` (the actual render, sets `ViewBag.IsProspectPreview = true`). An iframe rather
+  than server-side composition because every `Views/PublicWebsite/*` shell is a complete, self-
+  contained `<!DOCTYPE html>` document — confirmed same-origin framing already works under the
+  existing `X-Frame-Options: SAMEORIGIN` headers, no security-header changes needed.
+- `Views/Preview/Index.cshtml`, `Show.cshtml`, `_MockAiAssistantCard.cshtml` — the input form and
+  result page; `noindex,nofollow` on both.
+- `_PublicNavigation.cshtml` made optionally route-aware (`ViewBag.PreviewNavRouteBase`, additive —
+  every existing caller unaffected) so clicking About/Testimonials/etc. inside the iframe actually
+  navigates instead of 404ing, which is worse here than anywhere else this partial is reused since the
+  entire point is a prospect clicking around and getting won over.
+- Sign-up CTA links to `/Account/Register` with name/company/vertical prefilled via querystring
+  (`AccountController.Register` GET reads optional values) — removes retyping friction at the exact
+  moment a prospect decides to convert.
+- Two new `IpRateLimiting` rules (`GET:/Preview/Show`, `GET:/Preview/Site`, 30/min per IP) — the
+  generic 120/min catch-all was judged too loose for an endpoint whose entire job is a full page render
+  for anyone who asks.
+- `Home/Index.cshtml` hero and closing CTA reordered to lead with "See Your Website in 30 Seconds"
+  (linking to `/Preview`), free registration demoted to a secondary button.
+
+**Bug found during live verification, fixed same day:** `_TestimonialForm.cshtml` got the
+`IsProspectPreview` disabled-submit gate during the build, but `_WebsiteLeadForm.cshtml` — the actual
+form behind Contact, Free Newsletter, and (in the real product) LeadMagnet/DidYouKnow — did not. Found
+by driving the live deployed feature through the Browser pane rather than trusting the code read
+(standing practice this session), specifically checking the Contact page's submit button state inside
+the iframe and seeing `disabled: false` when it should have been `true`. Fixed by adding the same
+`|| ViewBag.IsProspectPreview == true` condition to `_WebsiteLeadForm.cshtml`'s existing `isPreview`
+line, rebuilt clean, redeployed, re-verified live (`disabled: true` confirmed on Contact for the
+Insurance/Financial vertical). Also grepped every other file referencing the two older preview flags
+(9 files) for the same gap — found 3 more references, all inside a Poll-results "hide until 10
+responses" note that is genuinely unreachable here (the builder never populates `PollResultsByBlockId`
+since no starter content uses Poll blocks), confirmed dead for this feature rather than a second
+instance of the same bug.
+
+**Verification, live, all 3 verticals:** submitted the `/Preview` form for Insurance/Financial,
+Accountants, and Mortgage in turn. Confirmed for each: the correct template renders (Modern
+Professional / Classic Sidebar / Editorial Visual, checked via template-specific DOM markers, not just
+visual inspection), Home/About/Testimonials/Contact/Free Newsletter/Request Meeting/Resources are all
+present with the right vertical-specific starter articles, nav links inside the iframe resolve to
+`&page=slug` and actually navigate, the Testimonials page shows 2 fabricated reviews with submission
+disabled, the Contact form's submit button is disabled with the preview note shown, the AI Daily
+Assistant card shows vertical-appropriate mocked copy, `noindex,nofollow` is present in page source,
+and the Sign Up Now link lands on `/Account/Register` with FirstName/LastName/CompanyName/BusinessType
+all correctly prefilled. Screenshot captured of the full Show page (AI card + iframe together).
+Rate-limit throttling itself (30/min triggering a 429) was not separately load-tested — low risk, easy
+to tune from real traffic if the limit turns out wrong in either direction.
+
+One pre-existing, unchanged limitation carried over from how the other two preview mechanisms
+(`IsTemplatePreview`/`IsUnsavedPreview`) already work: footer links (e.g. "Contact us") are a separate
+partial from `_PublicNavigation.cshtml` and were not made route-aware, so they point at the real
+`/contact` path rather than the iframe's `&page=contact`. Not a regression from this feature — flagged
+here rather than silently left unmentioned, and low-stakes since the primary top nav works correctly.
