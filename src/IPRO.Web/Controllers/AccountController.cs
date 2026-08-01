@@ -210,7 +210,7 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Register(string? trialCode = null)
+    public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null)
     {
         SetRegistrationVerifyCode();
         await LoadActivePackagesAsync();
@@ -228,7 +228,17 @@ public class AccountController : Controller
             }
         }
 
-        return View(new AgentRegistrationViewModel { TrialCode = trialCode });
+        // Optional prefill from the unauthenticated /Preview flow -- a prospect who already typed
+        // their name and vertical there shouldn't have to retype it at the exact moment they've
+        // decided to sign up. Plain optional querystring values, same trust level as any other GET.
+        return View(new AgentRegistrationViewModel
+        {
+            TrialCode = trialCode,
+            FirstName = firstName ?? string.Empty,
+            LastName = lastName ?? string.Empty,
+            CompanyName = companyName ?? string.Empty,
+            BusinessType = businessType ?? string.Empty
+        });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

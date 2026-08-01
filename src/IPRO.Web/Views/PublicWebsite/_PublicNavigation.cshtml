@@ -4,10 +4,17 @@
     var topPages = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
     var header = IPRO.Entities.WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
     var headerClasses = $"public-site-header style-{header.Style} logo-{header.LogoPosition} logo-size-{header.LogoSize}" + (header.Sticky ? " is-sticky" : "");
+    // Opt-in: only the unauthenticated prospect-preview flow sets this (its pages were never
+    // persisted and have no real tenant domain to be root-relative against, so "/{slug}" would
+    // 404). Every other caller leaves this unset and gets byte-for-byte the same hrefs as before.
+    var previewRouteBase = ViewBag.PreviewNavRouteBase as string;
+    string Href(string? slug, bool isHome) => previewRouteBase == null
+        ? (isHome ? "/" : "/" + slug)
+        : previewRouteBase + (isHome ? "" : "&page=" + Uri.EscapeDataString(slug ?? string.Empty));
 }
 <header class="@headerClasses">
   <div class="public-site-header__inner">
-    <a href="/" class="public-site-brand">
+    <a href="@Href(null, true)" class="public-site-brand">
       @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
       {
         <img src="@website.LogoUrl" alt="@website.AgentUser.CompanyName logo" />
@@ -24,13 +31,13 @@
         var isCurrent = sitePage.Id == Model.CurrentPage?.Id;
         var childIsCurrent = children.Any(child => child.Id == Model.CurrentPage?.Id);
         <div class="public-site-nav__item">
-          <a href="@(sitePage.IsHomePage ? "/" : "/" + sitePage.Slug)" class="@((isCurrent || childIsCurrent) ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
+          <a href="@Href(sitePage.Slug, sitePage.IsHomePage)" class="@((isCurrent || childIsCurrent) ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
           @if (children.Any())
           {
             <div class="public-site-nav__children">
               @foreach (var child in children)
               {
-                <a href="/@child.Slug" class="@(child.Id == Model.CurrentPage?.Id ? "is-active" : "")" aria-current="@(child.Id == Model.CurrentPage?.Id ? "page" : null)">@child.NavigationLabel</a>
+                <a href="@Href(child.Slug, false)" class="@(child.Id == Model.CurrentPage?.Id ? "is-active" : "")" aria-current="@(child.Id == Model.CurrentPage?.Id ? "page" : null)">@child.NavigationLabel</a>
               }
             </div>
           }

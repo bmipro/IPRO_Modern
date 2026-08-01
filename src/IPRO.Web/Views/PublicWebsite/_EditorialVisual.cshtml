@@ -21,6 +21,10 @@
         : website.TagLine;
     var sectionSpace = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px";
     var buttonRadius = design.ButtonStyle == "square" ? "2px" : design.ButtonStyle == "pill" ? "999px" : "7px";
+    var prospectRegisterUrl = "/Account/Register?firstName=" + Uri.EscapeDataString(agent.FirstName)
+        + "&lastName=" + Uri.EscapeDataString(agent.LastName)
+        + "&companyName=" + Uri.EscapeDataString(agent.CompanyName)
+        + "&businessType=" + Uri.EscapeDataString(agent.BusinessType);
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -75,6 +79,10 @@
   else if (ViewBag.IsTemplatePreview == true)
   {
     <div class="template-preview-banner"><i class="fas fa-eye me-2"></i>Template preview using your current pages and content. Nothing has been changed.</div>
+  }
+  else if (ViewBag.IsProspectPreview == true)
+  {
+    <div class="template-preview-banner prospect-preview-banner"><i class="fas fa-wand-magic-sparkles me-2"></i>This is a live preview of what your site could look like. Nothing is saved. <a href="@prospectRegisterUrl">Sign Up Now</a> to make it real.</div>
   }
   @if (Model.Pages.Any())
   {
