@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: July 30, 2026
+Last updated: August 1, 2026
 
 ## Standing Convention: Every Paid Feature Must Be Package-Gated
 
@@ -930,9 +930,17 @@ The user shared a legacy version's newsletter templates (`index.htm` through `in
 - Reuse newsletter/page content as social content (done — see item 41 above).
 - Campaign calendar for email and social (done — see item 41 above).
 
-### Broker/team/white-label model (not built — designed 2026-07-22)
+### Broker/team/white-label model (not built — designed 2026-07-22, reconfirmed still wanted 2026-08-01)
 
-Two genuinely different projects hide under "white-labeling," and the choice matters more than any implementation detail:
+**Reconfirmed 2026-08-01**: the user flagged that this idea, along with team-member/sub-user accounts
+below, seemed to have quietly disappeared from tracking — and one of the two genuinely had (see that
+section for what happened). This section itself was never deleted, but it's being explicitly
+reconfirmed as live backlog here for the same reason: **do not let this get reorganized out of the
+doc without carrying it forward or saying so out loud.** Still designed, still not started, still
+wanted.
+
+Two genuinely different projects hide under "white-labeling," and the choice matters more than any
+implementation detail:
 
 - **(A) Cosmetic white-label**: a broker's logo/colors/domain wrap around the existing multi-tenant platform; agents still relate to IPRO for billing and support. Roughly a 2-3 week slice, almost entirely additive — reuses patterns already shipped (the per-agent accent-color mechanism, the host-header-based custom-domain routing already built for agent public websites).
 - **(B) Full reseller model**: the broker owns billing, support, and the agent relationship; IPRO becomes invisible infrastructure underneath. A much bigger, multi-month effort — new billing/entitlement hierarchy, broker-level support routing, revenue-share accounting.
@@ -966,7 +974,23 @@ public class Broker
 
 **Keeping the door open to (B)**: `Broker` is exactly the tenant record a reseller model needs — (B) would add `Broker.RevenueSharePercent`, a broker-scoped billing rollup, and broker-routed support tickets *on top of* this table, not instead of it. One decision worth pinning down before writing any code, even for phase 1: confirm `EnforceBranding` and SuperAdmin-only broker creation are the right defaults — cheap to build either way, but shapes the first real broker conversation.
 
+**Two adjacent ideas from the original 2026-07-16 bullet list, folded in here rather than given their own sections, since both genuinely depend on `Broker` existing first**: "Shared templates and campaigns" (agents under one broker reusing each other's website/newsletter content — natural once `BrokerId` exists to scope a shared library by) and "Broker-level reporting" (a rollup dashboard across a broker's agents — natural once `BrokerId` exists to group by). Neither is designed beyond this one-line acknowledgment; revisit once phase 1 above is real and a broker relationship actually wants either.
+
 **Status**: designed, not started. Revisit when a specific broker relationship makes this worth prioritizing.
+
+### Team member / sub-user accounts under an agent (not designed — conceptual only, reinstated 2026-08-01)
+
+**History, so this doesn't happen again**: this was originally a one-line bullet ("Team member accounts") in the same 2026-07-16 backlog list as the broker/white-label idea above. When that list got rewritten into the detailed white-label design on 2026-07-22, this bullet — along with "Shared templates and campaigns" and "Broker-level reporting" above — was silently dropped instead of carried forward or explicitly marked as cut. It sat undesigned and untracked for over a week until the user asked directly where it had gone. **Lesson applied going forward**: when consolidating or rewriting a backlog section in this doc, every existing bullet gets either carried into the new text, explicitly marked "deliberately dropped: [reason]," or left alone — never silently disappeared.
+
+**The idea, distinct from the broker model above**: let a single agent (no broker relationship required) invite one or more additional logins — a secretary, an assistant, office staff — who work inside that *same* agent's data (clients, calendar, website, newsletters, portal messages, everything) rather than needing their own separate agent account and package subscription.
+
+**Real open questions, not yet decided by the user — flagging them rather than guessing**:
+- **Permission model**: full access (a team member can do anything the agent can) vs. role/scope-based (e.g., manage clients and calendar, but not billing or package settings)? This is the central product decision — everything else is straightforward once this is answered.
+- **Auth shape**: the codebase already has a directly-reusable precedent for "multiple named logins sharing access to one underlying resource, with roles and an audit trail" — `AdminUser` (SuperAdmin's own Super Admin/Support role split, see `DOCS/07_SUPER_ADMIN.md`). A `TeamMember` table shaped like `AdminUser` (own login, `AgentUserId` FK back to the owning agent instead of a global role, optional role/permission field) is the natural starting point rather than inventing a new pattern.
+- **Billing**: included in the agent's existing package, or a per-seat add-on (another row in the package-feature/entitlement system that already exists for every other paid capability)?
+- **Accountability**: should actions taken by a team member be attributed ("edited by Jane on behalf of Raniah Motamed") the way `AdminUser` actions already are, so the agent can see what staff did in their account?
+
+**Status**: conceptual only. No schema, no entity, no code. Needs a real product conversation (start with the permission-model question above) before any design work, let alone implementation, begins.
 
 ### More flexible, Wix-style website and newsletter templating (not built — designed 2026-07-22)
 
