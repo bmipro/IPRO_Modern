@@ -907,6 +907,29 @@ Secure login, messages, two-way documents, self-service "My Information," a real
 
 **Status**: design recommendation only — no code written, no credentials exist yet. Revisit this section when there's a Stripe (or alternative) merchant account to build against.
 
+### Bug: setup fee is charged but never shown anywhere agent-facing (found 2026-08-01, not yet fixed)
+
+`BillingRule.SetupFee` is a real, live charge — SuperAdmin sets it per package (`Packages/Create` and
+`Packages/Edit`), and it genuinely flows all the way through billing: `PayPalBillingService` includes
+it in the PayPal charge (`includeSetupFee`), writes it onto the invoice (`CreateInvoiceAsync(...,
+setupFee, ...)`), and promo codes can discount it specifically (`SetupFeeDiscountType`,
+`SubscriptionChange.OriginalSetupFee`/`DiscountedSetupFee`). But a full search of every agent-facing
+view in `IPRO.Web` (registration/package picker, `Billing/Index`, anywhere an agent would see what
+they're being charged) turns up **zero** references to `SetupFee` — it only appears in `IPRO.Admin`'s
+own package-editing screens and in the billing/PayPal code that actually charges it. An agent can be
+charged a real setup fee they never saw broken out anywhere before or after paying it — a genuine
+transparency gap, not just a missing label.
+
+**Not yet investigated**: whether the PayPal checkout page itself shows it as a separate line (PayPal
+may render its own breakdown independent of anything IPRO renders) — that would soften but not close
+the gap, since IPRO's own registration/billing screens still show nothing. Where it most likely needs
+to show: the package picker on `Account/Register` (so a prospect sees the true total cost before
+committing, not just the recurring price) and `Billing/Index` (so an existing agent can see what
+they were actually charged).
+
+**Status**: confirmed real, not yet fixed. Flagged rather than investigated further today per explicit
+instruction to note it and move on.
+
 ### Revisit the signup process (done — see item 37 above, 2026-07-24)
 
 Flagged, then scoped and shipped the same day: trial packages, invitation codes, and closing the free-access loophole this surfaced. See item 37.
