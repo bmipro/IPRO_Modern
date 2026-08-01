@@ -9,8 +9,9 @@
     var showLastName = showFullFields || isDidYouKnow;
     // Preview (WebsitePages/Preview and PreviewUnsaved) renders this same partial under the portal's
     // own host (app.iproadvisers.com), which never resolves to a real agent site -- submitting for
-    // real here always 404s. Disable submission and say so, rather than let it fail silently.
-    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true;
+    // real here always 404s. Same reasoning covers the fabricated /Preview prospect flow, which has
+    // no real agent behind it at all. Disable submission and say so, rather than let it fail silently.
+    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true || ViewBag.IsProspectPreview == true;
     var formId = $"website-lead-{Guid.NewGuid():N}";
     var submitted = Context.Request.Query["submitted"].ToString();
     var dlToken = Context.Request.Query["dl"].ToString();
