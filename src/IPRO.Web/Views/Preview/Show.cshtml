@@ -6,7 +6,9 @@
     var registerUrl = "/Account/Register?firstName=" + Uri.EscapeDataString(Model.FirstName)
         + "&lastName=" + Uri.EscapeDataString(Model.LastName)
         + "&companyName=" + Uri.EscapeDataString(Model.CompanyName)
-        + "&businessType=" + Uri.EscapeDataString(Model.BusinessType);
+        + "&businessType=" + Uri.EscapeDataString(Model.BusinessType)
+        + "&package=" + Uri.EscapeDataString(Model.Package);
+    var selectedPackage = ViewBag.SelectedPackage as BillingRule;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -18,10 +20,19 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet"/>
 <style>
+  :root{ --brass:#a9812f; --brass-soft:#f4ead2; }
   body{background:#f1f5f9;color:#1e293b;}
-  .preview-topbar{background:#0f172a;color:#fff;}
+  .preview-topbar{background:#1a3a6b;color:#fff;}
   .preview-frame{width:100%;height:78vh;border:1px solid #dbe2ee;border-radius:12px;background:#fff;}
   .signup-cta{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);color:#fff;border-radius:16px;}
+  h5.fw-bold, h6.fw-bold{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;font-weight:400;}
+  .package-context-card{border-top:3px solid var(--brass) !important;border-radius:16px;}
+  .package-name{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;font-size:1.05rem;}
+  .package-price{font-variant-numeric:tabular-nums;}
+  .package-new-pill{background:var(--brass);color:#fff;font-weight:700;font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;}
+  .package-compare-link{color:#2563eb;font-weight:600;}
+  .ai-tier-note{font-size:.78rem;}
+  @@media (max-width:991.98px){ .preview-frame{height:60vh;} }
 </style>
 </head>
 <body>
@@ -33,7 +44,11 @@
 </nav>
 <div class="container py-4">
   <div class="row g-4">
-    <div class="col-lg-4 order-lg-2">
+    <div class="col-lg-4 order-2 order-lg-2">
+      @if (selectedPackage != null)
+      {
+          @await Html.PartialAsync("_PackageContextCard", selectedPackage)
+      }
       @await Html.PartialAsync("_MockAiAssistantCard", Model)
       <div class="signup-cta p-4 mt-4">
         <h5 class="fw-bold">Like what you see?</h5>
@@ -41,7 +56,7 @@
         <a href="@registerUrl" class="btn btn-light fw-bold w-100"><i class="fas fa-arrow-right me-2"></i>Sign Up Now</a>
       </div>
     </div>
-    <div class="col-lg-8 order-lg-1">
+    <div class="col-lg-8 order-1 order-lg-1">
       <iframe class="preview-frame" src="@siteUrl" title="Your website preview"></iframe>
     </div>
   </div>

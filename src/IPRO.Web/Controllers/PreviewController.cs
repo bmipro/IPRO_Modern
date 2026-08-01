@@ -3,6 +3,7 @@ using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Web.Controllers;
 
@@ -19,7 +20,15 @@ public class PreviewController : Controller
     public IActionResult Index() => View();
 
     [HttpGet]
-    public IActionResult Show([FromQuery] ProspectPreviewInput input) => View(input.Normalized());
+    public async Task<IActionResult> Show([FromQuery] ProspectPreviewInput input)
+    {
+        var prospect = input.Normalized();
+        // Drives the package-context card on Show.cshtml -- the plan this preview is showing, so
+        // it can carry a real price/setup-fee alongside the fabricated live site instead of neither.
+        ViewBag.SelectedPackage = await _db.BillingRules.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PackageName == prospect.Package);
+        return View(prospect);
+    }
 
     [HttpGet]
     public async Task<IActionResult> Site([FromQuery] ProspectPreviewInput input)

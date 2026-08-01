@@ -210,7 +210,7 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null)
+    public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null, [FromQuery(Name = "package")] string? packageName = null)
     {
         SetRegistrationVerifyCode();
         await LoadActivePackagesAsync();
@@ -231,13 +231,20 @@ public class AccountController : Controller
         // Optional prefill from the unauthenticated /Preview flow -- a prospect who already typed
         // their name and vertical there shouldn't have to retype it at the exact moment they've
         // decided to sign up. Plain optional querystring values, same trust level as any other GET.
+        var prefillPackageId = 0;
+        if (!string.IsNullOrWhiteSpace(packageName) && ViewBag.Packages is IEnumerable<BillingRule> loadedPackages)
+        {
+            prefillPackageId = loadedPackages.FirstOrDefault(p => p.PackageName == packageName)?.Id ?? 0;
+        }
+
         return View(new AgentRegistrationViewModel
         {
             TrialCode = trialCode,
             FirstName = firstName ?? string.Empty,
             LastName = lastName ?? string.Empty,
             CompanyName = companyName ?? string.Empty,
-            BusinessType = businessType ?? string.Empty
+            BusinessType = businessType ?? string.Empty,
+            PackageId = prefillPackageId
         });
     }
 

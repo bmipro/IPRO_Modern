@@ -1,0 +1,35 @@
+@model BillingRule
+@{
+    var isContactUs = Model.MonthlyPrice <= 0;
+}
+<div class="card border-0 shadow-sm package-context-card mb-3">
+  <div class="card-body p-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <h6 class="fw-bold mb-0 package-name">@Model.PackageName</h6>
+      <span class="badge package-new-pill">New</span>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.Description))
+    {
+        <p class="text-muted small mb-2">@Model.Description</p>
+    }
+    @if (isContactUs)
+    {
+        <div class="fw-bold fs-5">Contact Us</div>
+    }
+    else
+    {
+        <div class="d-flex align-items-baseline gap-1">
+          <span class="fw-bold fs-4 package-price">$@Model.MonthlyPrice.ToString("N0")</span>
+          <span class="text-muted small text-uppercase">/ mo</span>
+        </div>
+        @if (Model.SetupFee > 0)
+        {
+            <div class="text-muted small">+ $@Model.SetupFee.ToString("N0") one-time setup</div>
+        }
+    }
+    <p class="text-muted small mt-2 mb-0">
+      <i class="fas fa-circle-info me-1"></i>The plan this preview is showing.
+      <a href="/#pricing" class="package-compare-link">Compare all plans</a>
+    </p>
+  </div>
+</div>

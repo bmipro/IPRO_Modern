@@ -15,10 +15,32 @@
   .brand-icon{color:#fff;}
   .feature-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.06);height:100%;}
   .feature-icon{width:52px;height:52px;border-radius:12px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:1.4rem;}
-  .price-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.08);height:100%;}
-  .price-card.featured{box-shadow:0 16px 40px rgba(37,99,235,0.25);border:2px solid #2563eb;}
-  .price-amount{font-size:2.5rem;font-weight:800;color:#1a3a6b;}
+  .price-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.08);height:100%;display:flex;flex-direction:column;}
+  .price-card.featured{box-shadow:0 0 0 2px #2563eb,0 16px 40px rgba(37,99,235,0.22);border:none;position:relative;}
+  .price-card.featured::before{content:"";position:absolute;top:0;left:16px;right:16px;height:3px;background:#a9812f;border-radius:0 0 3px 3px;}
+  .price-amount{font-size:2.5rem;font-weight:800;color:#1a3a6b;font-variant-numeric:tabular-nums;}
   .section-eyebrow{letter-spacing:.08em;font-weight:700;font-size:.8rem;color:#2563eb;text-transform:uppercase;}
+  h1,h2,h3,h4,h5{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;}
+  .badge-plain{background:#eef2f8;color:#64748b;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
+  .badge-featured{background:#f4ead2;color:#a9812f;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
+  .price-limits{border-top:1px solid #eef1f6;border-bottom:1px solid #eef1f6;padding:12px 0;margin:10px 0 14px;}
+  .price-limits li{padding:2px 0;}
+  .preview-plan-link{display:block;text-align:center;font-size:.82rem;font-weight:700;color:#2563eb;text-decoration:none;margin-top:10px;}
+  .preview-plan-link:hover{text-decoration:underline;}
+  .tier-stack{display:flex;flex-direction:column;gap:14px;}
+  .tier-row{background:#fff;border:1px solid #e5e9f2;border-radius:16px;padding:26px 28px;box-shadow:0 8px 24px rgba(15,23,42,0.05);}
+  .tier-row.tier-gold{margin-left:3%;}
+  .tier-row.tier-platinum{margin-left:6%;box-shadow:0 0 0 1px #2563eb,0 12px 28px rgba(37,99,235,.16);position:relative;}
+  .tier-row.tier-platinum::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:#a9812f;border-radius:16px 16px 0 0;}
+  .tier-row.tier-broker{margin-left:9%;}
+  .tier-icon-wrap{width:36px;height:36px;border-radius:10px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;flex:none;font-size:1rem;}
+  .tier-row.tier-platinum .tier-icon-wrap{background:#f4ead2;color:#a9812f;}
+  .tier-badge-pill{margin-left:auto;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#2563eb;background:#eff6ff;padding:5px 12px;border-radius:999px;white-space:nowrap;}
+  .tier-row.tier-platinum .tier-badge-pill{color:#a9812f;background:#f4ead2;}
+  .tier-feature-item{font-size:.92rem;color:#475569;display:flex;gap:8px;align-items:flex-start;padding:4px 0;}
+  .tier-feature-item i{color:#16a34a;margin-top:4px;flex:none;font-size:.8rem;}
+  .tier-feature-item b{color:#1e293b;}
+  .tier-note{font-size:.82rem;color:#64748b;margin-top:16px;padding-top:16px;border-top:1px solid #eef1f6;}
 </style></head>
 <body>
 
@@ -48,50 +70,69 @@
 
 <div class="container py-5">
   <div class="text-center mb-5">
-    <div class="section-eyebrow mb-2">Everything included</div>
-    <h2 class="fw-bold">Run your whole business from one portal</h2>
+    <div class="section-eyebrow mb-2">What's included</div>
+    <h2 class="fw-bold">Honestly tiered, not a flat feature dump</h2>
+    <p class="text-muted mt-2 mb-0">What you actually gain at each step up — every plan starts strong, Platinum runs your whole business.</p>
   </div>
-  <div class="row g-4">
-    <div class="col-md-6 col-lg-4">
-      <div class="card feature-card p-4">
-        <div class="feature-icon mb-3"><i class="fas fa-globe"></i></div>
-        <h5 class="fw-bold">Website Builder</h5>
-        <p class="text-muted mb-0">A professional, mobile-friendly website with your own domain, built-in lead forms, and a library of ready-made templates and themes — no design work required.</p>
+  <div class="tier-stack">
+    <div class="tier-row">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-table-cells"></i></span>
+        <div><div class="fw-bold">On every plan</div><div class="text-muted small">Including Silver, from day one</div></div>
+      </div>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Instant website, pre-populated for your vertical</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Lead capture &amp; automatic prospect manager</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Calendar / scheduler + email &amp; SMS reminders</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Newsletters &amp; automated marketing campaigns</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Testimonials, polls, custom forms, lead magnets</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Built-in SEO tools &amp; social integration</div></div>
+      </div>
+      <div class="tier-note">Silver caps at 500 clients / 2 domains / 50&nbsp;MB storage — everything above is unlimited on every other tier.</div>
+    </div>
+
+    <div class="tier-row tier-gold">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-star"></i></span>
+        <div><div class="fw-bold">Gold adds</div><div class="text-muted small">Campaign &amp; brand polish</div></div>
+        <span class="tier-badge-pill">+6 tools</span>
+      </div>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Pre-designed e-cards &amp; e-letters</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Rotating homepage banner</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Coupon manager</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Mail merge</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Printable client mailing labels</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Unlimited clients, domains &amp; 500&nbsp;MB storage</div></div>
       </div>
     </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card feature-card p-4">
-        <div class="feature-icon mb-3"><i class="fas fa-address-book"></i></div>
-        <h5 class="fw-bold">CRM &amp; Follow-Ups</h5>
-        <p class="text-muted mb-0">Track clients, notes, and account types, and never miss a follow-up, renewal, or birthday with automatic reminders synced to your calendar.</p>
+
+    <div class="tier-row tier-platinum">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-shield-halved"></i></span>
+        <div><div class="fw-bold">Platinum adds</div><div class="text-muted small">The real differentiator</div></div>
+        <span class="tier-badge-pill">Runs your day</span>
       </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card feature-card p-4">
-        <div class="feature-icon mb-3"><i class="fas fa-envelope-open-text"></i></div>
-        <h5 class="fw-bold">Newsletters &amp; Campaigns</h5>
-        <p class="text-muted mb-0">Send branded newsletters and automated drip campaigns to your client list, with real delivery, open, and click tracking.</p>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>AI Daily Assistant</b> — who to call today, and why</span></div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>Client Portal</b> — login, messages, documents, appointments</span></div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>Client invoicing &amp; estimates</b></span></div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Life-event reminders (birthdays, renewals, anniversaries)</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>One managed blog post/month, written for you</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Managed SEO across every page + PayPal integration</div></div>
       </div>
+      <div class="tier-note">This is the tier the "AI Daily Assistant" preview is actually selling — worth naming explicitly, since it's shown to every prospect who tries the 30-second preview, regardless of the plan they end up choosing.</div>
     </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card feature-card p-4">
-        <div class="feature-icon mb-3"><i class="fas fa-file-invoice-dollar"></i></div>
-        <h5 class="fw-bold">Client Invoicing</h5>
-        <p class="text-muted mb-0">Send estimates and invoices with automatic tax calculation, recurring billing, and a link your clients use to view and pay — no separate accounting tool needed.</p>
+
+    <div class="tier-row tier-broker">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-users"></i></span>
+        <div><div class="fw-bold">Broker Package adds</div><div class="text-muted small">For teams &amp; brokerages</div></div>
+        <span class="tier-badge-pill">Custom</span>
       </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card feature-card p-4">
-        <div class="feature-icon mb-3"><i class="fas fa-user-lock"></i></div>
-        <h5 class="fw-bold">Client Portal</h5>
-        <p class="text-muted mb-0">Give your clients their own secure login to message you, book appointments, view invoices, and manage their information.</p>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <div class="card feature-card p-4">
-        <div class="feature-icon mb-3"><i class="fas fa-robot"></i></div>
-        <h5 class="fw-bold">AI Daily Assistant</h5>
-        <p class="text-muted mb-0">A daily digest that surfaces which clients need attention today, plus AI-drafted newsletters and social posts to save you time.</p>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Designated support contact</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Custom team / multi-agent pricing — contact us</div></div>
       </div>
     </div>
   </div>
@@ -105,7 +146,6 @@
     </div>
     @if (Model.Any())
     {
-      var highlightCount = 6;
       // Union of every feature code across the loaded packages, in a stable order, so the
       // comparison table has one row per feature regardless of which package(s) include it.
       var allFeatures = Model
@@ -114,18 +154,28 @@
         .Select(g => g.OrderBy(f => f.SortOrder).First())
         .OrderBy(f => f.SortOrder)
         .ToList();
+      Func<string, string> badgeFor = name => name switch
+      {
+        "IPro Silver" => "Just getting started",
+        "IPro Gold" => "Most flexible",
+        "IPro Platinum" => "Most complete",
+        "Broker Package" => "For teams",
+        _ => "Plan"
+      };
 
       <div class="row g-4 justify-content-center">
         @foreach (var package in Model)
         {
-          var isFeatured = package.PackageName == "IPro Gold";
-          var included = package.Features.Where(f => f.IsIncluded).OrderBy(f => f.SortOrder).ToList();
+          // Platinum, not Gold, is the featured tier -- it's the only one that includes the AI
+          // Daily Assistant, Client Portal, and Client Invoicing, which is what the rest of the
+          // site (including the /Preview flow) is actually selling.
+          var isFeatured = package.PackageName == "IPro Platinum";
+          var clientsLabel = package.Features.FirstOrDefault(f => f.FeatureCode == PackageFeatureCodes.Contacts)?.LimitLabel;
+          var domainsLabel = package.Features.FirstOrDefault(f => f.FeatureCode == PackageFeatureCodes.MultiDomainSupport)?.LimitLabel;
+          var storageLabel = package.Features.FirstOrDefault(f => f.FeatureCode == PackageFeatureCodes.FileUploadCapacity)?.LimitLabel;
           <div class="col-md-6 col-lg-4">
             <div class="card price-card p-4 @(isFeatured ? "featured" : "")">
-              @if (isFeatured)
-              {
-                <div class="badge bg-primary align-self-start mb-2">Most Popular</div>
-              }
+              <div class="badge @(isFeatured ? "badge-featured" : "badge-plain") align-self-start mb-2">@badgeFor(package.PackageName)</div>
               <h4 class="fw-bold">@package.PackageName</h4>
               @if (!string.IsNullOrWhiteSpace(package.Description))
               {
@@ -143,22 +193,22 @@
               </div>
               @if (package.AnnualPrice > 0)
               {
-                <p class="text-muted small mb-3">or $@package.AnnualPrice.ToString("N0")/year</p>
+                <p class="text-muted small mb-1">or $@package.AnnualPrice.ToString("N0")/year</p>
               }
-              @if (included.Any())
+              @if (package.SetupFee > 0)
               {
-                <ul class="list-unstyled text-start small mb-3">
-                  @foreach (var feature in included.Take(highlightCount))
-                  {
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>@feature.FeatureName@(string.IsNullOrWhiteSpace(feature.LimitLabel) ? "" : $" ({feature.LimitLabel})")</li>
-                  }
-                </ul>
-                @if (included.Count > highlightCount)
-                {
-                  <p class="small text-muted mb-3">+ @(included.Count - highlightCount) more features</p>
-                }
+                <p class="text-muted small mb-3">+ $@package.SetupFee.ToString("N0") one-time setup</p>
               }
-              <a href="/Account/Register" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100 fw-semibold mt-2">Get Started</a>
+              @if (clientsLabel != null || domainsLabel != null || storageLabel != null)
+              {
+                <ul class="list-unstyled small text-muted price-limits mb-0">
+                  @if (clientsLabel != null) { <li><b class="text-dark">@clientsLabel</b> clients</li> }
+                  @if (domainsLabel != null) { <li><b class="text-dark">@domainsLabel</b> domains</li> }
+                  @if (storageLabel != null) { <li><b class="text-dark">@storageLabel</b> storage</li> }
+                </ul>
+              }
+              <a href="/Account/Register" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100 fw-semibold mt-auto">Get Started</a>
+              <a href="/Preview?package=@Uri.EscapeDataString(package.PackageName)" class="preview-plan-link">See a live @package.PackageName site in 30s <i class="fas fa-arrow-right ms-1 small"></i></a>
             </div>
           </div>
         }
@@ -224,8 +274,8 @@
 <div class="ipro-hero py-5">
   <div class="container text-center">
     <h3 class="fw-bold mb-3">Ready to grow your business?</h3>
-    <a href="/Preview" class="btn btn-light btn-lg fw-semibold px-5 me-2"><i class="fas fa-wand-magic-sparkles me-2"></i>See Your Website First</a>
-    <a href="/Account/Register" class="btn btn-outline-light btn-lg px-5">Start Your Free Account</a>
+    <a href="/Account/Register" class="btn btn-light btn-lg fw-semibold px-5 me-2">Start Your Free Account</a>
+    <a href="/Preview" class="btn btn-outline-light btn-lg px-5"><i class="fas fa-wand-magic-sparkles me-2"></i>Haven't seen your site yet? Preview it</a>
   </div>
 </div>
 

@@ -288,7 +288,10 @@ textarea:focus{box-shadow:none;}
               <option value="">Click here</option>
               @foreach (var package in packages)
               {
-                <option value="@package.Id">@package.PackageName</option>
+                var priceLabel = package.MonthlyPrice > 0
+                    ? $"${package.MonthlyPrice:N0}/mo" + (package.SetupFee > 0 ? $" + ${package.SetupFee:N0} setup" : "")
+                    : "Contact us for pricing";
+                <option value="@package.Id">@package.PackageName — @priceLabel</option>
               }
             </select>
           </div>

@@ -7,10 +7,17 @@ public class ProspectPreviewInput
 {
     public static readonly string[] ValidBusinessTypes = { "Accountants", "Insurance / Financial", "Mortgage" };
 
+    // Mirrors the real BillingRule.PackageName values seeded by PackageEntitlementSeeder. Kept as a
+    // small hardcoded set here (like ValidBusinessTypes) rather than a DB round-trip, since this type
+    // has no DbContext -- PreviewController re-validates against the real table when it resolves pricing.
+    public static readonly string[] ValidPackages = { "IPro Silver", "IPro Gold", "IPro Platinum", "Broker Package" };
+    public const string DefaultPackage = "IPro Platinum";
+
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public string BusinessType { get; set; } = string.Empty;
+    public string Package { get; set; } = string.Empty;
     public string? Page { get; set; }
 
     public ProspectPreviewInput Normalized() => new()
@@ -19,13 +26,14 @@ public class ProspectPreviewInput
         LastName = Clamp(LastName, 80, "Morgan"),
         CompanyName = Clamp(CompanyName, 150, "Your Company"),
         BusinessType = ValidBusinessTypes.Contains(BusinessType) ? BusinessType : ValidBusinessTypes[0],
+        Package = ValidPackages.Contains(Package) ? Package : DefaultPackage,
         Page = string.IsNullOrWhiteSpace(Page) ? null : Page.Trim()
     };
 
     // Identity only -- deliberately never includes Page, so this is safe to use as a stable base
     // route that callers append their own "&page=slug" onto without ever risking a duplicate param.
     public string ToIdentityQueryString() =>
-        $"firstName={Uri.EscapeDataString(FirstName)}&lastName={Uri.EscapeDataString(LastName)}&companyName={Uri.EscapeDataString(CompanyName)}&businessType={Uri.EscapeDataString(BusinessType)}";
+        $"firstName={Uri.EscapeDataString(FirstName)}&lastName={Uri.EscapeDataString(LastName)}&companyName={Uri.EscapeDataString(CompanyName)}&businessType={Uri.EscapeDataString(BusinessType)}&package={Uri.EscapeDataString(Package)}";
 
     private static string Clamp(string? value, int maxLength, string fallback)
     {
