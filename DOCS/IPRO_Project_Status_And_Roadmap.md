@@ -1489,3 +1489,103 @@ One pre-existing, unchanged limitation carried over from how the other two previ
 partial from `_PublicNavigation.cshtml` and were not made route-aware, so they point at the real
 `/contact` path rather than the iframe's `&page=contact`. Not a regression from this feature — flagged
 here rather than silently left unmentioned, and low-stakes since the primary top nav works correctly.
+
+### 75. Rework the offer/pricing/preview funnel to be honest and connected (done, 2026-08-01)
+
+Direct pushback on item 74, the day after it shipped: the Instant Prospect Preview let a prospect go
+from the hero button straight to Sign Up Now without ever seeing what IPRO offers or what it costs.
+Asked to "pull resources" — a marketing-lens and a UI/UX-lens research pass, run in parallel — before
+touching any code again.
+
+Both agents grounded their findings directly in the real seeded data (`PackageEntitlementSeeder.cs`)
+rather than guessing, and both converged on the same root cause independently: **Gold was badged "Most
+Popular" despite being the one tier that lacks the AI Daily Assistant, Client Portal, and Client
+Invoicing** — the exact three features the new Preview feature demos — and the setup fee ($150/$200/
+$400) was invisible everywhere, worst of all on `Account/Register`'s own package `<select>`, the actual
+point of PayPal commitment, which showed bare package names and no price at all. The user separately
+supplied a strong reference: the legacy `iproaccountants.com` site's Features and Plans/Pricing pages,
+which turned out to be the direct source the current `PackageEntitlementSeeder` feature list was ported
+from — proof that detailed, honest, plain-English feature copy already existed and had never made it
+into IPRO_Modern.
+
+**Design process, two rounds:** built an HTML sketch (published as a Claude artifact, not committed to
+the repo) synthesizing both agents' findings — honestly-tiered feature groups, real pricing with setup
+fee, a mocked "how the preview should connect to a chosen plan" panel. First round reviewed as "close,
+but needs more visual polish" — wireframe-grey rebuilt with a serif/sans display pairing, a warm-ivory
+panel, small inline SVG icons per tier, and a browser-chrome-style mockup of the connected preview
+(replacing a plain bracketed placeholder box) — a genuine "editorial calibration" pass per the
+`artifact-design` system, not just re-coloring the same boxes. Second round approved as-is.
+
+**What shipped, translating the approved sketch into the real app:**
+- `Home/Index.cshtml`: the "Everything included" 6-tile grid (which had silently mislabeled 3
+  Platinum-only features as universal, per the marketing agent's finding) replaced with a 4-group
+  tiered feature story (Core / Gold adds / Platinum adds / Broker adds), hand-written like the grid it
+  replaced but grounded in the real feature list confirmed via `grep` against the seeder, not
+  reconstructed dynamically from `Model` — matching this page's existing convention.
+- Pricing cards: `isFeatured` moved from `"IPro Gold"` to `"IPro Platinum"`; added a `badgeFor()` label
+  per package (previously only the featured card had any badge); added the setup-fee line using the
+  same visual treatment the annual-price line already had; replaced the near-duplicate `included.Take
+  (6)` bullet list (the marketing agent's finding #3 — universal low-sort-order features crowded out
+  what actually differentiates each tier) with real client/domain/storage limits pulled from
+  `PackageFeatureCodes.Contacts`/`MultiDomainSupport`/`FileUploadCapacity`; added a "See a live {X} site
+  in 30s" link per card into `/Preview?package=...`.
+- Closing CTA band flipped to lead with Register, not Preview — the hero keeps Preview as a valid
+  cold-entry point (per the marketing agent's recommended arc), but by the closing section the offer
+  has already been established, so it should close on the offer.
+- `ProspectPreviewInput` gained a `Package` field (mirrors `ValidBusinessTypes`' hardcoded-set pattern,
+  default `"IPro Platinum"` since that's the plan the AI card actually demos) folded into
+  `ToIdentityQueryString()` so it survives in-iframe page navigation the same way `BusinessType` already
+  does. `PreviewController.Show` resolves the real `BillingRule` and exposes it via `ViewBag
+  .SelectedPackage`.
+- New `_PackageContextCard.cshtml` partial renders that plan's name/price/setup fee at the top of
+  `Show.cshtml`'s sidebar, styled with a brass top-accent "New" treatment matching the approved sketch.
+  `_MockAiAssistantCard.cshtml` gained a one-line disclosure ("Included in Platinum & Broker plans") —
+  the cheap, sketch-approved fix for the AI card being shown unconditionally regardless of the plan
+  being previewed, rather than a full locked/upsell variant.
+- Real mobile bug fixed in passing, exactly as flagged in the sketch: `Show.cshtml`'s two columns had
+  `order-lg-1`/`order-lg-2` but no un-prefixed base order, so Bootstrap's mobile-first cascade fell
+  through to raw markup order below 992px — the sales-pitch column rendered before the live-site
+  iframe, backwards from the desktop layout's own intent. Fixed by adding matching `order-1`/`order-2`
+  base classes.
+- `AccountController.Register` GET accepts an optional `package` param (query key stayed `package` via
+  `[FromQuery(Name = "package")]` after a `CS0136` local-variable collision with the pre-existing
+  `package` used in trial-invite resolution forced the C# parameter itself to be renamed to
+  `packageName`) and preselects the matching `PackageId`. The `<select>`'s options now read e.g. "IPro
+  Gold — $60/mo + $200 setup" instead of a bare name — this was independently flagged by both the
+  marketing agent (as the single highest-trust-impact gap, since it's the actual moment of PayPal
+  commitment) and confirmed nowhere else in the app already did this.
+- Serif (`Georgia` stack) applied to heading tags site-wide on both pages for one consistent display
+  system instead of three different page skins in one funnel (the UI agent's finding #4) — applied via
+  a plain element selector rather than fighting Bootstrap's `!important`-laden `.fw-bold` utility on
+  font-weight.
+
+**Two real bugs caught during live verification, fixed the same session:**
+1. Clicking a pricing card's new "See a live X site in 30s" link correctly landed on `/Preview
+   ?package=X`, but `Preview/Index.cshtml`'s form had no hidden field for it — submitting silently
+   reset to the default package regardless of which card was actually clicked, defeating the entire
+   point of carrying context from the pricing card. Fixed by threading it through as a hidden input,
+   plus a small "Showing you the X plan" confirmation note above the form.
+2. The Platinum tier's explanatory note was caught by the user reading the live page: it read as an
+   internal review comment ("...worth naming explicitly, since it's shown to every prospect who tries
+   the 30-second preview, regardless of the plan they end up choosing") rather than real customer copy
+   — because it was, verbatim, carried over from the design-sketch artifact's own reviewer-facing
+   annotation rather than rewritten in the site's voice before landing in the actual view. Rewritten in
+   second person, addressed to the prospect. Swept the rest of the touched files for the same class of
+   mistake (`grep` for "worth"/"found in passing"/"actually selling") — the only other match was inside
+   a C# code comment, which is correctly invisible to users, not a second instance of the bug.
+
+**Verification, live:** confirmed via the Browser pane end-to-end, not just build success — Home's tier
+groups and pricing cards render with real seeded data (badges, setup fees, limits); clicking through to
+`/Preview?package=IPro+Gold` shows "Showing you the IPro Gold plan" on the input form; submitting lands
+on `Show.cshtml` with a package-context card reading "IPro Gold — $60/mo + $200 setup" *and* the AI
+card's "Included in Platinum & Broker plans" caption directly below it — a real, honest disclosure that
+the feature being demoed isn't in the plan being shown, which is exactly the gap this rework exists to
+close; Sign Up Now carries `package=IPro+Gold` into Register; Register's picker preselects "IPro Gold —
+$60/mo + $200 setup". Dark mode and the desktop/narrow-viewport sketch renders were checked during the
+design phase, not against the shipped Bootstrap pages specifically — low risk, since both pages reuse
+Bootstrap's existing responsive grid classes rather than introducing new layout mechanics.
+
+One accidental finding along the way, not fixed here: `PackageFeatureCodes.GoogleCalendarSync`'s
+entitlement row in the seeder is `(no, no, no, no)` — every package, including Broker, is denied a
+feature that's otherwise documented as shipped and verified live (item under "Google Calendar sync,"
+2026-07-19). Flagged as a separate background task rather than folded into this already-large change.
