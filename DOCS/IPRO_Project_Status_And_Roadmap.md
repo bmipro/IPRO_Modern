@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: August 1, 2026
+Last updated: August 2, 2026
 
 ## Standing Convention: Every Paid Feature Must Be Package-Gated
 
@@ -1585,7 +1585,71 @@ $60/mo + $200 setup". Dark mode and the desktop/narrow-viewport sketch renders w
 design phase, not against the shipped Bootstrap pages specifically — low risk, since both pages reuse
 Bootstrap's existing responsive grid classes rather than introducing new layout mechanics.
 
-One accidental finding along the way, not fixed here: `PackageFeatureCodes.GoogleCalendarSync`'s
-entitlement row in the seeder is `(no, no, no, no)` — every package, including Broker, is denied a
-feature that's otherwise documented as shipped and verified live (item under "Google Calendar sync,"
-2026-07-19). Flagged as a separate background task rather than folded into this already-large change.
+One accidental finding along the way: `PackageFeatureCodes.GoogleCalendarSync`'s entitlement row in the
+seeder was `(no, no, no, no)` — every package, including Broker, was denied a feature that's otherwise
+documented as shipped and verified live (item under "Google Calendar sync," 2026-07-19). Flagged as a
+separate background task rather than folded into this already-large change — **fixed same day, see item
+76 below.**
+
+### 76. Fix: Google Calendar sync was entitled to zero packages (done, 2026-08-02)
+
+The background task flagged at the end of item 75. Confirmed via `GoogleCalendarController
+.RequireGoogleCalendarAccessAsync` that this wasn't a cosmetic gap — with every package denied, every
+real agent hit the upgrade-redirect gate on every attempt to connect Google Calendar, regardless of
+which package they were on, despite `GoogleCalendarSyncJob` running on a 15-minute recurring schedule
+since 2026-07-19. `PackageFeatureAccess.UpgradeMessage`'s fallback text ("This function is not included
+in your current package") made the denial read as if no upgrade would ever fix it, since
+`FindLowestIncludedPackageAsync` had nothing to find — compounding the bug for a Broker-tier agent, the
+one case where "just upgrade" isn't even a possible answer.
+
+Two-part fix, both required: `Feature(420, ...)` corrected to `(no, no, all, all)` — matching every
+other feature at this sort-order neighborhood (ClientPortal, ClientInvoicing, LifeEventReminders,
+AiDailyAssistant) — fixes fresh installs going forward. But `PackageEntitlementSeeder.EnsureFeaturesAsync`
+deliberately never re-syncs `IsIncluded` on a `PackageFeature` row that already exists (SuperAdmin can
+hand-edit entitlements per package via the Packages screen, and a blind re-sync on every startup would
+silently clobber that), so the already-seeded wrong rows in production needed a real one-time repair,
+not just a code fix. Added `RepairGoogleCalendarSyncEntitlementAsync`, narrowly scoped to flip
+`IsIncluded` from false to true for exactly Platinum and Broker's `google_calendar_sync` rows and
+nothing else — self-limiting, becomes a permanent no-op the first time it runs against a corrected
+database. Lives in the shared `PackageEntitlementSeeder` both `IPRO.Web` and `IPRO.Admin` call on
+startup, so one fix covers both.
+
+**Verification, honestly scoped:** both apps built clean and both reached "Running" state after restart
+— meaningful evidence here specifically because `PackageEntitlementSeeder.SeedAsync` is one of the
+deliberately-unwrapped, fail-loudly-on-purpose startup calls (see the comment above its call site in
+`Program.cs`), so a throwing repair method would have surfaced as a crashed deploy, not a silent no-op.
+Did not log in as a real Platinum/Broker agent to click through to a green "Connected" state — no test
+agent credentials available this session — so this is code-level + startup-health verification, not
+live-traffic confirmation, flagged as such rather than overstated.
+
+### 77. Replace the placeholder shield icon with the real corporate logo (done, 2026-08-02)
+
+The user shared the real IPRO Advisers logo (the arc-and-wordmark PNG already sitting unused at
+`src/IPRO.Web/wwwroot/images/ipro-advisers-logo.png`, previously wired into only `Register.cshtml`/
+`RegisterSuccess.cshtml`) and asked for it to become the actual corporate logo everywhere. Every other
+nav/brand spot in both apps was a generic Font Awesome shield icon standing in for it: Home's nav,
+both Preview flow headers, agent Login, and both portals' main sidebars (`IPRO.Web` and `IPRO.Admin`
+`_Layout.cshtml`).
+
+The logo is black-on-transparent, which matters: both portal sidebars and the Preview topbar sit on the
+same dark navy gradient (`#0f172a` → `#1e3a5f` / `#1a3a6b`) used throughout the app, and the black
+wordmark would be unreadable directly on top of it. Used a small white rounded "chip" behind the logo
+(`.brand-chip`, `background:#fff`) everywhere the background is dark; left it as a plain `<img>` where
+the surrounding surface is already white (Login's card, Preview's input form, both portals' light
+topbars).
+
+`IPRO.Admin` is a genuinely separate deployed app (`admin.iproadvisers.com`, its own `wwwroot`) that
+turned out to have no `wwwroot/images` directory at all yet — `/images/...` in an Admin view would have
+404'd against `IPRO.Web`'s copy of the file, since static files don't cross deployment boundaries.
+Copied the same PNG into `IPRO.Admin/wwwroot/images/` so its sidebar can serve its own copy;
+`UseStaticFiles()` was already wired up in `IPRO.Admin/Program.cs` from the project template, so no
+middleware changes were needed.
+
+**Verification, honestly scoped:** live-checked via the Browser pane on Home's nav, the agent Login
+card, and the Preview flow's input form and Show topbar — all four render the logo crisply, and both
+dark-background chip placements (Home's nav strip, Preview's topbar) are clearly legible, confirming the
+white-chip technique works correctly in production. Did not visually confirm the two authenticated
+portal sidebars (`IPRO.Web`'s agent sidebar, `IPRO.Admin`'s SuperAdmin sidebar) — no agent or SuperAdmin
+login credentials available this session — both use the identical `.brand-chip` CSS pattern against the
+identical navy gradient already confirmed working elsewhere, so this is inferred from a proven pattern,
+not independently observed, and flagged as such rather than claimed as directly verified.
