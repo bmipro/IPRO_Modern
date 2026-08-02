@@ -15,6 +15,7 @@ public static class PackageEntitlementSeeder
     {
         var packages = await EnsurePackagesAsync(db);
         await EnsureFeaturesAsync(db, packages);
+        await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
     }
 
     private static async Task<Dictionary<string, BillingRule>> EnsurePackagesAsync(IPRODbContext db)
@@ -101,6 +102,39 @@ public static class PackageEntitlementSeeder
         await db.SaveChangesAsync();
     }
 
+    // One-time data repair, not a schema change: the GoogleCalendarSync row above was originally
+    // seeded with every package denied (no,no,no,no) -- a configuration bug, not an intentional
+    // launch state, since GoogleCalendarController actively gates on it and the sync job has run
+    // on a recurring schedule since 2026-07-19. EnsureFeaturesAsync deliberately never re-syncs
+    // IsIncluded on a PackageFeature row that already exists (SuperAdmin can hand-edit entitlements
+    // per package via the Packages screen, and a blind re-sync on every startup would silently
+    // clobber that), so correcting the definition above only fixes fresh installs -- any
+    // already-seeded database keeps the wrong value until corrected here. Narrowly scoped to this
+    // one feature/package combination so it can't touch a real SuperAdmin customization elsewhere;
+    // becomes a permanent no-op the first time it runs against a database where this is fixed.
+    private static async Task RepairGoogleCalendarSyncEntitlementAsync(IPRODbContext db, IReadOnlyDictionary<string, BillingRule> packages)
+    {
+        var changed = false;
+        foreach (var packageName in new[] { "IPro Platinum", "Broker Package" })
+        {
+            if (!packages.TryGetValue(packageName, out var package)) continue;
+            var feature = await db.PackageFeatures.FirstOrDefaultAsync(f =>
+                f.BillingRuleId == package.Id && f.FeatureCode == PackageFeatureCodes.GoogleCalendarSync);
+            if (feature != null && !feature.IsIncluded)
+            {
+                feature.IsIncluded = true;
+                feature.LimitValue = null;
+                feature.LimitLabel = "";
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
     private static IReadOnlyList<FeatureDefinition> BuildFeatureDefinitions()
     {
         var all = new FeatureValue(true);
@@ -151,7 +185,7 @@ public static class PackageEntitlementSeeder
             Feature(390, PackageFeatureCodes.DesignatedSupport, "Designated support", no, no, no, all),
             Feature(400, PackageFeatureCodes.ClientInvoicing, "Client invoicing and estimates", no, no, all, all),
             Feature(410, PackageFeatureCodes.ClientPortal, "Client portal (login, messages, documents, appointments)", no, no, all, all),
-            Feature(420, PackageFeatureCodes.GoogleCalendarSync, "Google Calendar two-way sync", no, no, no, no),
+            Feature(420, PackageFeatureCodes.GoogleCalendarSync, "Google Calendar two-way sync", no, no, all, all),
             Feature(430, PackageFeatureCodes.LifeEventReminders, "Client life-event reminders (birthdays, renewals, anniversaries)", no, no, all, all),
             Feature(440, PackageFeatureCodes.PollSurveys, "Poll and survey builder", all, all, all, all),
             Feature(450, PackageFeatureCodes.LeadMagnet, "Lead magnet download block", all, all, all, all),
