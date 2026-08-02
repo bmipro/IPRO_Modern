@@ -705,6 +705,74 @@ rather than assuming the bug pattern was unique to the two files already known t
 - Repeated bug reports on the same feature, especially from the same root cause class, are worth
   treating as a possible signal about the feature's design, not only as more bugs to patch.
 
+## Incident: Real Logo Rollout Used A White Box Instead Of Inverting The Mark (2026-08-01)
+
+The user shared the real IPRO Advisers logo (a black wordmark on a transparent PNG, already sitting
+unused at `src/IPRO.Web/wwwroot/images/ipro-advisers-logo.png`) and asked for it to replace the generic
+Font Awesome shield icon used as a brand placeholder across both apps' nav bars and sidebars.
+
+**The mistake**: several of those placements — both portal sidebars, the Preview flow's topbar, Home's
+nav strip — sit on a dark navy background (`linear-gradient(180deg,#0f172a,#1e3a5f)` / `#1a3a6b`). A
+black wordmark placed directly there would be unreadable, so the first pass wrapped the `<img>` in a
+small white rounded "chip" (`background:#fff;border-radius:...`) wherever the background was dark. This
+compiled, deployed, and was technically legible — but once the user actually saw it live (screenshots of
+the agent portal and Admin sidebars), it read as a slapped-on sticker: a hard-edged white rectangle
+sitting on an otherwise seamless dark sidebar, obviously not part of the original design. The user also
+flagged the logo as sized too small everywhere, independent of the box issue.
+
+**Real fix**: dropped the white-box wrapper entirely and used a CSS filter instead —
+`filter: brightness(0) invert(1)` on the `<img>` itself. `brightness(0)` forces every opaque pixel to
+pure black regardless of its original color (transparency untouched), then `invert(1)` flips black to
+white — so the exact same PNG file renders as a clean white wordmark directly on the dark background,
+with no wrapper, no box, and no second image asset needed. Left plain (no filter) on the handful of
+light-background placements (agent Login's white card, Preview's white input card) where the original
+black-on-transparent version already has full contrast. Sizes were also bumped meaningfully larger
+across every placement (roughly +40-80% depending on context) in the same pass.
+
+**Prevention rule**: for a single-color logo/wordmark asset used across both light and dark UI surfaces,
+default to a CSS invert filter for dark placements rather than a background chip — a chip is the right
+call when the asset is genuinely multi-color (can't be represented by one filtered color), but for a
+flat black-on-transparent mark it's strictly worse: more markup, a visible seam, and it still doesn't
+match a designer's actual intent (a reversed/white version of the mark), which the filter approximates
+for free from the one file already on hand. Confirm the filter renders correctly against the *exact*
+production background color before shipping, not just "some dark background" — an isolated local HTML
+test against the real gradient value caught this before the second deploy.
+
+## Incident: Package Entitlement Seeder Never Corrects An Already-Wrong `IsIncluded` Value (2026-08-01)
+
+Found while investigating a report that Google Calendar sync was unreachable for every agent, on every
+package, despite being a documented, shipped, "verified live" feature with its own recurring background
+job. Root cause: `PackageEntitlementSeeder.BuildFeatureDefinitions()`'s `GoogleCalendarSync` row was
+seeded as `(no, no, no, no)` — every package denied — apparently a copy-paste/definition bug from when
+the row was first added, never caught because nothing in the UI makes a "this feature is in zero
+packages" state obviously wrong at a glance.
+
+**Why fixing the code definition alone did not fix it**: `PackageEntitlementSeeder.EnsureFeaturesAsync`
+is intentionally a create-if-missing seeder, not a sync-to-source-of-truth one — when a `PackageFeature`
+row already exists for a given `(BillingRuleId, FeatureCode)` pair, it only backfills `FeatureName`/
+`SortOrder` if blank/zero and never touches `IsIncluded`. This is deliberate: SuperAdmin can hand-edit
+entitlements per package via the Packages screen, and re-syncing `IsIncluded` from code on every
+startup would silently overwrite that. The practical consequence: correcting the C# definition only
+fixes a *fresh* database (a new package row being created for the first time) — every environment that
+had already run the old, wrong seed once keeps the wrong value forever, with no error or warning,
+because nothing ever re-checks it.
+
+**Fix, two parts, both required**: corrected the seed definition to `(no, no, all, all)` (matching every
+other feature at the same sort-order neighborhood — `ClientPortal`, `ClientInvoicing`,
+`LifeEventReminders`, `AiDailyAssistant` — all Platinum/Broker). Then added a narrowly-scoped, one-time
+repair method that directly flips `IsIncluded` from `false` to `true` for exactly the Platinum and
+Broker `google_calendar_sync` rows and nothing else — self-limiting (becomes a permanent no-op once the
+two rows are corrected), and deliberately not a general "re-sync everything" pass, so it can't clobber
+an unrelated, legitimate SuperAdmin customization elsewhere in the table.
+
+**Prevention rule**: when a new `PackageFeatureCodes` entry is added, double-check its seed row has at
+least one package set to `all` before it ships — an all-`no` row compiles fine, seeds fine, and produces
+no error anywhere; it just silently locks the feature away from every real agent forever, until someone
+happens to test it end-to-end as a paying-tier agent (which, per this project's standing constraint of
+no local dev database, usually doesn't happen before deploy). And if a wrong `IsIncluded` value is ever
+found after the fact, remember that fixing `PackageEntitlementSeeder`'s source alone is not sufficient
+for any database where the row was already seeded — a targeted repair step is required too.
+
 ## Release Build Commands
 
 From the repository root:
