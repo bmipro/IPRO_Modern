@@ -103,8 +103,7 @@
         .agent-sidebar .brand { flex-shrink:0; padding:1.25rem 1.25rem 1rem; border-bottom:1px solid rgba(255,255,255,0.1); }
         .agent-sidebar .brand a { display:flex; align-items:center; gap:.6rem; color:#fff; font-weight:700; text-decoration:none; font-size:1.05rem; }
         .agent-sidebar .brand i { color:var(--portal-accent); }
-        .agent-sidebar .brand-chip { display:inline-flex; align-items:center; background:#fff; border-radius:6px; padding:4px 7px; }
-        .agent-sidebar .brand-chip img { display:block; height:18px; width:auto; }
+        .agent-sidebar .brand-logo { display:block; height:32px; width:auto; filter:brightness(0) invert(1); }
         .agent-sidebar-nav { flex:1 1 auto; min-height:0; overflow-y:auto; padding-bottom:.5rem; }
         .agent-sidebar-nav::-webkit-scrollbar { width:6px; }
         .agent-sidebar-nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
@@ -137,7 +136,7 @@
 {
 <aside class="agent-sidebar" id="agentSidebar">
     <div class="brand">
-        <a href="/Dashboard"><span class="brand-chip"><img src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/></span><span>Agent Portal</span></a>
+        <a href="/Dashboard"><img class="brand-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/><span>Agent Portal</span></a>
     </div>
     <nav class="agent-sidebar-nav">
         <div class="nav-section">Overview</div>

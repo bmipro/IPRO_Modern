@@ -12,7 +12,6 @@
   body{color:#1e293b;}
   .ipro-hero{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);color:#fff;}
   .ipro-nav{background:rgba(255,255,255,0.08);}
-  .brand-icon{color:#fff;}
   .feature-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.06);height:100%;}
   .feature-icon{width:52px;height:52px;border-radius:12px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:1.4rem;}
   .price-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.08);height:100%;display:flex;flex-direction:column;}
@@ -20,8 +19,7 @@
   .price-card.featured::before{content:"";position:absolute;top:0;left:16px;right:16px;height:3px;background:#a9812f;border-radius:0 0 3px 3px;}
   .price-amount{font-size:2.5rem;font-weight:800;color:#1a3a6b;font-variant-numeric:tabular-nums;}
   .section-eyebrow{letter-spacing:.08em;font-weight:700;font-size:.8rem;color:#2563eb;text-transform:uppercase;}
-  .brand-chip{display:inline-flex;align-items:center;background:#fff;border-radius:8px;padding:6px 10px;}
-  .brand-chip img{display:block;height:24px;width:auto;}
+  .brand-logo{display:block;height:42px;width:auto;filter:brightness(0) invert(1);}
   h1,h2,h3,h4,h5{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;}
   .badge-plain{background:#eef2f8;color:#64748b;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
   .badge-featured{background:#f4ead2;color:#a9812f;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
@@ -49,7 +47,7 @@
 <div class="ipro-hero">
   <nav class="navbar navbar-expand ipro-nav py-3">
     <div class="container d-flex justify-content-between align-items-center">
-      <span class="brand-chip"><img src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/></span>
+      <img class="brand-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
       <div>
         <a href="/Account/Login" class="btn btn-outline-light me-2">Sign In</a>
         <a href="/Account/Register" class="btn btn-light fw-semibold">Get Started</a>
