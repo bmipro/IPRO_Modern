@@ -1,0 +1,68 @@
+@model IPRO.Entities.WebsiteStarterArticle
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New Starter Article" : $"Edit Starter Article: {Model.Title}";
+}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/WebsiteStarterArticles">Starter Articles</a></li><li class="breadcrumb-item active">@(Model.Id == 0 ? "New" : "Edit")</li></ol>
+</nav>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <form method="post" action="/WebsiteStarterArticles/Edit">
+      @Html.AntiForgeryToken()
+      <input type="hidden" asp-for="Id" />
+      <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label fw-semibold">Business Type</label>
+          <input asp-for="BusinessType" class="form-control" placeholder="All, Insurance / Financial, Mortgage, or Accountants" />
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label fw-semibold">Category</label>
+          <input asp-for="Category" class="form-control" placeholder="e.g. Personal Accounting (leave blank for a standalone page)" />
+          <div class="form-text">Articles sharing a category are stacked together on one Resources page. Blank gives the article its own page.</div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label fw-semibold">Sort Order</label>
+          <input asp-for="SortOrder" type="number" class="form-control" />
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Title</label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger small"></span>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Summary</label>
+        <input asp-for="Summary" class="form-control" placeholder="Shown in listings and as the meta description" />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Content</label>
+        @await Html.PartialAsync("_RichEditor", Model.Content ?? string.Empty, new ViewDataDictionary(ViewData) {
+            { "EditorId", "articleContent" }, { "FieldName", "Content" }, { "Height", "400" }, { "Toolbar", "full" }
+        })
+        <span asp-validation-for="Content" class="text-danger small"></span>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Image URL</label>
+        <input asp-for="ImageUrl" class="form-control" placeholder="/images/... or https://..." />
+      </div>
+
+      <div class="form-check form-switch mb-4">
+        <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" />
+        <label asp-for="IsActive" class="form-check-label">Offer this article to new signups</label>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary px-4">Save Article</button>
+        <a href="/WebsiteStarterArticles" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
