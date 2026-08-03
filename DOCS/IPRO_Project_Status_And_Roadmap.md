@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: August 2, 2026
+Last updated: August 3, 2026
 
 ## Standing Convention: Every Paid Feature Must Be Package-Gated
 
@@ -1653,3 +1653,42 @@ portal sidebars (`IPRO.Web`'s agent sidebar, `IPRO.Admin`'s SuperAdmin sidebar) 
 login credentials available this session — both use the identical `.brand-chip` CSS pattern against the
 identical navy gradient already confirmed working elsewhere, so this is inferred from a proven pattern,
 not independently observed, and flagged as such rather than claimed as directly verified.
+
+### 78. Home page hero: show the product instead of only describing it (done, 2026-08-03)
+
+The user asked for a content-and-presentation pass on the public marketing home page
+(`app.iproadvisers.com`). A review against the live page (not the design intent, the actual rendered
+HTML/CSS) turned up two real problems rather than stylistic opinions: every section on the page was
+text, icons, and cards with zero visual proof of the product itself, and the hero asked for three
+different things at once (Preview / Register / Pricing, all as same-weight full-width buttons — three
+stacked buttons on mobile before a visitor reads any content). A third suspected issue, the tier-stack
+section's cascading left-margin indent, was checked directly at 375px and found to render fine, so it
+was left alone rather than "fixed."
+
+Shipped the higher-leverage of the two fixes: the hero is now a two-column layout (headline/CTA left,
+product visual right, collapsing to one column under 768px) with a single primary CTA — "See Your
+Website in 30 Seconds" — and Register/Pricing demoted to quiet text sublinks underneath it. The visual
+is a browser-frame mockup of the AI Daily Assistant card, populated with a real example instead of
+placeholder text: `HomeController.Index` now calls the existing `MockDailyInsightCatalog.Get("Insurance
+/ Financial")` (the same class the `/Preview` flow already uses) and passes it through `ViewBag.HeroInsight`,
+so the hero's "this is what you'll see" promise stays truthful by construction rather than by hand-copying
+the same strings into the view and letting them drift out of sync later.
+
+Hit one Razor-specific bug worth remembering: `@media (max-width:768px){...}` inside a `.cshtml` file's
+`<style>` block gets parsed by Razor as a C# expression (`@media` read as a method call), not as CSS,
+even though it's inside a literal `<style>` tag — `error CS0103: The name 'media' does not exist in the
+current context`. Fixed by escaping it as `@@media`. Any future raw CSS added directly to a `.cshtml`
+`<style>` block needs the same escaping for `@media`, `@keyframes`, `@font-face`, etc.
+
+A second, still-open piece from the same content/presentation pass — a copy rewrite for the hero,
+"What's Included," Pricing, and Closing sections' headlines/subheads — was proposed earlier and is not
+part of this change. It was deliberately kept out of scope here (the user picked the hero visual as the
+priority between the two) and is still sitting unreviewed.
+
+**Verification, honestly scoped:** built clean after fixing the `@media` escaping error, deployed via
+the existing GitHub Actions → Azure Web App pipeline, restarted `ipro-prod-web`, and live-checked via
+the Browser pane at both desktop and 375px mobile widths — single CTA renders, sublinks work, the
+browser-frame card shows the real Jennifer Walsh example with correct stat numbers, no horizontal
+overflow at either width, no console errors. Did not test the two other verticals' catalog entries
+(Mortgage / Accountants) since the hero always renders the Insurance/Financial example by design, not a
+rotating one — that's a deliberate scope decision, not an untested path.
