@@ -1,6 +1,6 @@
 # IPRO Project Status and Roadmap
 
-Last updated: August 3, 2026
+Last updated: August 3, 2026 (evening)
 
 ## Standing Convention: Every Paid Feature Must Be Package-Gated
 
@@ -1692,3 +1692,45 @@ browser-frame card shows the real Jennifer Walsh example with correct stat numbe
 overflow at either width, no console errors. Did not test the two other verticals' catalog entries
 (Mortgage / Accountants) since the hero always renders the Insurance/Financial example by design, not a
 rotating one — that's a deliberate scope decision, not an untested path.
+
+### 79. Home page copy: finalize and ship the hero/what's-included/pricing/closing rewrite (done, 2026-08-03)
+
+The copy rewrite proposed alongside item 78 (and left unreviewed at the time) got picked up again:
+rather than reviewing the original single proposal, generated multiple distinct angles per section —
+different rhetorical strategies (pain-point, outcome-first, question-based, contrast-vs-competitors,
+narrative, blunt/short) — and let the user pick per section across a couple of rounds. Final picks:
+hero leads with "Still juggling five logins to run your practice?", "What's Included" tells the tier
+structure as a growth story ("From your first client to your whole team"), Pricing gets a subhead it
+never had, and Closing references what the visitor already scrolled past instead of a generic prompt.
+
+Caught one accuracy problem before shipping: the winning hero line originally listed "billing" as
+something every plan consolidates. Client invoicing is Platinum-only, not universal — the exact class of
+overclaim item 74/75's "honest tiering" rework existed to eliminate. Swapped in "scheduling," which
+actually is on every plan including Silver, before wiring it in.
+
+**Verification:** built clean, deployed, restarted `ipro-prod-web`, confirmed live via the Browser pane
+that all four sections show the new copy with no layout issues.
+
+### 80. Real logo, take two: high-res source, fixed sidebars, fixed a login page that never had it (done, 2026-08-03)
+
+The user supplied a genuinely higher-quality source file (`logo_big.png`, 2583×629 — the prior asset
+wired in under item 77 was 370×90) along with screenshots showing the logo looking small and cramped on
+both portal sidebars. Diagnosed against the actual CSS rather than guessing: both sidebars
+(`IPRO.Web`'s agent sidebar, `IPRO.Admin`'s own sidebar) crammed the logo into a fixed 32px height
+inline next to bold "Admin"/"Agent Portal" text in a flex row — the mismatch was a layout problem, not
+primarily a source-quality one. Restructured both to stack the logo on its own line at 38px with the
+portal label as a smaller caption underneath, and replaced the low-res source in both apps' `wwwroot`.
+
+Checking every placement turned up a second, unrelated gap: `admin.iproadvisers.com/Admin/Login` is a
+separate view from the Agent Portal's `Account/Login` and had never been touched by any earlier logo
+work — it was still showing a generic amber lock-icon placeholder. Fixed to match the Agent Portal's
+treatment.
+
+The new source file doesn't include the "Power to Connect!" tagline the old one had baked in. Added it
+back on both login pages as real styled text (serif italic, brand brass color) instead of raster pixels
+— actually legible now, and it won't silently disappear again if the logo file changes in the future.
+
+**Verification, honestly scoped:** confirmed live via the Browser pane on Home nav, the Preview flow,
+and both login pages — crisp at every size, tagline legible on both. Did not verify the two sidebars
+directly (no SuperAdmin/agent login credentials available this session, same limitation as item 77) —
+the user confirmed the Admin sidebar via their own screenshot instead.
