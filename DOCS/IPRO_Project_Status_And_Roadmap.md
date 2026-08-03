@@ -1734,3 +1734,43 @@ back on both login pages as real styled text (serif italic, brand brass color) i
 and both login pages — crisp at every size, tagline legible on both. Did not verify the two sidebars
 directly (no SuperAdmin/agent login credentials available this session, same limitation as item 77) —
 the user confirmed the Admin sidebar via their own screenshot instead.
+
+### 81. Accountants vertical: real starter content, SuperAdmin management, and a live entity bug (done, 2026-08-03)
+
+The user asked for the Accountants Resources library to be real content, not the two generic articles
+every vertical shared. Source material came from a real 2013 client site's local file archive
+(`X:\ipro_related\IPro_accountants\files\`, ~25 legacy `.doc` files, extracted with `antiword` since
+LibreOffice's conversion helper doesn't run on Windows Python) — read in full before writing anything,
+which caught two real content problems in the old source: an Accounts Payable article whose body didn't
+match its own title, and an Info Centre piece that was unattributed verbatim Wikipedia text. Both
+rewritten from scratch rather than copied.
+
+Wrote 19 new Accountants articles across 4 categories (Personal Accounting, Business Accounting, Info
+Centre, Calculators). `_PublicNavigation.cshtml` only renders two nav levels, so categories couldn't
+become a real third tier — resolved by making each category a single Resources child page with its
+articles stacked as independent blocks on it, reusing `WebsiteBlockTypes.ArticleContent` exactly as it
+already worked, no nav code touched. `WebsiteStarterArticleSeeder`'s guard was a blanket "table has any
+rows" check that would have silently blocked all 19 from ever inserting on the already-seeded production
+DB — caught and fixed to a per-article idempotency check before it shipped broken.
+
+Per the user's direct feedback that this should have been offered without being asked (the same
+hardcoded-to-SuperAdmin-manageable upgrade E-Cards/E-Letters already got earlier this session), built
+`WebsiteStarterArticlesController` + Index/Edit views: grouped list by vertical/category, edit via the
+shared rich-text editor, deactivate/restore/delete, all audit-logged.
+
+**Bug found live, not reported by the user:** the new Starter Articles Index page showed literal
+`&amp;`/`&mdash;` text instead of `&`/an em dash. Root cause — Title and Summary render through Razor's
+default HTML-encoding, not `@Html.Raw` like Content does, so writing HTML entities into those two fields
+(correct habit for Content, wrong here) displayed as literal entity text to visitors. `get_page_text`
+was silently double-decoding the browser's rendered text during a first pass, which hid the same
+pre-existing bug in one Mortgage-vertical article seeded before this session; a raw DOM scan caught it.
+Fixed all 10 affected rows directly through the new Edit screen (the seeder never touches existing rows,
+so editing the seeder source alone would have produced duplicates) and normalized the seeder source to
+match.
+
+**Verification:** real per-article edits confirmed via the SuperAdmin screen; full-page DOM scan showed
+zero entity artifacts across all 25 seeded articles. End-to-end outcome verified through the `/Preview`
+flow (item 76) rather than a real signup — registration requires a live PayPal payment, which is not
+something to run for a test account. Confirmed via `/Preview` for the Accountants vertical: all 4
+category pages present in the Resources nav dropdown, Business Accounting correctly stacks all 9
+articles on one page, Info Centre's 5 articles (the ones most affected by the entity bug) render clean.
