@@ -6,11 +6,12 @@ using Microsoft.EntityFrameworkCore;
 namespace IPRO.Web.Infrastructure;
 
 // "Resources" is not a new navigation mechanism -- it is a real WebsitePage (parent) with one real
-// child WebsitePage per starter article, using the same ParentPageId/ChildPages two-level dropdown
-// _PublicNavigation.cshtml already renders for any page. Each child page's block points at a real,
-// per-agent Article row rather than a plain starter-block copy (the way EnsureStarterPagesAsync
-// works for Home/About/etc.), because the whole point of these being Articles is that the same
-// content can also be sent as a newsletter later -- that only works against a real Article.
+// child WebsitePage per starter article (or per Category, see below), using the same
+// ParentPageId/ChildPages two-level dropdown _PublicNavigation.cshtml already renders for any page.
+// Each ArticleContent block points at a real, per-agent Article row rather than a plain
+// starter-block copy (the way EnsureStarterPagesAsync works for Home/About/etc.), because the whole
+// point of these being Articles is that the same content can also be sent as a newsletter later --
+// that only works against a real Article.
 public static class WebsiteStarterResourcesHelper
 {
     private const string ResourcesSlug = "resources";
@@ -51,8 +52,7 @@ public static class WebsiteStarterResourcesHelper
         db.Articles.AddRange(articles);
         await db.SaveChangesAsync();
 
-        // Phase 2: the Resources page tree, one child page per article, each with a single
-        // ArticleContent block now that every article above has a real Id.
+        // Phase 2: the Resources page tree, now that every article above has a real Id to point at.
         var existingSlugs = (await db.WebsitePages
                 .Where(p => p.AgentWebsiteId == website.Id)
                 .Select(p => p.Slug)
@@ -86,33 +86,71 @@ public static class WebsiteStarterResourcesHelper
         db.WebsitePages.Add(resourcesPage);
         existingSlugs.Add(ResourcesSlug);
 
+        // Nav only renders two levels deep (top pages, then one row of direct children --
+        // _PublicNavigation.cshtml has no grandchild query), so a Category can't become a real third
+        // tier of pages. Instead: uncategorized starters (every non-Accountants vertical today) keep
+        // the original one-page-per-article behavior; categorized starters share one page per
+        // Category, with each article rendered as its own stacked ArticleContent block on it. Either
+        // way every article is still a real, independently editable Article row.
         var childOrder = 0;
-        foreach (var (starter, article) in selected.Zip(articles))
+        var pairs = selected.Zip(articles, (starter, article) => (starter, article)).ToList();
+        foreach (var group in pairs.GroupBy(p => p.starter.Category))
         {
-            var slug = UniqueSlug(Slugify(starter.Title), existingSlugs);
-            existingSlugs.Add(slug);
+            if (string.IsNullOrWhiteSpace(group.Key))
+            {
+                foreach (var (starter, article) in group)
+                {
+                    var slug = UniqueSlug(Slugify(starter.Title), existingSlugs);
+                    existingSlugs.Add(slug);
+                    db.WebsitePages.Add(new WebsitePage
+                    {
+                        AgentWebsiteId = website.Id,
+                        ParentPage = resourcesPage,
+                        Title = starter.Title,
+                        Slug = slug,
+                        NavigationLabel = starter.Title,
+                        MetaTitle = starter.Title,
+                        MetaDescription = starter.Summary,
+                        ShowInNavigation = true,
+                        IsPublished = true,
+                        SortOrder = childOrder++,
+                        Blocks = new List<WebsiteContentBlock>
+                        {
+                            new()
+                            {
+                                BlockType = WebsiteBlockTypes.ArticleContent,
+                                SettingsJson = new WebsiteArticleContentSettings { ArticleId = article.Id }.ToJson(),
+                                SortOrder = 0,
+                                IsVisible = true
+                            }
+                        }
+                    });
+                }
+                continue;
+            }
+
+            var categorySlug = UniqueSlug(Slugify(group.Key), existingSlugs);
+            existingSlugs.Add(categorySlug);
+            var ordered = group.OrderBy(p => p.starter.SortOrder).ToList();
             db.WebsitePages.Add(new WebsitePage
             {
                 AgentWebsiteId = website.Id,
                 ParentPage = resourcesPage,
-                Title = starter.Title,
-                Slug = slug,
-                NavigationLabel = starter.Title,
-                MetaTitle = starter.Title,
-                MetaDescription = starter.Summary,
+                Title = group.Key,
+                Slug = categorySlug,
+                NavigationLabel = group.Key,
+                MetaTitle = group.Key,
+                MetaDescription = $"{group.Key} articles and resources.",
                 ShowInNavigation = true,
                 IsPublished = true,
                 SortOrder = childOrder++,
-                Blocks = new List<WebsiteContentBlock>
+                Blocks = ordered.Select((p, i) => new WebsiteContentBlock
                 {
-                    new()
-                    {
-                        BlockType = WebsiteBlockTypes.ArticleContent,
-                        SettingsJson = new WebsiteArticleContentSettings { ArticleId = article.Id }.ToJson(),
-                        SortOrder = 0,
-                        IsVisible = true
-                    }
-                }
+                    BlockType = WebsiteBlockTypes.ArticleContent,
+                    SettingsJson = new WebsiteArticleContentSettings { ArticleId = p.article.Id }.ToJson(),
+                    SortOrder = i,
+                    IsVisible = true
+                }).ToList()
             });
         }
 

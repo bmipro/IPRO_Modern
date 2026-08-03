@@ -1313,6 +1313,8 @@ CREATE TABLE IF NOT EXISTS `WebsiteStarterArticles` (
     `UpdatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
+
+    await EnsureTableColumnAsync(db, "WebsiteStarterArticles", "Category", "ALTER TABLE `WebsiteStarterArticles` ADD COLUMN `Category` varchar(120) CHARACTER SET utf8mb4 NULL");
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)
