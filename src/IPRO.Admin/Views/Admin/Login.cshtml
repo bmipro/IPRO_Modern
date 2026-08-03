@@ -8,14 +8,14 @@
 <style>
 body{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;}
 .login-card{width:380px;border:none;border-radius:18px;box-shadow:0 25px 60px rgba(0,0,0,0.4);}
-.lock-icon{width:72px;height:72px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;margin:0 auto 1rem;}
 </style>
 </head><body>
 <div class="card login-card p-4">
     <div class="card-body">
         <div class="text-center mb-4">
-            <div class="lock-icon"><i class="fas fa-lock"></i></div>
-            <h4 class="fw-bold">IPRO Admin</h4>
+            <img src="/images/ipro-advisers-logo.png" alt="IPRO Advisers" style="height:56px;width:auto;"/>
+            <div style="font-family:Georgia,'Iowan Old Style','Palatino Linotype',serif;font-style:italic;font-size:.85rem;color:#a9812f;margin-top:2px;">Power to Connect!</div>
+            <h4 class="fw-bold mt-2">Admin</h4>
             <p class="text-muted small">Super Administrator Access</p>
         </div>
         @if (!ViewData.ModelState.IsValid)
