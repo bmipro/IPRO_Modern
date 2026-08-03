@@ -1,5 +1,6 @@
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,11 @@ public class HomeController : Controller
             .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
             .ThenBy(p => p.PackageName)
             .ToList();
+
+        // Same canned example the /Preview flow shows a Insurance/Financial prospect -- reused
+        // here (not duplicated) so the hero's "what you'll see" promise stays truthful by
+        // construction instead of by manually keeping two copies of the same copy in sync.
+        ViewBag.HeroInsight = MockDailyInsightCatalog.Get("Insurance / Financial");
 
         return View(ordered);
     }
