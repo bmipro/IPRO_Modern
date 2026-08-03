@@ -88,6 +88,9 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteFormField> WebsiteFormFields => Set<WebsiteFormField>();
     public DbSet<WebsiteFormFieldOption> WebsiteFormFieldOptions => Set<WebsiteFormFieldOption>();
     public DbSet<WebsiteFormSubmissionAnswer> WebsiteFormSubmissionAnswers => Set<WebsiteFormSubmissionAnswer>();
+    public DbSet<WebsiteStarterForm> WebsiteStarterForms => Set<WebsiteStarterForm>();
+    public DbSet<WebsiteStarterFormField> WebsiteStarterFormFields => Set<WebsiteStarterFormField>();
+    public DbSet<WebsiteStarterFormFieldOption> WebsiteStarterFormFieldOptions => Set<WebsiteStarterFormFieldOption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

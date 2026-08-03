@@ -1,0 +1,66 @@
+@model IPRO.Admin.Models.StarterFormBuilderViewModel
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "New Starter Form" : $"Edit Starter Form: {Model.Title}";
+}
+
+<div class="mb-4"><div class="small text-muted mb-1"><a href="/WebsiteStarterForms">Starter Forms</a> / @(isNew ? "Create" : "Edit")</div><h3 class="fw-bold mb-1">@ViewData["Title"]</h3></div>
+
+<div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+<form method="post" action="/WebsiteStarterForms/Edit" id="formBuilderForm">
+  @Html.AntiForgeryToken()
+  <input type="hidden" asp-for="Id"/>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-muted">Business Type</label>
+          <input asp-for="BusinessType" class="form-control" placeholder="All, Insurance / Financial, Mortgage, or Accountants"/>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-muted">Sort Order</label>
+          <input asp-for="SortOrder" type="number" class="form-control"/>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <div class="form-check form-switch mb-2">
+            <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch"/>
+            <label asp-for="IsActive" class="form-check-label">Offer this template to agents</label>
+          </div>
+        </div>
+      </div>
+      <div class="mb-3 mt-3">
+        <label class="form-label small fw-semibold text-muted">Form Title</label>
+        <input asp-for="Title" class="form-control" maxlength="200" placeholder="Get a free quote"/>
+        <span asp-validation-for="Title" class="text-danger small"></span>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Description (optional)</label>
+        <textarea asp-for="Description" class="form-control" rows="2" placeholder="Shown to agents when browsing the template library"></textarea>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Submit Button Text</label>
+          <input asp-for="SubmitButtonText" class="form-control" maxlength="100" placeholder="Submit"/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Success Message</label>
+          <input asp-for="SuccessMessage" class="form-control" maxlength="500" placeholder="Thank you. Your response was sent."/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-4">
+    <i class="fas fa-circle-info mt-1"></i>
+    <div>Every form already starts with <strong>First name, Last name, Email, and Phone</strong> fields shown above the questions below, so a visitor's submission can become a real lead. You don't need to add these yourself.</div>
+  </div>
+
+  @await Html.PartialAsync("_FormFieldBuilder", Model.Fields)
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Save Template</button>
+    <a href="/WebsiteStarterForms" class="btn btn-link">Cancel</a>
+  </div>
+</form>

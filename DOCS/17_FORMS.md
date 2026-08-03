@@ -21,6 +21,17 @@ A way to build a custom form once — with text fields, multi-line text, checkbo
 
 A form is fully editable and deletable at any time — editing a form updates it everywhere it's currently attached.
 
+## Starting from a Template
+
+Don't want to start from a blank form? Click **Start from a Template** on the Forms screen to browse a
+library of ready-made forms — a few general-purpose ones, plus a few written for your specific business
+type. Click **Use This Template** on any of them and it's copied into your own Forms list immediately —
+edit it right away, or leave it exactly as it is and attach it to a page.
+
+A template you adopt becomes a completely independent form the moment you adopt it: it's yours to edit
+or delete, and it stays exactly as you left it even if the original template is later changed or removed
+from the library.
+
 ## Attach a Form to a Page
 
 1. Open the page in the Website Builder and click **Add Block**, then choose **Custom Form**.

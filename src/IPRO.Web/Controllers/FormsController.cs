@@ -45,6 +45,86 @@ public class FormsController : Controller
         });
     }
 
+    public async Task<IActionResult> Templates()
+    {
+        var gate = await RequireFormAccessAsync();
+        if (gate != null) return gate;
+
+        var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+        var businessType = agent?.BusinessType ?? "All";
+
+        var templates = await _db.WebsiteStarterForms.AsNoTracking()
+            .Where(f => f.IsActive && (f.BusinessType == businessType || f.BusinessType == "All"))
+            .OrderBy(f => f.BusinessType == "All" ? 1 : 0).ThenBy(f => f.SortOrder)
+            .ToListAsync();
+        var templateIds = templates.Select(t => t.Id).ToList();
+        var fields = await _db.WebsiteStarterFormFields.AsNoTracking()
+            .Where(f => templateIds.Contains(f.WebsiteStarterFormId))
+            .OrderBy(f => f.SortOrder)
+            .ToListAsync();
+
+        ViewBag.FieldsByForm = fields.GroupBy(f => f.WebsiteStarterFormId).ToDictionary(g => g.Key, g => g.ToList());
+        return View(templates);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AdoptTemplate(int starterFormId)
+    {
+        var gate = await RequireFormAccessAsync();
+        if (gate != null) return gate;
+
+        var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+        var businessType = agent?.BusinessType ?? "All";
+
+        // Re-checks visibility server-side rather than trusting the id came from the gallery this
+        // agent was actually shown -- defends against adopting a different vertical's template by
+        // guessing an id.
+        var template = await _db.WebsiteStarterForms.FirstOrDefaultAsync(f => f.Id == starterFormId
+            && f.IsActive && (f.BusinessType == businessType || f.BusinessType == "All"));
+        if (template == null) return NotFound();
+
+        var templateFields = await _db.WebsiteStarterFormFields.Where(f => f.WebsiteStarterFormId == template.Id).OrderBy(f => f.SortOrder).ToListAsync();
+        var templateFieldIds = templateFields.Select(f => f.Id).ToList();
+        var templateOptions = await _db.WebsiteStarterFormFieldOptions.Where(o => templateFieldIds.Contains(o.WebsiteStarterFormFieldId)).OrderBy(o => o.SortOrder).ToListAsync();
+
+        var form = new WebsiteForm
+        {
+            AgentUserId = AgentId,
+            Title = template.Title,
+            Description = template.Description,
+            SubmitButtonText = template.SubmitButtonText,
+            SuccessMessage = template.SuccessMessage,
+            IsActive = true
+        };
+        _db.WebsiteForms.Add(form);
+        await _db.SaveChangesAsync();
+
+        foreach (var templateField in templateFields)
+        {
+            var field = new WebsiteFormField
+            {
+                WebsiteFormId = form.Id,
+                FieldType = templateField.FieldType,
+                Label = templateField.Label,
+                Placeholder = templateField.Placeholder,
+                HelpText = templateField.HelpText,
+                IsRequired = templateField.IsRequired,
+                SortOrder = templateField.SortOrder
+            };
+            _db.WebsiteFormFields.Add(field);
+            await _db.SaveChangesAsync();
+
+            foreach (var option in templateOptions.Where(o => o.WebsiteStarterFormFieldId == templateField.Id))
+            {
+                _db.WebsiteFormFieldOptions.Add(new WebsiteFormFieldOption { WebsiteFormFieldId = field.Id, Text = option.Text, SortOrder = option.SortOrder });
+            }
+            await _db.SaveChangesAsync();
+        }
+
+        TempData["Success"] = $"Template adopted as '{form.Title}'. Use it as-is, or make changes below.";
+        return RedirectToAction(nameof(Edit), new { id = form.Id });
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(FormBuilderViewModel model)
     {

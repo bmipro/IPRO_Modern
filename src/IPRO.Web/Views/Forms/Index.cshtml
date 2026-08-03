@@ -8,14 +8,17 @@
     <h2 class="fw-bold mb-1"><i class="fas fa-rectangle-list me-2 text-primary"></i>Forms</h2>
     <div class="text-muted">Build a custom form once, then attach it to any page with a Custom Form block. Submissions land in your Website Leads inbox.</div>
   </div>
-  <a class="btn btn-primary" href="/Forms/Create"><i class="fas fa-plus me-1"></i>New Form</a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="/Forms/Templates"><i class="fas fa-shapes me-1"></i>Start from a Template</a>
+    <a class="btn btn-primary" href="/Forms/Create"><i class="fas fa-plus me-1"></i>New Form</a>
+  </div>
 </div>
 
 <div class="card border-0 shadow-sm">
   <div class="card-body p-3">
     @if (!Model.Any())
     {
-      <p class="text-muted small mb-0">No forms yet. Click <strong>New Form</strong> to build one.</p>
+      <p class="text-muted small mb-0">No forms yet. <a href="/Forms/Templates">Start from a template</a>, or click <strong>New Form</strong> to build one from scratch.</p>
     }
     else
     {

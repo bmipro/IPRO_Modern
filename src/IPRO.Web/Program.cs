@@ -323,6 +323,18 @@ using (var scope = app.Services.CreateScope())
         Console.Error.WriteLine("[WebsiteStarterArticleSeeding] FAILED: " + ex);
     }
 
+    try
+    {
+        await EnsureWebsiteStarterFormSchemaAsync(db);
+        await WebsiteStarterFormSeeder.SeedAsync(db, seedLogger);
+    }
+    catch (Exception ex)
+    {
+        seedLogger.LogError(ex, "Website starter form seeding failed. The app is starting anyway; " +
+                                "the Starter Forms template library may be missing.");
+        Console.Error.WriteLine("[WebsiteStarterFormSeeding] FAILED: " + ex);
+    }
+
     await EnsureDripCampaignStepSendSchemaAsync(db);
     await EnsureDidYouKnowEmailQueueSchemaAsync(db);
     await EnsureNewsLetterClickTrackingSchemaAsync(db);
@@ -1315,6 +1327,50 @@ CREATE TABLE IF NOT EXISTS `WebsiteStarterArticles` (
 ) CHARACTER SET=utf8mb4;");
 
     await EnsureTableColumnAsync(db, "WebsiteStarterArticles", "Category", "ALTER TABLE `WebsiteStarterArticles` ADD COLUMN `Category` varchar(120) CHARACTER SET utf8mb4 NULL");
+}
+
+static async Task EnsureWebsiteStarterFormSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteStarterForms` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `BusinessType` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'All',
+    `Title` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Description` varchar(2000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SubmitButtonText` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SuccessMessage` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    `UpdatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_website_starter_forms_business_type` (`BusinessType`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteStarterFormFields` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `WebsiteStarterFormId` int NOT NULL,
+    `FieldType` varchar(50) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Label` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `Placeholder` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `HelpText` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `IsRequired` tinyint(1) NOT NULL DEFAULT 0,
+    `SortOrder` int NOT NULL DEFAULT 0,
+    `CreatedAt` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`),
+    KEY `idx_website_starter_form_fields_form` (`WebsiteStarterFormId`)
+) CHARACTER SET=utf8mb4;");
+
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `WebsiteStarterFormFieldOptions` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `WebsiteStarterFormFieldId` int NOT NULL,
+    `Text` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    `SortOrder` int NOT NULL DEFAULT 0,
+    PRIMARY KEY (`Id`),
+    KEY `idx_website_starter_form_field_options_field` (`WebsiteStarterFormFieldId`)
+) CHARACTER SET=utf8mb4;");
 }
 
 static async Task EnsurePollSchemaAsync(IPRODbContext db)
