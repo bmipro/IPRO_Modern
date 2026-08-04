@@ -1886,3 +1886,21 @@ work**. `header-sidebar` renders the third tier as an always-expanded indented t
 its own scrollbar, rather than a full-width hover panel that would have made no sense there. Zero-regression
 check passed: the Mortgage and Insurance / Financial verticals, which have no categorized starters, still
 render the original plain dropdown and zero mega panels.
+
+The two guard rails were then exercised against a real signed-in agent, on a throwaway
+`Parent → Child → Grandchild` tree built and deleted for the purpose so no real page data was touched:
+
+- **Menu editor**: the only two rows offering zero second-level placements were exactly the two pages that
+  have children of their own. Every childless page offered five, and a page already at depth 2 offered four
+  (correctly excluding itself).
+- **Direct `SavePage` POST** — the path that previously enforced nothing: posting a page parented to a
+  depth-3 page created it but forced it to top level rather than opening a fourth tier. Posting the
+  3-deep subtree's root under another top-level page was likewise refused, leaving it in place — that is
+  the `subtreeHeight` half of the rule, which a naive "is the parent top-level?" check would have missed.
+- **Delete**: deleting the middle tier re-parented its grandchild to the grandparent (one level up), not
+  to the top nav — confirming the explicit re-parenting overrides the FK's `SetNull`.
+
+One environment note worth keeping: the agent portal was reached over the agent's **custom domain**, not
+`app.iproadvisers.com`. The auth cookie is host-only, so a session established on the custom domain is
+invisible to the canonical host and vice versa — portal verification has to target whichever host actually
+holds the session.
