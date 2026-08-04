@@ -773,6 +773,35 @@ no local dev database, usually doesn't happen before deploy). And if a wrong `Is
 found after the fact, remember that fixing `PackageEntitlementSeeder`'s source alone is not sufficient
 for any database where the row was already seeded — a targeted repair step is required too.
 
+## Incident: HTML Entities Rendered As Literal Text In Starter Article Titles/Summaries (2026-08-03)
+
+Found live on the new SuperAdmin Starter Articles screen, not reported by the user first. Titles and
+Summaries were showing literal `&amp;`/`&mdash;` text to visitors instead of `&`/an em dash.
+
+**Root cause**: `Title` and `Summary` render through Razor's default HTML-encoding (`@Model.Title`), not
+`@Html.Raw` the way `Content` does. Writing HTML entities into seed strings is the correct habit for
+`Content` (it's raw HTML), but wrong for `Title`/`Summary` — Razor's auto-encoding turns a literal `&` in
+the entity sequence into `&amp;amp;`, which the browser then decodes exactly one level back down to the
+literal visible text `&amp;`.
+
+**Diagnostic trap**: `get_page_text`-style browser text extraction was silently double-decoding the
+rendered output during the first pass, showing a clean "—" and hiding the bug entirely. It only surfaced
+once the raw DOM (`element.innerText` via a direct script, not a text-extraction helper) was checked
+instead. This also caught an identical, unrelated pre-existing instance in one Mortgage-vertical article
+seeded in an earlier session — the double-decoding had been masking it the whole time.
+
+**Fix**: corrected all affected rows directly through the new SuperAdmin edit screen (the seeder is
+additive-only and never touches existing rows, so fixing the seeder source alone would have produced
+duplicate rows on the next deploy, not corrected the live ones) and normalized the seeder source to use
+literal Unicode characters instead of entities, so future fresh installs seed clean and the idempotency
+key still matches.
+
+**Prevention rule**: when authoring seed content, entities (`&amp;`, `&mdash;`, etc.) belong only in
+fields rendered via `@Html.Raw`. Any field rendered as a plain `@Model.Property` expression should use
+literal Unicode characters. If a text-extraction/scraping step is ever used to verify rendered content,
+prefer a raw DOM read over a helper that may perform its own entity-decoding pass — it can hide exactly
+this class of bug.
+
 ## Release Build Commands
 
 From the repository root:
