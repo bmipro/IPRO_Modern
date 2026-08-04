@@ -23,11 +23,16 @@ public class AgentsController : Controller
     private readonly ILogger<AgentsController> _logger;
     private readonly IAdminAuditLogService _auditLog;
     private readonly IPRO.DataAccess.IPRODbContext _db;
-    private readonly IBlobStorageService _blobs;
+    // Resolved lazily, never in the constructor: AzureBlobStorageService is a singleton whose
+    // constructor reads Azure:StorageConnectionString, which the admin app does not configure. Taking
+    // it as a constructor dependency made EVERY action on this controller throw
+    // ArgumentNullException('connectionString') -- it took down the whole agent list. Same reason
+    // ECardDesignsController resolves it through the service provider inside the action.
+    private readonly IServiceProvider _services;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog, IPRO.DataAccess.IPRODbContext db, IBlobStorageService blobs)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; _db = db; _blobs = blobs; }
+        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog, IPRO.DataAccess.IPRODbContext db, IServiceProvider services)
+    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; _db = db; _services = services; }
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
@@ -217,7 +222,25 @@ public class AgentsController : Controller
         if (agent == null) return NotFound();
         var userName = agent.UserName;
 
-        // Billing first, and fatal if it fails. Deleting the account while the PayPal subscription is
+        // Blob storage is resolved up front and treated as required, for the same reason billing is:
+        // once the rows are deleted, the URLs of the agent's uploaded files are gone with them, so
+        // proceeding without working storage would strand every file permanently and unrecoverably.
+        IBlobStorageService blobs;
+        try
+        {
+            blobs = _services.GetRequiredService<IBlobStorageService>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Blob storage unavailable; refusing to delete agent {AgentId}", id);
+            TempData["Error"] = $"File storage isn't configured for the admin app, so {userName}'s uploaded files " +
+                                "(logo, photo, documents, gallery) could not be deleted. The account was NOT deleted -- " +
+                                "deleting the rows first would strand those files permanently. Set Azure__StorageConnectionString " +
+                                "and Azure__StorageAccountName on the admin app, then retry.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Billing next, and fatal if it fails. Deleting the account while the PayPal subscription is
         // still live would keep charging a customer who no longer exists in the system, with no record
         // left to trace the charge back to -- strictly worse than refusing to delete.
         try
@@ -248,7 +271,7 @@ public class AgentsController : Controller
         {
             try
             {
-                if (await _blobs.DeleteAsync(url)) blobsDeleted++;
+                if (await blobs.DeleteAsync(url)) blobsDeleted++;
             }
             catch (Exception ex)
             {
