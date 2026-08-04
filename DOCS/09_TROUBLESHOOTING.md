@@ -851,6 +851,72 @@ old build, check deploy status before touching the code — the cheapest explana
 new build isn't live yet. Pair this with a cache-busting query parameter on the verification fetch, since
 a stale CDN/browser cache produces an identical-looking false negative.
 
+## Incident: Agent Deletion Left Most Of The Agent Behind (2026-08-04)
+
+Found when the user asked for a delete-and-recreate test, "make sure everything that belongs to that
+user is deleted -- files, logo, artwork, scheduled emails." Auditing the delete path first turned up
+three independent causes, none of which would have produced an error message.
+
+**1. The raw-SQL schema path creates tables with no foreign keys.** `Ensure*SchemaAsync` in each app's
+`Program.cs` contains **47 `CREATE TABLE` statements and zero `FOREIGN KEY` declarations**. That makes
+`OnDelete(DeleteBehavior.Cascade)` in `OnModelCreating` decorative for every one of those tables: EF
+only cascades entities it has actually *loaded*, and there is no database constraint to fall back on.
+Deleting an `AgentUser` row silently orphaned everything in them. **Check this before trusting any
+cascade in this project** -- tables created by EF migrations do have FKs, tables created by schema
+repair do not, and nothing in the code makes the difference visible.
+
+**2. `DeleteAgentOwnedDataAsync` had fallen ~25 entity types behind.** It covered 15 and was never
+updated as features shipped. Missing: E-Cards, E-Letters, Polls, Forms, Website Leads, Social Posts, AI
+insights, Client Invoices, Recurring Schedules, Client Portal messages/documents/requests, Support
+Tickets, Agent Documents, Agent Domains, Google Calendar tokens, Subscription Changes, Banner Slides,
+the Did-You-Know email queue, and more. A hand-maintained list of `RemoveEach(...)` calls has no
+mechanism to notice a new table, so it rots invisibly.
+
+**3. Nothing deleted blobs, and nothing cancelled PayPal.** No database cascade can delete an Azure
+blob, so logos, agent photos, media libraries, gallery images and uploaded documents survived forever.
+And deleting an agent left their PayPal subscription **live**, still charging, with no account left to
+attribute the charge to.
+
+**Fix**: `IPRO.DataAccess.AgentDataEraser` -- one declarative map of table + predicate that drives both
+the deletion and a read-only preview, so "what would be deleted" and "what was deleted" are the same
+list of predicates, counted instead of executed. Delete now cancels PayPal first and **aborts if that
+fails**, requires working blob storage before touching any row (once rows are gone, the blob URLs are
+gone with them and the files can never be found again), and records row/file counts in the audit log.
+
+**Ordering rule worth keeping**: collect blob URLs *before* deleting rows, and treat both billing and
+storage as preconditions rather than best-effort cleanup afterwards. Anything that can only be derived
+from the data must be captured while the data still exists.
+
+**Mixed-ownership columns are the subtle part.** `Article.ImageUrl` holds agent uploads
+(`ArticlesController`) *and* shared library URLs copied in by starter provisioning
+(`WebsiteStarterResourcesHelper`). Deleting by "any image URL on an agent row" would destroy starter
+artwork for every future agent; skipping the column entirely orphans the agent's own uploads. Both were
+gotten wrong in the same day -- first by omitting the column, then caught by reading a real preview
+before deleting. The resolution is an explicit shared-asset set checked at run time, not a rule of thumb.
+
+## Incident: Adding A Constructor Dependency Took Down The Whole Agents Screen (2026-08-04)
+
+Immediately after the fix above, `/Agents` started returning "Something went wrong" with
+`System.ArgumentNullException: Value cannot be null. (Parameter 'connectionString')`.
+
+**Cause**: `IBlobStorageService` was added as a constructor dependency on `AgentsController`.
+`AzureBlobStorageService` is a singleton whose constructor reads `Azure:StorageConnectionString` -- which
+**the admin app does not configure** (only the web app does). So DI threw while constructing the
+controller, before any action ran. The intended change touched only `Delete`; the breakage hit every
+action on the controller, including the agent list.
+
+**The lesson is not "be careful with DI"** -- it is that `ECardDesignsController` had already hit this
+exact problem and solved it by resolving the blob service through `IServiceProvider` *inside* the action,
+with a comment saying why. The pattern existed, in the same folder, and wasn't reused.
+
+**Rule**: in `IPRO.Admin`, never take `IBlobStorageService` as a constructor dependency. Resolve it
+inside the action and handle the failure, because admin-side storage configuration is not guaranteed.
+More generally: a service whose constructor reads configuration turns a missing setting into a
+**controller-wide** outage rather than a single broken feature.
+
+**Also fixed here**: `AgentsController.Delete` required only `AdminAccess`, while the strictly less
+destructive `ResetPassword` already required `SuperAdmin`. Deletion is now `SuperAdmin`-only.
+
 ## Release Build Commands
 
 From the repository root:

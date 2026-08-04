@@ -191,6 +191,35 @@ A handful of starter templates (announcement, market update, thank-you note, sea
 
 New agents receive matching starter pages based on business type/package. Agents may edit their resulting content.
 
+## Preview And Delete An Agent's Data
+
+Deleting an agent is permanent and removes everything they own. Before doing it, use **Preview Erasure**
+on the agent details screen.
+
+The preview is read-only and shows exactly what deletion would remove: every table with its row count,
+every uploaded file (logo, photo, media library, gallery images, documents, client-portal documents,
+article images), and separately any **shared library artwork** the agent's records point at, which is
+kept. It runs the same rules the deletion uses, counted instead of executed, so it cannot report
+something different from what actually happens.
+
+Deleting then does all of the following, in this order:
+
+1. **Cancels the agent's PayPal subscription.** If the cancellation fails, **nothing is deleted** and
+   you are told why. This is deliberate: an account deleted while its subscription is still live would
+   keep charging with no record left to trace the charge back to.
+2. Requires working file storage. If storage is unavailable the deletion is refused, because once the
+   database rows are gone the file locations are gone with them and the files could never be found again.
+3. Removes every row the agent owns, across all tables.
+4. Deletes their uploaded files, leaving shared library artwork in place.
+5. Suspends their Plesk-hosted domain (suspended, not destroyed).
+6. Writes the row and file counts into the audit log.
+
+Deletion requires **Super Admin**. After deleting, re-open the preview for the same agent id to confirm
+it reports zero.
+
+Background jobs already queued for a deleted agent (newsletter sends, e-cards, e-letters, queued article
+emails) find no rows and stop on their own.
+
 ## Rebuild an Agent's Resources Section
 
 New agents get their Resources section built automatically from the starter articles for their business
