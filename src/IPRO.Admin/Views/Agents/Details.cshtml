@@ -30,14 +30,6 @@
                 <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i>Activate</button>
             </form>
         }
-        <form asp-action="ProvisionHosting" asp-route-id="@Model.Id" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-primary js-confirm-submit" data-confirm-message="Provision Plesk hosting for this agent?"><i class="fas fa-server me-1"></i>Provision Hosting</button>
-        </form>
-        <form asp-action="PleskLogin" asp-route-id="@Model.Id" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-external-link-alt me-1"></i>Plesk Login</button>
-        </form>
         <form asp-action="RebuildResources" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="Delete this agent's Resources pages so they rebuild with the three-level menu structure? Their articles are kept and reused."><i class="fas fa-sitemap me-1"></i>Rebuild Resources</button>

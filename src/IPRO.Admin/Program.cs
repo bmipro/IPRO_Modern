@@ -61,8 +61,6 @@ builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
 builder.Services.AddScoped<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
 builder.Services.AddHttpClient();
-builder.Services.AddHttpClient("plesk");
-builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
 builder.Services.AddScoped<IAzureDomainAutomationService, AzureDomainAutomationService>();
 builder.Services.AddScoped<IDomainCheckService, DomainCheckService>();
 

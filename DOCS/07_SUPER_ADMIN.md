@@ -211,8 +211,10 @@ Deleting then does all of the following, in this order:
    database rows are gone the file locations are gone with them and the files could never be found again.
 3. Removes every row the agent owns, across all tables.
 4. Deletes their uploaded files, leaving shared library artwork in place.
-5. Suspends their Plesk-hosted domain (suspended, not destroyed).
-6. Writes the row and file counts into the audit log.
+5. Writes the row and file counts into the audit log.
+
+The agent's custom domain is not touched by deletion. Sites are hosted on Azure, and domains are managed
+under **Domains** &mdash; remove the domain there if it should stop resolving.
 
 Deletion requires **Super Admin**. After deleting, re-open the preview for the same agent id to confirm
 it reports zero.

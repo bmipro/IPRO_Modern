@@ -17,7 +17,6 @@ public class AgentsController : Controller
     private readonly IAgentService _agents;
     private readonly IWebsiteService _websites;
     private readonly IUnitOfWork _uow;
-    private readonly IPleskHostingService _plesk;
     private readonly IBillingService _billing;
     private readonly IPasswordHasher<AgentUser> _hasher;
     private readonly ILogger<AgentsController> _logger;
@@ -31,8 +30,8 @@ public class AgentsController : Controller
     private readonly IServiceProvider _services;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog, IPRO.DataAccess.IPRODbContext db, IServiceProvider services)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; _db = db; _services = services; }
+        IUnitOfWork uow, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog, IPRO.DataAccess.IPRODbContext db, IServiceProvider services)
+    { _agents = agents; _websites = websites; _uow = uow; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; _db = db; _services = services; }
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
@@ -301,23 +300,6 @@ public class AgentsController : Controller
 
         var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id);
 
-        // Best-effort, and deliberately non-fatal. By this point the agent's files and rows are already
-        // gone, so throwing here would abort the audit-log write and show an error for a deletion that
-        // actually succeeded -- which is exactly what happened on 2026-08-04, when Plesk was still
-        // pointed at the placeholder host "your-plesk-server" and raised HttpRequestException.
-        // Suspending hosting is a courtesy; it is not a precondition for the account being deleted.
-        if (!string.IsNullOrWhiteSpace(domainName))
-        {
-            try
-            {
-                await _plesk.SuspendDomainAsync(domainName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Could not suspend Plesk domain {Domain} for deleted agent {AgentId}; " +
-                                     "the account itself was deleted successfully", domainName, id);
-            }
-        }
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
             $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
@@ -376,13 +358,6 @@ public class AgentsController : Controller
         if (agent == null) return NotFound();
         agent.IsActive = true;
         await _agents.UpdateAsync(agent);
-        // Non-fatal: the agent is already activated in our database, which is the part that gates their
-        // login. An unreachable Plesk must not turn a successful activation into an error page.
-        if (!string.IsNullOrEmpty(agent.DomainName))
-        {
-            try { await _plesk.UnsuspendDomainAsync(agent.DomainName); }
-            catch (Exception ex) { _logger.LogError(ex, "Agent {AgentId} activated but Plesk unsuspend failed", id); }
-        }
         await LogAsync(id, "Activate", "Agent activated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentActivate", $"Agent '{agent.UserName}' activated");
         TempData["Success"] = $"Agent {agent.UserName} activated.";
@@ -395,48 +370,15 @@ public class AgentsController : Controller
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
         await _agents.DeactivateAsync(id);
-        // Non-fatal, same reasoning as Activate above.
-        if (!string.IsNullOrEmpty(agent.DomainName))
-        {
-            try { await _plesk.SuspendDomainAsync(agent.DomainName); }
-            catch (Exception ex) { _logger.LogError(ex, "Agent {AgentId} deactivated but Plesk suspend failed", id); }
-        }
         await LogAsync(id, "Deactivate", "Agent deactivated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate", $"Agent '{agent.UserName}' deactivated");
         TempData["Warning"] = $"Agent {agent.UserName} deactivated.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ProvisionHosting(int id)
-    {
-        var agent = await _agents.GetByIdAsync(id);
-        if (agent == null) return NotFound();
-        if (string.IsNullOrEmpty(agent.DomainName))
-        { TempData["Error"] = "No domain set for this agent."; return RedirectToAction(nameof(Details), new { id }); }
-        var tempPwd = EncryptionService.GenerateToken(12);
-        var domain  = await _plesk.CreateDomainAsync(agent.DomainName, agent.UserName, tempPwd, agent.Email);
-        if (domain != null)
-        {
-            await _plesk.CreateEmailAsync($"info@{agent.DomainName}", tempPwd, agent.DomainName);
-            await LogAsync(id, "ProvisionHosting", $"Hosting provisioned: {agent.DomainName}");
-            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentProvisionHosting", $"Hosting provisioned for agent '{agent.UserName}': {agent.DomainName}");
-            TempData["Success"] = $"Hosting provisioned for {agent.DomainName}.";
-        }
-        else TempData["Error"] = "Provisioning failed — check Plesk connection.";
-        return RedirectToAction(nameof(Details), new { id });
-    }
-
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> PleskLogin(int id)
-    {
-        var agent = await _agents.GetByIdAsync(id);
-        if (agent == null) return NotFound();
-        var url = await _plesk.GenerateAutoLoginUrlAsync(agent.UserName);
-        if (string.IsNullOrEmpty(url)) { TempData["Error"] = "Could not generate Plesk login."; return RedirectToAction(nameof(Details), new { id }); }
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentPleskLogin", $"Generated Plesk auto-login for agent '{agent.UserName}'");
-        return Redirect(url);
-    }
+    // ProvisionHosting/PleskLogin removed 2026-08-04 along with the rest of the Plesk integration:
+    // agent sites are hosted on Azure now, so there is no control panel to provision against or log
+    // into. Agent domains are managed through AgentDomain + the domain automation job instead.
 
     private async Task LogAsync(int agentId, string action, string desc)
     {

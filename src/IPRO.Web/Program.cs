@@ -80,8 +80,6 @@ builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<IContactImporter, ContactImporter>();
 builder.Services.AddSingleton<ITenantResolver>(_ => 
     new DomainTenantResolver(builder.Configuration["App:AdminDomain"]?? "admin.iprosystem.com"));
-builder.Services.AddHttpClient("plesk");
-builder.Services.AddScoped<IPleskHostingService, PleskHostingService>();
 builder.Services.AddScoped<IAzureDomainAutomationService, AzureDomainAutomationService>();
 builder.Services.AddScoped<IDomainCheckService, DomainCheckService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
