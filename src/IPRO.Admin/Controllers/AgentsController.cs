@@ -243,9 +243,16 @@ public class AgentsController : Controller
         // Billing next, and fatal if it fails. Deleting the account while the PayPal subscription is
         // still live would keep charging a customer who no longer exists in the system, with no record
         // left to trace the charge back to -- strictly worse than refusing to delete.
+        //
+        // The active-subscription check has to happen here rather than relying on the return value:
+        // CancelSubscriptionAsync returns false both when cancellation fails AND when there is simply
+        // nothing to cancel. Treating those the same makes free/promo agents, and any agent whose
+        // billing rows are already gone, permanently undeletable.
+        var hasActiveSubscription = (await _uow.Billings.FindAsync(
+            b => b.AgentUserId == id && b.Status == BillingStatus.Active)).Any();
         try
         {
-            if (!await _billing.CancelSubscriptionAsync(id))
+            if (hasActiveSubscription && !await _billing.CancelSubscriptionAsync(id))
             {
                 TempData["Error"] = $"Could not cancel {userName}'s PayPal subscription, so the account was NOT deleted. " +
                                     "Cancel the subscription in PayPal first, then retry -- otherwise billing would continue with no account attached.";
@@ -259,15 +266,27 @@ public class AgentsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // Blob URLs have to be read before the rows go, so the report is captured up front and then
-        // reused for both the deletion and the audit entry.
-        var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id);
+        // Values needed after the rows are gone must be read while they still exist.
+        var domainName = agent.DomainName;
+        _db.ChangeTracker.Clear();
 
-        _uow.AgentUsers.Remove(agent);
-        await _uow.SaveChangesAsync();
+        // FILES BEFORE ROWS, deliberately. The rows are the only record of where an agent's files live,
+        // so deleting rows first makes any later failure unrecoverable -- the files are stranded with
+        // nothing left pointing at them. Doing files first is retryable: if anything fails afterwards,
+        // the rows still hold the URLs and blob deletion is idempotent. (Learned the hard way on
+        // 2026-08-04: an exception between the two stranded 10 files permanently.)
+        var plan = await IPRO.DataAccess.AgentDataEraser.PreviewAsync(_db, id);
+
+        // Logged before anything is destroyed, so even an unexpected crash leaves a recoverable record
+        // of exactly which files belonged to this agent.
+        if (plan.Blobs.Count > 0)
+        {
+            _logger.LogInformation("Deleting agent {AgentId} ({UserName}); files to remove: {BlobUrls}",
+                id, userName, string.Join(" | ", plan.Blobs));
+        }
 
         var blobsDeleted = 0;
-        foreach (var url in report.Blobs)
+        foreach (var url in plan.Blobs)
         {
             try
             {
@@ -275,18 +294,19 @@ public class AgentsController : Controller
             }
             catch (Exception ex)
             {
-                // One unreachable blob must not leave the account half-deleted -- the database rows are
-                // already gone. Log the URL so it can be reclaimed manually.
-                _logger.LogError(ex, "Failed deleting blob {BlobUrl} for deleted agent {AgentId}", url, id);
+                // A single unreachable blob shouldn't block the erasure; the URL is in the log above.
+                _logger.LogError(ex, "Failed deleting blob {BlobUrl} for agent {AgentId}", url, id);
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(agent.DomainName)) await _plesk.SuspendDomainAsync(agent.DomainName);
+        var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id);
+
+        if (!string.IsNullOrWhiteSpace(domainName)) await _plesk.SuspendDomainAsync(domainName);
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
             $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
-            $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{report.Blobs.Count} files removed; " +
-            $"{report.SharedBlobsKept.Count} shared library files kept.");
+            $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{plan.Blobs.Count} files removed; " +
+            $"{plan.SharedBlobsKept.Count} shared library files kept.");
 
         TempData["Warning"] = $"Agent {userName} deleted: {report.TotalRows} rows across {report.TableCount} tables, " +
                               $"{blobsDeleted} uploaded files, PayPal subscription cancelled.";

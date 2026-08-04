@@ -111,7 +111,14 @@ public static class AgentDataEraser
         ("SocialPostDrafts",            "AgentUserId = @agentId"),
         ("AgentDailyInsights",          "AgentUserId = @agentId"),
         ("AgentDocuments",              "AgentUserId = @agentId"),
-        ("OperateLogs",                 "AgentUserId = @agentId")
+        ("OperateLogs",                 "AgentUserId = @agentId"),
+
+        // The agent row itself, last, and by raw SQL like everything else. Deleting it through EF
+        // instead (_uow.AgentUsers.Remove) throws DbUpdateConcurrencyException "expected to affect 1
+        // row(s), but actually affected 0": loading the agent also tracks its related entities, whose
+        // rows the statements above have already removed, so EF then issues DELETEs for children that
+        // are already gone. Never mix a tracking Remove with raw-SQL deletes over the same data.
+        ("AgentUsers",                  "Id = @agentId")
     };
 
     // Blobs the agent genuinely uploaded. Deliberately sourced from ownership records rather than from
