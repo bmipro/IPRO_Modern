@@ -917,6 +917,45 @@ More generally: a service whose constructor reads configuration turns a missing 
 **Also fixed here**: `AgentsController.Delete` required only `AdminAccess`, while the strictly less
 destructive `ResetPassword` already required `SuperAdmin`. Deletion is now `SuperAdmin`-only.
 
+## Incident: Four More Ways The Agent Delete Broke, Found By Actually Running It (2026-08-04)
+
+The rewritten delete (see the entry above) was code-complete and building clean. Running it against one
+real account surfaced four further defects, each only reachable at a different stage of the operation.
+Recorded because the *shape* of each recurs elsewhere in this codebase.
+
+**1. Raw SQL and EF's change tracker cannot both delete the same data.**
+`DbUpdateConcurrencyException: expected to affect 1 row(s), but actually affected 0`. The agent row was
+removed via `_uow.AgentUsers.Remove(agent)` while everything else went by raw SQL. Loading an agent also
+tracks its related entities, whose rows the raw SQL had already deleted, so `SaveChanges` issued DELETEs
+for children that no longer existed. **Rule**: if a routine deletes by raw SQL, delete the aggregate root
+that way too, and keep the tracker out of it entirely.
+
+**2. Delete files before rows, never the reverse.**
+The database rows are the only record of *where* an agent's files live. Deleting rows first means any
+later failure strands the files permanently with nothing pointing at them. Defect 1 landed in exactly
+that window and orphaned 10 blobs, unrecoverably. Files-first is retryable: blob deletion is idempotent,
+and if a later step fails the rows still hold the URLs. The URL list is now also logged *before* anything
+is destroyed, so even an unexpected crash leaves a recoverable record.
+
+**3. "Nothing to do" is not "it failed".**
+`IBillingService.CancelSubscriptionAsync` returns `false` both when cancellation fails and when there is
+no active subscription. A guard treating those identically made every free/promo agent permanently
+undeletable, and would have blocked the retry on an account whose billing rows were already gone. Check
+for the precondition explicitly rather than inferring it from a boolean that conflates two outcomes.
+
+**4. An optional integration must not fail an operation that already succeeded.**
+Plesk's domain suspend ran *after* files and rows were deleted and threw
+`HttpRequestException (your-plesk-server:8443)` -- production was still pointed at the placeholder host.
+The deletion had fully succeeded, but the exception aborted the audit-log write and showed the admin an
+error page, twice, for work that was actually done. **Rule**: anything after the point of no return is
+best-effort and belongs in a try/catch. (This one ended with the Plesk integration being removed
+entirely -- the platform moved to Azure hosting and nothing had noticed the config was still a
+placeholder.)
+
+**The meta-lesson**: all four were invisible to compilation, code review, and a clean build. Each needed
+the operation to actually run, against real data, to the stage where it failed. For anything destructive,
+budget for running it once on something disposable before trusting it.
+
 ## Release Build Commands
 
 From the repository root:
