@@ -1,0 +1,107 @@
+@model IPRO.DataAccess.AgentErasureReport
+@{
+    var agent = (IPRO.Entities.AgentUser)ViewBag.Agent;
+    ViewData["Title"] = $"Data erasure preview - {agent.UserName}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Data erasure preview</h1>
+    <a asp-action="Details" asp-route-id="@agent.Id" class="btn btn-outline-secondary btn-sm">Back to agent</a>
+</div>
+
+<div class="alert alert-secondary">
+    Everything below belongs to <strong>@agent.UserName</strong> (id @agent.Id, @agent.Email) and would be
+    removed permanently if this agent is deleted. Nothing on this page changes anything &mdash; it runs the
+    same predicates the deletion uses, counted instead of executed.
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small text-uppercase">Database rows</div>
+            <div class="h2 mb-0">@Model.TotalRows</div>
+            <div class="text-muted small">across @Model.TableCount tables</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small text-uppercase">Uploaded files</div>
+            <div class="h2 mb-0">@Model.Blobs.Count</div>
+            <div class="text-muted small">logo, photo, media, documents, gallery</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small text-uppercase">Shared files kept</div>
+            <div class="h2 mb-0">@Model.SharedBlobsKept.Count</div>
+            <div class="text-muted small">starter library artwork, left in place</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Rows by table</div>
+    @if (Model.Tables.Count == 0)
+    {
+        <div class="card-body text-muted">This agent has no data in any tracked table.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Table</th><th class="text-end">Rows</th></tr></thead>
+                <tbody>
+                @foreach (var line in Model.Tables.OrderByDescending(l => l.Rows))
+                {
+                    <tr>
+                        <td><code>@line.Table</code></td>
+                        <td class="text-end">@line.Rows</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Uploaded files that would be deleted</div>
+    @if (Model.Blobs.Count == 0)
+    {
+        <div class="card-body text-muted">This agent has not uploaded any files.</div>
+    }
+    else
+    {
+        <ul class="list-group list-group-flush">
+            @foreach (var url in Model.Blobs)
+            {
+                <li class="list-group-item small text-break">@url</li>
+            }
+        </ul>
+    }
+</div>
+
+@if (Model.SharedBlobsKept.Count > 0)
+{
+    <div class="card mb-4 border-info">
+        <div class="card-header bg-info-subtle">Shared library files &mdash; referenced by this agent but NOT deleted</div>
+        <div class="card-body pb-0">
+            <p class="small text-muted">
+                Starter provisioning copies shared artwork URLs into each agent's own rows. These files belong to the
+                starter library and stay, so deleting this agent cannot break content for anyone else.
+            </p>
+        </div>
+        <ul class="list-group list-group-flush">
+            @foreach (var url in Model.SharedBlobsKept)
+            {
+                <li class="list-group-item small text-break">@url</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="alert alert-warning">
+    <strong>Not covered by this preview:</strong> the agent's PayPal subscription (cancelled automatically at
+    deletion &mdash; deletion is refused if the cancellation fails) and their Plesk-hosted domain (suspended, not
+    destroyed). Background jobs already queued for this agent will find no rows and stop on their own.
+</div>

@@ -23,10 +23,11 @@ public class AgentsController : Controller
     private readonly ILogger<AgentsController> _logger;
     private readonly IAdminAuditLogService _auditLog;
     private readonly IPRO.DataAccess.IPRODbContext _db;
+    private readonly IBlobStorageService _blobs;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog, IPRO.DataAccess.IPRODbContext db)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; _db = db; }
+        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog, IPRO.DataAccess.IPRODbContext db, IBlobStorageService blobs)
+    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; _db = db; _blobs = blobs; }
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
@@ -198,19 +199,74 @@ public class AgentsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
+    // Read-only "what would be deleted" view. Deliberately the same predicates the erasure runs, so the
+    // preview can never claim something different from what deletion actually does.
+    [Authorize(Policy = "SuperAdmin")]
+    public async Task<IActionResult> ErasurePreview(int id)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+        ViewBag.Agent = agent;
+        return View(await IPRO.DataAccess.AgentDataEraser.PreviewAsync(_db, id));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, Authorize(Policy = "SuperAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
         var userName = agent.UserName;
 
-        await DeleteAgentOwnedDataAsync(id);
+        // Billing first, and fatal if it fails. Deleting the account while the PayPal subscription is
+        // still live would keep charging a customer who no longer exists in the system, with no record
+        // left to trace the charge back to -- strictly worse than refusing to delete.
+        try
+        {
+            if (!await _billing.CancelSubscriptionAsync(id))
+            {
+                TempData["Error"] = $"Could not cancel {userName}'s PayPal subscription, so the account was NOT deleted. " +
+                                    "Cancel the subscription in PayPal first, then retry -- otherwise billing would continue with no account attached.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PayPal cancellation failed for agent {AgentId}; deletion aborted", id);
+            TempData["Error"] = $"PayPal cancellation errored ({ex.Message}). Agent {userName} was NOT deleted.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Blob URLs have to be read before the rows go, so the report is captured up front and then
+        // reused for both the deletion and the audit entry.
+        var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id);
+
         _uow.AgentUsers.Remove(agent);
         await _uow.SaveChangesAsync();
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete", $"Agent '{userName}' (id {id}) permanently deleted along with all owned data");
 
-        TempData["Warning"] = $"Agent {userName} deleted.";
+        var blobsDeleted = 0;
+        foreach (var url in report.Blobs)
+        {
+            try
+            {
+                if (await _blobs.DeleteAsync(url)) blobsDeleted++;
+            }
+            catch (Exception ex)
+            {
+                // One unreachable blob must not leave the account half-deleted -- the database rows are
+                // already gone. Log the URL so it can be reclaimed manually.
+                _logger.LogError(ex, "Failed deleting blob {BlobUrl} for deleted agent {AgentId}", url, id);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(agent.DomainName)) await _plesk.SuspendDomainAsync(agent.DomainName);
+
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
+            $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
+            $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{report.Blobs.Count} files removed; " +
+            $"{report.SharedBlobsKept.Count} shared library files kept.");
+
+        TempData["Warning"] = $"Agent {userName} deleted: {report.TotalRows} rows across {report.TableCount} tables, " +
+                              $"{blobsDeleted} uploaded files, PayPal subscription cancelled.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -332,42 +388,10 @@ public class AgentsController : Controller
         }
     }
 
-    private async Task DeleteAgentOwnedDataAsync(int agentId)
-    {
-        var clients = (await _uow.Clients.FindAsync(x => x.AgentUserId == agentId)).ToList();
-        var clientIds = clients.Select(c => c.Id).ToList();
-        RemoveEach(await _uow.ClientComments.FindAsync(x => clientIds.Contains(x.ClientId)), _uow.ClientComments);
-
-        var newsletters = (await _uow.NewsLetters.FindAsync(x => x.AgentUserId == agentId)).ToList();
-        var newsletterIds = newsletters.Select(n => n.Id).ToList();
-        RemoveEach(await _uow.NewsLetterArticles.FindAsync(x => newsletterIds.Contains(x.NewsLetterId)), _uow.NewsLetterArticles);
-
-        var dripCampaigns = (await _uow.DripCampaigns.FindAsync(x => x.AgentUserId == agentId)).ToList();
-        var dripCampaignIds = dripCampaigns.Select(d => d.Id).ToList();
-        RemoveEach(await _uow.DripCampaignSteps.FindAsync(x => dripCampaignIds.Contains(x.DripCampaignId)), _uow.DripCampaignSteps);
-
-        RemoveEach(await _uow.OperateLogs.FindAsync(x => x.AgentUserId == agentId), _uow.OperateLogs);
-        RemoveEach(await _uow.Invoices.FindAsync(x => x.AgentUserId == agentId), _uow.Invoices);
-        RemoveEach(await _uow.Billings.FindAsync(x => x.AgentUserId == agentId), _uow.Billings);
-        RemoveEach(await _uow.AgentWebsites.FindAsync(x => x.AgentUserId == agentId), _uow.AgentWebsites);
-        RemoveEach(clients, _uow.Clients);
-        RemoveEach(await _uow.ClientCategories.FindAsync(x => x.AgentUserId == agentId), _uow.ClientCategories);
-        RemoveEach(newsletters, _uow.NewsLetters);
-        RemoveEach(dripCampaigns, _uow.DripCampaigns);
-        RemoveEach(await _uow.Schedulers.FindAsync(x => x.AgentUserId == agentId), _uow.Schedulers);
-        RemoveEach(await _uow.Articles.FindAsync(x => x.AgentUserId == agentId), _uow.Articles);
-        RemoveEach(await _uow.Coupons.FindAsync(x => x.AgentUserId == agentId), _uow.Coupons);
-        RemoveEach(await _uow.CalendarEvents.FindAsync(x => x.AgentUserId == agentId), _uow.CalendarEvents);
-        RemoveEach(await _uow.Testimonials.FindAsync(x => x.AgentUserId == agentId), _uow.Testimonials);
-    }
-
-    private static void RemoveEach<T>(IEnumerable<T> entities, IRepository<T> repository) where T : class
-    {
-        foreach (var entity in entities)
-        {
-            repository.Remove(entity);
-        }
-    }
+    // DeleteAgentOwnedDataAsync/RemoveEach removed 2026-08-04: they covered 15 entity types and had
+    // fallen ~25 behind the schema, silently orphaning everything added since. Replaced by
+    // IPRO.DataAccess.AgentDataEraser, which drives deletion from one declarative table map that also
+    // powers the preview screen. Add new agent-owned tables there, not here.
 
     private static string BuildTemporaryPassword() => EncryptionService.GenerateToken(12);
 

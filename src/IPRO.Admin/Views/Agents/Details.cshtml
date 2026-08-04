@@ -42,9 +42,10 @@
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="Delete this agent's Resources pages so they rebuild with the three-level menu structure? Their articles are kept and reused."><i class="fas fa-sitemap me-1"></i>Rebuild Resources</button>
         </form>
+        <a asp-action="ErasurePreview" asp-route-id="@Model.Id" class="btn btn-outline-secondary"><i class="fas fa-list-check me-1"></i>Preview Erasure</a>
         <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-danger js-confirm-submit" data-confirm-message="Delete @Model.UserName permanently? This cannot be undone."><i class="fas fa-trash me-1"></i>Delete</button>
+            <button type="submit" class="btn btn-outline-danger js-confirm-submit" data-confirm-message="Delete @Model.UserName permanently? This erases every row and uploaded file they own and cancels their PayPal subscription. This cannot be undone. Use Preview Erasure first to see exactly what goes."><i class="fas fa-trash me-1"></i>Delete</button>
         </form>
     </div>
 </div>
