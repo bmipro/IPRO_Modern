@@ -1774,3 +1774,49 @@ flow (item 76) rather than a real signup — registration requires a live PayPal
 something to run for a test account. Confirmed via `/Preview` for the Accountants vertical: all 4
 category pages present in the Resources nav dropdown, Business Accounting correctly stacks all 9
 articles on one page, Info Centre's 5 articles (the ones most affected by the entity bug) render clean.
+
+### 82. Starter Forms: SuperAdmin-authored form templates agents can adopt (done, 2026-08-04)
+
+The user pointed out that the Agent Portal's custom form builder (agents build a form completely from
+scratch) had no equivalent of the "starter content" layer Pages and Resources articles already got this
+session — SuperAdmin authors a library of ready-made forms, and an agent can adopt one **as-is**, adopt
+one and **then modify it**, or ignore the library and build a new form from scratch as before. Confirmed
+via direct code reading (not assumption) that this was genuinely missing: `WebsiteForm.AgentUserId` is a
+non-nullable int with no template/master-row concept anywhere, and a repo-wide grep for `StarterForm`
+returned nothing.
+
+Followed the same "master template → real, independent, fully-editable agent copy" invariant already
+established for Pages/Articles/E-Cards/E-Letters: `WebsiteStarterForm`/`Field`/`FieldOption` (new,
+non-agent-scoped tables, seeded with 8 templates — 2 universal, 2 each for Accountants/Insurance-
+Financial/Mortgage, covering all 5 field types), a `WebsiteStarterFormSeeder` mirroring the Article
+seeder's per-item `(BusinessType, Title)` dedup key and `SeedGuard` cross-process lock, and a SuperAdmin
+`WebsiteStarterFormsController` (audit-logged, mirrors `WebsiteStarterArticlesController`) shipped in the
+same build as the agent-facing half, per the standing lesson from item 81 that this upgrade should be
+offered proactively once the precedent exists.
+
+Adoption is explicit opt-in, not silent auto-backfill: a new `Forms/Templates` gallery (filtered to the
+agent's own vertical plus "All") with a **Use This Template** button per card, POSTing to a new
+`FormsController.AdoptTemplate` action that deep-copies the chosen template into a real `WebsiteForm` the
+agent owns — closest existing precedent was `WebsitePagesController.Duplicate` (one user-triggered POST,
+no existence-gating), not the silent-backfill shape `WebsiteStarterResourcesHelper` uses for Resources.
+No changes were needed to the page-builder's Custom Form block picker — it already queries `WebsiteForms`
+generically, so any newly-adopted form appears there with zero extra wiring.
+
+The agent-side form builder's dynamic field editor (add/remove fields, per-type conditional UI, a
+`<template>`-clone JS pattern with no server round-trip) needed to be reusable from the new SuperAdmin
+editor too, since starter forms have the same nested field/option shape as real ones. Extracted it into a
+`_FormFieldBuilder` partial, duplicated once per app (matching the existing, already-proven
+`_RichEditor.cshtml` precedent) rather than introducing a shared Razor Class Library neither app currently
+references.
+
+**Verification:** built both apps clean, deployed, restarted both, then verified the entire flow live
+rather than by code reading alone. SuperAdmin side: all 8 templates seeded and grouped correctly by
+vertical; opened a template with 2 Section headers, 1 Dropdown, and 1 CheckboxGroup and confirmed the
+shared field-builder correctly reconstructed all 7 fields with the right type-conditional UI. Agent side
+(the user signed into an existing test agent account for this, since registration requires a real PayPal
+payment and this session doesn't run those): confirmed the gallery showed only that agent's vertical
+(Insurance / Financial) plus "All" — not Mortgage or Accountants; adopted "Insurance Quote Request"
+and confirmed the redirect, success message, and all 4 fields landed correctly in a real, editable copy;
+confirmed it appeared in the agent's own Forms list. Closed the loop on the core invariant by editing the
+master template's title in SuperAdmin after the adoption and confirming the agent's already-adopted copy
+kept its original title, completely unaffected.
