@@ -141,7 +141,13 @@ public class AgentsController : Controller
         var resources = pages.FirstOrDefault(p => p.Slug == "resources");
         if (resources == null)
         {
-            TempData["Error"] = "This agent has no Resources page. It will be created the next time they open Website Pages.";
+            // Not a failure: there is simply nothing to delete. Resources is built by the agent portal
+            // (WebsitePagesController calls EnsureResourcesAsync on both Index and Navigation), so this
+            // agent will get the current three-level structure automatically. Reported as a neutral
+            // message rather than a red error, which read as "the button is broken".
+            TempData["Warning"] = "This agent has no Resources section yet, so there was nothing to rebuild. " +
+                                  "They will get the current three-level structure automatically the next time they " +
+                                  "open Website Pages or Menu & Header Settings in their portal.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
