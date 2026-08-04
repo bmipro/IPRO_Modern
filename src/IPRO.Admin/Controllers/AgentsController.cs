@@ -301,7 +301,23 @@ public class AgentsController : Controller
 
         var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id);
 
-        if (!string.IsNullOrWhiteSpace(domainName)) await _plesk.SuspendDomainAsync(domainName);
+        // Best-effort, and deliberately non-fatal. By this point the agent's files and rows are already
+        // gone, so throwing here would abort the audit-log write and show an error for a deletion that
+        // actually succeeded -- which is exactly what happened on 2026-08-04, when Plesk was still
+        // pointed at the placeholder host "your-plesk-server" and raised HttpRequestException.
+        // Suspending hosting is a courtesy; it is not a precondition for the account being deleted.
+        if (!string.IsNullOrWhiteSpace(domainName))
+        {
+            try
+            {
+                await _plesk.SuspendDomainAsync(domainName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not suspend Plesk domain {Domain} for deleted agent {AgentId}; " +
+                                     "the account itself was deleted successfully", domainName, id);
+            }
+        }
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
             $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
@@ -360,7 +376,13 @@ public class AgentsController : Controller
         if (agent == null) return NotFound();
         agent.IsActive = true;
         await _agents.UpdateAsync(agent);
-        if (!string.IsNullOrEmpty(agent.DomainName)) await _plesk.UnsuspendDomainAsync(agent.DomainName);
+        // Non-fatal: the agent is already activated in our database, which is the part that gates their
+        // login. An unreachable Plesk must not turn a successful activation into an error page.
+        if (!string.IsNullOrEmpty(agent.DomainName))
+        {
+            try { await _plesk.UnsuspendDomainAsync(agent.DomainName); }
+            catch (Exception ex) { _logger.LogError(ex, "Agent {AgentId} activated but Plesk unsuspend failed", id); }
+        }
         await LogAsync(id, "Activate", "Agent activated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentActivate", $"Agent '{agent.UserName}' activated");
         TempData["Success"] = $"Agent {agent.UserName} activated.";
@@ -373,7 +395,12 @@ public class AgentsController : Controller
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
         await _agents.DeactivateAsync(id);
-        if (!string.IsNullOrEmpty(agent.DomainName)) await _plesk.SuspendDomainAsync(agent.DomainName);
+        // Non-fatal, same reasoning as Activate above.
+        if (!string.IsNullOrEmpty(agent.DomainName))
+        {
+            try { await _plesk.SuspendDomainAsync(agent.DomainName); }
+            catch (Exception ex) { _logger.LogError(ex, "Agent {AgentId} deactivated but Plesk suspend failed", id); }
+        }
         await LogAsync(id, "Deactivate", "Agent deactivated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate", $"Agent '{agent.UserName}' deactivated");
         TempData["Warning"] = $"Agent {agent.UserName} deactivated.";
