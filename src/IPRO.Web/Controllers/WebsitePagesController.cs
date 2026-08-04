@@ -109,9 +109,7 @@ public class WebsitePagesController : Controller
         if (page == null) return NotFound();
         page.NavigationLabel = string.IsNullOrWhiteSpace(navigationLabel) ? page.Title : navigationLabel.Trim();
         page.ShowInNavigation = showInNavigation;
-        page.ParentPageId = !page.IsHomePage && parentPageId.HasValue && parentPageId != page.Id &&
-            await _db.WebsitePages.AnyAsync(p => p.Id == parentPageId && p.AgentWebsiteId == page.AgentWebsiteId && p.ParentPageId == null)
-            ? parentPageId : null;
+        page.ParentPageId = await ResolveParentAsync(page.AgentWebsiteId, page.Id, page.IsHomePage, parentPageId);
         page.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = $"Navigation settings saved for {page.Title}.";
@@ -611,10 +609,7 @@ public class WebsitePagesController : Controller
             return id == 0 ? RedirectToAction(nameof(Create)) : RedirectToAction(nameof(Edit), new { id });
         }
 
-        if (parentPageId.HasValue && !await _db.WebsitePages.AnyAsync(p => p.Id == parentPageId && p.AgentWebsiteId == website.Id && p.Id != id))
-        {
-            parentPageId = null;
-        }
+        parentPageId = await ResolveParentAsync(website.Id, id, isHomePage, parentPageId);
 
         if (page == null)
         {
@@ -700,9 +695,21 @@ public class WebsitePagesController : Controller
             TempData["Error"] = "Choose another home page before deleting this one.";
             return RedirectToAction(nameof(Index));
         }
+        // The FK is ON DELETE SET NULL, which would promote every child straight to the top menu --
+        // deleting one category would dump all of its article pages into the main nav. Move them up
+        // exactly one level instead, so they stay under the section they belonged to.
+        var orphans = await _db.WebsitePages.Where(p => p.ParentPageId == page.Id).ToListAsync();
+        foreach (var orphan in orphans)
+        {
+            orphan.ParentPageId = page.ParentPageId;
+            orphan.UpdatedAt = DateTime.UtcNow;
+        }
+
         _db.WebsitePages.Remove(page);
         await _db.SaveChangesAsync();
-        TempData["Success"] = "Page deleted.";
+        TempData["Success"] = orphans.Count == 0
+            ? "Page deleted."
+            : $"Page deleted. {orphans.Count} page{(orphans.Count == 1 ? "" : "s")} that sat under it moved up one level.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -711,7 +718,9 @@ public class WebsitePagesController : Controller
     {
         var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == id);
         if (page == null) return NotFound();
-        var pages = await _db.WebsitePages.Where(p => p.AgentWebsiteId == page.AgentWebsiteId).OrderBy(p => p.SortOrder).ThenBy(p => p.Id).ToListAsync();
+        // Scoped to siblings, matching MoveNavigationItem -- reordering across the whole site ignores
+        // parentage and produces an order the menu can't actually express.
+        var pages = await _db.WebsitePages.Where(p => p.AgentWebsiteId == page.AgentWebsiteId && p.ParentPageId == page.ParentPageId).OrderBy(p => p.SortOrder).ThenBy(p => p.Id).ToListAsync();
         MoveItem(pages, page, direction, p => p.SortOrder, (p, value) => p.SortOrder = value);
         await _db.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
@@ -998,9 +1007,96 @@ public class WebsitePagesController : Controller
     private Task EnsureResourcesAsync(AgentWebsite website) =>
         IPRO.Web.Infrastructure.WebsiteStarterResourcesHelper.EnsureResourcesAsync(_db, website, AgentId);
 
-    private async Task<List<WebsitePage>> GetParentChoicesAsync(int websiteId, int excludedId) => await _db.WebsitePages
-        .AsNoTracking().Where(p => p.AgentWebsiteId == websiteId && p.Id != excludedId && p.ParentPageId == null)
-        .OrderBy(p => p.SortOrder).ToListAsync();
+    // _PublicNavigation.cshtml renders three levels, so the page tree is capped at three. Every write
+    // path routes through ResolveParentAsync rather than repeating the rule inline: the dropdown
+    // source, the menu editor's Placement select and the page-settings form each used to enforce it
+    // differently, and SavePage never enforced it at all -- a crafted post could park a page below
+    // the deepest tier the nav can render, where it silently disappeared from the menu.
+    private const int MaxNavigationDepth = 3;
+
+    private async Task<int?> ResolveParentAsync(int websiteId, int pageId, bool isHomePage, int? requestedParentId)
+    {
+        if (isHomePage || !requestedParentId.HasValue || requestedParentId.Value == pageId) return null;
+
+        var pages = await _db.WebsitePages.AsNoTracking().Where(p => p.AgentWebsiteId == websiteId).ToListAsync();
+        if (pages.All(p => p.Id != requestedParentId.Value)) return null;
+
+        var childrenByParent = pages.ToLookup(p => p.ParentPageId, p => p.Id);
+        var parentById = pages.ToDictionary(p => p.Id, p => p.ParentPageId);
+
+        // Depth of the requested parent (1 = top level), guarding against a cycle on the way up.
+        var depth = 1;
+        var cursor = requestedParentId.Value;
+        while (parentById.TryGetValue(cursor, out var next) && next.HasValue)
+        {
+            if (next.Value == pageId) return null;
+            depth++;
+            cursor = next.Value;
+            if (depth > MaxNavigationDepth) return null;
+        }
+
+        // A page that already has children of its own can't be nested as deep as a leaf can, or its
+        // own children would land a tier below anything the nav can show.
+        var movingHeight = pageId == 0 ? 1 : SubtreeHeight(pageId, childrenByParent);
+        return depth + movingHeight <= MaxNavigationDepth ? requestedParentId : null;
+    }
+
+    private static int SubtreeHeight(int rootId, ILookup<int?, int> childrenByParent)
+    {
+        var height = 1;
+        var level = childrenByParent[rootId].ToList();
+        while (level.Count > 0 && height < MaxNavigationDepth)
+        {
+            height++;
+            level = level.SelectMany(id => childrenByParent[id]).ToList();
+        }
+        return height;
+    }
+
+    private static HashSet<int> DescendantIds(int rootId, ILookup<int?, int> childrenByParent)
+    {
+        var found = new HashSet<int>();
+        var pending = new Queue<int>(childrenByParent[rootId]);
+        while (pending.Count > 0)
+        {
+            var id = pending.Dequeue();
+            if (!found.Add(id)) continue;
+            foreach (var child in childrenByParent[id]) pending.Enqueue(child);
+        }
+        return found;
+    }
+
+    // Returned tree-ordered (each top-level page followed by its own children) so the Parent Menu
+    // and Placement dropdowns can indent second-level options and stay readable at three tiers.
+    private async Task<List<WebsitePage>> GetParentChoicesAsync(int websiteId, int excludedId)
+    {
+        var pages = await _db.WebsitePages.AsNoTracking()
+            .Where(p => p.AgentWebsiteId == websiteId)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Id)
+            .ToListAsync();
+
+        var childrenByParent = pages.ToLookup(p => p.ParentPageId, p => p.Id);
+        var movingHeight = excludedId == 0 ? 1 : SubtreeHeight(excludedId, childrenByParent);
+        var descendants = excludedId == 0 ? new HashSet<int>() : DescendantIds(excludedId, childrenByParent);
+        var choices = new List<WebsitePage>();
+
+        foreach (var top in pages.Where(p => p.ParentPageId == null))
+        {
+            AddChoice(top, 1);
+            foreach (var child in pages.Where(p => p.ParentPageId == top.Id))
+            {
+                AddChoice(child, 2);
+            }
+        }
+        return choices;
+
+        void AddChoice(WebsitePage candidate, int depth)
+        {
+            if (candidate.Id == excludedId || descendants.Contains(candidate.Id)) return;
+            if (depth + movingHeight > MaxNavigationDepth) return;
+            choices.Add(candidate);
+        }
+    }
 
     private Task<List<WebsiteMediaAsset>> GetMediaAssetsAsync(int websiteId) => _db.WebsiteMediaAssets
         .AsNoTracking().Where(a => a.AgentWebsiteId == websiteId).OrderByDescending(a => a.CreatedAt).ToListAsync();

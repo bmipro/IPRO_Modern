@@ -20,10 +20,13 @@ public static class WebsiteBlockTypes
     public const string Video = "Video";
     public const string Gallery = "Gallery";
     public const string Calculator = "Calculator";
+    // Lists the current page's own child pages. Needs no settings -- it reads the page tree, so a
+    // section landing page stays correct as pages are added or renamed under it.
+    public const string SectionIndex = "SectionIndex";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex
     };
 
     public static string DisplayName(string type) => type switch
@@ -39,6 +42,7 @@ public static class WebsiteBlockTypes
         ArticleContent => "Article Page",
         Gallery => "Photo Gallery",
         Calculator => "Calculator",
+        SectionIndex => "Sub-Page Links",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

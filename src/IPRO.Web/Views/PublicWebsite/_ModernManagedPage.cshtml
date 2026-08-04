@@ -11,6 +11,15 @@
 @{
     var agent = Model.Website.AgentUser;
     var blocks = Model.CurrentPage?.Blocks.Where(b => b.IsVisible).OrderBy(b => b.SortOrder).ToList() ?? new();
+    // Same preview-aware link shape _PublicNavigation uses: the prospect preview's pages were never
+    // persisted, so a root-relative "/{slug}" would 404 inside its iframe.
+    var previewRouteBase = ViewBag.PreviewNavRouteBase as string;
+    string PageHref(string? slug) => previewRouteBase == null
+        ? "/" + slug
+        : previewRouteBase + "&page=" + Uri.EscapeDataString(slug ?? string.Empty);
+    var sectionChildren = Model.CurrentPage == null
+        ? new List<IPRO.Entities.WebsitePage>()
+        : Model.Pages.Where(p => p.ParentPageId == Model.CurrentPage.Id && p.IsPublished).OrderBy(p => p.SortOrder).ToList();
 }
 <style>
   .modern-page { background:#fff; }
@@ -231,6 +240,26 @@
         }
         <h2 class="display-6">@articleContent.Title</h2>
         <div class="mp-lead">@Html.Raw(articleContent.Content)</div>
+      </div></section>
+    }
+  }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.SectionIndex)
+  {
+    if (sectionChildren.Count > 0)
+    {
+      <section class="mp-section"><div class="mp-inner">
+        @if(!string.IsNullOrWhiteSpace(block.Subheading)){<div class="mp-kicker">@block.Subheading</div>}
+        @if(!string.IsNullOrWhiteSpace(block.Heading)){<h2 class="display-6">@block.Heading</h2>}
+        @if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}
+        <div class="mp-grid">
+        @foreach(var sectionPage in sectionChildren)
+        {
+          <a class="mp-card" href="@PageHref(sectionPage.Slug)" style="text-decoration:none;color:inherit">
+            <div class="fw-bold mb-2">@sectionPage.Title</div>
+            @if(!string.IsNullOrWhiteSpace(sectionPage.MetaDescription)){<div class="text-muted small">@sectionPage.MetaDescription</div>}
+          </a>
+        }
+        </div>
       </div></section>
     }
   }

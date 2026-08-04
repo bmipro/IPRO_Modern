@@ -144,15 +144,22 @@ public static class ProspectWebsitePreviewBuilder
                         Body = "Helpful articles and updates, added from time to time.",
                         SortOrder = 0,
                         IsVisible = true
+                    },
+                    new()
+                    {
+                        Id = NextId(),
+                        BlockType = WebsiteBlockTypes.SectionIndex,
+                        SortOrder = 1,
+                        IsVisible = true
                     }
                 }
             };
             pages.Add(resourcesPage);
 
-            // Mirrors WebsiteStarterResourcesHelper's grouping: uncategorized starters each get
-            // their own child page (unchanged from before Category existed); categorized starters
-            // share one child page per Category, articles stacked as separate ArticleContent
-            // blocks -- the nav has no third tier to give each article its own reachable page.
+            // Mirrors WebsiteStarterResourcesHelper: uncategorized starters each get their own child
+            // page directly under Resources; categorized starters get a Category page in between,
+            // with one page per article beneath it. Kept in sync by hand -- this builder writes
+            // nothing, so it can't call the real helper.
             var existingSlugs = pages.Select(p => p.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var childOrder = 0;
             foreach (var group in selectedArticles.GroupBy(a => a.Category))
@@ -207,7 +214,34 @@ public static class ProspectWebsitePreviewBuilder
 
                 var categorySlug = UniqueSlug(Slugify(group.Key), existingSlugs);
                 existingSlugs.Add(categorySlug);
-                var categoryBlocks = new List<WebsiteContentBlock>();
+                var categoryPage = new WebsitePage
+                {
+                    Id = NextId(),
+                    AgentWebsiteId = website.Id,
+                    ParentPageId = resourcesPage.Id,
+                    Title = group.Key,
+                    Slug = categorySlug,
+                    NavigationLabel = group.Key,
+                    MetaTitle = group.Key,
+                    MetaDescription = $"{group.Key} articles and resources.",
+                    ShowInNavigation = true,
+                    IsPublished = true,
+                    SortOrder = childOrder++,
+                    Blocks = new List<WebsiteContentBlock>
+                    {
+                        new()
+                        {
+                            Id = NextId(),
+                            BlockType = WebsiteBlockTypes.SectionIndex,
+                            Heading = group.Key,
+                            SortOrder = 0,
+                            IsVisible = true
+                        }
+                    }
+                };
+                pages.Add(categoryPage);
+
+                var articleOrder = 0;
                 foreach (var starter in group.OrderBy(a => a.SortOrder))
                 {
                     var article = new Article
@@ -225,28 +259,29 @@ public static class ProspectWebsitePreviewBuilder
                     {
                         Id = NextId(),
                         BlockType = WebsiteBlockTypes.ArticleContent,
-                        SortOrder = categoryBlocks.Count,
+                        SortOrder = 0,
                         IsVisible = true
                     };
-                    categoryBlocks.Add(block);
                     articleContentByBlockId[block.Id] = article;
-                }
 
-                pages.Add(new WebsitePage
-                {
-                    Id = NextId(),
-                    AgentWebsiteId = website.Id,
-                    ParentPageId = resourcesPage.Id,
-                    Title = group.Key,
-                    Slug = categorySlug,
-                    NavigationLabel = group.Key,
-                    MetaTitle = group.Key,
-                    MetaDescription = $"{group.Key} articles and resources.",
-                    ShowInNavigation = true,
-                    IsPublished = true,
-                    SortOrder = childOrder++,
-                    Blocks = categoryBlocks
-                });
+                    var articleSlug = UniqueSlug(Slugify(starter.Title), existingSlugs);
+                    existingSlugs.Add(articleSlug);
+                    pages.Add(new WebsitePage
+                    {
+                        Id = NextId(),
+                        AgentWebsiteId = website.Id,
+                        ParentPageId = categoryPage.Id,
+                        Title = starter.Title,
+                        Slug = articleSlug,
+                        NavigationLabel = starter.Title,
+                        MetaTitle = starter.Title,
+                        MetaDescription = starter.Summary,
+                        ShowInNavigation = true,
+                        IsPublished = true,
+                        SortOrder = articleOrder++,
+                        Blocks = new List<WebsiteContentBlock> { block }
+                    });
+                }
             }
         }
 

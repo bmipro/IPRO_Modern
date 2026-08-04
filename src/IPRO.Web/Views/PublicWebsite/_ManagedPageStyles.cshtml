@@ -45,10 +45,23 @@
   .public-site-nav a.is-active { color: var(--site-theme, #1457d9); }
   .public-site-nav a.is-active::after { content: ''; position: absolute; left: 11px; right: 11px; bottom: 6px; height: 2px; border-radius: 1px; background: var(--site-theme, #1457d9); }
   .public-site-nav__children { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; padding: 6px; border: 1px solid #dce4ef; border-radius: 6px; background: #fff; box-shadow: 0 14px 32px rgba(20,35,65,.14); }
-  .public-site-nav__item:hover .public-site-nav__children { display: block; }
   .public-site-nav__children a { padding: 9px 11px; }
   .public-site-nav__children a.is-active { background: rgba(20,35,65,.06); border-radius: 4px; }
   .public-site-nav__children a.is-active::after { display: none; }
+  /* Third tier. The item goes position:static so the panel's containing block becomes
+     .public-site-header (position:relative), letting it span the full header width. */
+  .public-site-nav__item--mega { position: static; }
+  .public-site-nav__mega { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 24px 0 28px; border-top: 1px solid #dce4ef; background: #fff; box-shadow: 0 18px 40px rgba(20,35,65,.14); }
+  .public-site-nav__mega-inner { width: min(1180px, calc(100% - 32px)); margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 28px; align-items: start; }
+  .public-site-nav__mega-title { display: block; padding: 6px 0 8px; border-bottom: 1px solid #e6ecf5; color: #172033; font-size: 12px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+  .public-site-nav__mega-title.is-active { color: var(--site-theme, #1457d9); }
+  .public-site-nav__mega-title.is-active::after { display: none; }
+  .public-site-nav__mega-links { padding-top: 4px; }
+  .public-site-nav__mega-links a { padding: 7px 0; color: #45536b; font-size: 13.5px; font-weight: 600; }
+  .public-site-nav__mega-links a.is-active { color: var(--site-theme, #1457d9); font-weight: 800; }
+  .public-site-nav__mega-links a.is-active::after { display: none; }
+  /* Mobile-only controls; the media query below is the only place these become visible. */
+  .public-site-navbtn, .public-site-nav__toggle { display: none; }
   .public-site-actions { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .public-site-action { display: inline-flex; align-items: center; gap: 6px; color: #344158; text-decoration: none; font-size: 13px; font-weight: 700; }
   .public-site-action:hover { color: var(--site-theme, #1457d9); }
@@ -60,6 +73,11 @@
   .header-dark .public-site-nav a.is-active::after { background: #fff; }
   .header-dark .public-site-nav__children a { color: #273348; }
   .header-dark .public-site-nav__children a:hover { color: var(--site-theme, #1457d9); }
+  /* The mega panel has its own white background, so its links must not inherit the dark header's
+     white text -- same reason the two rules above exist for the simple dropdown. */
+  .header-dark .public-site-nav__mega-title { color: #172033; }
+  .header-dark .public-site-nav__mega-links a { color: #45536b; }
+  .header-dark .public-site-nav__mega a:hover { color: var(--site-theme, #1457d9); }
   .header-dark .public-site-action { color: rgba(255,255,255,.86); }
   .header-overlay .public-site-header { position: absolute; z-index: 30; width: 100%; background: rgba(255,255,255,.92); }
   .template-preview-banner { position: sticky; top: 0; z-index: 100; padding: 10px 18px; background: #fff3cd; border-bottom: 1px solid #ffda6a; color: #664d03; text-align: center; font: 700 14px/1.4 Arial, sans-serif; }
@@ -83,21 +101,53 @@
   .dyk-readmore:hover { text-decoration: underline; }
   .dyk-teasers.dyk-grid-2x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .dyk-teasers.dyk-grid-2x3 .dyk-card { border-bottom: 0; padding: 16px; background: rgba(0,0,0,.03); border-radius: 8px; }
+  /* Hover reveal is desktop-only: below 801px the accordion in _PublicNavigation.cshtml drives
+     visibility off .is-open instead, so these rules must not apply there. */
+  @@media (min-width: 801px) {
+    .public-site-nav__item:hover .public-site-nav__children { display: block; }
+    .public-site-nav__item--mega:hover .public-site-nav__mega { display: block; }
+  }
   @@media (min-width: 901px) {
     body.header-sidebar { padding-left: 240px; }
-    .header-sidebar .public-site-header { position: fixed; inset: 0 auto 0 0; width: 240px; border-right: 1px solid #dce4ef; border-bottom: 0; }
+    .header-sidebar .public-site-header { position: fixed; inset: 0 auto 0 0; width: 240px; overflow-y: auto; border-right: 1px solid #dce4ef; border-bottom: 0; }
     .header-sidebar .public-site-header__inner { width: 100%; min-height: 100%; padding: 28px 18px; flex-direction: column; align-items: stretch; }
     .header-sidebar .public-site-brand { margin: 0 0 24px; }
     .header-sidebar .public-site-nav { flex-direction: column; }
     .header-sidebar .public-site-nav__children { position: static; box-shadow: none; }
+    /* A full-width hover panel makes no sense inside a 240px rail -- render the third tier as a
+       always-expanded indented tree instead. */
+    .header-sidebar .public-site-nav__item--mega { position: relative; }
+    .header-sidebar .public-site-nav__mega { display: block; position: static; padding: 0 0 6px 10px; border-top: 0; box-shadow: none; }
+    .header-sidebar .public-site-nav__mega-inner { width: 100%; display: block; }
+    .header-sidebar .public-site-nav__mega-title { padding: 8px 0 6px; }
+    .header-sidebar .public-site-nav__mega-links { padding-left: 10px; }
   }
   @@media (max-width: 800px) {
-    .public-site-header__inner { align-items: flex-start; flex-direction: column; padding: 14px 0; }
+    .public-site-header__inner { position: relative; align-items: flex-start; flex-direction: column; padding: 14px 0; }
     .public-site-header.logo-center .public-site-header__inner { display: flex; }
     .public-site-actions { width: 100%; flex-wrap: wrap; }
     .public-site-action span { display: none; }
-    .public-site-nav { width: 100%; overflow-x: auto; }
-    .public-site-nav__children { position: static; box-shadow: none; }
+    /* Absolutely positioned so the hamburger sits beside the brand without restructuring the
+       header markup, which stays a plain column stack at this width. */
+    .public-site-navbtn { display: flex; flex-direction: column; justify-content: center; gap: 5px; position: absolute; top: 12px; right: 0; width: 42px; height: 38px; padding: 0 9px; border: 1px solid #dce4ef; border-radius: 6px; background: #fff; cursor: pointer; }
+    .public-site-navbtn span { display: block; height: 2px; border-radius: 1px; background: #273348; }
+    .header-dark .public-site-navbtn { border-color: rgba(255,255,255,.28); background: transparent; }
+    .header-dark .public-site-navbtn span { background: #fff; }
+    .public-site-nav { display: none; flex-direction: column; align-items: stretch; width: 100%; gap: 0; }
+    .public-site-nav.is-open { display: flex; }
+    .public-site-nav__item { display: flex; flex-wrap: wrap; align-items: center; border-top: 1px solid #eef2f8; }
+    .public-site-nav__item > a { flex: 1 1 auto; }
+    .public-site-nav__toggle { display: block; position: relative; width: 44px; height: 42px; border: 0; background: transparent; cursor: pointer; }
+    .public-site-nav__toggle::after { content: ''; position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; margin: -6px 0 0 -4px; border-right: 2px solid #5e6b80; border-bottom: 2px solid #5e6b80; transform: rotate(45deg); }
+    .public-site-nav__item.is-open > .public-site-nav__toggle::after { margin-top: -2px; transform: rotate(225deg); }
+    .header-dark .public-site-nav__toggle::after { border-color: rgba(255,255,255,.72); }
+    .public-site-nav__children, .public-site-nav__mega { display: none; position: static; flex-basis: 100%; padding: 0 0 8px 14px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+    .public-site-nav__item.is-open > .public-site-nav__children, .public-site-nav__item.is-open > .public-site-nav__mega { display: block; }
+    .public-site-nav__mega-inner { display: block; width: 100%; }
+    .public-site-nav__mega-col { padding: 4px 0; }
+    .public-site-nav__mega-links { padding-left: 12px; }
+    .header-dark .public-site-nav__children a, .header-dark .public-site-nav__mega-links a { color: rgba(255,255,255,.86); }
+    .header-dark .public-site-nav__mega-title { color: #fff; border-bottom-color: rgba(255,255,255,.18); }
     .managed-block { padding: min(var(--section-space, 48px), 48px) 20px; }
     .managed-grid { grid-template-columns: 1fr; }
     .managed-contact { grid-template-columns: 1fr; }

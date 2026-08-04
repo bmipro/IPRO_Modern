@@ -38,6 +38,10 @@
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-external-link-alt me-1"></i>Plesk Login</button>
         </form>
+        <form asp-action="RebuildResources" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="Delete this agent's Resources pages so they rebuild with the three-level menu structure? Their articles are kept and reused."><i class="fas fa-sitemap me-1"></i>Rebuild Resources</button>
+        </form>
         <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-outline-danger js-confirm-submit" data-confirm-message="Delete @Model.UserName permanently? This cannot be undone."><i class="fas fa-trash me-1"></i>Delete</button>

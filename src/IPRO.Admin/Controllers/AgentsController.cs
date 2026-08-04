@@ -22,10 +22,11 @@ public class AgentsController : Controller
     private readonly IPasswordHasher<AgentUser> _hasher;
     private readonly ILogger<AgentsController> _logger;
     private readonly IAdminAuditLogService _auditLog;
+    private readonly IPRO.DataAccess.IPRODbContext _db;
 
     public AgentsController(IAgentService agents, IWebsiteService websites,
-        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog)
-    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; }
+        IUnitOfWork uow, IPleskHostingService plesk, IBillingService billing, IPasswordHasher<AgentUser> hasher, ILogger<AgentsController> logger, IAdminAuditLogService auditLog, IPRO.DataAccess.IPRODbContext db)
+    { _agents = agents; _websites = websites; _uow = uow; _plesk = plesk; _billing = billing; _hasher = hasher; _logger = logger; _auditLog = auditLog; _db = db; }
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
@@ -113,6 +114,56 @@ public class AgentsController : Controller
             warnings) ?? new List<OperateLog>();
         ViewBag.DetailsWarnings = warnings;
         return View(agent);
+    }
+
+    // Resources provisioning only runs when the agent has no page with the "resources" slug, so an
+    // agent provisioned before three-tier navigation keeps the old flat shape forever. Deleting the
+    // subtree lets WebsiteStarterResourcesHelper rebuild it the next time they open Website Pages;
+    // their Article rows are reused by title rather than duplicated, so nothing they wrote is lost.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RebuildResources(int id)
+    {
+        var website = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .FirstOrDefaultAsync(_db.AgentWebsites, w => w.AgentUserId == id);
+        if (website == null)
+        {
+            TempData["Error"] = "This agent has no website yet, so there is nothing to rebuild.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var pages = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .ToListAsync(_db.WebsitePages.Where(p => p.AgentWebsiteId == website.Id));
+        var resources = pages.FirstOrDefault(p => p.Slug == "resources");
+        if (resources == null)
+        {
+            TempData["Error"] = "This agent has no Resources page. It will be created the next time they open Website Pages.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var byParent = pages.ToLookup(p => p.ParentPageId);
+        var doomed = new List<WebsitePage> { resources };
+        var pending = new Queue<int>();
+        pending.Enqueue(resources.Id);
+        while (pending.Count > 0)
+        {
+            foreach (var child in byParent[pending.Dequeue()])
+            {
+                doomed.Add(child);
+                pending.Enqueue(child.Id);
+            }
+        }
+
+        var doomedIds = doomed.Select(p => p.Id).ToList();
+        var blocks = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .ToListAsync(_db.WebsiteContentBlocks.Where(b => doomedIds.Contains(b.WebsitePageId)));
+        _db.WebsiteContentBlocks.RemoveRange(blocks);
+        _db.WebsitePages.RemoveRange(doomed);
+        await _db.SaveChangesAsync();
+
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentRebuildResources",
+            $"Removed {doomed.Count} Resources pages for agent #{id} so they rebuild at three levels");
+        TempData["Success"] = $"Removed {doomed.Count} Resources page{(doomed.Count == 1 ? "" : "s")}. They rebuild with the three-level structure the next time this agent opens Website Pages.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     public async Task<IActionResult> Edit(int id)

@@ -1,7 +1,27 @@
 @model IEnumerable<IPRO.Entities.WebsitePage>
 @{
     ViewData["Title"] = "Website Pages";
-    var pages = Model.ToList();
+    var allPages = Model.ToList();
+    // Tree order with a depth, so a sub-page is visibly a sub-page. A flat list made a third-level
+    // article page look identical to a top-level one, which is unreadable once sections exist.
+    var byParent = allPages.ToLookup(p => p.ParentPageId);
+    var pages = new List<(IPRO.Entities.WebsitePage Page, int Depth)>();
+    foreach (var top in byParent[(int?)null].OrderBy(p => p.SortOrder))
+    {
+        pages.Add((top, 1));
+        foreach (var child in byParent[top.Id].OrderBy(p => p.SortOrder))
+        {
+            pages.Add((child, 2));
+            foreach (var grandchild in byParent[child.Id].OrderBy(p => p.SortOrder))
+            {
+                pages.Add((grandchild, 3));
+            }
+        }
+    }
+    foreach (var stray in allPages.Where(p => pages.All(o => o.Page.Id != p.Id)).OrderBy(p => p.SortOrder))
+    {
+        pages.Add((stray, 3));
+    }
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -20,7 +40,7 @@
         <tr><th style="width:90px">Order</th><th>Page</th><th>URL</th><th>Navigation</th><th>Status</th><th class="text-end">Actions</th></tr>
       </thead>
       <tbody>
-      @foreach (var sitePage in pages)
+      @foreach (var (sitePage, depth) in pages)
       {
         <tr>
           <td>
@@ -29,8 +49,8 @@
               <form method="post" action="/WebsitePages/MovePage/@sitePage.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
             </div>
           </td>
-          <td>
-            <div class="fw-bold">@sitePage.Title @(sitePage.IsHomePage ? Html.Raw("<span class=\"badge bg-primary ms-1\">Home</span>") : "")</div>
+          <td style="padding-left:@((depth - 1) * 28 + 12)px">
+            <div class="fw-bold">@(depth > 1 ? Html.Raw("<span class=\"text-muted me-1\">&#8627;</span>") : null)@sitePage.Title @(sitePage.IsHomePage ? Html.Raw("<span class=\"badge bg-primary ms-1\">Home</span>") : "")</div>
             <div class="small text-muted">@sitePage.Blocks.Count content block(s)</div>
           </td>
           <td><code>/@(sitePage.IsHomePage ? "" : sitePage.Slug)</code></td>

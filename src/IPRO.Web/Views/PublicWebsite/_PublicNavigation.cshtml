@@ -1,7 +1,8 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
 @{
     var website = Model.Website;
-    var topPages = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
+    var navPages = Model.Pages.Where(p => p.ShowInNavigation).ToList();
+    var topPages = navPages.Where(p => p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
     var header = IPRO.Entities.WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
     var headerClasses = $"public-site-header style-{header.Style} logo-{header.LogoPosition} logo-size-{header.LogoSize}" + (header.Sticky ? " is-sticky" : "");
     // Opt-in: only the unauthenticated prospect-preview flow sets this (its pages were never
@@ -11,6 +12,9 @@
     string Href(string? slug, bool isHome) => previewRouteBase == null
         ? (isHome ? "/" : "/" + slug)
         : previewRouteBase + (isHome ? "" : "&page=" + Uri.EscapeDataString(slug ?? string.Empty));
+    var currentId = Model.CurrentPage?.Id;
+    List<IPRO.Entities.WebsitePage> ChildrenOf(int parentId) =>
+        navPages.Where(p => p.ParentPageId == parentId).OrderBy(p => p.SortOrder).ToList();
 }
 <header class="@headerClasses">
   <div class="public-site-header__inner">
@@ -24,20 +28,56 @@
         @website.AgentUser.CompanyName
       }
     </a>
-    <nav class="public-site-nav" aria-label="Main navigation">
+    <button type="button" class="public-site-navbtn" id="publicSiteNavToggle" aria-expanded="false" aria-controls="publicSiteNav" aria-label="Menu">
+      <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+    </button>
+    <nav class="public-site-nav" id="publicSiteNav" aria-label="Main navigation">
       @foreach (var sitePage in topPages)
       {
-        var children = Model.Pages.Where(p => p.ShowInNavigation && p.ParentPageId == sitePage.Id).OrderBy(p => p.SortOrder).ToList();
-        var isCurrent = sitePage.Id == Model.CurrentPage?.Id;
-        var childIsCurrent = children.Any(child => child.Id == Model.CurrentPage?.Id);
-        <div class="public-site-nav__item">
-          <a href="@Href(sitePage.Slug, sitePage.IsHomePage)" class="@((isCurrent || childIsCurrent) ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
+        var children = ChildrenOf(sitePage.Id);
+        // A third tier is only rendered where the agent actually built one. Pages with children but
+        // no grandchildren keep the original simple dropdown, byte-for-byte -- so every site that
+        // predates 3-tier navigation renders exactly as it did before.
+        var grandchildren = children.ToDictionary(child => child.Id, child => ChildrenOf(child.Id));
+        var hasGrandchildren = grandchildren.Values.Any(list => list.Count > 0);
+        var isCurrent = sitePage.Id == currentId;
+        var branchIsCurrent = isCurrent
+            || children.Any(child => child.Id == currentId)
+            || grandchildren.Values.Any(list => list.Any(grandchild => grandchild.Id == currentId));
+        <div class="public-site-nav__item@(hasGrandchildren ? " public-site-nav__item--mega" : "")">
+          <a href="@Href(sitePage.Slug, sitePage.IsHomePage)" class="@(branchIsCurrent ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
           @if (children.Any())
+          {
+            <button type="button" class="public-site-nav__toggle" aria-expanded="false" aria-label="Show @sitePage.NavigationLabel submenu"></button>
+          }
+          @if (hasGrandchildren)
+          {
+            <div class="public-site-nav__mega">
+              <div class="public-site-nav__mega-inner">
+                @foreach (var child in children)
+                {
+                  <div class="public-site-nav__mega-col">
+                    <a class="public-site-nav__mega-title @(child.Id == currentId ? "is-active" : "")" href="@Href(child.Slug, false)" aria-current="@(child.Id == currentId ? "page" : null)">@child.NavigationLabel</a>
+                    @if (grandchildren[child.Id].Count > 0)
+                    {
+                      <div class="public-site-nav__mega-links">
+                        @foreach (var grandchild in grandchildren[child.Id])
+                        {
+                          <a href="@Href(grandchild.Slug, false)" class="@(grandchild.Id == currentId ? "is-active" : "")" aria-current="@(grandchild.Id == currentId ? "page" : null)">@grandchild.NavigationLabel</a>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          else if (children.Any())
           {
             <div class="public-site-nav__children">
               @foreach (var child in children)
               {
-                <a href="@Href(child.Slug, false)" class="@(child.Id == Model.CurrentPage?.Id ? "is-active" : "")" aria-current="@(child.Id == Model.CurrentPage?.Id ? "page" : null)">@child.NavigationLabel</a>
+                <a href="@Href(child.Slug, false)" class="@(child.Id == currentId ? "is-active" : "")" aria-current="@(child.Id == currentId ? "page" : null)">@child.NavigationLabel</a>
               }
             </div>
           }
@@ -64,3 +104,32 @@
     </div>
   </div>
 </header>
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  // Mobile only. Desktop reveals submenus purely on :hover (see _ManagedPageStyles.cshtml), so these
+  // classes are inert above 800px -- the CSS that reads them is inside the mobile media query.
+  var navToggle = document.getElementById('publicSiteNavToggle');
+  var nav = document.getElementById('publicSiteNav');
+  if (!navToggle || !nav) return;
+
+  function setExpanded(el, open) {
+    el.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  navToggle.addEventListener('click', function () {
+    var open = !nav.classList.contains('is-open');
+    nav.classList.toggle('is-open', open);
+    setExpanded(navToggle, open);
+  });
+
+  nav.querySelectorAll('.public-site-nav__toggle').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var item = button.closest('.public-site-nav__item');
+      if (!item) return;
+      var open = !item.classList.contains('is-open');
+      item.classList.toggle('is-open', open);
+      setExpanded(button, open);
+    });
+  });
+})();
+</script>

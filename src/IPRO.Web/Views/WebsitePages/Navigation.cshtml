@@ -1,7 +1,32 @@
 @model IPRO.Web.Models.WebsiteNavigationViewModel
 @{
   ViewData["Title"] = "Header & Navigation";
-  var topPages = Model.Pages.Where(p => p.ParentPageId == null).OrderBy(p => p.SortOrder).ToList();
+  var byParent = Model.Pages.ToLookup(p => p.ParentPageId);
+  // Depth-first so every page sits directly beneath its own parent. Listing all parents and then all
+  // children (the old ordering) reads as nonsense once there are three levels. Explicit rather than
+  // recursive because the nav is hard-capped at three tiers anyway.
+  var ordered = new List<(IPRO.Entities.WebsitePage Page, int Depth)>();
+  foreach (var top in byParent[(int?)null].OrderBy(p => p.SortOrder))
+  {
+    ordered.Add((top, 1));
+    foreach (var child in byParent[top.Id].OrderBy(p => p.SortOrder))
+    {
+      ordered.Add((child, 2));
+      foreach (var grandchild in byParent[child.Id].OrderBy(p => p.SortOrder))
+      {
+        ordered.Add((grandchild, 3));
+      }
+    }
+  }
+  // Safety net: anything parented deeper than the cap (only reachable from older data) still has to
+  // be listed, or it would be stranded with no way to move it back into range.
+  foreach (var stray in Model.Pages.Where(p => ordered.All(o => o.Page.Id != p.Id)).OrderBy(p => p.SortOrder))
+  {
+    ordered.Add((stray, 3));
+  }
+  var parentCandidates = ordered.Where(o => o.Depth <= 2).ToList();
+  IEnumerable<int> DescendantsOf(int id) => byParent[id].Select(c => c.Id)
+      .Concat(byParent[id].SelectMany(c => byParent[c.Id].Select(g => g.Id)));
 }
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
   <div><div class="small text-muted mb-1"><a href="/Website">My Website</a> / Structure</div><h2 class="fw-bold mb-1"><i class="fas fa-bars-staggered me-2 text-primary"></i>Header & Navigation</h2><div class="text-muted">Shape the first thing visitors see and keep your menu easy to understand.</div></div>
@@ -29,15 +54,17 @@
 
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
-    <div class="d-flex justify-content-between gap-3 mb-3"><div><h4 class="fw-bold mb-1">Website Menu</h4><div class="text-muted small">Rename links, create one submenu level, hide items, and use the arrows to control order.</div></div><span class="badge bg-primary-subtle text-primary align-self-start">@Model.Pages.Count pages</span></div>
+    <div class="d-flex justify-content-between gap-3 mb-3"><div><h4 class="fw-bold mb-1">Website Menu</h4><div class="text-muted small">Rename links, nest items up to three levels deep, hide items, and use the arrows to control order.</div></div><span class="badge bg-primary-subtle text-primary align-self-start">@Model.Pages.Count pages</span></div>
     <div class="navigation-list">
-      @foreach (var menuPage in Model.Pages.OrderBy(p => p.ParentPageId.HasValue).ThenBy(p => p.SortOrder))
+      @foreach (var (menuPage, depth) in ordered)
       {
-        <form method="post" action="/WebsitePages/SaveNavigationItem" class="navigation-row @(menuPage.ParentPageId.HasValue ? "is-child" : "")">
+        var blocked = DescendantsOf(menuPage.Id).ToHashSet();
+        var hasChildren = byParent[menuPage.Id].Any();
+        <form method="post" action="/WebsitePages/SaveNavigationItem" class="navigation-row depth-@depth">
           @Html.AntiForgeryToken()<input type="hidden" name="id" value="@menuPage.Id" />
           <div class="navigation-order"><button type="submit" formaction="/WebsitePages/MoveNavigationItem/@menuPage.Id" name="direction" value="up" class="btn btn-sm btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button><button type="submit" formaction="/WebsitePages/MoveNavigationItem/@menuPage.Id" name="direction" value="down" class="btn btn-sm btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></div>
           <div><label class="form-label small text-muted mb-1">Menu label</label><input name="navigationLabel" value="@menuPage.NavigationLabel" class="form-control" /></div>
-          <div><label class="form-label small text-muted mb-1">Placement</label><select name="parentPageId" class="form-select"><option value="">Top level</option>@foreach(var parent in topPages.Where(p=>p.Id!=menuPage.Id)){<option value="@parent.Id" selected="@(menuPage.ParentPageId==parent.Id)">Under @parent.NavigationLabel</option>}</select></div>
+          <div><label class="form-label small text-muted mb-1">Placement</label><select name="parentPageId" class="form-select"><option value="">Top level</option>@foreach(var candidate in parentCandidates.Where(c => c.Page.Id != menuPage.Id && !blocked.Contains(c.Page.Id) && (c.Depth == 1 || !hasChildren))){<option value="@candidate.Page.Id" selected="@(menuPage.ParentPageId==candidate.Page.Id)">@(candidate.Depth == 1 ? "Under " : "· · Under ")@candidate.Page.NavigationLabel</option>}</select></div>
           <div class="navigation-meta"><span class="small text-muted">/@(menuPage.IsHomePage?"":menuPage.Slug)</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="showInNavigation" value="true" checked="@menuPage.ShowInNavigation"><label class="form-check-label small">Visible</label></div></div>
           <button class="btn btn-outline-primary"><i class="fas fa-check me-1"></i>Save</button>
         </form>
@@ -55,5 +82,5 @@
 </div>
 
 <style>
-.navigation-row{display:grid;grid-template-columns:auto minmax(180px,1fr) minmax(210px,.8fr) minmax(120px,.45fr) auto;gap:12px;align-items:end;padding:14px 0;border-top:1px solid #e2e8f0}.navigation-row.is-child{margin-left:40px;padding-left:16px;border-left:3px solid #d8e5fb}.navigation-order{display:flex;gap:4px;padding-bottom:1px}.navigation-meta{display:flex;flex-direction:column;gap:7px;padding-bottom:4px}@@media(max-width:900px){.navigation-row{grid-template-columns:auto 1fr}.navigation-row>*:not(.navigation-order){grid-column:2}.navigation-row.is-child{margin-left:16px}}
+.navigation-row{display:grid;grid-template-columns:auto minmax(180px,1fr) minmax(210px,.8fr) minmax(120px,.45fr) auto;gap:12px;align-items:end;padding:14px 0;border-top:1px solid #e2e8f0}.navigation-row.depth-2{margin-left:40px;padding-left:16px;border-left:3px solid #d8e5fb}.navigation-row.depth-3{margin-left:80px;padding-left:16px;border-left:3px solid #eef2f8}.navigation-order{display:flex;gap:4px;padding-bottom:1px}.navigation-meta{display:flex;flex-direction:column;gap:7px;padding-bottom:4px}@@media(max-width:900px){.navigation-row{grid-template-columns:auto 1fr}.navigation-row>*:not(.navigation-order){grid-column:2}.navigation-row.depth-2{margin-left:16px}.navigation-row.depth-3{margin-left:32px}}
 </style>

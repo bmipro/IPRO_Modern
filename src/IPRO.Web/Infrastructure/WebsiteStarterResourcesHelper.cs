@@ -39,17 +39,38 @@ public static class WebsiteStarterResourcesHelper
         // Phase 1: create the real Articles first. ArticleContent's SettingsJson needs each
         // article's real, database-assigned Id, which does not exist until after a SaveChanges --
         // it cannot be embedded into the block's JSON in the same pass that creates the Article.
-        var articles = selected.Select(starter => new Article
+        //
+        // An article the agent already has under the same title is reused rather than duplicated, so
+        // rebuilding the Resources tree (SuperAdmin's Rebuild Resources action) doesn't leave a
+        // second copy of every article behind -- and doesn't discard edits made to the first copy.
+        var starterTitles = selected.Select(starter => starter.Title).ToList();
+        var reusable = await db.Articles
+            .Where(a => a.AgentUserId == agentId && starterTitles.Contains(a.Title))
+            .ToListAsync();
+
+        var articles = new List<Article>();
+        foreach (var starter in selected)
         {
-            AgentUserId = agentId,
-            Title = starter.Title,
-            Summary = starter.Summary,
-            Content = starter.Content,
-            ImageUrl = starter.ImageUrl,
-            IsPublished = true,
-            PublishedAt = DateTime.UtcNow
-        }).ToList();
-        db.Articles.AddRange(articles);
+            var existing = reusable.FirstOrDefault(a => a.Title == starter.Title);
+            if (existing != null)
+            {
+                articles.Add(existing);
+                continue;
+            }
+
+            var created = new Article
+            {
+                AgentUserId = agentId,
+                Title = starter.Title,
+                Summary = starter.Summary,
+                Content = starter.Content,
+                ImageUrl = starter.ImageUrl,
+                IsPublished = true,
+                PublishedAt = DateTime.UtcNow
+            };
+            db.Articles.Add(created);
+            articles.Add(created);
+        }
         await db.SaveChangesAsync();
 
         // Phase 2: the Resources page tree, now that every article above has a real Id to point at.
@@ -80,18 +101,22 @@ public static class WebsiteStarterResourcesHelper
                     Body = "Helpful articles and updates, added from time to time.",
                     SortOrder = 0,
                     IsVisible = true
+                },
+                new()
+                {
+                    BlockType = WebsiteBlockTypes.SectionIndex,
+                    SortOrder = 1,
+                    IsVisible = true
                 }
             }
         };
         db.WebsitePages.Add(resourcesPage);
         existingSlugs.Add(ResourcesSlug);
 
-        // Nav only renders two levels deep (top pages, then one row of direct children --
-        // _PublicNavigation.cshtml has no grandchild query), so a Category can't become a real third
-        // tier of pages. Instead: uncategorized starters (every non-Accountants vertical today) keep
-        // the original one-page-per-article behavior; categorized starters share one page per
-        // Category, with each article rendered as its own stacked ArticleContent block on it. Either
-        // way every article is still a real, independently editable Article row.
+        // Nav renders three levels, so a Category is a real middle tier: Resources -> Category ->
+        // one page per article. Uncategorized starters (every non-Accountants vertical today) keep
+        // the original one-page-per-article behavior directly under Resources. Either way every
+        // article is a real, independently editable Article row on its own page.
         var childOrder = 0;
         var pairs = selected.Zip(articles, (starter, article) => (starter, article)).ToList();
         foreach (var group in pairs.GroupBy(p => p.starter.Category))
@@ -132,7 +157,11 @@ public static class WebsiteStarterResourcesHelper
             var categorySlug = UniqueSlug(Slugify(group.Key), existingSlugs);
             existingSlugs.Add(categorySlug);
             var ordered = group.OrderBy(p => p.starter.SortOrder).ToList();
-            db.WebsitePages.Add(new WebsitePage
+
+            // The category page lists what sits under it rather than holding the articles itself --
+            // it stays correct as pages are added or renamed, and gives anywhere the third nav tier
+            // isn't reachable (a narrow screen, a search landing) a real way through to each article.
+            var categoryPage = new WebsitePage
             {
                 AgentWebsiteId = website.Id,
                 ParentPage = resourcesPage,
@@ -144,14 +173,48 @@ public static class WebsiteStarterResourcesHelper
                 ShowInNavigation = true,
                 IsPublished = true,
                 SortOrder = childOrder++,
-                Blocks = ordered.Select((p, i) => new WebsiteContentBlock
+                Blocks = new List<WebsiteContentBlock>
                 {
-                    BlockType = WebsiteBlockTypes.ArticleContent,
-                    SettingsJson = new WebsiteArticleContentSettings { ArticleId = p.article.Id }.ToJson(),
-                    SortOrder = i,
-                    IsVisible = true
-                }).ToList()
-            });
+                    new()
+                    {
+                        BlockType = WebsiteBlockTypes.SectionIndex,
+                        Heading = group.Key,
+                        SortOrder = 0,
+                        IsVisible = true
+                    }
+                }
+            };
+            db.WebsitePages.Add(categoryPage);
+
+            var articleOrder = 0;
+            foreach (var (starter, article) in ordered)
+            {
+                var articleSlug = UniqueSlug(Slugify(starter.Title), existingSlugs);
+                existingSlugs.Add(articleSlug);
+                db.WebsitePages.Add(new WebsitePage
+                {
+                    AgentWebsiteId = website.Id,
+                    ParentPage = categoryPage,
+                    Title = starter.Title,
+                    Slug = articleSlug,
+                    NavigationLabel = starter.Title,
+                    MetaTitle = starter.Title,
+                    MetaDescription = starter.Summary,
+                    ShowInNavigation = true,
+                    IsPublished = true,
+                    SortOrder = articleOrder++,
+                    Blocks = new List<WebsiteContentBlock>
+                    {
+                        new()
+                        {
+                            BlockType = WebsiteBlockTypes.ArticleContent,
+                            SettingsJson = new WebsiteArticleContentSettings { ArticleId = article.Id }.ToJson(),
+                            SortOrder = 0,
+                            IsVisible = true
+                        }
+                    }
+                });
+            }
         }
 
         await db.SaveChangesAsync();
