@@ -40,6 +40,11 @@
         // predates 3-tier navigation renders exactly as it did before.
         var grandchildren = children.ToDictionary(child => child.Id, child => ChildrenOf(child.Id));
         var hasGrandchildren = grandchildren.Values.Any(list => list.Count > 0);
+        // Only a child that actually has pages under it earns a mega-panel column heading. Childless
+        // ones are ordinary links and get grouped into a trailing column -- rendering them as
+        // headings with nothing beneath reads as a row of broken categories.
+        var sections = children.Where(child => grandchildren[child.Id].Count > 0).ToList();
+        var loneLinks = children.Where(child => grandchildren[child.Id].Count == 0).ToList();
         var isCurrent = sitePage.Id == currentId;
         var branchIsCurrent = isCurrent
             || children.Any(child => child.Id == currentId)
@@ -54,19 +59,27 @@
           {
             <div class="public-site-nav__mega">
               <div class="public-site-nav__mega-inner">
-                @foreach (var child in children)
+                @foreach (var child in sections)
                 {
                   <div class="public-site-nav__mega-col">
                     <a class="public-site-nav__mega-title @(child.Id == currentId ? "is-active" : "")" href="@Href(child.Slug, false)" aria-current="@(child.Id == currentId ? "page" : null)">@child.NavigationLabel</a>
-                    @if (grandchildren[child.Id].Count > 0)
-                    {
-                      <div class="public-site-nav__mega-links">
-                        @foreach (var grandchild in grandchildren[child.Id])
-                        {
-                          <a href="@Href(grandchild.Slug, false)" class="@(grandchild.Id == currentId ? "is-active" : "")" aria-current="@(grandchild.Id == currentId ? "page" : null)">@grandchild.NavigationLabel</a>
-                        }
-                      </div>
-                    }
+                    <div class="public-site-nav__mega-links">
+                      @foreach (var grandchild in grandchildren[child.Id])
+                      {
+                        <a href="@Href(grandchild.Slug, false)" class="@(grandchild.Id == currentId ? "is-active" : "")" aria-current="@(grandchild.Id == currentId ? "page" : null)">@grandchild.NavigationLabel</a>
+                      }
+                    </div>
+                  </div>
+                }
+                @if (loneLinks.Any())
+                {
+                  <div class="public-site-nav__mega-col public-site-nav__mega-col--plain">
+                    <div class="public-site-nav__mega-links">
+                      @foreach (var child in loneLinks)
+                      {
+                        <a href="@Href(child.Slug, false)" class="@(child.Id == currentId ? "is-active" : "")" aria-current="@(child.Id == currentId ? "page" : null)">@child.NavigationLabel</a>
+                      }
+                    </div>
                   </div>
                 }
               </div>

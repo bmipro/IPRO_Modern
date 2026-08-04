@@ -56,6 +56,9 @@
   .public-site-nav__mega-title { display: block; padding: 6px 0 8px; border-bottom: 1px solid #e6ecf5; color: #172033; font-size: 12px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
   .public-site-nav__mega-title.is-active { color: var(--site-theme, #1457d9); }
   .public-site-nav__mega-title.is-active::after { display: none; }
+  /* Roughly the height of a column heading, so a heading-less column of plain links still lines up
+     with the first link in the columns beside it. */
+  .public-site-nav__mega-col--plain { padding-top: 31px; }
   .public-site-nav__mega-links { padding-top: 4px; }
   .public-site-nav__mega-links a { padding: 7px 0; color: #45536b; font-size: 13.5px; font-weight: 600; }
   .public-site-nav__mega-links a.is-active { color: var(--site-theme, #1457d9); font-weight: 800; }
