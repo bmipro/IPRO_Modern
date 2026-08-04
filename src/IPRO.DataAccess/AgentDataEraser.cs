@@ -125,7 +125,13 @@ public static class AgentDataEraser
         ("AgentWebsites",     "LogoUrl",  "AgentUserId = @agentId"),
         ("WebsiteMediaAssets","BlobUrl",  "AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId)"),
         ("AgentDocuments",    "BlobUrl",  "AgentUserId = @agentId"),
-        ("PortalDocuments",   "BlobUrl",  "ClientId IN (SELECT Id FROM Clients WHERE AgentUserId = @agentId)")
+        ("PortalDocuments",   "BlobUrl",  "ClientId IN (SELECT Id FROM Clients WHERE AgentUserId = @agentId)"),
+        // Article images are the mixed case this whole shared-asset mechanism exists for: an agent can
+        // upload their own (ArticlesController -> the article-media container), but starter
+        // provisioning also copies WebsiteStarterArticle.ImageUrl verbatim into Article.ImageUrl. Both
+        // land in the same column, so the URL alone doesn't say who owns it -- SharedAssetUrlsAsync
+        // decides, keeping starter artwork and deleting only what this agent actually uploaded.
+        ("Articles",          "ImageUrl", "AgentUserId = @agentId")
     };
 
     // URLs that belong to the shared library and must survive any single agent's deletion.
