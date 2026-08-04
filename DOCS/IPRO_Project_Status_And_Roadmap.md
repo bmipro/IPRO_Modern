@@ -1904,3 +1904,67 @@ One environment note worth keeping: the agent portal was reached over the agent'
 `app.iproadvisers.com`. The auth cookie is host-only, so a session established on the custom domain is
 invisible to the canonical host and vice versa — portal verification has to target whichever host actually
 holds the session.
+
+### 84. Complete agent deletion: every table, every uploaded file, and PayPal (done, 2026-08-04)
+
+The user asked to delete an account and recreate it, tracking that "everything that belongs to that user
+is deleted -- files they uploaded, logo, artworks, scheduled emails, and pretty much anything related",
+then added that PayPal must be notified so no further charges occur. Auditing the delete path before
+running it turned up three independent reasons it was leaving most of the agent behind, none of which
+produced an error:
+
+1. **The raw-SQL schema path creates tables with no foreign keys** -- 47 `CREATE TABLE` statements, zero
+   `FOREIGN KEY` declarations. `OnDelete(DeleteBehavior.Cascade)` in `OnModelCreating` is therefore
+   decorative for all of them: EF only cascades entities it has loaded, and there is no database
+   constraint behind it. Every row in those tables was silently orphaned.
+2. **`DeleteAgentOwnedDataAsync` had fallen ~25 entity types behind the schema**, covering 15. A
+   hand-maintained list of `RemoveEach(...)` calls has no way to notice a new table.
+3. **Nothing deleted blobs and nothing cancelled PayPal.** Logos, photos, media libraries, gallery
+   images and documents survived forever, and a deleted agent's subscription kept billing with no
+   account left to attribute the charge to.
+
+Replaced with `IPRO.DataAccess.AgentDataEraser`: one declarative map of table + predicate that drives
+both the deletion and a read-only **Preview Erasure** screen, so what would be deleted and what was
+deleted are the same predicates, counted instead of executed. Deletion is now SuperAdmin-only (it was
+merely AdminAccess, while the strictly less destructive password reset already required SuperAdmin).
+
+**Verified end to end on agent 22** (`RaniahMotamed`, a test account with real accumulated data):
+1095 rows across 46 tables reduced to 0 -- including the categories the old path orphaned (E-Cards,
+Forms, Website Leads, calendar events, and the Did-You-Know email queue, the "scheduled emails" the user
+specifically asked about). PayPal subscription went from Active to none. File deletion was confirmed the
+only way that actually proves it: fetching a known blob URL and getting **HTTP 404**, not by trusting a
+counter. The account row is gone from the agents list.
+
+**Five bugs were found by running it rather than reading it**, which is the real lesson of this item:
+
+- Taking `IBlobStorageService` as a constructor dependency took down **every** action on
+  `AgentsController`, because its constructor reads a connection string the admin app didn't configure.
+  `ECardDesignsController` had already solved this exact problem one folder away.
+- `Article.ImageUrl` was missing from the blob sources, so agent-uploaded article images survived. That
+  column is genuinely ambiguous -- agent uploads and copied-in shared starter URLs share it -- which is
+  what the shared-asset guard exists for; the source just wasn't wired into it. Caught by reading a real
+  preview before deleting, and proven by uploading an image and watching the count go 10 to 11.
+- Deleting the agent row through EF while everything else went by raw SQL threw
+  `DbUpdateConcurrencyException`: loading the agent tracks its related entities, whose rows the raw SQL
+  had already removed.
+- **Files are now deleted before rows.** The rows are the only record of where an agent's files live, so
+  rows-first makes any later failure unrecoverable. The concurrency bug above hit exactly that window and
+  stranded 10 files permanently.
+- Plesk's domain suspend threw `HttpRequestException (your-plesk-server:8443)` *after* files and rows
+  were already gone, turning a successful deletion into an error page. This led to removing the Plesk
+  integration entirely (see below).
+
+Free/promo agents were also permanently undeletable at one point: `CancelSubscriptionAsync` returns
+false both when cancellation fails and when there is nothing to cancel, and the guard treated those the
+same. It now checks for an Active billing row first.
+
+**Plesk removed entirely (2026-08-04).** Agent sites are hosted on Azure; production Plesk config was
+still the placeholder host, which is how it broke deletion. Deleted `PleskHostingService`, both DI
+registrations, the config section, the ProvisionHosting/PleskLogin actions and their buttons, and the
+suspend/unsuspend calls. Deleting an agent no longer touches their domain -- domains are managed under
+the Domains screen, which `07_SUPER_ADMIN.md` now says explicitly.
+
+**Known residue:** roughly 10 blobs from the crashed first attempt remain in storage with no database
+row referencing them. The one that could be identified with certainty was deleted; the rest cannot be
+distinguished from live agents' files by name or date alone. A SuperAdmin orphaned-file scanner
+(inventory blobs, diff against all DB references) would settle it properly and is worth building.
