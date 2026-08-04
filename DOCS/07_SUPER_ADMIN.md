@@ -191,6 +191,22 @@ A handful of starter templates (announcement, market update, thank-you note, sea
 
 New agents receive matching starter pages based on business type/package. Agents may edit their resulting content.
 
+## Rebuild an Agent's Resources Section
+
+New agents get their Resources section built automatically from the starter articles for their business
+type. Agents who signed up before a change to that starter content keep whatever shape they were given —
+the build only runs when the agent has no Resources page yet, so it will not reshape an existing one.
+
+**Rebuild Resources** on the agent details screen deletes that agent's Resources page and everything
+beneath it, so the section is rebuilt from current starter content the next time the agent opens their
+Pages or Menu screen. Use it after adding starter articles or changing how they are categorized.
+
+It affects only the Resources page tree. The agent's Articles themselves are not deleted, and the rebuild
+reuses any article the agent already has under the same title — so an agent who edited a starter article
+keeps their edits, and rebuilding twice does not leave duplicate articles behind. Any page the agent
+created themselves *underneath* Resources is part of that tree and will be removed, so check with the
+agent first if they may have added their own pages there. The action is recorded in the audit log.
+
 ## Monitor Domain Automation
 
 1. Select **Domains**.

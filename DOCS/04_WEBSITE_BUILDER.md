@@ -159,6 +159,28 @@ Analytics excludes common bots, social preview tools, template previews, and bro
 7. Click **Save** beside that page.
 8. Use the arrows to change its position.
 
+The menu supports **three levels**: a top-level item, pages under it, and pages under those. The
+**Placement** dropdown lists every page that can legally be a parent, indented to show the level it sits
+at, so you can see the shape of the menu as you build it. Pages that would break the three-level limit are
+left out of the list — a page that already has its own children cannot be moved to the second level,
+because that would push its children to a fourth level.
+
+How a menu displays depends on how deep it goes:
+
+- **One level of children** shows the familiar simple dropdown.
+- **Two levels of children** shows a wide panel, with each second-level page as a column heading and its
+  own pages listed beneath it. Second-level pages that have nothing under them are grouped into a plain
+  column of links at the end.
+- **On a phone**, the menu collapses behind the ☰ button and expands as a tap-to-open list covering all
+  three levels.
+
+Deleting a page never orphans the pages beneath it — they move up one level, to the deleted page's own
+parent, and stay in the menu.
+
+**Tip:** a second-level page that only exists to group others can look empty. Add a **Sub-Page Links**
+block to it (see Content Blocks below) and it will automatically list every page beneath it as a card,
+staying correct as you add, rename, or reorder those pages.
+
 ## Add an External Menu Link
 
 1. Open **Menu & Header Settings**.
@@ -242,6 +264,8 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 **Did You Know Teaser** is a lead-generating teaser built directly from your **Articles** (Agent Portal → **Articles**, in the Marketing section — full rich-text editing with bold, italic, lists, and links; no separate campaign to build first). Add this block, check which articles to include, and choose how the teasers are arranged: **Auto-arrange** (a simple stacked list) or **Grid (2 rows × 3 columns)**. Each checked article shows as a card: its title, an automatic ~150-character excerpt pulled from the start of its content, and a **Read More** button. Clicking Read More swaps the cards out for a capture panel (first name, last name, email, consent) with a "Back to articles" link to return — it does not scroll to an always-visible form, so the click has a visible, obvious effect. Submitting the panel emails the visitor every article in the block (not just the one they clicked) — one article per email, sent a few minutes apart rather than all at once, so the visitor's inbox doesn't get hit with a burst of several emails in the same instant (and each email carries the full article, so there's no link back to the site to worry about). Delivery finishes within roughly 15-40 minutes depending on how many articles are selected — this is short-interval spacing for deliverability, not the multi-day pacing of a Drip Campaign. If you want content paced out over several days instead, build a real **Drip Campaign** (Agent Portal → **Campaigns**) and pull the same Articles in as steps. Requires the Newsletters package feature (the same one Articles requires).
 
 **Article Page** shows one Article's title, image, and full content as an ordinary page on your site. Add this block to any Website Page, pick the Article, and — if you want it reachable from your site's navigation — give that page a spot in the menu the same way you would any other page (Page Settings → Show in navigation). This is the way to publish an Article as its own standalone page rather than a teaser.
+
+**Sub-Page Links** lists every published page sitting directly beneath the current page as a card — each card shows that page's navigation label, its SEO description as the summary, and links straight to it. There is nothing to configure: it reads your page structure, so it stays correct as you add, rename, reorder, or unpublish pages beneath this one. Use it on a page that exists mainly to group others (a "Business Accounting" category page, for example) so the page is a useful index instead of a dead end, and so visitors who land on it from a search result can still reach everything under it. The optional heading and body fields give it an intro. Available on every package — no upgrade required.
 
 **Agent Info Card** shows your photo, name, designation/company, full mailing address, phone, and email, pulled from your Profile — tick or untick which pieces to show when you add the block (for example, show your photo and name but hide your address). Add it once and move it anywhere on any page with the reorder arrows. On the Editorial template it renders as a full byline-style card; on Modern and Classic it currently uses the same plain contact-card style as the Review Badge block, ahead of a matching visual refresh for those two templates.
 

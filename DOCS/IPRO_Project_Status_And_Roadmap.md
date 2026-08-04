@@ -1820,3 +1820,69 @@ and confirmed the redirect, success message, and all 4 fields landed correctly i
 confirmed it appeared in the agent's own Forms list. Closed the loop on the core invariant by editing the
 master template's title in SuperAdmin after the adoption and confirming the agent's already-adopted copy
 kept its original title, completely unaffected.
+
+### 83. Three-level website navigation, so every article gets its own page (done, 2026-08-04)
+
+Item 81 shipped the Accountants Resources content as a deliberate 2-level compromise: `Resources →
+Category`, with each category page stacking 2–9 articles as separate blocks on one long page. The user
+rejected that shape — they want each article on its own page, reachable from an expandable 3-level menu —
+and asked for a proposal first, noting the portal is not live for real agents so losing test data would
+be acceptable.
+
+Research showed the 2-level cap was **only** in rendering plus two data-entry guards. The data model
+already supported arbitrary depth (`WebsitePage.ParentPageId` is a self-referencing FK), public routing
+is single-segment `/{slug}` against site-wide-unique slugs so depth is irrelevant to it, and the sitemap
+already emitted grandchildren correctly. **No schema change, no migration, and no routing change were
+needed** — which is why this landed in one pass rather than as the multi-week job it looked like.
+
+Two latent bugs surfaced during that research and were folded in; both are written up in
+`09_TROUBLESHOOTING.md`:
+
+1. **There was no mobile menu at all.** Submenus were revealed purely on `:hover`, and the ≤800px media
+   query un-positioned them without ever un-hiding them. On a phone, tapping a parent navigated away and
+   its children were unreachable — *tier 2 was already broken there* before this work. This built the
+   first real mobile menu rather than regressing a working one.
+2. **`SavePage` never enforced the depth cap `SaveNavigationItem` did** — it checked only same-website
+   and not-self, so a crafted POST could already create a grandchild that then vanished from the nav.
+
+Two product decisions were confirmed with the user up front rather than assumed: **mega panel** for the
+desktop third tier (one hover on Resources opens a full-width panel — categories as column headings,
+their articles beneath), and **yes, build the mobile menu** in the same pass.
+
+The rendering is **adaptive, with an explicit zero-regression guarantee**: `_PublicNavigation.cshtml`
+branches three ways per top-level item — no children renders a plain link, children-but-no-grandchildren
+renders today's `.public-site-nav__children` dropdown byte-for-byte, and only grandchildren trigger the
+new mega panel. An agent who never builds a third tier sees markup identical to what they had. Within a
+mega panel, a child with pages under it earns a column heading; childless children are grouped into one
+trailing heading-less column, because rendering them as headings with nothing beneath reads as a row of
+broken categories (caught live during verification, not in review).
+
+Depth validation was **centralized rather than merely relaxed**: one `ResolveParentAsync` helper now backs
+all three call sites (`SaveNavigationItem`, `SavePage`, `GetParentChoicesAsync`), enforcing
+`depth(parent) + subtreeHeight(page) <= 3` plus a cycle guard, so a page that already has children of its
+own cannot be nested to depth 2 and push its own children to a fourth tier. `Delete` now re-parents
+children to the deleted page's own parent instead of letting the FK's `SetNull` promote them to top level
+— at three tiers, deleting "Business Accounting" would otherwise have dumped 9 article pages into the main
+nav. `MovePage` was scoped to siblings, matching `MoveNavigationItem`'s existing behaviour.
+
+A new `SectionIndex` block ("Sub-Page Links") lists the current page's published children as cards using
+each template's own grid classes. It needs no settings class — it derives entirely from the page tree, and
+`MetaDescription` is already populated with each article's summary by the provisioning helper, so the cards
+get real descriptions for free. It is also the graceful-degradation path: anywhere the third nav tier isn't
+practical (a search landing, a deep link), the category page still lists everything beneath it.
+
+Provisioning now builds the real three-tier tree in `WebsiteStarterResourcesHelper` (and its hand-maintained
+zero-write mirror `ProspectWebsitePreviewBuilder`, updated in the same pass or `/Preview` silently diverges
+from what a real signup gets). Starter articles are now **reused by title** rather than blindly created, so
+the new SuperAdmin **Rebuild Resources** action — which deletes an existing agent's Resources subtree so the
+helper can regenerate it, since `EnsureResourcesAsync` is gated on the page already existing — cannot leave a
+second copy of every article behind or discard edits made to the first copy.
+
+**Verification:** built both apps, deployed, restarted, then verified live in the browser rather than by
+code reading. Desktop mega panel renders 4 category columns (2/9/5/1 articles) plus the heading-less column
+of 4 uncategorized ones. Mobile at 375px: hamburger appears, the accordion expands, and all 21 third-tier
+links are reachable with no horizontal overflow — pages that were **unreachable on a phone before this
+work**. `header-sidebar` renders the third tier as an always-expanded indented tree in the 240px rail with
+its own scrollbar, rather than a full-width hover panel that would have made no sense there. Zero-regression
+check passed: the Mortgage and Insurance / Financial verticals, which have no categorized starters, still
+render the original plain dropdown and zero mega panels.

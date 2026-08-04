@@ -802,6 +802,55 @@ literal Unicode characters. If a text-extraction/scraping step is ever used to v
 prefer a raw DOM read over a helper that may perform its own entity-decoding pass — it can hide exactly
 this class of bug.
 
+## Incident: Three Latent Navigation Bugs Found While Building 3-Tier Nav (2026-08-04)
+
+None of these were reported. All three were found by reading the navigation path end-to-end before
+changing it, and all three were already live — the third-tier work did not introduce them, it exposed
+them. Worth recording because each is a different flavour of "a rule enforced in one place but not the
+other."
+
+**1. There was no mobile menu at all.** `_ManagedPageStyles.cshtml` un-positioned dropdowns at ≤800px but
+never un-hid them, and the only rule that set `display:block` was `:hover`. On a phone, tapping a parent
+navigated away and its children were unreachable — so the *existing* second tier was already broken on
+mobile, silently, for every agent site. Easy to miss because desktop hover looked perfect and nobody
+tested a submenu on a phone. **Lesson**: a `:hover`-only reveal is a desktop-only feature; if a media
+query repositions it for small screens, that is a strong hint the small-screen path was never finished.
+
+**2. `SavePage` never enforced the depth cap that `SaveNavigationItem` did.** The page editor checked only
+same-website and not-self — no top-level check, no cycle check — while the menu editor enforced
+"parent must be top-level." A crafted POST could already create a grandchild that then vanished from the
+nav, since rendering only walked two levels. **Fix**: one `ResolveParentAsync` helper now backs all three
+call sites (`SaveNavigationItem`, `SavePage`, `GetParentChoicesAsync`), so the rule lives in exactly one
+place and cannot drift again. **Lesson**: when two screens edit the same field, check that both enforce
+the same invariant — do not assume the stricter one is the only writer.
+
+**3. Deleting a mid-tier page promoted its children to top level.** `IPRODbContext` configures
+`ParentPageId` with `OnDelete(DeleteBehavior.SetNull)`, which is harmless at two tiers (a deleted parent's
+children become top-level pages, which is roughly what you want) but actively wrong at three: deleting
+"Business Accounting" would have dumped 9 article pages straight into the main navigation. **Fix**:
+`Delete` now explicitly re-parents children to the deleted page's own parent before removing it, so they
+move up exactly one level and stay under Resources. **Lesson**: an FK delete behaviour chosen for a
+two-level tree does not automatically stay correct when the tree gets deeper — re-check `SetNull` and
+`Cascade` choices whenever depth changes.
+
+Also fixed in the same pass: `MovePage` reordered across the whole site ignoring parentage, so moving a
+child could reshuffle unrelated top-level pages. Now scoped to siblings, matching `MoveNavigationItem`,
+which already had it right.
+
+## Trap: Verifying Against The Wrong Deploy Run (2026-08-04)
+
+Both apps deploy from the same push, as two separate GitHub Actions runs with adjacent run IDs. While
+verifying the third-tier navigation, the ADMIN run was watched to completion, `ipro-prod-web` was
+restarted on the strength of it, and the first verification then returned **stale markup** — because the
+WEB run was still finishing. This reads exactly like "the fix didn't work" and can send an investigation
+after a bug that does not exist.
+
+**Rule**: after pushing, confirm *both* runs are green (`gh run list`) before restarting either app, and
+restart the app whose run you actually confirmed. When a verification returns markup that looks like the
+old build, check deploy status before touching the code — the cheapest explanation is usually that the
+new build isn't live yet. Pair this with a cache-busting query parameter on the verification fetch, since
+a stale CDN/browser cache produces an identical-looking false negative.
+
 ## Release Build Commands
 
 From the repository root:
