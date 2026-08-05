@@ -140,7 +140,10 @@ public static class NewsletterHtmlComposer
         if (string.IsNullOrWhiteSpace(url)) return null;
         if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            return url;
+            // Blob-hosted images get rewritten onto the app's own domain; everything else passes through.
+            // Doing it here rather than at save time means newsletters written before this change pick it
+            // up on their next send, with no data migration.
+            return IPRO.Utility.NewsletterMediaProxy.Rewrite(url, baseUrl);
         }
 
         return $"{baseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
