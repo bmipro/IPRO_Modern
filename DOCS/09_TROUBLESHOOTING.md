@@ -1029,6 +1029,40 @@ instance of that trap in two days -- the first was the erasure deleting by "any 
 should have behaved identically diverged because each was written separately and nothing compared them.
 When adding a new upload path, look at what the existing ones do with the file being replaced.
 
+## Near-Miss: The Newsletter Media Proxy Was Briefly An Open Proxy (2026-08-05)
+
+`MediaController` serves newsletter images anonymously (mail clients carry no session), so a container
+allowlist is the only thing standing between it and every private file in storage. The allowlist was
+written first and looked airtight: five containers, all verified `isPrivate:false` at their upload sites,
+private containers deliberately excluded with a comment explaining why.
+
+It was still bypassable. The route is `{container}/{*blobPath}`, and the check only ever looked at
+`container`. A request to:
+
+```
+/media/agent-logos/../agent-documents/someones-tax-return.pdf
+```
+
+passes the allowlist on `agent-logos`, then `GetPublicUrl` concatenates the two segments into a URL string
+and the blob SDK normalises the `..` away -- landing in `agent-documents` and returning a private file to
+an unauthenticated caller. The guard now rejects `..`, backslashes, and leading slashes in `blobPath`
+before any concatenation happens.
+
+**How it was caught is the transferable part.** Not by review -- the file had been read several times. A
+throwaway script asserting what `NewsletterMediaProxy.Rewrite` should return had one wrong expectation in
+it. Chasing that wrong expectation meant tracing what actually happens to a traversal string, which is
+where the real hole appeared. The bad test found a bug the good tests didn't.
+
+That is the second time in two days that a sloppy check surfaced a genuine defect: the file-count
+mismatch that exposed the percent-encoding bug (see *Files With A Space In The Name*) had the same shape.
+The lesson is not "write better assertions" -- it is that **a validated allowlist and a validated input are
+different things**, and any check on one URL segment is worthless if another segment can rewrite the path.
+
+**Also worth recording**: this change moved newsletter images off `blob.core.windows.net` (Microsoft's
+self-renewing cert) onto `app.iproadvisers.com`, whose Let's Encrypt cert expires **2026-10-19 with no
+auto-renew**. A lapse now breaks images in already-delivered mail, silently, not just the portal. Renewal
+script lives at `C:\Users\admin\lego\`.
+
 ## Release Build Commands
 
 From the repository root:

@@ -2011,3 +2011,39 @@ removing their copy must not destroy shared artwork.
 The scanner remains unbuilt and is now clearly lower priority: with the leak closed its value is proving
 an erasure was complete and measuring what has already accumulated, not reclaiming space. The ~8 existing
 orphans were judged not worth engineering for -- a few MB, nothing referencing them, cause fixed.
+
+### 87. Newsletter images served from our own domain instead of blob storage (done, 2026-08-05)
+
+A newsletter that landed in Junk was scored by mail-tester at 3.3. One line of that score was
+`URI_IMG_CWINDOWSNET` (-1.0): SpamAssassin penalises any message whose images are hosted on
+`*.blob.core.windows.net`, because that host is free and anonymously signup-able and spammers lean on it.
+
+`GET /media/{container}/{*blobPath}` on IPRO.Web now serves those same bytes from the app's own domain,
+and `NewsletterHtmlComposer.ToAbsoluteUrl` rewrites blob URLs onto it at compose time. Doing the rewrite
+at compose time rather than at save time means newsletters written before this change pick it up on their
+next send, with no data migration.
+
+The endpoint must be anonymous -- mail clients fetch images while rendering an email and carry no session
+-- so **the container allowlist in `NewsletterMediaProxy` is the entire security boundary**. It lists only
+the five containers already uploaded `isPrivate:false`; `agent-documents` and `portal-documents` are
+`isPrivate:true` and deliberately absent. Adding either would turn this into an open proxy handing out
+other agents' private files, authenticated by nothing. Check the `isPrivate` flag at a container's upload
+site before ever adding it here.
+
+Two things worth knowing about the result:
+
+- **Scope is narrower than it first appears.** Starter banners are static assets under `wwwroot` and were
+  never blob-hosted, so a newsletter using one never had this penalty. Only an agent photo, an article
+  image, or a self-uploaded banner triggered it.
+- **Preview and real sends emit different hosts.** Preview and test-send use
+  `NewsletterController.GetRequestBaseUrl()` (whatever host the agent is browsing, so an agent's own
+  custom domain), while `NewsLetterDispatcher` uses `App:BaseUrl`. Both serve correctly; verified live on
+  `app.iproadvisers.com` and on two agent custom domains.
+
+**This introduced a dated dependency.** Newsletter images used to ride Microsoft's self-renewing cert on
+`blob.core.windows.net`. Real sends now point at `app.iproadvisers.com`, whose Let's Encrypt cert expires
+**2026-10-19 with no auto-renew** (script at `C:\Users\admin\lego\`). If it lapses, mail clients refuse the
+fetch and images break in every newsletter -- including mail already delivered -- and they break silently.
+Previously a lapsed cert only meant the portal was briefly unreachable. Automating that renewal is now
+worth more than it was. Agent custom domains are covered by a Sectigo wildcard good to 2027 and are not
+part of this exposure.
