@@ -90,6 +90,14 @@ public class AzureBlobStorageService : IBlobStorageService
             relativePath = relativePath[basePath.Length..];
         }
         var parts = relativePath.TrimStart('/').Split('/', 2);
-        return (parts[0], parts[1]);
+        // AbsolutePath is percent-ENCODED, but the Azure SDK expects the blob's real name. Without
+        // decoding, an upload called "logo-mobile copy.png" is looked up as "logo-mobile%20copy.png"
+        // and simply isn't found -- DeleteIfExistsAsync returns false with no exception, and downloads
+        // 404, so it fails silently in both directions. Found 2026-08-04 when an agent deletion
+        // reported "2 uploaded files" against a preview that listed 3.
+        //
+        // Splitting BEFORE decoding is deliberate: a '/' inside a blob name arrives as %2F and must
+        // survive the split, then decode back to a slash rather than being treated as a separator.
+        return (Uri.UnescapeDataString(parts[0]), Uri.UnescapeDataString(parts[1]));
     }
 }
