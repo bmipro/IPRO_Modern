@@ -885,6 +885,12 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
         await EnsureTableColumnAsync(db, "ClientInvoices", "LastReminderSentAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastReminderSentAt` datetime(6) NULL");
         await EnsureUniqueIndexAsync(db, "ClientInvoices", "UX_ClientInvoices_Agent_DocumentNumber",
             "ALTER TABLE `ClientInvoices` ADD UNIQUE INDEX `UX_ClientInvoices_Agent_DocumentNumber` (`AgentUserId`, `DocumentNumber`)");
+        // Backstop for the 2026-08-05 domain-takeover fix. DescribeDomainClaimAsync is a read followed
+        // by a write, so two simultaneous requests can both pass it; this makes the database the final
+        // arbiter of who owns a hostname. EnsureUniqueIndexAsync tolerates pre-existing duplicate data
+        // (it catches 1062 and leaves the index uncreated), so a dirty table cannot block startup.
+        await EnsureUniqueIndexAsync(db, "AgentDomains", "UX_AgentDomains_DomainName",
+            "ALTER TABLE `AgentDomains` ADD UNIQUE INDEX `UX_AgentDomains_DomainName` (`DomainName`)");
     }
     finally
     {

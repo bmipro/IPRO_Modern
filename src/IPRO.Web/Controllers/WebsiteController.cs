@@ -130,11 +130,17 @@ public class WebsiteController : Controller
             model.HeroStyleOverride = NormalizeOptionalOption(model.HeroStyleOverride, "gradient", "clean", "classic");
         }
 
-        if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
-            await _db.AgentDomains.AnyAsync(d => d.DomainName == model.CustomDomain && d.AgentUserId != AgentId))
+        // Same claim check as AddDomain -- this path writes AgentWebsites.CustomDomain and inserts an
+        // AgentDomains row of its own, so leaving it on the old AgentDomains-only test would have kept
+        // the takeover reachable through the ordinary Save form.
+        if (!string.IsNullOrWhiteSpace(model.CustomDomain))
         {
-            TempData["Error"] = "That custom domain is already connected to another IPRO account.";
-            return RedirectToAction(nameof(Index));
+            var domainClaim = await DescribeDomainClaimAsync(NormalizeDomain(model.CustomDomain), AgentId);
+            if (domainClaim != null)
+            {
+                TempData["Error"] = domainClaim;
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
@@ -346,9 +352,10 @@ public class WebsiteController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        if (await _db.AgentDomains.AnyAsync(d => d.DomainName == normalized))
+        var claim = await DescribeDomainClaimAsync(normalized, AgentId);
+        if (claim != null)
         {
-            TempData["Error"] = "That custom domain is already connected to an IPRO account.";
+            TempData["Error"] = claim;
             return RedirectToAction(nameof(Index));
         }
 
@@ -556,6 +563,67 @@ public class WebsiteController : Controller
         }
 
         await _db.SaveChangesAsync();
+    }
+
+    // Returns an error message when this agent may not claim `normalized`, or null when it is free.
+    //
+    // WHY THIS IS CENTRAL AND STRICT (2026-08-05 audit, Critical)
+    // The old check asked only "does an AgentDomains row already have this DomainName". That missed
+    // the two places a domain is far more likely to already be spoken for:
+    //
+    //   1. AgentUsers.DomainName -- every agent's auto-provisioned {name}.247advisers.com site. No
+    //      agent has an AgentDomains row for it, so the old check never objected.
+    //   2. AgentWebsites.CustomDomain -- set directly by the Save path.
+    //
+    // That mattered because PublicWebsiteController.FindWebsiteForHostAsync resolves a request by
+    // querying AgentDomains FIRST and only falls back to AgentUser.DomainName afterwards. So an agent
+    // who added another agent's provisioned domain took over serving it: the victim's branded URL
+    // rendered the attacker's site, and every lead, form and testimonial posted there was written
+    // with the attacker's AgentUserId. No DNS control was needed -- the row alone was enough.
+    //
+    // It also only compared DomainName, while host resolution matches RootDomain and WwwDomain too,
+    // so "www.x.example" could collide with a victim owning "x.example". All three are compared here.
+    private async Task<string?> DescribeDomainClaimAsync(string normalized, int agentId)
+    {
+        if (string.IsNullOrWhiteSpace(normalized)) return null;
+
+        var parts = BuildDomainParts(normalized);
+        var variants = new[] { normalized, parts.Root, parts.Www }
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        // Custom domains are domains the agent owns and points at us. The platform's own zone is
+        // never one of those, and every agent's free site already lives under it -- so allowing a
+        // claim here can only ever be a land-grab on somebody else's site. Blocking the whole zone
+        // is broader than the exact bug and deliberately so: it needs no lookup and cannot be raced.
+        var platformZone = (_configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com").ToLowerInvariant();
+        if (variants.Any(v => v == platformZone || v.EndsWith("." + platformZone, StringComparison.Ordinal)))
+        {
+            return $"{normalized} belongs to the IPRO platform. Your free site is already reachable there — "
+                 + "add a custom domain only for a domain you own and control.";
+        }
+
+        if (await _db.AgentDomains.AnyAsync(d => d.AgentUserId != agentId &&
+                (variants.Contains(d.DomainName.ToLower())
+                 || variants.Contains(d.RootDomain.ToLower())
+                 || variants.Contains(d.WwwDomain.ToLower()))))
+        {
+            return "That custom domain is already connected to another IPRO account.";
+        }
+
+        if (await _db.AgentUsers.AnyAsync(u => u.Id != agentId && variants.Contains(u.DomainName.ToLower())))
+        {
+            return "That domain is already in use by another IPRO account.";
+        }
+
+        if (await _db.AgentWebsites.AnyAsync(w => w.AgentUserId != agentId && variants.Contains(w.CustomDomain.ToLower())))
+        {
+            return "That custom domain is already connected to another IPRO account.";
+        }
+
+        return null;
     }
 
     private static (string Root, string Www) BuildDomainParts(string domain)
