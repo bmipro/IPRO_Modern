@@ -90,6 +90,14 @@ public class AzureBlobStorageService : IBlobStorageService
             relativePath = relativePath[basePath.Length..];
         }
         var parts = relativePath.TrimStart('/').Split('/', 2);
+        if (parts.Length != 2)
+        {
+            // A URL with no blob segment. DeleteAsync used to swallow the resulting
+            // IndexOutOfRangeException while DownloadAsync turned it into a 500; fail the same
+            // recognisable way in both.
+            throw new ArgumentException($"Blob URL has no blob segment: {blobUrl}", nameof(blobUrl));
+        }
+
         // AbsolutePath is percent-ENCODED, but the Azure SDK expects the blob's real name. Without
         // decoding, an upload called "logo-mobile copy.png" is looked up as "logo-mobile%20copy.png"
         // and simply isn't found -- DeleteIfExistsAsync returns false with no exception, and downloads
@@ -98,6 +106,29 @@ public class AzureBlobStorageService : IBlobStorageService
         //
         // Splitting BEFORE decoding is deliberate: a '/' inside a blob name arrives as %2F and must
         // survive the split, then decode back to a slash rather than being treated as a separator.
-        return (Uri.UnescapeDataString(parts[0]), Uri.UnescapeDataString(parts[1]));
+        var containerName = Uri.UnescapeDataString(parts[0]);
+        var blobName = Uri.UnescapeDataString(parts[1]);
+
+        // ROOT-CAUSE GUARD for the 2026-08-05 media-proxy traversal. This decode is the second one
+        // a proxied path goes through (ASP.NET already decoded the request path once), so a
+        // double-encoded "%252e%252e" arrives here as "%2e%2e" and becomes ".." right at this line.
+        // GetBlobClient then resolves the dot segment and silently moves to ANOTHER container --
+        // which is how an allowlisted public container reached agent-documents. No legitimate blob
+        // name this system creates contains a dot segment or a leading slash (names are
+        // "{guid:N}_{filename}"), so rejecting them here kills the whole class for every caller
+        // rather than only the one that was noticed.
+        if (HasTraversal(blobName) || HasTraversal(containerName))
+        {
+            throw new ArgumentException("Blob URL contains a path traversal segment.", nameof(blobUrl));
+        }
+
+        return (containerName, blobName);
+    }
+
+    private static bool HasTraversal(string value)
+    {
+        if (value.StartsWith('/') || value.StartsWith('\\')) return true;
+        if (value.Contains('\\', StringComparison.Ordinal)) return true;
+        return value.Split('/').Any(segment => segment == ".." || segment == ".");
     }
 }
