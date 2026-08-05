@@ -45,6 +45,37 @@ durable check is on the *resolved result*.
 
 ---
 
+### ✔ C-1 (domain takeover) — **FIXED, commit 5695a17**
+
+Both defects verified in code before changing anything: `AddDomain` tested only `AgentDomains.DomainName`
+(never `AgentUsers.DomainName` or `AgentWebsites.CustomDomain`, and never the Root/Www variants that
+host resolution also matches), while `FindWebsiteForHostAsync` queries `AgentDomains` **first** and only
+falls back to `AgentUser.DomainName` afterwards. Since no agent has an `AgentDomains` row for their
+provisioned site, claiming it was unopposed.
+
+`DescribeDomainClaimAsync` now checks all three host variants against all three sources and refuses the
+platform's own zone outright. Wired into **both** `AddDomain` and `Save` — `Save` carried the same
+partial check and writes `CustomDomain` directly, so fixing only `AddDomain` would have left the
+takeover reachable through the ordinary settings form. A unique index on `AgentDomains.DomainName` in
+both apps' schema repair makes the database the final arbiter of the read-then-write race.
+
+### ✔ C-2 (upgrades kill recurring billing) — **FIXED, commit 1a4cb02**
+
+Verified rather than assumed — including one claim that was wrong. The reviewer said `NextBillingDate`
+is "only ever written"; it *is* read, for downgrade scheduling and proration. The substantive claim held
+anyway: `SubscriptionBillingJob` only applies due downgrades and sends notices, so **nothing in this
+codebase charges anyone** — all recurring money arrives through PayPal's own engine. A `Billing` row with
+an empty `PayPalSubscriptionId` therefore never bills again.
+
+Both upgrade branches now go through `BeginPaidChangeAsync`, which starts a genuine subscription on the
+new plan with the prorated difference as its setup fee. `ApplyUpgradeWithoutPaymentAsync` was deleted
+rather than left unused — it is a working implementation of the defect, one call site from returning.
+
+**Not yet exercised against PayPal.** The build is clean and `BillingController` already handles the
+approval redirect at both call sites, but a sandbox upgrade should be run before any real agent upgrades.
+
+---
+
 ## CRITICAL — verify first, then fix
 
 ### ⚠ C-1. Any agent can hijack another agent's public website and harvest their leads
@@ -160,10 +191,9 @@ Worth recording, because these were checked hard and held:
 
 ## Suggested order
 
-1. **Verify C-1, C-2, C-3 personally.** Each is severe enough that acting on a wrong report would
-   itself be costly.
-2. **C-1 (domain hijack)** — add the missing uniqueness checks and a unique index.
-3. **C-2 (upgrade billing)** — revenue, and retroactive.
+1. ~~C-1 (domain hijack)~~ — **done, 5695a17.**
+2. ~~C-2 (upgrade billing)~~ — **done, 1a4cb02.** Still needs a PayPal sandbox run.
+3. **C-3 (DYK duplicate email)** — verify, then fix as part of the send-pipeline theme below.
 4. **H-1 (swallowed cancellation)** — turns two "safe" guarantees into fiction.
 5. **H-2 (Support→SuperAdmin gap)** — one attribute.
 6. **H-4/H-5 (deploy races)** — cheap, and the failure mode is a dual-site outage.
