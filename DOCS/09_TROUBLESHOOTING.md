@@ -1079,3 +1079,22 @@ dotnet build src/IPRO.Web/IPRO.Web.csproj -c Release --no-restore
 dotnet build src/IPRO.Admin/IPRO.Admin.csproj -c Release --no-restore
 ```
 
+
+## Trap: IPRO.Web Takes About Three Minutes To Start (2026-08-05)
+
+After deploying the certificate job, `app.iproadvisers.com` returned 503 (and intermittently a failed
+connection) for roughly three minutes. It looked exactly like a deploy that had broken startup, and
+was briefly called an outage.
+
+It was not. IPRO.Web runs a long chain of idempotent `Ensure*SchemaAsync` repairs plus several seeders
+before it serves a request, so a cold start after any deploy takes minutes, not seconds. The app
+recovered on its own; the restart issued mid-panic was not what fixed it.
+
+**Practical rule:** after deploying IPRO.Web, a 503 is not evidence of anything until roughly four
+minutes have passed. Poll rather than concluding. `admin.iproadvisers.com` responding normally while
+Web 503s is the expected shape of a slow Web start, not proof that Web is broken -- the two apps start
+independently and Admin has less startup work.
+
+Note also that a docs-only commit still triggers a full deploy and restart of both apps, so pushing
+documentation immediately after a code change restarts the app a second time and doubles the window
+during which this looks alarming.

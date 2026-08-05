@@ -2047,3 +2047,33 @@ fetch and images break in every newsletter -- including mail already delivered -
 Previously a lapsed cert only meant the portal was briefly unreachable. Automating that renewal is now
 worth more than it was. Agent custom domains are covered by a Sectigo wildcard good to 2027 and are not
 part of this exposure.
+
+### 88. Certificate expiry became something the product watches (done, 2026-08-05)
+
+Item 87 moved newsletter images onto `app.iproadvisers.com`, which quietly made a manually-renewed
+Let's Encrypt certificate (expires 2026-10-19) load-bearing for mail that has already been delivered.
+Nothing in the product reported on it, and the renewal was a sequence of steps that lived mostly in
+someone's head.
+
+Three pieces now cover it:
+
+- **`CertificateExpiryJob`** -- daily at 07:00 UTC, checks each domain over a raw TLS handshake, emails
+  when under 30 days, then deliberately throws so the condition shows as a red row in the existing
+  SuperAdmin **Job Scheduler** dashboard. Hangfire has no warning state, so failing is the only way to
+  surface it there; `AutomaticRetry(Attempts = 0)` prevents retry spam.
+- **`Check-CertExpiry.ps1`** -- the same check as a Windows scheduled task, kept because it is the
+  signal that still works when the Azure app itself is down.
+- **`Renew-Certs.ps1`** -- one command for renew + upload + SNI bind + verify, with a `-Preflight` mode
+  that exercises everything except the Let's Encrypt call.
+
+**The user's question is what got this right.** Asked whether SuperAdmin could see scheduled tasks, I
+answered that there was no Hangfire dashboard because it had been removed in the July audit. Wrong:
+it was removed from IPRO.Web and *moved* to IPRO.Admin, where it has been the "Job Scheduler" nav item
+ever since, gated behind the SuperAdmin claim. The grep that misled me looked for
+`UseHangfireDashboard`; the actual call is `MapHangfireDashboard`. A whole SuperAdmin page was about to
+be built to duplicate something that already shipped -- checking the nav before believing the grep
+would have caught it in seconds.
+
+Renewal stays manual: lego runs `--dns manual` and needs a TXT record published in cPanel. DNS is on
+the cPanel host rather than GoDaddy's nameservers, so lego's cPanel provider is the route to full
+automation when a cPanel API token is available. See DOCS/18_CERTIFICATES.md.
