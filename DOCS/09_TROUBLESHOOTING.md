@@ -956,6 +956,42 @@ placeholder.)
 the operation to actually run, against real data, to the stage where it failed. For anything destructive,
 budget for running it once on something disposable before trusting it.
 
+## Incident: Files With A Space In The Name Could Never Be Deleted Or Downloaded (2026-08-05)
+
+A second agent deletion, run deliberately to confirm the first one's fixes, reported **"2 uploaded
+files"** against a preview that listed **3**. Both numbers come from the same list, so the gap was real.
+The survivor was the only one of the three whose filename contained a space:
+`..._logo-mobile copy.png`.
+
+**Root cause**: `AzureBlobStorageService.ParseBlobUrl` read `uri.AbsolutePath`, which is percent-**encoded**,
+and passed it to the Azure SDK as the blob name. A file uploaded as `logo-mobile copy.png` is stored with
+a real space but looked up as `logo-mobile%20copy.png`, which does not exist.
+
+**It failed silently in both directions.** `DeleteIfExistsAsync` returns `false` for a missing blob rather
+than throwing, so deletion looked like a no-op; and `DownloadAsync` shares the same parser, so affected
+files 404'd on download. The blast radius was therefore much wider than deletion: **any uploaded document
+whose name contained a space had never been downloadable since the day it was uploaded.** Three such files
+existed in production -- two agent documents and one client-portal document -- and nobody had reported it,
+because "I can't open my file" does not obviously point at URL encoding.
+
+Public *display* of images was never affected: an `<img src>` uses the encoded URL directly and the
+browser handles it. Only paths that went through the SDK -- delete and download -- were broken.
+
+**Fix**: `Uri.UnescapeDataString` on the parsed segments. Decoding happens **after** the container/blob
+split, deliberately: a `/` inside a blob name arrives as `%2F`, must survive the split rather than be
+treated as a separator, and only then decode back to a slash.
+
+**Two things worth carrying forward:**
+
+- **An API that returns `false` for "not found" hides typos in the key.** The same call would have thrown
+  loudly if the container were wrong. Where a lookup key is *derived* rather than passed through, a
+  silent miss is the dangerous failure mode -- prefer to verify existence, or log when a delete reports
+  nothing was deleted.
+- **This was only caught because two independently-derived numbers were compared.** The preview said 3,
+  the deletion said 2. With only the deletion's own count, "2 uploaded files" reads as complete success.
+  Building the preview off the *same* predicates as the operation is what made the discrepancy visible;
+  a summary that only reports what an operation did cannot contradict itself.
+
 ## Release Build Commands
 
 From the repository root:

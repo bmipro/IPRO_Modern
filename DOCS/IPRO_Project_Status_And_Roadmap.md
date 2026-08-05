@@ -1968,3 +1968,28 @@ the Domains screen, which `07_SUPER_ADMIN.md` now says explicitly.
 row referencing them. The one that could be identified with certainty was deleted; the rest cannot be
 distinguished from live agents' files by name or date alone. A SuperAdmin orphaned-file scanner
 (inventory blobs, diff against all DB references) would settle it properly and is worth building.
+
+### 85. Second deletion test, and the encoding bug it exposed (done, 2026-08-05)
+
+Item 84's deletion was re-run against a different agent (KotParty, #20) specifically to confirm the fixes
+held. The account itself deleted cleanly -- 144 rows across 15 tables, the `AgentUsers` row included, a
+**real** PayPal subscription cancelled (agent 22's had been a $0.00 promo, so that path had never actually
+executed), a success banner rather than an error page, and no Plesk failure since that integration is gone.
+
+The test earned its keep by catching something a passing run would have hidden: the banner said **2
+uploaded files** while the preview had listed **3**. `AzureBlobStorageService.ParseBlobUrl` was reading the
+percent-encoded `uri.AbsolutePath` and using it as the blob name, so any file with a space in its name was
+looked up as `...%20...` and never found. `DeleteIfExistsAsync` returns `false` rather than throwing, so it
+failed silently -- and `DownloadAsync` shares the parser, meaning **three production documents (two agent,
+one client-portal) had been undownloadable since upload** without anyone connecting the symptom to URL
+encoding. Fixed with `Uri.UnescapeDataString` applied after the container/blob split. Full write-up in
+`09_TROUBLESHOOTING.md`.
+
+**Why it was catchable at all**: the preview and the deletion derive their file lists from the same
+predicates, so the two counts can contradict each other. An operation that only reports its own tally has
+nothing to disagree with -- "2 uploaded files" reads as complete success. That property is worth preserving
+in anything similar.
+
+Remaining: roughly 8 blobs orphaned by item 84's crashed first attempt are still in storage. They cannot be
+told apart from live agents' files by name or date, so a SuperAdmin orphaned-file scanner (inventory blobs,
+diff against every DB reference) is still the right way to clear them.
