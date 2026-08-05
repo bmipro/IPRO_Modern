@@ -48,7 +48,9 @@ skipped, so alerts land on `support@iproadvisers.com` rather than disappearing.
 ## The watchdog on the maintenance machine (secondary)
 
 `C:\Users\admin\lego\Check-CertExpiry.ps1`, run daily at 09:00 by the scheduled task
-**"IPRO Certificate Expiry Watch"**.
+**"IPRO Certificate Expiry Watch"**. This duplicates the Azure job above and is kept deliberately: it
+is the signal that still works if the Azure app itself is down, which is exactly when you would not
+get the other one.
 
 - Reads the live certificate over a raw TLS handshake, so it still reports when the site is down or
   mid-deploy
