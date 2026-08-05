@@ -15,6 +15,12 @@
     var formId = $"website-lead-{Guid.NewGuid():N}";
     var submitted = Context.Request.Query["submitted"].ToString();
     var dlToken = Context.Request.Query["dl"].ToString();
+    // "q" is how many Did You Know emails were actually queued. The page used to promise articles were
+    // on their way regardless -- including when the block had no articles selected, or none were
+    // published, so nothing had been queued and nothing would ever arrive. Absent (older links, other
+    // form types) is treated as "don't know", which keeps the original wording.
+    var queuedCount = int.TryParse(Context.Request.Query["q"].ToString(), out var parsedQueued) ? parsedQueued : -1;
+    var queuedNothing = isDidYouKnow && queuedCount == 0;
     var expectedResult = Model.SubmissionType.ToLowerInvariant();
     var captchaLeft = Random.Shared.Next(2, 10);
     var captchaRight = Random.Shared.Next(2, 10);
@@ -37,9 +43,12 @@
     }
     else
     {
-      <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : isDidYouKnow ? "Thanks! We're emailing you the full article(s) -- they'll land in your inbox one at a time over the next little while." : "Thank you. Your message was sent to the adviser.")</div>
+      <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : queuedNothing ? "Thanks -- your details are with the adviser and they'll be in touch." : isDidYouKnow ? "Thanks! We're emailing you the full article(s) -- they'll land in your inbox one at a time over the next little while." : "Thank you. Your message was sent to the adviser.")</div>
     }
-    <script nonce="@Context.GetCspNonce()">(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('dl');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
+    @* Scroll the confirmation into view. It renders down at the form, so after the post-submit
+       redirect the visitor lands at the top of the page and can easily miss it -- which on
+       2026-08-05 led to a resubmission that the 5-minute duplicate guard silently swallowed. *@
+    <script nonce="@Context.GetCspNonce()">(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('dl');u.searchParams.delete('q');history.replaceState(null,'',u.pathname+u.search+u.hash);var el=document.currentScript&&document.currentScript.previousElementSibling;if(el&&el.scrollIntoView){try{el.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){el.scrollIntoView();}}})();</script>
   }
   else
   {

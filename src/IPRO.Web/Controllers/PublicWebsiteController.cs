@@ -163,6 +163,13 @@ public class PublicWebsiteController : Controller
                 l.SubmissionType == submissionType &&
                 l.CreatedAt >= duplicateCutoff))
         {
+            // Suppressed as a repeat within 5 minutes: NOTHING is created here -- no lead, no client,
+            // no queued email. Logged because the visitor still sees the ordinary success message, so
+            // without this line a suppressed submission is indistinguishable from a successful one.
+            // That ambiguity cost a real debugging session on 2026-08-05.
+            _logger.LogInformation(
+                "Public {Type} submission from {Email} on {Domain} suppressed as a duplicate within 5 minutes; nothing was created.",
+                submissionType, model.Email, NormalizeHost(Request.Host.Host));
             return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
         }
 
@@ -250,7 +257,11 @@ public class PublicWebsiteController : Controller
 
         if (submissionType == WebsiteLeadTypes.DidYouKnow)
         {
-            await QueueDidYouKnowArticleEmailsAsync(website, model.DidYouKnowBlockId, client);
+            // The count decides what the visitor is told. Promising "we're emailing you the articles"
+            // when zero were queued is a lie the page used to tell in five different situations.
+            var queuedCount = await QueueDidYouKnowArticleEmailsAsync(website, model.DidYouKnowBlockId, client);
+            return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant(),
+                "q", queuedCount.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
 
         return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
@@ -261,24 +272,49 @@ public class PublicWebsiteController : Controller
     // sends are staggered a few jittered minutes apart and drained by DidYouKnowEmailDispatchJob
     // (runs every minute). Each email carries one article's full content, so there's no
     // "read more" link back to the site to worry about either.
-    private async Task QueueDidYouKnowArticleEmailsAsync(AgentWebsite website, int? blockId, Client? client)
+    // Returns how many emails were queued. Every early exit is logged: this method used to have five
+    // silent returns, and the visitor saw "we're emailing you the articles" in all of them. On
+    // 2026-08-05 that cost a long debugging session in which neither the agent nor the logs could say
+    // whether a submission had queued anything at all. The caller uses the count to decide what the
+    // page actually claims.
+    private async Task<int> QueueDidYouKnowArticleEmailsAsync(AgentWebsite website, int? blockId, Client? client)
     {
-        if (!blockId.HasValue || client == null || string.IsNullOrWhiteSpace(client.Email)) return;
+        if (!blockId.HasValue || client == null || string.IsNullOrWhiteSpace(client.Email))
+        {
+            _logger.LogWarning(
+                "Did You Know queueing skipped for agent {AgentId}: blockId={BlockId}, client={ClientState}. " +
+                "A missing client usually means the package contact limit was reached.",
+                website.AgentUserId, blockId,
+                client == null ? "none" : string.IsNullOrWhiteSpace(client.Email) ? "no email" : "ok");
+            return 0;
+        }
 
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage)
             .FirstOrDefaultAsync(b => b.Id == blockId.Value
                 && b.WebsitePage.AgentWebsiteId == website.Id
                 && b.BlockType == WebsiteBlockTypes.DidYouKnow);
-        if (block == null) return;
+        if (block == null)
+        {
+            _logger.LogWarning(
+                "Did You Know queueing skipped: block {BlockId} not found on website {WebsiteId}, or is not a DidYouKnow block.",
+                blockId.Value, website.Id);
+            return 0;
+        }
 
         var articleIds = WebsiteDidYouKnowSettings.FromJson(block.SettingsJson).ArticleIds;
-        if (articleIds.Count == 0) return;
+        if (articleIds.Count == 0)
+        {
+            _logger.LogWarning(
+                "Did You Know block {BlockId} has NO articles selected, so nothing was queued for {Email}. " +
+                "The agent needs to pick articles on the block.",
+                block.Id, client.Email);
+            return 0;
+        }
 
         var articles = await _db.Articles
             .Where(a => articleIds.Contains(a.Id) && a.AgentUserId == website.AgentUserId && a.IsPublished)
             .ToListAsync();
-        if (articles.Count == 0) return;
 
         // Preserve the agent's chosen order, not whatever order the DB returned.
         var ordered = articleIds
@@ -286,7 +322,13 @@ public class PublicWebsiteController : Controller
             .Where(a => a != null)
             .Select(a => a!)
             .ToList();
-        if (ordered.Count == 0) return;
+        if (ordered.Count == 0)
+        {
+            _logger.LogWarning(
+                "Did You Know block {BlockId} references {Count} article(s) but none are published/owned by agent {AgentId}, so nothing was queued.",
+                block.Id, articleIds.Count, website.AgentUserId);
+            return 0;
+        }
 
         var now = DateTime.UtcNow;
         var scheduledFor = now.AddMinutes(1);
@@ -303,6 +345,11 @@ public class PublicWebsiteController : Controller
         }
 
         await _db.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Queued {Count} Did You Know article email(s) for {Email} from block {BlockId} (agent {AgentId}).",
+            ordered.Count, client.Email, block.Id, website.AgentUserId);
+        return ordered.Count;
     }
 
     private async Task<string?> TryIssueLeadMagnetTokenAsync(AgentWebsite website, int? blockId)
