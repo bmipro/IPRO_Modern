@@ -2076,4 +2076,4 @@ would have caught it in seconds.
 
 Renewal stays manual: lego runs `--dns manual` and needs a TXT record published in cPanel. DNS is on
 the cPanel host rather than GoDaddy's nameservers, so lego's cPanel provider is the route to full
-automation when a cPanel API token is available. See DOCS/18_CERTIFICATES.md.
+automation when a cPanel API token is available. See DOCS/20_CERTIFICATES.md.

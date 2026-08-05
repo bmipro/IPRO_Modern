@@ -27,4 +27,4 @@ Neither script contains a secret. The PFX password is read at runtime out of `ru
 | `Renew-Certs.ps1` | Renews the Let's Encrypt certs and pushes them to Azure App Service. Needs a person for the DNS TXT step. |
 
 Full context, including why certificate expiry now breaks newsletter images retroactively, is in
-[DOCS/18_CERTIFICATES.md](../DOCS/18_CERTIFICATES.md).
+[DOCS/20_CERTIFICATES.md](../DOCS/20_CERTIFICATES.md).

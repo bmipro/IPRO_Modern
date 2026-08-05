@@ -10,7 +10,7 @@
 # lego is configured with --dns manual, so it prints a DNS TXT record that must be published in
 # cPanel before validation can continue. This script surfaces that record prominently and waits.
 # Making it fully unattended means switching to lego's cPanel DNS provider (--dns cpanel), which
-# needs a cPanel API token. See DOCS/18_CERTIFICATES.md.
+# needs a cPanel API token. See DOCS/20_CERTIFICATES.md.
 #
 # USAGE
 #   powershell -File Renew-Certs.ps1 -Preflight     # check everything without contacting Let's Encrypt

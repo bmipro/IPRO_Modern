@@ -19,7 +19,7 @@ namespace IPRO.Scheduler;
 // and it shows up in the Job Scheduler dashboard alongside every other recurring job.
 //
 // Renewal deliberately stays local: it needs lego, the ACME account key, and a DNS TXT record
-// published by hand. See DOCS/18_CERTIFICATES.md.
+// published by hand. See DOCS/20_CERTIFICATES.md.
 //
 // WHY IT THROWS
 // Hangfire has no "warning" state -- a job either succeeded or failed. Throwing after the email is
@@ -95,7 +95,7 @@ public class CertificateExpiryJob
         // Surfaces as a failed job on the Job Scheduler dashboard. See the class comment.
         throw new InvalidOperationException(
             "Certificate renewal is due -- " + string.Join("; ", problems) +
-            ". Renew with Renew-Certs.ps1 on the maintenance machine (see DOCS/18_CERTIFICATES.md).");
+            ". Renew with Renew-Certs.ps1 on the maintenance machine (see DOCS/20_CERTIFICATES.md).");
     }
 
     private async Task NotifyAsync(IReadOnlyCollection<string> problems)
