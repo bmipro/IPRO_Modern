@@ -1993,3 +1993,21 @@ in anything similar.
 Remaining: roughly 8 blobs orphaned by item 84's crashed first attempt are still in storage. They cannot be
 told apart from live agents' files by name or date, so a SuperAdmin orphaned-file scanner (inventory blobs,
 diff against every DB reference) is still the right way to clear them.
+
+
+### 86. Storage stopped leaking on every edit (done, 2026-08-05)
+
+Triggered by asking whether an orphaned-file scanner was worth building for the ~8 files stranded by item
+84's crash. Checking first showed the scanner was the wrong first move: those orphans were a one-off, but
+**replacing a website logo or an article image leaked a file every time**, forever, and had done since
+those features shipped. Replacing an agent photo, by contrast, already cleaned up correctly -- the correct
+pattern existed in the same solution and simply had not been applied to the other two paths.
+
+Both now capture the previous URL and delete it once the new value is safely persisted. Article images
+additionally skip deletion when any starter article or remaining Article still references the same URL,
+because starter provisioning copies a Super-Admin-typed URL into every agent's Article and one agent
+removing their copy must not destroy shared artwork.
+
+The scanner remains unbuilt and is now clearly lower priority: with the leak closed its value is proving
+an erasure was complete and measuring what has already accumulated, not reclaiming space. The ~8 existing
+orphans were judged not worth engineering for -- a few MB, nothing referencing them, cause fixed.

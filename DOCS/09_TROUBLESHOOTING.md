@@ -992,6 +992,43 @@ treated as a separator, and only then decode back to a slash.
   Building the preview off the *same* predicates as the operation is what made the discrepancy visible;
   a summary that only reports what an operation did cannot contradict itself.
 
+## Storage Leak: Replaced Files Were Never Deleted (2026-08-05)
+
+Found while deciding whether an orphaned-file scanner was worth building. It was the wrong question --
+the orphans that prompted it were a one-off, but storage was leaking continuously from a different cause.
+
+Three upload paths, three different behaviours, all in the same codebase:
+
+| Action | Old blob deleted? |
+|---|---|
+| Replace **agent photo** (`AccountController`) | Yes -- captured `previousPhotoUrl` and deleted it |
+| Replace **website logo** (`WebsiteController`) | **No** -- new upload, old file stranded |
+| **Article images** (`ArticlesController`) | **Never** -- not on replace, not on article delete |
+
+The evidence was visible in storage without reading any code: `agent-logos` held **more blobs than there
+were agents**, including four copies of one agent's logo under different GUIDs -- an agent re-uploading
+the same file four times, leaving three behind each time. Meanwhile `agent-photos`, the one path that
+cleaned up after itself, sat at zero.
+
+**Fix**: both now follow the agent-photo shape -- capture the previous URL, delete it **after** the new
+value is persisted, best-effort. Order matters: deleting first would destroy the old file if the save
+then failed. Best-effort matters because the edit the user asked for has already succeeded; a storage
+hiccup must not turn it into an error.
+
+**Article images needed an extra guard**, and it is a different shape from the one in `AgentDataEraser`.
+`Article.ImageUrl` is usually the agent's own upload, but starter provisioning copies
+`WebsiteStarterArticle.ImageUrl` into every agent's Article -- and that value is a URL a Super Admin
+*types* on the Starter Articles screen, so it can point at anything, including a shared asset. Deletion
+is therefore skipped when any starter article, or any remaining Article, still references the URL.
+
+**The general rule**: any column that can hold either a per-user upload or a copied-in shared URL cannot
+be cleaned up on ownership alone. Check for remaining references first. This is the second distinct
+instance of that trap in two days -- the first was the erasure deleting by "any ImageUrl on an agent row".
+
+**Worth noticing**: the correct implementation already existed in the same solution. Three paths that
+should have behaved identically diverged because each was written separately and nothing compared them.
+When adding a new upload path, look at what the existing ones do with the file being replaced.
+
 ## Release Build Commands
 
 From the repository root:
