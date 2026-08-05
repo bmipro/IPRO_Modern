@@ -20,7 +20,32 @@ Azure's free managed certificate was tried for the two `iproadvisers.com` hosts 
 never issued correctly, which is why these are Let's Encrypt via [lego](https://go-acme.github.io/lego/)
 instead. Do not assume the managed option now works without re-testing it.
 
-## The watchdog (automatic)
+## The watchdog in Azure (primary)
+
+`CertificateExpiryJob` runs daily at 07:00 UTC as the Hangfire recurring job **`certificate-expiry`**,
+visible in SuperAdmin under **Job Scheduler** (`admin.iproadvisers.com/hangfire`) alongside the other
+recurring jobs.
+
+- Reads each certificate over a raw TLS handshake, so it reports even when the site is down
+- Under 30 days: emails the operations address, then **deliberately throws**
+- The throw is what makes a due certificate a red row on the Job Scheduler dashboard. Hangfire has no
+  "warning" state, so failing the job is the only way to surface this there. `AutomaticRetry(Attempts
+  = 0)` stops it re-running and re-sending
+- Per-domain isolation: one unreachable host does not stop the others being checked
+
+Configuration (all optional; defaults are in the job):
+
+| Key | Default |
+|---|---|
+| `Certificates:Watch` | `app.iproadvisers.com`, `admin.iproadvisers.com` |
+| `Certificates:WarnDays` | `30` |
+| `Certificates:AlertEmail` | falls back to `Email:NotificationEmail`, then `Email:FromEmail` |
+
+The recipient fallback exists because `Email:NotificationEmail` still ships as a `CHANGE_THIS_`
+placeholder and is not set in Azure. Any candidate containing `CHANGE_THIS` or lacking an `@` is
+skipped, so alerts land on `support@iproadvisers.com` rather than disappearing.
+
+## The watchdog on the maintenance machine (secondary)
 
 `C:\Users\admin\lego\Check-CertExpiry.ps1`, run daily at 09:00 by the scheduled task
 **"IPRO Certificate Expiry Watch"**.

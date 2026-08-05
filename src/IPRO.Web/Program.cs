@@ -275,6 +275,9 @@ RecurringJob.AddOrUpdate<AiDailyDigestJob>("ai-daily-digest", job => job.RunAsyn
 RecurringJob.AddOrUpdate<TrialReminderJob>("trial-reminders", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<ECardDispatchJob>("dispatch-ecards", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<ELetterDispatchJob>("dispatch-eletters", job => job.RunAsync(), Cron.Minutely);
+// 07:00 UTC so a due certificate is a red row on the Job Scheduler dashboard at the start of the
+// day rather than overnight. Deliberately fails when renewal is due -- see CertificateExpiryJob.
+RecurringJob.AddOrUpdate<CertificateExpiryJob>("certificate-expiry", job => job.RunAsync(), "0 7 * * *");
 
 using (var scope = app.Services.CreateScope())
 {
