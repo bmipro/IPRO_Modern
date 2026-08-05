@@ -111,6 +111,27 @@ navigation would have settled it in seconds.
 | mail-tester re-run | Would confirm `URI_IMG_CWINDOWSNET` is actually gone and give a new total. Diagnostics only — a real send was delivered and opened. |
 | Scheduled task logon type | Registered `Interactive` (S4U needed elevation), so it only runs while logged in. |
 
+## Thread 6 - Audit, four Critical fixes, and a false alarm (late session)
+
+Six specialist reviewers audited the solution (~94 findings, ~78 after dedupe) -> `SECURITY_AUDIT_2026-08-05.md`.
+All four Criticals were fixed and deployed the same evening:
+
+| Fix | Commit | Proof |
+|---|---|---|
+| Media proxy traversal (double-encoding) | `14fff55` | **Verified live** - exploit 404s, legitimate media 200 |
+| Domain takeover via AddDomain | `5695a17` | Code paths verified; not exercised end-to-end |
+| Upgrades killed recurring billing | `1a4cb02` | Code verified; **never run against PayPal** |
+| Did You Know duplicate emails | `4bc6ad6` | Deployed; send path confirmed by a real submission |
+
+**The traversal one is the cautionary tale.** It was my own code from that morning, reviewed,
+commented, and tested - against single-encoded input only. Four reviewers found it independently and
+one reproduced it against the real Azure SDK. A check on *input* is a guess about what the input will
+become; the durable check is on the *resolved result*.
+
+**A false alarm worth recording.** Did You Know appeared broken immediately after the C-3 fix. It was
+not - see the troubleshooting entry. Three small fixes followed (`92f7c16`) so the feature can no
+longer fail silently or promise mail it never queued.
+
 ## Process notes
 
 - **IPRO.Web takes ~3 minutes to cold start** after any deploy, because of its schema-repair and seeder

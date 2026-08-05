@@ -1098,3 +1098,38 @@ independently and Admin has less startup work.
 Note also that a docs-only commit still triggers a full deploy and restart of both apps, so pushing
 documentation immediately after a code change restarts the app a second time and doubles the window
 during which this looks alarming.
+
+## Incident: "Did You Know Is Broken" — It Wasn't, But Nothing Could Prove It (2026-08-05)
+
+A Did You Know submission on a live agent site showed the green *"we're emailing you the full
+article(s)"* confirmation, yet produced **no client, no website lead, and no email**. The reasonable
+conclusion — that the day's changes had broken it — was wrong. Nothing was broken.
+
+**What actually happened.** The first submission succeeded completely, but its confirmation renders
+down at the form, so after the post-submit redirect the visitor lands at the top of the page and sees
+nothing. Believing it had failed, they submitted again with the same address. That second attempt hit
+the 5-minute duplicate guard (`PublicWebsiteController.SubmitLead`), which returns **the same success
+redirect** and creates nothing at all. Two completely different outcomes, one identical banner.
+
+**Why it took so long to work out.** Between `SubmitLead` and the queueing method there were **six**
+silent exits — duplicate window, missing client (what a reached contact limit looks like), missing
+block, block with no articles selected, no published articles, empty ordered list — and only one of
+them logged anything. The visitor was told the same happy thing every time. Application Insights was
+also effectively dark (one trace in 30 minutes), so there was no telemetry to fall back on.
+
+**The diagnostic that cracked it** was asking whether the client and lead existed at all. They didn't
+— which proved the failure was *upstream* of the dispatch-job change made earlier that day, because
+the queueing method only runs after both are created. Narrowing by execution order beat reasoning
+about the suspicious recent change.
+
+**Fixed** (commit 92f7c16): all six exits log; the queueing method returns a count and the page no
+longer claims emails are coming when zero were queued; the confirmation scrolls into view.
+
+**The general lesson.** A success message that appears in both the success and the do-nothing case is
+worse than no message: it actively misleads, and it converts a five-second diagnosis into an hour. If
+a code path can silently decide to do nothing, it must either say so or log so.
+
+**Related trap, same day:** treating an absence as proof. A 404 was read as "the traversal guard
+works" when it only meant the blob did not exist, and "no matching log lines" was nearly read as "no
+errors" when the real reason was that almost nothing was being logged. Confirm the query returns
+anything at all before trusting an empty result.
