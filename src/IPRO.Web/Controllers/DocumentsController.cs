@@ -69,12 +69,14 @@ public class DocumentsController : Controller
 
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
         var limitBytes = (long)(access.LimitValue ?? 0) * 1024 * 1024;
-        var usedBytes = await _db.AgentDocuments.Where(d => d.AgentUserId == AgentId).SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
+        // Documents and gallery photos share one FileUploadCapacity pool, so this has to count both.
+        // Counting documents alone let an agent with a full gallery keep uploading past their limit.
+        var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
         if (limitBytes > 0 && usedBytes + file.Length > limitBytes)
         {
-            var usedMb = Math.Round(usedBytes / 1024.0 / 1024.0, 1);
+            var usedMb = IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes);
             var limitMb = access.LimitValue ?? 0;
-            TempData["Error"] = $"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used). Delete unused documents to free up space, or contact us to increase your storage.";
+            TempData["Error"] = $"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used, counting documents and website photos). Delete unused documents or gallery photos to free up space, or contact us to increase your storage.";
             return RedirectToAction(nameof(Index));
         }
 

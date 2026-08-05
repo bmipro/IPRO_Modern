@@ -291,10 +291,9 @@ public class WebsitePagesController : Controller
         if (page.Blocks.Any(b => b.BlockType == WebsiteBlockTypes.Gallery))
         {
             var storageAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
-            var documentBytes = await _db.AgentDocuments.Where(d => d.AgentUserId == AgentId).SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
-            var galleryBytes = await GetGalleryBytesUsedAsync(AgentId);
             ViewBag.StorageAccess = storageAccess;
-            ViewBag.StorageUsedMb = Math.Round((documentBytes + galleryBytes) / 1024.0 / 1024.0, 1);
+            ViewBag.StorageUsedMb = IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(
+                await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId));
         }
         return View(new WebsitePageEditViewModel
         {
@@ -529,12 +528,10 @@ public class WebsitePagesController : Controller
         // upload capacity feature in DOCS.
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
         var limitBytes = (long)(access.LimitValue ?? 0) * 1024 * 1024;
-        var documentBytes = await _db.AgentDocuments.Where(d => d.AgentUserId == AgentId).SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
-        var galleryBytes = await GetGalleryBytesUsedAsync(AgentId);
-        var usedBytes = documentBytes + galleryBytes;
+        var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
         if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
         {
-            var usedMb = Math.Round(usedBytes / 1024.0 / 1024.0, 1);
+            var usedMb = IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes);
             var limitMb = access.LimitValue ?? 0;
             TempData["Error"] = $"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used). Delete unused documents or gallery photos to free up space, or contact us to increase your storage.";
             return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
@@ -571,14 +568,9 @@ public class WebsitePagesController : Controller
         return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
     }
 
-    private async Task<long> GetGalleryBytesUsedAsync(int agentId)
-    {
-        var galleryJsons = await _db.WebsiteContentBlocks
-            .Where(b => b.BlockType == WebsiteBlockTypes.Gallery && b.WebsitePage.AgentWebsite.AgentUserId == agentId)
-            .Select(b => b.SettingsJson)
-            .ToListAsync();
-        return galleryJsons.Sum(json => WebsiteGallerySettings.FromJson(json).TotalBytes());
-    }
+    // GetGalleryBytesUsedAsync moved to Infrastructure/AgentStorageUsage so the documents upload can
+    // use the same figure. Keeping a private copy here is what let the two paths disagree about how
+    // much storage an agent had used.
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SavePage(int id, string title, string slug, string navigationLabel,
