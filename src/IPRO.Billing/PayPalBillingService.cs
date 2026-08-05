@@ -186,9 +186,17 @@ public class PayPalBillingService : IBillingService
             var charge = Math.Round(GetAmount(requestedPackage, period) * remainingFraction, 2);
             var amountDue = Math.Max(0, charge - credit);
 
-            return amountDue <= 0
-                ? await ApplyUpgradeWithoutPaymentAsync(userId, activeSubscription, currentPackage, requestedPackage, period, credit, charge)
-                : await BeginPaidChangeAsync(userId, currentPackage, requestedPackage, period, SubscriptionChangeType.Upgrade, now, credit, charge, amountDue, returnUrl, cancelUrl, activeSubscription.Id, effectiveEnd);
+            // Both branches now go through BeginPaidChangeAsync so that a PayPal subscription is
+            // always created for the new package. The zero-due branch used to call
+            // ApplyUpgradeWithoutPaymentAsync, which cancelled the paid subscription and activated
+            // the new package locally with no PayPal subscription behind it -- upgrading on the last
+            // day of a cycle (remainingFraction ~ 0, so amountDue = 0) therefore granted the top
+            // package permanently, for nothing. There is nothing to "apply without payment": a
+            // recurring charge always needs the customer's approval at PayPal, even when the
+            // immediate amount is zero.
+            return await BeginPaidChangeAsync(userId, currentPackage, requestedPackage, period,
+                SubscriptionChangeType.Upgrade, now, credit, charge, amountDue,
+                returnUrl, cancelUrl, activeSubscription.Id, effectiveEnd);
         }
 
         await ScheduleDowngradeAsync(userId, activeSubscription, currentPackage, requestedPackage, period);
@@ -928,12 +936,36 @@ public class PayPalBillingService : IBillingService
             return await ActivateSubscriptionBillingAsync(userId, billing, invoice, "Your promotion code covers this package at no cost - your account is active now.");
         }
 
-        if (changeType == SubscriptionChangeType.Subscribe && !string.IsNullOrWhiteSpace(billing.PayPalPlanId))
+        // UPGRADES MUST CREATE A REAL SUBSCRIPTION, NOT A ONE-OFF ORDER (2026-08-05 audit, Critical)
+        //
+        // This gate used to read `changeType == Subscribe`, so an upgrade fell through to the
+        // CreatePayPalOrderAsync path below: the agent paid the prorated difference once, the old
+        // subscription was cancelled on capture, and the new Billing row went Active with an EMPTY
+        // PayPalSubscriptionId. Nothing in this system bills anyone -- SubscriptionBillingJob only
+        // applies due downgrades and sends notices, and all recurring money arrives through PayPal's
+        // own engine via PAYMENT.SALE.COMPLETED. So no subscription meant no further revenue, for the
+        // life of the account. Timed near the end of a cycle the prorated difference rounds to zero,
+        // which made the top tier free forever.
+        //
+        // An upgrade now starts a genuine subscription on the new plan, with the prorated difference
+        // charged as its setup fee -- one up-front charge plus correct recurring billing thereafter.
+        // The old subscription is still cancelled only AFTER the new one activates (CapturePaymentAsync),
+        // so an abandoned approval leaves the agent on what they already had.
+        var startsSubscription = changeType == SubscriptionChangeType.Subscribe
+                              || changeType == SubscriptionChangeType.Upgrade;
+
+        if (startsSubscription && !string.IsNullOrWhiteSpace(billing.PayPalPlanId))
         {
+            // For an upgrade the prorated amount is the up-front charge; the plan carries the
+            // recurring price from the next cycle on.
+            var subscriptionSetupFee = changeType == SubscriptionChangeType.Upgrade
+                ? setupFee + Math.Max(0, amountDue)
+                : setupFee;
+
             PayPalSubscriptionResult subscription;
             try
             {
-                subscription = await CreatePayPalSubscriptionAsync(invoice, requestedPackage, period, setupFee, returnUrl, cancelUrl, billing.PayPalPlanId);
+                subscription = await CreatePayPalSubscriptionAsync(invoice, requestedPackage, period, subscriptionSetupFee, returnUrl, cancelUrl, billing.PayPalPlanId);
             }
             catch (Exception ex)
             {
@@ -1010,53 +1042,17 @@ public class PayPalBillingService : IBillingService
         };
     }
 
-    private async Task<BillingChangeResult> ApplyUpgradeWithoutPaymentAsync(int userId, IPRO.Entities.Billing activeSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period, decimal credit, decimal charge)
-    {
-        var now = DateTime.UtcNow;
-        if (!string.IsNullOrWhiteSpace(activeSubscription.PayPalSubscriptionId))
-        {
-            await CancelPayPalSubscriptionAsync(activeSubscription.PayPalSubscriptionId, "Replaced by an upgraded IPRO subscription.");
-        }
-        activeSubscription.Status = BillingStatus.Cancelled;
-        activeSubscription.CancelledAt = now;
-        _uow.Billings.Update(activeSubscription);
-
-        var billing = new IPRO.Entities.Billing
-        {
-            AgentUserId = userId,
-            BillingRuleId = requestedPackage.Id,
-            Amount = GetAmount(requestedPackage, period),
-            Currency = "CAD",
-            Status = BillingStatus.Active,
-            Period = period,
-            StartDate = now,
-            NextBillingDate = activeSubscription.NextBillingDate ?? GetNextBillingDate(now, period),
-            CreatedAt = now
-        };
-
-        await _uow.Billings.AddAsync(billing);
-        await _uow.SaveChangesAsync();
-
-        await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
-        {
-            AgentUserId = userId,
-            CurrentBillingRuleId = currentPackage.Id,
-            RequestedBillingRuleId = requestedPackage.Id,
-            BillingId = billing.Id,
-            ChangeType = SubscriptionChangeType.Upgrade,
-            Status = SubscriptionChangeStatus.Applied,
-            Period = period,
-            EffectiveDate = now,
-            ProratedCredit = credit,
-            ProratedCharge = charge,
-            AmountDue = 0,
-            AppliedAt = now
-        });
-        await _uow.SaveChangesAsync();
-        await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, 0, 0, true);
-
-        return new BillingChangeResult { Success = true, Message = "Your package was upgraded." };
-    }
+    // ApplyUpgradeWithoutPaymentAsync was DELETED on 2026-08-05.
+    //
+    // It handled the "prorated difference rounds to zero" upgrade by cancelling the agent's paid
+    // PayPal subscription and creating a local Billing row marked Active with no PayPalSubscriptionId
+    // behind it. Since nothing in this codebase charges anyone -- recurring money only ever arrives
+    // through PayPal's own engine -- that permanently ended billing for the account, and an upgrade
+    // timed near the end of a cycle handed over the top package for nothing.
+    //
+    // Deliberately not kept as dead code: it is a working implementation of the exact defect, one
+    // call site away from returning. Zero-due upgrades now go through BeginPaidChangeAsync like every
+    // other upgrade, which starts a real subscription that the agent approves at PayPal.
 
     private async Task ScheduleDowngradeAsync(int userId, IPRO.Entities.Billing currentSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period)
     {
