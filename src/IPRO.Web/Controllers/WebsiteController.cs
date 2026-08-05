@@ -175,8 +175,23 @@ public class WebsiteController : Controller
             existing.HeroStyleOverride = model.HeroStyleOverride;
             existing.TemplateId = model.TemplateId;
             existing.CustomDomain = model.CustomDomain;
+            // Capture the logo being replaced so it can be removed after the new one is safely stored.
+            // Without this every re-upload stranded the previous file forever: agent-logos was holding
+            // more blobs than there are agents, including four copies of the same logo. The agent-photo
+            // path in AccountController already did this correctly; this is the same shape.
+            var replacedLogoUrl = !string.IsNullOrEmpty(model.LogoUrl) && existing.LogoUrl != model.LogoUrl
+                ? existing.LogoUrl
+                : null;
+
             if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl;
             await _websites.UpdateAsync(existing);
+
+            // Only after the new URL is persisted -- deleting first would lose the old logo if the save failed.
+            if (!string.IsNullOrWhiteSpace(replacedLogoUrl))
+            {
+                try { await _blob.DeleteAsync(replacedLogoUrl); }
+                catch (Exception ex) { _logger.LogError(ex, "Replaced logo {Url} could not be deleted", replacedLogoUrl); }
+            }
         }
 
         if (existing != null)

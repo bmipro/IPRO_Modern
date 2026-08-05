@@ -121,6 +121,7 @@ public class ArticlesController : Controller
             return View(model);
         }
 
+        string? replacedImageUrl = null;
         if (image != null && image.Length > 0)
         {
             var uploadResult = await ValidateAndUploadImageAsync(image);
@@ -129,6 +130,7 @@ public class ArticlesController : Controller
                 TempData["Error"] = uploadResult.Error;
                 return View(model);
             }
+            replacedImageUrl = existing.ImageUrl;
             existing.ImageUrl = uploadResult.Url ?? string.Empty;
         }
 
@@ -142,6 +144,7 @@ public class ArticlesController : Controller
         existing.IsPublished = model.IsPublished;
         existing.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        await DeleteImageIfNotSharedAsync(replacedImageUrl);
         TempData["Success"] = "Article updated.";
         return RedirectToAction(nameof(Index));
     }
@@ -155,11 +158,31 @@ public class ArticlesController : Controller
         var article = await _db.Articles.FirstOrDefaultAsync(a => a.Id == id && a.AgentUserId == AgentId);
         if (article != null)
         {
+            var imageUrl = article.ImageUrl;
             _db.Articles.Remove(article);
             await _db.SaveChangesAsync();
+            await DeleteImageIfNotSharedAsync(imageUrl);
             TempData["Success"] = "Article deleted.";
         }
         return RedirectToAction(nameof(Index));
+    }
+
+    // Article images were never cleaned up -- not on replace, not on delete -- so every edit leaked a
+    // file that nothing referenced again.
+    //
+    // The guard matters: an agent's ImageUrl is usually their own upload, but starter provisioning
+    // copies WebsiteStarterArticle.ImageUrl (a URL a Super Admin types on the Starter Articles screen,
+    // and can therefore point anywhere) verbatim into every agent's Article. One agent deleting their
+    // copy must not destroy artwork the starter library and every other agent still point at.
+    private async Task DeleteImageIfNotSharedAsync(string? imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl)) return;
+        if (await _db.WebsiteStarterArticles.AnyAsync(s => s.ImageUrl == imageUrl)) return;
+        if (await _db.Articles.AnyAsync(a => a.ImageUrl == imageUrl)) return; // another article still uses it
+
+        // Best effort, same as the agent-photo replacement in AccountController: the article change the
+        // agent asked for has already been saved, so a storage hiccup must not fail their request.
+        try { await _blob.DeleteAsync(imageUrl); } catch { }
     }
 
     private async Task<(string? Url, string? Error)> ValidateAndUploadImageAsync(IFormFile image)
