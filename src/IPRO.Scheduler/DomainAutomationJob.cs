@@ -42,9 +42,14 @@ public class DomainAutomationJob
         // hours or days old. Reported on ouritems.ca and 411trades.com, both of which were
         // forwarding correctly while the portal said otherwise.
         //
-        // So bound domains are still re-checked, just far less often: the work is one DNS lookup
-        // and one HTTP request, and it also catches a domain that silently stops working later.
-        var boundRecheckCutoff = now.AddHours(-6);
+        // So bound domains are still re-checked, just less often: the work is one DNS lookup and one
+        // HTTP request, and it also catches a domain that silently stops working later.
+        //
+        // 30 minutes, not hours. The common case is an agent who has just set up forwarding and is
+        // looking at the screen right now -- a 6-hour window meant they saw a stale "Not forwarding"
+        // for the rest of the working day, which is barely better than never re-checking. Even with
+        // hundreds of domains this is a handful of lookups per run.
+        var boundRecheckCutoff = now.AddMinutes(-30);
 
         var domains = await _db.AgentDomains
             .Where(d =>

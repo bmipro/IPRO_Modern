@@ -484,11 +484,13 @@
             var domainSslReady = domain.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
             var domainCertPending = domainBindingReady && !domainSslReady;
             <div class="border rounded-3 p-2 mb-2">
-              <div class="d-flex justify-content-between gap-2">
+              @* Status sits on its own full-width block and the buttons go underneath, rather than
+                 the two sharing a flex row. Side by side, a non-primary domain carries three buttons
+                 instead of two, which squeezed the text column enough to wrap "Connected" onto its
+                 own line -- so the same markup rendered differently for primary and non-primary rows. *@
+              <div>
                 <div>
                   <div class="fw-semibold">@domain.DomainName @(domain.IsPrimary ? Html.Raw("<span class=\"badge bg-primary ms-1\">Primary</span>") : "")</div>
-                  @* Two full-width rows rather than one inline run. In this narrow column the
-                     inline version wrapped to four ragged lines and was hard to scan. *@
                   <div class="small text-muted mt-1">
                     <div>
                       DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span>
@@ -512,7 +514,7 @@
                     <div class="small mt-1">Root domain (@domain.RootDomain): <span class="badge @(domain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(domain.RootRedirectsToWww ? "Forwarding OK" : "Not forwarding")</span></div>
                   }
                 </div>
-                <div class="d-flex gap-1 align-items-start">
+                <div class="d-flex flex-wrap gap-1 mt-2 pt-2 border-top">
                   @if (!domain.IsPrimary)
                   {
                     <form method="post" action="/Website/SetPrimaryDomain/@domain.Id">
@@ -522,7 +524,7 @@
                   }
                   <form method="post" action="/Website/RetryDomain/@domain.Id">
                     @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Recheck this domain now">Retry</button>
+                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Check this domain again right now, instead of waiting for the next automatic check">Check now</button>
                   </form>
                   <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeDomainModal-@domain.Id">Remove</button>
                 </div>
