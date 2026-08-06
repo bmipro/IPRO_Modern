@@ -35,6 +35,11 @@ Wording that can be used directly in onboarding, support replies, or a help page
 > **Time:** about 10 minutes of work, then a wait — usually an hour, occasionally a day.
 > **You can stop at any point and your current site keeps working.**
 >
+> **There are two settings to make at your registrar, and you should do both in one visit** — the
+> CNAME in step 3 and the forwarding in step 4. Doing only the first is the single most common
+> mistake: your site works at `www.yourfirm.ca`, but anyone typing `yourfirm.ca` lands on your
+> registrar's parked page. Leave your nameservers alone; neither step changes them.
+>
 > **1. Pick your address.** We recommend the `www` version. It's the most reliable to set up, and the
 > short version can redirect to it so both work.
 >
@@ -52,8 +57,17 @@ Wording that can be used directly in onboarding, support replies, or a help page
 > *A CNAME tells the internet "when someone asks for this address, send them to IPRO."* Save it — that's
 > your part done. You don't need to keep the page open.
 >
-> **4. Make the short address work too.** At your registrar, under Forwarding or Redirect, forward
-> `yourfirm.ca` → `https://www.yourfirm.ca`, permanent redirect, masking off.
+> **4. Make the short address work too** — while you're still on your registrar's site. Under
+> **Forwarding** or **Redirect**, forward `yourfirm.ca` → `https://www.yourfirm.ca`, permanent
+> redirect, masking off.
+>
+> Where to find it: **GoDaddy** — My Products → Domains → your domain → Forwarding → Add ·
+> **Namecheap** — Domain List → Manage → Redirect Domain · **Squarespace/Google Domains** — Domains →
+> your domain → Forwarding · **Cloudflare** — Rules → Redirect Rules.
+>
+> *Why this isn't just another DNS record:* a bare domain can't use a CNAME — the DNS standard forbids
+> it alongside the `SOA` and `NS` records every domain must have. Forwarding is how registrars solve
+> that, which is why it lives in a different screen.
 >
 > **5. Your certificate installs itself.** The last step is the padlock in the browser. It's issued and
 > installed automatically, usually within a few minutes of step 3 completing, and renewed automatically

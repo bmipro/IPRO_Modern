@@ -367,16 +367,84 @@
   <div class="col-xl-4">
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-4">
+        @{
+            // Show the agent's own domain wherever we have it. "www.mragent.com" made people
+            // translate the example into their own case, which is where mistakes came from.
+            var exWww  = primaryDomain?.DomainName ?? "www.yourfirm.com";
+            var exRoot = primaryDomain?.RootDomain;
+            if (string.IsNullOrWhiteSpace(exRoot))
+            {
+                exRoot = exWww.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? exWww[4..] : "yourfirm.com";
+            }
+        }
         <h5 class="fw-bold mb-3"><i class="fas fa-route me-2 text-primary"></i>Custom Domain Setup</h5>
-        <div class="small text-muted mb-3">For GoDaddy or another registrar, keep nameservers as-is and add DNS for the www host. Root domains can forward to www.</div>
+
+        @* Both registrar actions are shown together, on purpose. Presenting only the CNAME and then
+           reporting "Root domain: Not forwarding" afterwards meant agents believed they were finished,
+           and found out later that anyone typing the address without "www" never reached their site.
+           Same total work -- one trip to the registrar instead of a surprise correction. *@
+        <div class="alert alert-primary border-0 small py-2 mb-3">
+          <i class="fas fa-circle-info me-1"></i>
+          <strong>Two things to set at your registrar</strong> — do them in the same visit.
+          Leave your nameservers exactly as they are.
+        </div>
 
         <div class="border rounded-3 p-3">
-          <div class="fw-bold mb-2">Custom agent domain</div>
-          <div class="small text-muted mb-2">For a domain like www.mragent.com:</div>
-          <div class="bg-light rounded p-3 font-monospace small">
-            CNAME&nbsp;&nbsp;www&nbsp;&nbsp;@dnsTarget
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-primary rounded-pill">1</span>
+            <span class="fw-bold">Point <span class="font-monospace">www</span> at your site</span>
           </div>
-          <div class="small text-muted mt-2">If the agent enters mragent.com, we will save it as www.mragent.com. Forward the root domain to www when the registrar supports forwarding.</div>
+          <div class="small text-muted mb-2">Under <strong>DNS</strong> / <strong>DNS Management</strong>, add:</div>
+          <div class="bg-light rounded p-3 font-monospace small">
+            <div><span class="text-muted">Type&nbsp;&nbsp;</span>CNAME</div>
+            <div><span class="text-muted">Name&nbsp;&nbsp;</span>www</div>
+            <div><span class="text-muted">Value&nbsp;</span>@dnsTarget</div>
+          </div>
+          <div class="small text-muted mt-2">
+            Most registrars want just <span class="font-monospace">www</span> in the Name field, not the
+            full address. Enter <span class="font-monospace">@exRoot</span> or
+            <span class="font-monospace">@exWww</span> above — we save it as
+            <span class="font-monospace">@exWww</span> either way.
+          </div>
+        </div>
+
+        <div class="border rounded-3 p-3 mt-2">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-primary rounded-pill">2</span>
+            <span class="fw-bold">Send the short address to it</span>
+          </div>
+          <div class="small text-muted mb-2">Under <strong>Forwarding</strong> / <strong>Redirect</strong>, set:</div>
+          <div class="bg-light rounded p-3 font-monospace small">
+            <div>@exRoot &nbsp;&rarr;&nbsp; https://@exWww</div>
+            <div class="text-muted">permanent (301) &middot; masking off</div>
+          </div>
+          <div class="small text-muted mt-2">
+            <strong>Skip this and half your visitors won't arrive.</strong> Anyone typing
+            <span class="font-monospace">@exRoot</span> without the
+            <span class="font-monospace">www</span> lands on your registrar's parked page instead of your
+            site. This is a forwarding setting, not a DNS record — the bare address can't use a CNAME.
+          </div>
+          <button class="btn btn-link btn-sm p-0 small mt-2" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#registrarHints" aria-expanded="false" aria-controls="registrarHints">
+            Where is this on my registrar?
+          </button>
+          <div class="collapse mt-2" id="registrarHints">
+            <div class="bg-light rounded p-3 small">
+              <div class="mb-2"><strong>GoDaddy</strong> — My Products → Domains → your domain → Forwarding → Add</div>
+              <div class="mb-2"><strong>Namecheap</strong> — Domain List → Manage → Redirect Domain</div>
+              <div class="mb-2"><strong>Squarespace / Google Domains</strong> — Domains → your domain → Forwarding</div>
+              <div class="mb-2"><strong>Cloudflare</strong> — Rules → Redirect Rules (or a Page Rule)</div>
+              <div class="text-muted">
+                Wording differs, but it's always called forwarding or redirecting. If your registrar
+                doesn't offer it, tell us and we'll sort out an alternative.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="small text-muted mt-2">
+          That's everything. Your security certificate is issued and renewed automatically — there is no
+          third step and nothing else to add.
         </div>
         <div class="border rounded-3 p-3 mt-3">
           <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
