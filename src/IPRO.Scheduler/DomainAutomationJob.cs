@@ -34,12 +34,36 @@ public class DomainAutomationJob
     public async Task RunAsync()
     {
         var now = DateTime.UtcNow;
+
+        // Fully-bound domains used to be excluded outright, which froze the root-domain forwarding
+        // status at whatever it was the moment the certificate landed. An agent who set up
+        // forwarding afterwards -- the normal order, since the portal only tells them about it once
+        // the domain is added -- was shown "Not forwarding" indefinitely, with a Last checked time
+        // hours or days old. Reported on ouritems.ca and 411trades.com, both of which were
+        // forwarding correctly while the portal said otherwise.
+        //
+        // So bound domains are still re-checked, just far less often: the work is one DNS lookup
+        // and one HTTP request, and it also catches a domain that silently stops working later.
+        var boundRecheckCutoff = now.AddHours(-6);
+
         var domains = await _db.AgentDomains
-            .Where(d => (d.DnsStatus != AgentDomainStatus.Bound ||
-                         d.AzureBindingStatus != AgentDomainStatus.Bound ||
-                         d.SslStatus != AgentDomainStatus.Bound) &&
-                        !d.AutoRetryExhausted &&
-                        (d.NextRetryAt == null || d.NextRetryAt <= now))
+            .Where(d =>
+                (
+                    // Still being set up -- the fast path, every run.
+                    (d.DnsStatus != AgentDomainStatus.Bound ||
+                     d.AzureBindingStatus != AgentDomainStatus.Bound ||
+                     d.SslStatus != AgentDomainStatus.Bound) &&
+                    !d.AutoRetryExhausted &&
+                    (d.NextRetryAt == null || d.NextRetryAt <= now)
+                )
+                ||
+                (
+                    // Fully bound -- revisit every 6 hours so forwarding status stays true.
+                    d.DnsStatus == AgentDomainStatus.Bound &&
+                    d.AzureBindingStatus == AgentDomainStatus.Bound &&
+                    d.SslStatus == AgentDomainStatus.Bound &&
+                    (d.LastCheckedAt == null || d.LastCheckedAt < boundRecheckCutoff)
+                ))
             .OrderBy(d => d.LastCheckedAt ?? d.CreatedAt)
             .Take(50)
             .ToListAsync();
