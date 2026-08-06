@@ -201,6 +201,14 @@ public class DomainCheckService : IDomainCheckService
                 : isRedirect
                     ? $"The root domain redirects to {target ?? "somewhere else"} rather than {domain.WwwDomain}."
                     : $"The root domain resolves but does not redirect to {domain.WwwDomain}. Visitors typing the bare domain may not reach the site.";
+
+            // Log the inputs to the decision, not just the verdict. Diagnosing a wrong "Not
+            // forwarding" from outside meant guessing at which of several steps had failed, with no
+            // way to tell a stale value from a failing check.
+            _logger.LogInformation(
+                "Root check {Root}: status={Status} location={Location} target={Target} expected={Www} => forwarding={Result}",
+                domain.RootDomain, (int)response.StatusCode, location?.ToString() ?? "(none)",
+                target ?? "(none)", domain.WwwDomain, domain.RootRedirectsToWww);
         }
         catch (Exception ex)
         {

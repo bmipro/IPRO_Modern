@@ -453,18 +453,36 @@ public class WebsiteController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var cooldown = TimeSpan.FromMinutes(2);
+        // 15 seconds, not 2 minutes. The background job now also touches fully-bound domains, so
+        // LastCheckedAt moves on its own -- an agent clicking this button had a good chance of
+        // landing inside a 2-minute cooldown and being told to wait, with the message rendered at
+        // the top of a long page they were scrolled to the bottom of. From their side the button
+        // simply did nothing. This is a logged-in agent rechecking their own domain; 15 seconds is
+        // ample protection.
+        var cooldown = TimeSpan.FromSeconds(15);
         if (domain.LastCheckedAt.HasValue && DateTime.UtcNow - domain.LastCheckedAt.Value < cooldown)
         {
-            TempData["Error"] = "Please wait a couple of minutes before rechecking this domain again.";
+            TempData["Error"] = $"Just checked {domain.DomainName} a moment ago — give it a few seconds and try again.";
             return RedirectToAction(nameof(Index));
         }
 
         var bound = await _domainCheck.CheckAsync(domain);
         await _db.SaveChangesAsync();
+
+        // Always say what was found, including the forwarding result. Previously a successful check
+        // that left forwarding unchanged produced a message about binding only, so the button looked
+        // inert to anyone watching the forwarding badge.
+        var rootPart = string.IsNullOrWhiteSpace(domain.RootDomain) ||
+                       string.Equals(domain.RootDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : domain.RootRedirectsToWww
+                ? $" {domain.RootDomain} forwards correctly."
+                : $" {domain.RootDomain} is not forwarding yet.";
+
         TempData[bound ? "Success" : "Error"] = bound
-            ? $"{domain.DomainName} is bound."
-            : DomainErrorTranslator.ToAgentMessage(domain.LastError);
+            ? $"Checked just now: {domain.DomainName} is connected and secured.{rootPart}"
+            : DomainErrorTranslator.ToAgentMessage(domain.LastError) + rootPart;
+
         return RedirectToAction(nameof(Index));
     }
 
