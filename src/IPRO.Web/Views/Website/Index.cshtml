@@ -487,10 +487,21 @@
               <div class="d-flex justify-content-between gap-2">
                 <div>
                   <div class="fw-semibold">@domain.DomainName @(domain.IsPrimary ? Html.Raw("<span class=\"badge bg-primary ms-1\">Primary</span>") : "")</div>
-                  <div class="small text-muted">
-                    DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span>
-                    &middot; Connection: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@(domainBindingReady ? "Connected" : "Setting up")</span>
-                    &middot; Certificate: <span class="@(domainSslReady ? "text-success" : (domainCertPending ? "text-warning" : "text-muted"))">@(domainSslReady ? "Secured" : (domainCertPending ? "Securing" : "Not started"))</span>
+                  @* Two full-width rows rather than one inline run. In this narrow column the
+                     inline version wrapped to four ragged lines and was hard to scan. *@
+                  <div class="small text-muted mt-1">
+                    <div>
+                      DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span>
+                      &nbsp;&middot;&nbsp;
+                      Connection: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@(domainBindingReady ? "Connected" : "Setting up")</span>
+                    </div>
+                    <div>
+                      Certificate: <span class="@(domainSslReady ? "text-success" : (domainCertPending ? "text-warning" : "text-muted"))">@(domainSslReady ? "Secured" : (domainCertPending ? "Securing" : "Not started"))</span>
+                      @if (domainCertPending)
+                      {
+                        <span class="text-muted">&nbsp;&middot;&nbsp;usually a few minutes, automatic</span>
+                      }
+                    </div>
                   </div>
                   @if (!string.IsNullOrWhiteSpace(domain.LastError))
                   {

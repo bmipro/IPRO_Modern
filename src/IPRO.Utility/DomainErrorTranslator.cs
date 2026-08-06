@@ -39,7 +39,11 @@ public static class DomainErrorTranslator
             return rawError;
         }
 
-        return "IPRO is still working on connecting this domain. If this continues for more than a day, contact support.";
+        // The overwhelmingly common case here is a managed certificate mid-issue, which clears by
+        // itself within minutes. Saying "if this continues for more than a day, contact support"
+        // told agents to wait a day and then phone, for something that fixes itself before they
+        // finish reading the sentence. The status row above already carries the real state.
+        return "Finishing setup — this usually completes on its own within a few minutes.";
     }
 
     private static bool Contains(string value, string search) =>
