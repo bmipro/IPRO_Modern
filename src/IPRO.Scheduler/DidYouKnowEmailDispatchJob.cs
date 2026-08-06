@@ -26,9 +26,17 @@ public class DidYouKnowEmailDispatchJob
     {
         // AsNoTracking, and every write below goes through ExecuteUpdateAsync: this job deliberately
         // does not mix the EF change tracker with direct updates on the same rows.
+        var now = DateTime.UtcNow;
+        // A claim older than this is assumed dead -- the process that took it was killed (deploy,
+        // crash, worker recycle) between claiming and sending. Generous enough that a slow SendGrid
+        // call can never be mistaken for a dead claim.
+        var staleClaimCutoff = now.AddMinutes(-15);
+
         var due = await _db.DidYouKnowEmailQueueItems
             .AsNoTracking()
-            .Where(q => q.SentAtUtc == null && q.ScheduledForUtc <= DateTime.UtcNow)
+            .Where(q => q.SentAtUtc == null
+                     && q.ScheduledForUtc <= now
+                     && (q.ClaimedAtUtc == null || q.ClaimedAtUtc < staleClaimCutoff))
             .OrderBy(q => q.ScheduledForUtc)
             .Take(100)
             .ToListAsync();
@@ -51,14 +59,25 @@ public class DidYouKnowEmailDispatchJob
                 // owns the item, and every other run gets 0 rows and skips it. MySQL settles the
                 // race, not application timing.
                 //
-                // This is deliberately at-most-once. A crash between the claim and the send loses
-                // that one email. The alternative -- send first, mark after -- is at-least-once, and
-                // for unsolicited-looking marketing mail a duplicate is far more damaging than a
-                // miss: it draws spam complaints and hurts the domain reputation this system depends
-                // on. A missed article is invisible; a doubled one is not.
+                // CLAIMING IS NOT THE SAME AS COMPLETING (revised 2026-08-06)
+                //
+                // The first version of this used SentAtUtc itself as the claim, which made the job
+                // at-most-once: a crash or an ordinary deploy restart between the claim and the send
+                // destroyed that email permanently, with no retry and no record. That is a poor trade
+                // for a system that deploys several times a day, and it is suspected of eating part
+                // of a real test run on 2026-08-05.
+                //
+                // ClaimedAtUtc is now a separate marker. Concurrent runs still cannot both take the
+                // same item -- MySQL settles that -- but an item claimed and never confirmed sent
+                // becomes eligible again after the stale cutoff, so a killed process loses nothing.
+                // The only duplicate risk left is a send that genuinely succeeded but whose
+                // confirmation never got written, which needs a crash inside a specific sub-second
+                // window; a bounded, rare duplicate is a much better failure than a silent loss.
                 var claimed = await _db.DidYouKnowEmailQueueItems
-                    .Where(q => q.Id == item.Id && q.SentAtUtc == null)
-                    .ExecuteUpdateAsync(s => s.SetProperty(q => q.SentAtUtc, DateTime.UtcNow));
+                    .Where(q => q.Id == item.Id
+                             && q.SentAtUtc == null
+                             && (q.ClaimedAtUtc == null || q.ClaimedAtUtc < staleClaimCutoff))
+                    .ExecuteUpdateAsync(s => s.SetProperty(q => q.ClaimedAtUtc, DateTime.UtcNow));
 
                 if (claimed == 0)
                 {
@@ -70,8 +89,13 @@ public class DidYouKnowEmailDispatchJob
                 var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == item.ClientId);
                 if (article == null || client == null || string.IsNullOrWhiteSpace(client.Email))
                 {
-                    // Nothing sendable (article unpublished/deleted, client gone) -- already claimed
-                    // above, so it is dropped rather than retried forever. Same intent as before.
+                    // Nothing sendable (article unpublished/deleted, client gone). This is a DEFINITIVE
+                    // outcome, so retire the item properly instead of leaving it claimed -- otherwise
+                    // the stale-claim sweep would pick it up again every 15 minutes forever.
+                    await MarkRetiredAsync(item.Id);
+                    _logger.LogInformation(
+                        "Did You Know queued email {ItemId} dropped: article {ArticleId} or client {ClientId} is missing/unpublished.",
+                        item.Id, item.ArticleId, item.ClientId);
                     continue;
                 }
 
@@ -102,8 +126,13 @@ public class DidYouKnowEmailDispatchJob
                 // SendGridEmailService catches everything and RETURNS a failure rather than throwing,
                 // so the catch below never sees a rejected send. The result was previously discarded
                 // entirely, which meant a bad API key or a rate-limit rejection still looked like a
-                // delivered email. The item stays claimed either way -- this is about the log telling
-                // the truth, not about retrying.
+                // delivered email.
+                //
+                // Either way this is a DEFINITIVE outcome -- SendGrid answered -- so the item is
+                // retired. A rejection is usually permanent (bad address), and retrying it every 15
+                // minutes forever would be worse than dropping it loudly.
+                await MarkRetiredAsync(item.Id);
+
                 if (!result.Success)
                 {
                     _logger.LogError(
@@ -114,8 +143,20 @@ public class DidYouKnowEmailDispatchJob
             catch (Exception ex)
             {
                 // Per-item isolation: one bad row must not stop the rest of the batch.
-                _logger.LogError(ex, "Did You Know queued email {ItemId} (article {ArticleId}) failed", item.Id, item.ArticleId);
+                //
+                // Note what is deliberately NOT done here: the item is left claimed-but-unsent. That
+                // is the recoverable state -- the stale-claim sweep will pick it up again in 15
+                // minutes. An unexpected exception is exactly the case where a retry is wanted, in
+                // contrast to a SendGrid rejection, which is answered and final.
+                _logger.LogError(ex, "Did You Know queued email {ItemId} (article {ArticleId}) failed; it will be retried after the stale-claim window.", item.Id, item.ArticleId);
             }
         }
     }
+
+    // Retires an item: SentAtUtc is the terminal marker, so the row is never selected again. Named
+    // "retired" rather than "sent" because it also covers definitively-undeliverable items.
+    private Task MarkRetiredAsync(int itemId) =>
+        _db.DidYouKnowEmailQueueItems
+            .Where(q => q.Id == itemId)
+            .ExecuteUpdateAsync(s => s.SetProperty(q => q.SentAtUtc, DateTime.UtcNow));
 }

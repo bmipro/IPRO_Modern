@@ -434,11 +434,19 @@ CREATE TABLE IF NOT EXISTS `DidYouKnowEmailQueueItems` (
     `ArticleId` int NOT NULL,
     `ClientId` int NOT NULL,
     `ScheduledForUtc` datetime(6) NOT NULL,
+    `ClaimedAtUtc` datetime(6) NULL,
     `SentAtUtc` datetime(6) NULL,
     `CreatedAt` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`),
     KEY `IX_DidYouKnowEmailQueueItems_Dispatch` (`SentAtUtc`, `ScheduledForUtc`)
 ) CHARACTER SET=utf8mb4;");
+
+    // Existing installs already have the table, so CREATE TABLE IF NOT EXISTS is a no-op for them --
+    // the column has to be added separately. ClaimedAtUtc separates "a run owns this" from "this was
+    // delivered", so an item claimed by a process that then died is recoverable instead of silently
+    // lost. See DidYouKnowEmailDispatchJob.
+    await EnsureTableColumnAsync(db, "DidYouKnowEmailQueueItems", "ClaimedAtUtc",
+        "ALTER TABLE `DidYouKnowEmailQueueItems` ADD COLUMN `ClaimedAtUtc` datetime(6) NULL");
 }
 
 static async Task EnsureDripCampaignStepSendSchemaAsync(IPRODbContext db)
