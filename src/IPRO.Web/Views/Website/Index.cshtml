@@ -42,6 +42,11 @@
     var dnsReady = primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var bindingReady = primaryDomain?.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var sslReady = primaryDomain?.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
+    // Bound-with-no-certificate is the one state an agent cannot act on and automation cannot clear:
+    // the app is HTTPS-only, so the site serves a certificate for the wrong name and browsers block
+    // it outright. It has to read as broken (red) and say so, or the agent sees two greens plus a
+    // neutral grey and calls support about a dead website.
+    var certificateBlocked = bindingReady && !sslReady;
     var templateRetired = ViewBag.TemplateRetired == true;
 }
 
@@ -404,12 +409,18 @@
           {
             var domainDnsReady = domain.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || domain.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
             var domainBindingReady = domain.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
-            var domainDnsLabel = domainDnsReady ? "Ready" : "Waiting for DNS propagation";
+            var domainDnsLabel = domainDnsReady ? "Found" : "Waiting for DNS";
+            var domainSslReady = domain.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
+            var domainCertBlocked = domainBindingReady && !domainSslReady;
             <div class="border rounded-3 p-2 mb-2">
               <div class="d-flex justify-content-between gap-2">
                 <div>
                   <div class="fw-semibold">@domain.DomainName @(domain.IsPrimary ? Html.Raw("<span class=\"badge bg-primary ms-1\">Primary</span>") : "")</div>
-                  <div class="small text-muted">DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span> &middot; Azure: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@domain.AzureBindingStatus</span></div>
+                  <div class="small text-muted">
+                    DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span>
+                    &middot; Connection: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@(domainBindingReady ? "Connected" : "Setting up")</span>
+                    &middot; Certificate: <span class="@(domainSslReady ? "text-success" : (domainCertBlocked ? "text-danger fw-semibold" : "text-muted"))">@(domainSslReady ? "Secured" : (domainCertBlocked ? "Action needed by IPRO" : "Not started"))</span>
+                  </div>
                   @if (!string.IsNullOrWhiteSpace(domain.LastError))
                   {
                     <div class="small @(domainDnsReady ? "text-danger" : "text-muted")">@IPRO.Utility.DomainErrorTranslator.ToAgentMessage(domain.LastError)</div>
@@ -458,25 +469,95 @@
         @if (primaryDomain != null)
         {
           <div class="border rounded-3 p-3 mt-3">
-            <div class="fw-bold mb-2">Domain automation status</div>
-            <div class="d-flex justify-content-between small mb-2">
-              <span>DNS check</span>
-              <span class="badge @(dnsReady ? "bg-success" : "bg-warning text-dark")">@(dnsReady ? "Ready" : "Waiting for DNS")</span>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold">Connection status</span>
+              <button class="btn btn-link btn-sm p-0 small" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#domainHelp" aria-expanded="false" aria-controls="domainHelp">
+                How this works
+              </button>
+            </div>
+            <div class="collapse mb-3" id="domainHelp">
+              <div class="bg-light rounded-3 p-3 small">
+                <div class="fw-semibold mb-2">Connecting your own domain — the four stages</div>
+                <ol class="mb-2 ps-3">
+                  <li class="mb-1">
+                    <strong>Your domain</strong> — you add a CNAME record at your registrar (where you
+                    bought the domain) pointing <code>www</code> at <code>@(primaryDomain.DnsTarget)</code>.
+                    We check for it automatically; it usually appears within an hour.
+                  </li>
+                  <li class="mb-1">
+                    <strong>Connection to your site</strong> — we connect the address to your website.
+                    Automatic, no action needed.
+                  </li>
+                  <li class="mb-1">
+                    <strong>Security certificate</strong> — the padlock in the browser.
+                    <strong>IPRO handles this.</strong> Until it's done, visitors to the new address see a
+                    security warning, so we're alerted automatically and aim to finish within one
+                    business day.
+                  </li>
+                  <li>
+                    <strong>Short address</strong> — set up forwarding at your registrar so
+                    <code>@(primaryDomain.RootDomain)</code> redirects to
+                    <code>@(primaryDomain.DomainName)</code>. Without it, people who leave off the
+                    <code>www</code> land on your registrar's parked page instead of your site.
+                  </li>
+                </ol>
+                <div class="text-muted">
+                  Your site stays live at <strong>@temporaryDomain</strong> throughout — you can stop at
+                  any stage without breaking anything.
+                </div>
+              </div>
             </div>
             <div class="d-flex justify-content-between small mb-2">
-              <span>Azure binding</span>
-              <span class="badge @(bindingReady ? "bg-success" : "bg-secondary")">@primaryDomain.AzureBindingStatus</span>
+              <span>Your domain</span>
+              <span class="badge @(dnsReady ? "bg-success" : "bg-warning text-dark")">@(dnsReady ? "Found" : "Waiting")</span>
             </div>
             <div class="d-flex justify-content-between small mb-2">
-              <span>SSL</span>
-              <span class="badge @(sslReady ? "bg-success" : "bg-secondary")">@primaryDomain.SslStatus</span>
+              <span>Connection to your site</span>
+              <span class="badge @(bindingReady ? "bg-success" : "bg-secondary")">@(bindingReady ? "Connected" : "Setting up")</span>
             </div>
+            <div class="d-flex justify-content-between small mb-2">
+              <span>Security certificate</span>
+              <span class="badge @(sslReady ? "bg-success" : (certificateBlocked ? "bg-danger" : "bg-secondary"))">
+                @(sslReady ? "Secured" : (certificateBlocked ? "Action needed by IPRO" : "Not started"))
+              </span>
+            </div>
+            @if (certificateBlocked)
+            {
+              <div class="alert alert-danger border-0 small mb-2 mt-2 py-2">
+                <strong>Your site isn't reachable at this address yet.</strong>
+                Visitors would see a browser security warning until the certificate is in place.
+                We've been notified automatically and will have it secured within one business day —
+                <strong>you don't need to contact us</strong>.
+                <div class="mt-1">
+                  Your site is still live in the meantime at
+                  <a href="https://@temporaryDomain" target="_blank" class="alert-link">@temporaryDomain</a>.
+                </div>
+              </div>
+            }
+            else if (!dnsReady)
+            {
+              <div class="small text-muted mb-2">
+                We're watching for your DNS change. This usually takes 15–60 minutes, and can take up
+                to 24 hours. Nothing more for you to do — this page updates on its own.
+              </div>
+            }
             @if (!string.IsNullOrWhiteSpace(primaryDomain.RootDomain) && !string.Equals(primaryDomain.RootDomain, primaryDomain.DomainName, StringComparison.OrdinalIgnoreCase))
             {
               <div class="d-flex justify-content-between small mb-2">
-                <span>Root domain (@primaryDomain.RootDomain)</span>
-                <span class="badge @(primaryDomain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(primaryDomain.RootRedirectsToWww ? "Forwarding OK" : "Not forwarding")</span>
+                <span>Short address (@primaryDomain.RootDomain)</span>
+                <span class="badge @(primaryDomain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(primaryDomain.RootRedirectsToWww ? "Forwarding OK" : "Not set up")</span>
               </div>
+              @if (!primaryDomain.RootRedirectsToWww)
+              {
+                <div class="small text-muted mb-2">
+                  People who type <strong>@primaryDomain.RootDomain</strong> without the
+                  <code>www</code> won't reach your site — they'll land on your registrar's parked page.
+                  To fix it, set up <em>forwarding</em> where you bought the domain:
+                  <strong>@primaryDomain.RootDomain</strong> &rarr;
+                  <strong>https://@primaryDomain.DomainName</strong>, permanent redirect, masking off.
+                </div>
+              }
               @if (!string.IsNullOrWhiteSpace(primaryDomain.RootLastError))
               {
                 <div class="small text-muted mb-2">@primaryDomain.RootLastError</div>

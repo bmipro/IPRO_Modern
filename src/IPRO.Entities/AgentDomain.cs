@@ -33,6 +33,14 @@ public class AgentDomain
     public bool RootRedirectsToWww { get; set; }
     public DateTime? RootLastCheckedAt { get; set; }
     public string RootLastError { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When IPRO was alerted that this domain is bound but has no certificate. The domain check
+    /// runs every 5 minutes and the condition is terminal until a human acts, so without this the
+    /// alert would resend forever. Cleared when SSL goes green so a later lapse alerts again.
+    /// </summary>
+    public DateTime? CertificateAlertSentAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;

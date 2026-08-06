@@ -61,12 +61,27 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
             var thumbprint = await EnsureManagedCertificateAsync(hostName, cancellationToken);
             if (string.IsNullOrWhiteSpace(thumbprint))
             {
+                // Azure accepted the certificate request and returned no thumbprint. On this
+                // subscription that is the *permanent* outcome, not a transient one: App Service
+                // Managed Certificates have never issued here (reproduced across two hostnames in
+                // July 2026, which is why the platform domains run on lego). Retrying cannot clear
+                // it, so this must not be reported as progress -- the site is live, HTTPS-only, and
+                // serving a certificate for the wrong name until a human issues one.
+                // See DOCS/20_CERTIFICATES.md; the fix is ops/New-AgentCert.ps1.
+                _logger.LogWarning(
+                    "Custom domain {HostName} is bound but has NO certificate. Azure returned no thumbprint. " +
+                    "The site is unreachable (HTTPS-only + wrong certificate) until one is issued manually: " +
+                    "ops/New-AgentCert.ps1 -Domain {HostName}",
+                    hostName, hostName);
+
                 return new AzureDomainAutomationResult
                 {
                     Success = true,
                     BindingCreated = true,
-                    CertificateCreated = true,
-                    Message = "Azure custom-domain binding was created. Managed certificate is being issued; SSL will be retried on the next check."
+                    CertificateCreated = false,
+                    CertificateNeedsManualIssue = true,
+                    Message = "Azure custom-domain binding was created, but no SSL certificate could be issued automatically. " +
+                              "The site will show visitors a security warning until IPRO issues one."
                 };
             }
 

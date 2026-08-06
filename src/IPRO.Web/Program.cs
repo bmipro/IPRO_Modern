@@ -712,6 +712,7 @@ CREATE TABLE IF NOT EXISTS `AgentDomains` (
     await EnsureTableColumnAsync(db, "AgentDomains", "RootRedirectsToWww", "ALTER TABLE `AgentDomains` ADD COLUMN `RootRedirectsToWww` tinyint(1) NOT NULL DEFAULT FALSE");
     await EnsureTableColumnAsync(db, "AgentDomains", "RootLastCheckedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootLastCheckedAt` datetime(6) NULL");
     await EnsureTableColumnAsync(db, "AgentDomains", "RootLastError", "ALTER TABLE `AgentDomains` ADD COLUMN `RootLastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    await EnsureTableColumnAsync(db, "AgentDomains", "CertificateAlertSentAt", "ALTER TABLE `AgentDomains` ADD COLUMN `CertificateAlertSentAt` datetime(6) NULL");
 }
 
 static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)

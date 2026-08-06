@@ -24,6 +24,7 @@ $ErrorActionPreference = "Continue"
 $Domains = @(
     "app.iproadvisers.com"      # real newsletter sends point image URLs here -- highest impact
     "admin.iproadvisers.com"
+    "www.ouritems.ca"           # agent custom domain, issued 2026-08-06 via New-AgentCert.ps1
 )
 
 $LogPath = "C:\Users\admin\lego\cert-status.log"

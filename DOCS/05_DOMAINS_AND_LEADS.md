@@ -21,14 +21,80 @@ The agent should not alter temporary-domain DNS records.
 
 IPRO checks pending domains automatically. Agents can also click **Retry** beside a domain to recheck it immediately (about every 2 minutes at most). Super Admin can also select **Recheck**.
 
+## What to Tell a New Agent
+
+Wording that can be used directly in onboarding, support replies, or a help page. It matches the
+**How this works** panel in the portal.
+
+> ### Using your own domain name
+>
+> Your site is already live at **yourname.247advisers.com**. This connects your own address — like
+> **www.yourfirm.ca** — so clients see your brand instead.
+>
+> **You'll need** the login for wherever you bought the domain (GoDaddy, Namecheap, your web designer).
+> **Time:** about 10 minutes of work, then a wait — usually an hour, occasionally a day.
+> **You can stop at any point and your current site keeps working.**
+>
+> **1. Pick your address.** We recommend the `www` version. It's the most reliable to set up, and the
+> short version can redirect to it so both work.
+>
+> **2. Tell us the domain.** Website → Domain → Add domain. We'll show you the exact record to create.
+>
+> **3. Point your domain to us.** At your registrar, find DNS / DNS Management, and add:
+>
+> | Field | Value |
+> |---|---|
+> | Type | CNAME |
+> | Name / Host | `www` |
+> | Value / Points to | `ipro-prod-web.azurewebsites.net` |
+> | TTL | Leave as-is |
+>
+> *A CNAME tells the internet "when someone asks for this address, send them to IPRO."* Save it — that's
+> your part done. You don't need to keep the page open.
+>
+> **4. Make the short address work too.** At your registrar, under Forwarding or Redirect, forward
+> `yourfirm.ca` → `https://www.yourfirm.ca`, permanent redirect, masking off.
+>
+> **5. We secure it.** The last step is your security certificate — the padlock. **We handle this**, and
+> until it's done your site shows visitors a security warning at the new address. The portal will show
+> *Action needed by IPRO*, normally cleared within one business day. You don't need to contact us — we're
+> alerted the moment your domain is ready. Once it shows *Secured*, you're finished, and it renews on its
+> own.
+>
+> **If something looks wrong**
+> - *"Waiting" for more than a day* — the DNS record probably didn't save, or went in the wrong field.
+>   Check that Name is `www` and not the full address; registrars differ on which they want.
+> - *A security warning* — that's step 5 and it's on us. If it's been more than a business day, contact support.
+> - *Short address shows a parked page* — step 4 hasn't been done; your registrar is still showing its placeholder.
+
 ## Domain Statuses
 
-- **PendingDns**: IPRO is waiting for the CNAME to resolve.
-- **DnsReady**: DNS points to the expected Azure hostname.
-- **BindingPending**: Azure binding or certificate work is in progress.
-- **Bound**: DNS, Azure custom-domain binding, and SSL are ready.
-- **Failed**: Review the displayed error, correct it, and recheck. Agents see a plain-language version of the error; Super Admin sees the underlying Azure/DNS detail for real diagnosis.
-- **NotConfigured** (root/apex domain only): the bare domain does not resolve or does not forward to the `www` address yet. This is informational only and does not affect the `www` site.
+The agent portal shows plain-language labels; the underlying status values are in brackets for Super
+Admin and support.
+
+| Agent sees | Row | Meaning |
+|---|---|---|
+| **Waiting** `[PendingDns]` | Your domain | Waiting for the CNAME to resolve. Usually 15–60 minutes, up to 24 hours. |
+| **Found** `[DnsReady]` | Your domain | DNS points at the expected Azure hostname. |
+| **Setting up** `[BindingPending]` | Connection to your site | The custom hostname is not attached yet. |
+| **Connected** `[Bound]` | Connection to your site | Azure is serving this hostname. |
+| **Action needed by IPRO** `[BindingPending]` | Security certificate | **The site is unreachable.** See below. |
+| **Secured** `[Bound]` | Security certificate | Certificate is live; the site works normally. |
+| **Not set up** `[NotConfigured]` | Short address | The bare domain doesn't forward to `www`. Informational only — the `www` site still works. |
+| **Failed** `[Failed]` | any | Agents see a plain-language error; Super Admin sees the raw Azure/DNS detail. |
+
+### "Action needed by IPRO" is not a waiting state
+
+Bound-with-no-certificate is the one state that never clears on its own, and the only one where the
+agent's site is **worse off than before they added the domain**. The app is HTTPS-only, so visitors are
+redirected to HTTPS, served a certificate for the wrong name, and blocked by the browser.
+
+The agent is told, in the portal, that IPRO has been alerted automatically and will secure it within one
+business day, and that they do not need to make contact. That promise is kept by
+`DomainAutomationJob`, which emails IPRO Operations the first time it sees this state.
+
+**Support action:** run `ops/New-AgentCert.ps1 -Domain <their domain>` from the maintenance machine, then
+add the domain to the two watch lists. Full runbook in [ops/README.md](../ops/README.md).
 
 ## Retry a Domain Check
 
@@ -54,11 +120,31 @@ All bound domains display the same agent website and selected content.
 Once DNS is ready, IPRO uses Azure App Service automation to:
 
 1. Add the custom hostname binding.
-2. Request or locate a managed certificate.
+2. Request a managed certificate.
 3. Bind SSL using SNI.
 4. Mark the domain as bound.
 
 Super Admin monitors this under **Domains**. Azure service-principal settings and permissions must remain valid.
+
+### Step 2 does not currently succeed
+
+App Service Managed Certificates accept the request and never issue on this subscription — reproduced
+across two hostnames in July 2026, and again on an agent domain on 2026-08-06. This is why the platform
+domains run on lego rather than managed certs (see [20_CERTIFICATES.md](20_CERTIFICATES.md)).
+
+The practical effect: **every agent who binds a custom domain lands with a bound hostname, no
+certificate, and a blocked site** until someone issues one by hand. Steps 1, 3 and 4 work.
+
+Retrying cannot fix it, so the automation no longer reports the certificate as "being issued". It
+returns `CertificateNeedsManualIssue`, logs a warning, and triggers the operations alert described
+above.
+
+**The real fix, not yet built:** issue certificates in-app over ACME. The app already holds the ARM
+credentials needed to upload and bind, and an HTTP-01 challenge requires no registrar access at all,
+because a domain at this stage already points at us. That would make issuance and renewal fully
+automatic and delete both the alert and the runbook. One thing to verify first: that Let's Encrypt's
+HTTP-01 validation survives the HTTPS-only redirect (it is documented to ignore certificate validity on
+redirect targets, but prove it on a throwaway domain before relying on it).
 
 ## Add a Contact Form to a Website Page
 

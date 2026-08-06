@@ -31,7 +31,8 @@ public class CertificateExpiryJob
     private static readonly string[] DefaultDomains =
     {
         "app.iproadvisers.com",     // newsletter image URLs resolve here on real sends
-        "admin.iproadvisers.com"
+        "admin.iproadvisers.com",
+        "www.ouritems.ca"           // agent custom domain, issued 2026-08-06 via ops/New-AgentCert.ps1
     };
 
     private const int DefaultWarnDays = 30;
