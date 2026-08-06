@@ -286,6 +286,7 @@ public class PayPalBillingService : IBillingService
         }
 
         billing.Status = BillingStatus.Active;
+        await SyncAgentPackageAsync(userId, billing.BillingRuleId);
         if (change.ChangeType == SubscriptionChangeType.Upgrade && change.EffectiveDate < DateTime.UtcNow)
         {
             billing.StartDate = DateTime.UtcNow;
@@ -339,6 +340,7 @@ public class PayPalBillingService : IBillingService
         billing.StartDate = now;
         billing.NextBillingDate = GetNextBillingDate(now, billing.Period);
         _uow.Billings.Update(billing);
+        await SyncAgentPackageAsync(userId, billing.BillingRuleId);
 
         var change = await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
             c.BillingId == billing.Id && c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
@@ -808,6 +810,7 @@ public class PayPalBillingService : IBillingService
             billing.Status = BillingStatus.Active;
             billing.StartDate = DateTime.UtcNow;
         }
+        await SyncAgentPackageAsync(billing.AgentUserId, billing.BillingRuleId);
 
         billing.NextBillingDate = GetNextBillingDate(DateTime.UtcNow, billing.Period);
         _uow.Billings.Update(billing);
@@ -864,6 +867,28 @@ public class PayPalBillingService : IBillingService
         // trial package directly and get a genuinely active (never-expiring) Billing row for it.
         var packages = await _uow.BillingRules.FindAsync(p => p.IsActive && !p.IsTrialPackage);
         return packages.OrderBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice).ToList();
+    }
+
+    // Keeps AgentUser.PackageId in step with whatever package the agent is actually on.
+    //
+    // Nothing in the billing flow used to write this field -- it was set once at registration and then
+    // frozen, so an agent who upgraded still read as their signup package forever. Reported 2026-08-06:
+    // My Profile showed "IPro Silver" for an agent who had upgraded to Gold and then Platinum the same
+    // day.
+    //
+    // Entitlements were never wrong, because ResolveBillingRuleIdAsync consults the active Billing row
+    // first. But that same method falls back to PackageId when there is NO active billing, so a stale
+    // value is a real hazard, not just a cosmetic one: a lapsed-then-restored Platinum agent would have
+    // fallen back to Silver features. Writing it here makes the fallback truthful.
+    private async Task SyncAgentPackageAsync(int userId, int billingRuleId)
+    {
+        if (billingRuleId <= 0) return;
+
+        var agent = await _uow.AgentUsers.GetByIdAsync(userId);
+        if (agent == null || agent.PackageId == billingRuleId) return;
+
+        agent.PackageId = billingRuleId;
+        _uow.AgentUsers.Update(agent);
     }
 
     private async Task<BillingChangeResult> BeginPaidChangeAsync(

@@ -495,7 +495,20 @@ public class AccountController : Controller
         var agent = await GetCurrentAgentAsync();
         if (agent == null) return RedirectToAction(nameof(Login));
 
-        var package = agent.PackageId > 0 ? await _uow.BillingRules.GetByIdAsync(agent.PackageId) : null;
+        // Show the package the agent is actually ON, not the one they signed up with.
+        //
+        // This used to read agent.PackageId alone, which nothing in the billing flow ever updated --
+        // an agent who upgraded Silver -> Gold -> Platinum still saw "IPro Silver" here while the
+        // Billing page correctly said Platinum. Reported 2026-08-06.
+        //
+        // The active Billing row is the same source entitlements resolve from
+        // (PackageEntitlementService.ResolveBillingRuleIdAsync), so this page can no longer disagree
+        // with what the agent can actually do. PackageId is now kept in sync as well, but reading the
+        // billing row first means a stale value can never surface here again.
+        var activeBilling = await _uow.Billings.FirstOrDefaultAsync(b =>
+            b.AgentUserId == agent.Id && b.Status == BillingStatus.Active);
+        var packageId = activeBilling?.BillingRuleId ?? agent.PackageId;
+        var package = packageId > 0 ? await _uow.BillingRules.GetByIdAsync(packageId) : null;
         LoadTimeZoneOptions();
 
         ViewBag.GoogleCalendarAccess = await _entitlements.GetAccessAsync(agent.Id, PackageFeatureCodes.GoogleCalendarSync);

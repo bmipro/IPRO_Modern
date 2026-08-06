@@ -173,6 +173,21 @@ app.UseStaticFiles();
 var portalRoutePrefixes = BuildPortalRoutePrefixes();
 app.Use(async (context, next) =>
 {
+    // PUBLIC PAGE SLUGS THAT COLLIDE WITH PORTAL CONTROLLER NAMES (fixed 2026-08-06)
+    //
+    // BuildPortalRoutePrefixes reserves every controller name in this assembly, and the portal and the
+    // public websites share one application and one URL space. So an agent page slugged "testimonials"
+    // was swallowed by TestimonialsController and the VISITOR was shown a login form. Confirmed live on
+    // a real agent site: /testimonials, /articles, /forms, /documents and /newsletter all 302'd to
+    // /Account/Login. The Testimonials page ships in the default starter navigation, so this affected
+    // every agent provisioned since Nav v2 -- the nav link renders perfectly and only fails when clicked.
+    //
+    // The rule now: on a public agent host, a reserved prefix still wins UNLESS that agent's site
+    // actually has a published page with that slug. Deliberately narrow -- it can only ever un-break a
+    // page that exists and is currently unreachable, and it cannot take a portal route away from
+    // anything else.
+    await MarkPublicSlugOverrideAsync(context, app.Configuration, portalRoutePrefixes);
+
     if (ShouldRouteToPublicWebsite(context, app.Configuration, portalRoutePrefixes))
     {
         context.Items["IproPublicPath"] = context.Request.Path.Value is { Length: > 0 } rawPath ? rawPath : "/";
@@ -420,6 +435,98 @@ static HashSet<string> BuildPortalRoutePrefixes()
     return prefixes;
 }
 
+// Marker left on HttpContext.Items when a reserved portal prefix should yield to a real public page.
+const string PublicSlugOverrideKey = "IproPublicSlugOverride";
+
+// Routes a colliding slug to the public site ONLY when all of the following hold:
+//   - it is a GET for an extensionless path (same preconditions the router already applies)
+//   - the first segment collides with a portal controller name
+//   - the segment is not one the portal can never surrender (see NeverShadowedPrefixes)
+//   - the host resolves to a real agent website
+//   - that website has a PUBLISHED page with exactly that slug
+//
+// The database is only touched when a collision actually occurs, which is rare -- ordinary public
+// slugs and every genuine portal request return before the query.
+static async Task MarkPublicSlugOverrideAsync(HttpContext context, IConfiguration configuration, HashSet<string> portalRoutePrefixes)
+{
+    if (!HttpMethods.IsGet(context.Request.Method)) return;
+    if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return;
+
+    var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
+    if (requestPath.Length == 0) return;
+
+    var firstSegment = requestPath.Split('/', 2)[0];
+    if (!portalRoutePrefixes.Contains(firstSegment)) return;
+
+    // An agent must never be able to make their own login unreachable by naming a page "account".
+    // Everything an agent needs to administer or recover the site stays reserved unconditionally.
+    if (IsNeverShadowedPrefix(firstSegment)) return;
+
+    // Only agent-facing public hosts are eligible. The portal host, the admin host, azurewebsites.net
+    // and localhost all keep the existing behaviour untouched.
+    if (!IsPublicAgentHost(context, configuration)) return;
+
+    try
+    {
+        var db = context.RequestServices.GetService<IPRO.DataAccess.IPRODbContext>();
+        if (db == null) return;
+
+        var host = NormalizeHostForLookup(context.Request.Host.Host);
+        var hostCandidates = new[] { host, host.StartsWith("www.", StringComparison.Ordinal) ? host[4..] : "www." + host };
+
+        var slug = firstSegment.ToLowerInvariant();
+        var exists = await db.WebsitePages
+            .AsNoTracking()
+            .AnyAsync(p => p.IsPublished
+                        && p.Slug.ToLower() == slug
+                        && (hostCandidates.Contains(p.AgentWebsite.CustomDomain.ToLower())
+                            || hostCandidates.Contains(p.AgentWebsite.AgentUser.DomainName.ToLower())
+                            || db.AgentDomains.Any(d => d.AgentWebsiteId == p.AgentWebsiteId
+                                && (hostCandidates.Contains(d.DomainName.ToLower())
+                                 || hostCandidates.Contains(d.RootDomain.ToLower())
+                                 || hostCandidates.Contains(d.WwwDomain.ToLower())))));
+
+        if (exists)
+        {
+            context.Items[PublicSlugOverrideKey] = true;
+        }
+    }
+    catch
+    {
+        // A lookup failure must never take the site down: fall through to the previous behaviour,
+        // which is the portal route. Worst case the page stays unreachable, exactly as it is today.
+    }
+}
+
+// Reserved no matter what an agent names a page. Losing any of these on an agent's own domain would
+// lock them (or their clients) out rather than merely hiding content.
+static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() switch
+{
+    "account" or "clientportal" or "clientportalaccount" or "billing"
+        or "publicwebsite" or "media" or "hangfire" => true,
+    _ => false
+};
+
+static string NormalizeHostForLookup(string host) => host.Trim().Trim('.').ToLowerInvariant();
+
+static bool IsPublicAgentHost(HttpContext context, IConfiguration configuration)
+{
+    var host = NormalizeHostForLookup(context.Request.Host.Host);
+    if (string.IsNullOrWhiteSpace(host)) return false;
+    if (host is "localhost" or "127.0.0.1" or "::1") return false;
+    if (host.EndsWith(".azurewebsites.net", StringComparison.OrdinalIgnoreCase)) return false;
+    if (host.StartsWith("admin.", StringComparison.OrdinalIgnoreCase)) return false;
+
+    var adminDomain = configuration["App:AdminDomain"]?.Trim().Trim('.').ToLowerInvariant();
+    if (!string.IsNullOrWhiteSpace(adminDomain) && host == adminDomain) return false;
+
+    var platformDomains = (configuration["App:PlatformDomains"] ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(d => d.Trim().Trim('.').ToLowerInvariant())
+        .Where(d => d.Length > 0);
+    return !platformDomains.Contains(host);
+}
+
 static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration, HashSet<string> portalRoutePrefixes)
 {
     if (!HttpMethods.IsGet(context.Request.Method)) return false;
@@ -429,7 +536,13 @@ static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration confi
     var firstSegment = requestPath.Split('/', 2)[0];
     if (firstSegment.Length > 0 && portalRoutePrefixes.Contains(firstSegment))
     {
-        return false;
+        // A portal controller name wins... unless the agent whose site this is has genuinely built a
+        // public page with that slug. See ResolvesToRealPublicPage below for why this exception has
+        // to exist at all.
+        if (!context.Items.ContainsKey(PublicSlugOverrideKey))
+        {
+            return false;
+        }
     }
 
     var host = context.Request.Host.Host.Trim().Trim('.').ToLowerInvariant();
