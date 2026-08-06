@@ -42,11 +42,14 @@
     var dnsReady = primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var bindingReady = primaryDomain?.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var sslReady = primaryDomain?.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
-    // Bound-with-no-certificate is the one state an agent cannot act on and automation cannot clear:
-    // the app is HTTPS-only, so the site serves a certificate for the wrong name and browsers block
-    // it outright. It has to read as broken (red) and say so, or the agent sees two greens plus a
-    // neutral grey and calls support about a dead website.
-    var certificateBlocked = bindingReady && !sslReady;
+    // Bound but not yet secured. Azure issues managed certificates asynchronously, so this is a
+    // normal few-minute window, not a fault -- but during it the site really is unreachable (the app
+    // is HTTPS-only and serves a certificate for the wrong name), so it must not read as "done".
+    // Amber and specific, not red and alarming: the agent has nothing to do but wait.
+    var certificatePending = bindingReady && !sslReady;
+    // If it has been hours rather than minutes, issuance is genuinely stuck and IPRO is alerted.
+    var certificateStuck = certificatePending && primaryDomain != null &&
+                           (DateTime.UtcNow - primaryDomain.CreatedAt) > TimeSpan.FromHours(3);
     var templateRetired = ViewBag.TemplateRetired == true;
 }
 
@@ -411,7 +414,7 @@
             var domainBindingReady = domain.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
             var domainDnsLabel = domainDnsReady ? "Found" : "Waiting for DNS";
             var domainSslReady = domain.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
-            var domainCertBlocked = domainBindingReady && !domainSslReady;
+            var domainCertPending = domainBindingReady && !domainSslReady;
             <div class="border rounded-3 p-2 mb-2">
               <div class="d-flex justify-content-between gap-2">
                 <div>
@@ -419,7 +422,7 @@
                   <div class="small text-muted">
                     DNS: <span class="@(domainDnsReady ? "text-success" : "text-warning")">@domainDnsLabel</span>
                     &middot; Connection: <span class="@(domainBindingReady ? "text-success" : "text-muted")">@(domainBindingReady ? "Connected" : "Setting up")</span>
-                    &middot; Certificate: <span class="@(domainSslReady ? "text-success" : (domainCertBlocked ? "text-danger fw-semibold" : "text-muted"))">@(domainSslReady ? "Secured" : (domainCertBlocked ? "Action needed by IPRO" : "Not started"))</span>
+                    &middot; Certificate: <span class="@(domainSslReady ? "text-success" : (domainCertPending ? "text-warning" : "text-muted"))">@(domainSslReady ? "Secured" : (domainCertPending ? "Securing" : "Not started"))</span>
                   </div>
                   @if (!string.IsNullOrWhiteSpace(domain.LastError))
                   {
@@ -490,10 +493,9 @@
                     Automatic, no action needed.
                   </li>
                   <li class="mb-1">
-                    <strong>Security certificate</strong> — the padlock in the browser.
-                    <strong>IPRO handles this.</strong> Until it's done, visitors to the new address see a
-                    security warning, so we're alerted automatically and aim to finish within one
-                    business day.
+                    <strong>Security certificate</strong> — the padlock in the browser. Issued and
+                    installed automatically, usually within a few minutes of the connection being made,
+                    and <strong>renewed automatically</strong> from then on. Nothing for you to do.
                   </li>
                   <li>
                     <strong>Short address</strong> — set up forwarding at your registrar so
@@ -518,19 +520,31 @@
             </div>
             <div class="d-flex justify-content-between small mb-2">
               <span>Security certificate</span>
-              <span class="badge @(sslReady ? "bg-success" : (certificateBlocked ? "bg-danger" : "bg-secondary"))">
-                @(sslReady ? "Secured" : (certificateBlocked ? "Action needed by IPRO" : "Not started"))
+              <span class="badge @(sslReady ? "bg-success" : (certificateStuck ? "bg-danger" : (certificatePending ? "bg-warning text-dark" : "bg-secondary")))">
+                @(sslReady ? "Secured" : (certificateStuck ? "Taking longer than usual" : (certificatePending ? "Securing your site" : "Not started")))
               </span>
             </div>
-            @if (certificateBlocked)
+            @if (certificatePending)
             {
-              <div class="alert alert-danger border-0 small mb-2 mt-2 py-2">
-                <strong>Your site isn't reachable at this address yet.</strong>
-                Visitors would see a browser security warning until the certificate is in place.
-                We've been notified automatically and will have it secured within one business day —
-                <strong>you don't need to contact us</strong>.
+              <div class="alert @(certificateStuck ? "alert-danger" : "alert-warning") border-0 small mb-2 mt-2 py-2">
+                @if (certificateStuck)
+                {
+                  <text>
+                    <strong>This is taking longer than it should.</strong>
+                    Your certificate normally arrives within minutes. We've been alerted automatically
+                    and are looking into it — <strong>you don't need to contact us</strong>.
+                  </text>
+                }
+                else
+                {
+                  <text>
+                    <strong>Almost there — we're securing your site.</strong>
+                    This usually takes a few minutes and happens automatically. Until it finishes,
+                    visitors to this address would see a browser security warning.
+                  </text>
+                }
                 <div class="mt-1">
-                  Your site is still live in the meantime at
+                  Your site is live in the meantime at
                   <a href="https://@temporaryDomain" target="_blank" class="alert-link">@temporaryDomain</a>.
                 </div>
               </div>

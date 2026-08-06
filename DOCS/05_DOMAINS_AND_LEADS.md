@@ -55,16 +55,16 @@ Wording that can be used directly in onboarding, support replies, or a help page
 > **4. Make the short address work too.** At your registrar, under Forwarding or Redirect, forward
 > `yourfirm.ca` → `https://www.yourfirm.ca`, permanent redirect, masking off.
 >
-> **5. We secure it.** The last step is your security certificate — the padlock. **We handle this**, and
-> until it's done your site shows visitors a security warning at the new address. The portal will show
-> *Action needed by IPRO*, normally cleared within one business day. You don't need to contact us — we're
-> alerted the moment your domain is ready. Once it shows *Secured*, you're finished, and it renews on its
-> own.
+> **5. Your certificate installs itself.** The last step is the padlock in the browser. It's issued and
+> installed automatically, usually within a few minutes of step 3 completing, and renewed automatically
+> from then on. The portal shows *Securing your site* while it happens and *Secured* when it's done.
+> **There is nothing for you to do, and no second record to add.**
 >
 > **If something looks wrong**
 > - *"Waiting" for more than a day* — the DNS record probably didn't save, or went in the wrong field.
 >   Check that Name is `www` and not the full address; registrars differ on which they want.
-> - *A security warning* — that's step 5 and it's on us. If it's been more than a business day, contact support.
+> - *A security warning* — that's step 5 still finishing. Give it a few minutes and reload. If it's still
+>   there after a couple of hours, contact support.
 > - *Short address shows a parked page* — step 4 hasn't been done; your registrar is still showing its placeholder.
 
 ## Domain Statuses
@@ -78,23 +78,41 @@ Admin and support.
 | **Found** `[DnsReady]` | Your domain | DNS points at the expected Azure hostname. |
 | **Setting up** `[BindingPending]` | Connection to your site | The custom hostname is not attached yet. |
 | **Connected** `[Bound]` | Connection to your site | Azure is serving this hostname. |
-| **Action needed by IPRO** `[BindingPending]` | Security certificate | **The site is unreachable.** See below. |
-| **Secured** `[Bound]` | Security certificate | Certificate is live; the site works normally. |
+| **Securing your site** `[BindingPending]` | Security certificate | Managed certificate is being issued. Normal, a few minutes. |
+| **Taking longer than usual** `[BindingPending]` | Security certificate | Bound with no certificate for 3+ hours. Genuinely stuck; IPRO is alerted. |
+| **Secured** `[Bound]` | Security certificate | Certificate is live and auto-renewing. |
 | **Not set up** `[NotConfigured]` | Short address | The bare domain doesn't forward to `www`. Informational only — the `www` site still works. |
 | **Failed** `[Failed]` | any | Agents see a plain-language error; Super Admin sees the raw Azure/DNS detail. |
 
-### "Action needed by IPRO" is not a waiting state
+### Bound-with-no-certificate is normal for a few minutes
 
-Bound-with-no-certificate is the one state that never clears on its own, and the only one where the
-agent's site is **worse off than before they added the domain**. The app is HTTPS-only, so visitors are
-redirected to HTTPS, served a certificate for the wrong name, and blocked by the browser.
+Azure issues App Service Managed Certificates **asynchronously**. The first pass through
+`EnsureManagedCertificateAsync` almost always gets no thumbprint back, because Azure hasn't finished.
+The next domain check five minutes later re-PUTs the same certificate resource — same name, so it is an
+idempotent update rather than a conflict — finds the thumbprint populated, and binds it.
 
-The agent is told, in the portal, that IPRO has been alerted automatically and will secure it within one
-business day, and that they do not need to make contact. That promise is kept by
-`DomainAutomationJob`, which emails IPRO Operations the first time it sees this state.
+During that window the site really is unreachable at the new address, since the app is HTTPS-only and
+serves a certificate for the wrong name. So the portal shows amber and says so, but frames it as
+"Securing your site" rather than a fault, because the agent has nothing to do.
 
-**Support action:** run `ops/New-AgentCert.ps1 -Domain <their domain>` from the maintenance machine, then
-add the domain to the two watch lists. Full runbook in [ops/README.md](../ops/README.md).
+**Only if it lasts hours is something wrong.** `DomainAutomationJob` alerts IPRO Operations after a
+3-hour grace period.
+
+**Support action when that alert fires:** check whether the managed certificate already exists and
+simply failed to bind, *before* issuing anything:
+
+```
+az resource show --ids /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Web/certificates/managed-www-their-domain-ca --query properties.thumbprint
+```
+
+If it has a thumbprint, bind that. Only if no managed certificate exists should you fall back to
+`ops/New-AgentCert.ps1`, which produces a Let's Encrypt certificate that does **not** auto-renew.
+
+> **Learn from 2026-08-06.** `www.ouritems.ca` was diagnosed as "managed certificates don't work on this
+> subscription," and a Let's Encrypt certificate was hand-issued and bound over the top. The managed
+> certificate had in fact issued normally, minutes later, exactly as it had for `www.4ipro.com` and
+> `www.drhug.ca` in July. The result was a 90-day manual renewal chore replacing a certificate that
+> renewed itself. One `az` query against a working domain would have prevented it.
 
 ## Retry a Domain Check
 
@@ -126,25 +144,27 @@ Once DNS is ready, IPRO uses Azure App Service automation to:
 
 Super Admin monitors this under **Domains**. Azure service-principal settings and permissions must remain valid.
 
-### Step 2 does not currently succeed
+### Step 2 is asynchronous, and that is the only subtlety
 
-App Service Managed Certificates accept the request and never issue on this subscription — reproduced
-across two hostnames in July 2026, and again on an agent domain on 2026-08-06. This is why the platform
-domains run on lego rather than managed certs (see [20_CERTIFICATES.md](20_CERTIFICATES.md)).
+All four steps succeed automatically. Verified live on three agent domains:
 
-The practical effect: **every agent who binds a custom domain lands with a bound hostname, no
-certificate, and a blocked site** until someone issues one by hand. Steps 1, 3 and 4 work.
+| Domain | Certificate | Issued | Agent action beyond the CNAME |
+|---|---|---|---|
+| `www.4ipro.com` | Azure managed (GeoTrust) | 2026-07-11 | none |
+| `www.drhug.ca` | Azure managed (GeoTrust) | 2026-07-11 | none |
+| `www.ouritems.ca` | Azure managed (GeoTrust) | 2026-08-06 | none |
 
-Retrying cannot fix it, so the automation no longer reports the certificate as "being issued". It
-returns `CertificateNeedsManualIssue`, logs a warning, and triggers the operations alert described
-above.
+**One CNAME is the entire agent-facing process.** Managed certificates renew themselves, which is why
+agent domains are deliberately absent from the expiry watch lists — only the two platform domains are
+hand-renewed with lego.
 
-**The real fix, not yet built:** issue certificates in-app over ACME. The app already holds the ARM
-credentials needed to upload and bind, and an HTTP-01 challenge requires no registrar access at all,
-because a domain at this stage already points at us. That would make issuance and renewal fully
-automatic and delete both the alert and the runbook. One thing to verify first: that Let's Encrypt's
-HTTP-01 validation survives the HTTPS-only redirect (it is documented to ignore certificate validity on
-redirect targets, but prove it on a throwaway domain before relying on it).
+The platform domains are on lego for their own historical reasons
+(see [20_CERTIFICATES.md](20_CERTIFICATES.md)). **Do not read that as "managed certificates don't work
+on this subscription."** They demonstrably do; the table above is the evidence.
+
+**Not needed, despite appearances:** the `asuid` TXT record. Azure requires it for *apex* binding only —
+a `www` hostname is proven by the CNAME itself. Nor is any `_acme-challenge` TXT record needed, since
+nothing about the normal path uses ACME.
 
 ## Add a Contact Form to a Website Page
 

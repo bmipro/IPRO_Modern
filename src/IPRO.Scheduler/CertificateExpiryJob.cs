@@ -31,9 +31,12 @@ public class CertificateExpiryJob
     private static readonly string[] DefaultDomains =
     {
         "app.iproadvisers.com",     // newsletter image URLs resolve here on real sends
-        "admin.iproadvisers.com",
-        "www.ouritems.ca"           // agent custom domain, issued 2026-08-06 via ops/New-AgentCert.ps1
+        "admin.iproadvisers.com"
     };
+
+    // Deliberately NOT listed: agent custom domains. Those get Azure App Service Managed
+    // Certificates, which renew themselves -- watching them here would imply a manual renewal that
+    // does not exist. Only the two platform domains are hand-renewed with lego.
 
     private const int DefaultWarnDays = 30;
 

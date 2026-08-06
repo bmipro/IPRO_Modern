@@ -49,11 +49,7 @@ public class DomainAutomationJob
             try
             {
                 await _domainCheck.CheckAsync(domain);
-
-                // The agent is told in the portal that we have been alerted automatically. This is
-                // what makes that true -- without it the promise is a lie and their only recourse is
-                // a support call, which is exactly what the message is meant to prevent.
-                await AlertIfBoundWithoutCertificateAsync(domain);
+                await AlertIfCertificateIsOverdueAsync(domain);
             }
             catch (Exception ex)
             {
@@ -64,14 +60,27 @@ public class DomainAutomationJob
         await _db.SaveChangesAsync();
     }
 
-    // Bound + no certificate is the one state the agent cannot fix and automation cannot clear:
-    // App Service is HTTPS-only, so the site serves a certificate for the wrong name and every
-    // browser blocks it outright. It needs a human to run ops/New-AgentCert.ps1.
-    private async Task AlertIfBoundWithoutCertificateAsync(AgentDomain domain)
+    // Bound + no certificate is NORMAL for the first few minutes: Azure issues managed certificates
+    // asynchronously and the next check binds them. So this alerts only when that has clearly not
+    // happened -- the domain has been bound without a certificate for hours, which means issuance is
+    // genuinely stuck rather than merely in flight.
+    //
+    // The threshold matters. An earlier version of this alerted immediately, which would have fired
+    // on every single new domain during perfectly normal issuance and trained whoever reads it to
+    // ignore the mail.
+    private static readonly TimeSpan CertificateGracePeriod = TimeSpan.FromHours(3);
+
+    private async Task AlertIfCertificateIsOverdueAsync(AgentDomain domain)
     {
         var boundWithoutCertificate =
             domain.AzureBindingStatus == AgentDomainStatus.Bound &&
             domain.SslStatus != AgentDomainStatus.Bound;
+
+        // Still inside the window where Azure is simply working on it.
+        if (boundWithoutCertificate && DateTime.UtcNow - domain.CreatedAt < CertificateGracePeriod)
+        {
+            return;
+        }
 
         if (!boundWithoutCertificate)
         {
@@ -91,9 +100,10 @@ public class DomainAutomationJob
         domain.CertificateAlertSentAt = DateTime.UtcNow;
 
         _logger.LogWarning(
-            "Domain {Domain} (agent {AgentUserId}) is bound with no certificate. The site is " +
-            "unreachable until issued: ops/New-AgentCert.ps1 -Domain {Domain}",
-            domain.DomainName, domain.AgentUserId, domain.DomainName);
+            "Domain {Domain} (agent {AgentUserId}) has been bound with no certificate for over {Hours}h. " +
+            "Managed certificate issuance appears stuck; check the managed-{Slug} certificate resource in Azure",
+            domain.DomainName, domain.AgentUserId, CertificateGracePeriod.TotalHours,
+            domain.DomainName.Replace('.', '-'));
 
         var to = _configuration["Email:NotificationEmail"];
         if (string.IsNullOrWhiteSpace(to) || to.StartsWith("CHANGE_THIS_", StringComparison.OrdinalIgnoreCase))
@@ -118,26 +128,30 @@ public class DomainAutomationJob
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
               <div style="padding:22px;background:#b42318;color:white">
-                <h1 style="margin:0;font-size:22px">Custom domain needs a certificate</h1>
+                <h1 style="margin:0;font-size:22px">Certificate issuance looks stuck</h1>
               </div>
               <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                <p style="margin-top:0"><strong>{host}</strong> is bound in Azure but has no SSL certificate.</p>
+                <p style="margin-top:0">
+                  <strong>{host}</strong> has been bound in Azure for over {CertificateGracePeriod.TotalHours} hours
+                  with no SSL certificate. Normally the managed certificate issues within minutes and
+                  binds itself, so this is not the usual delay.
+                </p>
                 <p>Agent: {WebUtility.HtmlEncode(agentName)}</p>
                 <p style="background:#fef3f2;border-left:3px solid #b42318;padding:12px">
-                  Their website is <strong>unreachable right now</strong> — visitors get a browser
-                  security warning, because the site is HTTPS-only and is serving a certificate for
-                  the wrong name.
+                  Their website is <strong>unreachable</strong> — the site is HTTPS-only and is serving a
+                  certificate for the wrong name, so browsers block it.
                 </p>
-                <p>Issue one from the maintenance machine:</p>
-                <pre style="background:#f6f8fb;padding:12px;border-radius:6px;font-size:13px">powershell -File C:\Users\admin\lego\New-AgentCert.ps1 -Domain {host}</pre>
+                <p><strong>Check this first.</strong> The managed certificate may exist and simply not be bound:</p>
+                <pre style="background:#f6f8fb;padding:12px;border-radius:6px;font-size:13px">az resource show --ids /subscriptions/&lt;sub&gt;/resourceGroups/&lt;rg&gt;/providers/Microsoft.Web/certificates/managed-{host.Replace('.', '-')} --query properties.thumbprint</pre>
                 <p style="color:#475569;font-size:13px">
-                  It prints a DNS TXT record to publish at <em>the agent's</em> registrar, then uploads
-                  and binds the certificate. Afterwards add {host} to the $Domains list in
-                  Check-CertExpiry.ps1 and to Certificates:Watch so renewal is monitored.
+                  If it has a thumbprint, bind it — do not issue a new one. On 2026-08-06 a perfectly
+                  good auto-renewing managed certificate was displaced by a hand-issued Let's Encrypt
+                  one because this check was skipped.
                 </p>
                 <p style="color:#475569;font-size:13px">
-                  The agent has been told we were alerted automatically and that it will be secured
-                  within one business day.
+                  Only if no managed certificate exists, fall back to
+                  <code>ops/New-AgentCert.ps1 -Domain {host}</code>, and add the domain to the expiry
+                  watch lists afterwards since that one does not auto-renew.
                 </p>
               </div>
             </div>

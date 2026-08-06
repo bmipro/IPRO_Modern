@@ -28,29 +28,29 @@ Neither script contains a secret. The PFX password is read at runtime out of `ru
 | `Renew-Certs.ps1` | Renews the two **platform** certs and pushes them to Azure App Service. Needs a person for the DNS TXT step. |
 | `New-AgentCert.ps1` | Issues a first certificate for **any** custom domain — an agent's, on their own registrar. |
 
-### When an agent binds a custom domain
+### When an agent binds a custom domain: do nothing
 
-Binding gets as far as "Connected" and stops: App Service Managed Certificates do not issue on this
-subscription, so the hostname ends up bound with no certificate. Because the app is HTTPS-only, the
-site is then **completely unreachable** — visitors get a browser security warning, which is worse than
-before the domain was added.
+Agent domains are fully automatic. The agent adds one CNAME, the domain check binds the hostname and
+requests an Azure App Service Managed Certificate, and that certificate issues within minutes, binds
+itself, and **renews itself thereafter**. Proven on `www.4ipro.com` and `www.drhug.ca` (July 2026) and
+`www.ouritems.ca` (August 2026).
 
-`DomainAutomationJob` detects this and emails IPRO Operations automatically. The agent's portal tells
-them we've been alerted and to expect it secured within one business day, so this is an SLA, not a
-backlog item. To fulfil it:
+`New-AgentCert.ps1` is a **fallback for when that genuinely fails**, not the standard path. Reach for it
+only after the 3-hour alert from `DomainAutomationJob` fires, and only after checking that the managed
+certificate does not already exist:
 
 ```
-powershell -File C:\Users\admin\lego\New-AgentCert.ps1 -Domain www.theirdomain.ca
+az resource show --ids /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Web/certificates/managed-www-their-domain-ca --query properties.thumbprint
 ```
 
-It prints one DNS TXT record to publish at **the agent's** registrar, waits, then uploads and binds the
-certificate and reads it back to confirm. Afterwards add the domain to `$Domains` in
-`Check-CertExpiry.ps1` *and* to `DefaultDomains` in `src/IPRO.Scheduler/CertificateExpiryJob.cs`, or the
-90-day expiry will go unwatched.
+If that returns a thumbprint, **bind it — do not issue a new certificate.**
 
-This is a stopgap. The real fix is in-app ACME issuance — the app already holds the ARM credentials it
-would need, and an HTTP-01 challenge needs no registrar access at all because the domain already points
-at us. Tracked in the roadmap.
+> On 2026-08-06 this check was skipped. A managed certificate for `www.ouritems.ca` was issuing normally;
+> a Let's Encrypt certificate was issued by hand and bound over the top, replacing a self-renewing
+> certificate with a 90-day manual chore. It was rebound to the managed certificate the same day.
+
+If you do use it, the Let's Encrypt certificate does not auto-renew, so add the domain to `$Domains` in
+`Check-CertExpiry.ps1` *and* `DefaultDomains` in `src/IPRO.Scheduler/CertificateExpiryJob.cs`.
 
 Full context, including why certificate expiry now breaks newsletter images retroactively, is in
 [DOCS/20_CERTIFICATES.md](../DOCS/20_CERTIFICATES.md).
