@@ -524,7 +524,10 @@
                   }
                   <form method="post" action="/Website/RetryDomain/@domain.Id">
                     @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Check this domain again right now, instead of waiting for the next automatic check">Check now</button>
+                    @* btn-outline-secondary rendered grey beside the blue Primary/Remove buttons and
+                       was read as disabled. This is an action the agent is actively told to take, so
+                       it has to look available. *@
+                    <button class="btn btn-sm btn-outline-primary" type="submit" title="Check this domain again right now, instead of waiting for the next automatic check">Check now</button>
                   </form>
                   <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeDomainModal-@domain.Id">Remove</button>
                 </div>

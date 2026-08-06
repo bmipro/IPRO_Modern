@@ -6,6 +6,15 @@ namespace IPRO.Utility;
 
 public class DomainCheckService : IDomainCheckService
 {
+    // Deliberately NOT from IHttpClientFactory: the factory's clients follow redirects, and the root
+    // check needs to inspect the first hop rather than the destination. Static because a handler per
+    // call would leak sockets; this one is called a few times per 5-minute job run.
+    private static readonly HttpClient NoRedirectClient = new(
+        new HttpClientHandler { AllowAutoRedirect = false })
+    {
+        Timeout = TimeSpan.FromSeconds(10)
+    };
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IAzureDomainAutomationService _azureDomains;
     private readonly ILogger<DomainCheckService> _logger;
@@ -160,14 +169,38 @@ public class DomainCheckService : IDomainCheckService
 
             domain.RootDnsStatus = AgentDomainStatus.DnsReady;
 
-            var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
-            using var response = await client.GetAsync("http://" + domain.RootDomain, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            var finalHost = response.RequestMessage?.RequestUri?.Host;
-            domain.RootRedirectsToWww = string.Equals(finalHost, domain.WwwDomain, StringComparison.OrdinalIgnoreCase);
+            // Ask only the question we actually care about: does the registrar redirect the bare
+            // domain to the www host? Read the FIRST response's Location header instead of following
+            // the chain to completion.
+            //
+            // Following it through meant the app fetched its own public hostname over HTTPS from
+            // inside App Service -- a TLS handshake and a round trip that can fail or time out for
+            // reasons that have nothing to do with the agent's forwarding, and any such failure was
+            // reported to the agent as "not forwarding". One redirect hop is the whole question.
+            using var response = await NoRedirectClient.GetAsync(
+                "http://" + domain.RootDomain, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+            var isRedirect = (int)response.StatusCode is >= 300 and < 400;
+            var location = response.Headers.Location;
+            string? target = null;
+
+            if (isRedirect && location != null)
+            {
+                // Location may be relative; resolve against the request URI before reading the host.
+                target = location.IsAbsoluteUri
+                    ? location.Host
+                    : new Uri(new Uri("http://" + domain.RootDomain), location).Host;
+            }
+
+            domain.RootRedirectsToWww =
+                string.Equals(target, domain.WwwDomain, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(target, domain.DomainName, StringComparison.OrdinalIgnoreCase);
+
             domain.RootLastError = domain.RootRedirectsToWww
                 ? string.Empty
-                : $"The root domain resolves but does not redirect to {domain.WwwDomain}. Visitors typing the bare domain may not reach the site.";
+                : isRedirect
+                    ? $"The root domain redirects to {target ?? "somewhere else"} rather than {domain.WwwDomain}."
+                    : $"The root domain resolves but does not redirect to {domain.WwwDomain}. Visitors typing the bare domain may not reach the site.";
         }
         catch (Exception ex)
         {
