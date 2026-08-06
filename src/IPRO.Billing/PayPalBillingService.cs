@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -962,10 +963,14 @@ public class PayPalBillingService : IBillingService
                 ? setupFee + Math.Max(0, amountDue)
                 : setupFee;
 
+            // Upgrades defer the first recurring charge to the date the agent has already paid up to.
+            // A new subscription passes null and bills immediately, which is correct for a signup.
+            var subscriptionStart = changeType == SubscriptionChangeType.Upgrade ? nextBillingDate : null;
+
             PayPalSubscriptionResult subscription;
             try
             {
-                subscription = await CreatePayPalSubscriptionAsync(invoice, requestedPackage, period, subscriptionSetupFee, returnUrl, cancelUrl, billing.PayPalPlanId);
+                subscription = await CreatePayPalSubscriptionAsync(invoice, requestedPackage, period, subscriptionSetupFee, returnUrl, cancelUrl, billing.PayPalPlanId, subscriptionStart);
             }
             catch (Exception ex)
             {
@@ -1663,7 +1668,7 @@ public class PayPalBillingService : IBillingService
         return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : ":" + uri.Port)}/Billing/Invoice/{invoiceId}";
     }
 
-    private async Task<PayPalSubscriptionResult> CreatePayPalSubscriptionAsync(IPRO.Entities.Invoice invoice, BillingRule package, BillingPeriod period, decimal setupFee, string returnUrl, string cancelUrl, string? planIdOverride = null)
+    private async Task<PayPalSubscriptionResult> CreatePayPalSubscriptionAsync(IPRO.Entities.Invoice invoice, BillingRule package, BillingPeriod period, decimal setupFee, string returnUrl, string cancelUrl, string? planIdOverride = null, DateTime? startTimeUtc = null)
     {
         var planId = planIdOverride ?? GetPayPalPlanId(package, period);
         if (string.IsNullOrWhiteSpace(planId))
@@ -1706,6 +1711,26 @@ public class PayPalBillingService : IBillingService
                 cancel_url = cancelUrl
             }
         };
+
+        // WHEN THE RECURRING CHARGE SHOULD BEGIN (2026-08-06, found by a live sandbox upgrade)
+        //
+        // Omitting start_time makes PayPal default to "now", which bills the FIRST FULL CYCLE
+        // immediately -- on top of the setup fee. For a brand-new subscription that is correct and is
+        // what we want. For an UPGRADE it is a straight overcharge: the agent has already paid for the
+        // current period on the package they are leaving.
+        //
+        // Observed on a real Silver -> Gold upgrade: $40 (Silver, already paid) + $19.99 (correct
+        // prorated difference) + $60 (a whole extra Gold cycle that should not have been taken until
+        // the next billing date). Passing the existing NextBillingDate here means PayPal charges only
+        // the prorated setup fee up front and starts the regular cycle when the paid-for period ends,
+        // which is exactly what the Billing page already tells the agent will happen.
+        //
+        // PayPal rejects a start_time that is not in the future, so anything already due falls back to
+        // the default: better an immediate start than a failed upgrade.
+        if (startTimeUtc.HasValue && startTimeUtc.Value > DateTime.UtcNow.AddMinutes(5))
+        {
+            payload["start_time"] = startTimeUtc.Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        }
 
         if (paymentPreferences.Count > 0)
         {
