@@ -75,7 +75,11 @@ else if (subscription == null && trialEndsAt.HasValue)
     <i class="fas fa-check-circle fa-2x"></i>
     <div class="flex-grow-1">
       <div class="fw-bold">Current package: @currentPackage.PackageName</div>
-      <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@subscription.Amount.ToString("N2") @subscription.Currency</small>
+      @* Amount is the package price BEFORE tax; the actual charge adds the agent's provincial rate
+         (13% HST in Ontario, and so on). Saying "plus applicable taxes" is honest without having to
+         resolve the agent's province on every page render, and avoids the surprise of a banner
+         promising $90.00 while PayPal takes $101.70. *@
+      <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@subscription.Amount.ToString("N2") @subscription.Currency plus applicable taxes</small>
     </div>
     <form asp-action="CancelSubscription" method="post">
       @Html.AntiForgeryToken()
@@ -184,6 +188,9 @@ else if (currentPackage == null)
                 {
                   <div class="display-6 text-primary fw-bold my-2">$@pkg.MonthlyPrice.ToString("N0")<span class="fs-6 text-muted fw-normal">/mo</span></div>
                   <div class="small text-muted">@(pkg.AnnualPrice > 0 ? $"${pkg.AnnualPrice:N0} annually" : "Annual billing not set")</div>
+                  @* Same reasoning as the next-billing banner: these are pre-tax prices, and the
+                     agent is choosing an upgrade from here. *@
+                  <div class="small text-muted">plus applicable taxes</div>
                 }
                 <div class="mt-3">
                   @{

@@ -225,6 +225,9 @@
                 @if (package.MonthlyPrice > 0)
                 {
                   <span class="price-amount">$@package.MonthlyPrice.ToString("N0")</span><span class="text-muted">/month</span>
+                  @* Prices are pre-tax; provincial sales tax is added at checkout. Saying so on the
+                     public pricing page keeps the advertised figure honest. *@
+                  <div class="small text-muted">plus applicable taxes</div>
                 }
                 else
                 {

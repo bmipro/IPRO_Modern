@@ -288,8 +288,10 @@ textarea:focus{box-shadow:none;}
               <option value="">Click here</option>
               @foreach (var package in packages)
               {
+                // Pre-tax, like every other price in the product. This is the point where the
+                // prospect actually commits, so it is the most important place to say so.
                 var priceLabel = package.MonthlyPrice > 0
-                    ? $"${package.MonthlyPrice:N0}/mo" + (package.SetupFee > 0 ? $" + ${package.SetupFee:N0} setup" : "")
+                    ? $"${package.MonthlyPrice:N0}/mo" + (package.SetupFee > 0 ? $" + ${package.SetupFee:N0} setup" : "") + " plus applicable taxes"
                     : "Contact us for pricing";
                 <option value="@package.Id">@package.PackageName — @priceLabel</option>
               }
