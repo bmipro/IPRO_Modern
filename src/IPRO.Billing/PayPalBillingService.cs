@@ -1690,11 +1690,24 @@ public class PayPalBillingService : IBillingService
             };
         }
 
+        // TAXES ARE A SIBLING OF payment_preferences, NOT A CHILD (fixed 2026-08-06)
+        //
+        // This used to be written into paymentPreferences. PayPal accepts that request happily -- 201,
+        // plan_overridden: true, no error, no warning -- and silently DISCARDS the override, so every
+        // subscription charged the pre-tax amount while the invoice recorded tax as owed. Confirmed
+        // against the live sandbox by creating one subscription of each shape and reading back
+        // ?fields=plan:
+        //     taxes inside payment_preferences -> taxes ABSENT
+        //     taxes beside payment_preferences -> taxes {"percentage":"13.0","inclusive":false}
+        //
+        // That is a collection and remittance problem, not a display one: HST appears on the agent's
+        // invoice but was never taken from them.
+        object? taxes = null;
         if (invoice.TaxRate > 0)
         {
-            paymentPreferences["taxes"] = new
+            taxes = new
             {
-                percentage = (invoice.TaxRate * 100).ToString("0.###"),
+                percentage = (invoice.TaxRate * 100).ToString("0.###", CultureInfo.InvariantCulture),
                 inclusive = false
             };
         }
@@ -1732,12 +1745,12 @@ public class PayPalBillingService : IBillingService
             payload["start_time"] = startTimeUtc.Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
         }
 
-        if (paymentPreferences.Count > 0)
+        if (paymentPreferences.Count > 0 || taxes != null)
         {
-            payload["plan"] = new
-            {
-                payment_preferences = paymentPreferences
-            };
+            var planOverride = new Dictionary<string, object>();
+            if (paymentPreferences.Count > 0) planOverride["payment_preferences"] = paymentPreferences;
+            if (taxes != null) planOverride["taxes"] = taxes;
+            payload["plan"] = planOverride;
         }
 
         using var response = await client.PostAsync(
