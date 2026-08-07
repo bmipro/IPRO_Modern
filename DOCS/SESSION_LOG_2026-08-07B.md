@@ -90,3 +90,33 @@ Every step's defects were caught **before deploy** by running the change, and tw
 (R-H7's 404, R-L3's payment block) were reproduced, fixed and re-verified in the local environment
 the same hour. The one-step-one-deploy cadence plus restart-after-deploy made every production
 change boring. Compare 2026-08-06's log, where the day's lesson was the opposite.
+
+## Addendum — audit #2 batch shipped (evening, 2026-08-07)
+
+The independent audit #2 (A2-numbering, scope `5625d95..5fe1daf`) came back with 8 High / 2 Low;
+all 10 verified before acting. Dispositions live in SECURITY_AUDIT_2026-08-05.md. Shipped today in
+six commits (`3747e10`, then `199de05..b5dd5a5`), each verified locally before push:
+
+- **A2-H1** rate-limit twins for /portal aliases + legacy /pub/register.aspx (11th POST → 429).
+- **A2-H6** cross-app deploy serialization — one shared concurrency group; today's push proved it
+  (admin queued `pending` until web finished).
+- **A2-H2** duplicate-Active-subscription sweep in SubscriptionBillingJob. Both branches proven
+  via Hangfire-triggered runs: unreachable PayPal id → row stays Active + Error naming both rows;
+  clean path → stale row Cancelled + Warning.
+- **A2-H3** 422 accept-list narrowed to CANCELLED/EXPIRED (a stale approval link can still
+  activate an APPROVAL_PENDING sub — the old accept-list was wrong).
+- **A2-H4 trial half** claim-before-create. The genuine race was staged with a held row lock:
+  pre-check passed at 4/5, rival took the last slot mid-request, claim returned 0 rows → clean
+  rejection, no agent, no over-count. Happy path: agent + TrialEndsAt + one redemption row.
+- **A2-H7** admin domain canonicalization (trim/dot/case/IDN) + URL rejection + reserved zones +
+  root/www variant checks across all three tables. Five browser tests passed incl. own-domain save.
+- **A2-L1** /health un-shadowed on agent hosts — the fix that makes the health probe honest.
+  Confirmed on prod post-deploy: agent-subdomain /health → 200 Healthy.
+
+Accepted-by-directive (not reworked, on record): A2-H5 keep-booting-on-1062, A2-H4 promo half
+(record-past-cap interim; reservation redesign queued pre-launch). Scheduled initiatives: A2-H8
+single schema owner, A2-L2 automated tests.
+
+Prod smoke after the serialized deploys: canonical /health 200 Healthy, agent-subdomain /health
+200 Healthy, agent public site 200, admin login 200. No restarts needed — run-from-package
+self-recycled both apps.
