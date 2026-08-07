@@ -346,9 +346,21 @@ public class AccountController : Controller
             // Atomic conditional increment, same reasoning as the promo-code redemption fix --
             // the database re-checks MaxRedemptions at update time instead of trusting a
             // stale in-memory RedemptionCount read earlier in this request.
-            await _db.TrialInviteCodes
+            var claimed = await _db.TrialInviteCodes
                 .Where(c => c.Id == trialInvite.Id && (c.MaxRedemptions == null || c.RedemptionCount < c.MaxRedemptions))
                 .ExecuteUpdateAsync(s => s.SetProperty(c => c.RedemptionCount, c => c.RedemptionCount + 1));
+            if (claimed == 0)
+            {
+                // Race loser (review H-10): the trial account already exists by this point, so
+                // record the truth -- count past the cap and alert -- rather than leave the
+                // counter and the redemption rows disagreeing.
+                await _db.TrialInviteCodes
+                    .Where(c => c.Id == trialInvite.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(c => c.RedemptionCount, c => c.RedemptionCount + 1));
+                _logger.LogError(
+                    "Trial invite code {TrialInviteCodeId} was redeemed past its cap by new agent {AgentUserId}. Review the code's limits.",
+                    trialInvite.Id, agent.Id);
+            }
             await _uow.TrialInviteCodeRedemptions.AddAsync(new TrialInviteCodeRedemption
             {
                 TrialInviteCodeId = trialInvite.Id,

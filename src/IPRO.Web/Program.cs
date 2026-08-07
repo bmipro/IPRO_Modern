@@ -234,6 +234,18 @@ app.UseAuthorization();
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? "";
+
+    // The /portal alias must be exempt exactly like the unprefixed routes (review L-3). This is
+    // not cosmetic: since the portal route registered ahead of default, generated form actions
+    // prefer /portal/..., so a billing-locked agent's Subscribe POST goes to
+    // /portal/Billing/Subscribe -- and without this normalization the gate 302'd that POST
+    // straight back to /Billing, silently blocking the one action the lock exists to funnel
+    // them into: paying. Caught live in the local environment during the step-5 sandbox test.
+    if (path.StartsWith("/portal/", StringComparison.OrdinalIgnoreCase))
+    {
+        path = path["/portal".Length..];
+    }
+
     var canChangePassword = path.StartsWith("/Account/ChangePassword", StringComparison.OrdinalIgnoreCase);
     var canLogout = path.StartsWith("/Account/Logout", StringComparison.OrdinalIgnoreCase);
     var isAuthenticated = context.User.Identity?.IsAuthenticated == true;
@@ -250,7 +262,8 @@ app.Use(async (context, next) =>
     // every tab except Billing (and Account, so they can still log out) is blocked until they
     // subscribe. Checked here rather than baked into the auth cookie because access needs to stop
     // working the moment the grace period lapses, not just at the next login.
-    var canUseBilling = context.Request.Path.StartsWithSegments("/Billing", StringComparison.OrdinalIgnoreCase);
+    var canUseBilling = string.Equals(path, "/Billing", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/Billing/", StringComparison.OrdinalIgnoreCase);
     var canLoginOrLogout = path.StartsWith("/Account/Login", StringComparison.OrdinalIgnoreCase) || canLogout;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
     if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout)

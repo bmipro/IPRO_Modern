@@ -275,9 +275,18 @@ public class PayPalBillingService : IBillingService
             b.AgentUserId == userId && b.Status == BillingStatus.Active && b.Id != billing.Id);
         foreach (var subscription in activeSubscriptions)
         {
-            if (!string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId))
+            // The upgrade payment is already captured, so the new subscription activates either
+            // way -- but the old row is only marked Cancelled when PayPal actually stopped it
+            // (empty PayPalSubscriptionId counts: nothing external to stop). Marking it Cancelled
+            // after a failed cancel is the lie the independent review flagged (H-1): the portal
+            // says cancelled while PayPal keeps charging. Leaving the row Active keeps the truth
+            // visible and lets a retry succeed later.
+            if (!await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by an upgraded IPRO subscription."))
             {
-                await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by an upgraded IPRO subscription.");
+                _logger.LogError(
+                    "Billing {BillingId} (PayPal {SubscriptionId}) could not be cancelled while upgrading agent {AgentUserId}; leaving it Active so the failure is visible and retryable.",
+                    subscription.Id, subscription.PayPalSubscriptionId, userId);
+                continue;
             }
 
             subscription.Status = BillingStatus.Cancelled;
@@ -326,9 +335,14 @@ public class PayPalBillingService : IBillingService
             b.AgentUserId == userId && b.Status == BillingStatus.Active && b.Id != billing.Id);
         foreach (var subscription in activeSubscriptions)
         {
-            if (!string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId))
+            // Same contract as the upgrade path (review H-1): only a confirmed PayPal stop may
+            // mark the local row Cancelled. On failure the row stays Active -- visible, retryable.
+            if (!await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by a new IPRO subscription."))
             {
-                await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by a new IPRO subscription.");
+                _logger.LogError(
+                    "Billing {BillingId} (PayPal {SubscriptionId}) could not be cancelled while activating a new subscription for agent {AgentUserId}; leaving it Active so the failure is visible and retryable.",
+                    subscription.Id, subscription.PayPalSubscriptionId, userId);
+                continue;
             }
 
             subscription.Status = BillingStatus.Cancelled;
@@ -414,6 +428,12 @@ public class PayPalBillingService : IBillingService
         // Void the stale attempt first. CreateSubscriptionAsync issues its own Billing row and
         // invoice, so leaving these behind would give the agent two pending rows for one package and
         // an orphaned invoice that dunning would keep chasing.
+        //
+        // Review L-1 flagged this ordering (a create failure after the void leaves nothing to
+        // resume). Kept deliberately: the reverse order is worse for money -- create-then-void
+        // means a void failure leaves TWO live approval links, and an agent completing the stale
+        // one later ends up with two subscriptions. A failed create here costs one extra click
+        // (Subscribe again from Billing); a stale approvable link can cost a double charge.
         if (!await CancelPendingPaymentAsync(userId, invoice.Id))
         {
             return BillingChangeResult.Failed(
@@ -1164,16 +1184,31 @@ public class PayPalBillingService : IBillingService
 
             var activeSubscriptions = await _uow.Billings.FindAsync(b =>
                 b.AgentUserId == userId && b.Status == BillingStatus.Active);
+            var allCancelled = true;
             foreach (var subscription in activeSubscriptions)
             {
-                if (!string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId))
+                // Review H-1: only a confirmed PayPal stop may mark the row Cancelled. Unlike the
+                // upgrade paths, nothing has been charged yet here, so a failure can simply leave
+                // the change Pending -- this job runs hourly and retries it naturally.
+                if (!await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by a scheduled IPRO package downgrade."))
                 {
-                    await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Replaced by a scheduled IPRO package downgrade.");
+                    _logger.LogError(
+                        "Billing {BillingId} (PayPal {SubscriptionId}) could not be cancelled for agent {AgentUserId}'s scheduled downgrade; leaving the change Pending to retry next run.",
+                        subscription.Id, subscription.PayPalSubscriptionId, userId);
+                    allCancelled = false;
+                    continue;
                 }
 
                 subscription.Status = BillingStatus.Cancelled;
                 subscription.CancelledAt = now;
                 _uow.Billings.Update(subscription);
+            }
+
+            if (!allCancelled)
+            {
+                // Persist the rows that did cancel, keep the change Pending, retry next run.
+                await _uow.SaveChangesAsync();
+                continue;
             }
 
             // The old (higher-priced) subscription is genuinely cancelled above. The new,
@@ -2054,9 +2089,23 @@ public class PayPalBillingService : IBillingService
         // two concurrent redemptions near the last available slot can't both pass a stale in-memory
         // RedemptionCount check and over-redeem past MaxRedemptions -- the WHERE clause is
         // re-evaluated by the database at update time, not read-then-written from memory.
-        await _db.PromotionCodes
+        var claimed = await _db.PromotionCodes
             .Where(p => p.Id == promotionCodeId && (p.MaxRedemptions == null || p.RedemptionCount < p.MaxRedemptions))
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount + 1));
+        if (claimed == 0)
+        {
+            // The race's loser lands here (review H-10): validation passed earlier, the discount
+            // was already granted when the PayPal plan was priced, and only now does the database
+            // say the cap was full. The money has moved, so record what actually happened -- count
+            // it past the cap and say so loudly -- instead of leaving the counter disagreeing with
+            // the redemption rows.
+            await _db.PromotionCodes
+                .Where(p => p.Id == promotionCodeId)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount + 1));
+            _logger.LogError(
+                "Promotion code {PromotionCodeId} was redeemed past its cap by agent {AgentUserId}; the discount was already applied when the plan was created. Review the code's limits.",
+                promotionCodeId, userId);
+        }
 
         await _uow.PromotionCodeRedemptions.AddAsync(new PromotionCodeRedemption
         {
@@ -2128,15 +2177,29 @@ public class PayPalBillingService : IBillingService
 
             var body = await response.Content.ReadAsStringAsync();
 
-            // 422 UNPROCESSABLE_ENTITY is PayPal's answer for "already cancelled or expired". The
-            // subscription is not billing, which is the outcome we wanted, so treat it as success --
-            // otherwise a second cancel attempt, or a retry after a timeout, blocks the agent forever.
+            // 422 UNPROCESSABLE_ENTITY usually means "not in a cancellable state" (already
+            // CANCELLED/EXPIRED, or never activated) -- but PayPal uses 422 for other semantic
+            // failures too, so it must not be taken as success on its own (review H-2). Ask for
+            // the subscription's actual status and accept only states that cannot bill:
+            // CANCELLED/EXPIRED are stopped; APPROVAL_PENDING/APPROVED never started. ACTIVE and
+            // SUSPENDED can still bill, and an empty status means the lookup itself failed --
+            // both stay a failure so the local row keeps telling the truth.
             if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
             {
-                _logger.LogInformation(
-                    "PayPal reports subscription {SubscriptionId} was already inactive: {Body}",
-                    subscriptionId, body);
-                return true;
+                var status = await GetPayPalSubscriptionStatusAsync(subscriptionId);
+                if (status is "CANCELLED" or "EXPIRED" or "APPROVAL_PENDING" or "APPROVED")
+                {
+                    _logger.LogInformation(
+                        "PayPal subscription {SubscriptionId} is {Status}; the 422 on cancel means there was nothing left to stop.",
+                        subscriptionId, status);
+                    return true;
+                }
+
+                _logger.LogError(
+                    "PayPal returned 422 cancelling {SubscriptionId} but its status is '{Status}' (empty = status lookup failed). " +
+                    "It may still be billing; the local row is NOT being marked cancelled. Body: {Body}",
+                    subscriptionId, status, body);
+                return false;
             }
 
             _logger.LogError(
