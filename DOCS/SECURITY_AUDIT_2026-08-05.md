@@ -283,3 +283,28 @@ avoid colliding with this audit's H-numbers. Full narrative: `SESSION_LOG_2026-0
 | R-L4 | Unread badge predicate inverted (always zero) | **Fixed** `82a972a`, badge lifecycle verified |
 | R-L5 | Fire-and-forget password-reset email | Open |
 | R-L6 | Docker HEALTHCHECK hit unmapped /health | **Endpoint now exists** `ecdc1d6`; note base image lacks curl if ever containerized |
+
+---
+
+## Independent audit #2 findings, 2026-08-07 (A2-numbering)
+
+Second external read-only audit, scope `5625d95..5fe1daf`. All 10 findings verified and confirmed.
+Standing directive from the owner, on record: **decisions previously made together are not
+re-litigated when a reviewer re-raises them — they are documented here as deliberate and accepted.**
+
+| ID | Finding | Disposition |
+|---|---|---|
+| A2-H1 | /portal aliases bypassed endpoint IP rate limits | **Fixed** — literal twin rules for every limited endpoint plus the legacy /pub/register.aspx route; verified locally (11th POST → 429) |
+| A2-H2 | Replacement can leave two live PayPal subscriptions | **Planned** — hourly reconciliation sweep in SubscriptionBillingJob to converge duplicate Active rows (fulfils the "retryable" intent already in the code comments) |
+| A2-H3 | APPROVAL_PENDING/APPROVED accepted as "stopped" | **Planned** — accept-list shrinks to CANCELLED/EXPIRED; pending/approved stay failures (visible, retried by the A2-H2 sweep). New information: a stale approval link can still activate |
+| A2-H4 | Caps recorded, not enforced | **Split.** Trial half: claim-first at registration planned (reject when the cap is full). Promo half: the record-past-cap behavior is the **accepted interim by prior decision** — the reservation redesign is queued as pre-launch work before any real limited codes are issued |
+| A2-H5 | App keeps serving without failed unique indexes | **Accepted by prior decision** — crashing both apps over a data-quality problem is the worse outage (2026-07-29 precedent); the loud stderr on every boot stands. Revisit only alongside A2-H8's schema-ownership work |
+| A2-H6 | Web and Admin could still deploy (and run DDL) concurrently | **Fixed** — both workflows now share one concurrency group; production deployments fully serialize |
+| A2-H7 | Admin domain check misses equivalent hostname forms | **Planned** — canonicalization (IDN/lowercase/trailing dot/URL-component rejection) + root/www variants + platform-zone block in the admin check |
+| A2-H8 | Dual migration system → schema drift risk | **Scheduled initiative** — baseline migration + single deploy-time schema owner; needs a production schema inventory and tested rollback; not a same-day fix |
+| A2-L1 | /health can be shadowed on agent custom domains | **Planned** — consult IsNeverShadowedPrefix in ShouldRouteToPublicWebsite (the earlier never-shadowed addition was ineffective there; corrected attribution) |
+| A2-L2 | No automated tests over the new surfaces | **Scheduled initiative** — extend the existing Playwright e2e suite with /portal alias, rate-limit and gate cases; a .NET test project is a separate decision |
+
+Confirmed by the auditor as holding up: the /portal access-gate normalization (no bypass found),
+R-H3's detach pattern, R-H5's restore-before-validate, the FollowUps alias, the unread predicate,
+the direct-cancellation truthfulness, and run-from-package/64-bit compatibility.
