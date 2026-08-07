@@ -316,6 +316,26 @@ public class AccountController : Controller
             return View(model);
         }
 
+        // Claim the trial slot BEFORE creating the account (audit #2, A2-H4). The old order
+        // created the agent first and then discovered the cap was full, at which point the only
+        // honest option left was recording an over-redemption. Claiming first turns a full code
+        // into a clean rejection: the conditional WHERE makes the database the arbiter under
+        // concurrency, and the catch below releases the slot if registration itself fails.
+        if (trialInvite != null)
+        {
+            var claimed = await _db.TrialInviteCodes
+                .Where(c => c.Id == trialInvite.Id && (c.MaxRedemptions == null || c.RedemptionCount < c.MaxRedemptions))
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.RedemptionCount, c => c.RedemptionCount + 1));
+            if (claimed == 0)
+            {
+                ModelState.AddModelError("", "This trial invitation has reached its redemption limit. Please contact us for a new invitation.");
+                SetRegistrationVerifyCode();
+                await LoadActivePackagesAsync();
+                await RepopulateTrialViewBagAsync(model.TrialCode);
+                return View(model);
+            }
+        }
+
         var agent = ToAgentUser(model);
         agent.UserName = await GenerateUniqueUserNameAsync(agent.FirstName, agent.LastName);
         agent.DomainName = await GenerateUniqueDomainAsync(agent.UserName);
@@ -333,6 +353,13 @@ public class AccountController : Controller
         }
         catch (Exception ex)
         {
+            if (trialInvite != null)
+            {
+                // The account was never created, so release the slot claimed above.
+                await _db.TrialInviteCodes
+                    .Where(c => c.Id == trialInvite.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(c => c.RedemptionCount, c => c.RedemptionCount - 1));
+            }
             _logger.LogError(ex, "Registration failed for {Email}", model.Email);
             ModelState.AddModelError("", "We could not complete the registration. Please check the form and try again.");
             SetRegistrationVerifyCode();
@@ -343,24 +370,6 @@ public class AccountController : Controller
 
         if (trialInvite != null)
         {
-            // Atomic conditional increment, same reasoning as the promo-code redemption fix --
-            // the database re-checks MaxRedemptions at update time instead of trusting a
-            // stale in-memory RedemptionCount read earlier in this request.
-            var claimed = await _db.TrialInviteCodes
-                .Where(c => c.Id == trialInvite.Id && (c.MaxRedemptions == null || c.RedemptionCount < c.MaxRedemptions))
-                .ExecuteUpdateAsync(s => s.SetProperty(c => c.RedemptionCount, c => c.RedemptionCount + 1));
-            if (claimed == 0)
-            {
-                // Race loser (review H-10): the trial account already exists by this point, so
-                // record the truth -- count past the cap and alert -- rather than leave the
-                // counter and the redemption rows disagreeing.
-                await _db.TrialInviteCodes
-                    .Where(c => c.Id == trialInvite.Id)
-                    .ExecuteUpdateAsync(s => s.SetProperty(c => c.RedemptionCount, c => c.RedemptionCount + 1));
-                _logger.LogError(
-                    "Trial invite code {TrialInviteCodeId} was redeemed past its cap by new agent {AgentUserId}. Review the code's limits.",
-                    trialInvite.Id, agent.Id);
-            }
             await _uow.TrialInviteCodeRedemptions.AddAsync(new TrialInviteCodeRedemption
             {
                 TrialInviteCodeId = trialInvite.Id,
