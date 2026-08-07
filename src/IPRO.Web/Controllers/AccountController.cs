@@ -794,8 +794,9 @@ public class AccountController : Controller
         try
         {
             // Trial packages are invitation-only (see trialCode handling in Register) - never
-            // shown in the normal self-serve dropdown.
-            var packages = await _uow.BillingRules.FindAsync(p => p.IsActive && !p.IsTrialPackage);
+            // shown in the normal self-serve dropdown. Hidden test packages (QA daily-billing
+            // sandbox plans) are reachable only by a direct billingRuleId POST, never rendered here.
+            var packages = await _uow.BillingRules.FindAsync(p => p.IsActive && !p.IsTrialPackage && !p.IsHiddenTestPackage);
             ViewBag.Packages = packages
                 .OrderBy(GetPackageRank)
                 .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)

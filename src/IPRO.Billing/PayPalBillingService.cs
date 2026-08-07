@@ -725,6 +725,57 @@ public class PayPalBillingService : IBillingService
         }
     }
 
+    // QA-only: creates a real PayPal Plan billed every 1 day instead of every month, so a manual
+    // buyer-pass test can observe the actual unattended renewal path (PayPal's own clock firing a
+    // charge, our webhook receiving it) inside a few days instead of waiting out a real monthly
+    // cycle. Hard-refuses outside sandbox so this can never create a real-money daily-billing plan,
+    // even by mistake later -- there is no live-mode path through this method at all.
+    public async Task<PayPalPlanSyncResult> SyncDailyTestPlanAsync(int billingRuleId)
+    {
+        if (!_settings.IsSandbox)
+        {
+            return PayPalPlanSyncResult.Failed("Refused: daily test plans can only be created while PayPal__IsSandbox is true.");
+        }
+
+        if (!HasPayPalSettings())
+        {
+            return PayPalPlanSyncResult.Failed("PayPal is not configured yet. Add PayPal ClientId and ClientSecret in Azure app settings.");
+        }
+
+        var package = await _uow.BillingRules.GetByIdAsync(billingRuleId);
+        if (package == null)
+        {
+            return PayPalPlanSyncResult.Failed("Package could not be found.");
+        }
+
+        if (package.MonthlyPrice <= 0)
+        {
+            return PayPalPlanSyncResult.Failed("A daily test plan was not created because this package has no monthly price to bill.");
+        }
+
+        try
+        {
+            var productId = await CreatePayPalProductAsync(package);
+            var dailyPlanId = await CreatePayPalPlanAsync(productId, package, BillingPeriod.Monthly, intervalUnitOverride: "DAY");
+
+            package.PayPalMonthlyPlanId = dailyPlanId;
+            _uow.BillingRules.Update(package);
+            await _uow.SaveChangesAsync();
+
+            return new PayPalPlanSyncResult
+            {
+                Success = true,
+                ProductId = productId,
+                MonthlyPlanId = dailyPlanId,
+                Message = "PayPal sandbox product and a DAY-frequency plan were created."
+            };
+        }
+        catch (Exception ex)
+        {
+            return PayPalPlanSyncResult.Failed(ex.Message);
+        }
+    }
+
     public async Task<BillingChangeResult> EmailPaidInvoiceAsync(int invoiceId, bool force = false)
     {
         var result = await SendPaidInvoiceEmailAsync(invoiceId, force);
@@ -895,7 +946,10 @@ public class PayPalBillingService : IBillingService
         // Trial packages are invitation-only (see TrialInviteCode) - never offered as a normal
         // subscribe/upgrade/downgrade choice, or an agent could just "subscribe" to the free
         // trial package directly and get a genuinely active (never-expiring) Billing row for it.
-        var packages = await _uow.BillingRules.FindAsync(p => p.IsActive && !p.IsTrialPackage);
+        // Hidden test packages (QA daily-billing sandbox plans) are reachable only by a direct
+        // billingRuleId POST -- never rendered here, or a real agent's upgrade picker could offer
+        // them.
+        var packages = await _uow.BillingRules.FindAsync(p => p.IsActive && !p.IsTrialPackage && !p.IsHiddenTestPackage);
         return packages.OrderBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice).ToList();
     }
 
@@ -1873,7 +1927,7 @@ public class PayPalBillingService : IBillingService
         return document.RootElement.GetProperty("id").GetString() ?? string.Empty;
     }
 
-    private async Task<string> CreatePayPalPlanAsync(string productId, BillingRule package, BillingPeriod period)
+    private async Task<string> CreatePayPalPlanAsync(string productId, BillingRule package, BillingPeriod period, string? intervalUnitOverride = null)
     {
         var amount = GetAmount(package, period);
         if (amount <= 0)
@@ -1886,8 +1940,11 @@ public class PayPalBillingService : IBillingService
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         client.DefaultRequestHeaders.Add("Prefer", "return=representation");
 
-        var intervalUnit = period == BillingPeriod.Annually ? "YEAR" : "MONTH";
-        var periodName = period == BillingPeriod.Annually ? "Annual" : "Monthly";
+        // intervalUnitOverride exists only for SyncDailyTestPlanAsync's QA plans -- our own
+        // bookkeeping (Billing.Period, GetNextBillingDate) still treats these as Monthly, since
+        // PayPal's engine is what actually drives the real cadence here, not this field.
+        var intervalUnit = intervalUnitOverride ?? (period == BillingPeriod.Annually ? "YEAR" : "MONTH");
+        var periodName = intervalUnitOverride == "DAY" ? "Daily" : (period == BillingPeriod.Annually ? "Annual" : "Monthly");
         var payload = new
         {
             product_id = productId,

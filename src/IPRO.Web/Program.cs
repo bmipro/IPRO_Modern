@@ -429,6 +429,21 @@ using (var scope = app.Services.CreateScope())
     await WebsiteStarterContentSeeder.SeedAsync(db, seedLogger);
     await WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db, seedLogger);
 
+    // QA-only, sandbox-gated (see QaDailyBillingPackageSeeder). Involves live PayPal API calls, so
+    // isolated the same way as starter-content seeding above -- a PayPal outage at boot must never
+    // take the app down.
+    try
+    {
+        var billingForSeed = scope.ServiceProvider.GetRequiredService<IBillingService>();
+        var payPalSettings = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<PayPalSettings>>().Value;
+        await QaDailyBillingPackageSeeder.SeedAsync(db, billingForSeed, payPalSettings.IsSandbox, seedLogger);
+    }
+    catch (Exception ex)
+    {
+        seedLogger.LogError(ex, "QA daily-billing test package seeding failed. The app is starting anyway.");
+        Console.Error.WriteLine("[QaDailyBillingPackageSeeding] FAILED: " + ex);
+    }
+
     var blob = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
     await blob.EnsureContainerAccessAsync("portal-documents", isPrivate: true);
     await blob.EnsureContainerAccessAsync("agent-documents", isPrivate: true);
@@ -751,6 +766,7 @@ static async Task EnsureBillingRuleSchemaAsync(IPRODbContext db)
     await EnsureTableColumnAsync(db, "BillingRules", "IsTrialPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsTrialPackage` tinyint(1) NOT NULL DEFAULT FALSE");
     await EnsureTableColumnAsync(db, "BillingRules", "TrialDurationDays", "ALTER TABLE `BillingRules` ADD COLUMN `TrialDurationDays` int NULL");
     await EnsureTableColumnAsync(db, "BillingRules", "TrialReminderDayOffsets", "ALTER TABLE `BillingRules` ADD COLUMN `TrialReminderDayOffsets` varchar(120) CHARACTER SET utf8mb4 NULL");
+    await EnsureTableColumnAsync(db, "BillingRules", "IsHiddenTestPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsHiddenTestPackage` tinyint(1) NOT NULL DEFAULT FALSE");
 }
 
 static async Task EnsureAgentDomainSchemaAsync(IPRODbContext db)

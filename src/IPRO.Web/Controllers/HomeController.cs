@@ -30,7 +30,7 @@ public class HomeController : Controller
         var packages = await _db.BillingRules
             .AsNoTracking()
             .Include(p => p.Features)
-            .Where(p => p.IsActive && !p.IsTrialPackage)
+            .Where(p => p.IsActive && !p.IsTrialPackage && !p.IsHiddenTestPackage)
             .ToListAsync();
 
         var ordered = packages

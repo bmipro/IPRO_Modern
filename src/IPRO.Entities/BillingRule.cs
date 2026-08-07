@@ -15,6 +15,10 @@ public class BillingRule
     public int MaxNewsletters { get; set; } = 12;
     public int? DefaultWebsiteTemplateId { get; set; }
     public bool IsActive { get; set; } = true;
+    // Excluded from every agent-facing package list (public signup picker, upgrade/downgrade
+    // picker) but still selectable by a direct billingRuleId POST -- used for QA-only sandbox
+    // packages (e.g. daily-billing test plans) that a real visitor must never be able to browse to.
+    public bool IsHiddenTestPackage { get; set; }
     public bool IsTrialPackage { get; set; }
     public int? TrialDurationDays { get; set; }
     // Comma-separated days-before-expiry to send a reminder, e.g. "7,3,1". Only meaningful when IsTrialPackage.
