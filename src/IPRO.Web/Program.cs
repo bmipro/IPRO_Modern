@@ -620,6 +620,13 @@ static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration confi
 
     var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
     var firstSegment = requestPath.Split('/', 2)[0];
+
+    // Never-shadowed prefixes are reserved on EVERY host (audit #2, A2-L1). This list was
+    // previously consulted only after the segment matched a reflected controller name -- but
+    // "health" is an endpoint, not a controller, so on an agent's custom domain /health fell
+    // through to the public-site slug lookup and served the agent's site instead of the probe.
+    if (firstSegment.Length > 0 && IsNeverShadowedPrefix(firstSegment)) return false;
+
     if (firstSegment.Length > 0 && portalRoutePrefixes.Contains(firstSegment))
     {
         // A portal controller name wins... unless the agent whose site this is has genuinely built a
