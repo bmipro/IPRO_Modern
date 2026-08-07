@@ -4,6 +4,13 @@ on:
     branches:
       - main
   workflow_dispatch:
+# One production deployment at a time. Push-triggered and manually dispatched runs share this
+# group, so they queue instead of overlapping. cancel-in-progress stays false: an in-flight
+# deploy must complete (cancelling mid-deploy can leave the site half-updated); the newest
+# queued run then deploys after it.
+concurrency:
+  group: deploy-ipro-prod-web
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
