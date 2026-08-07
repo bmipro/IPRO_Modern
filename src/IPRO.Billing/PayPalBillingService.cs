@@ -2121,6 +2121,45 @@ public class PayPalBillingService : IBillingService
         });
     }
 
+    // Audit #2 (A2-H2): the replacement paths deliberately leave the OLD row Active when its
+    // PayPal cancellation fails, so the failure stays visible instead of hiding behind a local
+    // "Cancelled". This hourly sweep is the retry that makes that state converge to one billable
+    // subscription per agent: the newest Active row is the real one, every older Active row is
+    // retried against PayPal until it confirms stopped. Rows with no PayPalSubscriptionId
+    // (free/promo) converge immediately. Failures log at Error and are retried next run.
+    public async Task<int> ReconcileDuplicateActiveSubscriptionsAsync()
+    {
+        var actives = await _uow.Billings.FindAsync(b => b.Status == BillingStatus.Active);
+        var converged = 0;
+        foreach (var group in actives.GroupBy(b => b.AgentUserId).Where(g => g.Count() > 1))
+        {
+            var keep = group.OrderByDescending(b => b.Id).First();
+            foreach (var stale in group.Where(b => b.Id != keep.Id))
+            {
+                if (!await CancelPayPalSubscriptionAsync(stale.PayPalSubscriptionId,
+                        "Superseded IPRO subscription reconciled after an earlier failed cancellation."))
+                {
+                    _logger.LogError(
+                        "Reconciliation: billing {BillingId} (PayPal {SubscriptionId}) for agent {AgentUserId} may still be billing alongside newer billing {KeepId}; retrying next run.",
+                        stale.Id, stale.PayPalSubscriptionId, stale.AgentUserId, keep.Id);
+                    continue;
+                }
+
+                stale.Status = BillingStatus.Cancelled;
+                stale.CancelledAt = DateTime.UtcNow;
+                _uow.Billings.Update(stale);
+                converged++;
+            }
+        }
+
+        if (converged > 0)
+        {
+            await _uow.SaveChangesAsync();
+        }
+
+        return converged;
+    }
+
     private async Task<string> GetPayPalSubscriptionStatusAsync(string subscriptionId)
     {
         if (!HasPayPalSettings())
@@ -2177,17 +2216,19 @@ public class PayPalBillingService : IBillingService
 
             var body = await response.Content.ReadAsStringAsync();
 
-            // 422 UNPROCESSABLE_ENTITY usually means "not in a cancellable state" (already
-            // CANCELLED/EXPIRED, or never activated) -- but PayPal uses 422 for other semantic
-            // failures too, so it must not be taken as success on its own (review H-2). Ask for
-            // the subscription's actual status and accept only states that cannot bill:
-            // CANCELLED/EXPIRED are stopped; APPROVAL_PENDING/APPROVED never started. ACTIVE and
-            // SUSPENDED can still bill, and an empty status means the lookup itself failed --
-            // both stay a failure so the local row keeps telling the truth.
+            // 422 UNPROCESSABLE_ENTITY usually means "not in a cancellable state" -- but PayPal
+            // uses 422 for other semantic failures too, so it must not be taken as success on its
+            // own (review H-2). Ask for the subscription's actual status and accept ONLY the
+            // terminal states, CANCELLED and EXPIRED (audit #2, A2-H3). APPROVAL_PENDING and
+            // APPROVED are NOT safe: a stale approval link can still be completed later and the
+            // subscription starts billing -- and CapturePaymentAsync itself treats APPROVED as
+            // activation-ready, so calling it "stopped" here would contradict our own activation
+            // logic. Those states, ACTIVE, SUSPENDED, and a failed lookup all stay failures; the
+            // row stays visible and the hourly reconciliation sweep keeps retrying it.
             if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
             {
                 var status = await GetPayPalSubscriptionStatusAsync(subscriptionId);
-                if (status is "CANCELLED" or "EXPIRED" or "APPROVAL_PENDING" or "APPROVED")
+                if (status is "CANCELLED" or "EXPIRED")
                 {
                     _logger.LogInformation(
                         "PayPal subscription {SubscriptionId} is {Status}; the 422 on cancel means there was nothing left to stop.",

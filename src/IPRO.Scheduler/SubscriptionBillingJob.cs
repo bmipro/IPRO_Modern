@@ -26,5 +26,13 @@ public class SubscriptionBillingJob
         {
             _logger.LogInformation("Sent {Count} billing issue notification(s).", notified);
         }
+
+        // Audit #2 (A2-H2): converge any agent left with two Active subscriptions by an earlier
+        // failed PayPal cancellation. Warning level so App Insights records every convergence.
+        var reconciled = await _billing.ReconcileDuplicateActiveSubscriptionsAsync();
+        if (reconciled > 0)
+        {
+            _logger.LogWarning("Reconciled {Count} superseded subscription row(s) whose earlier cancellation had failed.", reconciled);
+        }
     }
 }
