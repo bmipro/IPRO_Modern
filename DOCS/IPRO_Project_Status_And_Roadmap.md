@@ -2077,3 +2077,46 @@ would have caught it in seconds.
 Renewal stays manual: lego runs `--dns manual` and needs a TXT record published in cPanel. DNS is on
 the cPanel host rather than GoDaddy's nameservers, so lego's cPanel provider is the route to full
 automation when a cPanel API token is available. See DOCS/20_CERTIFICATES.md.
+
+### 89. QA daily-billing harness: proving PayPal's real renewal engine (day 1 done, 2026-08-07)
+
+The bobmot1 buyer pass (2026-08-06) proved signup and two upgrades -- but everything happened inside
+90 minutes on one day. The one part of billing that real revenue depends on and that has never
+actually run is PayPal's own unattended recurring charge. Waiting a month to see one was the only
+option, so we built a compressed timeline instead.
+
+**The harness** (commit `d7b6c17`): three hidden packages -- QA Silver/Gold/Platinum (Daily), ids
+7/8/9 in production -- exact clones of the real tiers (same prices, same 47 entitlements) but backed
+by real PayPal Sandbox plans billed every **1 day** instead of monthly. `BillingRule.IsHiddenTestPackage`
+keeps them out of every agent-facing list (marketing homepage, signup picker, upgrade picker); they
+are reachable only by a direct billingRuleId submission. `SyncDailyTestPlanAsync` hard-refuses unless
+`PayPal__IsSandbox` is true, so a real-money daily plan cannot be created through this path, ever.
+A SeedGuard'd startup seeder provisioned all three automatically on deploy.
+
+**Day 1 executed live on production**: the user registered `bobtest`, subscribed via the hidden
+Silver Daily plan (browser-console override of the hidden billingRuleId -- by design the only way in),
+approved on PayPal sandbox, and the Billing page now shows "Current package: QA Silver (Daily)".
+Note: the "Next billing" date displayed is our monthly bookkeeping and is cosmetically wrong for QA
+plans -- PayPal's DAY-frequency plan drives the real cadence and charges tomorrow regardless.
+
+**Plan**: day 2 -- confirm the overnight unattended charge arrived via webhook, upgrade to Gold Daily;
+day 3 -- confirm again, upgrade to Platinum Daily; day 4 -- cancel + delete the agent and verify
+directly against PayPal's API that the subscription is physically cancelled on PayPal's side.
+
+**The harness caught a real production bug within minutes** (fixed same night, commit `943d0d4`):
+the Billing page resolved the agent's OWN current/pending package from the filtered browse list, so
+any subscriber whose package was no longer offered for sale saw "Your current package is no longer
+available" instead of their subscription. Hidden QA plans triggered it today; the first real package
+ever retired from sale while carrying subscribers would have triggered it for real customers.
+
+**Two more bugs observed and queued (not yet fixed)**:
+- Registration confirmation email contains a DIFFERENT temporary password than the one shown
+  on-screen (on-screen one works; emailed one is presumably a second generation). Investigate
+  whether the email composes from a separate GenerateTemporaryPassword call.
+- Access-gated agents (no active subscription) still see the full portal sidebar; every nav item
+  should be hidden/disabled except Profile and Change Password until they subscribe.
+
+**Slug-collision bug re-verified still open** the same evening (user hoped it was done): /articles,
+/forms, /documents, /newsletter still 302 to the portal login on agent sites. Only /testimonials now
+resolves, because Nav v2 gave every agent a real published page with that slug. See
+DOCS/09_TROUBLESHOOTING.md and the fix directions recorded 2026-08-06.
