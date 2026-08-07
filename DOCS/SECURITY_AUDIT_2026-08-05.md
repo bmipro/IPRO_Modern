@@ -32,6 +32,9 @@ listed there is still open.
 | C-3 DidYouKnow mass-duplicate | **FIXED** — `ClaimedAtUtc` claim/complete split, 2026-08-05 |
 | H-4 startup DDL race → SIGABRT | **FIXED** 2026-08-06 (below) |
 | H-5 unguarded seeders → boot crash-loop | **FIXED** 2026-08-06 (below) |
+| H-1 cancellation failure swallowed | **FIXED** 2026-08-06 `f6c6ad5` |
+| H-9 recurring invoice number collision | **FIXED** 2026-08-06 `f6c6ad5` |
+| H-3 resume-payment made a one-time charge | **FIXED** 2026-08-06 |
 
 **All four Criticals are closed.** C-3 was fixed on 2026-08-05 but left listed as open here until
 2026-08-06 — the entry below it in the CRITICAL section is stale, not a live finding.
@@ -166,15 +169,15 @@ Hangfire's default 10 retries re-sends the whole batch each time.
 
 | # | Finding | Where | Conf. |
 |---|---|---|---|
-| H-1 | **PayPal cancellation failure is swallowed** — `CancelPayPalSubscriptionAsync` catches everything and returns success, so agent-delete's "abort if cancellation fails" guard can never trigger. Deleted agents can keep being charged. Also makes agent-facing "Subscription cancelled" a lie. | `PayPalBillingService.cs:2028-2062` · `AgentsController.cs:248-272` | ⚠ ×2 |
+| ~~H-1~~ | **FIXED 2026-08-06.** ~~PayPal cancellation failure is swallowed~~ — `CancelPayPalSubscriptionAsync` catches everything and returns success, so agent-delete's "abort if cancellation fails" guard can never trigger. Deleted agents can keep being charged. Also makes agent-facing "Subscription cancelled" a lie. | `PayPalBillingService.cs:2028-2062` · `AgentsController.cs:248-272` | ⚠ ×2 |
 | H-2 | **Support-role admin → full agent account takeover.** `Agents/Edit` is class-level `AdminAccess`, not SuperAdmin, and writes `agent.Email`. Change the email, then use public password reset. Defeats the M-2 SuperAdmin gate entirely. | `AgentsController.cs:14, 188-210, 446` | ⚠ |
-| H-3 | **"Resume payment" converts a subscription to a one-time charge** — pays one month, holds the package forever, real subscription never activates. | `PayPalBillingService.cs:361-415` | ⚠ |
+| ~~H-3~~ | **FIXED 2026-08-06.** ~~"Resume payment" converts a subscription to a one-time charge~~ — pays one month, holds the package forever, real subscription never activates. | `PayPalBillingService.cs:361-415` | ⚠ |
 | ~~H-4~~ | **FIXED 2026-08-06.** ~~Startup DDL race can SIGABRT both apps.~~ `EnsureTableColumnAsync` is check-then-ALTER with no lock; both apps deploy from one push, loser gets MySQL 1060 → unhandled → crash. The July advisory-lock fix covered DML seeding only. | `Web/Program.cs:1544-1578` + Admin copy | ⚠ |
 | ~~H-5~~ | **FIXED 2026-08-06.** ~~Three structural seeders never got SeedGuard~~, and `PackageEntitlementSeeder` poisons the DB into a permanent boot crash-loop (`ToDictionaryAsync` on duplicated rows) on both apps. | `PackageEntitlementSeeder.cs:31-63`, `TaxRateSeeder.cs`, `WebsiteTemplateSeeder.cs` | ⚠ |
 | H-6 | **All four dispatchers claim work read-then-write**, not atomic UPDATE. Overlapping runs, the SuperAdmin "Trigger now" button, and the controller send-now path can each double-send an entire newsletter audience. | `NewsLetterDispatcher.cs:50-64` + ECard/ELetter/Poll | ⚠ |
 | H-7 | **A crash or deploy mid-dispatch strands sends in `Sending` forever** — silent partial delivery, no recovery path, and manual repair re-emails everyone. | same four dispatchers | ⚠ |
 | H-8 | **Email-then-mark with one terminal save + 10 retries** → up to 2,000 duplicate overdue-invoice emails to end clients from one transient DB error. | `OverdueInvoiceReminderJob.cs:62-72`, `TrialReminderJob.cs:69-81` | ⚠ |
-| H-9 | **Recurring invoices can deadlock platform-wide.** Document numbers are generated against committed rows while the batch stays unsaved → duplicates → the L-12 unique index fails the whole batch → every agent's recurring invoicing stops, permanently. | `RecurringClientInvoiceJob.cs:58-83` | ⚠ ×2 |
+| ~~H-9~~ | **FIXED 2026-08-06.** ~~Recurring invoices can deadlock platform-wide.~~ Document numbers are generated against committed rows while the batch stays unsaved → duplicates → the L-12 unique index fails the whole batch → every agent's recurring invoicing stops, permanently. | `RecurringClientInvoiceJob.cs:58-83` | ⚠ ×2 |
 | H-10 | **Deleting a client leaks every private portal document** (rows + blobs), and the eraser can then never find them because it scopes through the deleted parent. | `ClientService.cs:35-43` · `AgentDataEraser.cs:35,135` | ⚠ |
 | H-11 | **Gallery blobs orphaned** when a Gallery block or its page is deleted; the eraser reads live blocks so it cannot see them either. Quota is freed on paper while files persist. | `WebsitePagesController.cs:681-706, 966-977` | ⚠ ×2 |
 | H-12 | **Erasing one agent can destroy artwork other agents still use** — `SharedAssetUrlsAsync` doesn't check other agents' `Articles.ImageUrl`, only the starter libraries. | `AgentDataEraser.cs:141-150` | ⚠ |

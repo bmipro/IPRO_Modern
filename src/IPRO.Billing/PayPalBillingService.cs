@@ -395,34 +395,35 @@ public class PayPalBillingService : IBillingService
             return BillingChangeResult.Failed("The package for this invoice could not be found.");
         }
 
-        PayPalOrderResult order;
-        try
+        // Start a real SUBSCRIPTION, not a one-time order.
+        //
+        // This used to call CreatePayPalOrderAsync, which is a single payment. The agent paid one
+        // month, the invoice was marked paid, the package activated -- and no subscription ever
+        // existed, so nothing charged them again. Because ProcessDueSubscriptionChangesAsync only
+        // applies downgrades and sends notices (all recurring money comes from PayPal's own engine),
+        // that agent held the package indefinitely for a single month's payment. Same defect class
+        // as C-2, reached through a different door: a Billing row with no PayPalSubscriptionId is
+        // not a subscription, however paid it looks.
+        //
+        // The button says "Resume payment", which is a promise about recurring billing, so it has to
+        // produce one. The cost is that the agent approves at PayPal rather than paying in one
+        // click -- unavoidable, since PayPal requires approval to establish a billing agreement.
+        var period = billing.Period;
+        var billingRuleId = billing.BillingRuleId;
+
+        // Void the stale attempt first. CreateSubscriptionAsync issues its own Billing row and
+        // invoice, so leaving these behind would give the agent two pending rows for one package and
+        // an orphaned invoice that dunning would keep chasing.
+        if (!await CancelPendingPaymentAsync(userId, invoice.Id))
         {
-            order = await CreatePayPalOrderAsync(invoice, package.PackageName, returnUrl, cancelUrl);
-        }
-        catch (Exception ex)
-        {
-            return BillingChangeResult.Failed($"PayPal checkout could not be restarted: {ex.Message}");
+            return BillingChangeResult.Failed(
+                "We could not clear the previous payment attempt. Please refresh and try again, or contact support.");
         }
 
-        if (string.IsNullOrWhiteSpace(order.ApprovalUrl))
-        {
-            return BillingChangeResult.Failed("PayPal did not return an approval link.");
-        }
-
-        invoice.PayPalTransactionId = order.OrderId;
-        _uow.Invoices.Update(invoice);
-        await _uow.SaveChangesAsync();
-
-        return new BillingChangeResult
-        {
-            Success = true,
-            RequiresPayment = true,
-            ApprovalUrl = order.ApprovalUrl,
-            InvoiceId = invoice.Id,
-            AmountDue = invoice.Total,
-            Message = "Please complete payment in PayPal to activate this package change."
-        };
+        // Delegate rather than reimplement: this is the same path a first-time subscribe takes, so
+        // promotion codes, trial-package refusal, setup fees and plan creation all behave identically
+        // instead of drifting from a second copy of the logic.
+        return await CreateSubscriptionAsync(userId, billingRuleId, period, returnUrl, cancelUrl);
     }
 
     public async Task<bool> CancelPendingPaymentAsync(int userId, int invoiceId)
