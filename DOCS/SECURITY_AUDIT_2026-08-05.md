@@ -257,3 +257,29 @@ Worth recording, because these were checked hard and held:
 - **The July advisory-lock fix was applied to the six newer seeders but not to the DDL helpers or the
   three older structural seeders**, which still carry the identical race that caused the 2026-07-29
   dual-SIGABRT.
+
+---
+
+## Independent review findings, 2026-08-07 (R-numbering)
+
+External read-only review at `5625d95`; all 16 findings verified and confirmed. R-prefixed to
+avoid colliding with this audit's H-numbers. Full narrative: `SESSION_LOG_2026-08-07B.md`.
+
+| ID | Finding | Status |
+|---|---|---|
+| R-H1 | Replacement paths discarded PayPal cancel result | **Fixed** `4a3e365`, failure path exercised in sandbox |
+| R-H2 | Blanket 422 treated as cancel success | **Fixed** `4a3e365` (status-verified); 422 branch awaits sandbox buyer pass |
+| R-H3 | Failed recurring schedule advanced by later save | **Fixed** `f13218d`, verified with forced save failure |
+| R-H4 | Invoice-number generation race | **Deferred** — self-healing after R-H3; atomic counter queued with schema work |
+| R-H5 | Support admins could not save agent edits | **Fixed** `f13218d`, verified with real Support login |
+| R-H6 | Admin domain edit bypassed cross-table claim check | **Fixed** `f13218d`, collision rejection verified |
+| R-H7 | /portal Follow-ups sidebar link 404 | **Fixed** `82a972a`, 404→200 verified authenticated |
+| R-H8 | 1062 index failure silently swallowed | **Fixed** `f13218d` — loud stderr, still boots |
+| R-H9 | Deploys could overlap; no staging slot | **Concurrency fixed** `42d3762` (overlap test passed); staging slot needs Standard-tier plan — open cost decision |
+| R-H10 | Redemption caps ignored affected-row count | **Fixed** `4a3e365` — breach recorded truthfully + Error log |
+| R-L1 | Resume voids before replacement exists | **Kept deliberately**, documented (safer failure direction) |
+| R-L2 | Cookie-name sniffing in slug override | Open — retires with the /portal cutover |
+| R-L3 | Gate exemptions missed /portal paths | **Fixed** `4a3e365` — was silently blocking a locked agent's Subscribe POST (revenue), found live in local testing |
+| R-L4 | Unread badge predicate inverted (always zero) | **Fixed** `82a972a`, badge lifecycle verified |
+| R-L5 | Fire-and-forget password-reset email | Open |
+| R-L6 | Docker HEALTHCHECK hit unmapped /health | **Endpoint now exists** `ecdc1d6`; note base image lacks curl if ever containerized |
