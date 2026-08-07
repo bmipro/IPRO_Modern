@@ -205,10 +205,22 @@ public class DomainCheckService : IDomainCheckService
             // Log the inputs to the decision, not just the verdict. Diagnosing a wrong "Not
             // forwarding" from outside meant guessing at which of several steps had failed, with no
             // way to tell a stale value from a failing check.
-            _logger.LogInformation(
-                "Root check {Root}: status={Status} location={Location} target={Target} expected={Www} => forwarding={Result}",
-                domain.RootDomain, (int)response.StatusCode, location?.ToString() ?? "(none)",
-                target ?? "(none)", domain.WwwDomain, domain.RootRedirectsToWww);
+            //
+            // Warning, not Information, ONLY when the answer is negative: Application Insights
+            // captures Warning and above by default, so an Information line here is invisible in
+            // production -- which is exactly the hole that made this undiagnosable. A successful
+            // check stays at Information so we do not manufacture noise.
+            if (domain.RootRedirectsToWww)
+            {
+                _logger.LogInformation("Root check {Root}: forwards to {Target} as expected", domain.RootDomain, target);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Root check {Root} says NOT forwarding: status={Status} location={Location} target={Target} expected={Www}",
+                    domain.RootDomain, (int)response.StatusCode, location?.ToString() ?? "(none)",
+                    target ?? "(none)", domain.WwwDomain);
+            }
         }
         catch (Exception ex)
         {
