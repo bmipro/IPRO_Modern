@@ -268,6 +268,25 @@ app.MapControllerRoute(
     "legacy-register",
     "pub/register.aspx",
     new { controller = "Account", action = "Register" });
+
+// PORTAL ROUTES LIVE UNDER /portal (added 2026-08-07)
+//
+// The portal and every agent's public website share one application and one URL space, so a portal
+// controller name and an agent's page slug are the same string. That collision has now produced two
+// production bugs in two days, in opposite directions: an agent's /testimonials page showed visitors
+// a login form (fixed 9fa27c8), and then the fix for that served a signed-in agent their own public
+// page instead of the portal screen (fixed cb12b1d).
+//
+// Both are symptoms of the namespace, not of either fix. Under /portal the rule needs no heuristics:
+// anything beginning /portal is the portal, everything else belongs to the agent's site. No database
+// lookup, no cookie sniffing, no reserved-prefix list.
+//
+// ADDITIVE ON PURPOSE. The unprefixed routes below still work, because password-reset links, invoice
+// links and client-portal invitations already sitting in people's inboxes point at them. Portal
+// navigation moves to the prefixed form now; retiring the unprefixed routes and deleting the whole
+// override mechanism is a separate, later change once nothing in the wild depends on them.
+app.MapControllerRoute("portal", "portal/{controller=Dashboard}/{action=Index}/{id?}");
+
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
@@ -452,6 +471,9 @@ static async Task MarkPublicSlugOverrideAsync(HttpContext context, IConfiguratio
     if (!HttpMethods.IsGet(context.Request.Method)) return;
     if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return;
 
+    // Anything under /portal is unambiguously the portal and never a public slug.
+    if (context.Request.Path.StartsWithSegments("/portal", StringComparison.OrdinalIgnoreCase)) return;
+
     var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
     if (requestPath.Length == 0) return;
 
@@ -563,6 +585,14 @@ static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration confi
 {
     if (!HttpMethods.IsGet(context.Request.Method)) return false;
     if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return false;
+
+    // /portal belongs to the portal on every host, unconditionally. This is the whole point of the
+    // prefix: no slug lookup, no cookie check, no reserved list -- one segment decides it. An agent
+    // cannot reach it by naming a page "portal" either, because this returns before any of that.
+    if (context.Request.Path.StartsWithSegments("/portal", StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
 
     var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
     var firstSegment = requestPath.Split('/', 2)[0];
