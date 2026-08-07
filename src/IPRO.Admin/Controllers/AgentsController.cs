@@ -538,8 +538,25 @@ public class AgentsController : Controller
         agent.BusinessFax = agent.BusinessFax?.Trim() ?? "";
         agent.CellPhone = agent.CellPhone?.Trim() ?? "";
         agent.BusinessType = agent.BusinessType?.Trim() ?? "";
-        agent.DomainName = agent.DomainName?.Trim() ?? "";
+        agent.DomainName = CanonicalizeDomain(agent.DomainName);
         agent.PromotionCode = agent.PromotionCode?.Trim() ?? "";
+    }
+
+    // Canonical hostname form (audit #2, A2-H7): trimmed, lowercase, no trailing dot, IDN mapped
+    // to punycode so visually-identical Unicode hostnames cannot dodge the ownership checks.
+    // Malformed input is passed through unchanged; validation rejects it with a clear message.
+    private static string CanonicalizeDomain(string? raw)
+    {
+        var value = (raw ?? "").Trim().TrimEnd('.').ToLowerInvariant();
+        if (value.Length == 0) return "";
+        try
+        {
+            return new System.Globalization.IdnMapping().GetAscii(value);
+        }
+        catch (ArgumentException)
+        {
+            return value;
+        }
     }
 
     private void ValidateAgentEdit(AgentEditViewModel agent)
@@ -568,19 +585,41 @@ public class AgentsController : Controller
 
         if (!string.IsNullOrWhiteSpace(agent.DomainName))
         {
-            var existingDomain = await _uow.AgentUsers.FirstOrDefaultAsync(a => a.DomainName == agent.DomainName && a.Id != id);
+            var domain = agent.DomainName;
+
+            // Audit #2 (A2-H7): the value must be a bare canonical hostname before any comparison
+            // means anything. CanonicalizeDomain already lowercased, stripped a trailing dot and
+            // punycoded it; anything still carrying URL machinery is rejected outright.
+            if (domain.IndexOfAny(new[] { '/', ':', '?', '#', '@', ' ' }) >= 0)
+            {
+                ModelState.AddModelError("", "Setup domain must be a bare domain name (like agentname.247advisers.com) - no http://, paths, ports or spaces.");
+                return;
+            }
+            if (domain is "247advisers.com" or "www.247advisers.com" or "iproadvisers.com"
+                || domain.EndsWith(".iproadvisers.com", StringComparison.Ordinal)
+                || domain.EndsWith(".azurewebsites.net", StringComparison.Ordinal))
+            {
+                ModelState.AddModelError("", "That hostname is reserved by the platform.");
+                return;
+            }
+
+            // Public resolution treats root and www forms of a hostname as the same site, so the
+            // ownership check must too -- an exact-string comparison let www.victim.example be
+            // assigned while another agent owned victim.example (A2-H7).
+            var root = domain.StartsWith("www.", StringComparison.Ordinal) ? domain[4..] : domain;
+            var www = "www." + root;
+
+            var existingDomain = await _uow.AgentUsers.FirstOrDefaultAsync(a =>
+                (a.DomainName == domain || a.DomainName == root || a.DomainName == www) && a.Id != id);
             if (existingDomain != null) ModelState.AddModelError("", "Domain is already used by another agent.");
 
-            // Review H-6: public host resolution also matches AgentWebsites.CustomDomain and the
-            // AgentDomains root/www variants, so a value colliding with ANY of them makes visitor
-            // routing ambiguous between two agents. Checking only AgentUsers let an admin edit
-            // create exactly that collision.
-            var domain = agent.DomainName;
             var websiteClash = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-                .AnyAsync(_db.AgentWebsites, w => w.AgentUserId != id && w.CustomDomain == domain);
+                .AnyAsync(_db.AgentWebsites, w => w.AgentUserId != id &&
+                    (w.CustomDomain == domain || w.CustomDomain == root || w.CustomDomain == www));
             var domainClash = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
                 .AnyAsync(_db.AgentDomains, d => d.AgentUserId != id &&
-                    (d.DomainName == domain || d.RootDomain == domain || d.WwwDomain == domain));
+                    (d.DomainName == domain || d.DomainName == root || d.DomainName == www
+                     || d.RootDomain == root || d.WwwDomain == www));
             if (websiteClash || domainClash)
             {
                 ModelState.AddModelError("", "Domain is already claimed by another agent's website or domain binding.");
