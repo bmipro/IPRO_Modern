@@ -120,3 +120,38 @@ single schema owner, A2-L2 automated tests.
 Prod smoke after the serialized deploys: canonical /health 200 Healthy, agent-subdomain /health
 200 Healthy, agent public site 200, admin login 200. No restarts needed — run-from-package
 self-recycled both apps.
+
+## Addendum 2 — QA daily-billing harness, live day 1 (late evening, 2026-08-07)
+
+First: a correction on the record. Asked to summarize the outstanding to-do list, the earlier
+roundup repeated the memory-recorded claim that the user's buyer-pass test "was never run." It ran
+on 2026-08-06, on schedule, cleanly — Silver → Gold → Platinum on bobmot1 (agent 27), each upgrade
+cancelling the prior PayPal subscription, three paid invoices. The user caught the error with the
+Admin screen. Lesson recorded: verify memory-recorded "still open" flags against current state
+before reciting them.
+
+Then the user's request: a package charged every day, so the one thing the bobmot1 pass could not
+prove — PayPal's own unattended renewal engine firing without anyone clicking — becomes observable
+in days instead of months. Built, deployed, and executed day 1 the same evening (roadmap item 89):
+
+- Harness (commit `d7b6c17`): hidden QA Silver/Gold/Platinum (Daily) clones, prod ids 7/8/9, real
+  PayPal Sandbox DAY-frequency plans, IsHiddenTestPackage excluded from every agent-facing list,
+  SyncDailyTestPlanAsync hard-refuses outside sandbox, SeedGuard'd auto-seeder.
+- Verified the hidden packages leak nowhere: marketing homepage, signup picker, upgrade picker all
+  clean, locally and on prod.
+- Day 1 live on prod: user registered `bobtest`, subscribed to QA Silver (Daily) via console
+  override, approved on PayPal. Local rehearsal earlier proved everything up to activation;
+  activation itself needs the webhook, which can't reach localhost — prod is the venue by design.
+- The harness caught a real bug in minutes (fixed + deployed same night, `943d0d4`): Billing page
+  resolved the agent's OWN package from the filtered browse list, so any subscriber on a package
+  retired from sale would see "no longer available" instead of their subscription. The error
+  message itself doubled as proof the subscription landed on the hidden plan.
+- Two more bugs queued (tasks #370/#371): registration email carries a different temp password
+  than the on-screen one; access-gated agents still see the full sidebar.
+- Slug-collision bug re-verified STILL OPEN (task #372): /articles /forms /documents /newsletter
+  redirect to login on agent sites; only /testimonials resolves now (its starter page claims the
+  slug first).
+
+Days 2–4 are scheduled as tasks #367–369: verify the overnight unattended charge, upgrade to Gold
+Daily, then Platinum Daily, then delete the agent and verify the subscription is physically
+CANCELLED via PayPal's API.
