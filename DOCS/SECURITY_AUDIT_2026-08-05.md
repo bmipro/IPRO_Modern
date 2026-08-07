@@ -19,7 +19,52 @@ be imprecise. Verification is step one of every fix, not an optional extra.
 
 ---
 
-## FIXED TODAY
+## FIXED SINCE
+
+Running tally. Everything above the CRITICAL/HIGH lists below has been dealt with; anything still
+listed there is still open.
+
+| Finding | Status |
+|---|---|
+| Media proxy path traversal | **FIXED** `14fff55` |
+| C-1 domain takeover | **FIXED** `5695a17` |
+| C-2 upgrades kill recurring billing | **FIXED** `1a4cb02` |
+| C-3 DidYouKnow mass-duplicate | **FIXED** — `ClaimedAtUtc` claim/complete split, 2026-08-05 |
+| H-4 startup DDL race → SIGABRT | **FIXED** 2026-08-06 (below) |
+| H-5 unguarded seeders → boot crash-loop | **FIXED** 2026-08-06 (below) |
+
+**All four Criticals are closed.** C-3 was fixed on 2026-08-05 but left listed as open here until
+2026-08-06 — the entry below it in the CRITICAL section is stale, not a live finding.
+
+### ✔ H-4 + H-5 — startup races that take both apps down — **FIXED 2026-08-06**
+
+Fixed together because they are the same failure with two triggers, and because this class has
+already caused one real outage (2026-07-29, SIGABRT on both apps).
+
+**H-4, the DDL half.** `EnsureTableColumnAsync` was check-then-ALTER with nothing catching the
+collision. Both apps deploy from one push and run identical schema repair against one database, so
+the process that ALTERs second gets MySQL **1060 duplicate column**, which escapes `Main` and aborts
+the process. Now caught and treated as success — the desired end state is "column exists", and it
+does. Only 1060 is swallowed, so a typo'd ALTER or a missing privilege still fails loudly.
+
+Found while fixing it: `EnsureUniqueIndexAsync` caught **1062** (duplicate *data*) but not **1061**
+(duplicate *index name*) — the same race, index-shaped, still able to crash startup. Now both.
+`CREATE TABLE` was already safe; all 48 use `IF NOT EXISTS`.
+
+**H-5, the DML half.** `PackageEntitlementSeeder`, `TaxRateSeeder` and `WebsiteTemplateSeeder` never
+got the `SeedGuard` added in July. `PackageEntitlementSeeder` was the dangerous one: `BillingRules`
+has no unique index on `PackageName`, so the race *duplicates* rows instead of throwing, and
+`ToDictionaryAsync(p => p.PackageName)` then throws `ArgumentException` on the duplicate key. The bad
+rows persist, so every subsequent start of both apps throws in the same place — **a one-time race
+becomes a permanent boot crash-loop that no restart clears.**
+
+Two defences, deliberately: `SeedGuard` so it cannot happen, and a duplicate-tolerant read (group by
+name, take the lowest Id, log a warning) so an already-poisoned database can still boot. The first
+alone would not rescue a database that had already raced.
+
+No unguarded seeders remain.
+
+---
 
 ### ✔ Media proxy path traversal via double URL-encoding — ×4 reviewers — **FIXED, commit 14fff55**
 
@@ -107,7 +152,7 @@ Result: an agent who upgrades pays once and is never charged again. Timed near c
 
 **Revenue-affecting and retroactive** — if real, it has already happened to every completed upgrade.
 
-### ⚠ C-3. DidYouKnow dispatch can mass-duplicate emails to clients
+### ✔ C-3. DidYouKnow dispatch can mass-duplicate emails to clients — **FIXED 2026-08-05** (ClaimedAtUtc claim/complete split)
 `DidYouKnowEmailDispatchJob.cs:27-31, 70, 78`
 
 Selects `SentAtUtc == null`, sends inside the loop, saves the markers only at the very end. The job is
@@ -124,8 +169,8 @@ Hangfire's default 10 retries re-sends the whole batch each time.
 | H-1 | **PayPal cancellation failure is swallowed** — `CancelPayPalSubscriptionAsync` catches everything and returns success, so agent-delete's "abort if cancellation fails" guard can never trigger. Deleted agents can keep being charged. Also makes agent-facing "Subscription cancelled" a lie. | `PayPalBillingService.cs:2028-2062` · `AgentsController.cs:248-272` | ⚠ ×2 |
 | H-2 | **Support-role admin → full agent account takeover.** `Agents/Edit` is class-level `AdminAccess`, not SuperAdmin, and writes `agent.Email`. Change the email, then use public password reset. Defeats the M-2 SuperAdmin gate entirely. | `AgentsController.cs:14, 188-210, 446` | ⚠ |
 | H-3 | **"Resume payment" converts a subscription to a one-time charge** — pays one month, holds the package forever, real subscription never activates. | `PayPalBillingService.cs:361-415` | ⚠ |
-| H-4 | **Startup DDL race can SIGABRT both apps.** `EnsureTableColumnAsync` is check-then-ALTER with no lock; both apps deploy from one push, loser gets MySQL 1060 → unhandled → crash. The July advisory-lock fix covered DML seeding only. | `Web/Program.cs:1544-1578` + Admin copy | ⚠ |
-| H-5 | **Three structural seeders never got SeedGuard**, and `PackageEntitlementSeeder` poisons the DB into a permanent boot crash-loop (`ToDictionaryAsync` on duplicated rows) on both apps. | `PackageEntitlementSeeder.cs:31-63`, `TaxRateSeeder.cs`, `WebsiteTemplateSeeder.cs` | ⚠ |
+| ~~H-4~~ | **FIXED 2026-08-06.** ~~Startup DDL race can SIGABRT both apps.~~ `EnsureTableColumnAsync` is check-then-ALTER with no lock; both apps deploy from one push, loser gets MySQL 1060 → unhandled → crash. The July advisory-lock fix covered DML seeding only. | `Web/Program.cs:1544-1578` + Admin copy | ⚠ |
+| ~~H-5~~ | **FIXED 2026-08-06.** ~~Three structural seeders never got SeedGuard~~, and `PackageEntitlementSeeder` poisons the DB into a permanent boot crash-loop (`ToDictionaryAsync` on duplicated rows) on both apps. | `PackageEntitlementSeeder.cs:31-63`, `TaxRateSeeder.cs`, `WebsiteTemplateSeeder.cs` | ⚠ |
 | H-6 | **All four dispatchers claim work read-then-write**, not atomic UPDATE. Overlapping runs, the SuperAdmin "Trigger now" button, and the controller send-now path can each double-send an entire newsletter audience. | `NewsLetterDispatcher.cs:50-64` + ECard/ELetter/Poll | ⚠ |
 | H-7 | **A crash or deploy mid-dispatch strands sends in `Sending` forever** — silent partial delivery, no recovery path, and manual repair re-emails everyone. | same four dispatchers | ⚠ |
 | H-8 | **Email-then-mark with one terminal save + 10 retries** → up to 2,000 duplicate overdue-invoice emails to end clients from one transient DB error. | `OverdueInvoiceReminderJob.cs:62-72`, `TrialReminderJob.cs:69-81` | ⚠ |

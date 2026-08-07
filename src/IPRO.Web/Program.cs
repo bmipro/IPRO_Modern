@@ -1696,7 +1696,29 @@ WHERE TABLE_SCHEMA = DATABASE()
         var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
         if (!exists)
         {
-            await db.Database.ExecuteSqlRawAsync(alterSql);
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(alterSql);
+            }
+            catch (MySqlConnector.MySqlException ex)
+                when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateFieldName)
+            {
+                // The column appeared between our INFORMATION_SCHEMA check and this ALTER.
+                //
+                // This is check-then-act across two processes: ipro-prod-web and ipro-prod-admin
+                // deploy from the SAME push, start within seconds of each other, and run identical
+                // schema repair against the SAME database. Both can see the column missing; the one
+                // that ALTERs second gets MySQL 1060.
+                //
+                // Unhandled, that exception escapes Main and Linux exits the process via SIGABRT --
+                // the same signature that took both apps down on 2026-07-29, and the reason
+                // SeedGuard exists. SeedGuard covered the DML seeders; this is the DDL half that
+                // was left uncovered.
+                //
+                // Swallowing is correct rather than merely convenient: the desired end state is
+                // "column exists", and it does. Catching only 1060 keeps a typo'd ALTER or a
+                // missing privilege loud.
+            }
         }
     }
     finally
@@ -1739,12 +1761,19 @@ WHERE TABLE_SCHEMA = DATABASE()
         {
             await db.Database.ExecuteSqlRawAsync(alterSql);
         }
-        catch (MySqlConnector.MySqlException ex) when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry)
+        catch (MySqlConnector.MySqlException ex)
+            when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry ||
+                  ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyName)
         {
-            // Pre-existing duplicate data (from the exact race this index is meant to prevent) would
-            // make this ALTER fail - skip rather than crash app startup. Safe to retry automatically
-            // on a later restart once the underlying duplicate rows are cleaned up. Any other error
-            // (typo'd SQL, missing privilege) is not this documented case and should still surface loudly.
+            // DuplicateKeyEntry (1062): pre-existing duplicate DATA, from the exact race this index
+            // is meant to prevent, makes the ALTER fail. Skip rather than crash startup; it retries
+            // on a later restart once the duplicate rows are cleaned up.
+            //
+            // DuplicateKeyName (1061): the other app created this same index between our
+            // INFORMATION_SCHEMA check and this ALTER. Previously uncaught, so it crashed startup --
+            // the index-shaped half of the same two-process DDL race as EnsureTableColumnAsync.
+            //
+            // Any other error (typo'd SQL, missing privilege) still surfaces loudly.
         }
     }
     finally

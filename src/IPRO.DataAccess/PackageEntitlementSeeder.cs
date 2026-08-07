@@ -4,21 +4,35 @@ using System.Linq;
 using System.Threading.Tasks;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace IPRO.DataAccess;
 
+// Guarded by SeedGuard: check-then-insert on BillingRules.PackageName, run by both apps against the
+// same database from the same push. BillingRules has no unique index on PackageName, so the race
+// duplicates package rows rather than throwing at insert time -- and the duplicate is what does the
+// damage, because EnsurePackagesAsync then builds a dictionary keyed on PackageName and a duplicate
+// key throws ArgumentException there instead.
+//
+// That is worse than the 2026-07-29 outage it resembles: the bad rows persist, so EVERY subsequent
+// start of BOTH apps throws in the same place. A one-time race becomes a permanent boot crash-loop
+// that no restart clears. Hence two defences here -- the lock to stop it happening, and a
+// duplicate-tolerant read below so an already-poisoned database can still boot.
 public static class PackageEntitlementSeeder
 {
     private const int Unlimited = -1;
 
-    public static async Task SeedAsync(IPRODbContext db)
+    public static async Task SeedAsync(IPRODbContext db, ILogger? logger = null)
     {
-        var packages = await EnsurePackagesAsync(db);
-        await EnsureFeaturesAsync(db, packages);
-        await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
+        await SeedGuard.RunAsync(db, "PackageEntitlements", logger, async () =>
+        {
+            var packages = await EnsurePackagesAsync(db, logger);
+            await EnsureFeaturesAsync(db, packages);
+            await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
+        });
     }
 
-    private static async Task<Dictionary<string, BillingRule>> EnsurePackagesAsync(IPRODbContext db)
+    private static async Task<Dictionary<string, BillingRule>> EnsurePackagesAsync(IPRODbContext db, ILogger? logger)
     {
         var packageDefinitions = new[]
         {
@@ -58,9 +72,29 @@ public static class PackageEntitlementSeeder
         }
 
         await db.SaveChangesAsync();
-        return await db.BillingRules
-            .Where(p => packageDefinitions.Select(d => d.Name).Contains(p.PackageName))
-            .ToDictionaryAsync(p => p.PackageName);
+
+        // Duplicate-tolerant on purpose. ToDictionaryAsync(p => p.PackageName) throws
+        // ArgumentException the moment two rows share a name, and because the rows persist that
+        // turns one race into a permanent boot crash-loop on both apps. Group and take the lowest
+        // Id -- the original -- so a poisoned database still starts and stays deterministic about
+        // which row wins.
+        var names = packageDefinitions.Select(d => d.Name).ToArray();
+        var rows = await db.BillingRules
+            .Where(p => names.Contains(p.PackageName))
+            .ToListAsync();
+
+        var duplicated = rows.GroupBy(p => p.PackageName).Where(g => g.Count() > 1).ToList();
+        if (duplicated.Count > 0)
+        {
+            logger?.LogWarning(
+                "BillingRules has duplicate package rows for {Names}. Using the earliest of each; " +
+                "clean up the extras, as agents may be pointed at the wrong row.",
+                string.Join(", ", duplicated.Select(g => $"{g.Key} x{g.Count()}")));
+        }
+
+        return rows
+            .GroupBy(p => p.PackageName)
+            .ToDictionary(g => g.Key, g => g.OrderBy(p => p.Id).First());
     }
 
     private static async Task EnsureFeaturesAsync(IPRODbContext db, IReadOnlyDictionary<string, BillingRule> packages)

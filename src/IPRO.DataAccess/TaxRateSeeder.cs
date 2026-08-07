@@ -2,12 +2,22 @@ using System;
 using System.Threading.Tasks;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace IPRO.DataAccess;
 
+// Guarded by SeedGuard: check-then-insert per province, run by both apps against the same database
+// from the same push. TaxRates has no unique constraint on the province code, so the race silently
+// duplicates rows rather than throwing -- and duplicated tax rates are a billing correctness problem,
+// not just untidy data, because invoice tax lookup would pick one of two rows arbitrarily.
 public static class TaxRateSeeder
 {
-    public static async Task SeedAsync(IPRODbContext db)
+    public static async Task SeedAsync(IPRODbContext db, ILogger? logger = null)
+    {
+        await SeedGuard.RunAsync(db, "TaxRates", logger, () => SeedCoreAsync(db));
+    }
+
+    private static async Task SeedCoreAsync(IPRODbContext db)
     {
         var defaults = new[]
         {

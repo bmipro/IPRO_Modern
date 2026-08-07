@@ -1,11 +1,16 @@
 using System.Linq;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
 namespace IPRO.DataAccess;
 
+// Guarded by SeedGuard: check-then-insert on TemplateKey, run by both apps against the same database
+// from the same push. Duplicated templates would show every agent the same design twice in the
+// picker, and the IsDefault election below ("default if nobody else is default") can elect two
+// defaults when both processes evaluate it against the same empty table.
 public static class WebsiteTemplateSeeder
 {
     public const string DefaultTemplateName = "Professional Adviser";
@@ -13,7 +18,12 @@ public static class WebsiteTemplateSeeder
     public const string ClassicSidebarTemplateKey = "classic-sidebar";
     public const string EditorialVisualTemplateKey = "editorial-visual";
 
-    public static async Task SeedAsync(IPRODbContext db)
+    public static async Task SeedAsync(IPRODbContext db, ILogger? logger = null)
+    {
+        await SeedGuard.RunAsync(db, "WebsiteTemplates", logger, () => SeedCoreAsync(db));
+    }
+
+    private static async Task SeedCoreAsync(IPRODbContext db)
     {
         var templates = await db.WebsiteTemplates.ToListAsync();
         if (!templates.Any(t => t.TemplateKey == DefaultTemplateKey || t.Name == DefaultTemplateName))

@@ -1398,7 +1398,19 @@ WHERE TABLE_SCHEMA = DATABASE()
         var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
         if (!exists)
         {
-            await db.Database.ExecuteSqlRawAsync(alterSql);
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(alterSql);
+            }
+            catch (MySqlConnector.MySqlException ex)
+                when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateFieldName)
+            {
+                // ipro-prod-web added this column between our INFORMATION_SCHEMA check and this
+                // ALTER. Both apps deploy from the same push and run identical schema repair against
+                // the same database, so the one that ALTERs second gets MySQL 1060. Unhandled, that
+                // escapes Main and Linux aborts the process (SIGABRT) -- the outage signature from
+                // 2026-07-29. Keep this in step with the IPRO.Web copy.
+            }
         }
     }
     finally
@@ -1441,7 +1453,9 @@ WHERE TABLE_SCHEMA = DATABASE()
         {
             await db.Database.ExecuteSqlRawAsync(alterSql);
         }
-        catch (MySqlConnector.MySqlException ex) when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry)
+        catch (MySqlConnector.MySqlException ex)
+            when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry ||
+                  ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyName)
         {
             // Pre-existing duplicate data (from the exact race this index is meant to prevent) would
             // make this ALTER fail - skip rather than crash app startup. Safe to retry automatically
