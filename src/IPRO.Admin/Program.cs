@@ -44,6 +44,10 @@ builder.Services.AddHangfire(config => config
         TablesPrefix = "Hangfire_"
     })));
 
+// Liveness only, no dependency checks -- same reasoning as IPRO.Web: the Azure health check's
+// remedy is an instance restart, which only helps when the process itself is wedged.
+builder.Services.AddHealthChecks();
+
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAgentService, AgentService>();
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
@@ -143,6 +147,8 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHealthChecks("/health");
+
 app.MapControllerRoute("admin", "{controller=AdminDashboard}/{action=Index}/{id?}");
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {

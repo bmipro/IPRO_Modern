@@ -52,6 +52,12 @@ builder.Services.AddHangfireServer(o =>
     o.Queues = new[] { "newsletters", "drip", "reminders", "default" };
 });
 
+// Liveness only -- no database or storage checks, deliberately. Azure's health check restarts an
+// instance that reports unhealthy; a restart fixes a wedged worker process (the 2026-08-07 outage
+// signature: instant 503s while "Running") but fixes nothing about a database outage, so external
+// dependencies must not fail this probe.
+builder.Services.AddHealthChecks();
+
 //... rest unchanged...
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
@@ -285,6 +291,8 @@ app.MapControllerRoute(
 // links and client-portal invitations already sitting in people's inboxes point at them. Portal
 // navigation moves to the prefixed form now; retiring the unprefixed routes and deleting the whole
 // override mechanism is a separate, later change once nothing in the wild depends on them.
+app.MapHealthChecks("/health");
+
 app.MapControllerRoute("portal", "portal/{controller=Dashboard}/{action=Index}/{id?}");
 
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
@@ -539,7 +547,7 @@ static async Task MarkPublicSlugOverrideAsync(HttpContext context, IConfiguratio
 static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() switch
 {
     "account" or "clientportal" or "clientportalaccount" or "billing"
-        or "publicwebsite" or "media" or "hangfire" => true,
+        or "publicwebsite" or "media" or "hangfire" or "health" => true,
     _ => false
 };
 
