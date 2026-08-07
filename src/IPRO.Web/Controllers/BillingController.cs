@@ -33,6 +33,11 @@ public class BillingController : Controller
     public async Task<IActionResult> Index()
     {
         ViewBag.Packages     = await _billing.GetPackagesAsync();
+        // Unfiltered, unlike ViewBag.Packages: resolving the agent's OWN current/pending package by id
+        // must never depend on whether that package is still offered for browsing (IsHiddenTestPackage,
+        // and in principle any future package retired from sale) -- only what to offer new subscribers
+        // should be filtered, not what an existing subscriber already has.
+        ViewBag.AllPackages  = await _uow.BillingRules.GetAllAsync();
         ViewBag.Subscription = await _billing.GetActiveSubscriptionAsync(AgentId);
         ViewBag.PendingChange = await _billing.GetPendingChangeAsync(AgentId);
         ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);

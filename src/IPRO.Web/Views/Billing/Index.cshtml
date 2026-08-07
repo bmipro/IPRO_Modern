@@ -14,12 +14,16 @@
         .OrderBy(f => f.SortOrder)
         .ThenBy(f => f.FeatureName)
         .ToList();
-    var currentPackage = subscription == null ? null : packageList.FirstOrDefault(p => p.Id == subscription.BillingRuleId);
-    var pendingPackage = pendingChange == null ? null : packageList.FirstOrDefault(p => p.Id == pendingChange.RequestedBillingRuleId);
+    // Resolving what the agent already has (current/pending/unpaid) uses the UNFILTERED package
+    // list -- ViewBag.Packages intentionally hides retired-from-sale packages (IsHiddenTestPackage)
+    // from browsing, but an existing subscriber's own package must always resolve regardless.
+    var allPackageList = (ViewBag.AllPackages as IEnumerable<IPRO.Entities.BillingRule>) ?? packageList;
+    var currentPackage = subscription == null ? null : allPackageList.FirstOrDefault(p => p.Id == subscription.BillingRuleId);
+    var pendingPackage = pendingChange == null ? null : allPackageList.FirstOrDefault(p => p.Id == pendingChange.RequestedBillingRuleId);
     var unpaidInvoices = (invoices ?? Enumerable.Empty<IPRO.Entities.Invoice>())
         .Where(i => !i.IsPaid &&
             i.Billing?.Status == IPRO.Entities.BillingStatus.Pending &&
-            packageList.Any(p => p.Id == i.Billing.BillingRuleId))
+            allPackageList.Any(p => p.Id == i.Billing.BillingRuleId))
         .OrderByDescending(i => i.IssuedAt)
         .ToList();
     var isAccessGated = ViewBag.IsAccessGated as bool? ?? false;
@@ -130,7 +134,7 @@ else if (currentPackage == null)
       <p class="text-muted mb-3">You have a checkout that was started but not completed. You can continue payment or cancel it and choose a plan again.</p>
       @foreach (var invoice in unpaidInvoices)
       {
-        var invoicePackage = packageList.FirstOrDefault(p => p.Id == invoice.Billing.BillingRuleId);
+        var invoicePackage = allPackageList.FirstOrDefault(p => p.Id == invoice.Billing.BillingRuleId);
         <div class="border rounded-3 p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div>
             <div class="fw-bold">@invoicePackage?.PackageName</div>
