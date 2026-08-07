@@ -35,6 +35,7 @@ listed there is still open.
 | H-1 cancellation failure swallowed | **FIXED** 2026-08-06 `f6c6ad5` |
 | H-9 recurring invoice number collision | **FIXED** 2026-08-06 `f6c6ad5` |
 | H-3 resume-payment made a one-time charge | **FIXED** 2026-08-06 |
+| H-2 Support admin → agent takeover | **FIXED** 2026-08-06 |
 
 **All four Criticals are closed.** C-3 was fixed on 2026-08-05 but left listed as open here until
 2026-08-06 — the entry below it in the CRITICAL section is stale, not a live finding.
@@ -170,7 +171,7 @@ Hangfire's default 10 retries re-sends the whole batch each time.
 | # | Finding | Where | Conf. |
 |---|---|---|---|
 | ~~H-1~~ | **FIXED 2026-08-06.** ~~PayPal cancellation failure is swallowed~~ — `CancelPayPalSubscriptionAsync` catches everything and returns success, so agent-delete's "abort if cancellation fails" guard can never trigger. Deleted agents can keep being charged. Also makes agent-facing "Subscription cancelled" a lie. | `PayPalBillingService.cs:2028-2062` · `AgentsController.cs:248-272` | ⚠ ×2 |
-| H-2 | **Support-role admin → full agent account takeover.** `Agents/Edit` is class-level `AdminAccess`, not SuperAdmin, and writes `agent.Email`. Change the email, then use public password reset. Defeats the M-2 SuperAdmin gate entirely. | `AgentsController.cs:14, 188-210, 446` | ⚠ |
+| ~~H-2~~ | **FIXED 2026-08-06.** ~~Support-role admin → full agent account takeover.~~ `Agents/Edit` is class-level `AdminAccess`, not SuperAdmin, and writes `agent.Email`. Change the email, then use public password reset. Defeats the M-2 SuperAdmin gate entirely. | `AgentsController.cs:14, 188-210, 446` | ⚠ |
 | ~~H-3~~ | **FIXED 2026-08-06.** ~~"Resume payment" converts a subscription to a one-time charge~~ — pays one month, holds the package forever, real subscription never activates. | `PayPalBillingService.cs:361-415` | ⚠ |
 | ~~H-4~~ | **FIXED 2026-08-06.** ~~Startup DDL race can SIGABRT both apps.~~ `EnsureTableColumnAsync` is check-then-ALTER with no lock; both apps deploy from one push, loser gets MySQL 1060 → unhandled → crash. The July advisory-lock fix covered DML seeding only. | `Web/Program.cs:1544-1578` + Admin copy | ⚠ |
 | ~~H-5~~ | **FIXED 2026-08-06.** ~~Three structural seeders never got SeedGuard~~, and `PackageEntitlementSeeder` poisons the DB into a permanent boot crash-loop (`ToDictionaryAsync` on duplicated rows) on both apps. | `PackageEntitlementSeeder.cs:31-63`, `TaxRateSeeder.cs`, `WebsiteTemplateSeeder.cs` | ⚠ |

@@ -36,6 +36,10 @@ public class AgentsController : Controller
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
 
+    // Matches the "SuperAdmin" policy in Program.cs exactly (RequireClaim("Role", "SuperAdmin")).
+    // Used where an action is available to all admins but individual FIELDS are not -- see Edit.
+    private bool IsSuperAdmin => User.HasClaim("Role", "SuperAdmin");
+
     public async Task<IActionResult> Index(string? search, string? status, int page = 1)
     {
         var all = await _agents.GetAllAsync();
@@ -200,12 +204,57 @@ public class AgentsController : Controller
             return View(model);
         }
 
+        // Support-role admins may edit an agent's profile, but not the fields that ARE the account.
+        //
+        // This action is only gated by AdminAccess, which is RequireAuthenticatedUser() -- every
+        // signed-in admin. ApplyEditModel writes Email and UserName, so a Support admin could change
+        // an agent's email to one they control and then use the public password-reset flow to take
+        // the account over. That routes straight around the SuperAdmin gate on ResetPassword (M-2)
+        // and makes it decorative. PackageId is here too because it grants paid entitlements, and
+        // IsActive/MustChangePassword because they control whether the agent can get in at all.
+        //
+        // Blocked here rather than by raising the whole action to SuperAdmin: Support legitimately
+        // fixes addresses, phone numbers and time zones, and taking that away would push routine
+        // work onto the one account that must stay scarce.
+        var blockedFields = new List<string>();
+        if (!IsSuperAdmin)
+        {
+            if (!string.Equals(model.Email, agent.Email, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("email address");
+            if (!string.Equals(model.UserName, agent.UserName, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("username");
+            if (model.PackageId != agent.PackageId) blockedFields.Add("package");
+            if (model.IsActive != agent.IsActive) blockedFields.Add("active status");
+            if (model.MustChangePassword != agent.MustChangePassword) blockedFields.Add("must-change-password flag");
+
+            // Put the stored values back so ApplyEditModel cannot write the attempted ones. Reverting
+            // the model rather than skipping the save keeps every other edit on the form working.
+            model.Email = agent.Email;
+            model.UserName = agent.UserName;
+            model.PackageId = agent.PackageId;
+            model.IsActive = agent.IsActive;
+            model.MustChangePassword = agent.MustChangePassword;
+
+            if (blockedFields.Count > 0)
+            {
+                await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentEditBlocked",
+                    $"Non-SuperAdmin attempted to change {string.Join(", ", blockedFields)} on agent '{agent.UserName}'. Change was not applied.");
+            }
+        }
+
         ApplyEditModel(agent, model);
 
         await _agents.UpdateAsync(agent);
         await LogAsync(id, "Edit", "Agent profile updated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentEdit", $"Agent '{agent.UserName}' profile updated");
+
+        // Say what was refused. Silently discarding an edit is its own bug: the admin believes the
+        // change took, and finds out later from a confused agent.
         TempData["Success"] = $"Agent {agent.UserName} updated.";
+        if (blockedFields.Count > 0)
+        {
+            TempData["Warning"] = $"Your other changes were saved, but the {string.Join(", ", blockedFields)} " +
+                                  "can only be changed by a Super Admin. Please ask one to make that change.";
+        }
+
         return RedirectToAction(nameof(Details), new { id });
     }
 
