@@ -1133,3 +1133,100 @@ a code path can silently decide to do nothing, it must either say so or log so.
 works" when it only meant the blob did not exist, and "no matching log lines" was nearly read as "no
 errors" when the real reason was that almost nothing was being logged. Confirm the query returns
 anything at all before trusting an empty result.
+
+## Trap: Azure Managed Certificates Issue Asynchronously (2026-08-06)
+
+**Symptom.** A newly bound custom domain shows the hostname `Bound` but no certificate, and the
+automation logs "Managed certificate is being issued; SSL will be retried on the next check."
+
+**That message is accurate. Do not "fix" it.** App Service Managed Certificates issue
+asynchronously: the PUT returns before Azure has a thumbprint, so the first pass gets nothing back.
+The next domain check (5 minutes) re-PUTs the same certificate resource — same name, so an idempotent
+update, not a conflict — finds the thumbprint populated, and binds it.
+
+**Proven on four agent domains**, all from one CNAME with no human involvement:
+
+| Domain | Issued |
+|---|---|
+| `www.4ipro.com` | 2026-07-11 |
+| `www.drhug.ca` | 2026-07-11 |
+| `www.ouritems.ca` | 2026-08-06 |
+| `www.411trades.com` | 2026-08-06 |
+
+**What went wrong on 2026-08-06.** This was diagnosed as "managed certificates never issue on this
+subscription", generalising from two July failures on the *platform* domains. A Let's Encrypt
+certificate was hand-issued and bound over the top of a perfectly good auto-renewing one, replacing
+it with a 90-day manual chore, plus an alert, a runbook and a doc rewrite built on the false premise.
+
+**Before concluding a certificate cannot issue, run this against a domain that already works:**
+
+```bash
+az resource list --resource-type "Microsoft.Web/certificates" --query "[].name" -o tsv
+```
+
+If `managed-www-<something>` rows exist with thumbprints, managed certificates work here and the
+problem is elsewhere. That one command would have prevented the whole detour.
+
+`ops/New-AgentCert.ps1` exists as a fallback for genuine failures. It is **not** the standard path —
+check for an existing managed certificate first, and bind that rather than issuing a new one.
+
+---
+
+## Trap: GoDaddy Forwarding Returns 403 Without A User-Agent (2026-08-06)
+
+**Symptom.** The portal shows "Not forwarding" for a root domain that demonstrably forwards
+correctly in a browser.
+
+**Cause.** `HttpClient` sends no `User-Agent` by default, and registrar forwarding services sit
+behind bot protection. Verified against two live domains:
+
+```
+User-Agent: Mozilla/5.0   ->  301  http://www.ouritems.ca/
+User-Agent: (none)        ->  403  Forbidden
+```
+
+A 403 is not a redirect, so the check correctly reported "does not redirect" — about a request that
+was refused before forwarding was ever evaluated. **Anything probing a third-party edge has to look
+like an ordinary client.**
+
+**Two secondary lessons from the same six-round hunt:**
+
+1. The check used to follow the whole redirect chain and compare the *final* host. For a working
+   domain that chain ends at our own site, so the app was fetching its own public hostname over
+   HTTPS from inside App Service — a TLS handshake whose failure got reported as the agent's
+   registrar being misconfigured. It now reads the first hop's `Location` header only.
+2. The diagnostic logging added to solve this was `LogInformation`. **Application Insights captures
+   Warning and above by default**, so the log written specifically to diagnose the problem was
+   invisible in the only place it mattered. Log a negative result at Warning.
+
+---
+
+## Trap: Startup DDL Races Abort Both Apps (2026-08-06)
+
+**Symptom.** One or both apps fail to start after a deploy, with SIGABRT (exit 134) and no
+application log.
+
+**Cause.** `ipro-prod-web` and `ipro-prod-admin` deploy from the **same push**, start within seconds
+of each other, and run **identical** schema repair against the **same** database. Any check-then-act
+DDL races:
+
+| Error | Meaning | Where |
+|---|---|---|
+| 1060 | duplicate column | `EnsureTableColumnAsync` |
+| 1061 | duplicate index name | `EnsureUniqueIndexAsync` |
+| 1062 | duplicate data blocks an index | `EnsureUniqueIndexAsync` |
+
+All three are now caught and treated as success — the desired end state is "it exists", and it does.
+Only those specific codes are swallowed, so a typo'd ALTER or a missing privilege still fails loudly.
+`CREATE TABLE` was always safe; all 48 use `IF NOT EXISTS`.
+
+**The seeder half is worse and is why `SeedGuard` exists.** `BillingRules` has no unique index on
+`PackageName`, so a seeder race *duplicates* rows rather than throwing — and
+`ToDictionaryAsync(p => p.PackageName)` then throws `ArgumentException` on the duplicate key. **The
+bad rows persist, so every subsequent start of both apps throws in the same place: a one-time race
+becomes a permanent boot crash-loop that no restart clears.**
+
+Guarding alone would not rescue a database that had already raced, so `PackageEntitlementSeeder` also
+reads duplicate-tolerantly (group by name, lowest Id wins, log a warning).
+
+**If you add a seeder, wrap it in `SeedGuard.RunAsync`.** As of 2026-08-06 none are unguarded.
