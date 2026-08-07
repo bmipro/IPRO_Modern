@@ -13,8 +13,8 @@
 {
     <div class="alert alert-info border-0 shadow-sm small">
         <i class="fas fa-circle-info me-1"></i>
-        Username, email, package and access settings can only be changed by a Super Admin — they control
-        who can sign in to this account and what it is entitled to. Everything else on this form is yours to edit.
+        Username, email, package, setup domain and access settings can only be changed by a Super Admin — they
+        control who can sign in to this account and what it is entitled to. Everything else on this form is yours to edit.
     </div>
 }
 
@@ -54,7 +54,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Setup Domain</label>
-                    <input asp-for="DomainName" class="form-control" maxlength="255"/>
+                    <input asp-for="DomainName" class="form-control" maxlength="255" disabled="@(!canEditIdentity)"/>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Business Type <span class="text-danger">*</span></label>

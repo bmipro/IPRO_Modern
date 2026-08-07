@@ -175,6 +175,17 @@ using (var scope = app.Services.CreateScope())
     // wrapped: an agent genuinely cannot function without those, so failing loudly is correct.
     var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
         .CreateLogger("StarterContentSeeding");
+    // Must run BEFORE the starter-content seeders below, which read the tables it creates --
+    // same first-boot ordering fix as IPRO.Web (found in the local environment, 2026-08-07).
+    try
+    {
+        await EnsureECardDesignSchemaAsync(db);
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine("[ECardDesignSchema] FAILED: " + ex);
+    }
+
     try
     {
         await NewsLetterTemplateSeeder.SeedAsync(db, seedLogger);
@@ -232,16 +243,6 @@ using (var scope = app.Services.CreateScope())
     await EnsureTrialFeatureSchemaAsync(db);
     await EnsureECardSchemaAsync(db);
     await EnsureELetterSchemaAsync(db);
-    // Wrapped for the same reason as the seeders below: these two tables back an admin-only
-    // content library, and a DDL failure here must not stop the whole app from serving.
-    try
-    {
-        await EnsureECardDesignSchemaAsync(db);
-    }
-    catch (Exception ex)
-    {
-        Console.Error.WriteLine("[ECardDesignSchema] FAILED: " + ex);
-    }
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -1463,10 +1464,18 @@ WHERE TABLE_SCHEMA = DATABASE()
             when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry ||
                   ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyName)
         {
-            // Pre-existing duplicate data (from the exact race this index is meant to prevent) would
-            // make this ALTER fail - skip rather than crash app startup. Safe to retry automatically
-            // on a later restart once the underlying duplicate rows are cleaned up. Any other error
-            // (typo'd SQL, missing privilege) is not this documented case and should still surface loudly.
+            // 1061 (DuplicateKeyName): the other app won the race and the index exists -- benign.
+            // 1062 (DuplicateKeyEntry) is NOT: duplicate rows blocked index creation, so the app is
+            // running WITHOUT the uniqueness guarantee. It still boots, but never again silently
+            // (independent review H-8) -- stderr screams on every boot until the duplicates are
+            // cleaned up. Any other error still surfaces loudly.
+            if (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry)
+            {
+                Console.Error.WriteLine(
+                    $"[SCHEMA] UNIQUE INDEX {indexName} ON {tableName} NOT CREATED: existing rows already " +
+                    $"violate it. The app is running WITHOUT this uniqueness guarantee. Clean up the " +
+                    $"duplicate rows and restart. MySQL said: {ex.Message}");
+            }
         }
     }
     finally

@@ -196,13 +196,6 @@ public class AgentsController : Controller
         if (agent == null) return NotFound();
 
         NormalizeAgent(model);
-        ValidateAgentEdit(model);
-        await ValidateUniqueAgentFieldsAsync(id, model);
-        if (!ModelState.IsValid)
-        {
-            await LoadActivePackagesAsync();
-            return View(model);
-        }
 
         // Support-role admins may edit an agent's profile, but not the fields that ARE the account.
         //
@@ -210,20 +203,25 @@ public class AgentsController : Controller
         // signed-in admin. ApplyEditModel writes Email and UserName, so a Support admin could change
         // an agent's email to one they control and then use the public password-reset flow to take
         // the account over. That routes straight around the SuperAdmin gate on ResetPassword (M-2)
-        // and makes it decorative. PackageId is here too because it grants paid entitlements, and
-        // IsActive/MustChangePassword because they control whether the agent can get in at all.
+        // and makes it decorative. PackageId is here too because it grants paid entitlements,
+        // IsActive/MustChangePassword because they control whether the agent can get in at all, and
+        // DomainName because public host resolution reads it (review H-6) -- a colliding value
+        // makes another agent's website ambiguous.
         //
-        // Blocked here rather than by raising the whole action to SuperAdmin: Support legitimately
-        // fixes addresses, phone numbers and time zones, and taking that away would push routine
-        // work onto the one account that must stay scarce.
+        // Restored BEFORE validation, deliberately (review H-5): the protected inputs are disabled
+        // in the view and disabled controls never post, so the model arrives with them empty --
+        // validating first meant "Email is required" made the form unsaveable for every
+        // non-SuperAdmin. An empty value means "not posted", not an attempted change, so only
+        // non-empty differences are reported as blocked.
         var blockedFields = new List<string>();
         if (!IsSuperAdmin)
         {
-            if (!string.Equals(model.Email, agent.Email, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("email address");
-            if (!string.Equals(model.UserName, agent.UserName, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("username");
-            if (model.PackageId != agent.PackageId) blockedFields.Add("package");
-            if (model.IsActive != agent.IsActive) blockedFields.Add("active status");
-            if (model.MustChangePassword != agent.MustChangePassword) blockedFields.Add("must-change-password flag");
+            if (!string.IsNullOrWhiteSpace(model.Email) && !string.Equals(model.Email, agent.Email, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("email address");
+            if (!string.IsNullOrWhiteSpace(model.UserName) && !string.Equals(model.UserName, agent.UserName, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("username");
+            if (model.PackageId != 0 && model.PackageId != agent.PackageId) blockedFields.Add("package");
+            if (model.IsActive && !agent.IsActive) blockedFields.Add("active status");
+            if (model.MustChangePassword && !agent.MustChangePassword) blockedFields.Add("must-change-password flag");
+            if (!string.IsNullOrWhiteSpace(model.DomainName) && !string.Equals(model.DomainName, agent.DomainName, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("setup domain");
 
             // Put the stored values back so ApplyEditModel cannot write the attempted ones. Reverting
             // the model rather than skipping the save keeps every other edit on the form working.
@@ -232,12 +230,21 @@ public class AgentsController : Controller
             model.PackageId = agent.PackageId;
             model.IsActive = agent.IsActive;
             model.MustChangePassword = agent.MustChangePassword;
+            model.DomainName = agent.DomainName;
 
             if (blockedFields.Count > 0)
             {
                 await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentEditBlocked",
                     $"Non-SuperAdmin attempted to change {string.Join(", ", blockedFields)} on agent '{agent.UserName}'. Change was not applied.");
             }
+        }
+
+        ValidateAgentEdit(model);
+        await ValidateUniqueAgentFieldsAsync(id, model);
+        if (!ModelState.IsValid)
+        {
+            await LoadActivePackagesAsync();
+            return View(model);
         }
 
         ApplyEditModel(agent, model);
@@ -563,6 +570,21 @@ public class AgentsController : Controller
         {
             var existingDomain = await _uow.AgentUsers.FirstOrDefaultAsync(a => a.DomainName == agent.DomainName && a.Id != id);
             if (existingDomain != null) ModelState.AddModelError("", "Domain is already used by another agent.");
+
+            // Review H-6: public host resolution also matches AgentWebsites.CustomDomain and the
+            // AgentDomains root/www variants, so a value colliding with ANY of them makes visitor
+            // routing ambiguous between two agents. Checking only AgentUsers let an admin edit
+            // create exactly that collision.
+            var domain = agent.DomainName;
+            var websiteClash = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .AnyAsync(_db.AgentWebsites, w => w.AgentUserId != id && w.CustomDomain == domain);
+            var domainClash = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .AnyAsync(_db.AgentDomains, d => d.AgentUserId != id &&
+                    (d.DomainName == domain || d.RootDomain == domain || d.WwwDomain == domain));
+            if (websiteClash || domainClash)
+            {
+                ModelState.AddModelError("", "Domain is already claimed by another agent's website or domain binding.");
+            }
         }
     }
 

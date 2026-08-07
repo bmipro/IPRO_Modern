@@ -99,6 +99,13 @@ public class RecurringClientInvoiceJob
                 {
                     entry.State = EntityState.Detached;
                 }
+
+                // The schedule itself is tracked as Modified with NextRunDate already advanced.
+                // Left attached, the NEXT schedule's successful save would commit that advance --
+                // an occurrence silently skipped forever with no invoice behind it (independent
+                // review H-3). Detaching discards the advance so this schedule is retried whole,
+                // invoice and all, on the next run.
+                _db.Entry(schedule).State = EntityState.Detached;
             }
         }
     }

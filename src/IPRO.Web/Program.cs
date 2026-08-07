@@ -353,6 +353,19 @@ using (var scope = app.Services.CreateScope())
     // wrapped: an agent genuinely cannot function without those, so failing loudly is correct.
     var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
         .CreateLogger("StarterContentSeeding");
+    // Must run BEFORE the starter-content seeders below: ECardDesignSeeder and
+    // ELetterTemplateSeeder read the tables this creates. On an existing database the order never
+    // mattered, which is how it went unnoticed; on a fresh database (the local environment,
+    // 2026-08-07) the first boot failed both seeders and only healed on the second.
+    try
+    {
+        await EnsureECardDesignSchemaAsync(db);
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine("[ECardDesignSchema] FAILED: " + ex);
+    }
+
     try
     {
         await NewsLetterTemplateSeeder.SeedAsync(db, seedLogger);
@@ -409,16 +422,6 @@ using (var scope = app.Services.CreateScope())
     await EnsureTrialFeatureSchemaAsync(db);
     await EnsureECardSchemaAsync(db);
     await EnsureELetterSchemaAsync(db);
-    // Wrapped for the same reason as the seeders below: these two tables back an admin-only
-    // content library, and a DDL failure here must not stop the whole app from serving.
-    try
-    {
-        await EnsureECardDesignSchemaAsync(db);
-    }
-    catch (Exception ex)
-    {
-        Console.Error.WriteLine("[ECardDesignSchema] FAILED: " + ex);
-    }
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -1848,15 +1851,23 @@ WHERE TABLE_SCHEMA = DATABASE()
             when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry ||
                   ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyName)
         {
-            // DuplicateKeyEntry (1062): pre-existing duplicate DATA, from the exact race this index
-            // is meant to prevent, makes the ALTER fail. Skip rather than crash startup; it retries
-            // on a later restart once the duplicate rows are cleaned up.
-            //
             // DuplicateKeyName (1061): the other app created this same index between our
-            // INFORMATION_SCHEMA check and this ALTER. Previously uncaught, so it crashed startup --
-            // the index-shaped half of the same two-process DDL race as EnsureTableColumnAsync.
+            // INFORMATION_SCHEMA check and this ALTER -- the index exists, the invariant holds.
+            //
+            // DuplicateKeyEntry (1062) is NOT benign: pre-existing duplicate rows blocked index
+            // creation, so the app is running WITHOUT the uniqueness guarantee. It still boots --
+            // crashing both apps over a data-quality problem is the worse outage (2026-07-29) --
+            // but it must never again be silent (independent review H-8): it screams to stderr on
+            // every boot until the duplicates are cleaned up and a restart creates the index.
             //
             // Any other error (typo'd SQL, missing privilege) still surfaces loudly.
+            if (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry)
+            {
+                Console.Error.WriteLine(
+                    $"[SCHEMA] UNIQUE INDEX {indexName} ON {tableName} NOT CREATED: existing rows already " +
+                    $"violate it. The app is running WITHOUT this uniqueness guarantee. Clean up the " +
+                    $"duplicate rows and restart. MySQL said: {ex.Message}");
+            }
         }
     }
     finally
