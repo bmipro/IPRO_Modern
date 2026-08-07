@@ -277,7 +277,12 @@ public class ClientsController : Controller
         return View(followUps);
     }
 
+    // Attribute-routed, so the conventional /portal/{controller}/{action} route cannot reach it --
+    // without the explicit portal alias below, the sidebar's /portal/Clients/FollowUps link fell
+    // through to FollowUps(int id) with id=0 and returned NotFound for every agent (review H-7,
+    // shipped broken 2026-08-07, reproduced and fixed in the local environment).
     [HttpGet("Clients/FollowUps")]
+    [HttpGet("portal/Clients/FollowUps")]
     public async Task<IActionResult> FollowUpQueue(string status = "open", int page = 1)
     {
         const int pageSize = 15;

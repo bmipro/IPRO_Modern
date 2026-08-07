@@ -25,7 +25,11 @@ public class PortalMessagesController : Controller
             {
                 Client = c,
                 LastMessage = c.Messages.OrderByDescending(m => m.CreatedAt).First(),
-                UnreadCount = c.Messages.Count(m => !m.IsFromClient && !m.IsReadByAgent)
+                // Unread means CLIENT-authored and not yet read by the agent. This counted
+                // agent-authored messages (!IsFromClient) -- which are created with
+                // IsReadByAgent=true -- so the badge was permanently zero and client messages
+                // never surfaced an unread indicator (review L-4).
+                UnreadCount = c.Messages.Count(m => m.IsFromClient && !m.IsReadByAgent)
             })
             .OrderByDescending(x => x.LastMessage.CreatedAt)
             .ToListAsync();
