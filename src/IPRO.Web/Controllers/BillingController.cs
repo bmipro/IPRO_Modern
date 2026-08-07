@@ -171,7 +171,25 @@ public class BillingController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> CancelSubscription() { await _billing.CancelSubscriptionAsync(AgentId); TempData["Success"] = "Subscription cancelled."; return RedirectToAction(nameof(Index)); }
+    public async Task<IActionResult> CancelSubscription()
+    {
+        // The result used to be discarded and "Subscription cancelled." shown unconditionally. If
+        // PayPal refused the cancellation the agent was told it had worked and kept being charged,
+        // with the portal agreeing with them. Telling someone their billing has stopped is a promise
+        // about their money; it has to be true.
+        if (await _billing.CancelSubscriptionAsync(AgentId))
+        {
+            TempData["Success"] = "Subscription cancelled. You will not be billed again.";
+        }
+        else
+        {
+            TempData["Error"] = "We could not confirm the cancellation with PayPal, so your subscription " +
+                                "has NOT been cancelled and billing may continue. Please try again in a few " +
+                                "minutes, and contact support if it keeps failing.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
 
     [AllowAnonymous, HttpPost("/billing/webhook")]
     public async Task<IActionResult> Webhook()

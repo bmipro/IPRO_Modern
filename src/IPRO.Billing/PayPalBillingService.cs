@@ -491,7 +491,16 @@ public class PayPalBillingService : IBillingService
 
         if (!string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId))
         {
-            await CancelPayPalSubscriptionAsync(subscription.PayPalSubscriptionId, "Agent cancelled subscription from IPRO billing.");
+            // Bail out BEFORE touching the local row. Marking it Cancelled while PayPal is still
+            // billing is the worst of both worlds: the agent is told they are cancelled, the portal
+            // agrees, and the charges continue with nothing in our data pointing at them. Leaving
+            // the row Active keeps the truth visible and lets a retry succeed later.
+            if (!await CancelPayPalSubscriptionAsync(
+                    subscription.PayPalSubscriptionId,
+                    "Agent cancelled subscription from IPRO billing."))
+            {
+                return false;
+            }
         }
 
         await CancelPendingChangesAsync(userId);
@@ -2084,11 +2093,20 @@ public class PayPalBillingService : IBillingService
         return GetWebhookString(document.RootElement, "status");
     }
 
-    private async Task CancelPayPalSubscriptionAsync(string subscriptionId, string reason)
+    // Returns true only when PayPal has actually stopped the subscription.
+    //
+    // This used to return `Task`, so the outcome was unobservable: it logged a warning and every
+    // caller carried on as if cancellation had worked. CancelSubscriptionAsync then marked the local
+    // row Cancelled and returned true, which made the agent-facing "Subscription cancelled" a claim
+    // we had not verified -- and left agent-delete's abort guard reading a value that was always
+    // true. Money kept moving with no account attached to it.
+    private async Task<bool> CancelPayPalSubscriptionAsync(string subscriptionId, string reason)
     {
         if (!HasPayPalSettings() || string.IsNullOrWhiteSpace(subscriptionId))
         {
-            return;
+            // Nothing to cancel at PayPal, so nothing failed. A free/promo agent with no PayPal
+            // subscription must not be treated as a cancellation failure or they become undeletable.
+            return true;
         }
 
         try
@@ -2102,21 +2120,37 @@ public class PayPalBillingService : IBillingService
                 $"{_settings.BaseUrl}/v1/billing/subscriptions/{subscriptionId}/cancel",
                 new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json"));
 
-            if (!response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning(
-                    "PayPal subscription cancellation for {SubscriptionId} returned {StatusCode}: {Body}. The local Billing row is still being cancelled, but the real PayPal subscription may keep billing.",
-                    subscriptionId, (int)response.StatusCode, body);
+                return true;
             }
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            // 422 UNPROCESSABLE_ENTITY is PayPal's answer for "already cancelled or expired". The
+            // subscription is not billing, which is the outcome we wanted, so treat it as success --
+            // otherwise a second cancel attempt, or a retry after a timeout, blocks the agent forever.
+            if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            {
+                _logger.LogInformation(
+                    "PayPal reports subscription {SubscriptionId} was already inactive: {Body}",
+                    subscriptionId, body);
+                return true;
+            }
+
+            _logger.LogError(
+                "PayPal subscription cancellation for {SubscriptionId} returned {StatusCode}: {Body}. " +
+                "The subscription may still be billing; the local row is NOT being marked cancelled.",
+                subscriptionId, (int)response.StatusCode, body);
+            return false;
         }
         catch (Exception ex)
         {
-            // Local cancellation still proceeds if PayPal is temporarily unavailable, but log it -
-            // otherwise a real cancellation failure leaves the old subscription billing forever with no trail.
-            _logger.LogWarning(ex,
-                "PayPal subscription cancellation for {SubscriptionId} threw. The local Billing row is still being cancelled, but the real PayPal subscription may keep billing.",
+            _logger.LogError(ex,
+                "PayPal subscription cancellation for {SubscriptionId} threw. The subscription may still " +
+                "be billing; the local row is NOT being marked cancelled.",
                 subscriptionId);
+            return false;
         }
     }
 

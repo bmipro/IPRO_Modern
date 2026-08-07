@@ -73,13 +73,33 @@ public class RecurringClientInvoiceJob
                     _ => schedule.NextRunDate.AddMonths(1)
                 };
                 schedule.UpdatedAt = DateTime.UtcNow;
+
+                // Save per schedule, not once at the end.
+                //
+                // GenerateDocumentNumberAsync derives the next number from COMMITTED rows. With a
+                // single terminal save, every schedule for the same agent in one run computed its
+                // number against the same unchanged data and got the SAME number -- and since L-12
+                // added a unique index on (AgentUserId, DocumentNumber), the duplicate now fails the
+                // whole SaveChanges. One agent with two schedules would stop recurring invoicing for
+                // every agent, permanently, because the next run hits the same collision.
+                //
+                // Committing here means the next iteration's lookup sees this invoice and moves past
+                // it. It also stops one bad schedule discarding the invoices already generated for
+                // everyone else in the batch.
+                await _db.SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Recurring invoice schedule {ScheduleId} failed to generate an invoice", schedule.Id);
+
+                // Detach whatever this iteration added. A failed SaveChanges leaves the entity
+                // tracked in Added state, so the NEXT schedule's save would retry it and fail the
+                // same way -- turning one bad row into a failure for every schedule after it.
+                foreach (var entry in _db.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
+                {
+                    entry.State = EntityState.Detached;
+                }
             }
         }
-
-        await _db.SaveChangesAsync();
     }
 }
