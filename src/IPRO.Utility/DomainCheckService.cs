@@ -9,11 +9,28 @@ public class DomainCheckService : IDomainCheckService
     // Deliberately NOT from IHttpClientFactory: the factory's clients follow redirects, and the root
     // check needs to inspect the first hop rather than the destination. Static because a handler per
     // call would leak sockets; this one is called a few times per 5-minute job run.
-    private static readonly HttpClient NoRedirectClient = new(
-        new HttpClientHandler { AllowAutoRedirect = false })
+    private static readonly HttpClient NoRedirectClient = CreateNoRedirectClient();
+
+    private static HttpClient CreateNoRedirectClient()
     {
-        Timeout = TimeSpan.FromSeconds(10)
-    };
+        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+
+        // A User-Agent is REQUIRED here, not cosmetic. HttpClient sends none by default, and
+        // GoDaddy's domain-forwarding service answers a request with no User-Agent with 403
+        // Forbidden instead of the 301 it gives a browser. Verified 2026-08-06 against ouritems.ca
+        // and 411trades.com: UA present => 301 to the www host, UA absent => 403.
+        //
+        // The 403 is not a redirect, so the check concluded "not forwarding" and told two agents
+        // their correctly-configured domains were broken. Registrar forwarding services sit behind
+        // bot protection; anything probing them has to look like an ordinary client.
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (compatible; IPRO-DomainCheck/1.0; +https://app.iproadvisers.com)");
+
+        return client;
+    }
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IAzureDomainAutomationService _azureDomains;
@@ -200,7 +217,7 @@ public class DomainCheckService : IDomainCheckService
                 ? string.Empty
                 : isRedirect
                     ? $"The root domain redirects to {target ?? "somewhere else"} rather than {domain.WwwDomain}."
-                    : $"The root domain resolves but does not redirect to {domain.WwwDomain}. Visitors typing the bare domain may not reach the site.";
+                    : $"The root domain answered with {(int)response.StatusCode} instead of redirecting to {domain.WwwDomain}. Visitors typing the bare domain may not reach the site.";
 
             // Log the inputs to the decision, not just the verdict. Diagnosing a wrong "Not
             // forwarding" from outside meant guessing at which of several steps had failed, with no
