@@ -466,6 +466,20 @@ static async Task MarkPublicSlugOverrideAsync(HttpContext context, IConfiguratio
     // and localhost all keep the existing behaviour untouched.
     if (!IsPublicAgentHost(context, configuration)) return;
 
+    // An agent signed into the PORTAL on their own domain must keep the portal routes.
+    //
+    // The portal is reachable on an agent's custom domain (the public site footer carries a login
+    // link), and the auth cookie is host-only. So an agent who signs in at www.theirfirm.com is
+    // working in the portal on that host -- and their sidebar links are relative. Without this,
+    // clicking "Testimonials" in the portal served them their own PUBLIC testimonials page, which is
+    // exactly what the 2026-08-06 fix did to the reverse case. Reported 2026-08-07.
+    //
+    // Read as a cookie rather than context.User because this middleware necessarily runs before
+    // UseAuthentication: the path rewrite has to happen before UseRouting selects an endpoint, and
+    // authentication sits after routing. A stale or invalid cookie merely yields the portal route and
+    // its login redirect, which is the pre-fix behaviour and safe.
+    if (HasPortalSessionCookie(context)) return;
+
     try
     {
         var db = context.RequestServices.GetService<IPRO.DataAccess.IPRODbContext>();
@@ -506,6 +520,24 @@ static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() 
         or "publicwebsite" or "media" or "hangfire" => true,
     _ => false
 };
+
+// True when the request carries an agent-portal auth cookie for THIS host.
+//
+// The default cookie scheme sets no explicit Cookie.Name, so ASP.NET Core uses
+// ".AspNetCore." + scheme name. Matched by prefix because a large identity is split into chunked
+// cookies (".AspNetCore.CookiesC1", "C2", ...) and an exact-name check would miss those.
+//
+// Deliberately not renaming the cookie to something fixed: that would invalidate every signed-in
+// agent's session on deploy, which is a worse trade than depending on a stable framework default.
+static bool HasPortalSessionCookie(HttpContext context)
+{
+    const string prefix = ".AspNetCore." + CookieAuthenticationDefaults.AuthenticationScheme;
+    foreach (var key in context.Request.Cookies.Keys)
+    {
+        if (key.StartsWith(prefix, StringComparison.Ordinal)) return true;
+    }
+    return false;
+}
 
 static string NormalizeHostForLookup(string host) => host.Trim().Trim('.').ToLowerInvariant();
 
