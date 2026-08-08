@@ -2177,3 +2177,55 @@ CSS problem.
 **Deliberately left for later** (task #375): a sweep of every POST endpoint reachable from a gated
 agent's screens against the exemption list, and a decision on whether in-page buttons (not just nav
 links) should show the same popup.
+
+### 91. The slug collision, actually finished (done, 2026-08-08)
+
+**The owner was right and the record was wrong.** Reported again on 2026-08-08: signed into the
+portal, clicking **Testimonials** on their own public website (`bobtest.247advisers.com/testimonials`)
+still landed in the agent portal — the same thing first reported 2026-08-06, after three separate
+"fixes". Their words: *"either I am totally wrong or you guys are not reading the documentation
+properly and as a result we are doing one thing several times."*
+
+**Cause: a stopgap that outlived its replacement by 18 minutes.**
+
+| when | commit | what |
+|---|---|---|
+| 2026-08-07 09:07 | `cb12b1d` | cookie check added — a signed-in agent keeps portal routes on their own domain |
+| 2026-08-07 09:25 | `7052444` | `/portal` introduced — solves the same problem properly |
+| 2026-08-08 09:33 | `f8d2582` | the cookie check is carried forward into the new routing code |
+
+Four mechanisms were deciding one question — reflected controller names, a published-page lookup, an
+auth-cookie presence check, and `/portal` — and the oldest kept winning. The comment justifying the
+cookie check said the portal's sidebar links were relative; they are not, and were not then:
+`_Layout.cshtml` writes `/portal/Testimonials`.
+
+Worse, `HasPortalSessionCookie` never validated anything. It matched on the cookie *name*, so any
+stale or forged `.AspNetCore.Cookies` value redirected a visitor off the agent's public site.
+
+**Fixed in `813aa02`** by removing, not adding: `BuildPortalRoutePrefixes`,
+`MarkPublicSlugOverrideAsync`, `PublicSlugOverrideKey`, `HasPortalSessionCookie`, and
+`IsPublicAgentHost` (a drifted near-copy of the host checks beside it). 201 lines deleted, 36 added.
+Routing no longer touches the database. The rule is now one line in one place — see
+**DOCS/INVARIANTS.md rule 1**.
+
+**Why every previous verification passed.** The owner's report always contained the word *logged in*.
+Every re-test dropped it and checked the signed-out case, which had genuinely been fixed. On
+2026-08-07 the bug was even declared "still open" for the opposite reason — testing slugs that were
+never pages on that agent's site.
+
+**What now prevents it** (`ops/Test-RoutingInvariants.ps1`): asserts every bare-slug case **both
+signed in and signed out** and requires the two to agree; refuses to run unless the slug under test
+is a real published page on that agent's site. Run against production before the fix it reported 6
+of 15 checks failing; after, 15/15.
+
+**Two process findings worth more than the fix:**
+
+1. **A green deploy is not a live deploy.** After `813aa02` deployed successfully and `/health`
+   returned `Healthy`, production was still running the old build — the harness still failed. It went
+   green only after `az webapp restart`. Every past "deployed and verified via /health" is therefore
+   weaker evidence than it looked, and this may itself account for some of the repeated work.
+2. **A test can pass by doing nothing.** The first version of the harness used
+   `Invoke-WebRequest -Headers @{Cookie=...}`, which Windows PowerShell 5.1 silently drops. Every
+   signed-in check reported PASS against a build known to be broken. Rewritten on `HttpClient` with
+   `UseCookies=$false`. Same defect class as the bug it tests for: an assertion whose precondition
+   was never established.

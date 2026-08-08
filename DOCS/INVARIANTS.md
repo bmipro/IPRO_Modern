@@ -98,6 +98,12 @@ Profile and the accent swatches shipped silently bouncing to `/Billing` because 
 
 ## 6. Deploys are serialized; PayPal is sandbox in production
 
+- **A green deploy does not mean the new code is serving.** Observed 2026-08-08: the workflow
+  finished, `/health` returned `Healthy`, and the site was still running the previous build —
+  confirmed by `ops/Test-RoutingInvariants.ps1` failing after deploy and passing after an explicit
+  `az webapp restart --name ipro-prod-web`. `/health` proves the app is up, not that it is *new*.
+  Restart, then verify behaviour, before reporting anything as fixed or as still broken. Any
+  "verified after deploy" that only checked `/health` proves nothing about the change.
 - Both workflows share the GitHub Actions concurrency group `deploy-ipro-production`. Don't remove
   it: parallel deploys against one database interleave schema repair.
 - Production currently runs PayPal in **sandbox** (`PayPal__IsSandbox=true`). Anything that creates
