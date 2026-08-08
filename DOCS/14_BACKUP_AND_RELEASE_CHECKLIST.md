@@ -21,6 +21,18 @@ git archive --format=zip -o "/c/Users/admin/OneDrive/Codex_Code_Bkup/IPRO_Modern
 - Lives in `C:\Users\admin\OneDrive\Codex_Code_Bkup\`, matching the existing naming convention (`IPRO_Modern_backup_YYYYMMDD-HHMMSS.zip`) used by every prior backup in that folder.
 - Do this at the end of a session and again right after any significant milestone lands (a feature shipped and verified live) — not only at the very end.
 
+### Refresh `DOCS/TODO.md` before the snapshot
+
+The open-work list lives in `DOCS/TODO.md` **because that is the only copy that survives anything**.
+The assistant's task tracker is tooling state: not a file, not in git, not in any backup here. If it
+is lost, everything in it is lost — and this working directory plus the assistant's memory files have
+already been wiped once by a reboot.
+
+So before running the snapshot: reconcile `DOCS/TODO.md` against the live task list, mark or delete
+what is finished, and commit it. A snapshot of a stale TODO is only marginally better than none —
+and a stale "not yet fixed" line actively causes harm, having been re-raised as work on 2026-08-08
+weeks after the thing was fixed.
+
 ### Database
 - The production MySQL server (`ipro-mysql-prod`, resource group `ipro-production`, an Azure Database for MySQL Flexible Server) has **automated backups with 7-day retention** (confirmed via `az mysql flexible-server list`). Geo-redundant backup is currently **disabled** — the backup only survives a regional Azure outage if that's turned on, which it isn't today. Worth revisiting once real customer data volume justifies the extra cost.
 - Point-in-time restore within that 7-day window is available directly through Azure (`az mysql flexible-server restore`) if ever needed — this hasn't been exercised/tested in this project yet.
