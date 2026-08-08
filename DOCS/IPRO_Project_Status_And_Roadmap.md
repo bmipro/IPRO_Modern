@@ -927,8 +927,26 @@ to show: the package picker on `Account/Register` (so a prospect sees the true t
 committing, not just the recurring price) and `Billing/Index` (so an existing agent can see what
 they were actually charged).
 
-**Status**: confirmed real, not yet fixed. Flagged rather than investigated further today per explicit
-instruction to note it and move on.
+**Status**: ~~confirmed real, not yet fixed~~ — **RESOLVED**, and this section was left stale long
+enough to cause real confusion on 2026-08-08, when it was read as a live bug and re-raised.
+
+Fixed in `0938dc6` ("Rework offer/pricing/preview funnel to be honest and connected"). Verified live
+on production 2026-08-08:
+
+| Surface | What an agent sees |
+|---|---|
+| `Account/Register` package picker | `IPro Silver — $40/mo + $150 setup plus applicable taxes` |
+| Marketing pricing cards (`Home/Index`) | `+ $150 one-time setup` per tier |
+| Prospect preview package card | same one-time setup line |
+| Invoice | a real line item, `"{Package} one-time setup fee"` (`PayPalBillingService.CreateInvoiceAsync`) |
+| `Billing/Index` | renders invoice line items, so the charge is visible after the fact too |
+
+`git log -S"SetupFee" -- src/IPRO.Web/Views/` returns exactly one commit — the one that added it.
+Nothing ever removed it.
+
+**Lesson for this document**: a section that says "not yet fixed" and is never revisited becomes a
+false bug report. When something here gets fixed, edit the original section — do not only add a new
+numbered item further down, because the stale text is what the next reader finds first.
 
 ### Revisit the signup process (done — see item 37 above, 2026-07-24)
 
