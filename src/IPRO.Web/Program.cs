@@ -176,25 +176,25 @@ app.UseSecurityHeaders();
 app.UseIpRateLimiting();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-var portalRoutePrefixes = BuildPortalRoutePrefixes();
 app.Use(async (context, next) =>
 {
-    // PUBLIC PAGE SLUGS THAT COLLIDE WITH PORTAL CONTROLLER NAMES (fixed 2026-08-06)
+    // THE URL-SPACE RULE. See DOCS/INVARIANTS.md -- this middleware is its only enforcement point.
     //
-    // BuildPortalRoutePrefixes reserves every controller name in this assembly, and the portal and the
-    // public websites share one application and one URL space. So an agent page slugged "testimonials"
-    // was swallowed by TestimonialsController and the VISITOR was shown a login form. Confirmed live on
-    // a real agent site: /testimonials, /articles, /forms, /documents and /newsletter all 302'd to
-    // /Account/Login. The Testimonials page ships in the default starter navigation, so this affected
-    // every agent provisioned since Nav v2 -- the nav link renders perfectly and only fails when clicked.
+    //   On an agent's public host, a bare path is ALWAYS the public website.
+    //   The agent portal lives ONLY under /portal.
+    //   No exceptions -- not for signed-in agents, not for colliding slugs.
     //
-    // The rule now: on a public agent host, a reserved prefix still wins UNLESS that agent's site
-    // actually has a published page with that slug. Deliberately narrow -- it can only ever un-break a
-    // page that exists and is currently unreachable, and it cannot take a portal route away from
-    // anything else.
-    await MarkPublicSlugOverrideAsync(context, app.Configuration, portalRoutePrefixes);
-
-    if (ShouldRouteToPublicWebsite(context, app.Configuration, portalRoutePrefixes))
+    // The portal and every agent's public website are one application sharing one URL space, so
+    // "which of the two owns /testimonials?" had to be answered somewhere. Answering it by reserving
+    // controller names produced bugs in both directions: visitors on an agent's own firm website were
+    // served the portal LOGIN FORM for /testimonials, and later a signed-in agent clicking their own
+    // site's Testimonials link was thrown into the portal instead.
+    //
+    // /portal (7052444, 2026-08-07 09:25) made the question unnecessary. But the cookie- and
+    // reserved-prefix machinery written 18 minutes earlier was left in place beside it and kept
+    // winning, which is why the original bug survived three separate "fixes". Removed 2026-08-08:
+    // one rule, one place, no second mechanism to fall out of sync with it.
+    if (ShouldRouteToPublicWebsite(context, app.Configuration))
     {
         context.Items["IproPublicPath"] = context.Request.Path.Value is { Length: > 0 } rawPath ? rawPath : "/";
         var requestedPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
@@ -462,127 +462,15 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
-// Every real app route (agent portal, admin bits, client portal, etc.) must work from an
-// agent's own domain (temporary *.247advisers.com or a custom domain) too - agents manage
-// their whole portal from that one URL, not from an internal Azure hostname. Reflects over
-// every MVC controller once at startup to build the set of first-path-segment prefixes that
-// are real app routes (respecting a class-level [Route] override where one exists, e.g.
-// TestimonialRequestController -> "testimonial") so any request whose first segment matches
-// falls through to normal MVC routing instead of being swallowed by the page-slug lookup
-// below. This is deliberately NOT a hand-maintained list: a single missed entry here once
-// took down an agent's entire portal (everything but the login page) in production, because
-// nothing failed loudly - it just silently looked like "page not found."
-static HashSet<string> BuildPortalRoutePrefixes()
-{
-    var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    foreach (var type in typeof(Program).Assembly.GetTypes())
-    {
-        if (!typeof(Microsoft.AspNetCore.Mvc.ControllerBase).IsAssignableFrom(type) || type.IsAbstract) continue;
-        // PublicWebsiteController IS the page-slug lookup target - its own specific paths
-        // (/PublicWebsite, /PublicWebsite/Page/{slug}, ...) are already handled by the more
-        // specific branches below; it must not reserve "PublicWebsite" as an off-limits slug.
-        if (string.Equals(type.Name, "PublicWebsiteController", StringComparison.OrdinalIgnoreCase)) continue;
-
-        var routeTemplate = type.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.RouteAttribute), false)
-            .Cast<Microsoft.AspNetCore.Mvc.RouteAttribute>()
-            .FirstOrDefault()?.Template;
-
-        string prefix;
-        if (!string.IsNullOrWhiteSpace(routeTemplate))
-        {
-            prefix = routeTemplate.Split('/')[0];
-            if (prefix.Contains('{') || prefix.Contains('[')) continue; // route param/token first, not a literal prefix
-        }
-        else
-        {
-            var name = type.Name;
-            prefix = name.EndsWith("Controller", StringComparison.Ordinal) ? name[..^"Controller".Length] : name;
-        }
-
-        if (!string.IsNullOrWhiteSpace(prefix)) prefixes.Add(prefix);
-    }
-    return prefixes;
-}
-
-// Marker left on HttpContext.Items when a reserved portal prefix should yield to a real public page.
-const string PublicSlugOverrideKey = "IproPublicSlugOverride";
-
-// Routes a colliding slug to the public site ONLY when all of the following hold:
-//   - it is a GET for an extensionless path (same preconditions the router already applies)
-//   - the first segment collides with a portal controller name
-//   - the segment is not one the portal can never surrender (see NeverShadowedPrefixes)
-//   - the host resolves to a real agent website
-//   - that website has a PUBLISHED page with exactly that slug
+// REMOVED 2026-08-08 along with MarkPublicSlugOverrideAsync and HasPortalSessionCookie.
 //
-// The database is only touched when a collision actually occurs, which is rare -- ordinary public
-// slugs and every genuine portal request return before the query.
-static async Task MarkPublicSlugOverrideAsync(HttpContext context, IConfiguration configuration, HashSet<string> portalRoutePrefixes)
-{
-    if (!HttpMethods.IsGet(context.Request.Method)) return;
-    if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return;
-
-    // Anything under /portal is unambiguously the portal and never a public slug.
-    if (context.Request.Path.StartsWithSegments("/portal", StringComparison.OrdinalIgnoreCase)) return;
-
-    var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
-    if (requestPath.Length == 0) return;
-
-    var firstSegment = requestPath.Split('/', 2)[0];
-    if (!portalRoutePrefixes.Contains(firstSegment)) return;
-
-    // An agent must never be able to make their own login unreachable by naming a page "account".
-    // Everything an agent needs to administer or recover the site stays reserved unconditionally.
-    if (IsNeverShadowedPrefix(firstSegment)) return;
-
-    // Only agent-facing public hosts are eligible. The portal host, the admin host, azurewebsites.net
-    // and localhost all keep the existing behaviour untouched.
-    if (!IsPublicAgentHost(context, configuration)) return;
-
-    // An agent signed into the PORTAL on their own domain must keep the portal routes.
-    //
-    // The portal is reachable on an agent's custom domain (the public site footer carries a login
-    // link), and the auth cookie is host-only. So an agent who signs in at www.theirfirm.com is
-    // working in the portal on that host -- and their sidebar links are relative. Without this,
-    // clicking "Testimonials" in the portal served them their own PUBLIC testimonials page, which is
-    // exactly what the 2026-08-06 fix did to the reverse case. Reported 2026-08-07.
-    //
-    // Read as a cookie rather than context.User because this middleware necessarily runs before
-    // UseAuthentication: the path rewrite has to happen before UseRouting selects an endpoint, and
-    // authentication sits after routing. A stale or invalid cookie merely yields the portal route and
-    // its login redirect, which is the pre-fix behaviour and safe.
-    if (HasPortalSessionCookie(context)) return;
-
-    try
-    {
-        var db = context.RequestServices.GetService<IPRO.DataAccess.IPRODbContext>();
-        if (db == null) return;
-
-        var host = NormalizeHostForLookup(context.Request.Host.Host);
-        var hostCandidates = new[] { host, host.StartsWith("www.", StringComparison.Ordinal) ? host[4..] : "www." + host };
-
-        var slug = firstSegment.ToLowerInvariant();
-        var exists = await db.WebsitePages
-            .AsNoTracking()
-            .AnyAsync(p => p.IsPublished
-                        && p.Slug.ToLower() == slug
-                        && (hostCandidates.Contains(p.AgentWebsite.CustomDomain.ToLower())
-                            || hostCandidates.Contains(p.AgentWebsite.AgentUser.DomainName.ToLower())
-                            || db.AgentDomains.Any(d => d.AgentWebsiteId == p.AgentWebsiteId
-                                && (hostCandidates.Contains(d.DomainName.ToLower())
-                                 || hostCandidates.Contains(d.RootDomain.ToLower())
-                                 || hostCandidates.Contains(d.WwwDomain.ToLower())))));
-
-        if (exists)
-        {
-            context.Items[PublicSlugOverrideKey] = true;
-        }
-    }
-    catch
-    {
-        // A lookup failure must never take the site down: fall through to the previous behaviour,
-        // which is the portal route. Worst case the page stays unreachable, exactly as it is today.
-    }
-}
+// BuildPortalRoutePrefixes() reflected over every controller and reserved its name as a portal
+// prefix on all hosts, so an agent page slugged "testimonials" was swallowed by
+// TestimonialsController and the visitor got a login form. Patching that produced a published-page
+// lookup, then a cookie exemption, then an exemption to the exemption -- four mechanisms deciding
+// one question, none of them agreeing.
+//
+// /portal answers the question by itself. Nothing needs to know which controller names exist.
 
 // Reserved no matter what an agent names a page. Losing any of these on an agent's own domain would
 // lock them (or their clients) out rather than merely hiding content.
@@ -593,45 +481,13 @@ static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() 
     _ => false
 };
 
-// True when the request carries an agent-portal auth cookie for THIS host.
-//
-// The default cookie scheme sets no explicit Cookie.Name, so ASP.NET Core uses
-// ".AspNetCore." + scheme name. Matched by prefix because a large identity is split into chunked
-// cookies (".AspNetCore.CookiesC1", "C2", ...) and an exact-name check would miss those.
-//
-// Deliberately not renaming the cookie to something fixed: that would invalidate every signed-in
-// agent's session on deploy, which is a worse trade than depending on a stable framework default.
-static bool HasPortalSessionCookie(HttpContext context)
-{
-    const string prefix = ".AspNetCore." + CookieAuthenticationDefaults.AuthenticationScheme;
-    foreach (var key in context.Request.Cookies.Keys)
-    {
-        if (key.StartsWith(prefix, StringComparison.Ordinal)) return true;
-    }
-    return false;
-}
-
 static string NormalizeHostForLookup(string host) => host.Trim().Trim('.').ToLowerInvariant();
 
-static bool IsPublicAgentHost(HttpContext context, IConfiguration configuration)
-{
-    var host = NormalizeHostForLookup(context.Request.Host.Host);
-    if (string.IsNullOrWhiteSpace(host)) return false;
-    if (host is "localhost" or "127.0.0.1" or "::1") return false;
-    if (host.EndsWith(".azurewebsites.net", StringComparison.OrdinalIgnoreCase)) return false;
-    if (host.StartsWith("admin.", StringComparison.OrdinalIgnoreCase)) return false;
-
-    var adminDomain = configuration["App:AdminDomain"]?.Trim().Trim('.').ToLowerInvariant();
-    if (!string.IsNullOrWhiteSpace(adminDomain) && host == adminDomain) return false;
-
-    var platformDomains = (configuration["App:PlatformDomains"] ?? string.Empty)
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Select(d => d.Trim().Trim('.').ToLowerInvariant())
-        .Where(d => d.Length > 0);
-    return !platformDomains.Contains(host);
-}
-
-static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration, HashSet<string> portalRoutePrefixes)
+// IsPublicAgentHost was deleted here on 2026-08-08. It was a near-copy of the host checks inside
+// ShouldRouteToPublicWebsite -- same question, two answers, and they had already drifted (only the
+// one below knows about App:BaseUrl and App:TemporarySiteRootDomain). Two predicates for "is this an
+// agent's public host" is the same failure that let the slug collision survive three fixes.
+static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration)
 {
     if (!HttpMethods.IsGet(context.Request.Method)) return false;
     if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return false;
@@ -647,38 +503,17 @@ static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration confi
     var requestPath = context.Request.Path.Value?.Trim('/') ?? string.Empty;
     var firstSegment = requestPath.Split('/', 2)[0];
 
-    // Never-shadowed prefixes are reserved on EVERY host (audit #2, A2-L1). This list was
-    // previously consulted only after the segment matched a reflected controller name -- but
-    // "health" is an endpoint, not a controller, so on an agent's custom domain /health fell
-    // through to the public-site slug lookup and served the agent's site instead of the probe.
+    // The only paths an agent host does NOT surrender to the public site. These are not "portal
+    // features" -- they are the ways in and the ways to recover. Losing them on an agent's own domain
+    // would lock the agent or their clients out rather than merely hiding a page, and /health has to
+    // answer for the load-balancer probe on every hostname it might arrive under.
     if (firstSegment.Length > 0 && IsNeverShadowedPrefix(firstSegment)) return false;
 
-    if (firstSegment.Length > 0 && portalRoutePrefixes.Contains(firstSegment))
-    {
-        // A portal controller name wins... unless the agent whose site this is has genuinely built a
-        // public page with that slug. See ResolvesToRealPublicPage below for why this exception has
-        // to exist at all.
-        if (!context.Items.ContainsKey(PublicSlugOverrideKey))
-        {
-            // ...and unless this is a signed-out VISITOR on an agent's own branded domain. A slug the
-            // agent never created (say /articles, when their newsletter page is /free-newsletter) used
-            // to hand that visitor the agent-portal LOGIN FORM: confusing on someone's firm website,
-            // and it advertises the portal on a domain the public associates with the agent alone.
-            // Falling through to the public site gives the same not-found handling any other unknown
-            // slug already gets. Verified 2026-08-08: /randomgibberish123 rendered the site while
-            // /articles 302'd to /Account/Login on a real agent domain.
-            //
-            // A signed-in agent keeps every portal route on their own domain (cookie check), /Account
-            // and friends stay never-shadowed so signing in always works, and /portal/... is
-            // unconditional on every host -- so no portal path is lost, only its exposure to visitors.
-            if (!IsPublicAgentHost(context, configuration) || HasPortalSessionCookie(context))
-            {
-                return false;
-            }
-        }
-    }
+    // NOTE: there is deliberately no portal-controller-name check here, and no auth-cookie check.
+    // Adding either one back re-creates the collision this file spent three days fixing. If a portal
+    // route needs to be reachable on an agent's domain, it is reachable at /portal/<that route>.
 
-    var host = context.Request.Host.Host.Trim().Trim('.').ToLowerInvariant();
+    var host = NormalizeHostForLookup(context.Request.Host.Host);
     if (string.IsNullOrWhiteSpace(host)) return false;
     if (host is "localhost" or "127.0.0.1" or "::1") return false;
     if (host.EndsWith(".azurewebsites.net", StringComparison.OrdinalIgnoreCase)) return false;
