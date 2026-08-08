@@ -180,9 +180,16 @@ public class NewsLetterDispatcher
 
     private async Task<List<Client>> GetAudienceClientsAsync(NewsLetterSend send)
     {
+        // IsNewsletterSubscribed is the newsletter's own flag; EmailOptOutAt is the global "stop
+        // everything" set by the unsubscribe link. Both must pass. Expressed here as a query filter
+        // rather than via EmailConsentService because this runs in SQL over the whole client list --
+        // the rule is the same one, and EmailConsentService.IsSuppressed remains the authority for
+        // the per-recipient checks the other dispatchers make.
         var query = _db.Clients
             .Include(c => c.Categories)
-            .Where(c => c.AgentUserId == send.AgentUserId && c.IsNewsletterSubscribed);
+            .Where(c => c.AgentUserId == send.AgentUserId
+                        && c.IsNewsletterSubscribed
+                        && c.EmailOptOutAt == null);
 
         query = send.AudienceType switch
         {

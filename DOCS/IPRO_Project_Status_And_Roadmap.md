@@ -2384,3 +2384,57 @@ where forgetting to include produced silence. Proven by injecting a bare link an
 Schema lives in `IPRO.DataAccess/EmailDeliverySchema.cs` rather than being copy-pasted into both
 `Program.cs` files: fifteen columns across four tables is well past the size where duplicating an
 `ALTER` list is safe, and `INVARIANTS.md` rule 4 exists because those copies drift.
+
+### 96. Unsubscribe, and the one exception the owner asked for (done, 2026-08-08)
+
+Newsletters have always carried `listUnsubscribeUrl`; e-cards, e-letters, polls and Did You Know did
+not. That was the single concrete difference behind cards landing in spam, and it could not be closed
+by adding a header: `SendGridEmailService` also emits `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
+and RFC 8058 one-click requires a real HTTPS endpoint that honours the opt-out.
+
+**The product decision was the owner's:** one unsubscribe stops everything *except* birthday and
+anniversary cards. The build respects that outcome while keeping the opt-out honest, because an
+e-card carries the agent's contact card in its footer and is therefore promotional in character —
+mail arriving after someone pressed Unsubscribe is a spam complaint, and complaints damage
+deliverability for every agent on the platform.
+
+The resolution is an asymmetry between the two entry points:
+
+- **POST `/email-preferences`** — the RFC 8058 target. Gmail and Yahoo fire it themselves with no
+  human present, so it suppresses *everything* immediately and cannot ask a question. Verified with a
+  bare curl POST carrying no cookies and no antiforgery token, which is exactly what a mail provider
+  sends.
+- **GET `/email-preferences`** — the page a person sees. Confirms they are unsubscribed (clicking the
+  link is itself an unsubscribe; making them press a second button is the pattern that gets senders
+  reported), then offers one deliberate choice: keep receiving birthday and anniversary greetings.
+
+So the greeting exemption needs **both** halves — a design SuperAdmin has flagged, and a client who
+opted back in. Neither alone is consent.
+
+**`SendAfterUnsubscribe` is a real column, not a rule matched on `Occasion`.** `Occasion` is a design
+*family*, not a category: `simple-birthday` is filed under "Simple" while `birthday-audi` is under
+"Birthday". Any string rule would have let one birthday card through and blocked the other. It
+defaults to false, so a design added next year cannot inherit an exemption nobody chose.
+
+**One opt-out, not two.** `Client.IsNewsletterSubscribed` already existed. Rather than add a second,
+competing mechanism — the mistake that kept the public-slug collision alive through four fixes — the
+unsubscribe sets the new global `EmailOptOutAt` *and* clears the old flag together, so one user action
+produces one consistent result. `EmailConsentService.IsSuppressed` is the only place the question is
+answered, the same way `ShouldRouteToPublicWebsite` is the only place routing is decided.
+
+The agent is emailed when a client unsubscribes — an adviser should learn it directly rather than
+infer it from a dwindling open rate. Best-effort: a failure there can never make the unsubscribe fail.
+
+**Verified by whether mail stops, not by whether the page renders.** Four cases through the real
+minutely dispatcher, using the fact that SendGrid is unconfigured locally as the discriminator — a
+suppressed recipient never reaches the provider at all:
+
+| Design | Client state | Result |
+|---|---|---|
+| marketing | unsubscribed | suppressed |
+| greeting | unsubscribed, no opt-in | suppressed |
+| greeting | unsubscribed **+ opted back in** | sent (reached SendGrid) |
+| marketing | unsubscribed + opted back in | suppressed |
+
+`email-preferences` is in `IsNeverShadowedPrefix`: these links sit in inboxes for years and an
+unsubscribe that 404s on an agent's custom domain is worse than a broken page. See INVARIANTS rule 7.

@@ -10,6 +10,34 @@ public static class ELetterHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
 
+    // The plain-text alternative part -- see the note on ECardHtmlComposer.WrapText. A letter is
+    // already mostly prose, so this is close to the HTML version with the markup removed, and it
+    // costs nothing to send both.
+    public static string WrapText(ELetter letter, AgentUser agent, Client? client, string? unsubscribeUrl = null)
+    {
+        var agentName = AgentNameFormatter.FullName(agent);
+        var body = client == null
+            ? letter.Body
+            : MergeFieldResolver.ResolveText(letter.Body, client, agent);
+
+        var lines = new List<string> { body, string.Empty, "--" };
+
+        if (!string.IsNullOrWhiteSpace(agentName)) lines.Add(agentName);
+        if (!string.IsNullOrWhiteSpace(agent.CompanyName)) lines.Add(agent.CompanyName);
+        if (!string.IsNullOrWhiteSpace(agent.Phone)) lines.Add($"Tel: {agent.Phone}");
+        if (!string.IsNullOrWhiteSpace(agent.Email)) lines.Add(agent.Email);
+        if (!string.IsNullOrWhiteSpace(agent.DomainName)) lines.Add($"https://{agent.DomainName}");
+
+        if (!string.IsNullOrWhiteSpace(unsubscribeUrl))
+        {
+            lines.Add(string.Empty);
+            lines.Add("To stop receiving these emails, visit:");
+            lines.Add(unsubscribeUrl);
+        }
+
+        return string.Join("\n", lines);
+    }
+
     // client == null renders the letter with its merge tokens left visible, which is what the
     // editor's preview pane wants. A real send always passes the actual recipient.
     public static string Wrap(ELetter letter, AgentUser agent, Client? client)

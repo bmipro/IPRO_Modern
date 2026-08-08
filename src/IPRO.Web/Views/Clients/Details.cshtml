@@ -46,7 +46,29 @@
             <span class="fw-bold text-primary fs-3">@Model.FirstName[0]@Model.LastName[0]</span>
           </div>
           <h5 class="fw-bold mb-0">@Model.FirstName @Model.LastName</h5>
-          @if (Model.IsNewsletterSubscribed)
+          @* Unsubscribed takes precedence over the newsletter badge: it is the stronger fact, and an
+             agent seeing "Newsletter subscriber" on someone who has opted out would be misleading. *@
+          @if (Model.EmailOptOutAt.HasValue)
+          {
+            <div class="mt-1">
+              <span class="badge bg-danger-subtle text-danger">
+                <i class="fas fa-ban me-1"></i>Unsubscribed
+              </span>
+              @if (Model.GreetingsOptInAt.HasValue)
+              {
+                <span class="badge bg-info-subtle text-info">
+                  <i class="fas fa-cake-candles me-1"></i>Greetings only
+                </span>
+              }
+              <div class="text-muted small mt-1">
+                @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy") &middot;
+                @(Model.GreetingsOptInAt.HasValue
+                    ? "Birthday and anniversary cards still reach them; nothing else does."
+                    : "No marketing emails reach them. You can still contact them directly.")
+              </div>
+            </div>
+          }
+          else if (Model.IsNewsletterSubscribed)
           { <span class="badge bg-success-subtle text-success mt-1"><i class="fas fa-envelope me-1"></i>Newsletter subscriber</span> }
           @if (Model.Categories.Any())
           {

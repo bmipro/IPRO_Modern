@@ -50,12 +50,38 @@ public static class EmailDeliverySchema
         ("FailureReason",     "varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''")
     };
 
+    // Email consent. Lives here rather than in a second file because it is the same problem: a
+    // column list that both apps must agree on. See Client.cs for why these sit alongside the
+    // existing IsNewsletterSubscribed flag instead of replacing it.
+    private static readonly (string Table, string Column, string Definition)[] ConsentColumns =
+    {
+        ("Clients", "EmailOptOutAt",         "datetime(6) NULL"),
+        ("Clients", "GreetingsOptInAt",      "datetime(6) NULL"),
+        ("Clients", "EmailPreferencesToken", "varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''"),
+        // Default 0: an unsubscribe stops everything unless SuperAdmin ticks the box per design.
+        ("ECardDesigns", "SendAfterUnsubscribe", "tinyint(1) NOT NULL DEFAULT 0")
+    };
+
     public static async Task EnsureAsync(IPRODbContext db)
     {
         var ownsConnection = db.Database.GetDbConnection().State != ConnectionState.Open;
         if (ownsConnection) await db.Database.OpenConnectionAsync();
         try
         {
+            foreach (var (table, column, definition) in ConsentColumns)
+            {
+                if (!await TableExistsAsync(db, table)) continue;
+                if (await ColumnExistsAsync(db, table, column)) continue;
+
+                await using var alter = db.Database.GetDbConnection().CreateCommand();
+                alter.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `{column}` {definition};";
+                await alter.ExecuteNonQueryAsync();
+            }
+
+            // Unsubscribe links are looked up by token on every click, and the token is the only
+            // thing identifying the client, so it needs an index.
+            await EnsureTokenIndexAsync(db);
+
             foreach (var table in RecipientTables)
             {
                 // A table can legitimately be absent on a database that has not yet run the
@@ -83,6 +109,23 @@ public static class EmailDeliverySchema
         {
             if (ownsConnection) await db.Database.CloseConnectionAsync();
         }
+    }
+
+    private static async Task EnsureTokenIndexAsync(IPRODbContext db)
+    {
+        if (!await ColumnExistsAsync(db, "Clients", "EmailPreferencesToken")) return;
+
+        await using var check = db.Database.GetDbConnection().CreateCommand();
+        check.CommandText =
+            "SELECT COUNT(*) FROM information_schema.STATISTICS " +
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Clients' " +
+            "AND INDEX_NAME = 'idx_clients_email_preferences_token';";
+        if (Convert.ToInt32(await check.ExecuteScalarAsync()) > 0) return;
+
+        await using var create = db.Database.GetDbConnection().CreateCommand();
+        create.CommandText =
+            "CREATE INDEX `idx_clients_email_preferences_token` ON `Clients` (`EmailPreferencesToken`);";
+        await create.ExecuteNonQueryAsync();
     }
 
     private static async Task<bool> TableExistsAsync(IPRODbContext db, string table)

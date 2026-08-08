@@ -17,6 +17,41 @@ public static class ECardHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
 
+    // The plain-text alternative part.
+    //
+    // An e-card is a large image carrying about ten words, which is one of the oldest and heaviest
+    // spam signals there is -- on 2026-08-08 every e-card sent to a cPanel/SpamAssassin host arrived
+    // with ***SPAM*** prepended to the subject while the text-based e-letters to the same mailbox
+    // went straight to the inbox. A message offering only an HTML part makes that worse; newsletters
+    // and polls have always sent both, and cards and letters sent neither.
+    //
+    // This does not "fix spam" on its own -- scoring is probabilistic and the image ratio is the
+    // bigger term -- but a multipart/alternative message with real text is table stakes, and it is
+    // also what a screen reader and a text-only client get.
+    public static string WrapText(ECard card, AgentUser agent, ECardDesign template, string? unsubscribeUrl = null)
+    {
+        var header = string.IsNullOrWhiteSpace(card.Subject) ? template.DefaultHeaderText : card.Subject;
+        var message = string.IsNullOrWhiteSpace(card.Message) ? template.DefaultMessage : card.Message;
+        var name = $"{agent.FirstName} {agent.LastName}".Trim();
+
+        var lines = new List<string> { header, string.Empty, message, string.Empty, "--" };
+
+        if (!string.IsNullOrWhiteSpace(name)) lines.Add(name);
+        if (!string.IsNullOrWhiteSpace(agent.CompanyName)) lines.Add(agent.CompanyName);
+        if (!string.IsNullOrWhiteSpace(agent.Phone)) lines.Add($"Tel: {agent.Phone}");
+        if (!string.IsNullOrWhiteSpace(agent.Email)) lines.Add(agent.Email);
+        if (!string.IsNullOrWhiteSpace(agent.DomainName)) lines.Add(agent.DomainName);
+
+        if (!string.IsNullOrWhiteSpace(unsubscribeUrl))
+        {
+            lines.Add(string.Empty);
+            lines.Add("To stop receiving these emails, visit:");
+            lines.Add(unsubscribeUrl);
+        }
+
+        return string.Join("\n", lines);
+    }
+
     // The design is passed in rather than looked up: the composer runs inside the dispatcher's
     // per-send loop and inside the preview action, both of which already have a DbContext open.
     public static string Wrap(ECard card, AgentUser agent, ECardDesign template, string baseUrl)

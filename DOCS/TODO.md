@@ -29,7 +29,7 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 | 375 | Gated-agent portal sweep | Check every clickable control against the access gate's exemption list. Profile and the colour swatches were both found by hand; assume there is a third. |
 | 365 | Azure auto-heal rules | All that remains of the old Azure task — 64-bit and run-from-package are resolved. |
 | 374 | Delete prod test agent `zedtester` | Destructive; needs the owner's go-ahead. |
-| 387 | E-card / e-letter one-click unsubscribe | The concrete reason e-cards land in spam: newsletters pass `listUnsubscribeUrl`, cards and letters don't. Can't be fixed with a header alone — `SendGridEmailService.cs:67` also sends `List-Unsubscribe-Post: One-Click`, which RFC 8058 says needs a real HTTPS endpoint that honours the opt-out. **Product question first:** should a client be able to opt out of birthday cards from their own adviser separately from newsletters? |
+| 387 | ~~E-card / e-letter one-click unsubscribe~~ | **DONE 2026-08-08.** One opt-out stops everything; birthday and anniversary designs can be kept by explicit opt-in on the preferences page. Bahman's product call: unsubscribe-all-except-greetings, and notify the agent. |
 
 ## Owner-driven — waiting on Bahman, not on code
 

@@ -11,13 +11,15 @@ public class PollDispatcher
 {
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
+    private readonly IPRO.Business.Services.IEmailConsentService _consent;
     private readonly IConfiguration _configuration;
     private readonly ILogger<PollDispatcher> _logger;
 
-    public PollDispatcher(IPRODbContext db, IEmailService email, IConfiguration configuration, ILogger<PollDispatcher> logger)
+    public PollDispatcher(IPRODbContext db, IEmailService email, IPRO.Business.Services.IEmailConsentService consent, IConfiguration configuration, ILogger<PollDispatcher> logger)
     {
         _db = db;
         _email = email;
+        _consent = consent;
         _configuration = configuration;
         _logger = logger;
     }
@@ -36,8 +38,20 @@ public class PollDispatcher
 
         var audience = await GetAudienceClientsAsync(send);
 
-        var recipients = audience
-            .Where(c => !string.IsNullOrWhiteSpace(c.Email))
+        // Consent is applied at AUDIENCE SELECTION here, not after the fact: poll recipient rows are
+        // created by this method, so an unsubscribed client simply never becomes a recipient rather
+        // than becoming one that is immediately failed. (Cards and letters differ -- their recipient
+        // rows already exist by the time the dispatcher runs, so they filter inside the send loop.)
+        var eligible = audience.Where(c => !_consent.IsSuppressed(c, IPRO.Business.Services.EmailChannel.Poll)).ToList();
+        var suppressedCount = audience.Count - eligible.Count;
+        if (suppressedCount > 0)
+        {
+            _logger.LogInformation(
+                "Poll send {SendId}: {Suppressed} of {Total} clients skipped -- unsubscribed.",
+                send.Id, suppressedCount, audience.Count);
+        }
+
+        var recipients = eligible
             .Select(c => new PollRecipient
             {
                 PollSurveyId = survey.Id,
@@ -61,6 +75,12 @@ public class PollDispatcher
             try
             {
                 var voteUrl = BuildVoteUrl(recipient.VoteToken);
+
+                // Eligibility was settled above, so this is only fetching the client to mint the
+                // unsubscribe token.
+                var client = eligible.First(c => c.Id == recipient.ClientId);
+                var preferencesUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
+
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
@@ -75,7 +95,8 @@ public class PollDispatcher
                         ["poll_recipient_id"] = recipient.Id.ToString(),
                         ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
                         ["agent_user_id"] = send.AgentUserId.ToString()
-                    });
+                    },
+                    listUnsubscribeUrl: preferencesUrl);
 
                 recipient.Status = result.Success ? PollRecipientStatus.Sent : PollRecipientStatus.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;

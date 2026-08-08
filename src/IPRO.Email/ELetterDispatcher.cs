@@ -10,12 +10,14 @@ public class ELetterDispatcher
 {
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
+    private readonly IEmailConsentService _consent;
     private readonly ILogger<ELetterDispatcher> _logger;
 
-    public ELetterDispatcher(IPRODbContext db, IEmailService email, ILogger<ELetterDispatcher> logger)
+    public ELetterDispatcher(IPRODbContext db, IEmailService email, IEmailConsentService consent, ILogger<ELetterDispatcher> logger)
     {
         _db = db;
         _email = email;
+        _consent = consent;
         _logger = logger;
     }
 
@@ -37,6 +39,7 @@ public class ELetterDispatcher
             .ToListAsync();
 
         var sentCount = 0;
+        var suppressedCount = 0;
         foreach (var recipient in recipients)
         {
             try
@@ -52,6 +55,19 @@ public class ELetterDispatcher
                     continue;
                 }
 
+                // No greeting exemption here: an e-letter is correspondence, never a birthday card,
+                // so an unsubscribed client never receives one.
+                if (_consent.IsSuppressed(client, EmailChannel.ELetter))
+                {
+                    recipient.Status = ELetterRecipientStatuses.Failed;
+                    recipient.FailureReason = "Recipient has unsubscribed from these emails.";
+                    recipient.UpdatedAt = DateTime.UtcNow;
+                    suppressedCount++;
+                    continue;
+                }
+
+                var preferencesUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
+
                 var subject = MergeFieldResolver.ResolveText(letter.Subject, client, agent);
                 var html = ELetterHtmlComposer.Wrap(letter, agent, client);
 
@@ -60,6 +76,8 @@ public class ELetterDispatcher
                     recipient.RecipientName,
                     subject,
                     html,
+                    // Plain-text alternative -- see the note in ECardDispatcher.
+                    ELetterHtmlComposer.WrapText(letter, agent, client, preferencesUrl),
                     customArgs: new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "eletter",
@@ -69,7 +87,8 @@ public class ELetterDispatcher
                         ["agent_user_id"] = letter.AgentUserId.ToString()
                     },
                     replyToEmail: agent.Email,
-                    replyToName: replyToName);
+                    replyToName: replyToName,
+                    listUnsubscribeUrl: preferencesUrl);
 
                 recipient.Status = result.Success ? ELetterRecipientStatuses.Sent : ELetterRecipientStatuses.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
@@ -95,6 +114,8 @@ public class ELetterDispatcher
         letter.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("E-letter {ELetterId} dispatched to {Count} recipients. Sent: {Sent}", letter.Id, recipients.Count, sentCount);
+        _logger.LogInformation(
+            "E-letter {ELetterId} dispatched to {Count} recipients. Sent: {Sent}. Suppressed (unsubscribed): {Suppressed}",
+            letter.Id, recipients.Count, sentCount, suppressedCount);
     }
 }

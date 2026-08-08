@@ -56,6 +56,9 @@ builder.Services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
 builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
+// Registered in Admin too: the scheduler jobs that live in this process dispatch email and must
+// consult the same consent rule as the Web app.
+builder.Services.AddScoped<IEmailConsentService, EmailConsentService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();

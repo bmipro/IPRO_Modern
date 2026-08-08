@@ -145,6 +145,7 @@ public class ECardDesignsController : Controller
             existing.Emoji = model.Emoji;
             existing.IsDark = model.IsDark;
             existing.IsActive = model.IsActive;
+            existing.SendAfterUnsubscribe = model.SendAfterUnsubscribe;
             existing.SortOrder = model.SortOrder;
             if (uploadedUrl != null)
             {

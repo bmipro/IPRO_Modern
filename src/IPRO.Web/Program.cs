@@ -68,6 +68,9 @@ builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 // Records SendGrid delivery events for every sender other than newsletters/drip campaigns.
 builder.Services.AddScoped<IEmailDeliveryTracker, EmailDeliveryTracker>();
+// The single "may we email this client?" decision point. Every dispatcher asks this and nothing
+// re-implements it -- see EmailConsentService.
+builder.Services.AddScoped<IEmailConsentService, EmailConsentService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.AddScoped<IClientInvoiceService, ClientInvoiceService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
@@ -523,6 +526,11 @@ static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() 
     // Attribute-routed client-facing endpoints: ClientDocumentController [Route("invoice")],
     // PollVoteController [Route("Poll/[action]")], TestimonialRequestController [Route("testimonial")].
     "invoice" or "poll" or "testimonial" => true,
+
+    // EmailPreferencesController [Route("email-preferences")] -- the unsubscribe link carried by
+    // every email we send. This one matters more than the rest of the list: an unsubscribe that
+    // 404s is not a broken page, it is a spam complaint, and these links stay in inboxes for years.
+    "email-preferences" => true,
 
     _ => false
 };

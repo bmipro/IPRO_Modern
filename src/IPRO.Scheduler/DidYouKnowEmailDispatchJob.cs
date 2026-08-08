@@ -14,12 +14,14 @@ public class DidYouKnowEmailDispatchJob
 {
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
+    private readonly IPRO.Business.Services.IEmailConsentService _consent;
     private readonly ILogger<DidYouKnowEmailDispatchJob> _logger;
 
-    public DidYouKnowEmailDispatchJob(IPRODbContext db, IEmailService email, ILogger<DidYouKnowEmailDispatchJob> logger)
+    public DidYouKnowEmailDispatchJob(IPRODbContext db, IEmailService email, IPRO.Business.Services.IEmailConsentService consent, ILogger<DidYouKnowEmailDispatchJob> logger)
     {
         _db = db;
         _email = email;
+        _consent = consent;
         _logger = logger;
     }
 
@@ -101,6 +103,19 @@ public class DidYouKnowEmailDispatchJob
                     continue;
                 }
 
+                // Consent is checked at SEND time, not queue time: these items are deliberately
+                // staggered over days, so a client can easily unsubscribe between being queued and
+                // this article's turn coming round.
+                if (_consent.IsSuppressed(client, IPRO.Business.Services.EmailChannel.DidYouKnow))
+                {
+                    await MarkRetiredAsync(item.Id, EmailSendResult.Failed(
+                        "Recipient unsubscribed before this was sent."));
+                    _logger.LogInformation(
+                        "Did You Know queued email {ItemId} not sent: client {ClientId} has unsubscribed.",
+                        item.Id, item.ClientId);
+                    continue;
+                }
+
                 var agent = await _db.AgentUsers.FirstOrDefaultAsync(u => u.Id == article.AgentUserId);
                 var companyName = agent == null || string.IsNullOrWhiteSpace(agent.CompanyName)
                     ? $"{agent?.FirstName} {agent?.LastName}".Trim()
@@ -135,7 +150,10 @@ public class DidYouKnowEmailDispatchJob
                         ["agent_user_id"] = client.AgentUserId.ToString()
                     },
                     replyToEmail: agent?.Email,
-                    replyToName: companyName);
+                    replyToName: companyName,
+                    listUnsubscribeUrl: _consent.BuildPreferencesUrl(
+                        await _consent.GetOrCreateTokenAsync(
+                            await _db.Clients.FirstAsync(c => c.Id == client.Id))));
 
                 // SendGridEmailService catches everything and RETURNS a failure rather than throwing,
                 // so the catch below never sees a rejected send. The result was previously discarded

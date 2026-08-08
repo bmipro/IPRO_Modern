@@ -11,13 +11,15 @@ public class ECardDispatcher
 {
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
+    private readonly IEmailConsentService _consent;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ECardDispatcher> _logger;
 
-    public ECardDispatcher(IPRODbContext db, IEmailService email, IConfiguration configuration, ILogger<ECardDispatcher> logger)
+    public ECardDispatcher(IPRODbContext db, IEmailService email, IEmailConsentService consent, IConfiguration configuration, ILogger<ECardDispatcher> logger)
     {
         _db = db;
         _email = email;
+        _consent = consent;
         _configuration = configuration;
         _logger = logger;
     }
@@ -55,15 +57,41 @@ public class ECardDispatcher
             .ToListAsync();
 
         var sentCount = 0;
+        var suppressedCount = 0;
         foreach (var recipient in recipients)
         {
             try
             {
+                // Consent, checked per recipient at send time rather than when the card was
+                // composed -- a client can unsubscribe in between, and a scheduled card can sit for
+                // weeks. design.SendAfterUnsubscribe is the birthday/anniversary exemption, and it
+                // still requires the client to have opted back in; EmailConsentService owns that
+                // rule and this is not the place to second-guess it.
+                var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == recipient.ClientId);
+                if (client == null || _consent.IsSuppressed(client, EmailChannel.ECard, design.SendAfterUnsubscribe))
+                {
+                    recipient.Status = ECardRecipientStatuses.Failed;
+                    recipient.FailureReason = "Recipient has unsubscribed from these emails.";
+                    recipient.UpdatedAt = DateTime.UtcNow;
+                    suppressedCount++;
+                    continue;
+                }
+
+                // Every card now carries a working unsubscribe. Its absence was the one concrete
+                // difference between cards and newsletters, and the likeliest reason cards were
+                // landing in spam.
+                var preferencesUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
+
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
                     card.Subject,
                     html,
+                    // Plain-text alternative. Cards are a big image carrying ~10 words, which is a
+                    // heavy spam signal on its own; sending HTML only made it worse. Observed
+                    // 2026-08-08: every e-card to a SpamAssassin host arrived tagged ***SPAM***
+                    // while text-based e-letters to the same mailbox reached the inbox.
+                    ECardHtmlComposer.WrapText(card, agent, design, preferencesUrl),
                     customArgs: new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "ecard",
@@ -73,7 +101,8 @@ public class ECardDispatcher
                         ["agent_user_id"] = card.AgentUserId.ToString()
                     },
                     replyToEmail: agent.Email,
-                    replyToName: replyToName);
+                    replyToName: replyToName,
+                    listUnsubscribeUrl: preferencesUrl);
 
                 recipient.Status = result.Success ? ECardRecipientStatuses.Sent : ECardRecipientStatuses.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
@@ -102,6 +131,8 @@ public class ECardDispatcher
         card.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("E-card {ECardId} dispatched to {Count} recipients. Sent: {Sent}", card.Id, recipients.Count, sentCount);
+        _logger.LogInformation(
+            "E-card {ECardId} dispatched to {Count} recipients. Sent: {Sent}. Suppressed (unsubscribed): {Suppressed}",
+            card.Id, recipients.Count, sentCount, suppressedCount);
     }
 }

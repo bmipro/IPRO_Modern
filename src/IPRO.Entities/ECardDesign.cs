@@ -46,6 +46,20 @@ public class ECardDesign
     // Retired designs disappear from the agent's picker but keep rendering on past sends --
     // deleting one would blank the thumbnail on every e-card that ever used it.
     public bool IsActive { get; set; } = true;
+
+    // Does this card still go to someone who has unsubscribed, if they explicitly asked to keep
+    // receiving greetings? Intended for birthday and anniversary designs.
+    //
+    // Defaults to FALSE on purpose: an unsubscribe stops everything unless a human has ticked this
+    // box for a specific design, so a design added next year cannot silently inherit an exemption
+    // nobody chose.
+    //
+    // This is a real column rather than a rule matched on Occasion, because Occasion is a design
+    // FAMILY and not a category -- `simple-birthday` is filed under "Simple" while `birthday-audi`
+    // is filed under "Birthday". Any string rule would let one birthday card through and block the
+    // other, which reads as a bug months later.
+    public bool SendAfterUnsubscribe { get; set; } = false;
+
     public int SortOrder { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

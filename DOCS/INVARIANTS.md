@@ -118,6 +118,33 @@ Profile and the accent swatches shipped silently bouncing to `/Billing` because 
 
 ---
 
+## 7. One opt-out, one decision point, and it stops everything
+
+An unsubscribe suppresses **all** marketing email to that client. The only exception is an e-card
+whose design is flagged `SendAfterUnsubscribe` **and** whose recipient has explicitly opted back in
+to greetings on the preferences page. Both halves, or nothing.
+
+- **`EmailConsentService.IsSuppressed` is the only place this is decided.** Every dispatcher asks it.
+  Nothing re-implements the test. A new exception changes that file, not a dispatcher.
+- **The RFC 8058 one-click POST must suppress broadly and immediately.** Gmail and Yahoo fire it with
+  no human present, so it cannot ask a question or depend on anyone loading a page. The preferences
+  page is where a person makes the narrower choice, afterwards.
+- **`SendAfterUnsubscribe` defaults to false.** A design added later cannot inherit an exemption
+  nobody chose. It is a real column, not a rule matched on `Occasion` — `simple-birthday` is filed
+  under Occasion "Simple" while `birthday-audi` is under "Birthday", so any string rule would let one
+  birthday card through and block the other.
+- `Client.IsNewsletterSubscribed` still exists and still means "wants the newsletter". The unsubscribe
+  sets **both** it and `EmailOptOutAt`, so one action has one result. Do not add a third flag.
+
+**Violation looks like:** someone who pressed Unsubscribe receives an email. That is not a bug report,
+it is a spam complaint, and complaints damage deliverability for every agent on the platform.
+
+**Verify by sending, not by reading.** The test is that mail STOPS: opt a client out, dispatch a
+non-greeting card, and confirm the recipient row says "unsubscribed" rather than reaching the mail
+provider at all.
+
+---
+
 ## Before calling a cross-cutting change "done"
 
 **Fix by SURFACE, not by symptom.** When a change alters a shared convention — routing, auth, naming,
