@@ -168,8 +168,12 @@ foreach ($slug in @('clients', 'newsletter', 'campaigns', 'ecards')) {
     $a = Invoke-Probe -Url ("https://{0}/{1}" -f $AgentHost, $slug)
     $b = Invoke-Probe -Url ("https://{0}/{1}" -f $AgentHost, $slug) -Cookie $FakePortalCookie
 
-    Assert-Check "/$slug never shows the portal on an agent host" `
-        ($a.Status -eq 200 -and $b.Status -eq 200 -and
+    # 200 when the agent happens to have a page with this slug, 404 when they don't -- either way
+    # it is the AGENT'S site answering. What must never happen is the portal (a login form, a portal
+    # page, or a 302 into one). The status is deliberately not pinned to 200: unknown slugs became a
+    # real 404 in e6fc672, and an assertion that still demanded 200 would fail on correct behaviour.
+    Assert-Check "/$slug is the agent's site, never the portal" `
+        ($a.Status -in 200, 404 -and $b.Status -in 200, 404 -and
          $a.Title -notmatch 'Agent Portal|Agent Login' -and $b.Title -notmatch 'Agent Portal|Agent Login') `
         ("signed out {0} '{1}' | signed in {2} '{3}'" -f $a.Status, $a.Title, $b.Status, $b.Title)
 }
