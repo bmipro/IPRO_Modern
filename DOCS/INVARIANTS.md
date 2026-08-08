@@ -118,6 +118,51 @@ Profile and the accent swatches shipped silently bouncing to `/Billing` because 
 
 ---
 
+## Before calling a cross-cutting change "done"
+
+**Fix by SURFACE, not by symptom.** When a change alters a shared convention — routing, auth, naming,
+gating — it does not have one location. It has a fixed set of surfaces, and the work is not finished
+until every one is checked. Enumerate them *first*, write the list down, and tick it off.
+
+This exists because on 2026-08-08 the `/portal` migration was "finished" three times. The owner found
+each remaining surface by clicking, after being told the class was closed:
+
+| # | Surface | Found by |
+|---|---|---|
+| 1 | the routing decision itself | intended work |
+| 2 | controller redirects (`Redirect("/Dashboard")`) | **owner, signing in** |
+| 3 | 253 hardcoded links in views | **owner, clicking "Add Client"** |
+| 4 | the never-shadowed list (5 client-portal routes 404ing) | found while fixing #3 |
+
+Each fix was correct. Each was declared complete. The unit of work should have been "the /portal
+migration", never "the login redirect".
+
+**The surfaces, for a routing/URL change in this repo:**
+
+```bash
+# 1. the decision point
+#    read ShouldRouteToPublicWebsite + IsNeverShadowedPrefix in src/IPRO.Web/Program.cs
+
+# 2. controller redirects
+grep -rn 'Redirect("/[A-Z]' src/IPRO.Web/
+
+# 3. hardcoded links in views, and 4. the exemption lists
+./ops/Test-NoBarePortalLinks.ps1
+
+# 5. absolute URLs built for emails and background jobs
+grep -rnE '"/(Clients|Dashboard|Newsletter|Website|Forms)' src/IPRO.Business src/IPRO.Email
+
+# 6. live behaviour, signed in, on an AGENT host -- not just curl, not just signed out
+./ops/Test-RoutingInvariants.ps1 -AgentHost <agent>.247advisers.com -AgentUser <u> -AgentPassword <p>
+```
+
+**Two rules that follow from it:**
+
+- **Enumerate before fixing.** If you cannot list the surfaces, you do not yet understand the change
+  well enough to declare any part of it finished.
+- **"I fixed the instance you reported" is not "I fixed the bug."** Say which surfaces were checked
+  and which were not. An honest "views not yet swept" is worth more than a confident "done".
+
 ## How to use this file
 
 When a change touches routing, hosts, auth, or billing state:
