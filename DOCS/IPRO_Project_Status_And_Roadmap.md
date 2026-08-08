@@ -2263,3 +2263,49 @@ but is not required, and is a production permissions change, so it was left to t
 prefix of `-o ./publish-admin` and silently redirected the admin publish, emptying its artifact. And
 an RG-level `az role assignment list` was read as proof the CI principal had resource-group scope --
 it does not show assignments scoped to individual sites, so the conclusion was wrong.
+
+### 93. A missing page on a live agent site is a real 404, on that site (done, 2026-08-08)
+
+**The bug.** Two unrelated situations shared one screen. A visitor who mistyped a URL on a working
+firm website was shown an IPRO-branded interstitial reading **"Website not published yet"**, invited
+to sign in to the agent portal, served with **HTTP 200** — so the agent's site looked broken to their
+own client, the IPRO portal was advertised on a domain the public associates with the agent alone,
+and search engines were offered every mistyped and stale URL as a real page.
+
+Its reach had just grown: after item 91, every portal controller name (`/clients`, `/newsletter`,
+`/campaigns`, …) on an agent domain lands here.
+
+**Now** (`e6fc672`):
+
+| Situation | Response |
+|---|---|
+| Live site, no such slug | **404** inside the agent's own shell — their header, navigation, footer |
+| Host with no published site | unchanged copy, but **404** instead of 200 |
+
+The page reads "We couldn't find that page", offers a link home and the site's own top-level pages,
+and carries no IPRO branding and no portal login prompt. The SEO head follows: title becomes
+"Page not found | <site>", robots becomes `noindex,follow`, and the canonical/OpenGraph/JSON-LD block
+is dropped — `canonicalUrl` resolves to `/` when there is no current page, which would have told
+crawlers the missing URL *was* the home page.
+
+Also closed a second hole: a slug request against a site with **zero** published pages previously
+rendered the default home layout with 200.
+
+**The 404 illustration** (`e506079`) — two disconnected cable ends under a large 404, drawn as inline
+SVG rather than shipped as an image, so it takes each firm's own accent colour from `--site-theme`
+instead of being a fixed blue stock graphic. No extra request, no storage, sharp at any size, gently
+animated and switched off under `prefers-reduced-motion`, `aria-hidden` since the heading already
+says what happened. The button and suggested links are themed too.
+
+Verified in all three templates (Modern, Classic, Editorial) and at three brand colours.
+
+### 94. Sign-in on an agent domain, broken and fixed the same evening (2026-08-08)
+
+Item 91 made bare paths on an agent host always resolve to the public website; `AccountController`
+still redirected to a hard-coded `/Dashboard` after login. Signing in on your own domain therefore
+landed on your public site's not-found page. Four redirects fixed to `/portal/Dashboard` (`5049357`).
+
+Kept as a numbered item rather than a footnote because of how it was found: **by the owner, in the
+product**, after the automated suite reported 15/15. Every check was unauthenticated, so none of them
+could see it. `ops/Test-RoutingInvariants.ps1` now signs in. Full write-up in
+`DOCS/09_TROUBLESHOOTING.md`.
