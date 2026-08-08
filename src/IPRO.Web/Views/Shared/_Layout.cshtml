@@ -2,10 +2,6 @@
 @inject IPRO.Business.Interfaces.IPackageEntitlementService PackageEntitlements
 @{
     var navAccess = new Dictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>();
-    // An agent with no active subscription is redirected to /Billing by the gate middleware whatever
-    // they click, so showing the full menu just advertises doors that all lead back to the same page.
-    // When gated the sidebar shows Billing only; Profile, Change Password and Logout live in the
-    // footer below and stay available, so the agent can still fix their details or sign out.
     var isAccessGated = false;
     if (User.Identity?.IsAuthenticated == true &&
         int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var layoutAgentId))
@@ -38,6 +34,16 @@
 
         return $"data-upgrade-lock=\"true\" data-upgrade-title=\"{access.FeatureName}\" data-upgrade-message=\"{access.UpgradeMessage}\"";
     }
+
+    // While an agent is access-gated (no active subscription) every nav item STAYS VISIBLE but is
+    // disabled: they should still see the whole menu -- what the product is and what they are
+    // subscribing for -- rather than a portal that looks stripped down or broken. Billing is the one
+    // item left live, since that is the way out. Profile and Change Password sit in the footer and
+    // are deliberately left live too, so a gated agent can still fix their details or reset access.
+    string GatedNavAttributes(bool keepEnabled = false) =>
+        (!isAccessGated || keepEnabled)
+            ? ""
+            : "aria-disabled=\"true\" tabindex=\"-1\" data-gated-lock=\"true\" title=\"Subscribe to unlock this\"";
 
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
@@ -119,6 +125,10 @@
         .agent-sidebar .nav-link:hover { background:color-mix(in srgb, var(--portal-accent) 25%, transparent); color:#fff; }
         .agent-sidebar .nav-link.active { background:var(--portal-accent); color:#fff; }
         .agent-sidebar .nav-link i { width:20px; margin-right:.6rem; text-align:center; }
+        /* Access-gated agent: every function stays listed so they can see what the product includes,
+           but reads and behaves as unavailable until they subscribe. */
+        .agent-sidebar .nav-link[data-gated-lock] { opacity:.4; cursor:not-allowed; }
+        .agent-sidebar .nav-link[data-gated-lock]:hover { background:transparent; color:rgba(255,255,255,0.75); }
 
         .agent-sidebar-footer { flex-shrink:0; border-top:1px solid rgba(255,255,255,0.1); padding:.75rem 0; }
         .portal-color-row { display:flex; gap:.4rem; padding:.25rem 1.25rem .75rem; }
@@ -149,52 +159,44 @@
         </a>
     </div>
     <nav class="agent-sidebar-nav">
-@if (isAccessGated)
-{
-        <div class="nav-section">Billing</div>
-        <a class="nav-link @NavActive("Billing")" href="/portal/Billing"><i class="fas fa-credit-card"></i>Billing</a>
-}
-else
-{
         <div class="nav-section">Overview</div>
-        <a class="nav-link @NavActive("Dashboard")" href="/portal/Dashboard"><i class="fas fa-home"></i>Dashboard</a>
+        <a class="nav-link @NavActive("Dashboard")" href="/portal/Dashboard" @Html.Raw(GatedNavAttributes())><i class="fas fa-home"></i>Dashboard</a>
 
         <div class="nav-section">Clients</div>
-        <a class="nav-link @clientsMainActive" href="/portal/Clients"><i class="fas fa-users"></i>Clients</a>
-        <a class="nav-link @(currentController == "Clients" && (currentAction == "FollowUpQueue" || currentAction == "FollowUps") ? "active" : "")" href="/portal/Clients/FollowUps?status=open"><i class="fas fa-list-check"></i>Follow-ups</a>
-        <a class="nav-link @ClientsSubActive("Calendar")" href="/portal/Clients/Calendar" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CalendarScheduler))><i class="fas fa-calendar-alt"></i>Calendar</a>
+        <a class="nav-link @clientsMainActive" href="/portal/Clients" @Html.Raw(GatedNavAttributes())><i class="fas fa-users"></i>Clients</a>
+        <a class="nav-link @(currentController == "Clients" && (currentAction == "FollowUpQueue" || currentAction == "FollowUps") ? "active" : "")" href="/portal/Clients/FollowUps?status=open" @Html.Raw(GatedNavAttributes())><i class="fas fa-list-check"></i>Follow-ups</a>
+        <a class="nav-link @ClientsSubActive("Calendar")" href="/portal/Clients/Calendar" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CalendarScheduler)) @Html.Raw(GatedNavAttributes())><i class="fas fa-calendar-alt"></i>Calendar</a>
 
         <div class="nav-section">Marketing</div>
-        <a class="nav-link @NavActive("Newsletter")" href="/portal/Newsletter" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-envelope"></i>Newsletter</a>
-        <a class="nav-link @NavActive("Articles")" href="/portal/Articles" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters))><i class="fas fa-file-lines"></i>Articles</a>
-        <a class="nav-link @NavActive("ECards")" href="/portal/ECards" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PreDesignedECard))><i class="fas fa-gift"></i>E-Cards</a>
-        <a class="nav-link @NavActive("ELetters")" href="/portal/ELetters" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PreDesignedELetters))><i class="fas fa-envelope-open-text"></i>E-Letters</a>
-        <a class="nav-link @NavActive("Campaigns")" href="/portal/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign))><i class="fas fa-bullhorn"></i>Campaigns</a>
-        <a class="nav-link @NavActive("SocialPosts")" href="/portal/SocialPosts"><i class="fas fa-share-nodes"></i>Social Posts</a>
-        <a class="nav-link @NavActive("Polls")" href="/portal/Polls" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PollSurveys))><i class="fas fa-square-poll-vertical"></i>Polls</a>
-        <a class="nav-link @NavActive("MarketingCalendar")" href="/portal/MarketingCalendar"><i class="fas fa-calendar-days"></i>Marketing Calendar</a>
+        <a class="nav-link @NavActive("Newsletter")" href="/portal/Newsletter" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters)) @Html.Raw(GatedNavAttributes())><i class="fas fa-envelope"></i>Newsletter</a>
+        <a class="nav-link @NavActive("Articles")" href="/portal/Articles" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.Newsletters)) @Html.Raw(GatedNavAttributes())><i class="fas fa-file-lines"></i>Articles</a>
+        <a class="nav-link @NavActive("ECards")" href="/portal/ECards" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PreDesignedECard)) @Html.Raw(GatedNavAttributes())><i class="fas fa-gift"></i>E-Cards</a>
+        <a class="nav-link @NavActive("ELetters")" href="/portal/ELetters" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PreDesignedELetters)) @Html.Raw(GatedNavAttributes())><i class="fas fa-envelope-open-text"></i>E-Letters</a>
+        <a class="nav-link @NavActive("Campaigns")" href="/portal/Campaigns" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.MarketingCampaign)) @Html.Raw(GatedNavAttributes())><i class="fas fa-bullhorn"></i>Campaigns</a>
+        <a class="nav-link @NavActive("SocialPosts")" href="/portal/SocialPosts" @Html.Raw(GatedNavAttributes())><i class="fas fa-share-nodes"></i>Social Posts</a>
+        <a class="nav-link @NavActive("Polls")" href="/portal/Polls" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PollSurveys)) @Html.Raw(GatedNavAttributes())><i class="fas fa-square-poll-vertical"></i>Polls</a>
+        <a class="nav-link @NavActive("MarketingCalendar")" href="/portal/MarketingCalendar" @Html.Raw(GatedNavAttributes())><i class="fas fa-calendar-days"></i>Marketing Calendar</a>
 
         <div class="nav-section">Website</div>
-        <a class="nav-link @NavActive("Website", "WebsitePages")" href="/portal/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite))><i class="fas fa-globe"></i>My Website</a>
-        <a class="nav-link @NavActive("WebsiteLeads")" href="/portal/WebsiteLeads"><i class="fas fa-inbox"></i>Website Leads</a>
-        <a class="nav-link @NavActive("WebsiteAnalytics")" href="/portal/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking))><i class="fas fa-chart-line"></i>Analytics</a>
-        <a class="nav-link @NavActive("Testimonials")" href="/portal/Testimonials" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.TestimonialManager))><i class="fas fa-quote-left"></i>Testimonials</a>
-        <a class="nav-link @NavActive("Forms")" href="/portal/Forms" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CustomForms))><i class="fas fa-rectangle-list"></i>Forms</a>
+        <a class="nav-link @NavActive("Website", "WebsitePages")" href="/portal/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-globe"></i>My Website</a>
+        <a class="nav-link @NavActive("WebsiteLeads")" href="/portal/WebsiteLeads" @Html.Raw(GatedNavAttributes())><i class="fas fa-inbox"></i>Website Leads</a>
+        <a class="nav-link @NavActive("WebsiteAnalytics")" href="/portal/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking)) @Html.Raw(GatedNavAttributes())><i class="fas fa-chart-line"></i>Analytics</a>
+        <a class="nav-link @NavActive("Testimonials")" href="/portal/Testimonials" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.TestimonialManager)) @Html.Raw(GatedNavAttributes())><i class="fas fa-quote-left"></i>Testimonials</a>
+        <a class="nav-link @NavActive("Forms")" href="/portal/Forms" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CustomForms)) @Html.Raw(GatedNavAttributes())><i class="fas fa-rectangle-list"></i>Forms</a>
 
         <div class="nav-section">Billing</div>
-        <a class="nav-link @NavActive("Billing")" href="/portal/Billing"><i class="fas fa-credit-card"></i>Billing</a>
-        <a class="nav-link @NavActive("ClientInvoices", "RecurringInvoices")" href="/portal/ClientInvoices"><i class="fas fa-file-invoice-dollar"></i>Client Invoices</a>
+        <a class="nav-link @NavActive("Billing")" href="/portal/Billing" @Html.Raw(GatedNavAttributes(true))><i class="fas fa-credit-card"></i>Billing</a>
+        <a class="nav-link @NavActive("ClientInvoices", "RecurringInvoices")" href="/portal/ClientInvoices" @Html.Raw(GatedNavAttributes())><i class="fas fa-file-invoice-dollar"></i>Client Invoices</a>
 
         <div class="nav-section">Client Portal</div>
-        <a class="nav-link @NavActive("PortalMessages")" href="/portal/PortalMessages"><i class="fas fa-comments"></i>Portal Messages</a>
-        <a class="nav-link @NavActive("PortalRequests")" href="/portal/PortalRequests"><i class="fas fa-calendar-check"></i>Portal Requests</a>
+        <a class="nav-link @NavActive("PortalMessages")" href="/portal/PortalMessages" @Html.Raw(GatedNavAttributes())><i class="fas fa-comments"></i>Portal Messages</a>
+        <a class="nav-link @NavActive("PortalRequests")" href="/portal/PortalRequests" @Html.Raw(GatedNavAttributes())><i class="fas fa-calendar-check"></i>Portal Requests</a>
 
         <div class="nav-section">Tools</div>
-        <a class="nav-link @NavActive("Documents")" href="/portal/Documents"><i class="fas fa-folder-open"></i>Documents</a>
+        <a class="nav-link @NavActive("Documents")" href="/portal/Documents" @Html.Raw(GatedNavAttributes())><i class="fas fa-folder-open"></i>Documents</a>
 
         <div class="nav-section">Support</div>
-        <a class="nav-link @NavActive("Support")" href="/portal/Support"><i class="fas fa-life-ring"></i>Support</a>
-}
+        <a class="nav-link @NavActive("Support")" href="/portal/Support" @Html.Raw(GatedNavAttributes())><i class="fas fa-life-ring"></i>Support</a>
     </nav>
     <div class="agent-sidebar-footer">
         <div class="portal-color-row">
@@ -264,6 +266,12 @@ document.querySelectorAll('[data-upgrade-lock="true"]').forEach(link => {
         document.getElementById('upgradeRequiredMessage').textContent = link.dataset.upgradeMessage || 'This function requires a package upgrade.';
         bootstrap.Modal.getOrCreateInstance(document.getElementById('upgradeRequiredModal')).show();
     });
+});
+// Access-gated agent: the nav item is shown so they know the function exists, but clicking it does
+// nothing except point them at Billing. The server-side gate already redirects these routes; this
+// just stops the pointless round trip and explains why.
+document.querySelectorAll('[data-gated-lock="true"]').forEach(link => {
+    link.addEventListener('click', event => event.preventDefault());
 });
 const sidebarToggle = document.getElementById('sidebarToggle');
 if (sidebarToggle) {
