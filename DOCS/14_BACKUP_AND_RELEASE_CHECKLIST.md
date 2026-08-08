@@ -21,6 +21,19 @@ git archive --format=zip -o "/c/Users/admin/OneDrive/Codex_Code_Bkup/IPRO_Modern
 - Lives in `C:\Users\admin\OneDrive\Codex_Code_Bkup\`, matching the existing naming convention (`IPRO_Modern_backup_YYYYMMDD-HHMMSS.zip`) used by every prior backup in that folder.
 - Do this at the end of a session and again right after any significant milestone lands (a feature shipped and verified live) — not only at the very end.
 
+**Then a second, local copy** — same archive, different failure mode. OneDrive is one account away from
+being unavailable:
+```
+git archive --format=zip -o "/c/Users/admin/Documents/IPRO_Backups/IPRO_Modern_backup_$(date +%Y%m%d-%H%M%S).zip" HEAD
+```
+`C:\Users\admin\Documents\IPRO_Backups\` is deliberately **outside** the working tree. A reboot has
+already wiped that tree once, so a "local" copy sitting next to the repo would be lost by the same
+event it exists to survive. The path was undocumented until 2026-08-08 and no earlier local zip could
+be found anywhere on disk, which suggests the step had been silently skipped — hence writing it down.
+
+**Order matters:** reconcile `DOCS/TODO.md` → commit docs → push → OneDrive zip → local zip. The zips
+are `git archive HEAD`, so anything uncommitted is simply absent from both.
+
 ### Refresh `DOCS/TODO.md` before the snapshot
 
 The open-work list lives in `DOCS/TODO.md` **because that is the only copy that survives anything**.
