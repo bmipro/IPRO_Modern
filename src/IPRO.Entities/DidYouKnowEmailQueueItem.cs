@@ -17,5 +17,26 @@ public class DidYouKnowEmailQueueItem
     public DateTime? ClaimedAtUtc { get; set; }
 
     public DateTime? SentAtUtc { get; set; }
+
+    // Outcome + delivery tracking. Before 2026-08-08 a retired queue item recorded only SentAtUtc,
+    // so a REJECTED send (bad address, rate limit) looked identical to a delivered one once the row
+    // was retired -- the rejection existed solely as a log line. Status/FailureReason make the
+    // outcome durable, and the rest is filled in by the SendGrid event webhook.
+    public string Status { get; set; } = DidYouKnowQueueStatuses.Queued;
+    public string SendGridMessageId { get; set; } = string.Empty;
+    public string FailureReason { get; set; } = string.Empty;
+    public string LastEvent { get; set; } = string.Empty;
+    public DateTime? DeliveredAt { get; set; }
+    public DateTime? OpenedAt { get; set; }
+    public DateTime? ClickedAt { get; set; }
+    public DateTime? BouncedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public static class DidYouKnowQueueStatuses
+{
+    public const string Queued = "Queued";
+    public const string Sent = "Sent";
+    public const string Failed = "Failed";
 }

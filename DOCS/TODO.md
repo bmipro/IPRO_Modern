@@ -29,6 +29,7 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 | 375 | Gated-agent portal sweep | Check every clickable control against the access gate's exemption list. Profile and the colour swatches were both found by hand; assume there is a third. |
 | 365 | Azure auto-heal rules | All that remains of the old Azure task — 64-bit and run-from-package are resolved. |
 | 374 | Delete prod test agent `zedtester` | Destructive; needs the owner's go-ahead. |
+| 387 | E-card / e-letter one-click unsubscribe | The concrete reason e-cards land in spam: newsletters pass `listUnsubscribeUrl`, cards and letters don't. Can't be fixed with a header alone — `SendGridEmailService.cs:67` also sends `List-Unsubscribe-Post: One-Click`, which RFC 8058 says needs a real HTTPS endpoint that honours the opt-out. **Product question first:** should a client be able to opt out of birthday cards from their own adviser separately from newsletters? |
 
 ## Owner-driven — waiting on Bahman, not on code
 
@@ -74,6 +75,13 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 - **E-Cards and E-Letters sending.** Builds and post-deploy log checks are all that back these; nobody
   has clicked Send as a real agent and looked at a delivered card. Same gap that produced the
   2026-08-08 sign-in regression, so it is listed here rather than claimed as working.
+  Since 2026-08-08 there is at least a place to look: **`/portal/Email Activity`** shows every send
+  with per-recipient Delivered/Opened/Clicked. Sending one real card and watching that page go from
+  Sent to Delivered is the test that closes this item.
+- **Delivery tracking for cards / letters / polls / Did You Know.** The wiring was verified end-to-end
+  locally against seeded events, and the webhook branch is a straight copy of the newsletter path that
+  has worked in production for weeks — but no *real* SendGrid event for a card has been observed
+  landing yet, because webhooks can't reach localhost. First real send confirms it.
 - **Setup fee on an existing agent's invoice.** The other four disclosure surfaces were verified live;
   the invoice line item is traced through the code but not yet seen on screen. Check `bobtest`'s
   invoice `IPRO-2026-000010` when convenient.

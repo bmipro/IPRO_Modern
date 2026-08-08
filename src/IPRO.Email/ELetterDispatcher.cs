@@ -88,8 +88,9 @@ public class ELetterDispatcher
             }
         }
 
-        letter.Status = ELetterStatuses.Sent;
-        letter.SentAt = DateTime.UtcNow;
+        // See the matching note in ECardDispatcher: "Sent" was set even when every recipient failed.
+        letter.Status = sentCount > 0 ? ELetterStatuses.Sent : ELetterStatuses.Failed;
+        letter.SentAt = sentCount > 0 ? DateTime.UtcNow : null;
         letter.TotalSent = sentCount;
         letter.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

@@ -92,8 +92,12 @@ public class ECardDispatcher
             }
         }
 
-        card.Status = ECardStatuses.Sent;
-        card.SentAt = DateTime.UtcNow;
+        // "Sent" only if something actually went out. This was unconditional, so a card whose every
+        // recipient was rejected still showed Status=Sent on the E-Cards list -- the per-recipient
+        // rows recorded the failures honestly, but nothing surfaced them and the headline said the
+        // opposite. PollDispatcher has always had this shape; cards and letters had not.
+        card.Status = sentCount > 0 ? ECardStatuses.Sent : ECardStatuses.Failed;
+        card.SentAt = sentCount > 0 ? DateTime.UtcNow : null;
         card.TotalSent = sentCount;
         card.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

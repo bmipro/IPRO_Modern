@@ -1,0 +1,136 @@
+@model IEnumerable<IPRO.Web.Controllers.EmailRecipientRow>
+@{
+    var send = (IPRO.Web.Controllers.EmailActivityRow)ViewBag.Send;
+    ViewData["Title"] = $"{send.TypeLabel} — {send.Subject}";
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
+
+    string Stamp(DateTime? value) => value.HasValue
+        ? IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(value.Value, agentTimeZone).ToString("MMM d, h:mm tt")
+        : "—";
+
+    // The furthest point each recipient reached. Clicked implies opened implies delivered, so the
+    // strongest fact is the useful one to show -- a row saying "Delivered" when the client has
+    // already clicked a link would be needlessly pessimistic.
+    (string Label, string Css) Progress(IPRO.Web.Controllers.EmailRecipientRow r)
+    {
+        if (!string.IsNullOrWhiteSpace(r.Issue)) return ("Failed", "bg-danger-subtle text-danger");
+        if (r.ClickedAt.HasValue) return ("Clicked", "bg-primary-subtle text-primary");
+        if (r.OpenedAt.HasValue) return ("Opened", "bg-success-subtle text-success");
+        if (r.DeliveredAt.HasValue) return ("Delivered", "bg-success-subtle text-success");
+        if (r.SentAt.HasValue) return ("Sent", "bg-info-subtle text-info");
+        return (r.Status, "bg-warning-subtle text-warning-emphasis");
+    }
+
+    var delivered = Model.Count(r => r.DeliveredAt.HasValue);
+    var opened = Model.Count(r => r.OpenedAt.HasValue);
+    var clicked = Model.Count(r => r.ClickedAt.HasValue);
+    var failed = Model.Count(r => !string.IsNullOrWhiteSpace(r.Issue));
+    var total = Model.Count();
+
+    string Rate(int part) => total == 0 ? "—" : $"{(part * 100.0 / total):0.#}%";
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <a href="/portal/EmailActivity" class="text-decoration-none small text-muted d-inline-block mb-1">
+      <i class="fas fa-arrow-left me-1"></i>Back to Email Activity
+    </a>
+    <h2 class="fw-bold mb-0">@send.Subject</h2>
+    <small class="text-muted">
+      @send.TypeLabel
+      @if (!string.IsNullOrWhiteSpace(send.Detail)) { <text> &middot; @send.Detail</text> }
+      @if (send.When.HasValue)
+      {
+        <text> &middot; @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(send.When.Value, agentTimeZone).ToString("MMM d, yyyy h:mm tt")</text>
+      }
+    </small>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase">Recipients</div>
+      <div class="fs-4 fw-bold">@total</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase">Delivered</div>
+      <div class="fs-4 fw-bold">@delivered <span class="fs-6 fw-normal text-muted">@Rate(delivered)</span></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase">Opened</div>
+      <div class="fs-4 fw-bold">@opened <span class="fs-6 fw-normal text-muted">@Rate(opened)</span></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase">Clicked</div>
+      <div class="fs-4 fw-bold">@clicked <span class="fs-6 fw-normal text-muted">@Rate(clicked)</span></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase">Failed</div>
+      <div class="fs-4 fw-bold @(failed > 0 ? "text-danger" : "")">@failed</div>
+    </div></div>
+  </div>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="fas fa-user-slash fa-3x text-muted opacity-25 mb-3 d-block"></i>
+      <h5 class="fw-bold">No recipients recorded</h5>
+      <p class="text-muted mb-0">This send has no recipient rows. If it was scheduled but has not run yet, results appear here once it goes out.</p>
+    </div>
+  </div>
+}
+else
+{
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Recipient</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Sent</th>
+            <th>Delivered</th>
+            <th>Opened</th>
+            <th>Clicked</th>
+            <th>Issue</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var r in Model)
+          {
+            var progress = Progress(r);
+            <tr>
+              <td class="fw-semibold">@(string.IsNullOrWhiteSpace(r.Name) ? "—" : r.Name)</td>
+              <td class="small text-muted">@r.Email</td>
+              <td><span class="badge @progress.Css">@progress.Label</span></td>
+              <td class="small text-muted text-nowrap">@Stamp(r.SentAt)</td>
+              <td class="small text-muted text-nowrap">@Stamp(r.DeliveredAt)</td>
+              <td class="small text-muted text-nowrap">@Stamp(r.OpenedAt)</td>
+              <td class="small text-muted text-nowrap">@Stamp(r.ClickedAt)</td>
+              <td class="small text-danger">@r.Issue</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="text-muted small mt-3 mb-0">
+    <i class="fas fa-circle-info me-1"></i>
+    Delivered, Opened and Clicked are reported back by the mail provider and can take a minute or two
+    to appear. Opens rely on the recipient's mail app loading images, so the real open rate is usually
+    a little higher than the number shown.
+  </p>
+}

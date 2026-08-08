@@ -26,17 +26,37 @@ param([string] $RepoRoot = (Split-Path $PSScriptRoot -Parent))
 $ErrorActionPreference = 'Stop'
 
 # Agent-portal controllers. These live under /portal and nothing may link to them bare.
-$portal = @(
-    'Articles','Campaigns','ClientInvoices','Clients','Dashboard','Documents','ECards','ELetters',
-    'Forms','GoogleCalendar','MarketingCalendar','Newsletter','Polls','PortalMessages',
-    'PortalRequests','RecurringInvoices','SocialPosts','Support','Testimonials','Website',
-    'WebsiteAnalytics','WebsiteLeads','WebsitePages'
+# The portal controller list is DERIVED from the filesystem, not hand-maintained.
+#
+# It used to be a literal array, which meant a new portal controller was silently unchecked until
+# someone remembered to add it -- and the script still printed PASS, which is worse than no check at
+# all because green reads as coverage. Adding EmailActivity on 2026-08-08 surfaced that: the guard
+# passed while knowing nothing about it.
+#
+# Now the default is "checked", and anything that must stay bare has to be named below. That is the
+# safer direction for the failure mode: forgetting to exclude produces a loud false positive you fix
+# in one line; forgetting to include produced a silent gap.
+
+# Controllers whose routes must stay BARE -- client- or public-facing, reached from links already
+# sitting in people's inboxes, or the ways in and out of the portal itself. These correspond to
+# IsNeverShadowedPrefix in src/IPRO.Web/Program.cs; see DOCS/INVARIANTS.md rule 1.
+$mustStayBare = @(
+    'Account', 'Billing', 'Home', 'Media', 'Preview', 'PublicWebsite',
+    'ClientDocument',        # [Route("invoice")]
+    'PollVote',              # [Route("Poll/[action]")]
+    'TestimonialRequest'     # [Route("testimonial")]
 )
 
-# Deliberately NOT listed, and must stay bare -- these are client- or public-facing and are reached
-# from links already sitting in people's inboxes:
-#   Account, Billing, ClientPortal*, PublicWebsite, Media, Home, Preview,
-#   invoice (ClientDocument), Poll (PollVote), testimonial (TestimonialRequest)
+$controllerDir = Join-Path $RepoRoot 'src\IPRO.Web\Controllers'
+$portal = Get-ChildItem -Path $controllerDir -Filter '*Controller.cs' -Recurse |
+    ForEach-Object { $_.BaseName -replace 'Controller$', '' } |
+    Where-Object { $_ -notlike 'ClientPortal*' -and $mustStayBare -notcontains $_ } |
+    Sort-Object -Unique
+
+if ($portal.Count -eq 0) {
+    Write-Host "FAIL  found no portal controllers under $controllerDir -- is the path right?" -ForegroundColor Red
+    exit 1
+}
 
 $alternation = ($portal | Sort-Object Length -Descending) -join '|'
 

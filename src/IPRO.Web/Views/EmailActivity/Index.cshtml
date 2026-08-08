@@ -1,0 +1,144 @@
+@model IEnumerable<IPRO.Web.Controllers.EmailActivityRow>
+@{
+    ViewData["Title"] = "Email Activity";
+    var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
+    var filter = ViewBag.Filter as string ?? "all";
+    var counts = ViewBag.Counts as IDictionary<string, int> ?? new Dictionary<string, int>();
+
+    string StatusClass(string status) => status switch
+    {
+        "Sent" => "bg-success-subtle text-success",
+        "Sending" => "bg-info-subtle text-info",
+        "Failed" => "bg-danger-subtle text-danger",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+
+    string TypeIcon(string typeKey) => typeKey switch
+    {
+        "newsletter" => "fa-newspaper",
+        "ecard" => "fa-gift",
+        "eletter" => "fa-file-lines",
+        "poll" => "fa-square-poll-vertical",
+        "didyouknow" => "fa-lightbulb",
+        _ => "fa-envelope"
+    };
+
+    var tabs = new[]
+    {
+        ("all", "Everything"),
+        ("newsletter", "Newsletters"),
+        ("ecard", "E-Cards"),
+        ("eletter", "E-Letters"),
+        ("poll", "Polls"),
+        ("didyouknow", "Did You Know")
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-0"><i class="fas fa-chart-line me-2 text-primary"></i>Email Activity</h2>
+    <small class="text-muted">Everything you have sent, and whether it arrived. Click any row for the recipient-by-recipient detail.</small>
+  </div>
+</div>
+
+<ul class="nav nav-pills mb-3 gap-1">
+  @foreach (var (key, label) in tabs)
+  {
+    var count = key == "all" ? counts.Values.Sum() : (counts.TryGetValue(key, out var c) ? c : 0);
+    <li class="nav-item">
+      <a class="nav-link @(filter == key ? "active" : "")" href="/portal/EmailActivity?type=@key">
+        @label
+        <span class="badge rounded-pill @(filter == key ? "bg-white text-primary" : "bg-secondary-subtle text-secondary")">@count</span>
+      </a>
+    </li>
+  }
+</ul>
+
+@if (!Model.Any())
+{
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="fas fa-paper-plane fa-3x text-muted opacity-25 mb-3 d-block"></i>
+      <h5 class="fw-bold">Nothing sent yet</h5>
+      <p class="text-muted mb-0">Once you send a newsletter, e-card, e-letter or poll, it shows up here with its delivery results.</p>
+    </div>
+  </div>
+}
+else
+{
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Type</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th class="text-end">Recipients</th>
+            <th class="text-end">Sent</th>
+            <th class="text-end">Delivered</th>
+            <th class="text-end">Opened</th>
+            <th class="text-end">Failed</th>
+            <th>When</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var row in Model)
+          {
+            <tr>
+              <td class="text-nowrap">
+                <i class="fas @TypeIcon(row.TypeKey) me-1 text-muted"></i>
+                <span class="fw-semibold">@row.TypeLabel</span>
+              </td>
+              <td>
+                <div class="fw-semibold">@row.Subject</div>
+                @if (!string.IsNullOrWhiteSpace(row.Detail))
+                {
+                  <div class="text-muted small">@row.Detail</div>
+                }
+              </td>
+              <td><span class="badge @StatusClass(row.Status)">@row.Status</span></td>
+              <td class="text-end">@row.Recipients</td>
+              <td class="text-end">@row.Sent</td>
+              <td class="text-end">
+                @* Delivered/Opened only exist once SendGrid reports back, which is normally within a
+                   minute of sending but is not instant. A dash reads more honestly than a zero for a
+                   send that went out seconds ago. *@
+                @if (row.Sent == 0) { <span class="text-muted">&mdash;</span> } else { @row.Delivered }
+              </td>
+              <td class="text-end">
+                @if (row.Sent == 0) { <span class="text-muted">&mdash;</span> } else { @row.Opened }
+              </td>
+              <td class="text-end">
+                @if (row.Failed > 0)
+                {
+                  <span class="text-danger fw-semibold">@row.Failed</span>
+                }
+                else
+                {
+                  <span class="text-muted">0</span>
+                }
+              </td>
+              <td class="text-nowrap small text-muted">
+                @if (row.When.HasValue)
+                {
+                  @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(row.When.Value, agentTimeZone).ToString("MMM d, yyyy h:mm tt")
+                }
+                else
+                {
+                  <span>Not scheduled</span>
+                }
+              </td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-secondary" href="/portal/EmailActivity/Details/@row.TypeKey/@row.Id">
+                  Detail
+                </a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}

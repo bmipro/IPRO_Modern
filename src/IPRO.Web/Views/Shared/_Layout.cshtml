@@ -169,6 +169,11 @@
         <a class="nav-link @NavActive("SocialPosts")" href="/portal/SocialPosts" @Html.Raw(GatedNavAttributes())><i class="fas fa-share-nodes"></i>Social Posts</a>
         <a class="nav-link @NavActive("Polls")" href="/portal/Polls" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.PollSurveys)) @Html.Raw(GatedNavAttributes())><i class="fas fa-square-poll-vertical"></i>Polls</a>
         <a class="nav-link @NavActive("MarketingCalendar")" href="/portal/MarketingCalendar" @Html.Raw(GatedNavAttributes())><i class="fas fa-calendar-days"></i>Marketing Calendar</a>
+        @* No LockedNavAttributes: Email Activity spans every sender, so gating it on any one feature
+           code would be wrong, and an agent must always be able to see what left their own account --
+           including from a feature their package no longer includes. Still behind GatedNavAttributes
+           like everything else (INVARIANTS.md rule 5). *@
+        <a class="nav-link @NavActive("EmailActivity")" href="/portal/EmailActivity" @Html.Raw(GatedNavAttributes())><i class="fas fa-chart-line"></i>Email Activity</a>
 
         <div class="nav-section">Website</div>
         <a class="nav-link @NavActive("Website", "WebsitePages")" href="/portal/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-globe"></i>My Website</a>

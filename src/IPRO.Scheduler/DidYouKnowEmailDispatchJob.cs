@@ -1,5 +1,6 @@
 using IPRO.DataAccess;
 using IPRO.Email;
+using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -92,7 +93,8 @@ public class DidYouKnowEmailDispatchJob
                     // Nothing sendable (article unpublished/deleted, client gone). This is a DEFINITIVE
                     // outcome, so retire the item properly instead of leaving it claimed -- otherwise
                     // the stale-claim sweep would pick it up again every 15 minutes forever.
-                    await MarkRetiredAsync(item.Id);
+                    await MarkRetiredAsync(item.Id, EmailSendResult.Failed(
+                        "Article was unpublished or deleted, or the client no longer has an email address."));
                     _logger.LogInformation(
                         "Did You Know queued email {ItemId} dropped: article {ArticleId} or client {ClientId} is missing/unpublished.",
                         item.Id, item.ArticleId, item.ClientId);
@@ -120,6 +122,18 @@ public class DidYouKnowEmailDispatchJob
                     string.IsNullOrWhiteSpace(clientName) ? client.Email : clientName,
                     article.Title,
                     html,
+                    // Tagging so the SendGrid event webhook can attribute delivered/open/click/bounce
+                    // back to this queue item. Every other sender in the system already did this;
+                    // Did You Know was the one that did not, which made its mail invisible on the
+                    // Email Activity screen.
+                    customArgs: new Dictionary<string, string>
+                    {
+                        ["ipro_entity"] = "didyouknow",
+                        ["dyk_queue_item_id"] = item.Id.ToString(),
+                        ["article_id"] = article.Id.ToString(),
+                        ["client_id"] = client.Id.ToString(),
+                        ["agent_user_id"] = client.AgentUserId.ToString()
+                    },
                     replyToEmail: agent?.Email,
                     replyToName: companyName);
 
@@ -131,7 +145,7 @@ public class DidYouKnowEmailDispatchJob
                 // Either way this is a DEFINITIVE outcome -- SendGrid answered -- so the item is
                 // retired. A rejection is usually permanent (bad address), and retrying it every 15
                 // minutes forever would be worse than dropping it loudly.
-                await MarkRetiredAsync(item.Id);
+                await MarkRetiredAsync(item.Id, result);
 
                 if (!result.Success)
                 {
@@ -154,9 +168,17 @@ public class DidYouKnowEmailDispatchJob
     }
 
     // Retires an item: SentAtUtc is the terminal marker, so the row is never selected again. Named
-    // "retired" rather than "sent" because it also covers definitively-undeliverable items.
-    private Task MarkRetiredAsync(int itemId) =>
+    // "retired" rather than "sent" because it also covers definitively-undeliverable items -- which
+    // is exactly why Status is recorded alongside it. SentAtUtc alone could not tell the two apart,
+    // so a rejected Did You Know email showed up on the activity screen as if it had gone out.
+    private Task MarkRetiredAsync(int itemId, EmailSendResult result) =>
         _db.DidYouKnowEmailQueueItems
             .Where(q => q.Id == itemId)
-            .ExecuteUpdateAsync(s => s.SetProperty(q => q.SentAtUtc, DateTime.UtcNow));
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(q => q.SentAtUtc, DateTime.UtcNow)
+                .SetProperty(q => q.Status, result.Success
+                    ? DidYouKnowQueueStatuses.Sent
+                    : DidYouKnowQueueStatuses.Failed)
+                .SetProperty(q => q.SendGridMessageId, result.ProviderMessageId ?? string.Empty)
+                .SetProperty(q => q.FailureReason, result.Success ? string.Empty : result.Message));
 }

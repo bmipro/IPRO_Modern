@@ -28,8 +28,12 @@ public class NewsletterController : Controller
     private readonly IAiSuggestionService _aiSuggestions;
     private readonly IConfiguration _configuration;
     private readonly ILogger<NewsletterController> _logger;
+    // Handles SendGrid events for E-Cards, E-Letters, Polls and Did You Know. The webhook endpoint
+    // lives on this controller for historical reasons -- newsletters were the first sender to have
+    // one -- so every other sender's events arrive here too.
+    private readonly IEmailDeliveryTracker _deliveryTracker;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email, IAiSuggestionService aiSuggestions, IConfiguration configuration, ILogger<NewsletterController> logger) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; _aiSuggestions = aiSuggestions; _configuration = configuration; _logger = logger; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email, IAiSuggestionService aiSuggestions, IEmailDeliveryTracker deliveryTracker, IConfiguration configuration, ILogger<NewsletterController> logger) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; _aiSuggestions = aiSuggestions; _deliveryTracker = deliveryTracker; _configuration = configuration; _logger = logger; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
@@ -480,6 +484,17 @@ public class NewsletterController : Controller
     }
     public async Task<IActionResult> Subscribers() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _clients.GetNewsletterSubscribersAsync(AgentId)); }
 
+    // The custom arg each sender tags its outgoing mail with, and the entity kind it maps to.
+    // Newsletters and drip campaigns are handled separately above because they have their own
+    // recorder on NewsLetterService that predates this table.
+    private static readonly (string CustomArg, string EntityKind)[] TrackedRecipientArgs =
+    {
+        ("ecard_recipient_id", "ecard"),
+        ("eletter_recipient_id", "eletter"),
+        ("poll_recipient_id", "poll"),
+        ("dyk_queue_item_id", "didyouknow")
+    };
+
     [AllowAnonymous]
     [HttpPost]
     [IgnoreAntiforgeryToken]
@@ -567,6 +582,20 @@ public class NewsletterController : Controller
                 if (dripStepSendId > 0)
                 {
                     await _newsletters.RecordDripStepEventAsync(dripStepSendId, eventName, providerMessageId, reason, occurredAt);
+                    continue;
+                }
+
+                // Every other sender. Until 2026-08-08 this fell off the end of the loop: E-Cards,
+                // E-Letters and Polls had been tagging their recipient ids since they were built,
+                // and every event for them was silently discarded here. Adding a sender means
+                // tagging it in its dispatcher and adding one line to this table -- nothing else.
+                foreach (var (customArg, entityKind) in TrackedRecipientArgs)
+                {
+                    var trackedId = ReadCustomInt(item, customArg);
+                    if (trackedId <= 0) continue;
+
+                    await _deliveryTracker.RecordAsync(entityKind, trackedId, eventName, providerMessageId, reason, occurredAt);
+                    break;
                 }
             }
         }

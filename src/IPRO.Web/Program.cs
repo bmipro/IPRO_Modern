@@ -66,6 +66,8 @@ builder.Services.AddScoped<IAgentService, AgentService>();
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
+// Records SendGrid delivery events for every sender other than newsletters/drip campaigns.
+builder.Services.AddScoped<IEmailDeliveryTracker, EmailDeliveryTracker>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.AddScoped<IClientInvoiceService, ClientInvoiceService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
@@ -456,6 +458,10 @@ using (var scope = app.Services.CreateScope())
     await EnsureTrialFeatureSchemaAsync(db);
     await EnsureECardSchemaAsync(db);
     await EnsureELetterSchemaAsync(db);
+    // Must run AFTER the three CREATE TABLE passes above (E-Card, E-Letter, Poll) -- it adds the
+    // delivery-tracking columns to tables those create. Shared with IPRO.Admin/Program.cs so the
+    // column list cannot drift between the two apps; see INVARIANTS.md rule 4.
+    await EmailDeliverySchema.EnsureAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -1262,6 +1268,9 @@ CREATE TABLE IF NOT EXISTS `ECardRecipients` (
     PRIMARY KEY (`Id`),
     INDEX `IX_ECardRecipients_ECardId` (`ECardId`)
 ) CHARACTER SET=utf8mb4;");
+    // Delivery-tracking columns (LastEvent/DeliveredAt/OpenedAt/ClickedAt/BouncedAt) are NOT listed
+    // above on purpose -- EmailDeliverySchema.EnsureAsync owns them for all three recipient tables,
+    // in both apps, from one list. Adding them here too would create a second place to keep in sync.
 }
 
 static async Task EnsureELetterSchemaAsync(IPRODbContext db)
@@ -1298,6 +1307,7 @@ CREATE TABLE IF NOT EXISTS `ELetterRecipients` (
     PRIMARY KEY (`Id`),
     INDEX `IX_ELetterRecipients_ELetterId` (`ELetterId`)
 ) CHARACTER SET=utf8mb4;");
+    // Delivery-tracking columns are owned by EmailDeliverySchema.EnsureAsync -- see EnsureECardSchemaAsync.
 }
 
 static async Task EnsureTestimonialSubmissionSchemaAsync(IPRODbContext db)

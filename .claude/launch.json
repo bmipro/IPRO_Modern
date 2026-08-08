@@ -1,0 +1,37 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "src/IPRO.Web/IPRO.Web.csproj",
+        "--no-launch-profile",
+        "--",
+        "--environment",
+        "Development",
+        "--urls",
+        "http://localhost:5100"
+      ],
+      "port": 5100
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "src/IPRO.Admin/IPRO.Admin.csproj",
+        "--no-launch-profile",
+        "--",
+        "--environment",
+        "Development",
+        "--urls",
+        "http://localhost:5200"
+      ],
+      "port": 5200
+    }
+  ]
+}

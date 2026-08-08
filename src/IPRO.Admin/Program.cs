@@ -258,6 +258,10 @@ using (var scope = app.Services.CreateScope())
     await EnsureTrialFeatureSchemaAsync(db);
     await EnsureECardSchemaAsync(db);
     await EnsureELetterSchemaAsync(db);
+    // Same shared call as IPRO.Web/Program.cs -- see the note there. Admin needs it too because
+    // CardLetterActivity reads DeliveredAt, and because whichever app starts first must find the
+    // schema complete (INVARIANTS.md rule 4).
+    await EmailDeliverySchema.EnsureAsync(db);
     await db.Database.MigrateAsync();
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);

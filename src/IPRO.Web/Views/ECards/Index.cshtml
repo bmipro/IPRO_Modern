@@ -43,6 +43,7 @@ else
             <th>Recipients</th>
             <th>Status</th>
             <th>Scheduled / Sent</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -86,6 +87,13 @@ else
                 {
                   @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(card.ScheduledAt, agentTimeZone).ToString("MMM d, yyyy h:mm tt")
                 }
+              </td>
+              <td class="text-end">
+                @* Delivery results live on the shared Email Activity screen rather than being
+                   duplicated per feature -- see EmailActivityController. *@
+                <a class="btn btn-sm btn-outline-secondary text-nowrap" href="/portal/EmailActivity/Details/ecard/@card.Id">
+                  <i class="fas fa-chart-line me-1"></i>Tracking
+                </a>
               </td>
             </tr>
           }

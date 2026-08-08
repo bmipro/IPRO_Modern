@@ -14,13 +14,15 @@
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <div class="card border-0 shadow-sm h-100"><div class="card-body">
-      <div class="text-muted small text-uppercase fw-semibold">E-cards delivered</div>
+      @* "Sent", not "delivered" -- this sums TotalSent, which means SendGrid accepted the message.
+         Confirmed delivery is the per-row Delivered column. *@
+      <div class="text-muted small text-uppercase fw-semibold">E-card emails sent</div>
       <div class="fs-3 fw-bold">@totalCards</div>
     </div></div>
   </div>
   <div class="col-md-4">
     <div class="card border-0 shadow-sm h-100"><div class="card-body">
-      <div class="text-muted small text-uppercase fw-semibold">E-letters delivered</div>
+      <div class="text-muted small text-uppercase fw-semibold">E-letter emails sent</div>
       <div class="fs-3 fw-bold">@totalLetters</div>
     </div></div>
   </div>
@@ -53,7 +55,9 @@ else
             <th>Agent</th>
             <th>Subject</th>
             <th>Design / template</th>
+            <th>Sent</th>
             <th>Delivered</th>
+            <th>Opened</th>
             <th>Status</th>
             <th>When</th>
           </tr>
@@ -72,6 +76,14 @@ else
               {
                 <span class="badge bg-danger-subtle text-danger ms-1">@row.Failed failed</span>
               }
+            </td>
+            @* Delivered/Opened come from the SendGrid event webhook. Sends made before 2026-08-08
+               show a dash: the events were discarded at the time and cannot be recovered. *@
+            <td class="text-nowrap">
+              @if (row.TotalSent == 0) { <span class="text-muted">&mdash;</span> } else { @row.TotalDelivered }
+            </td>
+            <td class="text-nowrap">
+              @if (row.TotalSent == 0) { <span class="text-muted">&mdash;</span> } else { @row.TotalOpened }
             </td>
             <td><span class="badge @(row.Status == "Sent" ? "bg-success-subtle text-success" : row.Status == "Failed" ? "bg-danger-subtle text-danger" : "bg-warning-subtle text-warning-emphasis")">@row.Status</span></td>
             <td class="text-nowrap small text-muted">

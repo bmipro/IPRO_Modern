@@ -2327,3 +2327,60 @@ Kept as a numbered item rather than a footnote because of how it was found: **by
 product**, after the automated suite reported 15/15. Every check was unauthenticated, so none of them
 could see it. `ops/Test-RoutingInvariants.ps1` now signs in. Full write-up in
 `DOCS/09_TROUBLESHOOTING.md`.
+
+### 95. Every email that leaves the portal is now tracked, in one place (done, 2026-08-08)
+
+The owner asked where the newsletter's Send History and Delivery Tracking equivalent was for e-cards
+and e-letters. The honest answer was: nowhere. `Views/ECards/` contained exactly `Index.cshtml` and
+`Create.cshtml`, and `ELetters` the same. Clicking a row did nothing.
+
+**The data had been there the whole time.** `ECardRecipient` has carried `Status`, `FailureReason`,
+`SentAt` and `SendGridMessageId` since e-cards shipped, and `ECardDispatcher` has always tagged every
+outgoing message with `ecard_recipient_id` in SendGrid's `customArgs`. What was missing was a reader:
+`NewsletterController.SendGridEvents` only ever looked for `newsletter_recipient_id`, so every
+delivered / open / click / bounce event for a card, letter or poll arrived at the webhook, matched
+nothing, and was dropped. That is why the "Delivered" column on the SuperAdmin Card & Letter Activity
+screen had been blank for its entire existence — not a rendering bug, just nothing to render.
+
+**Enumerated first, per the rule in `DOCS/INVARIANTS.md`.** Twenty-one send sites exist; most are
+system mail (billing, trial reminders, password resets, cert expiry). The agent→client senders are
+five: Newsletter/Drip (already tracked), E-Cards, E-Letters, Polls, Did You Know. **Articles send no
+email at all** — they are content consumed by the newsletter, campaigns and Did You Know, so they are
+tracked wherever they go out. Of the five, only Did You Know was untagged at source.
+
+**One screen, not five.** `EmailActivityController` (`/portal/EmailActivity`) lists every send of
+every type — Type, Subject, Status, Recipients, Sent, Delivered, Opened, Failed — and drills into a
+per-recipient table with each delivery milestone and the real failure reason. The alternative was
+cloning the Newsletter Preview page four times, which is four pages to build, five to maintain, and a
+sixth sender later that silently gets nothing. A new sender now joins by contributing rows to
+`LoadSendsAsync`. Deep links from the E-Cards and E-Letters lists land on the same page.
+
+Deliberately **not** gated on a package feature: an agent must be able to see what left their own
+account even for a feature their package no longer includes. Verified by accident — `LocalTester` is
+Silver, so `/portal/ECards` bounced to Billing while Email Activity rendered fine.
+
+**Two things this fixed that nobody had reported:**
+
+- `ECardDispatcher` set `card.Status = Sent` unconditionally after the send loop, so a card where
+  every single recipient was rejected still displayed **Sent**. The per-recipient rows had recorded
+  the failures honestly all along; nothing surfaced them and the headline said the opposite.
+  `ELetterDispatcher` did the same. `PollDispatcher` already had the correct `sentCount > 0` shape.
+- Did You Know retired a queue item with `SentAtUtc` alone, so a *rejected* send became
+  indistinguishable from a delivered one the moment the row was retired — the rejection existed only
+  as a log line.
+
+**Caught during verification, both self-inflicted:** making `SentAt` null on a fully-failed send broke
+`HasFailures` on the admin screen (it keyed off `SentAt.HasValue`), so the "Sends with failures" tile
+read 0 while a failed card sat in the table directly beneath it. And the admin summary tiles labelled
+`TotalSent` as "delivered" — the same conflation as the column. Both found by looking at the rendered
+page with real data in it, not by reading the diff.
+
+**`ops/Test-NoBarePortalLinks.ps1` now derives its controller list from the filesystem.** It was a
+hand-maintained array, so the new `EmailActivity` controller was unchecked *and the script still
+printed PASS* — worse than no check, because green reads as coverage. Controllers that must stay bare
+are now named explicitly instead; forgetting to exclude produces a loud failure you fix in one line,
+where forgetting to include produced silence. Proven by injecting a bare link and watching it fail.
+
+Schema lives in `IPRO.DataAccess/EmailDeliverySchema.cs` rather than being copy-pasted into both
+`Program.cs` files: fifteen columns across four tables is well past the size where duplicating an
+`ALTER` list is safe, and `INVARIANTS.md` rule 4 exists because those copies drift.
