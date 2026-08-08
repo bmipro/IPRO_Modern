@@ -690,6 +690,11 @@ public class PublicWebsiteController : Controller
 
         if (website == null)
         {
+            // No published website answers for this host. 404 rather than 200 so a site that is not
+            // live yet is never indexed as though it were. (If we ever want an unpublished site to
+            // keep its search ranking while it is down, 503 is the header to reach for -- but
+            // "connected domain, nothing published" is genuinely not-found.)
+            Response.StatusCode = StatusCodes.Status404NotFound;
             return View("NotFound", host);
         }
 
@@ -750,13 +755,39 @@ public class PublicWebsiteController : Controller
             .ToListAsync();
 
         IPRO.Entities.WebsitePage? currentPage = null;
-        if (pages.Count > 0)
+        var normalizedSlug = NormalizeSlug(slug);
+
+        if (string.IsNullOrWhiteSpace(normalizedSlug))
         {
-            var normalizedSlug = NormalizeSlug(slug);
-            currentPage = string.IsNullOrWhiteSpace(normalizedSlug)
-                ? pages.FirstOrDefault(p => p.IsHomePage) ?? pages[0]
-                : pages.FirstOrDefault(p => string.Equals(p.Slug, normalizedSlug, StringComparison.OrdinalIgnoreCase));
-            if (currentPage == null) return View("NotFound", Request.Host.Host);
+            // The root. A site with no published pages still renders its default home layout.
+            currentPage = pages.FirstOrDefault(p => p.IsHomePage) ?? pages.FirstOrDefault();
+        }
+        else
+        {
+            currentPage = pages.FirstOrDefault(p => string.Equals(p.Slug, normalizedSlug, StringComparison.OrdinalIgnoreCase));
+
+            if (currentPage == null)
+            {
+                // A LIVE site that simply has no page with this slug: an ordinary 404, and it must
+                // look like one -- the agent's own header, navigation and footer, with a way back.
+                //
+                // This used to render the IPRO-branded "Website not published yet" interstitial with
+                // HTTP 200. Three things wrong with that: it told visitors a working firm website was
+                // unpublished, it invited them to sign in to the agent portal on a domain the public
+                // associates with the agent alone, and 200 meant search engines happily indexed every
+                // mistyped URL as a real page. The slug-collision fix widened its reach further --
+                // every portal controller name (/clients, /newsletter, ...) now lands here.
+                //
+                // Deliberately not tracked as a page view: a 404 is not a visit to anything.
+                Response.StatusCode = StatusCodes.Status404NotFound;
+                return View("Index", new PublicWebsiteViewModel
+                {
+                    Website = website,
+                    Pages = pages,
+                    CurrentPage = null,
+                    PageNotFound = true
+                });
+            }
         }
 
         await TrackPageViewAsync(website, currentPage);

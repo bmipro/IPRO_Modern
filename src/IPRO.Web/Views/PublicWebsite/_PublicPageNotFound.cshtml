@@ -1,0 +1,62 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    // Rendered inside whichever template shell the agent uses (Modern, Classic, Editorial), in place
+    // of a page's content blocks, when the site is live but the requested slug is not one of its
+    // pages. The shell has already drawn the header, navigation and footer, so the visitor stays on
+    // the agent's website and can carry on browsing.
+    //
+    // Deliberately style-neutral: it inherits the shell's font and colours rather than recomputing
+    // WebsiteTemplateDesign a fourth time. Three copies of that block already exist and keeping them
+    // in step is exactly the kind of drift that this week has been spent undoing.
+    var website = Model.Website;
+    var siteName = string.IsNullOrWhiteSpace(website.SiteTitle)
+        ? (string.IsNullOrWhiteSpace(website.AgentUser.CompanyName)
+            ? $"{website.AgentUser.FirstName} {website.AgentUser.LastName}".Trim()
+            : website.AgentUser.CompanyName)
+        : website.SiteTitle;
+
+    var suggestions = Model.Pages
+        .Where(p => p.ShowInNavigation && p.ParentPageId == null && !p.IsHomePage)
+        .OrderBy(p => p.SortOrder)
+        .Take(6)
+        .ToList();
+}
+<main class="public-page-notfound" style="padding:88px 16px;">
+  <div style="width:min(640px, 100%); margin:0 auto; text-align:center;">
+
+    <p style="margin:0 0 10px; font-size:13px; letter-spacing:.14em; text-transform:uppercase; opacity:.55;">
+      Page not found
+    </p>
+
+    <h1 style="margin:0 0 14px; font-size:clamp(26px, 4vw, 38px); line-height:1.2;">
+      We couldn&rsquo;t find that page
+    </h1>
+
+    <p style="margin:0 0 28px; font-size:17px; line-height:1.6; opacity:.75;">
+      The page you were looking for isn&rsquo;t on @siteName. It may have been moved or renamed,
+      or the address might have a typo in it.
+    </p>
+
+    <p style="margin:0 0 34px;">
+      <a href="/" style="display:inline-block; padding:12px 24px; border:1px solid currentColor; border-radius:6px; text-decoration:none; font-weight:600;">
+        Go to the home page
+      </a>
+    </p>
+
+    @if (suggestions.Count > 0)
+    {
+      <div style="border-top:1px solid rgba(128,128,128,.25); padding-top:24px;">
+        <p style="margin:0 0 14px; font-size:13px; letter-spacing:.08em; text-transform:uppercase; opacity:.55;">
+          Or try one of these
+        </p>
+        <ul style="list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:10px 22px; justify-content:center;">
+          @foreach (var suggestion in suggestions)
+          {
+            <li><a href="/@suggestion.Slug" style="text-decoration:none; font-weight:600;">@suggestion.Title</a></li>
+          }
+        </ul>
+      </div>
+    }
+
+  </div>
+</main>

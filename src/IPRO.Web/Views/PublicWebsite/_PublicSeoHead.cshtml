@@ -6,16 +6,25 @@
     var page = Model.CurrentPage;
     var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
     var siteName = string.IsNullOrWhiteSpace(website.SiteTitle) ? agentName : website.SiteTitle;
-    var pageTitle = !string.IsNullOrWhiteSpace(page?.MetaTitle)
-        ? page.MetaTitle
-        : page != null && !page.IsHomePage
-            ? $"{page.Title} | {siteName}"
-            : siteName;
-    var description = !string.IsNullOrWhiteSpace(page?.MetaDescription)
-        ? page.MetaDescription
-        : !string.IsNullOrWhiteSpace(website.TagLine)
-            ? website.TagLine
-            : $"Learn more about {siteName} and the professional services available.";
+    // A 404 must not describe itself as the site's home page. Without this the tab reads as the
+    // site name, the canonical points at "/", and robots says index,follow -- so every mistyped or
+    // stale URL is offered to search engines as a real page.
+    var isPageNotFound = Model.PageNotFound;
+
+    var pageTitle = isPageNotFound
+        ? $"Page not found | {siteName}"
+        : !string.IsNullOrWhiteSpace(page?.MetaTitle)
+            ? page.MetaTitle
+            : page != null && !page.IsHomePage
+                ? $"{page.Title} | {siteName}"
+                : siteName;
+    var description = isPageNotFound
+        ? $"That page could not be found on {siteName}."
+        : !string.IsNullOrWhiteSpace(page?.MetaDescription)
+            ? page.MetaDescription
+            : !string.IsNullOrWhiteSpace(website.TagLine)
+                ? website.TagLine
+                : $"Learn more about {siteName} and the professional services available.";
     var publicPath = page == null || page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}";
     var origin = $"{Context.Request.Scheme}://{Context.Request.Host}";
     var canonicalUrl = origin + publicPath;
@@ -49,7 +58,12 @@
 }
 <title>@pageTitle</title>
 <meta name="description" content="@description" />
-<meta name="robots" content="@(ViewBag.IsTemplatePreview == true || ViewBag.IsProspectPreview == true ? "noindex,nofollow" : "index,follow,max-image-preview:large")" />
+<meta name="robots" content="@(isPageNotFound ? "noindex,follow" : ViewBag.IsTemplatePreview == true || ViewBag.IsProspectPreview == true ? "noindex,nofollow" : "index,follow,max-image-preview:large")" />
+@* A 404 declares no canonical and no social card: canonicalUrl resolves to "/" when there is no
+   current page, which would tell search engines and link unfurlers that this missing URL is the
+   site's home page. The 404 status is the primary signal; noindex above is the belt to its braces. *@
+@if (!isPageNotFound)
+{
 <link rel="canonical" href="@canonicalUrl" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="@siteName" />
@@ -68,3 +82,4 @@
   <meta name="twitter:image" content="@imageUrl" />
 }
 <script type="application/ld+json">@Html.Raw(JsonSerializer.Serialize(structuredData, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }))</script>
+}

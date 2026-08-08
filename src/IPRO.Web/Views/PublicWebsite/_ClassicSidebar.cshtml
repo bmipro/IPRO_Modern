@@ -286,7 +286,11 @@
   {
     @await Html.PartialAsync("_PublicNavigation", Model)
   }
-  @if (Model.CurrentPage != null)
+  @if (Model.PageNotFound)
+  {
+    @await Html.PartialAsync("_PublicPageNotFound", Model)
+  }
+  else if (Model.CurrentPage != null)
   {
     @await Html.PartialAsync("_ClassicManagedPage", Model)
   }
