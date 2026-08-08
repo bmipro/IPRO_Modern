@@ -13,7 +13,7 @@
     var newCount = (int)(ViewBag.NewCount ?? 0);
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
-    var exportUrl = $"/WebsiteLeads/Export?status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}&fromDate={Uri.EscapeDataString(fromDate ?? "")}&toDate={Uri.EscapeDataString(toDate ?? "")}&sort={Uri.EscapeDataString(sort)}";
+    var exportUrl = $"/portal/WebsiteLeads/Export?status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}&fromDate={Uri.EscapeDataString(fromDate ?? "")}&toDate={Uri.EscapeDataString(toDate ?? "")}&sort={Uri.EscapeDataString(sort)}";
     string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
     string StatusClass(string value) => value switch
     {

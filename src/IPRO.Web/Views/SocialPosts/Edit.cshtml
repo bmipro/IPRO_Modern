@@ -103,7 +103,7 @@
         const formData = new FormData();
         formData.append('topic', topic);
         formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
-        const res = await fetch('/SocialPosts/DraftWithAi', { method: 'POST', body: formData });
+        const res = await fetch('/portal/SocialPosts/DraftWithAi', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.success) {
           textarea.value = data.body;

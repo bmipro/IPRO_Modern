@@ -13,7 +13,7 @@
         .GroupBy(e => e.StartAt.Date)
         .ToDictionary(g => g.Key, g => g.OrderBy(e => e.StartAt).ToList());
 
-    string MonthUrl(DateTime date) => $"/Clients/Calendar?year={date.Year}&month={date.Month}";
+    string MonthUrl(DateTime date) => $"/portal/Clients/Calendar?year={date.Year}&month={date.Month}";
     string DayCellClass(DateTime day)
     {
         var classes = new List<string> { "calendar-day" };

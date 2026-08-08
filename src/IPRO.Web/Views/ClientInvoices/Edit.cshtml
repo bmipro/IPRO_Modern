@@ -2,7 +2,7 @@
 @{
     var isEstimate = Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Estimate;
     ViewData["Title"] = Model.Id > 0 ? $"Edit {(isEstimate ? "Estimate" : "Invoice")}" : $"New {(isEstimate ? "Estimate" : "Invoice")}";
-    var formAction = Model.Id > 0 ? $"/ClientInvoices/Edit/{Model.Id}" : "/ClientInvoices/Create";
+    var formAction = Model.Id > 0 ? $"/portal/ClientInvoices/Edit/{Model.Id}" : "/portal/ClientInvoices/Create";
     var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
     var lineItems = Model.LineItems.Count > 0 ? Model.LineItems : new List<IPRO.Web.Models.ClientInvoiceLineItemInputModel> { new() };
 }

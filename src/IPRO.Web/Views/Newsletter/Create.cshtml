@@ -190,7 +190,7 @@ document.querySelectorAll('.starter-banner-choice').forEach(button => {
       const formData = new FormData();
       formData.append('topic', topic);
       formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
-      const res = await fetch('/Newsletter/DraftWithAi', { method: 'POST', body: formData });
+      const res = await fetch('/portal/Newsletter/DraftWithAi', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success) {
         document.getElementById('Subject').value = data.subject;

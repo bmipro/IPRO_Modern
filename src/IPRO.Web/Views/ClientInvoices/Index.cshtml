@@ -9,8 +9,8 @@
     var totalPages = (int)(ViewBag.TotalPages ?? 1);
     var totalCount = (int)(ViewBag.TotalCount ?? 0);
     var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
-    var exportUrl = $"/ClientInvoices/Export?documentType={Uri.EscapeDataString(documentType)}&status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}";
-    var exportQuickBooksUrl = $"/ClientInvoices/ExportQuickBooks?status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}";
+    var exportUrl = $"/portal/ClientInvoices/Export?documentType={Uri.EscapeDataString(documentType)}&status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}";
+    var exportQuickBooksUrl = $"/portal/ClientInvoices/ExportQuickBooks?status={Uri.EscapeDataString(status)}&search={Uri.EscapeDataString(search ?? "")}";
     string FilterClass(string value) => documentType == value ? "btn-primary" : "btn-outline-secondary";
     string StatusBadge(IPRO.Entities.ClientInvoiceStatus s) => s switch
     {

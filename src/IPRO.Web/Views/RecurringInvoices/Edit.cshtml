@@ -1,7 +1,7 @@
 @model IPRO.Web.Models.RecurringInvoiceEditViewModel
 @{
     ViewData["Title"] = Model.Id > 0 ? "Edit Recurring Schedule" : "New Recurring Schedule";
-    var formAction = Model.Id > 0 ? $"/RecurringInvoices/Edit/{Model.Id}" : "/RecurringInvoices/Create";
+    var formAction = Model.Id > 0 ? $"/portal/RecurringInvoices/Edit/{Model.Id}" : "/portal/RecurringInvoices/Create";
     var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
     var lineItems = Model.LineItems.Count > 0 ? Model.LineItems : new List<IPRO.Web.Models.ClientInvoiceLineItemInputModel> { new() };
 }

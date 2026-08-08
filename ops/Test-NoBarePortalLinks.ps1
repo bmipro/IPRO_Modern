@@ -39,7 +39,15 @@ $portal = @(
 #   invoice (ClientDocument), Poll (PollVote), testimonial (TestimonialRequest)
 
 $alternation = ($portal | Sort-Object Length -Descending) -join '|'
-$viewPattern = '(?:href|action)="/(' + $alternation + ')(?=[/"?#])'
+
+# Matches a bare portal URL however it is written. The first version of this script only knew about
+# href= and action=, so it passed clean while the E-Card live preview was still broken -- that URL is
+# built in JavaScript (preview.src = '/ECards/PreviewCard?...'), which is neither attribute.
+#
+# So: match ANY quoted string that starts with /<PortalController>, whatever precedes it. That covers
+# href, action, src, data-*, fetch(), $.get/$.post, location.href, window.open, url: '...', and
+# whatever the next person invents.
+$viewPattern = '[''"]/(' + $alternation + ')(?=[/''"?#])'
 $codePattern = 'Redirect\("/(' + $alternation + ')(?=[/"])'
 
 $findings = @()

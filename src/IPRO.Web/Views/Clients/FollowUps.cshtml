@@ -7,7 +7,7 @@
     var totalCount = (int)(ViewBag.TotalCount ?? 0);
     ViewData["Title"] = client == null ? "Follow-ups" : $"Follow-ups - {client.FirstName} {client.LastName}";
 
-    string StatusUrl(string selectedStatus, int selectedPage = 1) => $"/Clients/FollowUps/{client?.Id}?status={selectedStatus}&page={selectedPage}";
+    string StatusUrl(string selectedStatus, int selectedPage = 1) => $"/portal/Clients/FollowUps/{client?.Id}?status={selectedStatus}&page={selectedPage}";
     string ActiveClass(string selectedStatus) => string.Equals(status, selectedStatus, StringComparison.OrdinalIgnoreCase) ? "active" : "";
     string DueBadgeClass(DateTime dueAt) => dueAt.Date < DateTime.Today ? "bg-danger-subtle text-danger" : dueAt.Date == DateTime.Today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
     string DueLabel(DateTime dueAt) => dueAt.Date < DateTime.Today ? "Overdue" : dueAt.Date == DateTime.Today ? "Today" : dueAt.ToString("MMM d, yyyy");
