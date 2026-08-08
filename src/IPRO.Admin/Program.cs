@@ -149,6 +149,21 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 
+// Which BUILD is serving. See the matching endpoint in IPRO.Web/Program.cs for why this exists:
+// with WEBSITE_RUN_FROM_PACKAGE=1 a deploy can succeed while the worker keeps serving the previous
+// package, and /health cannot tell the difference. The deploy workflow polls this and fails if the
+// commit it just pushed is not the commit answering here.
+app.MapGet("/health/version", () =>
+{
+    var informational = (System.Reflection.Assembly.GetEntryAssembly()
+        ?.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+        .FirstOrDefault() as System.Reflection.AssemblyInformationalVersionAttribute)
+        ?.InformationalVersion ?? "unknown";
+
+    var plus = informational.IndexOf('+');
+    return Results.Text(plus >= 0 ? informational[(plus + 1)..] : informational);
+});
+
 app.MapControllerRoute("admin", "{controller=AdminDashboard}/{action=Index}/{id?}");
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {

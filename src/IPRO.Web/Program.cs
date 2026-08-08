@@ -317,6 +317,29 @@ app.MapControllerRoute(
 // override mechanism is a separate, later change once nothing in the wild depends on them.
 app.MapHealthChecks("/health");
 
+// Which BUILD is serving -- not whether the app is up, which is what /health answers.
+//
+// The two are not the same, and assuming they were cost real time: with WEBSITE_RUN_FROM_PACKAGE=1
+// the worker serves an already-mounted package, so a deploy can finish, report success, and leave
+// production on the previous build until something restarts the site. /health said Healthy
+// throughout. The deploy workflow now polls this and fails if the commit it just pushed is not the
+// commit answering here.
+//
+// The value comes from AssemblyInformationalVersion, which the workflow stamps via
+// -p:SourceRevisionId=<git sha> at publish time; locally it is just the base version.
+// Under /health, which is already a never-shadowed prefix, so no routing change is needed.
+app.MapGet("/health/version", () =>
+{
+    var informational = (System.Reflection.Assembly.GetEntryAssembly()
+        ?.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+        .FirstOrDefault() as System.Reflection.AssemblyInformationalVersionAttribute)
+        ?.InformationalVersion ?? "unknown";
+
+    // "1.0.0+abc123..." -> "abc123..."
+    var plus = informational.IndexOf('+');
+    return Results.Text(plus >= 0 ? informational[(plus + 1)..] : informational);
+});
+
 app.MapControllerRoute("portal", "portal/{controller=Dashboard}/{action=Index}/{id?}");
 
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");

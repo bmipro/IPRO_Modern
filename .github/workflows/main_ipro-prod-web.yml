@@ -27,7 +27,7 @@ jobs:
       - name: Build
         run: dotnet build IPRO.sln --configuration Release
       - name: Publish
-        run: dotnet publish src/IPRO.Web/IPRO.Web.csproj -c Release -o ./publish
+        run: dotnet publish src/IPRO.Web/IPRO.Web.csproj -c Release -o ./publish -p:SourceRevisionId=${{ github.sha }}
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -57,3 +57,28 @@ jobs:
           app-name: 'ipro-prod-web'
           slot-name: 'Production'
           package: .
+
+      # WEBSITE_RUN_FROM_PACKAGE=1 means the worker serves an already-mounted package: the deploy
+      # above can succeed while production keeps running the PREVIOUS build. Observed on 2026-08-08,
+      # three deploys in a row. Basic tier has no deployment slots, so a swap (which would restart by
+      # definition) is not available -- an explicit restart is.
+      - name: Restart the app so the new package is mounted
+        run: az webapp restart --name 'ipro-prod-web' --resource-group 'ipro-production'
+
+      # ...and do not report success until the commit we just pushed is the commit answering.
+      # /health only proves the app is up, which it was throughout the incident this guards against.
+      - name: Verify the deployed build is actually serving
+        run: |
+          expected='${{ github.sha }}'
+          echo "waiting for $expected at https://app.iproadvisers.com/health/version"
+          for attempt in $(seq 1 30); do
+            actual=$(curl -fsS --max-time 10 'https://app.iproadvisers.com/health/version' 2>/dev/null || echo '')
+            if [ "$actual" = "$expected" ]; then
+              echo "confirmed live after $attempt attempt(s)"
+              exit 0
+            fi
+            echo "  attempt $attempt: serving '${actual:-<no response>}'"
+            sleep 10
+          done
+          echo "::error::ipro-prod-web is still not serving $expected after 5 minutes."
+          exit 1

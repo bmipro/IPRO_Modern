@@ -98,12 +98,18 @@ Profile and the accent swatches shipped silently bouncing to `/Billing` because 
 
 ## 6. Deploys are serialized; PayPal is sandbox in production
 
-- **A green deploy does not mean the new code is serving.** Observed 2026-08-08: the workflow
-  finished, `/health` returned `Healthy`, and the site was still running the previous build —
-  confirmed by `ops/Test-RoutingInvariants.ps1` failing after deploy and passing after an explicit
-  `az webapp restart --name ipro-prod-web`. `/health` proves the app is up, not that it is *new*.
-  Restart, then verify behaviour, before reporting anything as fixed or as still broken. Any
-  "verified after deploy" that only checked `/health` proves nothing about the change.
+- **A green deploy does not mean the new code is serving — now enforced, not remembered.**
+  `WEBSITE_RUN_FROM_PACKAGE=1` means the worker serves an already-mounted package, so a deploy can
+  succeed and leave production on the previous build. Observed three times on 2026-08-08; `/health`
+  returned `Healthy` throughout, because the app was up, just not new. Basic tier has no deployment
+  slots, so a swap (which restarts by definition) is not available.
+
+  Both workflows now stamp the commit into the build (`-p:SourceRevisionId`), restart the app, and
+  **poll `/health/version` until it returns that exact commit**, failing the job after 5 minutes if
+  it never does. So a green run again means what it appears to mean.
+
+  `/health` still answers liveness only. To ask "which build is live?", use `/health/version` —
+  never `/health`. Under the `health` prefix deliberately, so it inherits never-shadowed routing.
 - Both workflows share the GitHub Actions concurrency group `deploy-ipro-production`. Don't remove
   it: parallel deploys against one database interleave schema repair.
 - Production currently runs PayPal in **sandbox** (`PayPal__IsSandbox=true`). Anything that creates
