@@ -29,7 +29,8 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 | 375 | Gated-agent portal sweep | Check every clickable control against the access gate's exemption list. Profile and the colour swatches were both found by hand; assume there is a third. |
 | 365 | Azure auto-heal rules | All that remains of the old Azure task — 64-bit and run-from-package are resolved. |
 | 374 | Delete prod test agent `zedtester` | Destructive; needs the owner's go-ahead. |
-| 387 | ~~E-card / e-letter one-click unsubscribe~~ | **DONE 2026-08-08.** One opt-out stops everything; birthday and anniversary designs can be kept by explicit opt-in on the preferences page. Bahman's product call: unsubscribe-all-except-greetings, and notify the agent. |
+| **394** | **Tick the greeting exemption on 4 e-card designs** | **Bahman, 5 minutes, do this first.** `admin.iproadvisers.com` → E-Card Designs → `simple-birthday`, `birthday-audi`, `anniversary-1`, `anniversary-2` → tick "Personal greeting — may still be sent to unsubscribed clients". Every design ships with it OFF by design, so until this is done an unsubscribe stops birthday cards too. |
+| **395** | **Send one e-card to a GMAIL address** | Every deliverability test on 2026-08-08 went to `test@gbssurveillance.com` — Bahman's own cPanel/SpamAssassin box using SpamCop, an unusually harsh judge almost no real client uses. There is still **zero** data on what a mainstream provider does with an IPRO e-card. |
 
 ## Owner-driven — waiting on Bahman, not on code
 
@@ -72,16 +73,35 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 
 ## Known-unverified — shipped, but never confirmed by a human using it
 
-- **E-Cards and E-Letters sending.** Builds and post-deploy log checks are all that back these; nobody
-  has clicked Send as a real agent and looked at a delivered card. Same gap that produced the
-  2026-08-08 sign-in regression, so it is listed here rather than claimed as working.
-  Since 2026-08-08 there is at least a place to look: **`/portal/Email Activity`** shows every send
-  with per-recipient Delivered/Opened/Clicked. Sending one real card and watching that page go from
-  Sent to Delivered is the test that closes this item.
-- **Delivery tracking for cards / letters / polls / Did You Know.** The wiring was verified end-to-end
-  locally against seeded events, and the webhook branch is a straight copy of the newsletter path that
-  has worked in production for weeks — but no *real* SendGrid event for a card has been observed
-  landing yet, because webhooks can't reach localhost. First real send confirms it.
+- **The unsubscribe link and the suppression it triggers.** Deployed and verified locally against the
+  real dispatcher (4-case truth table) and live at the HTTP level on both hosts — but **nobody has
+  yet clicked the link in a delivered card** and then confirmed the next card does not arrive. That
+  is items #394/#395 above and the whole point of the feature.
+- **Setup fee on an existing agent's invoice.** The other four disclosure surfaces were verified live;
+  the invoice line item is traced through the code but not yet seen on screen. Check `bobtest`'s
+  invoice `IPRO-2026-000010` when convenient.
+
+## Confirmed working on 2026-08-08 — recorded so nobody re-opens them
+
+- **E-Cards and E-Letters really send.** Long listed as unverified. Bahman sent both to a real mailbox
+  and they arrived. The composed card renders correctly, contact block and all.
+- **Delivery tracking end-to-end, including via the webhook.** An e-letter bounced with a real SMTP
+  `550` and the reason appeared on `/portal/EmailActivity` with SentAt set and Delivered empty. That
+  reason could only have arrived through the SendGrid event webhook branch added the same day, which
+  cannot be tested locally because webhooks can't reach localhost.
+- **Clicks are recorded**, not only opens — Bahman confirmed by looking.
+
+## Deliverability — what is actually known, and what was noise
+
+Two *different* failures got conflated on 2026-08-08. Keep them apart:
+
+| Symptom | Cause | Fixed? |
+|---|---|---|
+| `550 ... is in an RBL ... spamcop.net` — never delivered | SendGrid's **shared sending IP** is SpamCop-listed. Seen on two different pool IPs (`149.72.123.24`, `149.72.120.130`) hitting both an e-letter *and* an e-card. Content-independent — the receiving server refuses the connection before reading anything. | **No.** Untouched. Resend; it varies per send. Real fix is a dedicated SendGrid IP, only worth it at volume. |
+| `***SPAM***` prepended — delivered, but filed as junk | Content scoring. E-cards are one large image carrying ~10 words, and were sent **HTML-only** with **no unsubscribe**. E-letters, being text, were never tagged. | **Yes.** Adding a plain-text alternative part + `List-Unsubscribe` took the same card on the same server from `***SPAM***` (19:03) to clean (19:29). |
+
+The image-to-text ratio was *not* addressed and may still matter with other filters — but it proved
+not to be decisive on the strictest recipient available.
 - **Setup fee on an existing agent's invoice.** The other four disclosure surfaces were verified live;
   the invoice line item is traced through the code but not yet seen on screen. Check `bobtest`'s
   invoice `IPRO-2026-000010` when convenient.

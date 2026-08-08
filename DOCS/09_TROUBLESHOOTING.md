@@ -1286,3 +1286,58 @@ curl https://app.iproadvisers.com/health/version
 It caught the problem on its first run for both apps — admin was still serving the previous commit
 for four polls before flipping. Treat any older "deployed and verified via /health" claim in these
 docs as unproven.
+
+---
+
+## An agent's email is rejected or lands in spam (2026-08-08)
+
+**First, decide which of the two you have — they are different problems and only one is ours.**
+
+Open `/portal/EmailActivity`, find the send, click through to the recipient row and read **Issue**.
+
+### 1. `550 ... is in an RBL ... spamcop.net` — never arrived
+
+Not an IPRO fault and not fixable in this repo. SendGrid's **shared** sending IP is on a blocklist
+that the *recipient's* server consults; it refuses the connection before reading the message. It
+varies per send — two different pool IPs were seen blocked within one evening.
+
+- **Do:** resend. SpamCop listings expire on their own, usually within a day.
+- **Do not:** change the email's content, images, or headers hoping it helps. The receiving server
+  never saw them.
+- **If it becomes chronic:** buy a dedicated SendGrid IP and warm it up. Only worth it at volume.
+- **Check first** that it is not just one harsh recipient. A cPanel/SpamAssassin host with SpamCop
+  enabled — like `gbssurveillance.com` — rejects far more than Gmail, Outlook or Yahoo, none of
+  which use SpamCop.
+
+### 2. `***SPAM***` in the subject, or it landed in the junk folder — it *did* arrive
+
+Content scoring. Ask the recipient to open **Headers** in their mail client and read the
+`X-Spam-Status` line, which names every rule that fired and what each scored. That converts guesswork
+into a list.
+
+Known contributors, all addressed on 2026-08-08:
+
+- **No plain-text alternative part.** E-cards and e-letters sent HTML only; newsletters and polls
+  always sent both. Fixed by `ECardHtmlComposer.WrapText` / `ELetterHtmlComposer.WrapText`.
+- **No `List-Unsubscribe` header.** Fixed; every sender now passes `listUnsubscribeUrl`.
+- **High image-to-text ratio.** An e-card is a large graphic carrying ~10 words. *Not* fixed — it was
+  expected to dominate the score and did not, but it remains the obvious next lever if a filter
+  complains.
+
+Those first two together took the same card, to the same mailbox on the same SpamAssassin server,
+from `***SPAM***` to a clean subject within half an hour.
+
+## "The unsubscribe doesn't work" (2026-08-08)
+
+Check in this order:
+
+1. **Is there a visible link?** Below the card there should be "Unsubscribe or change what you
+   receive". If the message predates commit `41a9d46` it will not have one — only the header.
+2. **The portal's card preview never shows the footer.** By design: a preview has no recipient, so
+   there is no token to build a link from. Only a real send has it.
+3. **A birthday card still arriving after unsubscribing** is probably correct. The greeting exemption
+   requires *both* `ECardDesign.SendAfterUnsubscribe` (set per design in SuperAdmin → E-Card Designs)
+   *and* the client ticking "keep sending greetings" on the preferences page. If both are true, it is
+   working as specified.
+4. **Nothing at all arriving, including greetings** — check `Client.GreetingsOptInAt`. A one-click
+   unsubscribe from Gmail deliberately clears it, because that path has no human to ask.

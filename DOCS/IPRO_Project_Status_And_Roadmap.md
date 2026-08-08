@@ -2438,3 +2438,64 @@ suppressed recipient never reaches the provider at all:
 
 `email-preferences` is in `IsNeverShadowedPrefix`: these links sit in inboxes for years and an
 unsubscribe that 404s on an agent's custom domain is worse than a broken page. See INVARIANTS rule 7.
+
+### 97. Two deliverability failures that looked like one (2026-08-08)
+
+Recorded because the wrong diagnosis was reached twice before the evidence separated them, and the
+next person will meet the same confusion.
+
+**Failure A — RBL rejection. Never delivered.**
+
+```
+550 "JunkMail rejected - s.wrqvtvvn.outbound-mail.sendgrid.net [149.72.120.130]
+     is in an RBL: Blocked - see https://www.spamcop.net/bl.shtml?149.72.120.130"
+```
+
+The receiving server refuses the *connection* based on the sending IP. It never reads the subject,
+the images or the headers, so **no content change can affect it**. Observed on two different SendGrid
+shared-pool IPs (`149.72.123.24`, `149.72.120.130`) within one evening, hitting an e-letter and an
+e-card. The owner's initial reading — "it's e-letters specifically" — was disproved by the second
+one; so was the counter-theory that it was content.
+
+Not fixed, and not fixable from this codebase. SpamCop listings expire on their own, so a resend
+usually works. The real fix is a dedicated SendGrid IP, worth buying only once volume justifies the
+warm-up. The sending domain is correctly authenticated and was never the issue: SPF includes
+`sendgrid.net`, DKIM CNAMEs (`s1`/`s2._domainkey`) resolve, DMARC present at `p=none`.
+
+**Failure B — SpamAssassin tagging. Delivered, but filed as junk.**
+
+Every e-card arrived with `***SPAM***` prepended; no e-letter ever did. That split is the clue: an
+e-card is one large image carrying about ten words, and both cards and letters were being sent
+**HTML-only with no unsubscribe**, while newsletters and polls had always sent a plain-text part.
+
+Adding the plain-text alternative and `List-Unsubscribe` moved the *same card, same recipient, same
+server* from `***SPAM***` at 19:03 to a clean subject at 19:29. The image-to-text ratio — the term
+expected to dominate — was not addressed and turned out not to be decisive.
+
+**The methodological point.** Every deliverability observation that evening came from one mailbox:
+`test@gbssurveillance.com`, the owner's own cPanel/SpamAssassin server with SpamCop enabled. That is
+a far harsher judge than Gmail, Outlook or Yahoo, none of which consult SpamCop. Tuning against it
+risks chasing a problem real clients would never see — though passing it is a strong signal. A test
+against a mainstream provider is still outstanding (TODO #395).
+
+### 98. The unsubscribe header is not the unsubscribe (2026-08-08)
+
+Item 96 shipped `List-Unsubscribe` and the preferences endpoint, and the commit message said cards
+now carried "a working unsubscribe". The owner opened a delivered card and asked where it was.
+
+Both are needed and only one had been built:
+
+- the **header**, which Gmail and Yahoo read to offer their own Unsubscribe button — shown at their
+  discretion and routinely withheld from low-volume senders;
+- a **visible link in the message body**, which newsletters had always appended and cards and letters
+  never did.
+
+`EmailUnsubscribeFooter` is shared by both senders so wording and styling cannot drift. It renders
+*below* the message shell rather than inside it, because e-card designs are frequently dark and a
+footer inheriting those colours would be invisible. It is appended in the dispatcher rather than in
+`ECardHtmlComposer.Wrap`, because `Wrap` also serves the portal's preview, which has no recipient and
+therefore no token — so the preview correctly shows no footer.
+
+Worth keeping as its own item: the gap was not a coding error but a **verification** one. The header
+was tested; what a recipient sees was not. "Shipped the mechanism" and "the user can do the thing"
+are different claims, and only the second one matters.
