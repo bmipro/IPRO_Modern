@@ -2109,14 +2109,71 @@ any subscriber whose package was no longer offered for sale saw "Your current pa
 available" instead of their subscription. Hidden QA plans triggered it today; the first real package
 ever retired from sale while carrying subscribers would have triggered it for real customers.
 
-**Two more bugs observed and queued (not yet fixed)**:
+**Two more bugs observed and queued** -- both now resolved 2026-08-08:
 - Registration confirmation email contains a DIFFERENT temporary password than the one shown
   on-screen (on-screen one works; emailed one is presumably a second generation). Investigate
   whether the email composes from a separate GenerateTemporaryPassword call.
+  **NOT A BUG.** Tested empirically with a fresh signup (`zedtester`): the on-screen password and
+  the emailed password were byte-identical. The earlier mismatch was a transcription artifact of
+  reading two different signups' passwords, not two generations of one signup.
 - Access-gated agents (no active subscription) still see the full portal sidebar; every nav item
   should be hidden/disabled except Profile and Change Password until they subscribe.
+  **Fixed, but not the way this bullet describes** -- see item 90. The sidebar was never the defect;
+  the middleware was. Hiding the nav was explicitly rejected by the owner.
 
 **Slug-collision bug re-verified still open** the same evening (user hoped it was done): /articles,
 /forms, /documents, /newsletter still 302 to the portal login on agent sites. Only /testimonials now
 resolves, because Nav v2 gave every agent a real published page with that slug. See
 DOCS/09_TROUBLESHOOTING.md and the fix directions recorded 2026-08-06.
+
+**Correction, 2026-08-08: that re-verification was wrong, and the paragraph above is retained only
+as a record of the mistake.** Those four slugs 302'd because **bobmot1 has no pages with those
+slugs** -- its newsletter page is `/free-newsletter`. The test asserted a precondition it never
+checked. The visitor-facing half was genuinely broken for a different reason and was fixed the same
+day (`f8d2582`); see item 90.
+
+### 90. What an agent can still do when their subscription lapses (done, 2026-08-08)
+
+**Where this came from**: the daily-billing harness (item 89) put a real access-gated agent in front
+of the owner for the first time, and the portal it showed them was wrong in two different ways --
+one visual, one functional. It took three attempts to land because the first two solved a problem
+nobody had asked about.
+
+**The rule the owner has stated consistently**: a lapsed agent's menu stays *visible*. The sidebar is
+the product surface -- Clients, Newsletter, E-Cards, Website, Client Portal listed there is the
+argument for paying. Hiding those items makes the portal look broken and removes the reason to
+subscribe. *Disable* never meant *hide*, and the menu should not be restyled at all.
+
+**The actual defect** was in `src/IPRO.Web/Program.cs`, not in any view. The access-gate middleware
+redirected a gated agent to `/Billing` for every path except Billing itself and login/logout, so
+Profile and Change Password -- which the owner had asked to stay usable back on 2026-08-07 -- looked
+clickable and silently bounced. Locking someone out of their own password change is hostile in
+general, and specifically perverse when the reason they haven't paid might be that they can't get in
+properly. Neither route grants any product functionality.
+
+**What shipped** (`3373f7e`, then `d8434ba`):
+- Middleware exemptions for `/Account/Profile`, `/Account/ChangePassword`, and
+  `/Account/SetPortalAccentColor`, alongside the existing Billing and login/logout ones. The accent
+  route is safe to expose: it accepts only a colour from a fixed allow-list and redirects only via
+  `Url.IsLocalUrl`.
+- Every other sidebar link keeps its normal appearance and opens the existing `upgradeRequiredModal`
+  on click instead of navigating -- "Subscription required / You need an active subscription to use
+  this function." with **[Not now]** and **[View Packages →]** to Billing. Same modal the per-tier
+  `LockedNavAttributes` locks already use, so this is reuse rather than a second convention.
+- Client Invoices gets the popup too. It bills the agent's *own* clients, so an agent who stopped
+  paying us could otherwise keep running their billing on our infrastructure indefinitely.
+- Billing stays fully live.
+
+**The server-side gate is unchanged and still authoritative** -- typing `/portal/Clients` directly
+still redirects. The modal is a courtesy, not the enforcement.
+
+**Two process notes worth keeping.** The colour swatches were found only because someone went looking
+at what else POSTs from that sidebar; Profile had the identical defect and was found the same way.
+There is no test asserting that the gate's exemption list matches the set of routes a gated agent can
+reach from the UI, so the next one like this will also be found by hand. And the first two attempts
+here restyled a page nobody complained about -- the owner's words named a middleware behaviour, not a
+CSS problem.
+
+**Deliberately left for later** (task #375): a sweep of every POST endpoint reachable from a gated
+agent's screens against the exemption list, and a decision on whether in-page buttons (not just nav
+links) should show the same popup.
