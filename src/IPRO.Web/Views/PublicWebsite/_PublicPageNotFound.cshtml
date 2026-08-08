@@ -21,12 +21,121 @@
         .Take(6)
         .ToList();
 }
-<main class="public-page-notfound" style="padding:88px 16px;">
+@* Scoped to .public-page-notfound so nothing here can reach the rest of the agent's site.
+   --site-theme is set by all three template shells from the agent's chosen colour; the fallback
+   keeps the drawing sensible if a shell ever renders this without it. *@
+<style>
+  .public-page-notfound .pnf-art { margin: 0 auto 28px; max-width: 380px; }
+  .public-page-notfound .pnf-num {
+    font-size: clamp(46px, 9vw, 68px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.02em;
+    color: var(--site-theme, #1457d9);
+    margin-bottom: 6px;
+  }
+  .public-page-notfound .pnf-art svg { display: block; width: 100%; height: auto; }
+
+  /* The shells give links their own colour, which on some templates is a fixed blue -- fine on a
+     content page, wrong here where the whole block is drawn in the agent's accent. Scoped, so no
+     other page's links change. */
+  .public-page-notfound .pnf-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    border: 1px solid var(--site-theme, #1457d9);
+    border-radius: var(--button-radius, 7px);
+    color: var(--site-theme, #1457d9);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .public-page-notfound .pnf-btn:hover,
+  .public-page-notfound .pnf-btn:focus-visible {
+    background: var(--site-theme, #1457d9);
+    color: #fff;
+  }
+  .public-page-notfound .pnf-link {
+    color: var(--site-theme, #1457d9);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .public-page-notfound .pnf-link:hover,
+  .public-page-notfound .pnf-link:focus-visible { text-decoration: underline; }
+
+  .public-page-notfound .pnf-cable {
+    fill: none;
+    stroke: var(--site-theme, #1457d9);
+    stroke-width: 11;
+    stroke-linecap: round;
+    opacity: .32;
+  }
+  .public-page-notfound .pnf-body  { fill: var(--site-theme, #1457d9); }
+  .public-page-notfound .pnf-prong { fill: var(--site-theme, #1457d9); }
+  .public-page-notfound .pnf-hole  { fill: #fff; opacity: .95; }
+  .public-page-notfound .pnf-dash {
+    fill: none;
+    stroke: var(--site-theme, #1457d9);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 0 12;
+    opacity: .45;
+  }
+  .public-page-notfound .pnf-spark { fill: var(--site-theme, #1457d9); opacity: .3; }
+  .public-page-notfound .pnf-spark--2 { opacity: .22; }
+  .public-page-notfound .pnf-spark--3 { opacity: .16; }
+
+  /* The two ends drift apart and back -- the whole side moves as one group, so the cable never
+     detaches from its plug. Purely decorative, and switched off for anyone who asks for less. */
+  .public-page-notfound .pnf-side--l { animation: pnfDriftL 3.4s ease-in-out infinite; }
+  .public-page-notfound .pnf-side--r { animation: pnfDriftR 3.4s ease-in-out infinite; }
+  @@keyframes pnfDriftL { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
+  @@keyframes pnfDriftR { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+  @@media (prefers-reduced-motion: reduce) {
+    .public-page-notfound .pnf-side--l,
+    .public-page-notfound .pnf-side--r { animation: none; }
+  }
+</style>
+<main class="public-page-notfound" style="padding:72px 16px 88px;">
   <div style="width:min(640px, 100%); margin:0 auto; text-align:center;">
 
-    <p style="margin:0 0 10px; font-size:13px; letter-spacing:.14em; text-transform:uppercase; opacity:.55;">
-      Page not found
-    </p>
+    @* Drawn rather than shipped as an image file: inline SVG inherits the agent's own accent colour
+       via --site-theme, so every firm gets its 404 in its own brand instead of a fixed blue stock
+       graphic. It also costs no extra request, stays sharp on any screen, and needs no storage. *@
+    <div class="pnf-art" aria-hidden="true">
+      <div class="pnf-num">404</div>
+      <svg viewBox="0 0 360 150" xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <defs>
+          <linearGradient id="pnfSheen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#fff" stop-opacity=".4" />
+            <stop offset="100%" stop-color="#fff" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+
+        @* the break: a dotted run between the two ends, plus a few loose sparks *@
+        <path d="M186 78 H214" class="pnf-dash" />
+        <circle cx="200" cy="54" r="3.2" class="pnf-spark" />
+        <circle cx="192" cy="104" r="2.4" class="pnf-spark pnf-spark--2" />
+        <circle cx="210" cy="100" r="1.8" class="pnf-spark pnf-spark--3" />
+
+        @* left: cable + plug, two prongs pointing right *@
+        <g class="pnf-side pnf-side--l">
+          <path d="M0 132 C 46 132, 52 78, 88 78" class="pnf-cable" />
+          <rect x="88" y="52" width="58" height="52" rx="13" class="pnf-body" />
+          <rect x="97" y="59" width="40" height="14" rx="7" fill="url(#pnfSheen)" />
+          @* prongs: full-strength so the shape reads as a plug, not a blob *@
+          <rect x="150" y="64" width="26" height="11" rx="5.5" class="pnf-prong" />
+          <rect x="150" y="82" width="26" height="11" rx="5.5" class="pnf-prong" />
+        </g>
+
+        @* right: socket + cable, two slots facing left *@
+        <g class="pnf-side pnf-side--r">
+          <rect x="222" y="48" width="60" height="60" rx="15" class="pnf-body" />
+          <rect x="231" y="55" width="42" height="15" rx="7" fill="url(#pnfSheen)" />
+          <rect x="230" y="64" width="17" height="11" rx="5.5" class="pnf-hole" />
+          <rect x="230" y="82" width="17" height="11" rx="5.5" class="pnf-hole" />
+          <path d="M282 78 C 316 78, 320 132, 360 132" class="pnf-cable" />
+        </g>
+      </svg>
+    </div>
 
     <h1 style="margin:0 0 14px; font-size:clamp(26px, 4vw, 38px); line-height:1.2;">
       We couldn&rsquo;t find that page
@@ -38,9 +147,7 @@
     </p>
 
     <p style="margin:0 0 34px;">
-      <a href="/" style="display:inline-block; padding:12px 24px; border:1px solid currentColor; border-radius:6px; text-decoration:none; font-weight:600;">
-        Go to the home page
-      </a>
+      <a href="/" class="pnf-btn">Go to the home page</a>
     </p>
 
     @if (suggestions.Count > 0)
@@ -52,7 +159,7 @@
         <ul style="list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:10px 22px; justify-content:center;">
           @foreach (var suggestion in suggestions)
           {
-            <li><a href="/@suggestion.Slug" style="text-decoration:none; font-weight:600;">@suggestion.Title</a></li>
+            <li><a href="/@suggestion.Slug" class="pnf-link">@suggestion.Title</a></li>
           }
         </ul>
       </div>
