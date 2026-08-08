@@ -265,8 +265,16 @@ app.Use(async (context, next) =>
     var canUseBilling = string.Equals(path, "/Billing", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("/Billing/", StringComparison.OrdinalIgnoreCase);
     var canLoginOrLogout = path.StartsWith("/Account/Login", StringComparison.OrdinalIgnoreCase) || canLogout;
+
+    // A gated agent keeps access to their OWN account: their profile and their password. Locking
+    // someone out of their own password change is hostile -- it is the one thing you must always be
+    // able to do, especially if the reason they cannot pay is that they cannot get in properly --
+    // and editing their own contact details grants no product functionality. Requested 2026-08-08
+    // after a real signup showed both links bouncing silently back to /Billing.
+    var canUseOwnAccount = path.StartsWith("/Account/Profile", StringComparison.OrdinalIgnoreCase)
+        || canChangePassword;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
-    if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout)
+    if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout && !canUseOwnAccount)
     {
         var idClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (int.TryParse(idClaim, out var gateAgentId))
