@@ -2,9 +2,15 @@
 @inject IPRO.Business.Interfaces.IPackageEntitlementService PackageEntitlements
 @{
     var navAccess = new Dictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>();
+    // An agent with no active subscription is redirected to /Billing by the gate middleware whatever
+    // they click, so showing the full menu just advertises doors that all lead back to the same page.
+    // When gated the sidebar shows Billing only; Profile, Change Password and Logout live in the
+    // footer below and stay available, so the agent can still fix their details or sign out.
+    var isAccessGated = false;
     if (User.Identity?.IsAuthenticated == true &&
         int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var layoutAgentId))
     {
+        isAccessGated = await PackageEntitlements.IsAccessGatedAsync(layoutAgentId);
         foreach (var featureCode in new[]
         {
             IPRO.Entities.PackageFeatureCodes.CalendarScheduler,
@@ -143,6 +149,13 @@
         </a>
     </div>
     <nav class="agent-sidebar-nav">
+@if (isAccessGated)
+{
+        <div class="nav-section">Billing</div>
+        <a class="nav-link @NavActive("Billing")" href="/portal/Billing"><i class="fas fa-credit-card"></i>Billing</a>
+}
+else
+{
         <div class="nav-section">Overview</div>
         <a class="nav-link @NavActive("Dashboard")" href="/portal/Dashboard"><i class="fas fa-home"></i>Dashboard</a>
 
@@ -181,6 +194,7 @@
 
         <div class="nav-section">Support</div>
         <a class="nav-link @NavActive("Support")" href="/portal/Support"><i class="fas fa-life-ring"></i>Support</a>
+}
     </nav>
     <div class="agent-sidebar-footer">
         <div class="portal-color-row">
