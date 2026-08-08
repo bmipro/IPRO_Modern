@@ -86,7 +86,10 @@ public class ECardDispatcher
                     recipient.Email,
                     recipient.RecipientName,
                     card.Subject,
-                    html,
+                    // The visible unsubscribe line. The List-Unsubscribe header alone is not enough:
+                    // mail clients show their own button at their discretion, so without this a
+                    // recipient can open a card and have nothing to click.
+                    EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl),
                     // Plain-text alternative. Cards are a big image carrying ~10 words, which is a
                     // heavy spam signal on its own; sending HTML only made it worse. Observed
                     // 2026-08-08: every e-card to a SpamAssassin host arrived tagged ***SPAM***

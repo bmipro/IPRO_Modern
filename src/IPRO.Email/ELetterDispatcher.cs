@@ -75,7 +75,8 @@ public class ELetterDispatcher
                     recipient.Email,
                     recipient.RecipientName,
                     subject,
-                    html,
+                    // Visible unsubscribe line -- see the note in ECardDispatcher.
+                    EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl),
                     // Plain-text alternative -- see the note in ECardDispatcher.
                     ELetterHtmlComposer.WrapText(letter, agent, client, preferencesUrl),
                     customArgs: new Dictionary<string, string>
