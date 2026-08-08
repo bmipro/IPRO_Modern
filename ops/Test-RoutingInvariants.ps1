@@ -36,7 +36,15 @@ param(
     [Parameter(Mandatory = $true)][string] $AgentHost,
     [string] $PlatformHost  = 'app.iproadvisers.com',
     [string] $AgentPageSlug = 'testimonials',
-    [switch] $SkipPrecondition
+    [switch] $SkipPrecondition,
+
+    # Optional. When supplied, the script signs in on the AGENT host and follows the redirect.
+    # This leg exists because on 2026-08-08 the routing fix sent bare paths on agent hosts to the
+    # public site while the login redirect still pointed at a bare /Dashboard -- so signing in on
+    # your own domain landed you on "Website not published yet". Every check in this file passed at
+    # the time, because none of them logged in.
+    [string] $AgentUser,
+    [string] $AgentPassword
 )
 
 $ErrorActionPreference = 'Stop'
@@ -200,6 +208,59 @@ $billing = Invoke-Probe -Url ("https://{0}/Billing" -f $AgentHost)
 Assert-Check "/Billing stays with the portal" `
     ($billing.Status -in 200, 302 -and $billing.Title -notmatch 'Not Published') `
     ("got {0} '{1}'" -f $billing.Status, $billing.Title)
+
+# ---------------------------------------------------------------------------
+# 3b. Signing in ON THE AGENT HOST lands in the portal, not on the public site.
+#     Skipped without credentials, but this is the leg that catches the whole class of
+#     "the portal emitted a bare URL" bugs -- see the note on -AgentUser above.
+# ---------------------------------------------------------------------------
+Write-Host ""
+if ($AgentUser -and $AgentPassword) {
+    Write-Host "Agent host: signing in actually reaches the portal" -ForegroundColor Cyan
+
+    $loginUrl = "https://{0}/Account/Login" -f $AgentHost
+    $jar      = New-Object System.Net.CookieContainer
+    $h        = New-Object System.Net.Http.HttpClientHandler
+    $h.AllowAutoRedirect = $false
+    $h.CookieContainer   = $jar
+    $c        = New-Object System.Net.Http.HttpClient($h)
+
+    try {
+        # antiforgery token from the login form
+        $form  = $c.GetStringAsync($loginUrl).GetAwaiter().GetResult()
+        $token = ''
+        if ($form -match 'name="__RequestVerificationToken"[^>]*value="([^"]+)"') { $token = $Matches[1] }
+
+        $fields = New-Object 'System.Collections.Generic.List[System.Collections.Generic.KeyValuePair[string,string]]'
+        $fields.Add([System.Collections.Generic.KeyValuePair[string,string]]::new('Username', $AgentUser))
+        $fields.Add([System.Collections.Generic.KeyValuePair[string,string]]::new('Password', $AgentPassword))
+        $fields.Add([System.Collections.Generic.KeyValuePair[string,string]]::new('__RequestVerificationToken', $token))
+
+        $post = $c.PostAsync($loginUrl, (New-Object System.Net.Http.FormUrlEncodedContent($fields))).GetAwaiter().GetResult()
+        $dest = if ($post.Headers.Location) { $post.Headers.Location.ToString() } else { '' }
+
+        Assert-Check "sign-in redirects into /portal, not a bare path" `
+            ($post.StatusCode -eq 302 -and $dest -match '^(https?://[^/]+)?/portal/') `
+            ("got {0} -> '{1}' (a bare path here lands the agent on their own public site)" -f [int]$post.StatusCode, $dest)
+
+        if ($dest) {
+            $follow = if ($dest -match '^https?://') { $dest } else { "https://{0}{1}" -f $AgentHost, $dest }
+            $page   = $c.GetAsync($follow).GetAwaiter().GetResult()
+            $html   = $page.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+            $t      = ''
+            if ($html -match '(?is)<title>(.*?)</title>') { $t = $Matches[1].Trim() }
+
+            Assert-Check "the page after sign-in is the portal" `
+                ([int]$page.StatusCode -eq 200 -and $t -match 'Agent Portal' -and $t -notmatch 'Not Published') `
+                ("got {0} '{1}'" -f [int]$page.StatusCode, $t)
+        }
+    }
+    finally { $c.Dispose(); $h.Dispose() }
+}
+else {
+    Write-Host "Agent host: sign-in check SKIPPED (pass -AgentUser and -AgentPassword to run it)" -ForegroundColor Yellow
+    Write-Host "  This is the leg that would have caught the 2026-08-08 login regression." -ForegroundColor DarkGray
+}
 
 # ---------------------------------------------------------------------------
 # 4. The platform host is unaffected.
