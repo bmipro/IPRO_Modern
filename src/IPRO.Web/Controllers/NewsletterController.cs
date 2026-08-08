@@ -42,7 +42,12 @@ public class NewsletterController : Controller
         ViewBag.AiAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
         return View(new NewsLetter());
     }
+    // BOTH routes, deliberately. An attribute route REPLACES the conventional one, so an action
+    // declaring only the bare path is unreachable under /portal -- which is where every portal link
+    // now points. "Use this template" 404'd for exactly this reason (2026-08-08). The bare form is
+    // kept because it may sit in older links. Same pattern as ClientsController.FollowUpQueue.
     [HttpGet("Newsletter/CreateFromTemplate/{templateId}")]
+    [HttpGet("portal/Newsletter/CreateFromTemplate/{templateId}")]
     public async Task<IActionResult> CreateFromTemplate(int templateId)
     {
         var gate = await RequireNewsletterAccessAsync();

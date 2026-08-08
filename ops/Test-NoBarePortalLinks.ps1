@@ -80,6 +80,31 @@ foreach ($file in Get-ChildItem -Path (Join-Path $RepoRoot 'src\IPRO.Web\Control
     }
 }
 
+# An attribute route REPLACES the conventional one, so an action in a portal controller that declares
+# only a bare [HttpGet("Newsletter/Foo")] is unreachable at /portal/Newsletter/Foo -- where every
+# portal link now points. That is how "Use this template" 404'd on 2026-08-08 after the link sweep.
+# Each such attribute needs a prefixed twin; ClientsController.FollowUpQueue is the pattern.
+foreach ($file in Get-ChildItem -Path (Join-Path $RepoRoot 'src\IPRO.Web\Controllers') -Recurse -Filter *.cs) {
+    $lines = Get-Content -LiteralPath $file.FullName
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -cmatch '^\s*\[(?:Http(?:Get|Post|Put|Delete)|Route)\("(' + $alternation + ')(/[^"]*)?"\)\]') {
+            $bare = $Matches[0].Trim()
+            # Look for a portal/-prefixed attribute on the same action (the adjacent attribute lines).
+            $twin = $false
+            for ($j = [Math]::Max(0, $i - 4); $j -lt [Math]::Min($lines.Count, $i + 5); $j++) {
+                if ($lines[$j] -cmatch '^\s*\[(?:Http(?:Get|Post|Put|Delete)|Route)\("portal/') { $twin = $true }
+            }
+            if (-not $twin) {
+                $findings += [pscustomobject]@{
+                    File = $file.FullName.Replace($RepoRoot, '').TrimStart('\')
+                    Line = $i + 1
+                    Hit  = "$bare  (no portal/ twin -- unreachable from the portal)"
+                }
+            }
+        }
+    }
+}
+
 Write-Host ""
 if ($findings.Count -eq 0) {
     Write-Host "PASS  no bare links to agent-portal routes" -ForegroundColor Green

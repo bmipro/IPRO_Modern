@@ -39,7 +39,11 @@ public class PortalMessagesController : Controller
         return View();
     }
 
+    // Both forms -- see NewsletterController.CreateFromTemplate. The message list links here at
+    // /portal/PortalMessages/Thread/{id}, which an attribute route declaring only the bare path
+    // cannot serve.
     [HttpGet("PortalMessages/Thread/{clientId}")]
+    [HttpGet("portal/PortalMessages/Thread/{clientId}")]
     public async Task<IActionResult> Thread(int clientId)
     {
         var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);

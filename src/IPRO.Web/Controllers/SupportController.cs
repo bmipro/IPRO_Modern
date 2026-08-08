@@ -61,7 +61,11 @@ public class SupportController : Controller
         return View(tickets);
     }
 
+    // Both forms -- see the note on NewsletterController.CreateFromTemplate. An attribute route
+    // replaces the conventional one, so without the prefixed twin this help article is unreachable
+    // from anywhere in the portal.
     [HttpGet("Support/Article/{slug}")]
+    [HttpGet("portal/Support/Article/{slug}")]
     public IActionResult Article(string slug)
     {
         var article = HelpDocsService.FindArticle(slug);
