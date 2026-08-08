@@ -69,17 +69,24 @@ jobs:
       # above can succeed while production keeps running the PREVIOUS build. Observed on 2026-08-08,
       # three deploys in a row. Basic tier has no deployment slots, so a swap (which would restart by
       # definition) is not available -- an explicit restart is.
-      # Same service principal the web workflow uses; it holds Contributor on the whole
-      # ipro-production resource group, so it can restart this app too.
+      # The web workflow's service principal is scoped to ipro-prod-web ONLY -- it cannot restart
+      # this app (AuthorizationFailed on Microsoft.Web/sites/restart/action, 2026-08-08). Granting it
+      # Website Contributor on ipro-prod-admin would fix that, but that is a production permissions
+      # change and the owner's call, so the restart is best-effort here and the verify step below is
+      # the real gate: if the admin app does NOT pick up the new package by itself, this job fails
+      # and we will know the grant is needed rather than assuming it.
       - name: Login to Azure
+        continue-on-error: true
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_125A52B329834373956E555A056DFA8A }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F94B3760110944BDB097E394CD3F9702 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2102CCD4C4DB4B7590BD6CA997D6A93C }}
 
-      - name: Restart the app so the new package is mounted
-        run: az webapp restart --name 'ipro-prod-admin' --resource-group 'ipro-production'
+      - name: Restart the app so the new package is mounted (best effort)
+        run: |
+          az webapp restart --name 'ipro-prod-admin' --resource-group 'ipro-production' \
+            || echo "::warning::Could not restart ipro-prod-admin (no permission). Relying on the deploy's own restart; the verify step below will catch it if that is not enough."
 
       # ...and do not report success until the commit we just pushed is the commit answering.
       # /health only proves the app is up, which it was throughout the incident this guards against.
