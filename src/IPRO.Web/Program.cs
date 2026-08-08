@@ -266,12 +266,15 @@ app.Use(async (context, next) =>
         || path.StartsWith("/Billing/", StringComparison.OrdinalIgnoreCase);
     var canLoginOrLogout = path.StartsWith("/Account/Login", StringComparison.OrdinalIgnoreCase) || canLogout;
 
-    // A gated agent keeps access to their OWN account: their profile and their password. Locking
-    // someone out of their own password change is hostile -- it is the one thing you must always be
-    // able to do, especially if the reason they cannot pay is that they cannot get in properly --
-    // and editing their own contact details grants no product functionality. Requested 2026-08-08
-    // after a real signup showed both links bouncing silently back to /Billing.
+    // A gated agent keeps access to their OWN account: their profile, their password, and their
+    // portal colour. Locking someone out of their own password change is hostile -- it is the one
+    // thing you must always be able to do, especially if the reason they cannot pay is that they
+    // cannot get in properly -- and editing their own contact details or accent colour grants no
+    // product functionality. Requested 2026-08-08 after a real signup showed these bouncing silently
+    // back to /Billing. SetPortalAccentColor is safe to expose here: it accepts only a colour from a
+    // fixed allow-list and only redirects to a local URL.
     var canUseOwnAccount = path.StartsWith("/Account/Profile", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/Account/SetPortalAccentColor", StringComparison.OrdinalIgnoreCase)
         || canChangePassword;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
     if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout && !canUseOwnAccount)
