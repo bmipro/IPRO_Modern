@@ -1230,3 +1230,59 @@ Guarding alone would not rescue a database that had already raced, so `PackageEn
 reads duplicate-tolerantly (group by name, lowest Id wins, log a warning).
 
 **If you add a seeder, wrap it in `SeedGuard.RunAsync`.** As of 2026-08-06 none are unguarded.
+
+## Incident: A Fix Broke Agent Sign-In On Agent Domains, And Every Test Still Passed (2026-08-08)
+
+**Symptom.** An agent signed in at `bobmot.247advisers.com/portal/Account/Login`, and landed on
+their own public site's **"Website not published yet"** page instead of the portal. The address bar
+read `bobmot.247advisers.com/Dashboard`.
+
+**Root cause.** `813aa02` (the slug-collision fix) made a bare path on an agent host *always* resolve
+to the public website. `AccountController` still ended a successful login with a hard-coded
+`Redirect("/Dashboard")` — a bare path. Four redirects had it: login, voluntary password change, and
+two reset paths. All now `/portal/Dashboard`.
+
+**This violated a rule written the same day.** `DOCS/INVARIANTS.md` rule 2 says portal links are
+absolute and prefixed. The commit that depended on rule 1 broke rule 2. Writing the invariant down
+was not enough; nothing checked it.
+
+**Why every check passed.** The routing rule was verified with curl and `ops/Test-RoutingInvariants.ps1`,
+15/15 — and **not one of those checks was authenticated**. The failing case only exists after a
+successful login. This is precisely the gap that let the original slug bug survive three fixes: the
+owner's report contained the word *logged in*, and every verification dropped it.
+
+**Prevention.**
+- `ops/Test-RoutingInvariants.ps1` now takes `-AgentUser` / `-AgentPassword`, performs a real login on
+  the agent host, and asserts the redirect goes to `/portal/...` and the page it lands on is the
+  portal. Without credentials it prints a visible SKIP naming this regression, instead of quietly
+  reporting a healthy 15/15.
+- Sweep after any routing change: `grep -rn 'Redirect("/[A-Z]' src/IPRO.Web/` — anything not under
+  `/portal`, `/Account`, `/Billing`, `/ClientPortal`, `/Media` or `/Home` is a bug on an agent domain.
+  Checked 2026-08-08: the email and business layers build no bare portal links.
+
+**Second-order lesson.** Four checks in that same script then failed against *correct* behaviour,
+because they still asserted HTTP 200 for unknown slugs after `e6fc672` deliberately made them 404.
+A test can be stale in either direction. The assertion now encodes the rule ("the agent's site
+answers, never the portal") rather than a status code that was never the point.
+
+## Trap: A Green Deploy Does Not Mean The New Build Is Serving (2026-08-08)
+
+`WEBSITE_RUN_FROM_PACKAGE=1` makes the App Service worker serve an **already-mounted** package. A
+deploy uploads a new one; until the site restarts, the mount does not change. Neither workflow
+restarted anything, so jobs went green while production ran the previous build — three times in one
+day. `/health` returned `Healthy` throughout, because the app was up, just not new. Basic tier has no
+deployment slots, so a swap was never available.
+
+**Both workflows now prove it.** Publish stamps the commit via `-p:SourceRevisionId=${{ github.sha }}`;
+a new `GET /health/version` returns it; after deploying, the job restarts the app and polls that
+endpoint until it matches, failing after five minutes.
+
+**To ask which build is live, use `/health/version`, never `/health`:**
+
+```bash
+curl https://app.iproadvisers.com/health/version
+```
+
+It caught the problem on its first run for both apps — admin was still serving the previous commit
+for four polls before flipping. Treat any older "deployed and verified via /health" claim in these
+docs as unproven.
