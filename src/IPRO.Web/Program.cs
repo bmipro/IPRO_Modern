@@ -649,7 +649,21 @@ static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration confi
         // to exist at all.
         if (!context.Items.ContainsKey(PublicSlugOverrideKey))
         {
-            return false;
+            // ...and unless this is a signed-out VISITOR on an agent's own branded domain. A slug the
+            // agent never created (say /articles, when their newsletter page is /free-newsletter) used
+            // to hand that visitor the agent-portal LOGIN FORM: confusing on someone's firm website,
+            // and it advertises the portal on a domain the public associates with the agent alone.
+            // Falling through to the public site gives the same not-found handling any other unknown
+            // slug already gets. Verified 2026-08-08: /randomgibberish123 rendered the site while
+            // /articles 302'd to /Account/Login on a real agent domain.
+            //
+            // A signed-in agent keeps every portal route on their own domain (cookie check), /Account
+            // and friends stay never-shadowed so signing in always works, and /portal/... is
+            // unconditional on every host -- so no portal path is lost, only its exposure to visitors.
+            if (!IsPublicAgentHost(context, configuration) || HasPortalSessionCookie(context))
+            {
+                return false;
+            }
         }
     }
 
