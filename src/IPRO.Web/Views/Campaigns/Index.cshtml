@@ -108,7 +108,7 @@
               <td>@campaign.Steps.Count</td>
               <td>@campaign.Enrollments.Count(e => e.Status == IPRO.Entities.DripCampaignEnrollmentStatus.Active)</td>
               <td><span class="badge @(campaign.IsActive ? "bg-success" : "bg-secondary")">@(campaign.IsActive ? "Active" : "Paused")</span></td>
-              <td class="text-end"><a href="/Campaigns/Details/@campaign.Id" class="btn btn-sm btn-primary"><i class="fas fa-edit me-1"></i>Manage</a></td>
+              <td class="text-end"><a href="/portal/Campaigns/Details/@campaign.Id" class="btn btn-sm btn-primary"><i class="fas fa-edit me-1"></i>Manage</a></td>
             </tr>
           }
           </tbody>

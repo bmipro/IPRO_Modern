@@ -35,8 +35,8 @@
   <div>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-1">
-        <li class="breadcrumb-item"><a href="/Dashboard">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="/Clients">Clients</a></li>
+        <li class="breadcrumb-item"><a href="/portal/Dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/portal/Clients">Clients</a></li>
         <li class="breadcrumb-item active">Calendar</li>
       </ol>
     </nav>
@@ -44,8 +44,8 @@
     <small class="text-muted">Track every client follow-up due this month.</small>
   </div>
   <div class="d-flex gap-2">
-    <a href="/Clients" class="btn btn-outline-secondary"><i class="fas fa-users me-1"></i>Clients</a>
-    <a href="/Dashboard" class="btn btn-outline-primary"><i class="fas fa-home me-1"></i>Dashboard</a>
+    <a href="/portal/Clients" class="btn btn-outline-secondary"><i class="fas fa-users me-1"></i>Clients</a>
+    <a href="/portal/Dashboard" class="btn btn-outline-primary"><i class="fas fa-home me-1"></i>Dashboard</a>
   </div>
 </div>
 
@@ -92,7 +92,7 @@
           {
             <div class="@FollowUpClass(item)">
               <div class="d-flex justify-content-between gap-2">
-                <a href="/Clients/Details/@item.ClientId" class="calendar-event-title">@item.Title</a>
+                <a href="/portal/Clients/Details/@item.ClientId" class="calendar-event-title">@item.Title</a>
                 @if (!item.IsCompleted)
                 {
                   <form asp-action="CompleteFollowUp" asp-route-id="@item.Id" method="post">

@@ -153,10 +153,10 @@
   <div class="toolbar">
     @if (!isPublicView)
     {
-      <a class="btn" href="/ClientInvoices">Back to list</a>
+      <a class="btn" href="/portal/ClientInvoices">Back to list</a>
       @if (canEdit)
       {
-        <a class="btn" href="/ClientInvoices/Edit/@Model.Id">Edit</a>
+        <a class="btn" href="/portal/ClientInvoices/Edit/@Model.Id">Edit</a>
       }
     }
     <button id="printDocumentButton" class="btn btn-primary">Print / Save PDF</button>
@@ -172,14 +172,14 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           @if (Model.Status == IPRO.Entities.ClientInvoiceStatus.Draft)
           {
-            <form method="post" action="/ClientInvoices/Send/@Model.Id">
+            <form method="post" action="/portal/ClientInvoices/Send/@Model.Id">
               @Html.AntiForgeryToken()
               <button type="submit" class="btn btn-success">Send to Client</button>
             </form>
           }
           @if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Invoice && Model.Status is IPRO.Entities.ClientInvoiceStatus.Sent)
           {
-            <form method="post" action="/ClientInvoices/MarkPaid/@Model.Id" style="display:flex;gap:6px;align-items:center">
+            <form method="post" action="/portal/ClientInvoices/MarkPaid/@Model.Id" style="display:flex;gap:6px;align-items:center">
               @Html.AntiForgeryToken()
               <select name="method" class="btn">
                 <option value="Online">Paid Online</option>
@@ -193,18 +193,18 @@
           }
           @if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Estimate && Model.Status == IPRO.Entities.ClientInvoiceStatus.Approved)
           {
-            <form method="post" action="/ClientInvoices/ConvertToInvoice/@Model.Id">
+            <form method="post" action="/portal/ClientInvoices/ConvertToInvoice/@Model.Id">
               @Html.AntiForgeryToken()
               <button type="submit" class="btn btn-success">Convert to Invoice</button>
             </form>
           }
-          <form method="post" action="/ClientInvoices/Duplicate/@Model.Id">
+          <form method="post" action="/portal/ClientInvoices/Duplicate/@Model.Id">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn">Duplicate</button>
           </form>
           @if (Model.Status is not (IPRO.Entities.ClientInvoiceStatus.Paid or IPRO.Entities.ClientInvoiceStatus.Void))
           {
-            <form method="post" action="/ClientInvoices/Void/@Model.Id">
+            <form method="post" action="/portal/ClientInvoices/Void/@Model.Id">
               @Html.AntiForgeryToken()
               <button type="submit" class="btn btn-danger js-confirm-submit" data-confirm-message="Void this document?">Void</button>
             </form>

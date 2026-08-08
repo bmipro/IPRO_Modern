@@ -17,7 +17,7 @@
       @foreach (var article in articles)
       {
         <div class="col-md-6 col-lg-4">
-          <a href="/Support/Article/@article.Slug" class="text-decoration-none">
+          <a href="/portal/Support/Article/@article.Slug" class="text-decoration-none">
             <div class="border rounded-3 p-3 h-100">
               <div class="fw-semibold text-dark">@article.Title</div>
               <div class="small text-primary mt-1">Read article <i class="fas fa-arrow-right ms-1"></i></div>
@@ -32,14 +32,14 @@
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-white border-0 p-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
     <h5 class="fw-bold mb-0"><i class="fas fa-headset me-2 text-success"></i>My Tickets</h5>
-    <a href="/Support/Create" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>New Ticket</a>
+    <a href="/portal/Support/Create" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>New Ticket</a>
   </div>
   <div class="card-body p-4">
     <ul class="nav nav-pills mb-3">
       @foreach (var (key, label) in new[] { ("all", "All"), ("open", "Open"), ("inprogress", "In Progress"), ("resolved", "Resolved"), ("closed", "Closed") })
       {
         <li class="nav-item">
-          <a class="nav-link @(status == key ? "active" : "")" href="/Support?status=@key">@label</a>
+          <a class="nav-link @(status == key ? "active" : "")" href="/portal/Support?status=@key">@label</a>
         </li>
       }
     </ul>
@@ -65,7 +65,7 @@
             };
             <tr>
               <td>
-                <a href="/Support/Details/@ticket.Id" class="fw-semibold text-decoration-none">@ticket.Subject</a>
+                <a href="/portal/Support/Details/@ticket.Id" class="fw-semibold text-decoration-none">@ticket.Subject</a>
                 @if (ticket.HasUnreadForAgent)
                 {
                   <span class="badge bg-danger ms-1">New reply</span>
@@ -73,7 +73,7 @@
               </td>
               <td><span class="badge @statusClass">@ticket.Status</span></td>
               <td class="small text-muted">@ticket.LastMessageAt.ToString("MMM d, yyyy h:mm tt")</td>
-              <td class="text-end"><a href="/Support/Details/@ticket.Id" class="btn btn-sm btn-outline-primary">Open</a></td>
+              <td class="text-end"><a href="/portal/Support/Details/@ticket.Id" class="btn btn-sm btn-outline-primary">Open</a></td>
             </tr>
           }
           </tbody>

@@ -3,13 +3,13 @@
 }
 
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Support">Support</a></li><li class="breadcrumb-item active">New Ticket</li></ol>
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/portal/Support">Support</a></li><li class="breadcrumb-item active">New Ticket</li></ol>
 </nav>
 
 <div class="card border-0 shadow-sm" style="max-width:720px">
   <div class="card-body p-4">
     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-    <form method="post" action="/Support/Create">
+    <form method="post" action="/portal/Support/Create">
       @Html.AntiForgeryToken()
       <div class="mb-3">
         <label class="form-label fw-semibold">Subject</label>
@@ -21,7 +21,7 @@
       </div>
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary px-4">Submit Ticket</button>
-        <a href="/Support" class="btn btn-outline-secondary">Cancel</a>
+        <a href="/portal/Support" class="btn btn-outline-secondary">Cancel</a>
       </div>
     </form>
   </div>

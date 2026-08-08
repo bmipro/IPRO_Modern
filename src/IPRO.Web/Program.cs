@@ -499,8 +499,25 @@ app.Run();
 // lock them (or their clients) out rather than merely hiding content.
 static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() switch
 {
-    "account" or "clientportal" or "clientportalaccount" or "billing"
-        or "publicwebsite" or "media" or "hangfire" or "health" => true,
+    "account" or "billing" or "publicwebsite" or "media" or "hangfire" or "health" => true,
+
+    // The CLIENT-facing surfaces. These are not agent-portal pages and must NOT move under /portal:
+    // an agent's client reaches them on the AGENT'S domain, by following a link in an email we sent
+    // them (portal invitation, invoice, poll, testimonial request). Those links are already in
+    // people's inboxes and cannot be rewritten.
+    //
+    // Only "clientportal" and "clientportalaccount" were listed until 2026-08-08, so
+    // /ClientPortalMessages, /ClientPortalDocuments and /ClientPortalAppointments 404'd on every
+    // agent domain -- a client signed into the portal hit the agent's public 404 on Messages,
+    // Documents or Appointments. Found while fixing the agent-facing half of the same problem.
+    "clientportal" or "clientportalaccount" or "clientportalappointments"
+        or "clientportaldocuments" or "clientportalmessages" or "clientportalpreferences"
+        or "clientportalprofile" => true,
+
+    // Attribute-routed client-facing endpoints: ClientDocumentController [Route("invoice")],
+    // PollVoteController [Route("Poll/[action]")], TestimonialRequestController [Route("testimonial")].
+    "invoice" or "poll" or "testimonial" => true,
+
     _ => false
 };
 

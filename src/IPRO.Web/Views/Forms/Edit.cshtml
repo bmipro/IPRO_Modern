@@ -8,7 +8,7 @@
     <h2 class="fw-bold mb-1"><i class="fas fa-rectangle-list me-2 text-primary"></i>Edit Form</h2>
     <div class="text-muted">Add a title and one or more fields. Attach this form to a page later using the Custom Form block.</div>
   </div>
-  <a class="btn btn-outline-secondary" href="/Forms/Preview/@Model.Id" target="_blank" rel="noopener"><i class="fas fa-eye me-1"></i>Preview</a>
+  <a class="btn btn-outline-secondary" href="/portal/Forms/Preview/@Model.Id" target="_blank" rel="noopener"><i class="fas fa-eye me-1"></i>Preview</a>
 </div>
 
 <div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
@@ -48,6 +48,6 @@
 
   <div class="d-flex gap-2">
     <button type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Save Changes</button>
-    <a href="/Forms" class="btn btn-link">Cancel</a>
+    <a href="/portal/Forms" class="btn btn-link">Cancel</a>
   </div>
 </form>

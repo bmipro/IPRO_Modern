@@ -15,7 +15,7 @@
     <h2 class="fw-bold mb-1"><i class="fas fa-square-poll-vertical me-2 text-primary"></i>Polls</h2>
     <div class="text-muted">Build a short poll, send it to your client list, and see the results roll in.</div>
   </div>
-  <a class="btn btn-primary" href="/Polls/Create"><i class="fas fa-plus me-1"></i>New Poll</a>
+  <a class="btn btn-primary" href="/portal/Polls/Create"><i class="fas fa-plus me-1"></i>New Poll</a>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -46,7 +46,7 @@
                 <td class="small text-muted">@poll.TotalSent / @poll.TotalResponded</td>
                 <td class="small text-muted">@poll.UpdatedAt.ToString("MMM d, yyyy")</td>
                 <td class="text-end">
-                  <a class="btn btn-sm btn-outline-secondary" href="/Polls/Preview/@poll.Id">View</a>
+                  <a class="btn btn-sm btn-outline-secondary" href="/portal/Polls/Preview/@poll.Id">View</a>
                   <form asp-action="Duplicate" asp-route-id="@poll.Id" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplicate"><i class="fas fa-copy"></i></button>

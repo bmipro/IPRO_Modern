@@ -8,7 +8,7 @@
 <div class="row mb-4">
   <div class="col">
     <nav aria-label="breadcrumb">
-      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Newsletter">Newsletters</a></li><li class="breadcrumb-item active">Create</li></ol>
+      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/portal/Newsletter">Newsletters</a></li><li class="breadcrumb-item active">Create</li></ol>
     </nav>
     <h2 class="fw-bold"><i class="fas fa-paper-plane me-2 text-success"></i>Create Newsletter</h2>
   </div>
@@ -29,7 +29,7 @@
             <div class="border rounded-3 p-3 h-100 d-flex flex-column">
               <div class="fw-semibold">@template.Name</div>
               <div class="small text-muted flex-grow-1">@template.Description</div>
-              <a href="/Newsletter/CreateFromTemplate/@template.Id" class="btn btn-sm btn-outline-primary mt-2 align-self-start">Use this template</a>
+              <a href="/portal/Newsletter/CreateFromTemplate/@template.Id" class="btn btn-sm btn-outline-primary mt-2 align-self-start">Use this template</a>
             </div>
           </div>
         }
@@ -117,7 +117,7 @@
 
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-success btn-lg px-4"><i class="fas fa-eye me-2"></i>Save and Preview</button>
-            <a href="/Newsletter" class="btn btn-outline-secondary btn-lg">Cancel</a>
+            <a href="/portal/Newsletter" class="btn btn-outline-secondary btn-lg">Cancel</a>
           </div>
         </form>
       </div>
@@ -140,7 +140,7 @@
       <div class="card-body p-4">
         <h6 class="fw-bold mb-3"><i class="fas fa-users me-2 text-info"></i>Subscribers</h6>
         <p class="small text-muted">After preview, this newsletter can be scheduled for @((int)(ViewBag.SubscriberCount ?? 0)) subscribed clients.</p>
-        <a href="/Newsletter/Subscribers" class="btn btn-sm btn-outline-info w-100">View Subscriber List</a>
+        <a href="/portal/Newsletter/Subscribers" class="btn btn-sm btn-outline-info w-100">View Subscriber List</a>
       </div>
     </div>
   </div>

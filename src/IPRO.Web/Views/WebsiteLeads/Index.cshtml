@@ -56,11 +56,11 @@
     <div class="card-body p-3">
         <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
             <div class="btn-group flex-wrap" role="group">
-                <a class="btn @FilterClass("all")" href="/WebsiteLeads?status=all">All</a>
-                <a class="btn @FilterClass("unread")" href="/WebsiteLeads?status=unread">Unread</a>
-                <a class="btn @FilterClass("new")" href="/WebsiteLeads?status=new">New</a>
-                <a class="btn @FilterClass("contacted")" href="/WebsiteLeads?status=contacted">Contacted</a>
-                <a class="btn @FilterClass("dismissed")" href="/WebsiteLeads?status=dismissed">Dismissed</a>
+                <a class="btn @FilterClass("all")" href="/portal/WebsiteLeads?status=all">All</a>
+                <a class="btn @FilterClass("unread")" href="/portal/WebsiteLeads?status=unread">Unread</a>
+                <a class="btn @FilterClass("new")" href="/portal/WebsiteLeads?status=new">New</a>
+                <a class="btn @FilterClass("contacted")" href="/portal/WebsiteLeads?status=contacted">Contacted</a>
+                <a class="btn @FilterClass("dismissed")" href="/portal/WebsiteLeads?status=dismissed">Dismissed</a>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <div class="form-check mb-0">
@@ -134,12 +134,12 @@
                 <div class="d-flex gap-2 flex-wrap justify-content-end">
                     @if (lead.SubmissionType == IPRO.Entities.WebsiteLeadTypes.CustomForm)
                     {
-                        <a class="btn btn-outline-primary" href="/WebsiteLeads/Details/@lead.Id"><i class="fas fa-list-check me-1"></i>View Answers</a>
+                        <a class="btn btn-outline-primary" href="/portal/WebsiteLeads/Details/@lead.Id"><i class="fas fa-list-check me-1"></i>View Answers</a>
                     }
                     @if (lead.ClientId.HasValue)
                     {
-                        <a class="btn btn-outline-primary" href="/Clients/Details/@lead.ClientId"><i class="fas fa-address-card me-1"></i>Open CRM Contact</a>
-                        <a class="btn btn-outline-success" href="/Clients/FollowUps/@lead.ClientId"><i class="fas fa-calendar-plus me-1"></i>Plan Follow-up</a>
+                        <a class="btn btn-outline-primary" href="/portal/Clients/Details/@lead.ClientId"><i class="fas fa-address-card me-1"></i>Open CRM Contact</a>
+                        <a class="btn btn-outline-success" href="/portal/Clients/FollowUps/@lead.ClientId"><i class="fas fa-calendar-plus me-1"></i>Plan Follow-up</a>
                     }
                     else
                     {

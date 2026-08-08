@@ -59,9 +59,9 @@
     <div class="text-muted">Manage your website design, publishing, and custom domain setup.</div>
   </div>
   <div class="d-flex gap-2">
-    <a href="/WebsitePages/Navigation" class="btn btn-outline-primary"><i class="fas fa-bars-staggered me-1"></i>Header & Menu</a>
-    <a href="/WebsitePages/Footer" class="btn btn-outline-primary"><i class="fas fa-shoe-prints me-1"></i>Footer</a>
-    <a href="/WebsitePages" class="btn btn-primary"><i class="fas fa-file-lines me-1"></i>Manage Pages</a>
+    <a href="/portal/WebsitePages/Navigation" class="btn btn-outline-primary"><i class="fas fa-bars-staggered me-1"></i>Header & Menu</a>
+    <a href="/portal/WebsitePages/Footer" class="btn btn-outline-primary"><i class="fas fa-shoe-prints me-1"></i>Footer</a>
+    <a href="/portal/WebsitePages" class="btn btn-primary"><i class="fas fa-file-lines me-1"></i>Manage Pages</a>
     @if (!string.IsNullOrWhiteSpace(liveDomain))
     {
       <a href="https://@liveDomain" target="_blank" class="btn btn-outline-primary"><i class="fas fa-up-right-from-square me-1"></i>Open Website</a>
@@ -313,7 +313,7 @@
                       <h6>@template.Name</h6>
                       <p>@familyCopy</p>
                       <div class="d-flex gap-2 mt-auto">
-                        <a href="/Website/PreviewTemplate?templateId=@template.Id&useDefaults=true" target="_blank" class="btn btn-sm btn-outline-primary template-preview-action"><i class="fas fa-eye me-1"></i>Preview</a>
+                        <a href="/portal/Website/PreviewTemplate?templateId=@template.Id&useDefaults=true" target="_blank" class="btn btn-sm btn-outline-primary template-preview-action"><i class="fas fa-eye me-1"></i>Preview</a>
                         <button type="button" class="btn btn-sm @(template.Id == selectedTemplateId ? "btn-primary" : "btn-outline-secondary") template-select-action" data-select-template="@template.Id">@(template.Id == selectedTemplateId ? "Current design" : "Choose design")</button>
                       </div>
                     </div>
@@ -346,7 +346,7 @@
               </div>
               <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
                 <div class="form-text mt-0">Quick style preview. Use the full preview above to see your real pages and content.</div>
-                <a id="previewSelectedTemplate" href="/Website/PreviewTemplate?templateId=@selectedTemplateId" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-up-right-from-square me-1"></i>Open full preview</a>
+                <a id="previewSelectedTemplate" href="/portal/Website/PreviewTemplate?templateId=@selectedTemplateId" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-up-right-from-square me-1"></i>Open full preview</a>
               </div>
             </div>
           </div>
@@ -356,7 +356,7 @@
             <button type="submit" name="applyTemplateDefaults" value="true" class="btn btn-outline-secondary btn-lg js-confirm-submit" data-confirm-message="Replace your theme color, font, background, button style, section spacing, and hero style with this template's suggested defaults?"><i class="fas fa-rotate-left me-2"></i>Reset to Template Defaults</button>
             @if (!isPublished)
             {
-              <button type="submit" formaction="/Website/Publish" formmethod="post" formnovalidate class="btn btn-success btn-lg"><i class="fas fa-rocket me-2"></i>Publish</button>
+              <button type="submit" formaction="/portal/Website/Publish" formmethod="post" formnovalidate class="btn btn-success btn-lg"><i class="fas fa-rocket me-2"></i>Publish</button>
             }
           </div>
         </form>
@@ -455,7 +455,7 @@
             <span class="badge bg-light text-dark">@agentDomains.Count used</span>
           </div>
 
-          <form method="post" action="/Website/AddDomain" class="mb-3">
+          <form method="post" action="/portal/Website/AddDomain" class="mb-3">
             @Html.AntiForgeryToken()
             <label class="form-label small fw-semibold">Add another domain</label>
             <div class="input-group">
@@ -517,12 +517,12 @@
                 <div class="d-flex flex-wrap gap-1 mt-2 pt-2 border-top">
                   @if (!domain.IsPrimary)
                   {
-                    <form method="post" action="/Website/SetPrimaryDomain/@domain.Id">
+                    <form method="post" action="/portal/Website/SetPrimaryDomain/@domain.Id">
                       @Html.AntiForgeryToken()
                       <button class="btn btn-sm btn-outline-primary" type="submit">Primary</button>
                     </form>
                   }
-                  <form method="post" action="/Website/RetryDomain/@domain.Id">
+                  <form method="post" action="/portal/Website/RetryDomain/@domain.Id">
                     @Html.AntiForgeryToken()
                     @* btn-outline-secondary rendered grey beside the blue Primary/Remove buttons and
                        was read as disabled. This is an action the agent is actively told to take, so
@@ -536,7 +536,7 @@
             <div class="modal fade" id="removeDomainModal-@domain.Id" tabindex="-1" aria-hidden="true">
               <div class="modal-dialog">
                 <div class="modal-content">
-                  <form method="post" action="/Website/RemoveDomain/@domain.Id">
+                  <form method="post" action="/portal/Website/RemoveDomain/@domain.Id">
                     @Html.AntiForgeryToken()
                     <div class="modal-header"><h5 class="modal-title">Remove @domain.DomainName?</h5></div>
                     <div class="modal-body">

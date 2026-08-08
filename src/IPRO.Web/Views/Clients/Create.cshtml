@@ -9,7 +9,7 @@
 <div class="row mb-4">
   <div class="col">
     <nav aria-label="breadcrumb">
-      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Clients">Clients</a></li><li class="breadcrumb-item active">Add Client</li></ol>
+      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/portal/Clients">Clients</a></li><li class="breadcrumb-item active">Add Client</li></ol>
     </nav>
     <h2 class="fw-bold"><i class="fas fa-user-plus me-2 text-primary"></i>Add New Client</h2>
   </div>
@@ -148,7 +148,7 @@
     <div class="col-12">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <label class="form-label fw-semibold mb-0">Account Type</label>
-        <a href="/Clients/AccountTypes" class="small fw-semibold text-decoration-none"><i class="fas fa-tags me-1"></i>Manage account types</a>
+        <a href="/portal/Clients/AccountTypes" class="small fw-semibold text-decoration-none"><i class="fas fa-tags me-1"></i>Manage account types</a>
       </div>
       @if (accountTypes.Any())
       {
@@ -171,7 +171,7 @@
       else
       {
         <div class="alert alert-light border mb-0">
-          No account types yet. <a href="/Clients/AccountTypes">Create account types</a> to group clients.
+          No account types yet. <a href="/portal/Clients/AccountTypes">Create account types</a> to group clients.
         </div>
       }
     </div>
@@ -183,7 +183,7 @@
 
   <div class="d-flex gap-2">
     <button type="submit" class="btn btn-primary btn-lg px-4"><i class="fas fa-save me-2"></i>Save Client</button>
-    <a href="/Clients" class="btn btn-outline-secondary btn-lg">Cancel</a>
+    <a href="/portal/Clients" class="btn btn-outline-secondary btn-lg">Cancel</a>
   </div>
 </form>
 </div>

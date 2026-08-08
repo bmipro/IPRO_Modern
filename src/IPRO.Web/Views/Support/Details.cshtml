@@ -11,7 +11,7 @@
 }
 
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Support">Support</a></li><li class="breadcrumb-item active">Ticket #@Model.Id</li></ol>
+  <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/portal/Support">Support</a></li><li class="breadcrumb-item active">Ticket #@Model.Id</li></ol>
 </nav>
 
 <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
@@ -21,7 +21,7 @@
   </div>
   @if (Model.Status != IPRO.Entities.SupportTicketStatus.Resolved && Model.Status != IPRO.Entities.SupportTicketStatus.Closed)
   {
-    <form method="post" action="/Support/MarkResolved/@Model.Id">
+    <form method="post" action="/portal/Support/MarkResolved/@Model.Id">
       @Html.AntiForgeryToken()
       <button type="submit" class="btn btn-outline-success btn-sm"><i class="fas fa-check me-1"></i>Mark Resolved</button>
     </form>
@@ -44,7 +44,7 @@
     </div>
   </div>
   <div class="card-footer bg-white border-0 p-4">
-    <form method="post" action="/Support/Reply/@Model.Id">
+    <form method="post" action="/portal/Support/Reply/@Model.Id">
       @Html.AntiForgeryToken()
       <label class="form-label fw-semibold">Reply</label>
       <textarea name="body" class="form-control mb-2" rows="4" required></textarea>

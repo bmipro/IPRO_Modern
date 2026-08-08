@@ -32,16 +32,16 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
   <div>
-    <div class="small text-muted mb-1"><a href="/Website">My Website</a> / <a href="/WebsitePages">Pages</a> / @(isNew ? "Create" : "Edit")</div>
+    <div class="small text-muted mb-1"><a href="/portal/Website">My Website</a> / <a href="/portal/WebsitePages">Pages</a> / @(isNew ? "Create" : "Edit")</div>
     <h2 class="fw-bold mb-1"><i class="fas fa-file-pen me-2 text-primary"></i>@ViewData["Title"]</h2>
     <div class="text-muted">Page settings control navigation and search details. Content blocks build the page itself.</div>
   </div>
   <div class="d-flex gap-2">
     @if (!isNew)
     {
-      <a href="/WebsitePages/Preview/@sitePage.Id" target="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview Page</a>
+      <a href="/portal/WebsitePages/Preview/@sitePage.Id" target="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview Page</a>
     }
-    <a href="/WebsitePages" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>All Pages</a>
+    <a href="/portal/WebsitePages" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>All Pages</a>
   </div>
 </div>
 @if (!isNew)
@@ -56,7 +56,7 @@
   }
 }
 
-<form method="post" action="/WebsitePages/SavePage" class="card border-0 shadow-sm mb-4">
+<form method="post" action="/portal/WebsitePages/SavePage" class="card border-0 shadow-sm mb-4">
   @Html.AntiForgeryToken()
   <input type="hidden" name="id" value="@sitePage.Id" />
   <div class="card-body p-4">
@@ -103,7 +103,7 @@
     <div class="card-body p-4">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div><h4 class="fw-bold mb-1"><i class="fas fa-images me-2 text-primary"></i>Image Library</h4><div class="text-muted small">Upload an image once, then select it in any content block.</div></div>
-        <form method="post" action="/WebsitePages/UploadImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
+        <form method="post" action="/portal/WebsitePages/UploadImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
           @Html.AntiForgeryToken()
           <input type="hidden" name="pageId" value="@sitePage.Id" />
           <div><label class="form-label small fw-semibold mb-1">JPG, PNG, GIF, or WebP (maximum 8 MB)</label><input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
@@ -152,7 +152,7 @@
                 {
                   <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2 uploaded-image-choice" data-image-url="@asset.BlobUrl" data-image-name="@asset.OriginalFileName"><i class="fas fa-check me-1"></i>Use this image</button>
                 }
-                <form method="post" action="/WebsitePages/DeleteImage/@asset.Id" onsubmit="return confirm('Remove this image from the library and any content blocks using it?');">
+                <form method="post" action="/portal/WebsitePages/DeleteImage/@asset.Id" onsubmit="return confirm('Remove this image from the library and any content blocks using it?');">
                   @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" /><button class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash me-1"></i>Remove</button>
                 </form>
               </div>
@@ -201,7 +201,7 @@
 
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
     <div><h4 class="fw-bold mb-1">Content Blocks</h4><div class="text-muted small">Blocks appear from top to bottom in this order.</div></div>
-    <form method="post" action="/WebsitePages/AddBlock" class="d-flex gap-2">
+    <form method="post" action="/portal/WebsitePages/AddBlock" class="d-flex gap-2">
       @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" />
       <select name="blockType" class="form-select">
         @foreach (var type in Model.BlockTypes){<option value="@type">@IPRO.Entities.WebsiteBlockTypes.DisplayName(type)</option>}
@@ -217,13 +217,13 @@
       <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 py-3">
         <div><span class="badge bg-primary-subtle text-primary me-2">@IPRO.Entities.WebsiteBlockTypes.DisplayName(block.BlockType)</span><span class="fw-bold">@(string.IsNullOrWhiteSpace(block.Heading) ? "Untitled block" : block.Heading)</span></div>
         <div class="d-flex gap-1">
-          <a href="/SocialPosts/Create?topic=@Uri.EscapeDataString(block.Heading ?? "")&seedBody=@Uri.EscapeDataString(StripHtml(block.Body))" class="btn btn-sm btn-outline-secondary" title="Share to Social"><i class="fas fa-share-nodes"></i></a>
-          <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="up" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button></form>
-          <form method="post" action="/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
-          <form method="post" action="/WebsitePages/DeleteBlock/@block.Id" onsubmit="return confirm('Remove this content block?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Remove"><i class="fas fa-trash"></i></button></form>
+          <a href="/portal/SocialPosts/Create?topic=@Uri.EscapeDataString(block.Heading ?? "")&seedBody=@Uri.EscapeDataString(StripHtml(block.Body))" class="btn btn-sm btn-outline-secondary" title="Share to Social"><i class="fas fa-share-nodes"></i></a>
+          <form method="post" action="/portal/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="up" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button></form>
+          <form method="post" action="/portal/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
+          <form method="post" action="/portal/WebsitePages/DeleteBlock/@block.Id" onsubmit="return confirm('Remove this content block?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Remove"><i class="fas fa-trash"></i></button></form>
         </div>
       </div>
-      <form method="post" action="/WebsitePages/UpdateBlock" class="card-body p-4">
+      <form method="post" action="/portal/WebsitePages/UpdateBlock" class="card-body p-4">
         @Html.AntiForgeryToken()<input type="hidden" name="id" value="@block.Id" />
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div>
@@ -363,7 +363,7 @@
               }
               else
               {
-                <div class="alert alert-info mb-0">Upload a document first from <a href="/Documents">Documents</a>, then come back here to attach it.</div>
+                <div class="alert alert-info mb-0">Upload a document first from <a href="/portal/Documents">Documents</a>, then come back here to attach it.</div>
               }
             </div>
           }
@@ -381,11 +381,11 @@
                     <option value="@availableForm.Id" selected="@(formSettings.WebsiteFormId == availableForm.Id ? "selected" : null)">@availableForm.Title</option>
                   }
                 </select>
-                <div class="form-text">Submissions land in your <a href="/WebsiteLeads">Website Leads</a> inbox.</div>
+                <div class="form-text">Submissions land in your <a href="/portal/WebsiteLeads">Website Leads</a> inbox.</div>
               }
               else
               {
-                <div class="alert alert-info mb-0">Build a form first from <a href="/Forms/Create">Forms</a>, then come back here to attach it.</div>
+                <div class="alert alert-info mb-0">Build a form first from <a href="/portal/Forms/Create">Forms</a>, then come back here to attach it.</div>
               }
             </div>
           }
@@ -410,7 +410,7 @@
               }
               else
               {
-                <div class="alert alert-info mb-0">Write an <a href="/Articles/Create">Article</a> first, then come back here to attach it.</div>
+                <div class="alert alert-info mb-0">Write an <a href="/portal/Articles/Create">Article</a> first, then come back here to attach it.</div>
               }
             </div>
             <div class="col-12">
@@ -439,7 +439,7 @@
               }
               else
               {
-                <div class="alert alert-info mb-0">Write an <a href="/Articles/Create">Article</a> first, then come back here to attach it.</div>
+                <div class="alert alert-info mb-0">Write an <a href="/portal/Articles/Create">Article</a> first, then come back here to attach it.</div>
               }
             </div>
           }
@@ -529,7 +529,7 @@
               </select>
             </div>
           }
-          <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><div class="d-flex gap-2"><button type="submit" formaction="/WebsitePages/PreviewUnsaved" formtarget="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview without Saving</button><button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div></div>
+          <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><div class="d-flex gap-2"><button type="submit" formaction="/portal/WebsitePages/PreviewUnsaved" formtarget="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview without Saving</button><button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div></div>
         </div>
       </form>
       @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Gallery)
@@ -556,7 +556,7 @@
                 <div class="col-6 col-md-3 col-xl-2">
                   <div class="border rounded p-2 h-100">
                     <img src="@galleryImage.Url" alt="" class="w-100 rounded mb-2" style="aspect-ratio:4/3;object-fit:cover" />
-                    <form method="post" action="/WebsitePages/DeleteGalleryImage" onsubmit="return confirm('Remove this photo from the gallery?');">
+                    <form method="post" action="/portal/WebsitePages/DeleteGalleryImage" onsubmit="return confirm('Remove this photo from the gallery?');">
                       @Html.AntiForgeryToken()
                       <input type="hidden" name="blockId" value="@block.Id" />
                       <input type="hidden" name="url" value="@galleryImage.Url" />
@@ -571,7 +571,7 @@
           {
             <div class="border rounded p-4 text-center text-muted mb-3"><i class="fas fa-images me-2"></i>No photos in this gallery yet.</div>
           }
-          <form method="post" action="/WebsitePages/UploadGalleryImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
+          <form method="post" action="/portal/WebsitePages/UploadGalleryImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
             @Html.AntiForgeryToken()
             <input type="hidden" name="blockId" value="@block.Id" />
             <div><label class="form-label small fw-semibold mb-1">Add a photo (JPG, PNG, GIF, or WebP, maximum 8 MB)</label><input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>

@@ -30,9 +30,9 @@
         }
         else
         {
-            <a href="/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
+            <a href="/portal/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
         }
-        <a href="/Clients/AccountTypes" class="btn btn-outline-primary"><i class="fas fa-tags me-1"></i>Account Types</a>
+        <a href="/portal/Clients/AccountTypes" class="btn btn-outline-primary"><i class="fas fa-tags me-1"></i>Account Types</a>
         @if (importIsLocked)
         {
             <button type="button" class="btn btn-outline-secondary" @Html.Raw(ImportLockAttributes())><i class="fas fa-file-import me-1"></i>Import CSV</button>
@@ -41,7 +41,7 @@
         {
             <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal" @(contactLimit?.CanAdd == false ? "disabled" : "")><i class="fas fa-file-import me-1"></i>Import CSV</button>
         }
-        <a href="/Clients/ExportCsv" class="btn btn-outline-success"><i class="fas fa-download me-1"></i>Export</a>
+        <a href="/portal/Clients/ExportCsv" class="btn btn-outline-success"><i class="fas fa-download me-1"></i>Export</a>
     </div>
 </div>
 
@@ -98,7 +98,7 @@
                 <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
                 @if (!string.IsNullOrEmpty(ViewBag.Search as string) || selectedAccountTypeId.HasValue || !string.IsNullOrEmpty(selectedNewsletter))
                 {
-                    <a href="/Clients" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
+                    <a href="/portal/Clients" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
                 }
             </div>
         </form>
@@ -157,8 +157,8 @@
                     <td><small class="text-muted">@c.CreatedAt.ToString("MMM d, yyyy")</small></td>
                     <td>
                         <div class="d-flex gap-1">
-                            <a href="/Clients/Details/@c.Id" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
-                            <a href="/Clients/Edit/@c.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                            <a href="/portal/Clients/Details/@c.Id" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="/portal/Clients/Edit/@c.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
                             <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" title="Delete" data-confirm-message="Delete @c.FirstName @c.LastName?"><i class="fas fa-trash"></i></button>
@@ -172,7 +172,7 @@
                 <tr>
                     <td colspan="8" class="text-center py-5 text-muted">
                         <i class="fas fa-users fa-3x d-block mb-3 opacity-25"></i>
-                        No clients found. <a href="/Clients/Create">Add a client</a> or
+                        No clients found. <a href="/portal/Clients/Create">Add a client</a> or
                         @if (importIsLocked)
                         {
                             <button type="button" class="btn btn-link p-0 align-baseline" @Html.Raw(ImportLockAttributes())>import from CSV</button>

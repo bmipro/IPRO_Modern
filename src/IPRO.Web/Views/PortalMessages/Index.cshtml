@@ -17,7 +17,7 @@
     }
     @foreach (var row in rows)
     {
-      <a href="/PortalMessages/Thread/@row.Client.Id" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+      <a href="/portal/PortalMessages/Thread/@row.Client.Id" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
         <div>
           <div class="fw-bold">@row.Client.FirstName @row.Client.LastName</div>
           <div class="small text-muted">@row.LastMessage.Body</div>

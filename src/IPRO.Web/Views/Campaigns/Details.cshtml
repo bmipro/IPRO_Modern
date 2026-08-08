@@ -5,7 +5,7 @@
 
 <div class="d-flex justify-content-between align-items-start mb-4">
   <div>
-    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="/Campaigns">Campaigns</a></li><li class="breadcrumb-item active">@Model.Campaign.Name</li></ol></nav>
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="/portal/Campaigns">Campaigns</a></li><li class="breadcrumb-item active">@Model.Campaign.Name</li></ol></nav>
     <h2 class="fw-bold mb-1"><i class="fas fa-stream me-2 text-success"></i>@Model.Campaign.Name</h2>
     <p class="text-muted mb-0">@Model.Campaign.Description</p>
   </div>
@@ -217,7 +217,7 @@
           <div class="tab-pane fade" id="form-step-pane" role="tabpanel" aria-labelledby="form-step-tab">
             @if (!Model.Forms.Any())
             {
-              <div class="alert alert-info mb-0">No reusable forms yet. Create one from the <a href="/Forms/Create">Forms</a> area, then it will appear here.</div>
+              <div class="alert alert-info mb-0">No reusable forms yet. Create one from the <a href="/portal/Forms/Create">Forms</a> area, then it will appear here.</div>
             }
             else
             {
@@ -247,7 +247,7 @@
           <div class="tab-pane fade" id="article-step-pane" role="tabpanel" aria-labelledby="article-step-tab">
             @if (!Model.Articles.Any())
             {
-              <div class="alert alert-info mb-0">No articles yet. Write one under <a href="/Articles/Create">Articles</a>, then it will appear here.</div>
+              <div class="alert alert-info mb-0">No articles yet. Write one under <a href="/portal/Articles/Create">Articles</a>, then it will appear here.</div>
             }
             else
             {

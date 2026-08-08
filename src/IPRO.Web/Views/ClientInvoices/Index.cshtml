@@ -31,9 +31,9 @@
   <div class="d-flex gap-2 flex-wrap">
     <a class="btn btn-outline-secondary" href="@exportUrl"><i class="fas fa-file-csv me-1"></i>Export CSV</a>
     <a class="btn btn-outline-secondary" href="@exportQuickBooksUrl" title="Invoices only, formatted for QuickBooks Online's Import Data wizard. Doesn't mark anything paid in QuickBooks - reconcile payments there after import."><i class="fas fa-file-invoice-dollar me-1"></i>Export for QuickBooks</a>
-    <a class="btn btn-outline-primary" href="/RecurringInvoices"><i class="fas fa-rotate me-1"></i>Recurring Schedules</a>
-    <a class="btn btn-primary" href="/ClientInvoices/Create?documentType=Estimate"><i class="fas fa-file-signature me-1"></i>New Estimate</a>
-    <a class="btn btn-success" href="/ClientInvoices/Create?documentType=Invoice"><i class="fas fa-plus me-1"></i>New Invoice</a>
+    <a class="btn btn-outline-primary" href="/portal/RecurringInvoices"><i class="fas fa-rotate me-1"></i>Recurring Schedules</a>
+    <a class="btn btn-primary" href="/portal/ClientInvoices/Create?documentType=Estimate"><i class="fas fa-file-signature me-1"></i>New Estimate</a>
+    <a class="btn btn-success" href="/portal/ClientInvoices/Create?documentType=Invoice"><i class="fas fa-plus me-1"></i>New Invoice</a>
   </div>
 </div>
 
@@ -41,9 +41,9 @@
   <div class="card-body p-3">
     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
       <div class="btn-group flex-wrap" role="group">
-        <a class="btn @FilterClass("all")" href="/ClientInvoices?documentType=all">All (@totalCount)</a>
-        <a class="btn @FilterClass("estimate")" href="/ClientInvoices?documentType=estimate">Estimates</a>
-        <a class="btn @FilterClass("invoice")" href="/ClientInvoices?documentType=invoice">Invoices</a>
+        <a class="btn @FilterClass("all")" href="/portal/ClientInvoices?documentType=all">All (@totalCount)</a>
+        <a class="btn @FilterClass("estimate")" href="/portal/ClientInvoices?documentType=estimate">Estimates</a>
+        <a class="btn @FilterClass("invoice")" href="/portal/ClientInvoices?documentType=invoice">Invoices</a>
       </div>
     </div>
     <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
@@ -92,13 +92,13 @@
         @foreach (var invoice in Model)
         {
           <tr>
-            <td><a href="/ClientInvoices/Details/@invoice.Id">@invoice.DocumentNumber</a></td>
+            <td><a href="/portal/ClientInvoices/Details/@invoice.Id">@invoice.DocumentNumber</a></td>
             <td>@invoice.DocumentType</td>
             <td>@invoice.Client?.FirstName @invoice.Client?.LastName</td>
             <td>@invoice.IssueDate.ToString("MMM d, yyyy")</td>
             <td class="text-end">$@invoice.Total.ToString("N2") @invoice.Currency</td>
             <td><span class="badge @StatusBadge(invoice.Status)">@invoice.Status</span></td>
-            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/ClientInvoices/Details/@invoice.Id">Open</a></td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/portal/ClientInvoices/Details/@invoice.Id">Open</a></td>
           </tr>
         }
       </tbody>
@@ -113,7 +113,7 @@
       @for (var p = 1; p <= totalPages; p++)
       {
         <li class="page-item @(p == page ? "active" : "")">
-          <a class="page-link" href="/ClientInvoices?documentType=@documentType&amp;status=@status&amp;search=@search&amp;page=@p">@p</a>
+          <a class="page-link" href="/portal/ClientInvoices?documentType=@documentType&amp;status=@status&amp;search=@search&amp;page=@p">@p</a>
         </li>
       }
     </ul>

@@ -22,12 +22,12 @@
 <div class="row mb-4">
   <div class="col">
     <nav aria-label="breadcrumb">
-      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/Clients">Clients</a></li><li class="breadcrumb-item active">@Model.FirstName @Model.LastName</li></ol>
+      <ol class="breadcrumb"><li class="breadcrumb-item"><a href="/portal/Clients">Clients</a></li><li class="breadcrumb-item active">@Model.FirstName @Model.LastName</li></ol>
     </nav>
     <div class="d-flex justify-content-between align-items-center">
       <h2 class="fw-bold mb-0">@Model.FirstName @Model.LastName</h2>
       <div class="d-flex gap-2">
-        <a href="/Clients/Edit/@Model.Id" class="btn btn-outline-primary"><i class="fas fa-edit me-1"></i>Edit</a>
+        <a href="/portal/Clients/Edit/@Model.Id" class="btn btn-outline-primary"><i class="fas fa-edit me-1"></i>Edit</a>
         <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
           @Html.AntiForgeryToken()
           <button type="submit" class="btn btn-outline-danger js-confirm-submit" data-confirm-message="Delete @Model.FirstName @Model.LastName permanently?"><i class="fas fa-trash me-1"></i>Delete</button>
@@ -198,7 +198,7 @@
         else
         {
           <div class="small text-primary mb-2"><i class="fas fa-hourglass-half me-1"></i>Submitted — awaiting your review</div>
-          <a class="btn btn-sm btn-outline-primary" href="/Testimonials/Edit/@testimonialRequest.Id">Review Testimonial</a>
+          <a class="btn btn-sm btn-outline-primary" href="/portal/Testimonials/Edit/@testimonialRequest.Id">Review Testimonial</a>
         }
       </div>
     </div>
@@ -218,7 +218,7 @@
               <li class="mb-2 d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-file me-1 text-muted"></i>@doc.FileName <span class="text-muted">(@(doc.UploadedByClient ? "Client" : "You"))</span></span>
                 <span class="d-flex gap-1">
-                  <a class="btn btn-sm btn-outline-secondary" href="/Clients/DownloadPortalDocument/@doc.Id">Download</a>
+                  <a class="btn btn-sm btn-outline-secondary" href="/portal/Clients/DownloadPortalDocument/@doc.Id">Download</a>
                   <form asp-action="DeletePortalDocument" asp-route-id="@doc.Id" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Delete @doc.FileName?"><i class="fas fa-trash"></i></button>
@@ -248,7 +248,7 @@
           <h5 class="fw-bold mb-0"><i class="fas fa-calendar-check me-2 text-primary"></i>Follow-ups</h5>
           <div class="d-flex align-items-center gap-2">
             <span class="badge bg-light text-muted">@allOpenFollowUps.Count open</span>
-            <a href="/Clients/FollowUps/@Model.Id" class="btn btn-sm btn-outline-primary">View all</a>
+            <a href="/portal/Clients/FollowUps/@Model.Id" class="btn btn-sm btn-outline-primary">View all</a>
           </div>
         </div>
       </div>
@@ -305,7 +305,7 @@
           @if (allOpenFollowUps.Count > openFollowUps.Count)
           {
             <div class="text-end mt-3">
-              <a href="/Clients/FollowUps/@Model.Id" class="small fw-semibold text-decoration-none">View @(allOpenFollowUps.Count - openFollowUps.Count) more open follow-ups</a>
+              <a href="/portal/Clients/FollowUps/@Model.Id" class="small fw-semibold text-decoration-none">View @(allOpenFollowUps.Count - openFollowUps.Count) more open follow-ups</a>
             </div>
           }
         }
@@ -331,7 +331,7 @@
         @if (totalFollowUps > openFollowUps.Count + completedFollowUps.Count)
         {
           <div class="text-end mt-3">
-            <a href="/Clients/FollowUps/@Model.Id?status=all" class="small fw-semibold text-decoration-none">Open full follow-up history</a>
+            <a href="/portal/Clients/FollowUps/@Model.Id?status=all" class="small fw-semibold text-decoration-none">Open full follow-up history</a>
           </div>
         }
       </div>
