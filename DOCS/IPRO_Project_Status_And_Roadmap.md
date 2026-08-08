@@ -2229,3 +2229,37 @@ of 15 checks failing; after, 15/15.
    signed-in check reported PASS against a build known to be broken. Rewritten on `HttpClient` with
    `UseCookies=$false`. Same defect class as the bug it tests for: an assertion whose precondition
    was never established.
+
+### 92. A green deploy now means the new build is serving (done, 2026-08-08)
+
+**Cause.** `WEBSITE_RUN_FROM_PACKAGE=1`: the worker serves an already-mounted package. A deploy
+uploads a new one, but nothing in either workflow restarted the site, so the mount never changed.
+`/health` returned `Healthy` throughout, because the app was up -- just not new. Basic tier has no
+deployment slots, so a swap (which restarts by definition) was never an option.
+
+This is the mechanical reason several "deployed and verified" entries earlier in this document are
+weaker evidence than they read: a `/health` check after deploy proves nothing about the change.
+
+**Fix** (`c50c065`, `b8df328`, `248abda`), in both workflows:
+
+1. `dotnet publish -p:SourceRevisionId=${{ github.sha }}` stamps the commit into
+   `AssemblyInformationalVersion`.
+2. New `GET /health/version` in both apps returns that commit. Under the already-never-shadowed
+   `health` prefix, so it needs no routing change and no agent page slug can shadow it.
+3. After deploying: restart, then poll `/health/version` until it returns the pushed commit, failing
+   the job after 5 minutes.
+
+**It caught the bug on its first run, twice.** Web: six polls returning nothing while the app
+recycled, green on the seventh. Admin: four polls still serving the PREVIOUS commit `b8df328` before
+flipping to `248abda` -- so the admin app does self-restart on publish-profile ZipDeploy, but with a
+lag long enough that the old build was live when the job would previously have reported success.
+
+**Admin needs no new permissions.** The CI service principal is scoped to `ipro-prod-web` only, so
+`az webapp restart` on admin returns AuthorizationFailed; its restart step is best-effort and the
+verify poll is the gate. Granting Website Contributor on `ipro-prod-admin` would tighten the timing
+but is not required, and is a production permissions change, so it was left to the owner.
+
+**Two mistakes made getting here, both worth remembering.** A bulk edit matched `-o ./publish` as a
+prefix of `-o ./publish-admin` and silently redirected the admin publish, emptying its artifact. And
+an RG-level `az role assignment list` was read as proof the CI principal had resource-group scope --
+it does not show assignments scoped to individual sites, so the conclusion was wrong.
