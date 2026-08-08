@@ -907,7 +907,7 @@ Secure login, messages, two-way documents, self-service "My Information," a real
 
 **Status**: design recommendation only — no code written, no credentials exist yet. Revisit this section when there's a Stripe (or alternative) merchant account to build against.
 
-### Bug: setup fee is charged but never shown anywhere agent-facing (found 2026-08-01, not yet fixed)
+### Bug: setup fee is charged but never shown anywhere agent-facing (found 2026-08-01, FIXED in 0938dc6, verified live 2026-08-08)
 
 `BillingRule.SetupFee` is a real, live charge — SuperAdmin sets it per package (`Packages/Create` and
 `Packages/Edit`), and it genuinely flows all the way through billing: `PayPalBillingService` includes
