@@ -39,6 +39,7 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 
 | # | Item | Notes |
 |---|---|---|
+| **399** | **Aug 10: count the charges — this is now a real test** | Late on 2026-08-09 Bahman cancelled every sandbox subscription **except `I-UV5VSN5RM0AP`**. So Aug 10 should show **exactly one $45.20 charge**. **More than one = orphans remain** (the Automatic Payments list had a "See more" button, so it was never fully enumerated) → finish #398. **IPRO will still show nothing, and that is expected**, not a new fault: `PayPal__WebhookId` is still unset so the charge is still rejected with 401. IPRO only starts recording once #397 is done. |
 | 367 | QA billing **day 2** | **BLOCKED — see #396/#397.** The overnight charges *did* happen (PayPal billed daily, correctly). IPRO recorded none of them because the webhook is rejected with 401. Do not upgrade to Gold until #397 is fixed, or day 3 will be just as blind. **The test worked** — it caught two real bugs, which is the only reason we know about either. |
 | 368 | QA billing **day 3** | Confirm charge, upgrade to QA Platinum (Daily), id **9**. |
 | 369 | QA billing **day 4** | Cancel + delete `bobtest`, then verify against PayPal's API that the subscription is physically CANCELLED. |
