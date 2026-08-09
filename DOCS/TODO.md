@@ -26,6 +26,9 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 
 | # | Item | Notes |
 |---|---|---|
+| **396** | **BILLING — cancellations never reach PayPal** | **Most serious open item.** Sandbox shows **3 concurrent Silver subscriptions billing daily** (Aug 8 and Aug 9, 3 × $45.20 each). They match the 3 Subscribe attempts within 11 minutes on Aug 7; IPRO marked two "Cancelled" — **in its own DB only**. On a real card a customer who retried signup twice would be billed 3× forever while the portal showed one subscription. This is audit finding **H-7, recorded as fixed** — so the fix likely covers only the downgrade path, not retry/supersede, or the cancel call fails silently. |
+| **397** | **BILLING — `PayPal__WebhookId` is not set in production** | **Confirmed root cause** of "PayPal charged 6 times, IPRO recorded nothing." `PayPalBillingService.cs:2419` returns false when WebhookId is blank → `HandleWebhookAsync` false → `Unauthorized()`. **Every webhook PayPal has ever sent has been rejected with 401.** The `PAYMENT.SALE.COMPLETED` handler is correct and has never been allowed to run. Fix: register the webhook in the PayPal dashboard → `https://app.iproadvisers.com/billing/webhook`, then set `PayPal__WebhookId`. SuperAdmin → PayPal Setup shows whether it's configured but cannot set it. |
+| **398** | **BILLING — audit ALL live sandbox subscriptions** | The sandbox buyer account pays for *every* test signup ever made (zedtester, earlier bobtest runs, all of them). If cancels never reached PayPal, orphans have accumulated since the beginning. Don't assume it's four — list them. Includes an untaxed **$60.00** on Aug 9 that Bahman did **not** create (he never upgraded to Gold); no tax + monthly anniversary timing suggests a stale Gold sub from an older build, before HST was added to the plans. Click that line in sandbox Activity to get its subscription id. |
 | 375 | Gated-agent portal sweep | Check every clickable control against the access gate's exemption list. Profile and the colour swatches were both found by hand; assume there is a third. |
 | 365 | Azure auto-heal rules | All that remains of the old Azure task — 64-bit and run-from-package are resolved. |
 | 374 | Delete prod test agent `zedtester` | Destructive; needs the owner's go-ahead. |
@@ -36,7 +39,7 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 
 | # | Item | Notes |
 |---|---|---|
-| 367 | QA billing **day 2** | Confirm the overnight PayPal charge on `bobtest`, then upgrade to QA Gold (Daily), package id **8**. |
+| 367 | QA billing **day 2** | **BLOCKED — see #396/#397.** The overnight charges *did* happen (PayPal billed daily, correctly). IPRO recorded none of them because the webhook is rejected with 401. Do not upgrade to Gold until #397 is fixed, or day 3 will be just as blind. **The test worked** — it caught two real bugs, which is the only reason we know about either. |
 | 368 | QA billing **day 3** | Confirm charge, upgrade to QA Platinum (Daily), id **9**. |
 | 369 | QA billing **day 4** | Cancel + delete `bobtest`, then verify against PayPal's API that the subscription is physically CANCELLED. |
 
