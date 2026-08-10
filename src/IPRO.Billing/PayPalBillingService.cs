@@ -876,6 +876,38 @@ public class PayPalBillingService : IBillingService
         }
         else
         {
+            // The activation bundle produces TWO PayPal sales (setup fee, then the first cycle
+            // minutes later) but signup writes ONE invoice covering both. Whichever sale arrives
+            // first marks that invoice paid; without this check the second one looked like a new
+            // billing cycle and got a duplicate invoice invented for it -- observed on the first
+            // organic webhook run (2026-08-10, I-RYCAW2SJMH73): the $172.47 setup sale became a
+            // spurious "$150.01 monthly recurring subscription" invoice on top of the $218.45
+            // signup invoice that already covered it. Double paper, not double charge.
+            //
+            // Rule: a sale that lands within the activation window (an invoice for this billing was
+            // settled in the last 6 hours) for LESS than that invoice's total is part of the bundle
+            // already invoiced -- record its transaction id against the invoice and stop. The window
+            // is hours, not a day, so tomorrow's genuine daily cycle (24h away) can never match;
+            // monthly cycles are further still.
+            var recentlySettled = (await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id && i.IsPaid))
+                .Where(i => i.IssuedAt > DateTime.UtcNow.AddHours(-6) && amount < i.Total)
+                .OrderByDescending(i => i.IssuedAt)
+                .FirstOrDefault();
+            if (recentlySettled != null)
+            {
+                if (!string.IsNullOrWhiteSpace(transactionId) &&
+                    !(recentlySettled.PayPalTransactionId ?? string.Empty).Contains(transactionId))
+                {
+                    // Keep every settling transaction on the invoice so the audit trail is honest.
+                    recentlySettled.PayPalTransactionId = string.IsNullOrWhiteSpace(recentlySettled.PayPalTransactionId)
+                        ? transactionId
+                        : $"{recentlySettled.PayPalTransactionId}, {transactionId}";
+                    _uow.Invoices.Update(recentlySettled);
+                    await _uow.SaveChangesAsync();
+                }
+                return true;
+            }
+
             var package = await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
 
             // PayPal reports the GROSS amount it charged -- the plan price is built tax-inclusive,
