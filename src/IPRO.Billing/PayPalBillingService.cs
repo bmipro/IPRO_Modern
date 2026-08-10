@@ -877,7 +877,30 @@ public class PayPalBillingService : IBillingService
         else
         {
             var package = await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
-            var recurringAmount = amount > 0 ? amount : billing.Amount;
+
+            // PayPal reports the GROSS amount it charged -- the plan price is built tax-inclusive,
+            // so the HST is already inside it. This used to be passed to CreateInvoiceAsync as the
+            // NET line amount, which added tax a second time: the first webhook-created invoice
+            // (IPRO-2026-000012, 2026-08-10) showed $45.20 + $5.88 HST = $51.08 for a charge that
+            // was actually $45.20. Found by the owner reading the invoice.
+            //
+            // So: back the net out with the agent's own rate and let the normal invoice path
+            // recompute the tax, which guarantees the invoice total equals what PayPal charged.
+            // billing.Amount (the fallback when the event carries no amount) is already stored net
+            // and must NOT be de-taxed.
+            decimal recurringAmount;
+            if (amount > 0)
+            {
+                var taxProbe = await CalculateTaxAsync(billing.AgentUserId, amount);
+                recurringAmount = taxProbe.Rate > 0
+                    ? Math.Round(amount / (1 + taxProbe.Rate), 2)
+                    : amount;
+            }
+            else
+            {
+                recurringAmount = billing.Amount;
+            }
+
             var invoice = package == null
                 ? await CreateInvoiceAsync(billing.Id, billing.AgentUserId, recurringAmount, true)
                 : await CreateInvoiceAsync(billing.Id, billing.AgentUserId, package, billing.Period, recurringAmount, 0, true);
