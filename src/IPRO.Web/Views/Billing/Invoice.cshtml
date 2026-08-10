@@ -391,7 +391,7 @@
             }
             @if (!string.IsNullOrWhiteSpace(agent?.Province) || !string.IsNullOrWhiteSpace(agent?.PostalCode))
             {
-              <br />@agent?.Province @agent?.PostalCode
+              <br />@($"{agent?.Province} {agent?.PostalCode}".Trim())
             }
             @if (!string.IsNullOrWhiteSpace(agent?.Country))
             {
