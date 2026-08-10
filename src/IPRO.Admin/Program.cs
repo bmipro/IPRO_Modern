@@ -296,6 +296,9 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
         await EnsureTableColumnAsync(db, "BillingRules", "TrialDurationDays", "ALTER TABLE `BillingRules` ADD COLUMN `TrialDurationDays` int NULL");
         await EnsureTableColumnAsync(db, "BillingRules", "TrialReminderDayOffsets", "ALTER TABLE `BillingRules` ADD COLUMN `TrialReminderDayOffsets` varchar(120) CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "BillingRules", "IsHiddenTestPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsHiddenTestPackage` tinyint(1) NOT NULL DEFAULT FALSE");
+        // Quebec's 14.975% needs 5 decimals as a fraction (0.14975); the original decimal(7,4) column
+        // rounded it to 0.1498, so invoices displayed "14.980 %" beside a region label saying 14.975%.
+        await EnsureDecimalColumnScaleAsync(db, "Invoices", "TaxRate", 5, "ALTER TABLE `Invoices` MODIFY COLUMN `TaxRate` decimal(7,5) NOT NULL");
         await EnsureTableColumnAsync(db, "AgentWebsites", "HeaderSettingsJson", "ALTER TABLE `AgentWebsites` ADD COLUMN `HeaderSettingsJson` longtext CHARACTER SET utf8mb4 NULL");
         await db.Database.ExecuteSqlRawAsync(
             "UPDATE `AgentWebsites` SET `HeaderSettingsJson` = {0} WHERE `HeaderSettingsJson` IS NULL OR `HeaderSettingsJson` = ''",
@@ -1441,6 +1444,46 @@ WHERE TABLE_SCHEMA = DATABASE()
                 // escapes Main and Linux aborts the process (SIGABRT) -- the outage signature from
                 // 2026-07-29. Keep this in step with the IPRO.Web copy.
             }
+        }
+    }
+    finally
+    {
+        if (ownsConnection) await db.Database.CloseConnectionAsync();
+    }
+}
+
+// Widens a decimal column whose scale proved too small. Only ever widens: if the live column's
+// NUMERIC_SCALE is already at or above the requested scale, nothing runs. No 1060-style race catch
+// on purpose: unlike ADD COLUMN, a MODIFY that loses the web/admin startup race simply re-applies
+// the same definition and succeeds. Keep this in step with the IPRO.Web copy.
+static async Task EnsureDecimalColumnScaleAsync(IPRODbContext db, string tableName, string columnName, int minScale, string alterSql)
+{
+    var ownsConnection = db.Database.GetDbConnection().State != System.Data.ConnectionState.Open;
+    if (ownsConnection) await db.Database.OpenConnectionAsync();
+    try
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = @"
+SELECT COALESCE(MAX(NUMERIC_SCALE), -1)
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = @tableName
+  AND COLUMN_NAME = @columnName";
+
+        var tableParameter = command.CreateParameter();
+        tableParameter.ParameterName = "@tableName";
+        tableParameter.Value = tableName;
+        command.Parameters.Add(tableParameter);
+
+        var columnParameter = command.CreateParameter();
+        columnParameter.ParameterName = "@columnName";
+        columnParameter.Value = columnName;
+        command.Parameters.Add(columnParameter);
+
+        var scale = Convert.ToInt32(await command.ExecuteScalarAsync());
+        if (scale >= 0 && scale < minScale)
+        {
+            await db.Database.ExecuteSqlRawAsync(alterSql);
         }
     }
     finally

@@ -927,6 +927,16 @@ public class PayPalBillingService : IBillingService
                 recurringAmount = taxProbe.Rate > 0
                     ? Math.Round(amount / (1 + taxProbe.Rate), 2)
                     : amount;
+
+                // Dividing a rounded gross can land a cent away from the advertised price (PayPal
+                // billed Quebec's 14.975% as 14.98% and the de-tax printed $150.01 against an
+                // advertised $150 -- owner-reported, 2026-08-10). billing.Amount IS the advertised
+                // net the agent signed up at, so when the de-tax lands within pennies of it, the
+                // stored net is the truth and the invoice must say it exactly.
+                if (billing.Amount > 0 && Math.Abs(recurringAmount - billing.Amount) <= 0.02m)
+                {
+                    recurringAmount = billing.Amount;
+                }
             }
             else
             {
@@ -1859,35 +1869,47 @@ public class PayPalBillingService : IBillingService
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
+        // WE DO THE TAX MATH; PAYPAL ONLY GETS FINISHED, TAX-INCLUSIVE PRICES (2026-08-10)
+        //
+        // Two hard-won facts shape this block:
+        //
+        // 1. Taxes are a SIBLING of payment_preferences, not a child (2026-08-06). Nested inside,
+        //    PayPal returns 201 with plan_overridden:true and silently discards the override, so the
+        //    tax was displayed on invoices but never collected.
+        //
+        // 2. PayPal cannot bill a 3-decimal tax percentage (2026-08-10). It ACCEPTS "14.975" and even
+        //    echoes it back while the subscription is APPROVAL_PENDING, but on approval it bills at
+        //    14.98% and persists that. Quebec's GST+QST is 14.975%, so an exclusive percentage always
+        //    overcharges: the $150 setup fee arrived as $172.47 while the invoice said $150 + $22.46
+        //    = $172.46 -- and backing the net out of $172.47 printed $150.01 against an advertised
+        //    price of $150. The owner flagged both.
+        //
+        // So instead of asking PayPal to add tax, every amount is grossed up here with the exact
+        // provincial rate -- the same net + Math.Round(net * rate) arithmetic CalculateTaxAsync uses,
+        // so a PayPal charge always equals the matching invoice line to the penny -- and taxes are
+        // declared inclusive, which PayPal treats as informational and never recomputes. The plan's
+        // stored prices stay NET (plans are shared across provinces); the gross is applied per
+        // subscription via the billing_cycles override, verified accepted by the live sandbox.
         var paymentPreferences = new Dictionary<string, object>();
-        if (setupFee > 0)
-        {
-            paymentPreferences["setup_fee"] = new
-            {
-                currency_code = invoice.Currency,
-                value = setupFee.ToString("0.00")
-            };
-        }
-
-        // TAXES ARE A SIBLING OF payment_preferences, NOT A CHILD (fixed 2026-08-06)
-        //
-        // This used to be written into paymentPreferences. PayPal accepts that request happily -- 201,
-        // plan_overridden: true, no error, no warning -- and silently DISCARDS the override, so every
-        // subscription charged the pre-tax amount while the invoice recorded tax as owed. Confirmed
-        // against the live sandbox by creating one subscription of each shape and reading back
-        // ?fields=plan:
-        //     taxes inside payment_preferences -> taxes ABSENT
-        //     taxes beside payment_preferences -> taxes {"percentage":"13.0","inclusive":false}
-        //
-        // That is a collection and remittance problem, not a display one: HST appears on the agent's
-        // invoice but was never taken from them.
         object? taxes = null;
+        object[]? cycleOverrides = null;
         if (invoice.TaxRate > 0)
         {
             taxes = new
             {
                 percentage = (invoice.TaxRate * 100).ToString("0.###", CultureInfo.InvariantCulture),
-                inclusive = false
+                inclusive = true
+            };
+            cycleOverrides = await BuildTaxInclusiveCycleOverridesAsync(client, planId, invoice.TaxRate);
+        }
+
+        if (setupFee > 0)
+        {
+            var setupFeeCharged = invoice.TaxRate > 0 ? AddTax(setupFee, invoice.TaxRate) : setupFee;
+            paymentPreferences["setup_fee"] = new
+            {
+                currency_code = invoice.Currency,
+                value = setupFeeCharged.ToString("0.00", CultureInfo.InvariantCulture)
             };
         }
 
@@ -1924,11 +1946,12 @@ public class PayPalBillingService : IBillingService
             payload["start_time"] = startTimeUtc.Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
         }
 
-        if (paymentPreferences.Count > 0 || taxes != null)
+        if (paymentPreferences.Count > 0 || taxes != null || cycleOverrides is { Length: > 0 })
         {
             var planOverride = new Dictionary<string, object>();
             if (paymentPreferences.Count > 0) planOverride["payment_preferences"] = paymentPreferences;
             if (taxes != null) planOverride["taxes"] = taxes;
+            if (cycleOverrides is { Length: > 0 }) planOverride["billing_cycles"] = cycleOverrides;
             payload["plan"] = planOverride;
         }
 
@@ -1949,6 +1972,55 @@ public class PayPalBillingService : IBillingService
             .GetProperty("href").GetString() ?? string.Empty;
 
         return new PayPalSubscriptionResult(subscriptionId, approvalUrl);
+    }
+
+    // Gross a net price up the same way CalculateTaxAsync builds an invoice (net + rounded tax),
+    // NOT Math.Round(net * (1 + rate)) -- for a 2-decimal net the two are equivalent, but writing it
+    // this way makes "the PayPal charge equals the invoice total" true by construction, not by proof.
+    private static decimal AddTax(decimal net, decimal rate) =>
+        net + Math.Round(net * rate, 2, MidpointRounding.AwayFromZero);
+
+    // Plans store NET prices and are shared by every province, so the tax-inclusive gross has to be
+    // applied per subscription. PayPal's subscription create accepts a billing_cycles override keyed
+    // by sequence (verified against the live sandbox 2026-08-10); reading the plan back first keeps
+    // this correct for multi-cycle promo plans and the QA daily plans without special-casing them.
+    private async Task<object[]> BuildTaxInclusiveCycleOverridesAsync(HttpClient client, string planId, decimal taxRate)
+    {
+        using var response = await client.GetAsync($"{_settings.BaseUrl}/v1/billing/plans/{planId}");
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"PayPal plan lookup failed: {json}");
+        }
+
+        using var document = JsonDocument.Parse(json);
+        var overrides = new List<object>();
+        foreach (var cycle in document.RootElement.GetProperty("billing_cycles").EnumerateArray())
+        {
+            if (!cycle.TryGetProperty("pricing_scheme", out var scheme) ||
+                !scheme.TryGetProperty("fixed_price", out var price))
+            {
+                continue;
+            }
+
+            var net = decimal.Parse(price.GetProperty("value").GetString() ?? "0", CultureInfo.InvariantCulture);
+            overrides.Add(new
+            {
+                sequence = cycle.GetProperty("sequence").GetInt32(),
+                pricing_scheme = new
+                {
+                    fixed_price = new
+                    {
+                        currency_code = price.TryGetProperty("currency_code", out var currency)
+                            ? currency.GetString() ?? "CAD"
+                            : "CAD",
+                        value = AddTax(net, taxRate).ToString("0.00", CultureInfo.InvariantCulture)
+                    }
+                }
+            });
+        }
+
+        return overrides.ToArray();
     }
 
     private async Task<string> CreatePayPalProductAsync(BillingRule package)

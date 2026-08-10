@@ -354,7 +354,9 @@ public class IPRODbContext : DbContext
             e.HasIndex(i => i.InvoiceNumber).IsUnique();
             e.Property(i => i.SubTotal).HasPrecision(10, 2);
             e.Property(i => i.TaxAmount).HasPrecision(10, 2);
-            e.Property(i => i.TaxRate).HasPrecision(7, 4);
+            // (7,5), not (7,4): Quebec's combined GST+QST is 14.975% and a 4-decimal column rounds
+            // 0.14975 to 0.1498, which is how invoices came to display "14.980 %" (2026-08-10).
+            e.Property(i => i.TaxRate).HasPrecision(7, 5);
             e.Property(i => i.TaxRegion).HasMaxLength(80);
             e.Property(i => i.Total).HasPrecision(10, 2);
         });
