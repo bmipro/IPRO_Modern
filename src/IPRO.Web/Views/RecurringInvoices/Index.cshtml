@@ -63,9 +63,9 @@
                   <button class="btn btn-sm btn-outline-success">Resume</button>
                 </form>
               }
-              <form method="post" action="/portal/RecurringInvoices/Delete/@schedule.Id" class="d-inline" onsubmit="return confirm('Delete this recurring schedule?');">
+              <form method="post" action="/portal/RecurringInvoices/Delete/@schedule.Id" class="d-inline">
                 @Html.AntiForgeryToken()
-                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                <button class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Delete this recurring schedule?">Delete</button>
               </form>
             </td>
           </tr>

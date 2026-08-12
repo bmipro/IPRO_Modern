@@ -101,11 +101,11 @@
                 <small class="text-muted">@(a.Content.Length > 80 ? a.Content[..80] + "..." : a.Content)</small>
               </div>
               <a href="/portal/SocialPosts/Create?topic=@Uri.EscapeDataString(a.Title ?? "")&seedBody=@Uri.EscapeDataString(StripHtml(a.Content))" class="btn btn-outline-secondary btn-sm" title="Share to Social"><i class="fas fa-share-nodes"></i></a>
-              <form asp-action="DeleteArticle" method="post" onsubmit="return confirm('Remove this article?')">
+              <form asp-action="DeleteArticle" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@a.Id"/>
                 <input type="hidden" name="newsletterId" value="@Model.Id"/>
-                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
+                <button type="submit" class="js-confirm-submit btn btn-outline-danger btn-sm" data-confirm-message="Remove this article?"><i class="fas fa-trash"></i></button>
               </form>
             </div>
           }

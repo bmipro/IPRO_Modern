@@ -278,8 +278,13 @@ app.Use(async (context, next) =>
     // product functionality. Requested 2026-08-08 after a real signup showed these bouncing silently
     // back to /Billing. SetPortalAccentColor is safe to expose here: it accepts only a colour from a
     // fixed allow-list and only redirects to a local URL.
+    // UploadPhoto/RemovePhoto belong to the same own-account rule as Profile itself: the Photo card
+    // renders on the (exempt) Profile page, but its forms post to these separate paths, so a gated
+    // agent's photo change 302'd silently to /Billing (found by the #375 sweep, 2026-08-12).
     var canUseOwnAccount = path.StartsWith("/Account/Profile", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("/Account/SetPortalAccentColor", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/Account/UploadPhoto", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/Account/RemovePhoto", StringComparison.OrdinalIgnoreCase)
         || canChangePassword;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
     if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout && !canUseOwnAccount)

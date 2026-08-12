@@ -85,9 +85,9 @@
             </form>
             @if (template.IsActive)
             {
-              <form method="post" action="/WebsiteTemplates/Retire/@template.Id" class="d-inline" onsubmit="return confirm('Retire @template.Name? @item.WebsiteCount agent site(s) currently use it. Existing sites remain online and those agents will be prompted to choose another template.');">
+              <form method="post" action="/WebsiteTemplates/Retire/@template.Id" class="d-inline">
                 @Html.AntiForgeryToken()
-                <button class="btn btn-sm btn-outline-warning" type="submit" title="Retire template"><i class="fas fa-box-archive"></i></button>
+                <button class="js-confirm-submit btn btn-sm btn-outline-warning" type="submit" title="Retire template" data-confirm-message="Retire @template.Name? @item.WebsiteCount agent site(s) currently use it. Existing sites remain online and those agents will be prompted to choose another template."><i class="fas fa-box-archive"></i></button>
               </form>
             }
             else
@@ -97,9 +97,9 @@
                 <button class="btn btn-sm btn-outline-success" type="submit" title="Restore template"><i class="fas fa-rotate-left"></i></button>
               </form>
             }
-            <form method="post" action="/WebsiteTemplates/Delete/@template.Id" class="d-inline" onsubmit="return confirm('Delete this template? This is only allowed when no agents or packages use it.');">
+            <form method="post" action="/WebsiteTemplates/Delete/@template.Id" class="d-inline">
               @Html.AntiForgeryToken()
-              <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+              <button class="js-confirm-submit btn btn-sm btn-outline-danger" type="submit" data-confirm-message="Delete this template? This is only allowed when no agents or packages use it.">Delete</button>
             </form>
           </td>
         </tr>

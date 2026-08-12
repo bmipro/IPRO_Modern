@@ -63,7 +63,7 @@
               <form method="post" action="/portal/WebsitePages/Duplicate/@sitePage.Id">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary"><i class="fas fa-copy me-1"></i>Duplicate</button></form>
               @if (!sitePage.IsHomePage)
               {
-                <form method="post" action="/portal/WebsitePages/Delete/@sitePage.Id" onsubmit="return confirm('Delete @sitePage.Title and all of its content blocks?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form>
+                <form method="post" action="/portal/WebsitePages/Delete/@sitePage.Id">@Html.AntiForgeryToken()<button class="js-confirm-submit btn btn-sm btn-outline-danger" title="Delete" data-confirm-message="Delete @sitePage.Title and all of its content blocks?"><i class="fas fa-trash"></i></button></form>
               }
             </div>
           </td>

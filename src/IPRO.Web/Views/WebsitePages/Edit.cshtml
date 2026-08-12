@@ -152,8 +152,8 @@
                 {
                   <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2 uploaded-image-choice" data-image-url="@asset.BlobUrl" data-image-name="@asset.OriginalFileName"><i class="fas fa-check me-1"></i>Use this image</button>
                 }
-                <form method="post" action="/portal/WebsitePages/DeleteImage/@asset.Id" onsubmit="return confirm('Remove this image from the library and any content blocks using it?');">
-                  @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" /><button class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash me-1"></i>Remove</button>
+                <form method="post" action="/portal/WebsitePages/DeleteImage/@asset.Id">
+                  @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" /><button class="js-confirm-submit btn btn-sm btn-outline-danger w-100" data-confirm-message="Remove this image from the library and any content blocks using it?"><i class="fas fa-trash me-1"></i>Remove</button>
                 </form>
               </div>
             </div>
@@ -220,7 +220,7 @@
           <a href="/portal/SocialPosts/Create?topic=@Uri.EscapeDataString(block.Heading ?? "")&seedBody=@Uri.EscapeDataString(StripHtml(block.Body))" class="btn btn-sm btn-outline-secondary" title="Share to Social"><i class="fas fa-share-nodes"></i></a>
           <form method="post" action="/portal/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="up" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move up"><i class="fas fa-arrow-up"></i></button></form>
           <form method="post" action="/portal/WebsitePages/MoveBlock/@block.Id"><input type="hidden" name="direction" value="down" />@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Move down"><i class="fas fa-arrow-down"></i></button></form>
-          <form method="post" action="/portal/WebsitePages/DeleteBlock/@block.Id" onsubmit="return confirm('Remove this content block?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Remove"><i class="fas fa-trash"></i></button></form>
+          <form method="post" action="/portal/WebsitePages/DeleteBlock/@block.Id">@Html.AntiForgeryToken()<button class="js-confirm-submit btn btn-sm btn-outline-danger" title="Remove" data-confirm-message="Remove this content block?"><i class="fas fa-trash"></i></button></form>
         </div>
       </div>
       <form method="post" action="/portal/WebsitePages/UpdateBlock" class="card-body p-4">
@@ -556,11 +556,11 @@
                 <div class="col-6 col-md-3 col-xl-2">
                   <div class="border rounded p-2 h-100">
                     <img src="@galleryImage.Url" alt="" class="w-100 rounded mb-2" style="aspect-ratio:4/3;object-fit:cover" />
-                    <form method="post" action="/portal/WebsitePages/DeleteGalleryImage" onsubmit="return confirm('Remove this photo from the gallery?');">
+                    <form method="post" action="/portal/WebsitePages/DeleteGalleryImage">
                       @Html.AntiForgeryToken()
                       <input type="hidden" name="blockId" value="@block.Id" />
                       <input type="hidden" name="url" value="@galleryImage.Url" />
-                      <button class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash me-1"></i>Remove</button>
+                      <button class="js-confirm-submit btn btn-sm btn-outline-danger w-100" data-confirm-message="Remove this photo from the gallery?"><i class="fas fa-trash me-1"></i>Remove</button>
                     </form>
                   </div>
                 </div>

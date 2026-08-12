@@ -34,7 +34,7 @@
             {
               <form method="post" action="/WebsiteStarterForms/Restore/@form.Id">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-success">Restore</button></form>
             }
-            <form method="post" action="/WebsiteStarterForms/Delete/@form.Id" onsubmit="return confirm('Delete this starter form? Agents who already adopted a copy are unaffected.');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form>
+            <form method="post" action="/WebsiteStarterForms/Delete/@form.Id">@Html.AntiForgeryToken()<button class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Delete this starter form? Agents who already adopted a copy are unaffected."><i class="fas fa-trash"></i></button></form>
           </div>
         </td>
       </tr>

@@ -225,9 +225,12 @@
     {
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span class="text-success"><i class="fas fa-circle-check me-2"></i>Connected as <strong>@googleConnection.GoogleAccountEmail</strong></span>
-        <form asp-controller="GoogleCalendar" asp-action="Disconnect" method="post" onsubmit="return confirm('Disconnect Google Calendar? Events already synced will stay as-is, but new changes will stop syncing.');">
+        <form asp-controller="GoogleCalendar" asp-action="Disconnect" method="post">
           @Html.AntiForgeryToken()
-          <button type="submit" class="btn btn-sm btn-outline-danger">Disconnect</button>
+          @* js-confirm-submit, not onsubmit=confirm(): CSP's script-src drops inline handlers, which
+             made the old confirm silently vanish -- the Disconnect fired with no prompt at all. *@
+          <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit"
+                  data-confirm-message="Disconnect Google Calendar? Events already synced will stay as-is, but new changes will stop syncing.">Disconnect</button>
         </form>
       </div>
     }

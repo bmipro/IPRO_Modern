@@ -52,9 +52,9 @@
                 <button class="btn btn-sm btn-outline-success" type="submit" title="Show to agents"><i class="fas fa-eye"></i></button>
               </form>
             }
-            <form method="post" action="/NewsletterTemplates/Delete/@template.Id" class="d-inline" onsubmit="return confirm('Delete this template?');">
+            <form method="post" action="/NewsletterTemplates/Delete/@template.Id" class="d-inline">
               @Html.AntiForgeryToken()
-              <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+              <button class="js-confirm-submit btn btn-sm btn-outline-danger" type="submit" data-confirm-message="Delete this template?">Delete</button>
             </form>
           </td>
         </tr>

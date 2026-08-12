@@ -47,7 +47,7 @@
     {
       <div class="d-flex align-items-center justify-content-between gap-3 border-top py-3">
         <div><strong>@(platformLabels.TryGetValue(link.Platform, out var label) ? label : link.Platform)</strong><div class="small text-muted text-break">@link.Url</div></div>
-        <form method="post" action="/portal/WebsitePages/DeleteSocialLink" onsubmit="return confirm('Remove this social link?');">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form>
+        <form method="post" action="/portal/WebsitePages/DeleteSocialLink">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Remove this social link?"><i class="fas fa-trash"></i></button></form>
       </div>
     }
   </div>
@@ -77,7 +77,7 @@
     {
       <div class="d-flex align-items-center justify-content-between gap-3 border-top py-3">
         <div><strong>@link.Label</strong><div class="small text-muted text-break">@link.Url</div></div>
-        <form method="post" action="/portal/WebsitePages/DeleteLegalLink" onsubmit="return confirm('Remove this legal link?');">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button></form>
+        <form method="post" action="/portal/WebsitePages/DeleteLegalLink">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Remove this legal link?"><i class="fas fa-trash"></i></button></form>
       </div>
     }
   </div>

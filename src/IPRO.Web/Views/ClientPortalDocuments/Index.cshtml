@@ -47,9 +47,9 @@
               <a class="btn btn-sm btn-outline-success" href="/ClientPortalDocuments/Download/@doc.Id">Download</a>
               @if (doc.UploadedByClient)
               {
-                <form asp-action="Delete" asp-route-id="@doc.Id" method="post" class="d-inline" onsubmit="return confirm('Delete @doc.FileName.Replace("'", "")?')">
+                <form asp-action="Delete" asp-route-id="@doc.Id" method="post" class="d-inline">
                   @Html.AntiForgeryToken()
-                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                  <button type="submit" class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Delete @doc.FileName?"><i class="fas fa-trash"></i></button>
                 </form>
               }
             </td>
