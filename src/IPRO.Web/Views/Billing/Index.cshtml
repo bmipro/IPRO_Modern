@@ -270,7 +270,7 @@ else
           var invoiceStatus = GetInvoiceStatus(inv);
           <tr>
             <td class="fw-semibold small">@inv.InvoiceNumber</td>
-            <td><small class="text-muted">@inv.IssuedAt.ToString("MMM d, yyyy")</small></td>
+            <td><small class="text-muted">@IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(inv.IssuedAt, ViewBag.AgentTimeZone as string).ToString("MMM d, yyyy")</small></td>
             <td>
               @if (inv.LineItems?.Any() == true)
               {

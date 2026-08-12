@@ -885,12 +885,18 @@ public class PayPalBillingService : IBillingService
             // signup invoice that already covered it. Double paper, not double charge.
             //
             // Rule: a sale that lands within the activation window (an invoice for this billing was
-            // settled in the last 6 hours) for LESS than that invoice's total is part of the bundle
-            // already invoiced -- record its transaction id against the invoice and stop. The window
-            // is hours, not a day, so tomorrow's genuine daily cycle (24h away) can never match;
-            // monthly cycles are further still.
+            // settled in the last 6 hours) for NO MORE than that invoice's total is part of the
+            // bundle already invoiced -- record its transaction id against the invoice and stop. The
+            // window is hours, not a day, so tomorrow's genuine daily cycle (24h away) can never
+            // match; monthly cycles are further still.
+            //
+            // "No more than", not "less than": an UPGRADE's invoice covers exactly one charge (the
+            // prorated difference), so the sale EQUALS the invoice total. The original strict < was
+            // written for the signup bundle where each sale is a fraction of the invoice, and let
+            // the first upgrade through this path mint a duplicate (IPRO-2026-000011, 2026-08-11:
+            // two $20.30 invoice emails for one $20.30 charge -- owner-reported).
             var recentlySettled = (await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id && i.IsPaid))
-                .Where(i => i.IssuedAt > DateTime.UtcNow.AddHours(-6) && amount < i.Total)
+                .Where(i => i.IssuedAt > DateTime.UtcNow.AddHours(-6) && amount <= i.Total)
                 .OrderByDescending(i => i.IssuedAt)
                 .FirstOrDefault();
             if (recentlySettled != null)
@@ -1765,7 +1771,7 @@ public class PayPalBillingService : IBillingService
                 <div style="display:table-cell;width:50%;background:#f8fafc;border:1px solid #dbe5f2;border-radius:12px;padding:16px;vertical-align:top;">
                   <div style="color:#64748b;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Invoice Details</div>
                   <div><strong>Invoice #:</strong> {WebUtility.HtmlEncode(invoice.InvoiceNumber)}</div>
-                  <div><strong>Date:</strong> {invoice.IssuedAt:MMMM d, yyyy}</div>
+                  <div><strong>Date:</strong> {IPRO.DataAccess.AgentLocalTime.FromUtc(invoice.IssuedAt, agent.TimeZone):MMMM d, yyyy}</div>
                   <div><strong>Status:</strong> Paid</div>
                   {(string.IsNullOrWhiteSpace(invoice.PayPalTransactionId) ? "" : $"<div><strong>PayPal transaction:</strong> {WebUtility.HtmlEncode(invoice.PayPalTransactionId)}</div>")}
                 </div>
@@ -1779,11 +1785,22 @@ public class PayPalBillingService : IBillingService
                 </thead>
                 <tbody>{rows}</tbody>
               </table>
-              <div style="margin-left:auto;margin-top:20px;max-width:320px;">
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #e5edf7;padding:8px 0;"><span>Subtotal</span><strong>${invoice.SubTotal:N2} {invoice.Currency}</strong></div>
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #e5edf7;padding:8px 0;"><span>Tax {WebUtility.HtmlEncode(invoice.TaxRegion)}</span><strong>${invoice.TaxAmount:N2} {invoice.Currency}</strong></div>
-                <div style="display:flex;justify-content:space-between;padding:12px 0;color:#1457d9;font-size:20px;"><strong>Total</strong><strong>${invoice.Total:N2} {invoice.Currency}</strong></div>
-              </div>
+              <!-- A table, not flex divs: Gmail strips display:flex, which crammed the label and
+                   amount together ("Subtotal$40.00" -- owner-reported 2026-08-11). -->
+              <table style="width:100%;max-width:320px;margin-left:auto;margin-top:20px;border-collapse:collapse;">
+                <tr>
+                  <td style="border-bottom:1px solid #e5edf7;padding:8px 0;">Subtotal</td>
+                  <td style="border-bottom:1px solid #e5edf7;padding:8px 0;text-align:right;"><strong>${invoice.SubTotal:N2} {invoice.Currency}</strong></td>
+                </tr>
+                <tr>
+                  <td style="border-bottom:1px solid #e5edf7;padding:8px 0;">Tax {WebUtility.HtmlEncode(invoice.TaxRegion)}</td>
+                  <td style="border-bottom:1px solid #e5edf7;padding:8px 0;text-align:right;"><strong>${invoice.TaxAmount:N2} {invoice.Currency}</strong></td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;color:#1457d9;font-size:20px;"><strong>Total</strong></td>
+                  <td style="padding:12px 0;color:#1457d9;font-size:20px;text-align:right;"><strong>${invoice.Total:N2} {invoice.Currency}</strong></td>
+                </tr>
+              </table>
               <p style="margin:26px 0;">{invoiceButton}</p>
               {billingButton}
               <p style="margin-top:26px;">Thank you for your business. Please keep this invoice for your records.</p>

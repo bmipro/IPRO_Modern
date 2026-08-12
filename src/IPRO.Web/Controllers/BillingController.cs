@@ -46,6 +46,7 @@ public class BillingController : Controller
         ViewBag.IsAccessGated = isAccessGated;
         var agent = await _uow.AgentUsers.GetByIdAsync(AgentId);
         ViewBag.TrialEndsAt = agent?.TrialEndsAt;
+        ViewBag.AgentTimeZone = agent?.TimeZone;
 
         if (isAccessGated)
         {

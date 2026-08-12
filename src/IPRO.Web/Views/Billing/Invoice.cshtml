@@ -403,7 +403,7 @@
         <div class="panel">
           <div class="label">Invoice Details</div>
           <div><strong>Invoice #:</strong> @Model.InvoiceNumber</div>
-          <div><strong>Date:</strong> @Model.IssuedAt.ToString("MMMM d, yyyy")</div>
+          <div><strong>Date:</strong> @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(Model.IssuedAt, agent?.TimeZone).ToString("MMMM d, yyyy")</div>
           <div><strong>Package:</strong> @(package?.PackageName ?? "IPRO package")</div>
           @if (!string.IsNullOrWhiteSpace(Model.PayPalTransactionId))
           {
