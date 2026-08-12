@@ -64,7 +64,7 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 |---|---|---|
 | 378 | Broker / team / white-label model | Designed 2026-07-22, reconfirmed wanted 2026-08-01 |
 | 379 | Secretary / assistant sub-user logins | Conceptual only; reinstated 2026-08-01 after being silently dropped from a backlog rewrite for a week |
-| 380 | SMS reminders | Not built; vendor pricing researched 2026-07-20 |
+| 380 | SMS reminders | Not built. Vendor pricing researched 2026-07-20 (Twilio US) and **2026-08-12 (full Canada cost model + provider comparison incl. WhatsApp -- see the SMS section of the roadmap doc)**: ~$800-1,000/mo at 100 agents x 10 SMS + 10 WhatsApp each way daily; Sent (sent.dm) evaluated and rejected (no track record, support blackholes); Telnyx/Plivo are the price-competitive credible alternatives to Twilio. |
 | 380 | In-portal payments | Not started; recommendation recorded 2026-07-23 |
 | 380 | Real estate vertical: IDX listings | Not scoped |
 | 380 | Social media **auto-publishing** | The shipped Social Posts feature is a composer/tracker only |

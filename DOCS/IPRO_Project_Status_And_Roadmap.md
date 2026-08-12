@@ -131,7 +131,7 @@ Doing this automatically surfaces the feature as a checkbox in Super Admin's **P
 ### Important missing product pieces
 - Document upload/storage (done — see item 17: a scoped version already existed inside the Client Portal; a general-purpose agent-side document library outside the portal context now exists too).
 - Appointment booking (done — see item 15: scheduling a request now creates a real Calendar follow-up and emails the client the confirmed time).
-- SMS reminders (not built — vendor pricing researched 2026-07-20, see "SMS reminders" under Bigger Product Ideas below).
+- SMS reminders (not built — vendor pricing researched 2026-07-20 and full Canada cost model 2026-08-12, see "SMS reminders" under Bigger Product Ideas below).
 - Social media posting/management (done — see item 18: a content composer/tracker exists; live auto-publishing to specific platforms is a separate, larger future item — see "Reputation and social media" below).
 - Formal backup/release checklist (done — see `DOCS/14_BACKUP_AND_RELEASE_CHECKLIST.md`: documents the actual current backup process — git + a dated OneDrive snapshot + folding decisions into existing docs — and the release process, including honestly-flagged gaps like no staging slot and no scripted rollback).
 - Broader admin audit logging (done — see item 19: now covers every meaningful mutating action across the Super Admin portal, plus a real Audit Log viewer with filters).
@@ -882,6 +882,19 @@ Two scope options were discussed, mirroring the Social Posts decision:
   - **Realistic starting cost**: ~$25 one-time + ~$5–12/month fixed + $0.0083/message. Cheap enough to pilot.
   - **IPRO-specific wrinkle worth remembering**: IPRO would be sending on behalf of *many different agents' businesses*, not one business's own messages. For a pilot, registering one Twilio brand as IPRO itself for uniform "appointment reminder" traffic should work. If this scales and agents want personalized "from [Agent Name]" sender identity, Twilio's ISV/reseller model (sub-brands per agent/agency under one account) is the correct long-term path — more setup, not needed to start.
 - **Status**: decision paused here — no scope chosen yet, no Twilio account exists. Revisit this section (not memory) for the pricing numbers when ready to decide; they're current as of 2026-07-20 but Twilio/TCR fees are set by external parties and can change.
+
+**2026-08-12 update — provider comparison + full Canada cost model (owner asked to keep this for reference).**
+
+Owner found **Sent (sent.dm)**, a unified SMS/WhatsApp/iMessage aggregator advertising roughly half Twilio's price. Researched:
+- Product Hunt reviews report chat-only support, escalations that never reply, no status page, no way to track number/campaign approvals — reviewers explicitly call it not production-ready. Zero Trustpilot reviews (very young company). As a routing aggregator that picks channels "by cost," cheap routes risk Canadian carrier filtering — for reminders, a silently dropped message is worse than an expensive one. **Not recommended.**
+- The same ~50% savings are available from providers with real track records: **Telnyx** (~$0.004/segment) or **Plivo** ($0.0077/SMS Canada, numbers $0.75/mo). So the real menu is Twilio (safest) vs Telnyx/Plivo (nearly as safe, Sent-level pricing); Sent adds risk without adding savings.
+
+Cost model at 100 agents × 10 SMS out + 10 in + 10 WhatsApp out + 10 in per day (30k/month each direction/channel), one Canadian number per agent:
+- **Canadian carrier surcharges are the biggest line and identical on every provider**: ~$0.009/outbound SMS (Rogers $0.0097, Bell $0.0088) ≈ **$270/mo** that no vendor can discount. This is why "half price" claims shrink in practice.
+- SMS totals/mo incl. surcharges + numbers: **Twilio ~$860, Plivo ~$810, Telnyx ~$610**.
+- WhatsApp: Meta's per-message fee (since Jul 2025) is the same through any provider; the *category* decides everything. Utility templates (reminders): $0.0034/msg → ~$102/mo + provider markup ($0.003–0.01/msg) ≈ **$200–400/mo**. If Meta rates the content as marketing: $0.025/msg ≈ **$900–1,050/mo**. Inbound/service replies free today; utility-in-window becomes chargeable Oct 1, 2026. WhatsApp needs Meta business verification per sender — one platform-level WhatsApp number is far less overhead than per-agent numbers (SMS can stay per-agent).
+- **Bottom line: ~$800–1,000/month (~$8–10/agent) in the utility scenario, up to ~$1,700 if WhatsApp rates as marketing.** Owner's reaction: "at this point it is expensive." Pricing implication when this gets built: either bake ~$15/agent into package pricing or meter it — it cannot be absorbed silently.
+- Build note regardless of vendor: put the provider behind our own `ISmsService` abstraction (same pattern as email) so switching is config, not a rewrite.
 
 ### Real estate vertical: IDX listings (not scoped yet)
 Real estate agents specifically need to display MLS listings on their site (IDX), which none of the other verticals require. Researched 2026-07-19; not yet designed or built. Costs show up at two separate layers:
