@@ -1032,7 +1032,7 @@ public class Broker
 
 **Status**: designed, not started. Revisit when a specific broker relationship makes this worth prioritizing.
 
-### Team member / sub-user accounts under an agent (not designed — conceptual only, reinstated 2026-08-01)
+### Team member / sub-user accounts under an agent (SHIPPED 2026-08-12 — see TODO #379 for the full record)
 
 **History, so this doesn't happen again**: this was originally a one-line bullet ("Team member accounts") in the same 2026-07-16 backlog list as the broker/white-label idea above. When that list got rewritten into the detailed white-label design on 2026-07-22, this bullet — along with "Shared templates and campaigns" and "Broker-level reporting" above — was silently dropped instead of carried forward or explicitly marked as cut. It sat undesigned and untracked for over a week until the user asked directly where it had gone. **Lesson applied going forward**: when consolidating or rewriting a backlog section in this doc, every existing bullet gets either carried into the new text, explicitly marked "deliberately dropped: [reason]," or left alone — never silently disappeared.
 
@@ -1044,7 +1044,7 @@ public class Broker
 - **Billing**: included in the agent's existing package, or a per-seat add-on (another row in the package-feature/entitlement system that already exists for every other paid capability)?
 - **Accountability**: should actions taken by a team member be attributed ("edited by Jane on behalf of Raniah Motamed") the way `AdminUser` actions already are, so the agent can see what staff did in their account?
 
-**Status**: conceptual only. No schema, no entity, no code. Needs a real product conversation (start with the permission-model question above) before any design work, let alone implementation, begins.
+**Status**: SHIPPED 2026-08-12 (`2623248`). The open questions were answered by the owner: permission model = everything-except-Billing (plus Team management itself); auth shape = the AdminUser-style pattern, as `TeamMember` (own login, AgentUserId FK, member signs in as the agent with a TeamMemberId marker claim); billing = seats per package tier via the `team_members` package feature (Silver 1 / Gold 2 / Platinum 5 / Broker 10, SuperAdmin-adjustable); accountability = light for v1 (LastLoginAt + the member's own name shown in the portal header; per-action attribution deferred). Agent-facing UI is the My Team page under the Billing nav section.
 
 ### More flexible, Wix-style website and newsletter templating (not built — designed 2026-07-22)
 
