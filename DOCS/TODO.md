@@ -32,7 +32,7 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 | 375 | Gated-agent portal sweep | Check every clickable control against the access gate's exemption list. Profile and the colour swatches were both found by hand; assume there is a third. |
 | 365 | Azure auto-heal rules | All that remains of the old Azure task — 64-bit and run-from-package are resolved. |
 | 374 | Delete prod test agent `zedtester` | Destructive; needs the owner's go-ahead. |
-| **394** | **Tick the greeting exemption on 4 e-card designs** | **Bahman, 5 minutes, do this first.** `admin.iproadvisers.com` → E-Card Designs → `simple-birthday`, `birthday-audi`, `anniversary-1`, `anniversary-2` → tick "Personal greeting — may still be sent to unsubscribed clients". Every design ships with it OFF by design, so until this is done an unsubscribe stops birthday cards too. |
+| ~~394~~ | ~~Tick the greeting exemption on 4 e-card designs~~ | DONE -- the owner had already ticked these during the Aug 9-10 unsubscribe work; the item sat stale until 2026-08-12, when a screenshot of simple-birthday confirmed the flag (owner vouches for the other three). Lesson: UI-side owner actions leave no trail I can see; mark items done when the owner says so, or ask for one screenshot. |
 | **395** | **Send one e-card to a GMAIL address** | Every deliverability test on 2026-08-08 went to `test@gbssurveillance.com` — Bahman's own cPanel/SpamAssassin box using SpamCop, an unusually harsh judge almost no real client uses. There is still **zero** data on what a mainstream provider does with an IPRO e-card. |
 
 ## Owner-driven — waiting on Bahman, not on code
