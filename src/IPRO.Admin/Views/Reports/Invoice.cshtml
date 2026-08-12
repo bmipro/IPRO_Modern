@@ -1,0 +1,78 @@
+@model IPRO.Entities.Invoice
+@using IPRO.DataAccess
+@{
+    ViewData["Title"] = Model.InvoiceNumber;
+    var agent = ViewBag.Agent as IPRO.Entities.AgentUser;
+    var package = ViewBag.Package as IPRO.Entities.BillingRule;
+    var billToName = string.IsNullOrWhiteSpace(Model.BillToName) ? (agent?.UserName ?? "(unknown)") : Model.BillToName;
+    var addressLines = (Model.BillToAddress ?? string.Empty)
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var issuedLocal = AgentLocalTime.FromUtc(Model.IssuedAt, agent?.TimeZone);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
+  <h4 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-success"></i>Invoice @Model.InvoiceNumber</h4>
+  <div>
+    @if (agent == null)
+    {
+      <span class="badge bg-secondary me-2" title="The account was deleted; this invoice is the retained financial record.">agent deleted</span>
+    }
+    <a href="/Reports/Invoices" class="btn btn-sm btn-outline-secondary">Back to invoices</a>
+  </div>
+</div>
+
+<div class="card mx-auto" style="max-width: 800px;">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <h4 class="fw-bold mb-1">IPRO Advisers</h4>
+        <div class="text-muted small">Professional agent portal billing</div>
+      </div>
+      <div class="text-end">
+        <h5 class="mb-1">Invoice</h5>
+        @if (Model.IsPaid) { <span class="badge bg-success">PAID</span> } else { <span class="badge bg-warning text-dark">UNPAID</span> }
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-6">
+        <div class="text-muted small text-uppercase fw-bold mb-1">Bill To</div>
+        <div class="fw-bold">@billToName</div>
+        @if (!string.IsNullOrWhiteSpace(Model.BillToCompany)) { <div>@Model.BillToCompany</div> }
+        @if (!string.IsNullOrWhiteSpace(Model.BillToEmail)) { <div>@Model.BillToEmail</div> }
+        @foreach (var line in addressLines) { <div>@line</div> }
+      </div>
+      <div class="col-6">
+        <div class="text-muted small text-uppercase fw-bold mb-1">Invoice Details</div>
+        <div><strong>Invoice #:</strong> @Model.InvoiceNumber</div>
+        <div><strong>Date:</strong> @issuedLocal.ToString("MMMM d, yyyy")</div>
+        @if (package != null) { <div><strong>Package:</strong> @package.PackageName</div> }
+        @if (!string.IsNullOrWhiteSpace(Model.PayPalTransactionId)) { <div class="text-break"><strong>PayPal transaction:</strong> @Model.PayPalTransactionId</div> }
+      </div>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="text-muted small text-uppercase">Description</th>
+          <th class="text-muted small text-uppercase text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var line in Model.LineItems)
+        {
+          <tr>
+            <td>@line.Description</td>
+            <td class="text-end">$@String.Format("{0:N2}", line.Amount) @Model.Currency</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <div class="ms-auto" style="max-width: 320px;">
+      <div class="d-flex justify-content-between border-bottom py-2"><span>Subtotal</span><strong>$@String.Format("{0:N2}", Model.SubTotal) @Model.Currency</strong></div>
+      <div class="d-flex justify-content-between border-bottom py-2"><span>Tax @Model.TaxRegion</span><strong>$@String.Format("{0:N2}", Model.TaxAmount) @Model.Currency</strong></div>
+      <div class="d-flex justify-content-between py-2 fs-5 text-primary"><strong>Total</strong><strong>$@String.Format("{0:N2}", Model.Total) @Model.Currency</strong></div>
+    </div>
+  </div>
+</div>

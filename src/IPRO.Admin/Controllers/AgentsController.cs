@@ -277,7 +277,7 @@ public class AgentsController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken, Authorize(Policy = "SuperAdmin")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, bool eraseFinancialRecords = false)
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
@@ -360,16 +360,19 @@ public class AgentsController : Controller
             }
         }
 
-        var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id);
+        var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id, eraseFinancialRecords);
 
+        var financialNote = eraseFinancialRecords
+            ? "Financial records erased too (test-agent shred)."
+            : $"Financial records retained: {report.RetainedInvoices} invoices ({report.RetainedRows} rows).";
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
             $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
             $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{plan.Blobs.Count} files removed; " +
-            $"{plan.SharedBlobsKept.Count} shared library files kept.");
+            $"{plan.SharedBlobsKept.Count} shared library files kept. {financialNote}");
 
         TempData["Warning"] = $"Agent {userName} deleted: {report.TotalRows} rows across {report.TableCount} tables, " +
-                              $"{blobsDeleted} uploaded files, PayPal subscription cancelled.";
+                              $"{blobsDeleted} uploaded files, PayPal subscription cancelled. {financialNote}";
         return RedirectToAction(nameof(Index));
     }
 

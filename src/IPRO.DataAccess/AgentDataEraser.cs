@@ -72,11 +72,7 @@ public static class AgentDataEraser
         ("AgentWebsites",               "AgentUserId = @agentId"),
         ("AgentDomains",                "AgentUserId = @agentId"),
 
-        // -- Agent billing (the platform charging the agent) --
-        ("InvoiceLineItems",            "InvoiceId IN (SELECT Id FROM Invoices WHERE AgentUserId = @agentId)"),
-        ("Invoices",                    "AgentUserId = @agentId"),
-        ("Billings",                    "AgentUserId = @agentId"),
-        ("SubscriptionChanges",         "AgentUserId = @agentId"),
+        // -- Agent billing housekeeping (the financial LEDGER lives in FinancialMap below) --
         ("PromotionCodeRedemptions",    "AgentUserId = @agentId"),
         ("TrialInviteCodeRedemptions",  "AgentUserId = @agentId"),
 
@@ -121,6 +117,22 @@ public static class AgentDataEraser
         ("AgentUsers",                  "Id = @agentId")
     };
 
+    // The financial ledger: what IPRO charged this agent and what they paid. Retained by default when
+    // an agent is deleted (2026-08-12, owner decision): the business practice is to delete an agent
+    // about a month after they cancel, but CRA expects sales and tax records kept for six years, a
+    // returning ex-customer may ask for invoice copies, and the Revenue Report reads these very rows --
+    // deleting them was silently rewriting the books (bob3test3's $335 vanished from the August bar
+    // the moment the agent was deleted). Privacy law permits retaining financial records through an
+    // erasure request; the bill-to snapshot ON the invoice keeps them printable with no AgentUser row.
+    // eraseFinancialRecords: true is for QA/test agents only, where full shredding is the point.
+    private static readonly (string Table, string Where)[] FinancialMap =
+    {
+        ("InvoiceLineItems",            "InvoiceId IN (SELECT Id FROM Invoices WHERE AgentUserId = @agentId)"),
+        ("Invoices",                    "AgentUserId = @agentId"),
+        ("Billings",                    "AgentUserId = @agentId"),
+        ("SubscriptionChanges",         "AgentUserId = @agentId")
+    };
+
     // Blobs the agent genuinely uploaded. Deliberately sourced from ownership records rather than from
     // every column that happens to hold an image URL: starter provisioning copies shared library URLs
     // (WebsiteStarterArticle.ImageUrl) straight into the agent's own Article.ImageUrl, so deleting by
@@ -149,21 +161,24 @@ public static class AgentDataEraser
         ("ECardDesigns",           "ImageUrl")
     };
 
-    public static Task<AgentErasureReport> PreviewAsync(IPRODbContext db, int agentId, CancellationToken ct = default) =>
-        RunAsync(db, agentId, execute: false, ct);
+    public static Task<AgentErasureReport> PreviewAsync(IPRODbContext db, int agentId, bool eraseFinancialRecords = false, CancellationToken ct = default) =>
+        RunAsync(db, agentId, execute: false, eraseFinancialRecords, ct);
 
-    public static Task<AgentErasureReport> EraseAsync(IPRODbContext db, int agentId, CancellationToken ct = default) =>
-        RunAsync(db, agentId, execute: true, ct);
+    public static Task<AgentErasureReport> EraseAsync(IPRODbContext db, int agentId, bool eraseFinancialRecords = false, CancellationToken ct = default) =>
+        RunAsync(db, agentId, execute: true, eraseFinancialRecords, ct);
 
-    private static async Task<AgentErasureReport> RunAsync(IPRODbContext db, int agentId, bool execute, CancellationToken ct)
+    private static async Task<AgentErasureReport> RunAsync(IPRODbContext db, int agentId, bool execute, bool eraseFinancialRecords, CancellationToken ct)
     {
         var lines = new List<AgentErasureLine>();
+        var retained = new List<AgentErasureLine>();
 
         // Blob URLs must be collected BEFORE the rows are deleted -- afterwards there is nothing left
         // to read them from, and the files would be stranded in blob storage forever.
         var (blobs, skipped) = await CollectBlobsAsync(db, agentId, ct);
 
-        foreach (var (table, where) in Map)
+        var toDelete = eraseFinancialRecords ? Map.Concat(FinancialMap) : Map.AsEnumerable();
+
+        foreach (var (table, where) in toDelete)
         {
             if (!await TableExistsAsync(db, table, ct)) continue;
 
@@ -184,7 +199,19 @@ public static class AgentDataEraser
             if (rows > 0) lines.Add(new AgentErasureLine(table, rows));
         }
 
-        return new AgentErasureReport(agentId, lines, blobs, skipped);
+        if (!eraseFinancialRecords)
+        {
+            // Counted (never deleted) so both the preview and the post-delete report can say exactly
+            // what was kept -- an erasure report that silently omits surviving rows reads as a bug.
+            foreach (var (table, where) in FinancialMap)
+            {
+                if (!await TableExistsAsync(db, table, ct)) continue;
+                var rows = await ScalarAsync(db, $"SELECT COUNT(*) FROM `{table}` WHERE {where}", agentId, ct);
+                if (rows > 0) retained.Add(new AgentErasureLine(table, rows));
+            }
+        }
+
+        return new AgentErasureReport(agentId, lines, blobs, skipped, retained);
     }
 
     private static async Task<(List<string> Blobs, List<string> Skipped)> CollectBlobsAsync(
@@ -317,8 +344,11 @@ public sealed record AgentErasureReport(
     int AgentId,
     List<AgentErasureLine> Tables,
     List<string> Blobs,
-    List<string> SharedBlobsKept)
+    List<string> SharedBlobsKept,
+    List<AgentErasureLine> RetainedFinancial)
 {
     public int TotalRows => Tables.Sum(line => line.Rows);
     public int TableCount => Tables.Count;
+    public int RetainedRows => RetainedFinancial.Sum(line => line.Rows);
+    public int RetainedInvoices => RetainedFinancial.FirstOrDefault(l => l.Table == "Invoices")?.Rows ?? 0;
 }

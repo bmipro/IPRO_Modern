@@ -1465,6 +1465,16 @@ public class PayPalBillingService : IBillingService
     private async Task<IPRO.Entities.Invoice> CreateInvoiceWithLinesAsync(int billingId, int userId, decimal subtotal, decimal taxAmount, decimal taxRate, string taxRegion, bool isPaid, IEnumerable<InvoiceLineDraft> lines)
     {
         var issuedAt = DateTime.UtcNow;
+
+        // The bill-to is frozen onto the invoice at issue time: invoices are retained after the agent
+        // is deleted, so they must render without an AgentUsers row.
+        var agent = await _uow.AgentUsers.GetByIdAsync(userId);
+        var billToName = agent == null ? string.Empty : $"{agent.FirstName} {agent.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(billToName)) billToName = agent?.UserName ?? string.Empty;
+        var provincePostal = agent == null ? string.Empty : $"{agent.Province} {agent.PostalCode}".Trim();
+        var addressLines = new[] { agent?.CompanyAddress, agent?.City, provincePostal, agent?.Country }
+            .Where(line => !string.IsNullOrWhiteSpace(line));
+
         var invoice = new IPRO.Entities.Invoice
         {
             BillingId = billingId,
@@ -1477,7 +1487,11 @@ public class PayPalBillingService : IBillingService
             Total = subtotal + taxAmount,
             Currency = "CAD",
             IssuedAt = issuedAt,
-            IsPaid = isPaid
+            IsPaid = isPaid,
+            BillToName = billToName,
+            BillToCompany = agent?.CompanyName ?? string.Empty,
+            BillToEmail = agent?.Email ?? string.Empty,
+            BillToAddress = string.Join("\n", addressLines!)
         };
 
         await _uow.Invoices.AddAsync(invoice);

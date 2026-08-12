@@ -100,7 +100,60 @@
     </div>
 }
 
+@if (Model.RetainedFinancial.Count > 0)
+{
+    <div class="card mb-4 border-success">
+        <div class="card-header bg-success-subtle">Financial records &mdash; retained, NOT deleted</div>
+        <div class="card-body pb-0">
+            <p class="small text-muted mb-2">
+                Invoices are the business's accounting records (CRA expects them kept for six years) and each
+                carries its own bill-to snapshot, so they stay printable from
+                <a href="/Reports/Invoices">Reports &rarr; Invoices</a> after the agent is gone. The Revenue
+                Report keeps reading them too, so deleting an agent no longer rewrites past revenue.
+            </p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Table</th><th class="text-end">Rows kept</th></tr></thead>
+                <tbody>
+                @foreach (var line in Model.RetainedFinancial.OrderByDescending(l => l.Rows))
+                {
+                    <tr>
+                        <td><code>@line.Table</code></td>
+                        <td class="text-end">@line.Rows</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
 <div class="alert alert-warning">
     <strong>Not covered by this preview:</strong> the agent's PayPal subscription (cancelled automatically at
     deletion &mdash; deletion is refused if the cancellation fails). Background jobs already queued for this agent will find no rows and stop on their own.
+</div>
+
+<div class="card border-danger">
+    <div class="card-header bg-danger-subtle">Delete this agent</div>
+    <div class="card-body">
+        <form asp-action="Delete" asp-route-id="@agent.Id" method="post">
+            @Html.AntiForgeryToken()
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="eraseFinancialRecords" value="true" id="eraseFinancial" />
+                <label class="form-check-label" for="eraseFinancial">
+                    Also erase the financial records above
+                    <span class="text-danger fw-bold">&mdash; QA/test agents only.</span>
+                    <span class="d-block small text-muted">
+                        For a real customer leave this UNCHECKED: erasing their invoices destroys the business's own
+                        accounting record and removes their revenue from the Revenue Report retroactively.
+                    </span>
+                </label>
+            </div>
+            <button type="submit" class="btn btn-danger js-confirm-submit"
+                    data-confirm-message="Permanently delete @agent.UserName and everything in the preview above? This cannot be undone.">
+                <i class="fas fa-trash me-1"></i>Delete agent permanently
+            </button>
+        </form>
+    </div>
 </div>

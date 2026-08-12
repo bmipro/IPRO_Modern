@@ -87,7 +87,7 @@ else if (subscription == null && trialEndsAt.HasValue)
     </div>
     <form asp-action="CancelSubscription" method="post">
       @Html.AntiForgeryToken()
-      <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Cancel your subscription? Your site will go offline at the end of the billing period.">Cancel Subscription</button>
+      <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Cancel your subscription? Your site will go offline at the end of the billing period. IMPORTANT: please download or print copies of your invoices from the Invoice History below BEFORE cancelling - once your account is closed and later removed, you will no longer be able to sign in to retrieve them.">Cancel Subscription</button>
     </form>
   </div>
 }

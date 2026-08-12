@@ -359,6 +359,10 @@ public class IPRODbContext : DbContext
             e.Property(i => i.TaxRate).HasPrecision(7, 5);
             e.Property(i => i.TaxRegion).HasMaxLength(80);
             e.Property(i => i.Total).HasPrecision(10, 2);
+            e.Property(i => i.BillToName).HasMaxLength(200);
+            e.Property(i => i.BillToCompany).HasMaxLength(200);
+            e.Property(i => i.BillToEmail).HasMaxLength(255);
+            e.Property(i => i.BillToAddress).HasMaxLength(500);
         });
 
         modelBuilder.Entity<InvoiceLineItem>(e =>

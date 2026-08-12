@@ -178,6 +178,9 @@
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "Revenue" ? "active" : "")" href="/Reports/Revenue">
             <i class="fas fa-dollar-sign"></i>Revenue
         </a>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && (ViewContext.RouteData.Values["action"]?.ToString() == "Invoices" || ViewContext.RouteData.Values["action"]?.ToString() == "Invoice") ? "active" : "")" href="/Reports/Invoices">
+            <i class="fas fa-file-invoice-dollar"></i>Invoices
+        </a>
         <div class="nav-section">Reports</div>
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "Agents" ? "active" : "")" href="/Reports/Agents">
             <i class="fas fa-chart-column"></i>Agent Stats
