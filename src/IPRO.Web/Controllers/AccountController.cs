@@ -32,9 +32,11 @@ public class AccountController : Controller
     private readonly ILogger<AccountController> _logger;
     private readonly IConfiguration _configuration;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> _teamHasher;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory, Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> teamHasher)
     {
+        _teamHasher = teamHasher;
         _agents = agents;
         _email = email;
         _uow = uow;
@@ -60,6 +62,11 @@ public class AccountController : Controller
         var user = await _agents.AuthenticateAsync(username, password);
         if (user == null)
         {
+            // Not an agent credential -- try team members (a secretary/assistant login working
+            // inside one agent's account, #379). Same form, no separate login page.
+            var teamRedirect = await TryTeamMemberLoginAsync(username, password, rememberMe, returnUrl);
+            if (teamRedirect != null) return teamRedirect;
+
             // AuthenticateAsync returns immediately (skipping password-hash verification entirely)
             // when the account doesn't exist, which is measurably faster than the wrong-password
             // case and lets an attacker enumerate valid usernames/emails by timing. A flat delay on
@@ -732,6 +739,14 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangePassword(string? currentPassword, string newPassword, string confirmPassword)
     {
+        // A team member changes THEIR password, never the agent's -- NameIdentifier here is the
+        // owning agent's id, so without this branch a staff login would overwrite the owner's
+        // credentials.
+        if (int.TryParse(User.FindFirstValue("TeamMemberId"), out var teamMemberId))
+        {
+            return await ChangeTeamMemberPasswordAsync(teamMemberId, currentPassword, newPassword, confirmPassword);
+        }
+
         var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!int.TryParse(idValue, out var id)) return RedirectToAction(nameof(Login));
 
@@ -772,6 +787,44 @@ public class AccountController : Controller
         // Dashboard/Index are the default route's default values, and "/" on an agent's own
         // domain (temporary or custom) is reserved for their public website homepage, not the
         // portal. Bare "/" would silently strand them on their own marketing site after signing in.
+        return Redirect("/portal/Dashboard");
+    }
+
+    private async Task<IActionResult> ChangeTeamMemberPasswordAsync(int teamMemberId, string? currentPassword, string newPassword, string confirmPassword)
+    {
+        var member = await _uow.TeamMembers.GetByIdAsync(teamMemberId);
+        if (member == null || !member.IsActive) return RedirectToAction(nameof(Login));
+
+        ViewBag.RequireCurrentPassword = !member.MustChangePassword;
+        if (!member.MustChangePassword)
+        {
+            if (string.IsNullOrWhiteSpace(currentPassword) ||
+                _teamHasher.VerifyHashedPassword(member, member.PasswordHash, currentPassword)
+                    == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
+            {
+                ModelState.AddModelError("", "Current password is incorrect.");
+            }
+        }
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            ModelState.AddModelError("", "New password must be at least 8 characters.");
+        if (newPassword != confirmPassword)
+            ModelState.AddModelError("", "Passwords do not match.");
+        if (!ModelState.IsValid) return View();
+
+        member.PasswordHash = _teamHasher.HashPassword(member, newPassword);
+        member.MustChangePassword = false;
+        _uow.TeamMembers.Update(member);
+        await _uow.SaveChangesAsync();
+
+        var owner = await _uow.AgentUsers.GetByIdAsync(member.AgentUserId);
+        if (owner != null)
+        {
+            await SignInTeamMemberAsync(member, owner, new AuthenticationProperties
+            {
+                IsPersistent = false,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+            });
+        }
         return Redirect("/portal/Dashboard");
     }
 
@@ -825,6 +878,57 @@ public class AccountController : Controller
         "Broker Package" => 4,
         _ => 50
     };
+
+    // A team member authenticates with their OWN credentials but acts AS the owning agent:
+    // ClaimTypes.NameIdentifier is the agent's id, so every controller in the portal works
+    // unchanged. The TeamMemberId marker claim is what keeps Billing and Team management
+    // owner-only (middleware in Program.cs) and routes ChangePassword at the member's own row.
+    private async Task<IActionResult?> TryTeamMemberLoginAsync(string username, string password, bool rememberMe, string? returnUrl)
+    {
+        var email = (username ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email)) return null;
+
+        var member = await _uow.TeamMembers.FirstOrDefaultAsync(t => t.Email == email && t.IsActive);
+        if (member == null) return null;
+        if (_teamHasher.VerifyHashedPassword(member, member.PasswordHash, password)
+            == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
+        {
+            return null;
+        }
+
+        var owner = await _uow.AgentUsers.GetByIdAsync(member.AgentUserId);
+        if (owner == null || !owner.IsActive) return null;
+
+        member.LastLoginAt = DateTime.UtcNow;
+        _uow.TeamMembers.Update(member);
+        await _uow.SaveChangesAsync();
+
+        var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
+        await SignInTeamMemberAsync(member, owner, props);
+
+        if (member.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)) return LocalRedirect(returnUrl);
+        return Redirect("/portal/Dashboard");
+    }
+
+    private async Task SignInTeamMemberAsync(TeamMember member, AgentUser owner, AuthenticationProperties props)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, owner.Id.ToString()),
+            new(ClaimTypes.Name, owner.UserName),
+            new(ClaimTypes.Email, member.Email),
+            new("FullName", member.FullName),
+            new("PackageId", owner.PackageId.ToString()),
+            new("MustChangePassword", member.MustChangePassword ? "true" : "false"),
+            new("PortalAccentColor", owner.PortalAccentColor ?? ""),
+            new("TeamMemberId", member.Id.ToString())
+        };
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            props);
+    }
 
     private async Task SignInAgentAsync(AgentUser user, AuthenticationProperties props)
     {

@@ -32,6 +32,7 @@ public class IPRODbContext : DbContext
     public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
     public DbSet<ProvinceTaxRate> ProvinceTaxRates => Set<ProvinceTaxRate>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
     public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
     public DbSet<NewsLetter> NewsLetters => Set<NewsLetter>();
@@ -533,6 +534,20 @@ public class IPRODbContext : DbContext
             e.HasOne(f => f.BillingRule)
              .WithMany(r => r.Features)
              .HasForeignKey(f => f.BillingRuleId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TeamMember>(e =>
+        {
+            // Email is the login identifier and must be unique across ALL team members (login has no
+            // way to know which agent a credential belongs to before authenticating).
+            e.HasIndex(t => t.Email).IsUnique();
+            e.Property(t => t.FullName).HasMaxLength(200).IsRequired();
+            e.Property(t => t.Email).HasMaxLength(255).IsRequired();
+            e.Property(t => t.PasswordHash).HasMaxLength(500).IsRequired();
+            e.HasOne(t => t.AgentUser)
+             .WithMany()
+             .HasForeignKey(t => t.AgentUserId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

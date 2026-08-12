@@ -288,6 +288,7 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     try
     {
         await EnsureAgentDomainSchemaAsync(db);
+        await EnsureTeamMemberSchemaAsync(db);
         await EnsureWebsiteTemplateColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
         await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureWebsiteTemplateColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
@@ -355,6 +356,26 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     {
         await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureTeamMemberSchemaAsync(IPRODbContext db)
+{
+    // Keep in step with the IPRO.Web copy (INVARIANTS rule 4: both apps run identical schema repair).
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TeamMembers` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `FullName` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `Email` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `PasswordHash` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `MustChangePassword` tinyint(1) NOT NULL DEFAULT TRUE,
+    `CreatedAt` datetime(6) NOT NULL,
+    `LastLoginAt` datetime(6) NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_TeamMembers_Email` (`Email`),
+    KEY `IX_TeamMembers_AgentUserId` (`AgentUserId`)
+) CHARACTER SET utf8mb4;");
 }
 
 static async Task EnsureAgentDomainSchemaAsync(IPRODbContext db)

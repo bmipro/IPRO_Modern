@@ -224,7 +224,10 @@ public static class PackageEntitlementSeeder
             Feature(440, PackageFeatureCodes.PollSurveys, "Poll and survey builder", all, all, all, all),
             Feature(450, PackageFeatureCodes.LeadMagnet, "Lead magnet download block", all, all, all, all),
             Feature(460, PackageFeatureCodes.AiDailyAssistant, "AI Assistant features", no, no, all, all),
-            Feature(470, PackageFeatureCodes.CustomForms, "Custom form builder", all, all, all, all)
+            Feature(470, PackageFeatureCodes.CustomForms, "Custom form builder", all, all, all, all),
+            Feature(480, PackageFeatureCodes.TeamMembers, "Team member logins",
+                new FeatureValue(true, 1, "1"), new FeatureValue(true, 2, "2"),
+                new FeatureValue(true, 5, "5"), new FeatureValue(true, 10, "10"))
         };
     }
 

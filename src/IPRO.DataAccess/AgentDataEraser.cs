@@ -93,6 +93,7 @@ public static class AgentDataEraser
         ("SupportTickets",              "AgentUserId = @agentId"),
 
         // -- Everything else keyed directly on the agent --
+        ("TeamMembers",                 "AgentUserId = @agentId"),
         ("Clients",                     "AgentUserId = @agentId"),
         ("ClientCategories",            "AgentUserId = @agentId"),
         ("Articles",                    "AgentUserId = @agentId"),

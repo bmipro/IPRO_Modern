@@ -62,6 +62,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
 builder.Services.AddScoped<IPasswordHasher<Client>, PasswordHasher<Client>>();
+builder.Services.AddScoped<IPasswordHasher<TeamMember>, PasswordHasher<TeamMember>>();
 builder.Services.AddScoped<IAgentService, AgentService>();
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
 builder.Services.AddScoped<IClientService, ClientService>();
@@ -287,6 +288,19 @@ app.Use(async (context, next) =>
         || path.StartsWith("/Account/RemovePhoto", StringComparison.OrdinalIgnoreCase)
         || canChangePassword;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
+
+    // Team members (#379) act as their agent everywhere EXCEPT the owner-only controls: Billing
+    // (money) and Team (staffing -- otherwise an assistant could mint more logins). Everything
+    // else, including their own ChangePassword, stays open. Owner decision 2026-08-12:
+    // "everything except Billing".
+    var isTeamMemberSession = context.User.FindFirst("TeamMemberId") != null;
+    if (isAuthenticated && isAgentSession && isTeamMemberSession &&
+        (canUseBilling || path.StartsWith("/Team", StringComparison.OrdinalIgnoreCase)))
+    {
+        context.Response.Redirect("/portal/Dashboard");
+        return;
+    }
+
     if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout && !canUseOwnAccount)
     {
         var idClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -622,6 +636,7 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     try
     {
         await EnsureAgentDomainSchemaAsync(db);
+        await EnsureTeamMemberSchemaAsync(db);
         await EnsureBillingRuleSchemaAsync(db);
         await EnsureWebsiteTemplateColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
         await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
@@ -747,6 +762,25 @@ WHERE TABLE_SCHEMA = DATABASE()
     {
         if (ownsConnection) await db.Database.CloseConnectionAsync();
     }
+}
+
+static async Task EnsureTeamMemberSchemaAsync(IPRODbContext db)
+{
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `TeamMembers` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `AgentUserId` int NOT NULL,
+    `FullName` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `Email` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+    `PasswordHash` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL DEFAULT TRUE,
+    `MustChangePassword` tinyint(1) NOT NULL DEFAULT TRUE,
+    `CreatedAt` datetime(6) NOT NULL,
+    `LastLoginAt` datetime(6) NULL,
+    PRIMARY KEY (`Id`),
+    UNIQUE KEY `IX_TeamMembers_Email` (`Email`),
+    KEY `IX_TeamMembers_AgentUserId` (`AgentUserId`)
+) CHARACTER SET utf8mb4;");
 }
 
 static async Task EnsureAgentDomainSchemaAsync(IPRODbContext db)

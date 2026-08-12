@@ -44,6 +44,7 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<TrialInviteCode> TrialInviteCodes { get; }
     IRepository<TrialInviteCodeRedemption> TrialInviteCodeRedemptions { get; }
     IRepository<TrialSettings> TrialSettings { get; }
+    IRepository<TeamMember> TeamMembers { get; }
     IRepository<ClientInvoice> ClientInvoices { get; }
     IRepository<ClientInvoiceLineItem> ClientInvoiceLineItems { get; }
     IRepository<RecurringInvoiceSchedule> RecurringInvoiceSchedules { get; }

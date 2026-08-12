@@ -49,4 +49,5 @@ public static class PackageFeatureCodes
     public const string LeadMagnet = "lead_magnet";
     public const string AiDailyAssistant = "ai_daily_assistant";
     public const string CustomForms = "custom_forms";
+    public const string TeamMembers = "team_members";
 }

@@ -1,0 +1,115 @@
+@model List<IPRO.Entities.TeamMember>
+@using IPRO.Web.Infrastructure
+@{
+    ViewData["Title"] = "My Team";
+    int seatLimit = ViewBag.SeatLimit;
+    int activeCount = ViewBag.ActiveCount;
+    var tempPassword = TempData["TeamTempPassword"] as string;
+    var tempPasswordFor = TempData["TeamTempPasswordFor"] as string;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-user-group me-2 text-primary"></i>My Team</h2>
+    <div class="text-muted">Give your assistant or office staff their own login. They can do everything you can, except Billing and managing this team.</div>
+  </div>
+  <a href="/portal/Dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+</div>
+
+@if (TempData["Success"] != null) { <div class="alert alert-success">@TempData["Success"]</div> }
+@if (TempData["Error"] != null) { <div class="alert alert-danger">@TempData["Error"]</div> }
+
+@if (!string.IsNullOrWhiteSpace(tempPassword))
+{
+  <div class="alert alert-warning">
+    <div class="fw-bold mb-1"><i class="fas fa-key me-1"></i>Temporary password for @tempPasswordFor</div>
+    <div class="fs-5"><code>@tempPassword</code></div>
+    <div class="small text-muted mt-1">
+      Shown only this once and never emailed &mdash; pass it to them directly. They sign in with their
+      email address at the regular login page and must choose their own password immediately.
+    </div>
+  </div>
+}
+
+@if (seatLimit == 0)
+{
+  <div class="alert alert-light border d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span><i class="fas fa-lock me-2 text-muted"></i>Your package does not include team member logins.</span>
+    <a href="/Billing" class="btn btn-sm btn-outline-primary">View Packages</a>
+  </div>
+}
+else
+{
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Add a team member</h5>
+        <span class="badge bg-secondary">@activeCount of @seatLimit seat@(seatLimit == 1 ? "" : "s") in use</span>
+      </div>
+      <form asp-action="Add" method="post" class="row g-2 align-items-end">
+        @Html.AntiForgeryToken()
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Full name</label>
+          <input type="text" name="fullName" class="form-control" maxlength="200" required />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Email (their login)</label>
+          <input type="email" name="email" class="form-control" maxlength="255" required />
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary" @(activeCount >= seatLimit ? "disabled" : "")>
+            <i class="fas fa-user-plus me-1"></i>Add member
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<div class="card">
+  <div class="card-header fw-bold">Team members</div>
+  @if (Model.Count == 0)
+  {
+    <div class="card-body text-muted">No team members yet.</div>
+  }
+  else
+  {
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Last login</th><th class="text-end"></th></tr></thead>
+        <tbody>
+        @foreach (var m in Model)
+        {
+          <tr>
+            <td class="fw-bold">@m.FullName</td>
+            <td>@m.Email</td>
+            <td>
+              @if (m.IsActive) { <span class="badge bg-success">Active</span> } else { <span class="badge bg-secondary">Deactivated</span> }
+              @if (m.MustChangePassword) { <span class="badge bg-warning text-dark" title="They have not signed in with their own password yet.">Temp password</span> }
+            </td>
+            <td><small class="text-muted">@(m.LastLoginAt == null ? "Never" : AgentTimeZoneHelper.FromUtc(m.LastLoginAt.Value, ViewBag.AgentTimeZone as string).ToString("MMM d, yyyy h:mm tt"))</small></td>
+            <td class="text-end">
+              <form asp-action="ResetPassword" asp-route-id="@m.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-dark js-confirm-submit" title="Reset password"
+                        data-confirm-message="Reset @m.FullName's password to a new temporary one?"><i class="fas fa-key"></i></button>
+              </form>
+              <form asp-action="Toggle" asp-route-id="@m.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-warning" title="@(m.IsActive ? "Deactivate" : "Reactivate")">
+                  <i class="fas @(m.IsActive ? "fa-user-slash" : "fa-user-check")"></i>
+                </button>
+              </form>
+              <form asp-action="Delete" asp-route-id="@m.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" title="Remove"
+                        data-confirm-message="Remove @m.FullName permanently? They will no longer be able to sign in."><i class="fas fa-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

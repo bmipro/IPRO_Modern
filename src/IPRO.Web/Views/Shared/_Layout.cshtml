@@ -42,6 +42,12 @@
     string GatedNavAttributes(bool keepEnabled = false) =>
         (!isAccessGated || keepEnabled) ? "" : "data-gated-lock=\"true\"";
 
+    // Team-member sessions (#379): Billing and Team management are owner-only. Same
+    // disable-don't-hide philosophy as the access gate -- the item stays visible, clicking it
+    // explains why it is unavailable instead of silently bouncing.
+    var isTeamMemberSession = User.FindFirst("TeamMemberId") != null;
+    string OwnerOnlyAttributes() => isTeamMemberSession ? "data-owner-lock=\"true\"" : "";
+
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
     string NavActive(params string[] controllers) => controllers.Contains(currentController, StringComparer.OrdinalIgnoreCase) ? "active" : "";
@@ -183,7 +189,8 @@
         <a class="nav-link @NavActive("Forms")" href="/portal/Forms" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CustomForms)) @Html.Raw(GatedNavAttributes())><i class="fas fa-rectangle-list"></i>Forms</a>
 
         <div class="nav-section">Billing</div>
-        <a class="nav-link @NavActive("Billing")" href="/portal/Billing" @Html.Raw(GatedNavAttributes(true))><i class="fas fa-credit-card"></i>Billing</a>
+        <a class="nav-link @NavActive("Billing")" href="/portal/Billing" @Html.Raw(GatedNavAttributes(true)) @Html.Raw(OwnerOnlyAttributes())><i class="fas fa-credit-card"></i>Billing</a>
+        <a class="nav-link @NavActive("Team")" href="/portal/Team" @Html.Raw(GatedNavAttributes()) @Html.Raw(OwnerOnlyAttributes())><i class="fas fa-user-group"></i>My Team</a>
         <a class="nav-link @NavActive("ClientInvoices", "RecurringInvoices")" href="/portal/ClientInvoices" @Html.Raw(GatedNavAttributes())><i class="fas fa-file-invoice-dollar"></i>Client Invoices</a>
 
         <div class="nav-section">Client Portal</div>
@@ -274,6 +281,16 @@ document.querySelectorAll('[data-gated-lock="true"]').forEach(link => {
         event.preventDefault();
         document.getElementById('upgradeRequiredTitle').textContent = 'Subscription required';
         document.getElementById('upgradeRequiredMessage').textContent = 'You need an active subscription to use this function.';
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('upgradeRequiredModal')).show();
+    });
+});
+// Team-member session: Billing and Team management stay visible but are owner-only. Same modal,
+// different explanation; the server-side middleware enforces the rule regardless.
+document.querySelectorAll('[data-owner-lock="true"]').forEach(link => {
+    link.addEventListener('click', event => {
+        event.preventDefault();
+        document.getElementById('upgradeRequiredTitle').textContent = 'Owner access required';
+        document.getElementById('upgradeRequiredMessage').textContent = 'This section is only available to the account owner.';
         bootstrap.Modal.getOrCreateInstance(document.getElementById('upgradeRequiredModal')).show();
     });
 });
