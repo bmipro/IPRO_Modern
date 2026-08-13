@@ -160,14 +160,20 @@ else if (currentPackage == null)
 
 @if (packageList.Any())
 {
+  @* Feature rows collapse (owner request 2026-08-13): with a live subscription the agent mostly
+     comes here for invoices, and 40 function rows pushed Invoice History off the screen. The
+     package cards with prices and upgrade buttons STAY visible either way -- only the function
+     list folds. Default: collapsed once subscribed, expanded while still choosing a plan. *@
   <div class="card border-0 shadow-sm mb-5">
     <div class="table-responsive">
-      <table class="table package-comparison align-middle mb-0">
+      <table class="table package-comparison align-middle mb-0 @(subscription != null ? "features-hidden" : "")" id="packageComparison">
         <thead>
           <tr>
             <th class="feature-col">
-              <div class="fs-5 fw-bold">Compare packages</div>
-              <div class="text-muted fw-normal small">Functions included by plan</div>
+              <button type="button" id="toggleFeatureRows" class="feature-toggle" aria-expanded="@(subscription != null ? "false" : "true")" aria-controls="featureRowsBody">
+                <div class="fs-5 fw-bold">Compare and Upgrade Packages <i class="fas fa-chevron-down toggle-chevron"></i></div>
+                <div class="text-muted fw-normal small">Functions included by plan &mdash; click to show or hide the full list</div>
+              </button>
             </th>
             @foreach (var pkg in packageList)
             {
@@ -229,7 +235,7 @@ else if (currentPackage == null)
             }
           </tr>
         </thead>
-        <tbody>
+        <tbody id="featureRowsBody">
           @foreach (var feature in featureRows)
           {
             <tr>
@@ -329,7 +335,27 @@ else
   .package-comparison .current-package { background: #eff6ff !important; box-shadow: inset 0 3px 0 #2563eb; }
   .package-comparison .feature-check { color: #16a34a; font-size: 1.15rem; }
   .package-comparison .feature-miss { color: #dc2626; font-size: 1.15rem; }
+
+  /* Collapsible function list: only the tbody folds; the package cards with prices and
+     upgrade buttons stay visible. Toggled by the heading button (CSP-safe, no inline JS). */
+  .package-comparison.features-hidden tbody { display: none; }
+  .feature-toggle { background: none; border: 0; padding: 0; text-align: left; width: 100%; cursor: pointer; color: inherit; }
+  .feature-toggle:hover .fs-5 { color: #2563eb; }
+  .feature-toggle .toggle-chevron { font-size: .7em; vertical-align: middle; margin-left: 6px; transition: transform .2s; color: #2563eb; }
+  .package-comparison.features-hidden .toggle-chevron { transform: rotate(-90deg); }
 </style>
+
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  var table = document.getElementById('packageComparison');
+  var button = document.getElementById('toggleFeatureRows');
+  if (!table || !button) return;
+  button.addEventListener('click', function () {
+    var hidden = table.classList.toggle('features-hidden');
+    button.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+  });
+})();
+</script>
 
 @functions {
     private static int GetPackageRank(IPRO.Entities.BillingRule package) => package.PackageName switch
