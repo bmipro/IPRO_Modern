@@ -17,7 +17,9 @@
         var nextDir = sort == column && dir == "desc" ? "asc" : sort == column ? "desc" : column == "date" ? "desc" : "asc";
         return $"/Reports/Revenue?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&q={Uri.EscapeDataString(query)}&sort={column}&dir={nextDir}";
     }
-    string SortArrow(string column) => sort != column ? "" : dir == "asc" ? " ▲" : " ▼";
+    // Active column: one solid arrow showing the current direction. Inactive sortable column: a
+    // dimmed pair, so it's visible at a glance that the header is clickable (owner request).
+    string SortArrow(string column) => sort == column ? (dir == "asc" ? "▲" : "▼") : "";
     var totalDays = (to - from).TotalDays;
 }
 
@@ -115,9 +117,9 @@
           <th>Invoice #</th>
           @* word@(expr), not word@expr -- Razor's email-address heuristic renders the latter as
              literal text when @ directly follows a word character. *@
-          <th><a href="@SortUrl("date")" class="text-decoration-none text-dark">Date@(SortArrow("date"))</a></th>
+          <th><a href="@SortUrl("date")" class="text-decoration-none text-dark">Date @(SortArrow("date"))@if (sort != "date") { <span class="opacity-25">▲▼</span> }</a></th>
           <th>Bill to</th><th>Account</th>
-          <th><a href="@SortUrl("package")" class="text-decoration-none text-dark">Package@(SortArrow("package"))</a></th>
+          <th><a href="@SortUrl("package")" class="text-decoration-none text-dark">Package @(SortArrow("package"))@if (sort != "package") { <span class="opacity-25">▲▼</span> }</a></th>
           <th class="text-end">Subtotal</th><th class="text-end">Tax</th><th class="text-end">Total</th>
           <th>Status</th><th></th>
         </tr>
