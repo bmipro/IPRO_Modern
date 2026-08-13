@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPRO Advisers — one login for your website, your clients and your follow-ups</title>
+<meta name="description" content="One system for Canadian advisers, brokers and accountants: your website, your client list, your newsletters and your follow-ups — plus a daily list of who to call. See your own site free in 30 seconds. No account needed.">
+<style>
+/* ============================================================================
+   IPRO Advisers — shared tokens and components.
+   This block is byte-identical in home.html, preview-show.html and pricing.html.
+   Single light theme by direction: no dark mode, no prefers-color-scheme.
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* --- Ground and surface ------------------------------------------------ */
+  --paper:        #f7f5f1;   /* page ground: warm near-white, low chroma      */
+  --paper-deep:   #ece7dd;   /* inset / closing band                          */
+  --surface:      #ffffff;   /* cards, exhibit plates, product screens        */
+  --line:         #d9d2c6;   /* hairline on paper                             */
+  --line-soft:    #e7e2d8;   /* hairline inside surfaces                      */
+
+  /* --- Brand ------------------------------------------------------------- */
+  --navy:         #1a3a6b;   /* headings, primary button                      */
+  --navy-deep:    #10254a;   /* full-width bands and footer                   */
+  --brass:        #a9812f;   /* rules, tabs, badges                           */
+  --brass-deep:   #8a6820;   /* brass used as type                            */
+  --brass-wash:   #f3ead6;   /* brass at 8%: badge grounds                    */
+
+  /* --- Type -------------------------------------------------------------- */
+  --ink:          #1c2a42;   /* body text            13.2:1 on paper          */
+  --ink-soft:     #41506b;   /* secondary text        7.5:1 on paper          */
+  --on-navy:      #ffffff;   /* text on navy bands   15.2:1                   */
+  --on-navy-soft: #cfdaef;   /* secondary on navy    10.8:1                   */
+
+  /* --- Semantic. Product reconstructions only, never marketing chrome. ---- */
+  --ok:     #1f6b45;
+  --warn:   #8a5100;
+  --alert:  #a5251c;
+  --ok-wash:    #e6f2ea;
+  --warn-wash:  #fbf0dd;
+  --alert-wash: #f8e7e5;
+  --info-wash:  #e8eefb;
+
+  /* --- Families ---------------------------------------------------------- */
+  --display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* --- Type scale (17px base) -------------------------------------------- */
+  --t-label: 0.8125rem;  /* 13px — uppercase labels only, never prose        */
+  --t-sm:    1rem;       /* 16px — captions, footnotes, legal                */
+  --t-base:  1.0625rem;  /* 17px — body                                      */
+  --t-lg:    1.1875rem;  /* 19px — lead paragraphs                           */
+  --t-xl:    1.375rem;   /* 22px — h4                                        */
+  --t-2xl:   1.75rem;    /* 28px — h3                                        */
+  --t-3xl:   2.125rem;   /* 34px — h2                                        */
+  --t-4xl:   2.75rem;    /* 44px — h2 display                                */
+  --t-5xl:   3.375rem;   /* 54px — h1                                        */
+
+  /* --- Space scale (4px base) -------------------------------------------- */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px; --s5: 24px;
+  --s6: 32px; --s7: 48px; --s8: 64px; --s9: 96px; --s10: 128px;
+
+  /* --- Geometry ---------------------------------------------------------- */
+  --r-sm: 3px;   /* inputs, badges                                            */
+  --r-md: 5px;   /* buttons, cards                                            */
+  --r-lg: 7px;   /* exhibit plates                                            */
+  --wrap: 1140px;
+  --measure: 66ch;
+  --shadow-plate: 0 1px 2px rgba(16,37,74,.05), 0 18px 44px -22px rgba(16,37,74,.35);
+  --shadow-card:  0 1px 2px rgba(16,37,74,.05), 0 10px 26px -18px rgba(16,37,74,.30);
+}
+
+/* --- Reset -------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-base);
+  line-height: 1.6;
+}
+img, svg { max-width: 100%; }
+button { font: inherit; }
+
+/* --- Type --------------------------------------------------------------- */
+h1, h2, h3, h4 {
+  font-family: var(--display);
+  color: var(--navy);
+  margin: 0;
+  text-wrap: balance;
+}
+h1 { font-size: var(--t-5xl); font-weight: 400; line-height: 1.08; letter-spacing: -0.015em; }
+h2 { font-size: var(--t-4xl); font-weight: 400; line-height: 1.15; letter-spacing: -0.012em; }
+h3 { font-size: var(--t-2xl); font-weight: 700; line-height: 1.25; }
+h4 { font-size: var(--t-xl); font-weight: 700; line-height: 1.3; }
+p  { margin: 0; }
+
+.eyebrow {
+  font-family: var(--sans);
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--brass-deep);
+  margin: 0;
+}
+.eyebrow--onNavy { color: #e3c98d; }
+
+.lead { font-size: var(--t-lg); line-height: 1.6; color: var(--ink); }
+.prose { max-width: var(--measure); }
+.prose--wide { max-width: 78ch; }
+.muted { color: var(--ink-soft); }
+.fine { font-size: var(--t-sm); color: var(--ink-soft); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* --- Layout ------------------------------------------------------------- */
+.wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--s5); }
+
+.band { padding: var(--s9) 0; }
+.band--tight { padding: var(--s8) 0; }
+.band--paper { background: var(--paper); }
+.band--surface { background: var(--surface); }
+.band--paperDeep { background: var(--paper-deep); }
+.band--navy { background: var(--navy-deep); color: var(--on-navy); }
+.band--navy h1, .band--navy h2, .band--navy h3, .band--navy h4 { color: var(--on-navy); }
+.band--navy .muted, .band--navy .fine { color: var(--on-navy-soft); }
+
+.stack   { display: flex; flex-direction: column; gap: var(--s5); }
+.stack-2 { display: flex; flex-direction: column; gap: var(--s2); }
+.stack-3 { display: flex; flex-direction: column; gap: var(--s3); }
+.stack-4 { display: flex; flex-direction: column; gap: var(--s4); }
+.stack-5 { display: flex; flex-direction: column; gap: var(--s5); }
+.stack-6 { display: flex; flex-direction: column; gap: var(--s6); }
+.stack-7 { display: flex; flex-direction: column; gap: var(--s7); }
+.row-wrap { display: flex; flex-wrap: wrap; gap: var(--s5); align-items: center; }
+
+.hr-brass { height: 2px; width: 56px; background: var(--brass); border: 0; margin: 0; }
+
+/* --- Buttons ------------------------------------------------------------
+   One filled primary per screen. Verb labels, never icon-only, 48px+ target.
+   ------------------------------------------------------------------------ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  min-height: 52px; padding: 0 var(--s6);
+  border-radius: var(--r-md); border: 2px solid transparent;
+  font-family: var(--sans); font-size: var(--t-base); font-weight: 700;
+  text-decoration: none; cursor: pointer; text-align: center;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn--primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+.btn--primary:hover { background: #142f57; border-color: #142f57; }
+.btn--secondary { background: transparent; color: var(--navy); border-color: var(--navy); }
+.btn--secondary:hover { background: #e8ecf4; }
+.btn--onNavy { background: #fff; color: var(--navy-deep); border-color: #fff; }
+.btn--onNavy:hover { background: var(--on-navy-soft); border-color: var(--on-navy-soft); }
+.btn--quiet {
+  background: transparent; color: var(--navy); border-color: var(--line);
+  min-height: 46px; font-weight: 600; padding: 0 var(--s5);
+}
+.btn--quiet:hover { border-color: var(--navy); }
+.btn--block { width: 100%; }
+
+a { color: var(--navy); }
+.qlink {
+  color: var(--navy); font-weight: 600; text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-thickness: 1px;
+}
+.qlink:hover { text-decoration-thickness: 2px; }
+.qlink--onNavy { color: #fff; }
+.sep { color: var(--ink-soft); padding: 0 var(--s3); }
+
+:where(a, button, input, select, summary):focus-visible {
+  outline: 3px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* --- Masthead ----------------------------------------------------------- */
+.masthead { background: var(--paper); border-bottom: 1px solid var(--line); }
+.masthead__inner {
+  display: flex; align-items: center; gap: var(--s5);
+  min-height: 84px; flex-wrap: wrap; padding-top: var(--s3); padding-bottom: var(--s3);
+}
+.wordmark { display: inline-flex; flex-direction: column; gap: 5px; text-decoration: none; }
+.wordmark__name {
+  font-family: var(--display); font-size: 1.5rem; color: var(--navy);
+  letter-spacing: 0.005em; line-height: 1;
+}
+.wordmark__rule { height: 2px; background: var(--brass); width: 100%; }
+.mastnav { display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap; margin-left: auto; }
+.mastnav a.mastnav__link {
+  color: var(--ink); text-decoration: none; font-weight: 600; font-size: var(--t-sm);
+  padding: var(--s2) 0; border-bottom: 2px solid transparent;
+}
+.mastnav a.mastnav__link:hover { border-bottom-color: var(--brass); }
+body[data-page="pricing"] .mastnav a[data-nav="pricing"] { border-bottom-color: var(--brass); color: var(--navy); }
+
+/* --- Exhibit plates -----------------------------------------------------
+   A product screen is presented as a plate: white ground, hairline, brass tab,
+   caption below in the sans. Never a photograph, never a grey box.
+   ------------------------------------------------------------------------ */
+.plate { display: flex; flex-direction: column; gap: var(--s3); }
+.plate__frame {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--brass);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-plate);
+  overflow: hidden;
+}
+.plate__cap {
+  font-size: var(--t-sm); line-height: 1.5; color: var(--ink-soft);
+  max-width: 62ch; padding-left: var(--s3); border-left: 2px solid var(--line);
+}
+.plate__cap b { color: var(--ink); font-weight: 600; }
+
+/* --- Product reconstruction primitives ----------------------------------
+   Type inside .shot is deliberately smaller than page body: this is a picture
+   of an interface, not prose the visitor reads. Never applies to marketing copy.
+   ------------------------------------------------------------------------ */
+.shot { font-size: 13.5px; line-height: 1.45; color: #1e293b; background: #f4f6fa; }
+.shot h1, .shot h2, .shot h3, .shot h4, .shot h5 { font-family: var(--sans); color: #0f2544; }
+.shot__body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.shot__app { display: grid; grid-template-columns: 208px 1fr; min-height: 100%; }
+/* Flex and grid children default to min-width:auto, which lets a wide table
+   push a reconstructed screen past its plate. Every level is pinned to 0 so the
+   scroll happens in the one container that owns it. */
+.shot__app > *, .shot__body > * { min-width: 0; }
+
+.shot-rail { background: linear-gradient(180deg, #0f172a 0%, #1e3a5f 100%); padding: 14px 0 18px; color: #fff; }
+.shot-rail__brand { padding: 0 16px 12px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.shot-rail__brand .n { font-family: var(--display); font-size: 15px; display: block; }
+.shot-rail__brand .p { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.78); }
+.shot-rail__sect { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: rgba(255,255,255,.55); padding: 12px 16px 4px; }
+.shot-rail__link { display: flex; align-items: center; gap: 9px; padding: 6px 16px; color: rgba(255,255,255,.86); font-size: 12.5px; }
+.shot-rail__link.is-active { background: #2563eb; color: #fff; margin: 1px 10px; padding: 6px 10px; border-radius: 6px; }
+.shot-rail__link svg { width: 14px; height: 14px; flex: none; opacity: .9; }
+
+.shot-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 20px; font-size: 12.5px;
+}
+.shot-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+.shot-card__hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px 0; font-weight: 700; font-size: 13.5px;
+}
+.shot-card__bd { padding: 12px 16px 16px; }
+.shot-grid { display: grid; gap: 12px; }
+.shot-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.shot-grid--split { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.shot-stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
+.shot-stat b { display: block; font-size: 26px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.shot-stat span { font-size: 11.5px; color: #475569; }
+.shot-pill {
+  display: inline-block; border-radius: 999px; padding: 2px 9px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.shot-pill--alert { background: var(--alert-wash); color: var(--alert); }
+.shot-pill--warn  { background: var(--warn-wash);  color: var(--warn); }
+.shot-pill--info  { background: var(--info-wash);  color: #1d4ed8; }
+.shot-pill--ok    { background: var(--ok-wash);    color: var(--ok); }
+.shot-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.shot-table th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: #475569; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid #e2e8f0;
+}
+.shot-table td { padding: 10px 12px; border-bottom: 1px solid #eef2f7; vertical-align: middle; }
+.shot-table tr:last-child td { border-bottom: 0; }
+.shot-input {
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 6px;
+  padding: 7px 10px; font-size: 12.5px; color: #475569;
+}
+.shot-btn {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+  padding: 6px 12px; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+}
+.shot-btn--solid { background: #2563eb; color: #fff; }
+.shot-btn--ghost { background: #fff; border: 1px solid #2563eb; color: #1d4ed8; }
+.shot-btn--grey  { background: #fff; border: 1px solid #cbd5e1; color: #475569; }
+
+/* Browser chrome */
+.browser { background: #fff; }
+.browser__chrome {
+  display: flex; align-items: center; gap: 6px;
+  background: #e7e9ee; padding: 9px 12px; border-bottom: 1px solid #d7dae2;
+}
+.browser__chrome i { width: 9px; height: 9px; border-radius: 50%; background: #c2c7d1; flex: none; }
+.browser__url {
+  flex: 1; min-width: 0; background: #fff; border-radius: 5px; margin-left: 6px;
+  padding: 4px 10px; font-size: 11.5px; color: #475569;
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.browser__url svg { width: 11px; height: 11px; color: var(--ok); flex: none; }
+
+/* The customer's own site, rendered through the Modern template */
+.site { background: #fff; font-size: 13px; color: #111827; }
+.site__nav {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  padding: 12px 22px; border-bottom: 1px solid #dbe4f0; background: #fff;
+}
+.site__brand { font-weight: 700; font-size: 14px; color: #0f2544; margin-right: auto; }
+.site__nav a { color: #334155; text-decoration: none; font-size: 12.5px; }
+.site__nav a.is-active { color: #1457d9; font-weight: 700; border-bottom: 2px solid #1457d9; padding-bottom: 2px; }
+.site__hero {
+  background:
+    linear-gradient(110deg, rgba(8,21,48,.94), rgba(8,21,48,.35)),
+    linear-gradient(135deg, #07142f, #1457d9);
+  color: #fff; padding: 40px 26px;
+  display: grid; grid-template-columns: 1.25fr 1fr; gap: 26px; align-items: center;
+}
+.site__eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; font-weight: 700; color: #e5edff; }
+.site__h1 { font-size: 27px; line-height: 1.15; font-weight: 700; margin: 8px 0 10px; }
+.site__lead { font-size: 14px; color: #e8eefb; }
+.site__btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.site__btn { border-radius: 7px; padding: 9px 15px; font-size: 12.5px; font-weight: 700; }
+.site__btn--solid { background: #1457d9; color: #fff; }
+.site__btn--outline { border: 1px solid rgba(255,255,255,.8); color: #fff; }
+.site__herocard { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 18px; }
+.site__band { padding: 30px 26px; border-top: 1px solid #dbe4f0; }
+.site__foot { background: #0f2544; color: #cbd5e1; padding: 20px 26px; font-size: 11.5px; }
+
+/* --- The AI Daily Assistant card ---------------------------------------
+   Shared by the home page exhibit and the preview sidebar. Structure mirrors
+   Views/Preview/_MockAiAssistantCard.cshtml.
+   ------------------------------------------------------------------------ */
+.ai-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.ai-card__hd { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #0f2544; }
+.ai-card__hd svg { width: 16px; height: 16px; color: #2563eb; flex: none; }
+.ai-card__tier { font-size: 12px; color: #475569; margin-top: 2px; }
+.ai-card__counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; text-align: center; }
+.ai-card__count b {
+  display: block; font-size: 30px; font-weight: 800; line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.ai-card__count span { font-size: 11.5px; color: #475569; display: block; margin-top: 2px; }
+.ai-card__count--new b   { color: #1d4ed8; }
+.ai-card__count--stale b { color: var(--warn); }
+.ai-card__count--none b  { color: #146c8b; }
+.ai-card__action {
+  margin-top: 14px; background: #fbfaf6; border: 1px solid #e7e2d8;
+  border-radius: 7px; padding: 12px 13px; font-size: 13px; line-height: 1.5;
+}
+.ai-card__action .why { display: block; margin-top: 5px; color: #475569; font-size: 12.5px; }
+.ai-card__foot { margin-top: 12px; font-size: 12px; color: #475569; }
+
+/* --- Plan card. One repeatable unit driven by a package row. ------------- */
+.plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s5); align-items: stretch; }
+.plan-card {
+  display: flex; flex-direction: column; gap: var(--s3);
+  background: var(--surface); border: 1px solid var(--line);
+  border-top: 3px solid var(--line); border-radius: var(--r-md);
+  padding: var(--s6) var(--s5) var(--s5);
+  box-shadow: var(--shadow-card);
+}
+.plan-card--lifted { border-top-color: var(--brass); }
+.plan-card__badge {
+  align-self: flex-start; font-size: var(--t-label); font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  background: #eceff5; color: var(--ink-soft); border-radius: var(--r-sm); padding: 4px 9px;
+}
+.plan-card--lifted .plan-card__badge { background: var(--brass-wash); color: var(--brass-deep); }
+.plan-card__name { font-family: var(--display); font-size: var(--t-2xl); font-weight: 700; color: var(--navy); }
+.plan-card__price { display: flex; align-items: baseline; gap: 6px; }
+.plan-card__amount { font-size: var(--t-4xl); font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.plan-card__per { font-size: var(--t-base); color: var(--ink-soft); }
+.plan-card__limits {
+  list-style: none; margin: 0; padding: var(--s3) 0;
+  border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+  display: flex; flex-direction: column; gap: 4px; font-size: var(--t-sm); color: var(--ink-soft);
+}
+.plan-card__limits b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.plan-card__setup { font-size: var(--t-sm); color: var(--ink-soft); }
+.plan-card__setup s { color: var(--ink-soft); text-decoration-thickness: 1px; }
+.plan-card__free { font-size: var(--t-2xl); font-weight: 800; color: var(--brass-deep); display: block; margin-top: 2px; }
+.plan-card__free small { font-size: var(--t-sm); font-weight: 700; color: var(--ink); display: block; }
+.plan-card__cta { margin-top: auto; display: flex; flex-direction: column; gap: var(--s3); align-items: center; }
+
+/* --- Forms -------------------------------------------------------------- */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: var(--t-sm); font-weight: 700; color: var(--ink); }
+.field input[type="email"], .field input[type="text"] {
+  font-family: var(--sans); font-size: var(--t-base); color: var(--ink);
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 12px var(--s3); min-height: 48px; width: 100%;
+}
+.field input::placeholder { color: var(--ink-soft); }
+
+/* --- Prototype note. Delete when this ports to Razor. ------------------- */
+.proto-note {
+  background: var(--navy-deep); color: var(--on-navy-soft);
+  font-size: var(--t-sm); line-height: 1.5; padding: 10px 0;
+}
+.proto-note b { color: #fff; font-weight: 700; }
+
+/* --- Footer ------------------------------------------------------------- */
+.sitefoot { background: var(--navy-deep); color: var(--on-navy-soft); padding: var(--s8) 0 var(--s6); }
+.sitefoot h4 {
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 700;
+  letter-spacing: .11em; text-transform: uppercase; color: #e3c98d;
+}
+.sitefoot__cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s6) var(--s5); }
+.sitefoot ul { list-style: none; margin: var(--s3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.sitefoot a { color: #fff; text-decoration: none; font-size: var(--t-sm); }
+.sitefoot a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.sitefoot__base {
+  margin-top: var(--s7); padding-top: var(--s5); border-top: 1px solid rgba(255,255,255,.16);
+  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); justify-content: space-between;
+  font-size: var(--t-sm);
+}
+.sitefoot__tag { font-family: var(--display); font-size: var(--t-base); color: #fff; }
+
+/* --- Motion. The only licensed movement is the three counts, once. ------ */
+[data-countup] { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* --- Responsive --------------------------------------------------------- */
+@media (max-width: 1040px) {
+  .plan-grid { grid-template-columns: 1fr; }
+  .sitefoot__cols { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 860px) {
+  :root { --t-5xl: 2.375rem; --t-4xl: 2rem; --t-3xl: 1.75rem; --t-2xl: 1.5rem; }
+  .band { padding: var(--s8) 0; }
+  .shot__app { grid-template-columns: 1fr; }
+  .shot-rail { display: none; }
+  /* A reconstructed screen keeps its own proportions and scrolls inside its
+     plate rather than being cropped by it. */
+  .shot-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shot-grid--split { grid-template-columns: minmax(0, 1fr); }
+  .shot-card { overflow-x: auto; }
+  .site__hero { grid-template-columns: 1fr; }
+  .masthead__inner { min-height: 0; }
+  .mastnav { margin-left: 0; width: 100%; gap: var(--s4); }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 var(--s4); }
+  .sitefoot__cols { grid-template-columns: 1fr; }
+  .btn { width: 100%; }
+}
+
+/* ===== Home page only ==================================================== */
+.hero { padding: var(--s9) 0 var(--s8); }
+.hero__inner { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: var(--s8); align-items: end; }
+.hero h1 { max-width: 15ch; }
+.hero__sub { max-width: 54ch; }
+.hero__aside { border-left: 2px solid var(--brass); padding-left: var(--s5); }
+.hero__aside dt { font-family: var(--display); font-size: var(--t-xl); color: var(--navy); }
+.hero__aside dd { margin: 2px 0 var(--s4); font-size: var(--t-sm); color: var(--ink-soft); }
+.hero__aside dd:last-child { margin-bottom: 0; }
+
+.pillar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--s8); align-items: start; }
+.pillar--stacked { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+.pillar__copy { display: flex; flex-direction: column; gap: var(--s4); }
+.pillar__no {
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 700;
+  letter-spacing: .11em; text-transform: uppercase; color: var(--brass-deep);
+  display: flex; align-items: center; gap: var(--s3);
+}
+.pillar__no::after { content: ""; height: 1px; flex: 1; background: var(--line); }
+
+.stage { position: relative; }
+.stage__inset {
+  position: absolute; right: -8px; bottom: -34px; width: 340px; max-width: 62%;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: 0 20px 44px -18px rgba(16,37,74,.45); overflow: hidden;
+}
+/* A caption that shares its row with an overlapping inset stops short of it. */
+.plate__cap--narrow { max-width: 44ch; }
+.phone {
+  position: absolute; right: -12px; bottom: -28px; width: 176px;
+  border: 8px solid #10254a; border-radius: 22px; background: #fff;
+  box-shadow: 0 22px 46px -18px rgba(16,37,74,.55); overflow: hidden;
+}
+
+.week { display: grid; grid-template-columns: 190px minmax(0, 1fr); }
+.week__when {
+  font-family: var(--display); font-size: var(--t-xl); color: #fff;
+  padding: var(--s5) var(--s5) var(--s5) 0;
+}
+.week__what { padding: var(--s5) 0; color: var(--on-navy-soft); font-size: var(--t-base); }
+.week__row { display: contents; }
+.week__rule { grid-column: 1 / -1; height: 1px; background: rgba(255,255,255,.2); }
+.week__rule--brass { background: var(--brass); height: 2px; }
+
+.dont { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--s8); }
+.dont__item { padding: var(--s5) 0; border-top: 1px solid rgba(255,255,255,.2); }
+.dont__item h3 { font-size: var(--t-xl); color: #fff; margin-bottom: 6px; }
+.dont__item p { color: var(--on-navy-soft); }
+
+.letter {
+  max-width: 68ch; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: var(--s7);
+  display: flex; flex-direction: column; gap: var(--s4);
+}
+.letter__sign { display: flex; flex-direction: column; gap: 6px; padding-top: var(--s4); }
+.letter__name { font-family: var(--display); font-size: var(--t-2xl); color: var(--navy); }
+
+.close { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s4); }
+.close h2 { max-width: 18ch; }
+.close p { max-width: 56ch; }
+
+.inbox__hd { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 14px 18px; }
+.inbox__subject { font-size: 15px; font-weight: 700; color: #0f2544; }
+.inbox__meta { display: flex; gap: 8px; align-items: baseline; margin-top: 6px; font-size: 12px; color: #475569; }
+.nl { background: #eef1f6; padding: 16px; }
+.nl__card { background: #fff; border: 1px solid #dbe4f0; max-width: 620px; margin: 0 auto; }
+.nl__banner { background: linear-gradient(135deg, #10254a, #1a3a6b); color: #fff; padding: 20px 22px; }
+.nl__banner .n { font-size: 17px; font-weight: 700; }
+.nl__banner .t { font-size: 12px; color: #cfdaef; margin-top: 3px; }
+.nl__bd { padding: 20px 22px; font-size: 13px; line-height: 1.65; color: #1e293b; display: flex; flex-direction: column; gap: 12px; }
+.nl__bd h4 { font-family: var(--sans); font-size: 14.5px; color: #0f2544; }
+.nl__sig { border-top: 1px solid #e2e8f0; padding: 16px 22px; font-size: 12px; color: #475569; line-height: 1.6; }
+.nl__sig b { color: #1e293b; }
+.nl__unsub { max-width: 620px; margin: 14px auto 0; padding-top: 12px; border-top: 1px solid #dbe4f0; text-align: center; font-size: 11.5px; color: #475569; }
+
+@media (max-width: 1040px) {
+  .hero__inner { grid-template-columns: minmax(0, 1fr); gap: var(--s7); align-items: start; }
+  .pillar { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+  .dont { grid-template-columns: minmax(0, 1fr); }
+  .phone { position: static; width: 100%; max-width: 240px; margin: var(--s5) auto 0; }
+  .stage__inset { position: static; width: 100%; max-width: none; margin-top: var(--s5); }
+}
+@media (max-width: 700px) {
+  .week { grid-template-columns: minmax(0, 1fr); }
+  .week__when { padding-bottom: 0; }
+  .week__what { padding-top: var(--s2); }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6v9H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"/><path d="M16.5 5.4a3 3 0 0 1 0 5.6M17.5 20a6 6 0 0 0-2.6-4.6"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h10M4 17h7"/><path d="M17 16.6l1.6 1.6L22 15"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10.5h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4.5 4.5V21H6z"/><path d="M14 3v5h4.5"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="4"/><path d="M4.5 13h15v8h-15zM12 9v12"/><path d="M12 9S11 4.5 9 4.5a2.2 2.2 0 0 0 0 4.5M12 9s1-4.5 3-4.5a2.2 2.2 0 0 1 0 4.5"/></symbol>
+  <symbol id="i-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L15 5v14l-7.5-4.5H4z"/><path d="M18.5 9a4.5 4.5 0 0 1 0 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.6 3h4.8L16 13h5"/><path d="M3 13l3-8h12l3 8v6H3z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M6.5 20v-6M11.5 20V6M16.5 20v-9"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h6l2 2.5h10V19H3z"/></symbol>
+  <symbol id="i-comment" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11h-8l-5 4v-4H4z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18.5h5M10.5 21.5h3"/><path d="M12 2.5a6.2 6.2 0 0 0-3.6 11.3c.6.4 1 1.1 1 1.8v.9h5.2v-.9c0-.7.4-1.4 1-1.8A6.2 6.2 0 0 0 12 2.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.8l5.2 5.2L20 6.4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="10" width="13" height="10" rx="2"/><path d="M8.8 10V7.2a3.2 3.2 0 0 1 6.4 0V10"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4L20.5 20.5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4.5 19.5h15"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.5V4h7.5l9 9-7.5 7.5z"/><circle cx="7.5" cy="8" r="1.4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3.5l1.8 4.4-2.2 1.6a12.5 12.5 0 0 0 6.4 6.4l1.6-2.2 4.4 1.8V19a1.5 1.5 0 0 1-1.6 1.5C10.9 20 4 13.1 3.5 5.1A1.5 1.5 0 0 1 5 3.5z"/></symbol>
+</svg>
+
+<div class="proto-note">
+  <div class="wrap"><b>Design prototype.</b> Product images on this page are HTML reconstructions of the real screens, built to be structurally accurate. They are stand-ins for photographic captures, not the finished assets. This strip is not part of the design.</div>
+</div>
+
+<header class="masthead">
+  <div class="wrap masthead__inner">
+    <a class="wordmark" href="home.html">
+      <span class="wordmark__name">IPRO Advisers</span>
+      <span class="wordmark__rule"></span>
+    </a>
+    <nav class="mastnav" aria-label="Main">
+      <a class="mastnav__link" href="#included">What's included</a>
+      <a class="mastnav__link" href="pricing.html" data-nav="pricing">Pricing</a>
+      <a class="mastnav__link" href="#who">Who it's for</a>
+      <a class="mastnav__link" href="#questions">Questions</a>
+      <a class="mastnav__link" href="#signin">Sign in</a>
+      <a class="btn btn--quiet" href="preview-show.html">See your website</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===================================================== Hero ========= -->
+  <section class="band--paper hero">
+    <div class="wrap hero__inner">
+      <div class="stack-5">
+        <p class="eyebrow">For independent advisers, brokers and accountants across Canada</p>
+        <h1>Everything your practice runs on, in one login.</h1>
+        <p class="lead hero__sub">Your website, your client list, your newsletters and your follow-ups — in one system that knows all of it, so nothing quietly falls through. Take thirty seconds and we'll show you your own site, with your name on it, before you give us anything.</p>
+        <div class="stack-3" style="align-items:flex-start">
+          <a class="btn btn--primary" href="preview-show.html">Show me my website — 30 seconds</a>
+          <p class="fine">No account. No credit card. Nothing saved.</p>
+        </div>
+        <p><a class="qlink" href="#included">See what's included</a><span class="sep">&middot;</span><a class="qlink" href="pricing.html">See pricing</a></p>
+      </div>
+      <dl class="hero__aside">
+        <dt>Your website</dt>
+        <dd>Written, live and yours today.</dd>
+        <dt>Your client list</dt>
+        <dd>The same records your site feeds.</dd>
+        <dt>Your newsletters</dt>
+        <dd>Sent, tracked, unsubscribes handled.</dd>
+        <dt>Your follow-ups</dt>
+        <dd>Raised before you'd have remembered.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ============================================ Band 2 — the one thing = -->
+  <section class="band band--surface" id="included">
+    <div class="wrap stack-7">
+      <div class="stack-4">
+        <p class="eyebrow">The part nobody else does</p>
+        <h2 style="max-width:20ch">Every morning, it tells you who to call.</h2>
+        <p class="lead prose">Because your website, your leads and your clients all live in the same system, IPRO can look at the whole picture overnight and have an answer waiting before you sit down. Who came in and hasn't been called back. Who's been waiting more than a day. Who you have nothing scheduled with at all. Not a report to go through — one name at the top of the screen, and the reason underneath it.</p>
+      </div>
+
+      <!-- Shot 1 — the dashboard at 7 a.m. -->
+      <figure class="plate" style="margin:0">
+        <div class="plate__frame">
+          <div class="browser">
+            <div class="browser__chrome">
+              <i></i><i></i><i></i>
+              <span class="browser__url"><svg><use href="#i-lock"></use></svg>app.iproadvisers.com/portal/Dashboard</span>
+            </div>
+          </div>
+          <div class="shot">
+            <div class="shot__app">
+              <nav class="shot-rail">
+                <div class="shot-rail__brand"><span class="n">IPRO Advisers</span><span class="p">Agent portal</span></div>
+                <div class="shot-rail__sect">Overview</div>
+                <span class="shot-rail__link is-active"><svg><use href="#i-home"></use></svg>Dashboard</span>
+                <div class="shot-rail__sect">Clients</div>
+                <span class="shot-rail__link"><svg><use href="#i-users"></use></svg>Clients</span>
+                <span class="shot-rail__link"><svg><use href="#i-tasks"></use></svg>Follow-ups</span>
+                <span class="shot-rail__link"><svg><use href="#i-calendar"></use></svg>Calendar</span>
+                <div class="shot-rail__sect">Marketing</div>
+                <span class="shot-rail__link"><svg><use href="#i-mail"></use></svg>Newsletter</span>
+                <span class="shot-rail__link"><svg><use href="#i-file"></use></svg>Articles</span>
+                <span class="shot-rail__link"><svg><use href="#i-gift"></use></svg>E-Cards</span>
+                <span class="shot-rail__link"><svg><use href="#i-megaphone"></use></svg>Campaigns</span>
+                <div class="shot-rail__sect">Website</div>
+                <span class="shot-rail__link"><svg><use href="#i-globe"></use></svg>My Website</span>
+                <span class="shot-rail__link"><svg><use href="#i-inbox"></use></svg>Website Leads</span>
+                <span class="shot-rail__link"><svg><use href="#i-chart"></use></svg>Analytics</span>
+                <div class="shot-rail__sect">Billing</div>
+                <span class="shot-rail__link"><svg><use href="#i-card"></use></svg>Billing</span>
+              </nav>
+              <div>
+                <div class="shot-topbar">
+                  <span class="num">Tuesday, 12 August &middot; 7:04 a.m.</span>
+                  <span><b>Michael Tran</b> &middot; Tran Financial Group</span>
+                </div>
+                <div class="shot__body">
+                  <div>
+                    <div style="font-size:19px;font-weight:700;color:#0f2544">Welcome back, Michael!</div>
+                    <div style="color:#475569">Here is what needs attention today.</div>
+                  </div>
+
+                  <div class="ai-card">
+                    <div class="ai-card__hd"><svg><use href="#i-spark"></use></svg>AI Daily Assistant</div>
+                    <p class="ai-card__tier">Included in Platinum &amp; Broker plans.</p>
+                    <div class="ai-card__counts">
+                      <div class="ai-card__count ai-card__count--new"><b data-countup="3">3</b><span>New leads</span></div>
+                      <div class="ai-card__count ai-card__count--stale"><b data-countup="5">5</b><span>Leads &gt;24h old</span></div>
+                      <div class="ai-card__count ai-card__count--none"><b data-countup="4">4</b><span>No follow-up scheduled</span></div>
+                    </div>
+                    <div class="ai-card__action">
+                      <strong>Suggested next action:</strong> Call Jennifer Walsh first — her life insurance policy review is 4 days overdue.
+                      <span class="why">She mentioned wanting to increase coverage before her policy renews next month.</span>
+                    </div>
+                  </div>
+
+                  <div style="display:flex;align-items:center;gap:12px;background:var(--info-wash);border-radius:8px;padding:11px 14px;flex-wrap:wrap">
+                    <svg style="width:15px;height:15px;color:#1d4ed8" aria-hidden="true"><use href="#i-inbox"></use></svg>
+                    <span><b>2 website leads need follow-up.</b> 1 unread.</span>
+                    <span class="shot-btn shot-btn--solid" style="margin-left:auto">Open Lead Inbox</span>
+                  </div>
+
+                  <div class="shot-grid shot-grid--4">
+                    <div class="shot-stat"><b style="color:#1d4ed8" class="num">412</b><span>Total Clients</span></div>
+                    <div class="shot-stat"><b style="color:var(--alert)" class="num">3</b><span>Overdue Follow-ups</span></div>
+                    <div class="shot-stat"><b style="color:var(--warn)" class="num">5</b><span>Due Today</span></div>
+                    <div class="shot-stat"><b style="color:#146c8b" class="num">12</b><span>Upcoming</span></div>
+                  </div>
+
+                  <div class="shot-grid shot-grid--split">
+                    <div class="shot-card">
+                      <div class="shot-card__hd"><span>Next Follow-ups</span><span class="shot-pill" style="background:#eef2f7;color:#475569">3 shown</span></div>
+                      <div class="shot-card__bd" style="display:flex;flex-direction:column;gap:8px">
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+                          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>Policy review — increase coverage</b><span class="shot-pill shot-pill--alert">Overdue</span></div>
+                          <div style="margin-top:3px"><span style="color:#1d4ed8">Jennifer Walsh</span></div>
+                          <div style="color:#475569;margin-top:2px">Wants more coverage before the renewal date.</div>
+                        </div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+                          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>Send the quote comparison</b><span class="shot-pill shot-pill--warn">Today</span></div>
+                          <div style="margin-top:3px"><span style="color:#1d4ed8">Marcus Chen</span></div>
+                        </div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+                          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>Annual review meeting</b><span class="shot-pill shot-pill--info">Aug 18</span></div>
+                          <div style="margin-top:3px"><span style="color:#1d4ed8">David &amp; Ruth Henderson</span></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="shot-card">
+                      <div class="shot-card__hd"><span>Quick Actions</span></div>
+                      <div class="shot-card__bd" style="display:flex;flex-direction:column;gap:6px">
+                        <span class="shot-btn shot-btn--grey" style="justify-content:flex-start"><svg style="width:13px;height:13px"><use href="#i-plus"></use></svg>Add New Client</span>
+                        <span class="shot-btn shot-btn--grey" style="justify-content:flex-start"><svg style="width:13px;height:13px"><use href="#i-search"></use></svg>Search Clients</span>
+                        <span class="shot-btn shot-btn--grey" style="justify-content:flex-start"><svg style="width:13px;height:13px"><use href="#i-tasks"></use></svg>Follow-up Queue</span>
+                        <span class="shot-btn shot-btn--grey" style="justify-content:flex-start"><svg style="width:13px;height:13px"><use href="#i-mail"></use></svg>Create Newsletter</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="plate__cap">The first thing on the dashboard at seven in the morning. Included with Platinum and Broker plans.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============================================ Band 3 — three pillars = -->
+  <section class="band band--paper" id="who">
+    <div class="wrap stack-7" style="gap:var(--s10)">
+
+      <!-- Pillar one -->
+      <div class="pillar">
+        <div class="pillar__copy">
+          <p class="pillar__no">One</p>
+          <h3>You'll have a real website today, not a project.</h3>
+          <p>Tell us what you do and the pages arrive already written — home, about, testimonials, a newsletter signup, a request-a-meeting page, contact — with an article library for your field already sitting on them. Accountants start with nineteen pieces across four sections. You're editing something finished instead of staring at an empty box. Point your own domain at it whenever you're ready; the security certificate is issued and renewed for you.</p>
+          <p><a class="qlink" href="preview-show.html">See what a finished site looks like →</a></p>
+        </div>
+        <figure class="plate stage" style="margin:0;padding-bottom:34px">
+          <div class="plate__frame">
+            <div class="browser__chrome">
+              <i></i><i></i><i></i>
+              <span class="browser__url"><svg><use href="#i-lock"></use></svg>tranfinancial.ca</span>
+            </div>
+            <div class="site">
+              <div class="site__nav">
+                <span class="site__brand">Tran Financial Group</span>
+                <a href="#site" class="is-active">Home</a><a href="#site">About</a><a href="#site">Testimonials</a><a href="#site">Resources</a><a href="#site">Contact</a>
+              </div>
+              <div class="site__hero">
+                <div>
+                  <div class="site__eyebrow">Tran Financial Group</div>
+                  <div class="site__h1">Build confidence in your financial future</div>
+                  <div class="site__lead">Professional insurance and financial guidance with responsive, personal service.</div>
+                  <div class="site__btnrow"><span class="site__btn site__btn--solid">Call 905-555-0148</span><span class="site__btn site__btn--outline">Email</span></div>
+                </div>
+                <div class="site__herocard">
+                  <div style="font-weight:700;font-size:14px;margin-bottom:8px">How we can help</div>
+                  <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;color:#e8eefb">
+                    <span>Insurance planning</span><span>Retirement and investment guidance</span><span>Ongoing reviews and client support</span>
+                  </div>
+                </div>
+              </div>
+              <div class="site__band">
+                <div style="font-weight:700;font-size:15px;color:#0f2544">Ready to start a conversation?</div>
+                <div style="color:#475569;margin-top:4px;max-width:46ch">Tell us what you are working toward and we will help you identify the next step.</div>
+              </div>
+              <div class="site__foot">&copy; 2026 Tran Financial Group &middot; Burlington, Ontario</div>
+            </div>
+          </div>
+          <div class="phone" aria-hidden="true">
+            <div class="site">
+              <div class="site__nav" style="padding:9px 12px;gap:8px"><span class="site__brand" style="font-size:11px">Tran Financial</span><span style="color:#334155">☰</span></div>
+              <div class="site__hero" style="grid-template-columns:1fr;padding:20px 14px;gap:14px">
+                <div>
+                  <div class="site__eyebrow" style="font-size:9px">Tran Financial Group</div>
+                  <div class="site__h1" style="font-size:16px;margin:6px 0 6px">Build confidence in your financial future</div>
+                  <div class="site__lead" style="font-size:11px">Professional insurance and financial guidance with responsive, personal service.</div>
+                  <div class="site__btnrow" style="margin-top:12px"><span class="site__btn site__btn--solid" style="font-size:10.5px;padding:7px 11px">Call 905-555-0148</span></div>
+                </div>
+              </div>
+              <div class="site__band" style="padding:16px 14px">
+                <div style="font-weight:700;font-size:12px;color:#0f2544">How we can help</div>
+                <div style="color:#475569;font-size:11px;margin-top:5px">Insurance planning</div>
+                <div style="color:#475569;font-size:11px">Retirement and investment guidance</div>
+              </div>
+            </div>
+          </div>
+          <figcaption class="plate__cap plate__cap--narrow">A starter site for the insurance and financial vertical, rendered through the real template engine — the same pages, headings and article library a new customer gets on day one.</figcaption>
+        </figure>
+      </div>
+
+      <!-- Pillar two -->
+      <div class="pillar pillar--stacked">
+        <div class="pillar__copy" style="max-width:var(--measure)">
+          <p class="pillar__no">Two</p>
+          <h3>Your website and your client list are the same thing.</h3>
+          <p>Someone fills in the form on your site and they're in your prospect list before you've finished reading the email. When they become a client, that same record carries your notes, their follow-ups, their birthday, their renewal date, whether they get your newsletter, and every invoice you've sent them. Nothing to export. Nothing to keep in step. One list, one bill, one password.</p>
+          <p><a class="qlink" href="#included">See everything that's included →</a></p>
+        </div>
+        <figure class="plate stage" style="margin:0;padding-bottom:40px">
+          <div class="plate__frame">
+            <div class="browser__chrome">
+              <i></i><i></i><i></i>
+              <span class="browser__url"><svg><use href="#i-lock"></use></svg>app.iproadvisers.com/portal/Clients</span>
+            </div>
+            <div class="shot">
+              <div class="shot__app">
+                <nav class="shot-rail">
+                  <div class="shot-rail__brand"><span class="n">IPRO Advisers</span><span class="p">Agent portal</span></div>
+                  <div class="shot-rail__sect">Overview</div>
+                  <span class="shot-rail__link"><svg><use href="#i-home"></use></svg>Dashboard</span>
+                  <div class="shot-rail__sect">Clients</div>
+                  <span class="shot-rail__link is-active"><svg><use href="#i-users"></use></svg>Clients</span>
+                  <span class="shot-rail__link"><svg><use href="#i-tasks"></use></svg>Follow-ups</span>
+                  <span class="shot-rail__link"><svg><use href="#i-calendar"></use></svg>Calendar</span>
+                  <div class="shot-rail__sect">Marketing</div>
+                  <span class="shot-rail__link"><svg><use href="#i-mail"></use></svg>Newsletter</span>
+                  <span class="shot-rail__link"><svg><use href="#i-gift"></use></svg>E-Cards</span>
+                  <div class="shot-rail__sect">Website</div>
+                  <span class="shot-rail__link"><svg><use href="#i-globe"></use></svg>My Website</span>
+                  <span class="shot-rail__link"><svg><use href="#i-inbox"></use></svg>Website Leads</span>
+                </nav>
+                <div>
+                  <div class="shot__body">
+                    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                      <div>
+                        <div style="font-size:18px;font-weight:700;color:#0f2544">My Clients</div>
+                        <div style="color:#475569">412 total contacts</div>
+                      </div>
+                      <div style="display:flex;gap:7px;flex-wrap:wrap">
+                        <span class="shot-btn shot-btn--solid"><svg style="width:13px;height:13px"><use href="#i-plus"></use></svg>Add Client</span>
+                        <span class="shot-btn shot-btn--ghost"><svg style="width:13px;height:13px"><use href="#i-tag"></use></svg>Account Types</span>
+                        <span class="shot-btn shot-btn--grey"><svg style="width:13px;height:13px"><use href="#i-file"></use></svg>Import CSV</span>
+                        <span class="shot-btn shot-btn--grey"><svg style="width:13px;height:13px"><use href="#i-download"></use></svg>Export</span>
+                      </div>
+                    </div>
+                    <div class="shot-card">
+                      <div class="shot-card__bd" style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+                        <span class="shot-input" style="flex:1;min-width:220px;display:flex;align-items:center;gap:7px"><svg style="width:13px;height:13px"><use href="#i-search"></use></svg>Search name, company, email, phone, city, or account type…</span>
+                        <span class="shot-input">All account types &#9662;</span>
+                        <span class="shot-input">All newsletter &#9662;</span>
+                        <span class="shot-btn shot-btn--solid">Filter</span>
+                      </div>
+                    </div>
+                    <div class="shot-card">
+                      <table class="shot-table">
+                        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Account Types</th><th>Newsletter</th><th>Added</th></tr></thead>
+                        <tbody>
+                          <tr>
+                            <td><b>Jennifer Walsh</b></td><td style="color:#475569">j.walsh@rogers.com</td><td class="num" style="color:#475569">905-555-0117</td><td style="color:#475569">Burlington</td>
+                            <td><span class="shot-pill shot-pill--info">Life Insurance</span> <span class="shot-pill shot-pill--info">Review Due</span></td>
+                            <td><span class="shot-pill shot-pill--ok">Yes</span></td><td class="num" style="color:#475569">Mar 4, 2024</td>
+                          </tr>
+                          <tr>
+                            <td><b>Marcus Chen</b><div style="color:#475569">Chen Dental Professional Corp.</div></td><td style="color:#475569">marcus@chendental.ca</td><td class="num" style="color:#475569">289-555-0143</td><td style="color:#475569">Oakville</td>
+                            <td><span class="shot-pill shot-pill--info">Prospect</span></td>
+                            <td><span class="shot-pill shot-pill--ok">Yes</span></td><td class="num" style="color:#475569">Aug 10, 2026</td>
+                          </tr>
+                          <tr>
+                            <td><b>David Henderson</b></td><td style="color:#475569">dhenderson51@gmail.com</td><td class="num" style="color:#475569">905-555-0164</td><td style="color:#475569">Hamilton</td>
+                            <td><span class="shot-pill shot-pill--info">Group Benefits</span> <span class="shot-pill shot-pill--info">RRSP</span></td>
+                            <td><span class="shot-pill shot-pill--ok">Yes</span></td><td class="num" style="color:#475569">Nov 19, 2021</td>
+                          </tr>
+                          <tr>
+                            <td><b>Anita Sandhu</b></td><td style="color:#475569">a.sandhu@outlook.com</td><td class="num" style="color:#475569">647-555-0192</td><td style="color:#475569">Mississauga</td>
+                            <td><span class="shot-pill shot-pill--info">Critical Illness</span></td>
+                            <td><span class="shot-pill" style="background:#eef2f7;color:#475569">No</span></td><td class="num" style="color:#475569">Jun 2, 2023</td>
+                          </tr>
+                          <tr>
+                            <td><b>Paul Grenier</b><div style="color:#475569">Grenier Contracting Ltd.</div></td><td style="color:#475569">paul@greniercontracting.ca</td><td class="num" style="color:#475569">519-555-0128</td><td style="color:#475569">Guelph</td>
+                            <td><span class="shot-pill shot-pill--info">Key Person</span></td>
+                            <td><span class="shot-pill shot-pill--ok">Yes</span></td><td class="num" style="color:#475569">Feb 27, 2022</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="stage__inset" aria-hidden="true">
+            <div class="shot" style="background:#fff">
+              <div class="shot-card" style="border:0">
+                <div class="shot-card__hd"><span>Next Follow-ups</span><span class="shot-pill shot-pill--alert">1 overdue</span></div>
+                <div class="shot-card__bd" style="display:flex;flex-direction:column;gap:8px">
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>Policy review — increase coverage</b><span class="shot-pill shot-pill--alert">Overdue</span></div>
+                    <div style="margin-top:3px;color:#1d4ed8">Jennifer Walsh</div>
+                    <div style="color:#475569;margin-top:2px">Due 8 Aug &middot; 4 days ago</div>
+                  </div>
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>Send the quote comparison</b><span class="shot-pill shot-pill--warn">Today</span></div>
+                    <div style="margin-top:3px;color:#1d4ed8">Marcus Chen</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figcaption class="plate__cap">One record per person, with the account types you defined. The follow-up queue reads the same records — Jennifer Walsh is the name the morning list raised.</figcaption>
+        </figure>
+      </div>
+
+      <!-- Pillar three -->
+      <div class="pillar">
+        <div class="pillar__copy">
+          <p class="pillar__no">Three</p>
+          <h3>The things you meant to get to happen anyway.</h3>
+          <p>Birthdays, policy renewals and anniversaries come up on their own, in advance. Newsletters go out with unsubscribes handled properly, which is most of why email lands. Overdue invoices chase themselves once a week until they're paid, and stop the second you mark one paid. The cards and letters are already written — you pick one and send it.</p>
+          <p><a class="qlink" href="#week">See how a week actually goes →</a></p>
+        </div>
+        <figure class="plate" style="margin:0">
+          <div class="plate__frame">
+            <div class="inbox__hd">
+              <div class="inbox__subject">Your August update: RRSP or TFSA — which should you prioritize?</div>
+              <div class="inbox__meta">
+                <span><b style="color:#0f2544">Tran Financial Group</b> &lt;michael@tranfinancial.ca&gt;</span>
+                <span style="margin-left:auto" class="num">7:00 a.m.</span>
+              </div>
+              <div class="inbox__meta" style="margin-top:2px"><span>to me</span></div>
+            </div>
+            <div class="nl">
+              <div class="nl__card">
+                <div class="nl__banner">
+                  <div class="n">Tran Financial Group</div>
+                  <div class="t">Insurance and financial guidance &middot; Burlington, Ontario</div>
+                </div>
+                <div class="nl__bd">
+                  <h4>RRSP or TFSA: which should you prioritize?</h4>
+                  <p>Both accounts are useful, but the right order to fund them depends on your income today versus your expected income later.</p>
+                  <p>An RRSP contribution reduces your taxable income today and grows tax-deferred, but withdrawals are taxed later. A TFSA works differently: contributions don't reduce your income today, but growth and withdrawals are entirely tax-free.</p>
+                  <p><a href="#article" style="color:#1d4ed8">Read the full article →</a></p>
+                </div>
+                <div class="nl__sig">
+                  <b>Michael Tran</b>, Insurance and Financial Adviser<br>
+                  Tran Financial Group &middot; 1240 Brant Street, Suite 3, Burlington, ON L7P 1X8<br>
+                  905-555-0148 &middot; michael@tranfinancial.ca &middot; tranfinancial.ca
+                </div>
+              </div>
+              <div class="nl__unsub">
+                You received this because you are a client of the sender.<br>
+                <a href="#unsub" style="color:#1d4ed8">Unsubscribe or change what you receive</a>
+              </div>
+            </div>
+          </div>
+          <figcaption class="plate__cap">A newsletter as it arrives: your banner, your article, your details in the footer, and a working unsubscribe line — the part that decides whether the next one reaches the inbox at all.</figcaption>
+        </figure>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================ Band 4 — your first week -->
+  <section class="band band--navy" id="week">
+    <div class="wrap stack-6">
+      <div class="stack-4">
+        <p class="eyebrow eyebrow--onNavy">What actually happens</p>
+        <h2>Your first week, honestly.</h2>
+      </div>
+      <div class="week">
+        <div class="week__rule week__rule--brass"></div>
+        <div class="week__when">Today</div>
+        <div class="week__what">You sign up. Your site is live at your temporary address within minutes, with your content already on it.</div>
+        <div class="week__rule"></div>
+        <div class="week__when">Day one or two</div>
+        <div class="week__what">We go through it together once, live. You say what's wrong, I change it while you watch.</div>
+        <div class="week__rule"></div>
+        <div class="week__when">That same week</div>
+        <div class="week__what">Your client list comes across — from a spreadsheet, from Outlook, from whatever you've got it in now.</div>
+        <div class="week__rule"></div>
+        <div class="week__when">By Friday</div>
+        <div class="week__what">Your own domain points at it, the certificate is issued, and you're the only person who needs the password.</div>
+        <div class="week__rule"></div>
+      </div>
+      <p><a class="qlink qlink--onNavy" href="#how-it-works">The whole first week, step by step →</a></p>
+    </div>
+  </section>
+
+  <!-- ============================================ Band 5 — plans in brief = -->
+  <section class="band band--surface" id="plans">
+    <div class="wrap stack-6">
+      <div class="stack-4">
+        <p class="eyebrow">Plans</p>
+        <h2 style="max-width:24ch">Three plans. Canadian dollars, before tax, no asterisks.</h2>
+      </div>
+
+      <!-- Repeatable unit: one .plan-card per package row. -->
+      <div class="plan-grid">
+        <article class="plan-card">
+          <h3 class="plan-card__name">IPro Silver</h3>
+          <p class="plan-card__price"><span class="plan-card__amount">$40</span><span class="plan-card__per">/ month</span></p>
+          <p>Everything you need to be online and organised: the website, the content, lead capture, your client list, newsletters and campaigns. Up to 500 clients.</p>
+        </article>
+        <article class="plan-card">
+          <h3 class="plan-card__name">IPro Gold</h3>
+          <p class="plan-card__price"><span class="plan-card__amount">$60</span><span class="plan-card__per">/ month</span></p>
+          <p>Adds the staying-in-touch layer — e-cards, e-letters, mail merge, printable labels — and takes the caps off. Plus a second login for whoever helps you.</p>
+        </article>
+        <article class="plan-card plan-card--lifted">
+          <p class="plan-card__badge">Most complete</p>
+          <h3 class="plan-card__name">IPro Platinum</h3>
+          <p class="plan-card__price"><span class="plan-card__amount">$90</span><span class="plan-card__per">/ month</span></p>
+          <p>Adds the three that change how you work: the daily who-to-call list, a portal your own clients log into, and invoicing. Managed SEO, and one blog post a month written for you.</p>
+        </article>
+      </div>
+
+      <p class="prose">Running a team or a brokerage? Broker pricing is a conversation, not a card. <a class="qlink" href="#contact">Talk to us.</a></p>
+      <p><a class="btn btn--secondary" href="pricing.html">See all three side by side, including setup and tax</a></p>
+    </div>
+  </section>
+
+  <!-- ============================================ Band 6 — the honesty band -->
+  <section class="band band--navy" id="questions">
+    <div class="wrap stack-6">
+      <div class="stack-4">
+        <p class="eyebrow eyebrow--onNavy">Straight answers</p>
+        <h2>Four things we don't do.</h2>
+      </div>
+      <div class="dont">
+        <div class="dont__item">
+          <h3>We don't send text messages.</h3>
+          <p>Reminders go by email. SMS is on the list. It isn't built, and we're not going to tell you it is.</p>
+        </div>
+        <div class="dont__item">
+          <h3>We don't touch your clients' money.</h3>
+          <p>You can invoice a client through IPRO and they can pay online, but it goes to your payment link, not through us.</p>
+        </div>
+        <div class="dont__item">
+          <h3>We don't post to social media for you.</h3>
+          <p>You can draft a post here. You still publish it.</p>
+        </div>
+        <div class="dont__item">
+          <h3>We don't have a phone app.</h3>
+          <p>The whole thing works in a browser on your phone, which is a different claim, and the honest one.</p>
+        </div>
+      </div>
+      <p><a class="qlink qlink--onNavy" href="#included">The full list of what's included — and what isn't →</a></p>
+    </div>
+  </section>
+
+  <!-- ============================================ Band 7 — who's behind this -->
+  <section class="band band--paper" id="who-behind">
+    <div class="wrap stack-6">
+      <div class="stack-4">
+        <p class="eyebrow">Who you'll be dealing with</p>
+        <h2>Me, mostly.</h2>
+      </div>
+      <div class="letter">
+        <p>I'm Bahman Motamed. This company has been building and running websites for Canadian advisers, accountants and mortgage brokers since 2014. IPRO is the rebuild — the same job, done properly, on a platform we own end to end instead of six we rent. It's a small operation, which means when something goes wrong you get me and not a ticket number. My email and my phone number are on the contact page and they're the real ones.</p>
+        <hr class="hr-brass">
+        <div class="letter__sign">
+          <span class="letter__name">Bahman Motamed</span>
+          <span class="fine">IPRO Advisers &middot; <a class="qlink" href="#about">More about the company →</a></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ Band 8 — closing ======= -->
+  <section class="band band--paperDeep">
+    <div class="wrap close">
+      <h2>Take thirty seconds and look at your own site.</h2>
+      <p class="lead">You'll get a real, working website with your name on it. We don't ask for your email, we don't save anything, and there's nothing to cancel afterwards.</p>
+      <a class="btn btn--primary" href="preview-show.html">Show me my website</a>
+      <p class="fine">Already have an account? <a class="qlink" href="#signin">Sign in</a></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="sitefoot">
+  <div class="wrap">
+    <div class="sitefoot__cols">
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#included">What's included</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="#week">Your first week</a></li>
+          <li><a href="#data">Your data</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Who it's for</h4>
+        <ul>
+          <li><a href="#who">Insurance and financial advisers</a></li>
+          <li><a href="#who">Mortgage brokers</a></li>
+          <li><a href="#who">Accountants and bookkeepers</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#who-behind">Who's behind this</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li><a href="#questions">Questions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Account</h4>
+        <ul>
+          <li><a href="#signin">Sign in</a></li>
+          <li><a href="#register">Create an account</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="sitefoot__base">
+      <span>&copy; 2026 IPRO Advisers. Prices in Canadian dollars, before applicable provincial tax. &middot; <a href="#privacy">Privacy</a> &middot; <a href="#terms">Terms</a></span>
+      <span class="sitefoot__tag">Built in Canada, for Canadian practices.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* The only motion on this page: the three counts on the AI card count up once
+   when the card scrolls into view. Under 600ms, no loop, no replay. */
+(function () {
+  var targets = Array.prototype.slice.call(document.querySelectorAll('[data-countup]'));
+  if (!targets.length) { return; }
+
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced || !('IntersectionObserver' in window)) { return; }
+
+  var DURATION = 520;
+
+  function run(el) {
+    var end = parseInt(el.getAttribute('data-countup'), 10);
+    if (isNaN(end)) { return; }
+    var started = null;
+    el.textContent = '0';
+    function step(now) {
+      if (started === null) { started = now; }
+      var t = Math.min((now - started) / DURATION, 1);
+      var eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = String(Math.round(end * eased));
+      if (t < 1) { requestAnimationFrame(step); } else { el.textContent = String(end); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        observer.unobserve(entry.target);
+        run(entry.target);
+      }
+    });
+  }, { threshold: 0.6 });
+
+  targets.forEach(function (el) { observer.observe(el); });
+})();
+</script>
+</body>
+</html>

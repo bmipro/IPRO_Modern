@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Michael's website — IPRO Advisers</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+/* ============================================================================
+   IPRO Advisers — shared tokens and components.
+   This block is byte-identical in home.html, preview-show.html and pricing.html.
+   Single light theme by direction: no dark mode, no prefers-color-scheme.
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* --- Ground and surface ------------------------------------------------ */
+  --paper:        #f7f5f1;   /* page ground: warm near-white, low chroma      */
+  --paper-deep:   #ece7dd;   /* inset / closing band                          */
+  --surface:      #ffffff;   /* cards, exhibit plates, product screens        */
+  --line:         #d9d2c6;   /* hairline on paper                             */
+  --line-soft:    #e7e2d8;   /* hairline inside surfaces                      */
+
+  /* --- Brand ------------------------------------------------------------- */
+  --navy:         #1a3a6b;   /* headings, primary button                      */
+  --navy-deep:    #10254a;   /* full-width bands and footer                   */
+  --brass:        #a9812f;   /* rules, tabs, badges                           */
+  --brass-deep:   #8a6820;   /* brass used as type                            */
+  --brass-wash:   #f3ead6;   /* brass at 8%: badge grounds                    */
+
+  /* --- Type -------------------------------------------------------------- */
+  --ink:          #1c2a42;   /* body text            13.2:1 on paper          */
+  --ink-soft:     #41506b;   /* secondary text        7.5:1 on paper          */
+  --on-navy:      #ffffff;   /* text on navy bands   15.2:1                   */
+  --on-navy-soft: #cfdaef;   /* secondary on navy    10.8:1                   */
+
+  /* --- Semantic. Product reconstructions only, never marketing chrome. ---- */
+  --ok:     #1f6b45;
+  --warn:   #8a5100;
+  --alert:  #a5251c;
+  --ok-wash:    #e6f2ea;
+  --warn-wash:  #fbf0dd;
+  --alert-wash: #f8e7e5;
+  --info-wash:  #e8eefb;
+
+  /* --- Families ---------------------------------------------------------- */
+  --display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* --- Type scale (17px base) -------------------------------------------- */
+  --t-label: 0.8125rem;  /* 13px — uppercase labels only, never prose        */
+  --t-sm:    1rem;       /* 16px — captions, footnotes, legal                */
+  --t-base:  1.0625rem;  /* 17px — body                                      */
+  --t-lg:    1.1875rem;  /* 19px — lead paragraphs                           */
+  --t-xl:    1.375rem;   /* 22px — h4                                        */
+  --t-2xl:   1.75rem;    /* 28px — h3                                        */
+  --t-3xl:   2.125rem;   /* 34px — h2                                        */
+  --t-4xl:   2.75rem;    /* 44px — h2 display                                */
+  --t-5xl:   3.375rem;   /* 54px — h1                                        */
+
+  /* --- Space scale (4px base) -------------------------------------------- */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px; --s5: 24px;
+  --s6: 32px; --s7: 48px; --s8: 64px; --s9: 96px; --s10: 128px;
+
+  /* --- Geometry ---------------------------------------------------------- */
+  --r-sm: 3px;   /* inputs, badges                                            */
+  --r-md: 5px;   /* buttons, cards                                            */
+  --r-lg: 7px;   /* exhibit plates                                            */
+  --wrap: 1140px;
+  --measure: 66ch;
+  --shadow-plate: 0 1px 2px rgba(16,37,74,.05), 0 18px 44px -22px rgba(16,37,74,.35);
+  --shadow-card:  0 1px 2px rgba(16,37,74,.05), 0 10px 26px -18px rgba(16,37,74,.30);
+}
+
+/* --- Reset -------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-base);
+  line-height: 1.6;
+}
+img, svg { max-width: 100%; }
+button { font: inherit; }
+
+/* --- Type --------------------------------------------------------------- */
+h1, h2, h3, h4 {
+  font-family: var(--display);
+  color: var(--navy);
+  margin: 0;
+  text-wrap: balance;
+}
+h1 { font-size: var(--t-5xl); font-weight: 400; line-height: 1.08; letter-spacing: -0.015em; }
+h2 { font-size: var(--t-4xl); font-weight: 400; line-height: 1.15; letter-spacing: -0.012em; }
+h3 { font-size: var(--t-2xl); font-weight: 700; line-height: 1.25; }
+h4 { font-size: var(--t-xl); font-weight: 700; line-height: 1.3; }
+p  { margin: 0; }
+
+.eyebrow {
+  font-family: var(--sans);
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--brass-deep);
+  margin: 0;
+}
+.eyebrow--onNavy { color: #e3c98d; }
+
+.lead { font-size: var(--t-lg); line-height: 1.6; color: var(--ink); }
+.prose { max-width: var(--measure); }
+.prose--wide { max-width: 78ch; }
+.muted { color: var(--ink-soft); }
+.fine { font-size: var(--t-sm); color: var(--ink-soft); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* --- Layout ------------------------------------------------------------- */
+.wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--s5); }
+
+.band { padding: var(--s9) 0; }
+.band--tight { padding: var(--s8) 0; }
+.band--paper { background: var(--paper); }
+.band--surface { background: var(--surface); }
+.band--paperDeep { background: var(--paper-deep); }
+.band--navy { background: var(--navy-deep); color: var(--on-navy); }
+.band--navy h1, .band--navy h2, .band--navy h3, .band--navy h4 { color: var(--on-navy); }
+.band--navy .muted, .band--navy .fine { color: var(--on-navy-soft); }
+
+.stack   { display: flex; flex-direction: column; gap: var(--s5); }
+.stack-2 { display: flex; flex-direction: column; gap: var(--s2); }
+.stack-3 { display: flex; flex-direction: column; gap: var(--s3); }
+.stack-4 { display: flex; flex-direction: column; gap: var(--s4); }
+.stack-5 { display: flex; flex-direction: column; gap: var(--s5); }
+.stack-6 { display: flex; flex-direction: column; gap: var(--s6); }
+.stack-7 { display: flex; flex-direction: column; gap: var(--s7); }
+.row-wrap { display: flex; flex-wrap: wrap; gap: var(--s5); align-items: center; }
+
+.hr-brass { height: 2px; width: 56px; background: var(--brass); border: 0; margin: 0; }
+
+/* --- Buttons ------------------------------------------------------------
+   One filled primary per screen. Verb labels, never icon-only, 48px+ target.
+   ------------------------------------------------------------------------ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  min-height: 52px; padding: 0 var(--s6);
+  border-radius: var(--r-md); border: 2px solid transparent;
+  font-family: var(--sans); font-size: var(--t-base); font-weight: 700;
+  text-decoration: none; cursor: pointer; text-align: center;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn--primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+.btn--primary:hover { background: #142f57; border-color: #142f57; }
+.btn--secondary { background: transparent; color: var(--navy); border-color: var(--navy); }
+.btn--secondary:hover { background: #e8ecf4; }
+.btn--onNavy { background: #fff; color: var(--navy-deep); border-color: #fff; }
+.btn--onNavy:hover { background: var(--on-navy-soft); border-color: var(--on-navy-soft); }
+.btn--quiet {
+  background: transparent; color: var(--navy); border-color: var(--line);
+  min-height: 46px; font-weight: 600; padding: 0 var(--s5);
+}
+.btn--quiet:hover { border-color: var(--navy); }
+.btn--block { width: 100%; }
+
+a { color: var(--navy); }
+.qlink {
+  color: var(--navy); font-weight: 600; text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-thickness: 1px;
+}
+.qlink:hover { text-decoration-thickness: 2px; }
+.qlink--onNavy { color: #fff; }
+.sep { color: var(--ink-soft); padding: 0 var(--s3); }
+
+:where(a, button, input, select, summary):focus-visible {
+  outline: 3px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* --- Masthead ----------------------------------------------------------- */
+.masthead { background: var(--paper); border-bottom: 1px solid var(--line); }
+.masthead__inner {
+  display: flex; align-items: center; gap: var(--s5);
+  min-height: 84px; flex-wrap: wrap; padding-top: var(--s3); padding-bottom: var(--s3);
+}
+.wordmark { display: inline-flex; flex-direction: column; gap: 5px; text-decoration: none; }
+.wordmark__name {
+  font-family: var(--display); font-size: 1.5rem; color: var(--navy);
+  letter-spacing: 0.005em; line-height: 1;
+}
+.wordmark__rule { height: 2px; background: var(--brass); width: 100%; }
+.mastnav { display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap; margin-left: auto; }
+.mastnav a.mastnav__link {
+  color: var(--ink); text-decoration: none; font-weight: 600; font-size: var(--t-sm);
+  padding: var(--s2) 0; border-bottom: 2px solid transparent;
+}
+.mastnav a.mastnav__link:hover { border-bottom-color: var(--brass); }
+body[data-page="pricing"] .mastnav a[data-nav="pricing"] { border-bottom-color: var(--brass); color: var(--navy); }
+
+/* --- Exhibit plates -----------------------------------------------------
+   A product screen is presented as a plate: white ground, hairline, brass tab,
+   caption below in the sans. Never a photograph, never a grey box.
+   ------------------------------------------------------------------------ */
+.plate { display: flex; flex-direction: column; gap: var(--s3); }
+.plate__frame {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--brass);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-plate);
+  overflow: hidden;
+}
+.plate__cap {
+  font-size: var(--t-sm); line-height: 1.5; color: var(--ink-soft);
+  max-width: 62ch; padding-left: var(--s3); border-left: 2px solid var(--line);
+}
+.plate__cap b { color: var(--ink); font-weight: 600; }
+
+/* --- Product reconstruction primitives ----------------------------------
+   Type inside .shot is deliberately smaller than page body: this is a picture
+   of an interface, not prose the visitor reads. Never applies to marketing copy.
+   ------------------------------------------------------------------------ */
+.shot { font-size: 13.5px; line-height: 1.45; color: #1e293b; background: #f4f6fa; }
+.shot h1, .shot h2, .shot h3, .shot h4, .shot h5 { font-family: var(--sans); color: #0f2544; }
+.shot__body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.shot__app { display: grid; grid-template-columns: 208px 1fr; min-height: 100%; }
+/* Flex and grid children default to min-width:auto, which lets a wide table
+   push a reconstructed screen past its plate. Every level is pinned to 0 so the
+   scroll happens in the one container that owns it. */
+.shot__app > *, .shot__body > * { min-width: 0; }
+
+.shot-rail { background: linear-gradient(180deg, #0f172a 0%, #1e3a5f 100%); padding: 14px 0 18px; color: #fff; }
+.shot-rail__brand { padding: 0 16px 12px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.shot-rail__brand .n { font-family: var(--display); font-size: 15px; display: block; }
+.shot-rail__brand .p { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.78); }
+.shot-rail__sect { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: rgba(255,255,255,.55); padding: 12px 16px 4px; }
+.shot-rail__link { display: flex; align-items: center; gap: 9px; padding: 6px 16px; color: rgba(255,255,255,.86); font-size: 12.5px; }
+.shot-rail__link.is-active { background: #2563eb; color: #fff; margin: 1px 10px; padding: 6px 10px; border-radius: 6px; }
+.shot-rail__link svg { width: 14px; height: 14px; flex: none; opacity: .9; }
+
+.shot-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 20px; font-size: 12.5px;
+}
+.shot-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+.shot-card__hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px 0; font-weight: 700; font-size: 13.5px;
+}
+.shot-card__bd { padding: 12px 16px 16px; }
+.shot-grid { display: grid; gap: 12px; }
+.shot-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.shot-grid--split { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.shot-stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
+.shot-stat b { display: block; font-size: 26px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.shot-stat span { font-size: 11.5px; color: #475569; }
+.shot-pill {
+  display: inline-block; border-radius: 999px; padding: 2px 9px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.shot-pill--alert { background: var(--alert-wash); color: var(--alert); }
+.shot-pill--warn  { background: var(--warn-wash);  color: var(--warn); }
+.shot-pill--info  { background: var(--info-wash);  color: #1d4ed8; }
+.shot-pill--ok    { background: var(--ok-wash);    color: var(--ok); }
+.shot-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.shot-table th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: #475569; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid #e2e8f0;
+}
+.shot-table td { padding: 10px 12px; border-bottom: 1px solid #eef2f7; vertical-align: middle; }
+.shot-table tr:last-child td { border-bottom: 0; }
+.shot-input {
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 6px;
+  padding: 7px 10px; font-size: 12.5px; color: #475569;
+}
+.shot-btn {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+  padding: 6px 12px; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+}
+.shot-btn--solid { background: #2563eb; color: #fff; }
+.shot-btn--ghost { background: #fff; border: 1px solid #2563eb; color: #1d4ed8; }
+.shot-btn--grey  { background: #fff; border: 1px solid #cbd5e1; color: #475569; }
+
+/* Browser chrome */
+.browser { background: #fff; }
+.browser__chrome {
+  display: flex; align-items: center; gap: 6px;
+  background: #e7e9ee; padding: 9px 12px; border-bottom: 1px solid #d7dae2;
+}
+.browser__chrome i { width: 9px; height: 9px; border-radius: 50%; background: #c2c7d1; flex: none; }
+.browser__url {
+  flex: 1; min-width: 0; background: #fff; border-radius: 5px; margin-left: 6px;
+  padding: 4px 10px; font-size: 11.5px; color: #475569;
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.browser__url svg { width: 11px; height: 11px; color: var(--ok); flex: none; }
+
+/* The customer's own site, rendered through the Modern template */
+.site { background: #fff; font-size: 13px; color: #111827; }
+.site__nav {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  padding: 12px 22px; border-bottom: 1px solid #dbe4f0; background: #fff;
+}
+.site__brand { font-weight: 700; font-size: 14px; color: #0f2544; margin-right: auto; }
+.site__nav a { color: #334155; text-decoration: none; font-size: 12.5px; }
+.site__nav a.is-active { color: #1457d9; font-weight: 700; border-bottom: 2px solid #1457d9; padding-bottom: 2px; }
+.site__hero {
+  background:
+    linear-gradient(110deg, rgba(8,21,48,.94), rgba(8,21,48,.35)),
+    linear-gradient(135deg, #07142f, #1457d9);
+  color: #fff; padding: 40px 26px;
+  display: grid; grid-template-columns: 1.25fr 1fr; gap: 26px; align-items: center;
+}
+.site__eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; font-weight: 700; color: #e5edff; }
+.site__h1 { font-size: 27px; line-height: 1.15; font-weight: 700; margin: 8px 0 10px; }
+.site__lead { font-size: 14px; color: #e8eefb; }
+.site__btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.site__btn { border-radius: 7px; padding: 9px 15px; font-size: 12.5px; font-weight: 700; }
+.site__btn--solid { background: #1457d9; color: #fff; }
+.site__btn--outline { border: 1px solid rgba(255,255,255,.8); color: #fff; }
+.site__herocard { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 18px; }
+.site__band { padding: 30px 26px; border-top: 1px solid #dbe4f0; }
+.site__foot { background: #0f2544; color: #cbd5e1; padding: 20px 26px; font-size: 11.5px; }
+
+/* --- The AI Daily Assistant card ---------------------------------------
+   Shared by the home page exhibit and the preview sidebar. Structure mirrors
+   Views/Preview/_MockAiAssistantCard.cshtml.
+   ------------------------------------------------------------------------ */
+.ai-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.ai-card__hd { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #0f2544; }
+.ai-card__hd svg { width: 16px; height: 16px; color: #2563eb; flex: none; }
+.ai-card__tier { font-size: 12px; color: #475569; margin-top: 2px; }
+.ai-card__counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; text-align: center; }
+.ai-card__count b {
+  display: block; font-size: 30px; font-weight: 800; line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.ai-card__count span { font-size: 11.5px; color: #475569; display: block; margin-top: 2px; }
+.ai-card__count--new b   { color: #1d4ed8; }
+.ai-card__count--stale b { color: var(--warn); }
+.ai-card__count--none b  { color: #146c8b; }
+.ai-card__action {
+  margin-top: 14px; background: #fbfaf6; border: 1px solid #e7e2d8;
+  border-radius: 7px; padding: 12px 13px; font-size: 13px; line-height: 1.5;
+}
+.ai-card__action .why { display: block; margin-top: 5px; color: #475569; font-size: 12.5px; }
+.ai-card__foot { margin-top: 12px; font-size: 12px; color: #475569; }
+
+/* --- Plan card. One repeatable unit driven by a package row. ------------- */
+.plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s5); align-items: stretch; }
+.plan-card {
+  display: flex; flex-direction: column; gap: var(--s3);
+  background: var(--surface); border: 1px solid var(--line);
+  border-top: 3px solid var(--line); border-radius: var(--r-md);
+  padding: var(--s6) var(--s5) var(--s5);
+  box-shadow: var(--shadow-card);
+}
+.plan-card--lifted { border-top-color: var(--brass); }
+.plan-card__badge {
+  align-self: flex-start; font-size: var(--t-label); font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  background: #eceff5; color: var(--ink-soft); border-radius: var(--r-sm); padding: 4px 9px;
+}
+.plan-card--lifted .plan-card__badge { background: var(--brass-wash); color: var(--brass-deep); }
+.plan-card__name { font-family: var(--display); font-size: var(--t-2xl); font-weight: 700; color: var(--navy); }
+.plan-card__price { display: flex; align-items: baseline; gap: 6px; }
+.plan-card__amount { font-size: var(--t-4xl); font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.plan-card__per { font-size: var(--t-base); color: var(--ink-soft); }
+.plan-card__limits {
+  list-style: none; margin: 0; padding: var(--s3) 0;
+  border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+  display: flex; flex-direction: column; gap: 4px; font-size: var(--t-sm); color: var(--ink-soft);
+}
+.plan-card__limits b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.plan-card__setup { font-size: var(--t-sm); color: var(--ink-soft); }
+.plan-card__setup s { color: var(--ink-soft); text-decoration-thickness: 1px; }
+.plan-card__free { font-size: var(--t-2xl); font-weight: 800; color: var(--brass-deep); display: block; margin-top: 2px; }
+.plan-card__free small { font-size: var(--t-sm); font-weight: 700; color: var(--ink); display: block; }
+.plan-card__cta { margin-top: auto; display: flex; flex-direction: column; gap: var(--s3); align-items: center; }
+
+/* --- Forms -------------------------------------------------------------- */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: var(--t-sm); font-weight: 700; color: var(--ink); }
+.field input[type="email"], .field input[type="text"] {
+  font-family: var(--sans); font-size: var(--t-base); color: var(--ink);
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 12px var(--s3); min-height: 48px; width: 100%;
+}
+.field input::placeholder { color: var(--ink-soft); }
+
+/* --- Prototype note. Delete when this ports to Razor. ------------------- */
+.proto-note {
+  background: var(--navy-deep); color: var(--on-navy-soft);
+  font-size: var(--t-sm); line-height: 1.5; padding: 10px 0;
+}
+.proto-note b { color: #fff; font-weight: 700; }
+
+/* --- Footer ------------------------------------------------------------- */
+.sitefoot { background: var(--navy-deep); color: var(--on-navy-soft); padding: var(--s8) 0 var(--s6); }
+.sitefoot h4 {
+  font-family: var(--sans); font-size: var(--t-label); font-weight: 700;
+  letter-spacing: .11em; text-transform: uppercase; color: #e3c98d;
+}
+.sitefoot__cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s6) var(--s5); }
+.sitefoot ul { list-style: none; margin: var(--s3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.sitefoot a { color: #fff; text-decoration: none; font-size: var(--t-sm); }
+.sitefoot a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.sitefoot__base {
+  margin-top: var(--s7); padding-top: var(--s5); border-top: 1px solid rgba(255,255,255,.16);
+  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); justify-content: space-between;
+  font-size: var(--t-sm);
+}
+.sitefoot__tag { font-family: var(--display); font-size: var(--t-base); color: #fff; }
+
+/* --- Motion. The only licensed movement is the three counts, once. ------ */
+[data-countup] { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* --- Responsive --------------------------------------------------------- */
+@media (max-width: 1040px) {
+  .plan-grid { grid-template-columns: 1fr; }
+  .sitefoot__cols { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 860px) {
+  :root { --t-5xl: 2.375rem; --t-4xl: 2rem; --t-3xl: 1.75rem; --t-2xl: 1.5rem; }
+  .band { padding: var(--s8) 0; }
+  .shot__app { grid-template-columns: 1fr; }
+  .shot-rail { display: none; }
+  /* A reconstructed screen keeps its own proportions and scrolls inside its
+     plate rather than being cropped by it. */
+  .shot-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shot-grid--split { grid-template-columns: minmax(0, 1fr); }
+  .shot-card { overflow-x: auto; }
+  .site__hero { grid-template-columns: 1fr; }
+  .masthead__inner { min-height: 0; }
+  .mastnav { margin-left: 0; width: 100%; gap: var(--s4); }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 var(--s4); }
+  .sitefoot__cols { grid-template-columns: 1fr; }
+  .btn { width: 100%; }
+}
+
+/* ===== /Preview/Show only ================================================ */
+.topbar { background: var(--navy-deep); color: #fff; }
+.topbar__inner { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); min-height: 56px; }
+.topbar__live { display: flex; align-items: center; gap: var(--s3); font-weight: 700; font-size: var(--t-sm); letter-spacing: .04em; text-transform: uppercase; }
+.topbar__dot { width: 9px; height: 9px; border-radius: 50%; background: #7ee2a8; flex: none; }
+.topbar a { color: #fff; font-size: var(--t-sm); font-weight: 600; text-decoration: none; border: 1px solid rgba(255,255,255,.5); border-radius: var(--r-sm); padding: 9px var(--s4); }
+.topbar a:hover { border-color: #fff; background: rgba(255,255,255,.1); }
+
+.result { padding: var(--s7) 0 var(--s9); }
+.result__head { display: flex; flex-direction: column; gap: var(--s3); margin-bottom: var(--s6); }
+.result__head h1 { font-size: var(--t-5xl); }
+.result__head p { max-width: 68ch; }
+
+/* This screen is a frame around somebody's own website, so it runs wider than
+   the marketing pages and the sidebar stays a sidebar: roughly 3:1. */
+.result .wrap { max-width: 1340px; }
+.result__grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: var(--s6); align-items: start; }
+
+/* The frame is the largest object on the screen by a wide margin. */
+.viewer { display: flex; flex-direction: column; gap: var(--s3); }
+.framenav { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+.framenav__label { font-size: var(--t-sm); font-weight: 700; color: var(--ink); margin-right: var(--s2); }
+.framenav button {
+  background: var(--surface); color: var(--navy); border: 1.5px solid var(--navy);
+  border-radius: var(--r-md); padding: 11px var(--s5);
+  font-size: var(--t-base); font-weight: 700; cursor: pointer; min-height: 46px;
+}
+.framenav button:hover { background: #e8ecf4; }
+.framenav button[aria-current="true"] { background: var(--navy); color: #fff; }
+.frame {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-plate); overflow: hidden;
+}
+.frame__stage { min-height: 800px; }
+.frame__page[hidden] { display: none; }
+.frame__page { animation: pageIn 200ms ease-out both; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+.side { display: flex; flex-direction: column; gap: var(--s5); }
+.side__card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: var(--s5); display: flex; flex-direction: column; gap: var(--s3);
+  box-shadow: var(--shadow-card);
+}
+.side__card--plan { border-top: 3px solid var(--brass); }
+.side__card--act { border: 2px solid var(--navy); box-shadow: 0 14px 32px -18px rgba(16,37,74,.5); }
+.side__card--quiet { background: transparent; border: 1px dashed var(--line); box-shadow: none; padding: var(--s5); }
+.side__card h2 { font-size: var(--t-2xl); font-weight: 700; }
+.side__card h3 { font-size: var(--t-xl); }
+.side__price { display: flex; align-items: baseline; gap: 6px; }
+.side__amount { font-size: var(--t-4xl); font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.side__setup { font-size: var(--t-sm); color: var(--ink-soft); }
+.side__free { font-size: var(--t-2xl); font-weight: 800; color: var(--brass-deep); line-height: 1.2; }
+.side__free small { display: block; font-size: var(--t-sm); font-weight: 700; color: var(--ink); }
+.side__sent { font-size: var(--t-base); color: var(--ink); font-weight: 600; }
+
+.previewfoot { background: var(--navy-deep); color: var(--on-navy-soft); padding: var(--s6) 0; }
+.previewfoot__inner { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); justify-content: space-between; font-size: var(--t-sm); }
+.previewfoot a { color: #fff; }
+
+/* Article list on the framed site's Resources page */
+.site__articles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.site__article { border: 1px solid #dbe4f0; border-radius: 8px; padding: 14px; }
+.site__article b { color: #0f2544; font-size: 13.5px; display: block; margin-bottom: 5px; }
+.site__form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 520px; }
+.site__form .full { grid-column: 1 / -1; }
+.site__field { border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 11px; font-size: 12px; color: #64748b; background: #fff; }
+
+@media (max-width: 1100px) {
+  .result__grid { grid-template-columns: minmax(0, 1fr); }
+  .side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+@media (max-width: 860px) {
+  .frame__stage { min-height: 560px; }
+  .side { grid-template-columns: minmax(0, 1fr); }
+  .site__articles, .site__form { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6v9H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"/><path d="M16.5 5.4a3 3 0 0 1 0 5.6M17.5 20a6 6 0 0 0-2.6-4.6"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h10M4 17h7"/><path d="M17 16.6l1.6 1.6L22 15"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10.5h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4.5 4.5V21H6z"/><path d="M14 3v5h4.5"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="4"/><path d="M4.5 13h15v8h-15zM12 9v12"/><path d="M12 9S11 4.5 9 4.5a2.2 2.2 0 0 0 0 4.5M12 9s1-4.5 3-4.5a2.2 2.2 0 0 1 0 4.5"/></symbol>
+  <symbol id="i-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L15 5v14l-7.5-4.5H4z"/><path d="M18.5 9a4.5 4.5 0 0 1 0 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.6 3h4.8L16 13h5"/><path d="M3 13l3-8h12l3 8v6H3z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M6.5 20v-6M11.5 20V6M16.5 20v-9"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h6l2 2.5h10V19H3z"/></symbol>
+  <symbol id="i-comment" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11h-8l-5 4v-4H4z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18.5h5M10.5 21.5h3"/><path d="M12 2.5a6.2 6.2 0 0 0-3.6 11.3c.6.4 1 1.1 1 1.8v.9h5.2v-.9c0-.7.4-1.4 1-1.8A6.2 6.2 0 0 0 12 2.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.8l5.2 5.2L20 6.4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="10" width="13" height="10" rx="2"/><path d="M8.8 10V7.2a3.2 3.2 0 0 1 6.4 0V10"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4L20.5 20.5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4.5 19.5h15"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.5V4h7.5l9 9-7.5 7.5z"/><circle cx="7.5" cy="8" r="1.4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3.5l1.8 4.4-2.2 1.6a12.5 12.5 0 0 0 6.4 6.4l1.6-2.2 4.4 1.8V19a1.5 1.5 0 0 1-1.6 1.5C10.9 20 4 13.1 3.5 5.1A1.5 1.5 0 0 1 5 3.5z"/></symbol>
+</svg>
+
+<div class="proto-note">
+  <div class="wrap"><b>Design prototype.</b> The frame below is a static HTML reconstruction of the customer site the real page loads in an iframe. The four navigation buttons work — they are the point of the screen. This strip is not part of the design.</div>
+</div>
+
+<header class="topbar">
+  <div class="wrap topbar__inner">
+    <span class="topbar__live"><span class="topbar__dot"></span>Live preview</span>
+    <a href="#start-over">Start over</a>
+  </div>
+</header>
+
+<main class="result">
+  <div class="wrap">
+
+    <div class="result__head">
+      <h1>Here it is, Michael.</h1>
+      <p class="lead">This is a real site, not a picture of one. Click through it — the About page, the articles, the contact form. It's running on the same system you'd be using.</p>
+    </div>
+
+    <div class="result__grid">
+
+      <!-- ============================================== The frame ========= -->
+      <div class="viewer">
+        <div class="framenav" role="group" aria-label="Pages on your site">
+          <span class="framenav__label">Your pages:</span>
+          <button type="button" data-page="home" aria-current="true">Home</button>
+          <button type="button" data-page="about" aria-current="false">About</button>
+          <button type="button" data-page="resources" aria-current="false">Resources</button>
+          <button type="button" data-page="contact" aria-current="false">Contact</button>
+        </div>
+
+        <div class="frame">
+          <div class="browser__chrome">
+            <i></i><i></i><i></i>
+            <span class="browser__url"><svg><use href="#i-globe"></use></svg>Live preview &middot; Michael Tran</span>
+          </div>
+          <div class="frame__stage site">
+
+            <!-- Home -->
+            <div class="frame__page" id="page-home">
+              <div class="site__nav">
+                <span class="site__brand">Tran Financial Group</span>
+                <a href="#f" class="is-active">Home</a><a href="#f">About</a><a href="#f">Testimonials</a><a href="#f">Resources</a><a href="#f">Contact</a><a href="#f">Free Newsletter</a><a href="#f">Request Meeting</a>
+              </div>
+              <div class="site__hero">
+                <div>
+                  <div class="site__eyebrow">Tran Financial Group</div>
+                  <div class="site__h1">Build confidence in your financial future</div>
+                  <div class="site__lead">Professional insurance and financial guidance with responsive, personal service.</div>
+                  <div class="site__btnrow"><span class="site__btn site__btn--solid">Contact us</span><span class="site__btn site__btn--outline">Request a meeting</span></div>
+                </div>
+                <div class="site__herocard">
+                  <div style="font-weight:700;font-size:15px;margin-bottom:10px">How we can help</div>
+                  <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;color:#e8eefb">
+                    <span>Insurance planning</span>
+                    <span>Retirement and investment guidance</span>
+                    <span>Ongoing reviews and client support</span>
+                  </div>
+                </div>
+              </div>
+              <div class="site__band">
+                <div style="font-weight:700;font-size:17px;color:#0f2544">How we can help</div>
+                <div style="color:#475569;margin-top:4px">Solutions designed around your needs.</div>
+                <div class="site__articles" style="margin-top:16px">
+                  <div class="site__article"><b>Insurance planning</b><span style="color:#475569">Coverage matched to what your family would actually need, reviewed as things change.</span></div>
+                  <div class="site__article"><b>Retirement and investment guidance</b><span style="color:#475569">A plan for the money you're setting aside, and the order to fund it in.</span></div>
+                  <div class="site__article"><b>Ongoing reviews and client support</b><span style="color:#475569">Regular check-ins so your plan keeps up with your life.</span></div>
+                </div>
+              </div>
+              <div class="site__band" style="background:#f6f8fc">
+                <div style="font-weight:700;font-size:17px;color:#0f2544">Ready to start a conversation?</div>
+                <div style="color:#475569;margin-top:4px;max-width:52ch">Tell us what you are working toward and we will help you identify the next step.</div>
+                <div class="site__btnrow"><span class="site__btn site__btn--solid">Get in touch</span></div>
+              </div>
+              <div class="site__foot">&copy; 2026 Tran Financial Group &middot; Burlington, Ontario &middot; 905-555-0148</div>
+            </div>
+
+            <!-- About -->
+            <div class="frame__page" id="page-about" hidden>
+              <div class="site__nav">
+                <span class="site__brand">Tran Financial Group</span>
+                <a href="#f">Home</a><a href="#f" class="is-active">About</a><a href="#f">Testimonials</a><a href="#f">Resources</a><a href="#f">Contact</a><a href="#f">Free Newsletter</a><a href="#f">Request Meeting</a>
+              </div>
+              <div class="site__band" style="padding-top:38px">
+                <div style="font-size:24px;font-weight:700;color:#0f2544;max-width:24ch">A relationship built around your needs</div>
+                <div style="color:#334155;margin-top:10px;font-size:14px;max-width:58ch">Professional guidance should feel clear, useful, and personal.</div>
+                <div style="color:#475569;margin-top:14px;max-width:62ch;line-height:1.7">We take time to understand your priorities, explain your options, and stay connected as your needs change.</div>
+              </div>
+              <div class="site__band">
+                <div class="site__articles">
+                  <div class="site__article"><b>Michael Tran</b><span style="color:#475569">Insurance and Financial Adviser, Burlington, Ontario. Working with families and business owners across Halton and Hamilton.</span></div>
+                  <div class="site__article"><b>How we work</b><span style="color:#475569">A first conversation, a written summary of your options, and a review on a schedule you choose.</span></div>
+                </div>
+              </div>
+              <div class="site__foot">&copy; 2026 Tran Financial Group &middot; Burlington, Ontario &middot; 905-555-0148</div>
+            </div>
+
+            <!-- Resources -->
+            <div class="frame__page" id="page-resources" hidden>
+              <div class="site__nav">
+                <span class="site__brand">Tran Financial Group</span>
+                <a href="#f">Home</a><a href="#f">About</a><a href="#f">Testimonials</a><a href="#f" class="is-active">Resources</a><a href="#f">Contact</a><a href="#f">Free Newsletter</a><a href="#f">Request Meeting</a>
+              </div>
+              <div class="site__band" style="padding-top:38px">
+                <div style="font-size:24px;font-weight:700;color:#0f2544">Resources</div>
+                <div style="color:#475569;margin-top:6px">Articles for clients of an insurance and financial practice. Already written, already on your site.</div>
+                <div class="site__articles" style="margin-top:18px">
+                  <div class="site__article">
+                    <b>Do You Actually Have Enough Life Insurance?</b>
+                    <span style="color:#475569">Most coverage amounts are guesses inherited from an old policy. Here's a simple way to sanity-check yours.</span>
+                    <div style="margin-top:9px;color:#1457d9;font-weight:600">Read more →</div>
+                  </div>
+                  <div class="site__article">
+                    <b>RRSP or TFSA: Which Should You Prioritize?</b>
+                    <span style="color:#475569">Both accounts are useful, but the right order to fund them depends on your income today versus your expected income later.</span>
+                    <div style="margin-top:9px;color:#1457d9;font-weight:600">Read more →</div>
+                  </div>
+                </div>
+              </div>
+              <div class="site__band" style="background:#f6f8fc">
+                <div style="font-weight:700;font-size:15px;color:#0f2544">Stay in the loop</div>
+                <div style="color:#475569;margin-top:4px;max-width:52ch">Sign up for our free newsletter covering insurance and financial guidance and more.</div>
+                <div class="site__form" style="margin-top:12px">
+                  <span class="site__field">First name</span><span class="site__field">Last name</span>
+                  <span class="site__field full">Email address</span>
+                  <span class="site__btn site__btn--solid" style="justify-self:start">Sign up</span>
+                </div>
+              </div>
+              <div class="site__foot">&copy; 2026 Tran Financial Group &middot; Burlington, Ontario &middot; 905-555-0148</div>
+            </div>
+
+            <!-- Contact -->
+            <div class="frame__page" id="page-contact" hidden>
+              <div class="site__nav">
+                <span class="site__brand">Tran Financial Group</span>
+                <a href="#f">Home</a><a href="#f">About</a><a href="#f">Testimonials</a><a href="#f">Resources</a><a href="#f" class="is-active">Contact</a><a href="#f">Free Newsletter</a><a href="#f">Request Meeting</a>
+              </div>
+              <div class="site__band" style="padding-top:38px">
+                <div style="font-size:24px;font-weight:700;color:#0f2544">Let us connect</div>
+                <div style="color:#334155;margin-top:8px;font-size:14px">Send an email or call to begin the conversation.</div>
+                <div style="color:#475569;margin-top:6px">We look forward to learning more about your goals.</div>
+                <div class="site__form" style="margin-top:18px">
+                  <span class="site__field">First name</span><span class="site__field">Last name</span>
+                  <span class="site__field full">Email address</span>
+                  <span class="site__field full">Phone</span>
+                  <span class="site__field full" style="min-height:72px">How can we help?</span>
+                  <span class="site__btn site__btn--solid" style="justify-self:start">Send an email</span>
+                </div>
+              </div>
+              <div class="site__band" style="background:#f6f8fc;display:flex;gap:30px;flex-wrap:wrap">
+                <div><b style="color:#0f2544">Tran Financial Group</b><div style="color:#475569;margin-top:4px">1240 Brant Street, Suite 3<br>Burlington, ON L7P 1X8</div></div>
+                <div><b style="color:#0f2544">Direct</b><div style="color:#475569;margin-top:4px" class="num">905-555-0148<br>michael@tranfinancial.ca</div></div>
+              </div>
+              <div class="site__foot">&copy; 2026 Tran Financial Group &middot; Burlington, Ontario &middot; 905-555-0148</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================== Sidebar ========== -->
+      <aside class="side" aria-label="Your plan and next step">
+
+        <!-- Card 1 — the plan -->
+        <div class="side__card side__card--plan">
+          <h2>IPro Platinum</h2>
+          <p class="side__price"><span class="side__amount">$90</span><span class="muted">/ month &middot; plus applicable tax</span></p>
+          <p class="side__setup"><s>$400 one-time setup</s></p>
+          <p class="side__free">$0 setup<small>for founding customers — until 30 September 2026</small></p>
+          <p><a class="qlink" href="pricing.html">Compare all three plans</a></p>
+        </div>
+
+        <!-- Card 2 — the daily list -->
+        <div class="side__card">
+          <h3>What your mornings would look like</h3>
+          <p class="fine">Included with Platinum and Broker plans.</p>
+          <div class="ai-card">
+            <div class="ai-card__hd"><svg><use href="#i-spark"></use></svg>AI Daily Assistant</div>
+            <p class="ai-card__tier">Included in Platinum &amp; Broker plans.</p>
+            <div class="ai-card__counts">
+              <div class="ai-card__count ai-card__count--new"><b>3</b><span>New leads</span></div>
+              <div class="ai-card__count ai-card__count--stale"><b>5</b><span>Leads &gt;24h old</span></div>
+              <div class="ai-card__count ai-card__count--none"><b>4</b><span>No follow-up</span></div>
+            </div>
+            <div class="ai-card__action">
+              <strong>Suggested next action:</strong> Call Jennifer Walsh first — her life insurance policy review is 4 days overdue.
+              <span class="why">She mentioned wanting to increase coverage before her policy renews next month.</span>
+            </div>
+          </div>
+          <p class="fine">This is an example, with example names. Sign up and it's your actual clients, every morning.</p>
+        </div>
+
+        <!-- Card 3 — the main action -->
+        <div class="side__card side__card--act">
+          <h3>Want to keep it?</h3>
+          <p>Everything you're looking at becomes yours — the pages, the content, the address. You can change any of it yourself, or tell us what to change and we'll do it.</p>
+          <a class="btn btn--primary btn--block" href="#register">Claim this site</a>
+          <p class="fine" style="text-align:center">Monthly. No contract. Cancel any time.</p>
+        </div>
+
+        <!-- Card 4 — the email capture. Deliberately the quietest thing here. -->
+        <div class="side__card side__card--quiet">
+          <h4>Not today?</h4>
+          <p class="fine">We'll email you the link so you can come back to this exact site whenever you want. That's all we'll use it for.</p>
+          <form class="stack-3" id="linkForm" novalidate>
+            <div class="field">
+              <label for="linkEmail">Your email address</label>
+              <input id="linkEmail" type="email" placeholder="Your email address" autocomplete="email">
+            </div>
+            <button class="btn btn--quiet btn--block" type="submit">Email me the link</button>
+          </form>
+          <p class="side__sent" id="linkSent" hidden>Sent. Check your inbox — the link doesn't expire.</p>
+          <p class="fine">One email with your link in it. No newsletter unless you ask for one.</p>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+</main>
+
+<footer class="previewfoot">
+  <div class="wrap previewfoot__inner">
+    <span>&copy; 2026 IPRO Advisers. Prices in Canadian dollars, before applicable provincial tax.</span>
+    <span><a href="home.html">IPRO Advisers</a> &middot; <a href="pricing.html">Pricing</a> &middot; <a href="#signin">Sign in</a></span>
+  </div>
+</footer>
+
+<script>
+/* The frame's own page transitions. This is the only motion the result screen
+   is licensed to have: the product moving is the motion. */
+(function () {
+  var nav = document.querySelector('.framenav');
+  if (!nav) { return; }
+  var buttons = Array.prototype.slice.call(nav.querySelectorAll('button[data-page]'));
+
+  buttons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var wanted = button.getAttribute('data-page');
+      buttons.forEach(function (other) {
+        other.setAttribute('aria-current', String(other === button));
+      });
+      ['home', 'about', 'resources', 'contact'].forEach(function (name) {
+        var page = document.getElementById('page-' + name);
+        if (!page) { return; }
+        if (name === wanted) {
+          page.hidden = false;
+          /* restart the fade so the change is legible without being showy */
+          page.style.animation = 'none';
+          void page.offsetWidth;
+          page.style.animation = '';
+        } else {
+          page.hidden = true;
+        }
+      });
+    });
+  });
+})();
+
+/* Email-capture confirmation state. */
+(function () {
+  var form = document.getElementById('linkForm');
+  var sent = document.getElementById('linkSent');
+  if (!form || !sent) { return; }
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    form.hidden = true;
+    sent.hidden = false;
+  });
+})();
+</script>
+</body>
+</html>
