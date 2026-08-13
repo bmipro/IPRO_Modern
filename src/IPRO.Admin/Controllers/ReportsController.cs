@@ -11,24 +11,13 @@ public class ReportsController : Controller
     private readonly IUnitOfWork _uow;
     public ReportsController(IUnitOfWork uow) => _uow = uow;
 
-    public async Task<IActionResult> Revenue(int months = 6)
-    {
-        var from     = DateTime.UtcNow.AddMonths(-months);
-        var invoices = (await _uow.Invoices.FindAsync(i => i.IssuedAt >= from && i.IsPaid))
-            .GroupBy(i => new { i.IssuedAt.Year, i.IssuedAt.Month })
-            .Select(g => new { Label = $"{g.Key.Year}-{g.Key.Month:D2}", Total = g.Sum(i => i.Total) })
-            .OrderBy(g => g.Label).ToList();
-        ViewBag.Months     = months;
-        ViewBag.Invoices   = invoices;
-        ViewBag.GrandTotal = invoices.Sum(i => i.Total);
-        return View();
-    }
-
-    // The accounting ledger: every invoice ever issued, including those whose agent has since been
-    // deleted (invoices are retained through deletion and carry their own bill-to snapshot). This is
-    // the answer to "an ex-customer wants copies of their invoices" and to "how much tax did we
-    // collect per province this period" -- neither of which should ever require logging into PayPal.
-    public async Task<IActionResult> Invoices(DateTime? from = null, DateTime? to = null, string? q = null)
+    // ONE revenue screen (owner request 2026-08-13): the by-month chart and totals on top, the full
+    // permanent ledger beneath -- every invoice ever issued, including those whose agent has since
+    // been deleted (invoices are retained through deletion and carry their own bill-to snapshot).
+    // Having "Revenue" and "Invoices" as separate nav items meant the button NAMED Revenue was the
+    // shallow one, and the detail hid behind a different word.
+    public async Task<IActionResult> Revenue(DateTime? from = null, DateTime? to = null, string? q = null,
+        string sort = "date", string dir = "desc")
     {
         var (invoices, fromDate, toDate) = await LoadLedgerAsync(from, to, q);
 
@@ -36,10 +25,38 @@ public class ReportsController : Controller
         var billings = (await _uow.Billings.GetAllAsync()).ToDictionary(b => b.Id);
         var packages = (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id);
 
+        string PackageNameOf(Invoice i) =>
+            billings.TryGetValue(i.BillingId, out var b) && packages.TryGetValue(b.BillingRuleId, out var p)
+                ? p.PackageName
+                : string.Empty;
+
+        // Sortable Date / Package columns (owner request). Anything else falls back to date.
+        sort = sort?.ToLowerInvariant() == "package" ? "package" : "date";
+        dir = dir?.ToLowerInvariant() == "asc" ? "asc" : "desc";
+        invoices = (sort, dir) switch
+        {
+            ("package", "asc") => invoices.OrderBy(PackageNameOf).ThenByDescending(i => i.IssuedAt).ToList(),
+            ("package", "desc") => invoices.OrderByDescending(PackageNameOf).ThenByDescending(i => i.IssuedAt).ToList(),
+            ("date", "asc") => invoices.OrderBy(i => i.IssuedAt).ToList(),
+            _ => invoices.OrderByDescending(i => i.IssuedAt).ToList()
+        };
+
         var paid = invoices.Where(i => i.IsPaid).ToList();
+
+        // Chart series: paid revenue by month WITHIN the filtered range, so the chart and the ledger
+        // always describe the same set of invoices and can never disagree again.
+        ViewBag.ChartMonths = paid
+            .GroupBy(i => new { i.IssuedAt.Year, i.IssuedAt.Month })
+            .Select(g => new { Label = $"{g.Key.Year}-{g.Key.Month:D2}", Total = g.Sum(i => i.Total) })
+            .OrderBy(g => g.Label)
+            .Cast<dynamic>()
+            .ToList();
+
         ViewBag.From = fromDate;
         ViewBag.To = toDate;
         ViewBag.Query = q ?? string.Empty;
+        ViewBag.Sort = sort;
+        ViewBag.Dir = dir;
         ViewBag.Agents = agents;
         ViewBag.Billings = billings;
         ViewBag.Packages = packages;
@@ -56,6 +73,10 @@ public class ReportsController : Controller
             .ToList();
         return View(invoices);
     }
+
+    // The old separate ledger URL. Kept so bookmarks and muscle memory keep working.
+    public IActionResult Invoices(DateTime? from = null, DateTime? to = null, string? q = null)
+        => RedirectToActionPermanent(nameof(Revenue), new { from, to, q });
 
     public async Task<IActionResult> Invoice(int id)
     {

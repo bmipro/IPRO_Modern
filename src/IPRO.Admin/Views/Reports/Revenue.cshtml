@@ -1,33 +1,170 @@
-@{ ViewData["Title"] = "Revenue Report"; var invoices = ViewBag.Invoices as IEnumerable<dynamic>; }
+@model List<IPRO.Entities.Invoice>
+@using IPRO.DataAccess
+@{
+    ViewData["Title"] = "Revenue";
+    var agents = (Dictionary<int, IPRO.Entities.AgentUser>)ViewBag.Agents;
+    var billings = (Dictionary<int, IPRO.Entities.Billing>)ViewBag.Billings;
+    var packages = (Dictionary<int, IPRO.Entities.BillingRule>)ViewBag.Packages;
+    var taxByRegion = (List<dynamic>)ViewBag.TaxByRegion;
+    var chartMonths = (List<dynamic>)ViewBag.ChartMonths;
+    DateTime from = ViewBag.From, to = ViewBag.To;
+    string query = ViewBag.Query;
+    string sort = ViewBag.Sort, dir = ViewBag.Dir;
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="fw-bold mb-0"><i class="fas fa-dollar-sign me-2 text-success"></i>Revenue Report</h4>
-  <div class="d-flex gap-2">
-    @foreach (var m in new[]{3,6,12})
-    { <a href="/Reports/Revenue?months=@m" class="btn btn-sm @(ViewBag.Months == m ? "btn-primary" : "btn-outline-secondary")">@m months</a> }
+    // Column-header sort links keep the current filter and flip direction on the active column.
+    string SortUrl(string column)
+    {
+        var nextDir = sort == column && dir == "desc" ? "asc" : sort == column ? "desc" : column == "date" ? "desc" : "asc";
+        return $"/Reports/Revenue?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&q={Uri.EscapeDataString(query)}&sort={column}&dir={nextDir}";
+    }
+    string SortArrow(string column) => sort != column ? "" : dir == "asc" ? " ▲" : " ▼";
+    var totalDays = (to - from).TotalDays;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h4 class="fw-bold mb-0"><i class="fas fa-dollar-sign me-2 text-success"></i>Revenue</h4>
+  <div class="d-flex gap-2 align-items-center">
+    @foreach (var m in new[] { 3, 6, 12 })
+    {
+      var isCurrent = string.IsNullOrEmpty(query) && Math.Abs(totalDays - (DateTime.UtcNow.Date - DateTime.UtcNow.AddMonths(-m).Date).TotalDays) < 2;
+      <a href="/Reports/Revenue?from=@DateTime.UtcNow.AddMonths(-m).ToString("yyyy-MM-dd")&to=@DateTime.UtcNow.ToString("yyyy-MM-dd")"
+         class="btn btn-sm @(isCurrent ? "btn-primary" : "btn-outline-secondary")">@m months</a>
+    }
+    <a class="btn btn-sm btn-outline-success"
+       href="/Reports/InvoicesCsv?from=@from.ToString("yyyy-MM-dd")&to=@to.ToString("yyyy-MM-dd")&q=@Uri.EscapeDataString(query)">
+      <i class="fas fa-file-csv me-1"></i>Export CSV
+    </a>
   </div>
 </div>
 
+<form method="get" action="/Reports/Revenue" class="row g-2 align-items-end mb-4">
+  <div class="col-auto">
+    <label class="form-label small mb-1">From</label>
+    <input type="date" name="from" value="@from.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1">To</label>
+    <input type="date" name="to" value="@to.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1">Search</label>
+    <input type="text" name="q" value="@query" placeholder="Invoice #, name, email, transaction"
+           class="form-control form-control-sm" style="min-width:260px;" />
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+  </div>
+  <input type="hidden" name="sort" value="@sort" />
+  <input type="hidden" name="dir" value="@dir" />
+</form>
+
 <div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm text-center p-4">
-      <div class="display-5 fw-bold text-success">$@String.Format("{0:N2}", ViewBag.GrandTotal)</div>
-      <div class="text-muted">Total Revenue (@ViewBag.Months months)</div>
+  <div class="col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-muted small text-uppercase">Revenue (paid)</div>
+      <div class="h3 mb-0 text-success">$@String.Format("{0:N2}", (decimal)ViewBag.PaidTotal)</div>
+      <div class="text-muted small">@ViewBag.PaidCount paid, @ViewBag.UnpaidCount unpaid &middot; selected period</div>
+    </div></div>
+  </div>
+  <div class="col-md-9">
+    <div class="card h-100">
+      <div class="card-header py-2 small fw-bold">Revenue by month (paid invoices, selected period)</div>
+      <div class="card-body py-2">
+        <canvas id="revenueChart" height="70"></canvas>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body p-4">
-    <h6 class="fw-bold mb-3">Revenue by Month</h6>
-    <canvas id="revenueChart" height="100"></canvas>
+<div class="card mb-4">
+  <div class="card-header py-2 small fw-bold">Tax collected by region (paid invoices, selected period)</div>
+  @if (taxByRegion.Count == 0)
+  {
+    <div class="card-body text-muted small">No tax collected in this period.</div>
+  }
+  else
+  {
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Region</th><th class="text-end">Taxable amount</th><th class="text-end">Tax collected</th></tr></thead>
+        <tbody>
+        @foreach (var row in taxByRegion)
+        {
+          <tr>
+            <td>@row.Region</td>
+            <td class="text-end">$@String.Format("{0:N2}", (decimal)row.Taxable)</td>
+            <td class="text-end fw-bold">$@String.Format("{0:N2}", (decimal)row.Tax)</td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<p class="text-muted small">
+  The permanent ledger: every invoice ever issued, including agents deleted since. Each invoice carries its own
+  bill-to snapshot, so copies can be reprinted at any time without the agent's account.
+</p>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          @* word@(expr), not word@expr -- Razor's email-address heuristic renders the latter as
+             literal text when @ directly follows a word character. *@
+          <th><a href="@SortUrl("date")" class="text-decoration-none text-dark">Date@(SortArrow("date"))</a></th>
+          <th>Bill to</th><th>Account</th>
+          <th><a href="@SortUrl("package")" class="text-decoration-none text-dark">Package@(SortArrow("package"))</a></th>
+          <th class="text-end">Subtotal</th><th class="text-end">Tax</th><th class="text-end">Total</th>
+          <th>Status</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      @if (Model.Count == 0)
+      {
+        <tr><td colspan="10" class="text-muted text-center py-4">No invoices in this period.</td></tr>
+      }
+      @foreach (var i in Model)
+      {
+        var agent = agents.TryGetValue(i.AgentUserId, out var a) ? a : null;
+        var package = billings.TryGetValue(i.BillingId, out var b) && packages.TryGetValue(b.BillingRuleId, out var p) ? p.PackageName : "";
+        <tr>
+          <td class="fw-bold">@i.InvoiceNumber</td>
+          <td><small>@AgentLocalTime.FromUtc(i.IssuedAt, agent?.TimeZone).ToString("MMM d, yyyy")</small></td>
+          <td>
+            @(string.IsNullOrWhiteSpace(i.BillToName) ? (agent?.UserName ?? "(unknown)") : i.BillToName)
+            @if (!string.IsNullOrWhiteSpace(i.BillToCompany)) { <small class="text-muted d-block">@i.BillToCompany</small> }
+          </td>
+          <td>
+            @if (agent == null)
+            {
+              <span class="badge bg-secondary" title="The account was deleted; the invoice is retained.">deleted</span>
+            }
+            else
+            {
+              <a href="/Agents/Details/@agent.Id">@agent.UserName</a>
+            }
+          </td>
+          <td><small>@package</small></td>
+          <td class="text-end">$@String.Format("{0:N2}", i.SubTotal)</td>
+          <td class="text-end"><small>$@String.Format("{0:N2}", i.TaxAmount) @i.TaxRegion</small></td>
+          <td class="text-end fw-bold">$@String.Format("{0:N2}", i.Total)</td>
+          <td>@if (i.IsPaid) { <span class="badge bg-success">Paid</span> } else { <span class="badge bg-warning text-dark">Unpaid</span> }</td>
+          <td><a class="btn btn-sm btn-outline-secondary" href="/Reports/Invoice/@i.Id">View / Print</a></td>
+        </tr>
+      }
+      </tbody>
+    </table>
   </div>
 </div>
 
 @section Scripts {
 <script nonce="@Context.GetCspNonce()">
-const labels = [@Html.Raw(string.Join(",", (ViewBag.Invoices as IEnumerable<dynamic> ?? []).Select(i => $"'{i.Label}'")))];
-const data   = [@Html.Raw(string.Join(",", (ViewBag.Invoices as IEnumerable<dynamic> ?? []).Select(i => i.Total)))];
+const labels = [@Html.Raw(string.Join(",", chartMonths.Select(m => $"'{m.Label}'")))];
+const data   = [@Html.Raw(string.Join(",", chartMonths.Select(m => m.Total)))];
 new Chart(document.getElementById('revenueChart'), {
   type: 'bar',
   data: {
