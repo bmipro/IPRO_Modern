@@ -49,10 +49,17 @@ competitors that cannot handle provincial tax or Canadian compliance language.
 
 | Plan | Monthly | Quarterly | Annual | One-time setup | Clients | Domains | Storage |
 |---|---|---|---|---|---|---|---|
-| **IPro Silver** | $40 | $120 | $480 | $150 | 500 | 2 | 50 MB |
-| **IPro Gold** | $60 | $180 | $720 | $200 | Unlimited | Unlimited | 500 MB |
-| **IPro Platinum** | $90 | $270 | $1,080 | $400 | Unlimited | Unlimited | 1,000 MB |
+| **IPro Silver** | $40 | $120 | $400 | $150 | 500 | 2 | 50 MB |
+| **IPro Gold** | $60 | $180 | $600 | $200 → **waived ($0)** | Unlimited | Unlimited | 500 MB |
+| **IPro Platinum** | $90 | $270 | $900 | $400 → **waived ($0)** | Unlimited | Unlimited | 1,000 MB |
 | **Broker Package** | Contact us | — | — | Varies | Unlimited | Unlimited | 1,000 MB/user |
+
+Updated 2026-08-13 evening: annual moved to **10× monthly ("two months free")** and the
+Gold/Platinum setup fees are **waived until Sept 30, 2026** — both changed by the owner in
+SuperAdmin and re-synced to PayPal the same day. The authoritative values live in the `BillingRules`
+table and SuperAdmin → Packages, which is the point: **never copy prices from this file into a
+page; read them from the database.** An earlier version of this section said "annual works out to
+12× with no discount" — no longer true.
 
 Corrected 2026-08-13: an earlier draft of this table listed Silver's domain cap as 12. That figure is
 `MaxNewsletters` from the `PackageDefinition` constructor, not a domain limit — the real cap is the
