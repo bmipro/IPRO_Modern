@@ -185,8 +185,15 @@ marketing page at its unauthenticated root and redirects to the dashboard once s
 `https://app.iproadvisers.com/Account/Register`. Design and build for this host.
 
 - SuperAdmin: `admin.iproadvisers.com`
-- Customer sites: `theirname.iproadvisers.com` or their own custom domain
+- Customer sites: **`firstnamelastname.247advisers.com`** on signup, or their own custom domain
 - Registration: `/Account/Register` · Login: `/Account/Login` · Preview: `/Preview`
+
+**Decided 2026-08-13 by the owner:** new customers keep the `247advisers.com` temporary address, and
+the *marketing* corrects to match. The home page hero previously advertised
+`yourname.iproadvisers.com`, which no customer was ever issued. It now renders
+`firstnamelastname.` + the `App:TemporarySiteRootDomain` config value that
+`AccountController.GenerateUniqueDomainAsync` actually builds against, so marketing cannot drift from
+signup again. Any future copy naming a temporary address must use the same source.
 
 **The bare domain currently serves something else.** `iproadvisers.com` and `www.iproadvisers.com`
 return a separate legacy site: last modified January 2016, served by nginx, built on an unmodified

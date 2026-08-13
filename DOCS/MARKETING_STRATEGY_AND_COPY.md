@@ -2298,7 +2298,13 @@ cannot solve, and two are actively costing money today.
    `PackageFeature` rows, so it shows a green checkmark for SMS on every plan. Removing the copy in
    item 1 does not fix this. *Data fix — required before any pricing page ships.*
 
-3. **New customers are given a `247advisers.com` address, not an `iproadvisers.com` one.**
+3. **[RESOLVED 2026-08-13 — owner decided: keep `247advisers.com`, correct the marketing.]** The
+   home page hero now renders `firstnamelastname.` + the `App:TemporarySiteRootDomain` config value,
+   read from the same key `GenerateUniqueDomainAsync` builds against, so the advertised address is
+   the issued address by construction. Copy in this document may now name a temporary address, using
+   that form. Original finding follows.
+
+   **New customers are given a `247advisers.com` address, not an `iproadvisers.com` one.**
    `AccountController.GenerateUniqueDomainAsync` (line 969) builds
    `firstnamelastname.247advisers.com`. The home page hero's browser frame shows
    `yourname.iproadvisers.com`, and the business brief states the same. Both cannot be true. This is

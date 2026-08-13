@@ -14,10 +14,12 @@ namespace IPRO.Web.Controllers;
 public class HomeController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly IConfiguration _configuration;
 
-    public HomeController(IPRODbContext db)
+    public HomeController(IPRODbContext db, IConfiguration configuration)
     {
         _db = db;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index()
@@ -43,6 +45,12 @@ public class HomeController : Controller
         // here (not duplicated) so the hero's "what you'll see" promise stays truthful by
         // construction instead of by manually keeping two copies of the same copy in sync.
         ViewBag.HeroInsight = MockDailyInsightCatalog.Get("Insurance / Financial");
+
+        // The hero's browser frame advertises the address a new agent is actually issued. Read it
+        // from the same config key GenerateUniqueDomainAsync builds against, so marketing can never
+        // drift from what signup hands out -- it previously advertised iproadvisers.com while the
+        // product issued 247advisers.com.
+        ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
 
         return View(ordered);
     }
