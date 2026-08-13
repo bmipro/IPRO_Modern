@@ -701,6 +701,8 @@ static async Task EnsureBillingRuleSchemaAsync(IPRODbContext db)
     await EnsureTableColumnAsync(db, "BillingRules", "TrialDurationDays", "ALTER TABLE `BillingRules` ADD COLUMN `TrialDurationDays` int NULL");
     await EnsureTableColumnAsync(db, "BillingRules", "TrialReminderDayOffsets", "ALTER TABLE `BillingRules` ADD COLUMN `TrialReminderDayOffsets` varchar(120) CHARACTER SET utf8mb4 NULL");
     await EnsureTableColumnAsync(db, "BillingRules", "IsHiddenTestPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsHiddenTestPackage` tinyint(1) NOT NULL DEFAULT FALSE");
+    await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaived", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaived` tinyint(1) NOT NULL DEFAULT FALSE");
+    await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaivedUntil", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaivedUntil` datetime(6) NULL");
 
     // Quebec's 14.975% needs 5 decimals as a fraction (0.14975); the original decimal(7,4) column
     // rounded it to 0.1498, so invoices displayed "14.980 %" beside a region label saying 14.975%.

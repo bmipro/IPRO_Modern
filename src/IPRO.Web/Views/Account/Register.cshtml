@@ -290,8 +290,15 @@ textarea:focus{box-shadow:none;}
               {
                 // Pre-tax, like every other price in the product. This is the point where the
                 // prospect actually commits, so it is the most important place to say so.
+                // Setup-fee waiver comes from the package row via the same call PayPal uses, so the
+                // picker can't promise a saving the checkout won't honour (or hide one it will).
+                var setupLabel = package.SetupFee > 0
+                    ? package.IsSetupFeeWaivedOn(DateTime.UtcNow)
+                        ? $" + ${package.SetupFee:N0} setup WAIVED"
+                        : $" + ${package.SetupFee:N0} setup"
+                    : "";
                 var priceLabel = package.MonthlyPrice > 0
-                    ? $"${package.MonthlyPrice:N0}/mo" + (package.SetupFee > 0 ? $" + ${package.SetupFee:N0} setup" : "") + " plus applicable taxes"
+                    ? $"${package.MonthlyPrice:N0}/mo" + setupLabel + " plus applicable taxes"
                     : "Contact us for pricing";
                 <option value="@package.Id">@package.PackageName — @priceLabel</option>
               }

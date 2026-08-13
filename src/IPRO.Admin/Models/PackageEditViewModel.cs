@@ -15,6 +15,10 @@ public class PackageEditViewModel
     public decimal MonthlyPrice { get; set; }
 
     public decimal SetupFee { get; set; }
+    public bool SetupFeeWaived { get; set; }
+    // Date-only in the UI; the controller stores it as end-of-day so "until Sept 30" includes the 30th.
+    [DataType(DataType.Date)]
+    public DateTime? SetupFeeWaivedUntil { get; set; }
     public decimal? QuarterlyPrice { get; set; }
     public decimal? AnnualPrice { get; set; }
     public string? PayPalMonthlyPlanId { get; set; }
@@ -48,6 +52,8 @@ public class PackageListViewModel
     public decimal MonthlyPrice { get; set; }
     public decimal AnnualPrice { get; set; }
     public decimal SetupFee { get; set; }
+    public bool SetupFeeWaived { get; set; }
+    public DateTime? SetupFeeWaivedUntil { get; set; }
     public string ContactsLimit { get; set; } = string.Empty;
     public string DomainsLimit { get; set; } = string.Empty;
     public string DefaultWebsiteTemplateName { get; set; } = string.Empty;

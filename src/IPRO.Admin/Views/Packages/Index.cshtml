@@ -20,7 +20,23 @@
           </td>
           <td class="fw-bold text-primary">$@p.MonthlyPrice.ToString("N2")</td>
           <td>$@p.AnnualPrice.ToString("N2")</td>
-          <td>$@p.SetupFee.ToString("N2")</td>
+          <td>
+            @{ var waived = p.SetupFeeWaived && (p.SetupFeeWaivedUntil == null || p.SetupFeeWaivedUntil > DateTime.UtcNow); }
+            @if (waived)
+            {
+              <span class="text-muted text-decoration-line-through">$@p.SetupFee.ToString("N2")</span>
+              <span class="fw-bold text-success ms-1">$0.00</span>
+              <div><span class="badge bg-success-subtle text-success">Waived@(p.SetupFeeWaivedUntil.HasValue ? $" to {p.SetupFeeWaivedUntil.Value:MMM d}" : "")</span></div>
+            }
+            else
+            {
+              @($"${p.SetupFee.ToString("N2")}")
+              @if (p.SetupFeeWaived)
+              {
+                <div><span class="badge bg-secondary-subtle text-secondary" title="The waiver end date has passed.">Waiver lapsed</span></div>
+              }
+            }
+          </td>
           <td>@p.ContactsLimit</td>
           <td>@p.DomainsLimit</td>
           <td>@p.DefaultWebsiteTemplateName</td>

@@ -45,6 +45,8 @@ public class PackagesController : Controller
                 MonthlyPrice = p.MonthlyPrice,
                 AnnualPrice = p.AnnualPrice,
                 SetupFee = p.SetupFee,
+                SetupFeeWaived = p.SetupFeeWaived,
+                SetupFeeWaivedUntil = p.SetupFeeWaivedUntil,
                 ContactsLimit = FormatFeatureLimit(features.FirstOrDefault(f =>
                     f.BillingRuleId == p.Id &&
                     string.Equals(f.FeatureCode, PackageFeatureCodes.Contacts, StringComparison.OrdinalIgnoreCase)), p.MaxClients),
@@ -83,7 +85,7 @@ public class PackagesController : Controller
         await _uow.BillingRules.AddAsync(rule);
         await _uow.SaveChangesAsync();
         await SaveFeatureRowsAsync(rule.Id, model.Features);
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageCreate", $"Package '{rule.PackageName}' created (monthly ${rule.MonthlyPrice}, annual ${rule.AnnualPrice}, setup ${rule.SetupFee})");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageCreate", $"Package '{rule.PackageName}' created (monthly ${rule.MonthlyPrice}, annual ${rule.AnnualPrice}, setup ${rule.SetupFee}{DescribeWaiver(rule)})");
 
         TempData["Success"] = "Package created.";
         return RedirectToAction(nameof(Index));
@@ -113,7 +115,7 @@ public class PackagesController : Controller
         _uow.BillingRules.Update(rule);
         await _uow.SaveChangesAsync();
         await SaveFeatureRowsAsync(rule.Id, model.Features);
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageEdit", $"Package '{rule.PackageName}' pricing/features updated");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "PackageEdit", $"Package '{rule.PackageName}' pricing/features updated (monthly ${rule.MonthlyPrice}, annual ${rule.AnnualPrice}, setup ${rule.SetupFee}{DescribeWaiver(rule)})");
 
         TempData["Success"] = "Package updated.";
         return RedirectToAction(nameof(Index));
@@ -161,6 +163,8 @@ public class PackagesController : Controller
             Description = rule.Description,
             MonthlyPrice = rule.MonthlyPrice,
             SetupFee = rule.SetupFee,
+            SetupFeeWaived = rule.SetupFeeWaived,
+            SetupFeeWaivedUntil = rule.SetupFeeWaivedUntil?.Date,
             QuarterlyPrice = rule.QuarterlyPrice == 0 ? null : rule.QuarterlyPrice,
             AnnualPrice = rule.AnnualPrice == 0 ? null : rule.AnnualPrice,
             PayPalMonthlyPlanId = rule.PayPalMonthlyPlanId,
@@ -275,12 +279,27 @@ public class PackagesController : Controller
         SortOrder = feature.SortOrder
     };
 
+    // Waiving a setup fee changes what customers are charged, so it belongs in the audit trail
+    // alongside the price itself, not just in the row.
+    private static string DescribeWaiver(BillingRule rule) => rule.SetupFeeWaived
+        ? rule.SetupFeeWaivedUntil.HasValue
+            ? $", setup fee WAIVED until {rule.SetupFeeWaivedUntil.Value:yyyy-MM-dd}"
+            : ", setup fee WAIVED (no end date)"
+        : string.Empty;
+
     private static void ApplyRuleFields(BillingRule rule, PackageEditViewModel model)
     {
         rule.PackageName = model.PackageName;
         rule.Description = model.Description ?? string.Empty;
         rule.MonthlyPrice = model.MonthlyPrice;
         rule.SetupFee = model.SetupFee;
+        rule.SetupFeeWaived = model.SetupFeeWaived;
+        // The admin picks a date; store the last instant of it so "waived until Sept 30" includes
+        // the 30th. Clearing the checkbox also clears the date, so an old date can't linger and
+        // silently re-arm the waiver if someone ticks the box again later.
+        rule.SetupFeeWaivedUntil = model.SetupFeeWaived && model.SetupFeeWaivedUntil.HasValue
+            ? model.SetupFeeWaivedUntil.Value.Date.AddDays(1).AddTicks(-1)
+            : null;
         rule.QuarterlyPrice = model.QuarterlyPrice ?? 0;
         rule.AnnualPrice = model.AnnualPrice ?? 0;
         rule.PayPalMonthlyPlanId = model.PayPalMonthlyPlanId ?? string.Empty;

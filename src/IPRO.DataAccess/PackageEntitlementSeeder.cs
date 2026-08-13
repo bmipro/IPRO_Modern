@@ -36,9 +36,14 @@ public static class PackageEntitlementSeeder
     {
         var packageDefinitions = new[]
         {
-            new PackageDefinition("IPro Silver", "Entry package for individual advisors.", 40m, 120m, 480m, 150m, 500, 12),
-            new PackageDefinition("IPro Gold", "Expanded package with marketing, banners, coupons, and mail tools.", 60m, 180m, 720m, 200m, Unlimited, Unlimited),
-            new PackageDefinition("IPro Platinum", "Premium package with managed content, SEO, and PayPal tools.", 90m, 270m, 1080m, 400m, Unlimited, Unlimited),
+            // Annual is priced at 10x monthly -- pay for the year, get two months free. Previously
+            // 12x, which offered no reason to pay annually and read as a bad deal on the most
+            // closely-read page on the site. Changing these values only affects a fresh database;
+            // existing rows are edited in Super Admin -> Packages, and the PayPal plan MUST be
+            // re-synced there afterwards or PayPal keeps billing the old plan's price.
+            new PackageDefinition("IPro Silver", "Entry package for individual advisors.", 40m, 120m, 400m, 150m, 500, 12),
+            new PackageDefinition("IPro Gold", "Expanded package with marketing, banners, coupons, and mail tools.", 60m, 180m, 600m, 200m, Unlimited, Unlimited),
+            new PackageDefinition("IPro Platinum", "Premium package with managed content, SEO, and PayPal tools.", 90m, 270m, 900m, 400m, Unlimited, Unlimited),
             new PackageDefinition("Broker Package", "Broker/team package. Pricing, setup, and monthly fees vary.", 0m, 0m, 0m, 0m, Unlimited, Unlimited)
         };
 

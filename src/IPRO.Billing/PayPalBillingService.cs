@@ -110,20 +110,25 @@ public class PayPalBillingService : IBillingService
 
             decimal? overrideAmount = null;
             string? overridePlanId = null;
-            decimal? overrideSetupFee = null;
+
+            // The per-package setup-fee waiver (Super Admin -> Packages -> Edit) is applied first,
+            // so what PayPal charges is what the pricing page advertised. A promotion code then
+            // discounts whatever remains after the waiver -- it can never resurrect a waived fee.
+            var baseSetupFee = requestedPackage.EffectiveSetupFee(DateTime.UtcNow);
+            decimal? overrideSetupFee = baseSetupFee != requestedPackage.SetupFee ? baseSetupFee : null;
 
             if (promo != null)
             {
                 if (promo.SetupFeeDiscountType != PromoDiscountType.None)
                 {
-                    overrideSetupFee = ComputeDiscountedAmount(requestedPackage.SetupFee, promo.SetupFeeDiscountType, promo.SetupFeeDiscountValue);
+                    overrideSetupFee = ComputeDiscountedAmount(baseSetupFee, promo.SetupFeeDiscountType, promo.SetupFeeDiscountValue);
                 }
 
                 if (promo.RecurringDiscountType != PromoDiscountType.None)
                 {
                     overrideAmount = ComputeDiscountedAmount(GetAmount(requestedPackage, period), promo.RecurringDiscountType, promo.RecurringDiscountValue);
 
-                    var effectiveSetupFee = overrideSetupFee ?? requestedPackage.SetupFee;
+                    var effectiveSetupFee = overrideSetupFee ?? baseSetupFee;
                     var isFullyComped = promo.RecurringDurationCycles == null && overrideAmount <= 0 && effectiveSetupFee <= 0;
 
                     if (isFullyComped)
@@ -1088,7 +1093,9 @@ public class PayPalBillingService : IBillingService
         await _uow.Billings.AddAsync(billing);
         await _uow.SaveChangesAsync();
 
-        var setupFee = includeSetupFee ? (overrideSetupFee ?? requestedPackage.SetupFee) : 0;
+        // Fallback honours the package waiver too, so a future call site that forgets to pass
+        // overrideSetupFee still cannot charge a fee the pricing page said was waived.
+        var setupFee = includeSetupFee ? (overrideSetupFee ?? requestedPackage.EffectiveSetupFee(DateTime.UtcNow)) : 0;
         var invoice = await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, amountDue, setupFee, false);
 
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange

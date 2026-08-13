@@ -37,6 +37,37 @@ out exactly how to use the history and where the line is.
 
 ---
 
+## Owner decisions — settled 2026-08-13
+
+Recorded here because the copy deck below was written before these were answered, and a few passages
+in Sections D and F were left deliberately open. Where this block and the body text disagree, **this
+block wins.**
+
+1. **PayPal is the only payment method.** No Stripe, no cheque, no e-transfer, no alternative of any
+   kind. The `/pricing` FAQ no longer hedges; it states plainly that PayPal's checkout takes an
+   ordinary credit card without needing a PayPal account, and that card details go to PayPal rather
+   than to IPRO.
+
+2. **Annual is priced at ten months, not twelve.** Pay for the year, get two months free. Seeder
+   defaults are now Silver $400, Gold $600, Platinum $900. *Live rows still need changing in Super
+   Admin, and the PayPal plan must be re-synced there afterwards or PayPal keeps billing the old
+   plan's price.*
+
+3. **The setup-fee waiver is per package and controlled from Super Admin — not hardcoded anywhere.**
+   `BillingRule.SetupFeeWaived` plus an optional `SetupFeeWaivedUntil` date, edited at
+   **Super Admin → Packages → Edit**. Whatever those rows say is what the public pricing page shows
+   *and* what PayPal charges: both read the same `BillingRule.IsSetupFeeWaivedOn` method, so the
+   advertised figure and the charged figure cannot drift apart.
+
+   The intent behind making it per package is commercial, in the owner's words: people should be
+   pushed toward **Gold minimum, ideally Platinum**, so the fee is waived only on the tiers worth
+   choosing and the saving becomes a reason to move up rather than a blanket discount. Silver keeps
+   its fee. This replaces the "founding customer, first 25 accounts, one promo code" mechanism the
+   copy deck proposed in Section D — a promotion code can still stack on top, but it is no longer how
+   the waiver itself is delivered.
+
+---
+
 # A. Positioning
 
 ## The positioning statement

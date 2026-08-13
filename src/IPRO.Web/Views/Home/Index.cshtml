@@ -23,6 +23,10 @@
   h1,h2,h3,h4,h5{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;}
   .badge-plain{background:#eef2f8;color:#64748b;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
   .badge-featured{background:#f4ead2;color:#a9812f;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
+  .setup-waived{margin:0;line-height:1.35;}
+  .setup-waived .was{color:#94a3b8;text-decoration:line-through;font-size:.9rem;}
+  .setup-waived .now{color:#a9812f;font-weight:800;font-size:1.15rem;margin-left:6px;font-variant-numeric:tabular-nums;}
+  .setup-waived .lbl{display:block;color:#64748b;font-size:.8rem;margin-top:1px;}
   .price-limits{border-top:1px solid #eef1f6;border-bottom:1px solid #eef1f6;padding:12px 0;margin:10px 0 14px;}
   .price-limits li{padding:2px 0;}
   .preview-plan-link{display:block;text-align:center;font-size:.82rem;font-weight:700;color:#2563eb;text-decoration:none;margin-top:10px;}
@@ -240,7 +244,21 @@
               }
               @if (package.SetupFee > 0)
               {
-                <p class="text-muted small mb-3">+ $@package.SetupFee.ToString("N0") one-time setup</p>
+                @* Waiver comes from the package row (Super Admin -> Packages -> Edit). The same
+                   BillingRule.IsSetupFeeWaivedOn call decides what PayPal charges, so this figure
+                   cannot advertise a saving the checkout won't honour. *@
+                if (package.IsSetupFeeWaivedOn(DateTime.UtcNow))
+                {
+                  <p class="setup-waived mb-3">
+                    <span class="was">$@package.SetupFee.ToString("N0")</span>
+                    <span class="now">$0</span>
+                    <span class="lbl">one-time setup &mdash; waived@(package.SetupFeeWaivedUntil.HasValue ? $" until {package.SetupFeeWaivedUntil.Value:MMMM d}" : "")</span>
+                  </p>
+                }
+                else
+                {
+                  <p class="text-muted small mb-3">+ $@package.SetupFee.ToString("N0") one-time setup</p>
+                }
               }
               @if (clientsLabel != null || domainsLabel != null || storageLabel != null)
               {
