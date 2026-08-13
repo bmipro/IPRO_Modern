@@ -268,7 +268,10 @@
                   @if (storageLabel != null) { <li><b class="text-dark">@storageLabel</b> storage</li> }
                 </ul>
               }
-              <a href="/Account/Register" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100 fw-semibold mt-auto">Get Started</a>
+              @* Carry the chosen plan into registration (?package= preselects it there) -- without
+                 this, a visitor who clicked "Get Started" on Platinum landed on an empty package
+                 dropdown and had to choose again. *@
+              <a href="/Account/Register?package=@Uri.EscapeDataString(package.PackageName)" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100 fw-semibold mt-auto">Get Started</a>
               <a href="/Preview?package=@Uri.EscapeDataString(package.PackageName)" class="preview-plan-link">See a live @package.PackageName site in 30s <i class="fas fa-arrow-right ms-1 small"></i></a>
             </div>
           </div>

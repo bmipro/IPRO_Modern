@@ -9,7 +9,15 @@ public static class RegistrationWelcomeTemplate
     {
         var name = WebUtility.HtmlEncode(model.FullName);
         var userName = WebUtility.HtmlEncode(model.UserName);
+        // Self-signups choose their own password on the registration form, so this email carries no
+        // credentials for them (empty TemporaryPassword). Admin-created accounts still get one.
+        var hasTempPassword = !string.IsNullOrWhiteSpace(model.TemporaryPassword);
         var password = WebUtility.HtmlEncode(model.TemporaryPassword);
+        var passwordCellTitle = hasTempPassword ? "Temporary Password" : "Password";
+        var passwordCellValue = hasTempPassword ? password : "The one you chose at signup";
+        var passwordNote = hasTempPassword
+            ? "For your security, you will be asked to change this temporary password the first time you sign in."
+            : "You sign in with your email address and the password you chose when you registered. It was never sent by email.";
         var domain = WebUtility.HtmlEncode(model.SetupDomain);
         var domainUrl = $"http://{domain}";
         var trainingEmail = WebUtility.HtmlEncode(model.TrainingEmail);
@@ -22,7 +30,7 @@ public static class RegistrationWelcomeTemplate
 <meta charset="utf-8"/>
 </head>
 <body style="margin:0;background:#edf2f8;color:#172033;font-family:Segoe UI,Roboto,Arial,sans-serif;">
-<div style="display:none;max-height:0;overflow:hidden;">Your IPRO Advisers account has been created. Save your temporary username and password.</div>
+<div style="display:none;max-height:0;overflow:hidden;">Your IPRO Advisers account has been created.</div>
 <div style="max-width:720px;margin:0 auto;padding:28px 14px;">
   <div style="background:#fff;border:1px solid #dce3ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(18,38,73,.14);">
     <div style="padding:28px 32px;background:linear-gradient(135deg,#0c1d38,#1556d7);color:#fff;">
@@ -47,13 +55,13 @@ public static class RegistrationWelcomeTemplate
           </td>
           <td style="width:14px;"></td>
           <td style="width:50%;padding:16px;border:1px solid #dce3ef;border-radius:12px;background:#fbfcff;">
-            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#667085;">Temporary Password</div>
-            <div style="font-size:18px;font-weight:800;margin-top:6px;color:#172033;">{{password}}</div>
+            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#667085;">{{passwordCellTitle}}</div>
+            <div style="font-size:18px;font-weight:800;margin-top:6px;color:#172033;">{{passwordCellValue}}</div>
           </td>
         </tr>
       </table>
 
-      <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 16px;">For your security, you will be asked to change this temporary password the first time you sign in.</p>
+      <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 16px;">{{passwordNote}}</p>
       <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 24px;">We recommend visiting the video tutorials in each admin section to get familiar with your tools. For training, contact <a href="mailto:{{trainingEmail}}" style="color:#1457d9;">{{trainingEmail}}</a>.</p>
 
       <div style="text-align:center;margin:28px 0;">
@@ -85,7 +93,9 @@ public static class RegistrationWelcomeTemplate
         builder.AppendLine("Please log in to your admin section of your website.");
         builder.AppendLine();
         builder.AppendLine($"Your username. : {model.UserName}");
-        builder.AppendLine($"Your Password: {model.TemporaryPassword}");
+        builder.AppendLine(string.IsNullOrWhiteSpace(model.TemporaryPassword)
+            ? "Your Password: the one you chose at signup (never sent by email)"
+            : $"Your Password: {model.TemporaryPassword}");
         builder.AppendLine();
         builder.AppendLine("Please contact our training department through: training@IProAdvisers.com in order to book a seat for our next available training session.");
         builder.AppendLine();

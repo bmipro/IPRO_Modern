@@ -238,10 +238,16 @@ public class AccountController : Controller
         // Optional prefill from the unauthenticated /Preview flow -- a prospect who already typed
         // their name and vertical there shouldn't have to retype it at the exact moment they've
         // decided to sign up. Plain optional querystring values, same trust level as any other GET.
+        //
+        // When ?package= resolves, the form shows a locked plan summary instead of the dropdown --
+        // the visitor already chose on the pricing card, and re-asking was one of the three
+        // package-picks the old funnel forced (signup v2, 2026-08-13).
         var prefillPackageId = 0;
         if (!string.IsNullOrWhiteSpace(packageName) && ViewBag.Packages is IEnumerable<BillingRule> loadedPackages)
         {
-            prefillPackageId = loadedPackages.FirstOrDefault(p => p.PackageName == packageName)?.Id ?? 0;
+            var selected = loadedPackages.FirstOrDefault(p => p.PackageName == packageName);
+            prefillPackageId = selected?.Id ?? 0;
+            ViewBag.SelectedPackage = selected;
         }
 
         return View(new AgentRegistrationViewModel
@@ -251,7 +257,8 @@ public class AccountController : Controller
             LastName = lastName ?? string.Empty,
             CompanyName = companyName ?? string.Empty,
             BusinessType = businessType ?? string.Empty,
-            PackageId = prefillPackageId
+            PackageId = prefillPackageId,
+            PlanLocked = prefillPackageId > 0
         });
     }
 
@@ -270,6 +277,16 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
+        // Signup v2: the registrant chooses their own password here, which replaced the
+        // temp-password ceremony entirely for self-signup. Same minimum as ChangePassword.
+        if (string.IsNullOrWhiteSpace(model.Password) || model.Password.Length < 8)
+        {
+            ModelState.AddModelError("", "Choose a password of at least 8 characters.");
+        }
+        else if (!string.Equals(model.Password, model.ConfirmPassword, StringComparison.Ordinal))
+        {
+            ModelState.AddModelError("", "The two passwords do not match.");
+        }
         BillingRule? submittedPackage = null;
         TrialInviteCode? trialInvite = null;
         if (model.PackageId <= 0) ModelState.AddModelError("", "Package is required.");
@@ -309,18 +326,12 @@ public class AccountController : Controller
         }
         if (!ModelState.IsValid)
         {
-            SetRegistrationVerifyCode();
-            await LoadActivePackagesAsync();
-            await RepopulateTrialViewBagAsync(model.TrialCode);
-            return View(model);
+            return await RerenderRegisterAsync(model);
         }
         if (await _agents.EmailExistsAsync(model.Email))
         {
             ModelState.AddModelError("", "An account already exists for this email address.");
-            SetRegistrationVerifyCode();
-            await LoadActivePackagesAsync();
-            await RepopulateTrialViewBagAsync(model.TrialCode);
-            return View(model);
+            return await RerenderRegisterAsync(model);
         }
 
         // Claim the trial slot BEFORE creating the account (audit #2, A2-H4). The old order
@@ -336,10 +347,7 @@ public class AccountController : Controller
             if (claimed == 0)
             {
                 ModelState.AddModelError("", "This trial invitation has reached its redemption limit. Please contact us for a new invitation.");
-                SetRegistrationVerifyCode();
-                await LoadActivePackagesAsync();
-                await RepopulateTrialViewBagAsync(model.TrialCode);
-                return View(model);
+                return await RerenderRegisterAsync(model);
             }
         }
 
@@ -348,15 +356,16 @@ public class AccountController : Controller
         agent.DomainName = await GenerateUniqueDomainAsync(agent.UserName);
         agent.TermsAcceptedAt = DateTime.UtcNow;
         agent.RegistrationIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
-        agent.MustChangePassword = true;
+        // Signup v2: they just chose this password themselves, so there is nothing to force-change
+        // and no temporary password anywhere in the flow. (Admin-created accounts keep theirs.)
+        agent.MustChangePassword = false;
         if (trialInvite != null && submittedPackage != null)
         {
             agent.TrialEndsAt = DateTime.UtcNow.AddDays(submittedPackage.TrialDurationDays ?? 14);
         }
-        var temporaryPassword = GenerateTemporaryPassword();
         try
         {
-            await _agents.RegisterAsync(agent, temporaryPassword);
+            await _agents.RegisterAsync(agent, model.Password);
         }
         catch (Exception ex)
         {
@@ -369,10 +378,7 @@ public class AccountController : Controller
             }
             _logger.LogError(ex, "Registration failed for {Email}", model.Email);
             ModelState.AddModelError("", "We could not complete the registration. Please check the form and try again.");
-            SetRegistrationVerifyCode();
-            await LoadActivePackagesAsync();
-            await RepopulateTrialViewBagAsync(model.TrialCode);
-            return View(model);
+            return await RerenderRegisterAsync(model);
         }
 
         if (trialInvite != null)
@@ -386,7 +392,9 @@ public class AccountController : Controller
             await _uow.SaveChangesAsync();
         }
 
-        var welcome = BuildWelcomeModel(agent, temporaryPassword);
+        // Welcome email carries NO credentials (they chose their password on the form; C-1 stays
+        // honoured because nothing secret ever travels by email).
+        var welcome = BuildWelcomeModel(agent, string.Empty);
         var emailSent = await _email.SendAsync(
             agent.Email,
             welcome.FullName,
@@ -398,15 +406,61 @@ public class AccountController : Controller
             _logger.LogWarning("Registration welcome email was not sent to {Email}", agent.Email);
         }
 
-        TempData["RegistrationEmailSent"] = emailSent ? "true" : "false";
-        TempData["RegistrationFullName"] = welcome.FullName;
-        TempData["RegistrationEmail"] = welcome.Email;
-        TempData["RegistrationUserName"] = agent.UserName;
-        TempData["RegistrationPassword"] = temporaryPassword;
-        TempData["RegistrationDomain"] = agent.DomainName;
-        TempData["RegistrationTrialEndsAt"] = agent.TrialEndsAt?.ToString("O");
         HttpContext.Session.Remove(RegistrationVerifyCodeSessionKey);
-        return RedirectToAction(nameof(RegisterSuccess));
+
+        // Signup v2 (2026-08-13): registration is the first half of CHECKOUT, not a destination.
+        // The old flow ended on a receipt-style success page before any money changed hands, and
+        // the customer had to sign in, change a temp password, and pick their package a third time
+        // on /Billing before PayPal ever appeared. Now: sign them in and go straight to payment.
+        await SignInAgentAsync(agent, new AuthenticationProperties { IsPersistent = false });
+
+        if (trialInvite != null)
+        {
+            TempData["Success"] = $"Welcome, {agent.FirstName}! Your free trial is active — this is your dashboard.";
+            return Redirect("/portal/Dashboard");
+        }
+
+        var period = string.Equals(model.BillingPeriodChoice, "Annually", StringComparison.OrdinalIgnoreCase)
+            ? BillingPeriod.Annually
+            : BillingPeriod.Monthly;
+        var portalBase = PortalUrlHelper.GetAgentPortalBaseUrl(_configuration);
+        var checkout = await _billing.CreateSubscriptionAsync(
+            agent.Id,
+            model.PackageId,
+            period,
+            $"{portalBase}/Billing/PayPalReturn",
+            $"{portalBase}/Billing/Cancel");
+
+        if (checkout.Success && checkout.RequiresPayment && !string.IsNullOrWhiteSpace(checkout.ApprovalUrl))
+        {
+            return Redirect(checkout.ApprovalUrl);
+        }
+        if (checkout.Success)
+        {
+            // Fully-comped promotion: no PayPal step exists, the subscription is already active.
+            TempData["Success"] = checkout.Message;
+            return Redirect("/portal/Dashboard");
+        }
+
+        // Payment could not start (e.g. PayPal unreachable). The account exists and they are
+        // signed in; Billing is the recovery surface and shows exactly one step left.
+        _logger.LogWarning("Post-registration checkout could not start for agent {AgentId}: {Message}", agent.Id, checkout.Message);
+        TempData["Error"] = "Your account was created, but the payment step could not start. Pick your plan below to finish — you will not be charged twice.";
+        return Redirect("/Billing");
+    }
+
+    // One place to rebuild everything the Register view needs when validation sends the form back.
+    private async Task<IActionResult> RerenderRegisterAsync(AgentRegistrationViewModel model)
+    {
+        SetRegistrationVerifyCode();
+        await LoadActivePackagesAsync();
+        await RepopulateTrialViewBagAsync(model.TrialCode);
+        if (model.PlanLocked && model.PackageId > 0 && ViewBag.Packages is IEnumerable<BillingRule> loaded)
+        {
+            // Keep the locked plan summary through validation-failure re-renders.
+            ViewBag.SelectedPackage = loaded.FirstOrDefault(p => p.Id == model.PackageId);
+        }
+        return View("Register", model);
     }
 
     private async Task<(TrialInviteCode? Invite, BillingRule? Package, string? Error)> ResolveTrialInviteAsync(string? trialCode)

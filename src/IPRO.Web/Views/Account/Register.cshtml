@@ -12,6 +12,10 @@
     var timeZones = (ViewBag.TimeZones as IEnumerable<string>) ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.Options;
     var trialPackage = ViewBag.TrialPackage as IPRO.Entities.BillingRule;
     var trialCodeError = ViewBag.TrialCodeError as string;
+    // Set when the visitor arrived from a pricing card (?package=): the plan is locked into a
+    // summary banner instead of being re-asked in a dropdown.
+    var selectedPackage = ViewBag.SelectedPackage as IPRO.Entities.BillingRule;
+    var planIsLocked = Model.PlanLocked && selectedPackage != null && trialPackage == null;
 }
 <!DOCTYPE html>
 <html>
@@ -97,6 +101,15 @@ textarea:focus{box-shadow:none;}
 .verify-hint{grid-column:1/-1;margin:-4px 0 0;font-size:12.5px;color:var(--muted);}
 
 .terms-check{display:flex;align-items:flex-start;gap:10px;margin-top:14px;font-size:14px;color:#344054;}
+
+.plan-summary-row{grid-column:1/-1;}
+.plan-summary{border:1px solid var(--blue-soft-line);background:var(--blue-soft);border-radius:12px;padding:16px 18px;}
+.plan-summary-name{font-family:Georgia,Cambria,serif;font-size:20px;font-weight:700;color:var(--navy);}
+.plan-summary-price{margin-top:4px;font-size:14px;color:#2c4368;font-weight:600;}
+.plan-summary-period{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-size:14px;color:#26364f;}
+.plan-summary-period label{display:flex;align-items:center;gap:7px;font-weight:600;cursor:pointer;}
+.plan-summary-period input{accent-color:var(--blue);width:16px;height:16px;}
+.plan-summary-change{display:inline-block;margin-top:10px;font-size:13px;font-weight:700;color:var(--blue2);}
 .terms-check input{width:18px;height:18px;margin-top:1px;accent-color:var(--blue);}
 
 .footer-bar{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-top:4px;}
@@ -180,13 +193,19 @@ textarea:focus{box-shadow:none;}
           <label><span class="required">*</span>Last Name:</label>
           <input asp-for="LastName" class="short" maxlength="80" required/>
         </div>
-        <div class="form-row">
-          <label>Designation:</label>
-          <input asp-for="Designation" class="short" maxlength="80"/>
-        </div>
+        @* Designation, fax, mobile and time zone moved to Profile (signup v2): every field here
+           costs signups, and none of those four is needed to create the account or bill it. *@
         <div class="form-row">
           <label><span class="required">*</span>Email:</label>
           <input asp-for="Email" type="email" class="short" maxlength="200" required/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Choose a Password:</label>
+          <input asp-for="Password" type="password" class="short" minlength="8" maxlength="100" autocomplete="new-password" required/>
+        </div>
+        <div class="form-row">
+          <label><span class="required">*</span>Confirm Password:</label>
+          <input asp-for="ConfirmPassword" type="password" class="short" minlength="8" maxlength="100" autocomplete="new-password" required/>
         </div>
       </div>
     </div>
@@ -236,15 +255,9 @@ textarea:focus{box-shadow:none;}
             <option>Other</option>
           </select>
         </div>
-        <div class="form-row">
-          <label>Time Zone:</label>
-          <select asp-for="TimeZone" class="wide">
-            @foreach (var zone in timeZones)
-            {
-              <option value="@zone">@zone</option>
-            }
-          </select>
-        </div>
+        @* Time zone is no longer asked at signup -- it is derived from the province below and can
+           be adjusted later on Profile. It still matters: invoice dates print in agent-local time. *@
+        <input type="hidden" asp-for="TimeZone" id="TimeZone"/>
       </div>
     </div>
 
@@ -254,14 +267,6 @@ textarea:focus{box-shadow:none;}
         <div class="form-row">
           <label><span class="required">*</span>Business Phone:</label>
           <input asp-for="Phone" class="short" maxlength="40" required/>
-        </div>
-        <div class="form-row">
-          <label>Fax:</label>
-          <input asp-for="BusinessFax" class="short" maxlength="40"/>
-        </div>
-        <div class="form-row">
-          <label>Mobile Phone:</label>
-          <input asp-for="CellPhone" class="short" maxlength="40"/>
         </div>
         <div class="form-row">
           <label><span class="required">*</span>Business Type:</label>
@@ -278,6 +283,35 @@ textarea:focus{box-shadow:none;}
             <label><span class="required">*</span>Package:</label>
             <input type="text" class="short" value="@trialPackage.PackageName (free trial)" readonly/>
             <input type="hidden" asp-for="PackageId" value="@trialPackage.Id" />
+          </div>
+        }
+        else if (planIsLocked)
+        {
+          @* The visitor already chose on the pricing card; re-asking was one of the three
+             package-picks the old funnel forced. Locked summary, changeable via one link. *@
+          <div class="form-row plan-summary-row">
+            <label>Your plan:</label>
+            <div class="plan-summary">
+              @{
+                var lockedSetup = selectedPackage!.SetupFee > 0
+                    ? selectedPackage.IsSetupFeeWaivedOn(DateTime.UtcNow)
+                        ? $"setup ${selectedPackage.SetupFee:N0} WAIVED"
+                        : $"+ ${selectedPackage.SetupFee:N0} one-time setup"
+                    : "no setup fee";
+              }
+              <div class="plan-summary-name">@selectedPackage.PackageName</div>
+              <div class="plan-summary-price">$@selectedPackage.MonthlyPrice.ToString("N0")/month &middot; @lockedSetup &middot; plus applicable taxes</div>
+              @if (selectedPackage.AnnualPrice > 0)
+              {
+                <div class="plan-summary-period">
+                  <label><input type="radio" asp-for="BillingPeriodChoice" value="Monthly"/> Monthly &mdash; $@selectedPackage.MonthlyPrice.ToString("N0")/mo</label>
+                  <label><input type="radio" asp-for="BillingPeriodChoice" value="Annually"/> Annual &mdash; $@selectedPackage.AnnualPrice.ToString("N0")/yr (two months free)</label>
+                </div>
+              }
+              <a class="plan-summary-change" href="/Account/Register">Change plan</a>
+            </div>
+            <input type="hidden" asp-for="PackageId" />
+            <input type="hidden" asp-for="PlanLocked" />
           </div>
         }
         else
@@ -304,6 +338,9 @@ textarea:focus{box-shadow:none;}
               }
             </select>
           </div>
+        }
+        @if (trialPackage == null)
+        {
           <div class="form-row">
             <label>Promotion Code:</label>
             <span>
@@ -314,6 +351,10 @@ textarea:focus{box-shadow:none;}
           </div>
         }
       </div>
+      @if (trialPackage == null)
+      {
+        <p class="hint" style="margin-top:14px;"><i class="fas fa-lock" style="margin-right:6px;color:var(--blue2);"></i>Next step after this form: secure PayPal checkout for the plan above. Your card details go to PayPal, never to us.</p>
+      }
     </div>
 
     <div class="field-card">
@@ -362,7 +403,8 @@ textarea:focus{box-shadow:none;}
 (function () {
   var button = document.getElementById('applyPromoCodeButton');
   var input = document.getElementById('promoCodeInput');
-  var packageSelect = document.getElementById('packageSelect');
+  // Dropdown mode has #packageSelect; locked-plan mode carries the id in a hidden input instead.
+  var packageSelect = document.getElementById('packageSelect') || document.querySelector('input[type=hidden][name=PackageId]');
   var result = document.getElementById('promoCodeResult');
   if (!button || !input || !packageSelect || !result) return;
 
@@ -418,14 +460,14 @@ textarea:focus{box-shadow:none;}
     'Yukon Territory': '(GMT-07:00) Mountain Time (US & Canada)'
   };
 
-  var timeZoneTouched = false;
-  timeZoneSelect.addEventListener('change', function () { timeZoneTouched = true; });
-
-  provinceSelect.addEventListener('change', function () {
-    if (timeZoneTouched) return;
+  // TimeZone is a hidden field now (derived, not asked): keep it in step with the province both
+  // on load and on change, so invoice dates print in the agent's real local time from day one.
+  function syncTimeZone() {
     var mapped = provinceTimeZones[provinceSelect.value];
     if (mapped) timeZoneSelect.value = mapped;
-  });
+  }
+  provinceSelect.addEventListener('change', syncTimeZone);
+  syncTimeZone();
 })();
 </script>
 </body>
