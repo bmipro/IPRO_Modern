@@ -177,6 +177,28 @@ app.MapHangfireDashboard("/hangfire", new DashboardOptions
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
+
+    // Migrations FIRST, then the repair functions. This ordering was inverted until 2026-08-15, and
+    // on an empty database that made the whole startup unrunnable: the repairs ALTER tables that only
+    // migrations create, so the very first one raised 1146 and killed the process before a single
+    // table existed. Nobody noticed because no database has been created from scratch since.
+    //
+    // On an established database this move changes nothing at all -- every migration EF can see is
+    // already recorded in __EFMigrationsHistory, so MigrateAsync is a no-op wherever it sits. On a
+    // fresh one it is the difference between booting and crash-looping.
+    //
+    // NOTE: MigrateAsync only applies the 15 migrations that carry [DbContext]; the 28 added since
+    // 2026-07-11 are invisible to EF and never run (TODO item 425). The repair functions below are
+    // what actually build most of this schema -- do not "simplify" them away.
+    //
+    // Must stay identical to IPRO.Web/Program.cs (INVARIANTS.md rule 4).
+    await db.Database.MigrateAsync();
+    // Immediately after MigrateAsync, never before: the migrations create the ON DELETE CASCADE
+    // constraints on the financial ledger, so the guard must run once they exist to strip them.
+    // Running it earlier (as it did until 2026-08-14) is a no-op on a fresh/restored database and
+    // leaves the first boot serving with the cascade live.
+    await IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db);
+
     await EnsureWebsiteTemplateSchemaAsync(db);
     await WebsiteContentSchema.EnsureAsync(db);
     await EnsureWebsiteLeadSchemaAsync(db);
@@ -198,10 +220,17 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await EnsureECardDesignSchemaAsync(db);
+        // Same second call as IPRO.Web -- see the note there. EmailDeliverySchema adds
+        // ECardDesigns.SendAfterUnsubscribe, which ECardDesignSeeder writes, so it has to run before
+        // the seeders as well as after the recipient tables are created. On a fresh database this
+        // omission crashed Admin outright: the seeder failed with 1054, left its entities tracked,
+        // and EnsureAdminUserSchemaAsync's SaveChangesAsync inherited them and threw (2026-08-15).
+        await EmailDeliverySchema.EnsureAsync(db);
     }
     catch (Exception ex)
     {
         Console.Error.WriteLine("[ECardDesignSchema] FAILED: " + ex);
+        db.ChangeTracker.Clear();
     }
 
     try
@@ -216,6 +245,12 @@ using (var scope = app.Services.CreateScope())
                                 "newsletter templates, e-card designs or e-letter templates may be missing.");
         // Also to stderr: the container log is readable even when telemetry never flushes.
         Console.Error.WriteLine("[StarterContentSeeding] FAILED: " + ex);
+        // A swallowed seeding failure leaves the failed entities TRACKED on this shared DbContext.
+        // The next SaveChangesAsync anywhere in this startup scope re-attempts them and dies on
+        // someone else's behalf -- that is how a missing ECardDesigns column crashed the ADMIN USER
+        // seeder on a fresh database (2026-08-15). Dropping the tracked state keeps the failure
+        // local to the seeder that caused it.
+        db.ChangeTracker.Clear();
     }
 
     try
@@ -228,6 +263,12 @@ using (var scope = app.Services.CreateScope())
         seedLogger.LogError(ex, "Website starter article seeding failed. The app is starting anyway; " +
                                 "the Resources starter article library may be missing.");
         Console.Error.WriteLine("[WebsiteStarterArticleSeeding] FAILED: " + ex);
+        // A swallowed seeding failure leaves the failed entities TRACKED on this shared DbContext.
+        // The next SaveChangesAsync anywhere in this startup scope re-attempts them and dies on
+        // someone else's behalf -- that is how a missing ECardDesigns column crashed the ADMIN USER
+        // seeder on a fresh database (2026-08-15). Dropping the tracked state keeps the failure
+        // local to the seeder that caused it.
+        db.ChangeTracker.Clear();
     }
 
     try
@@ -240,6 +281,12 @@ using (var scope = app.Services.CreateScope())
         seedLogger.LogError(ex, "Website starter form seeding failed. The app is starting anyway; " +
                                 "the Starter Forms template library may be missing.");
         Console.Error.WriteLine("[WebsiteStarterFormSeeding] FAILED: " + ex);
+        // A swallowed seeding failure leaves the failed entities TRACKED on this shared DbContext.
+        // The next SaveChangesAsync anywhere in this startup scope re-attempts them and dies on
+        // someone else's behalf -- that is how a missing ECardDesigns column crashed the ADMIN USER
+        // seeder on a fresh database (2026-08-15). Dropping the tracked state keeps the failure
+        // local to the seeder that caused it.
+        db.ChangeTracker.Clear();
     }
 
     await EnsureDripCampaignStepSendSchemaAsync(db);
@@ -265,11 +312,10 @@ using (var scope = app.Services.CreateScope())
     // CardLetterActivity reads DeliveredAt, and because whichever app starts first must find the
     // schema complete (INVARIANTS.md rule 4).
     await EmailDeliverySchema.EnsureAsync(db);
-    await db.Database.MigrateAsync();
-    // AFTER MigrateAsync, never before: the migrations create the ON DELETE CASCADE constraints on
-    // the financial ledger, so the guard must run once they exist to strip them. Running it earlier
-    // (as it did until 2026-08-14) is a no-op on a fresh/restored database -- the tables don't exist
-    // yet -- and leaves the first boot serving with the cascade live.
+    // MigrateAsync + FinancialLedgerSchemaGuard used to sit here. They moved to the TOP of this block
+    // on 2026-08-15 so that migration-created tables exist before the repairs try to ALTER them --
+    // see the comment there. The guard runs a second time below, after the repair CREATE TABLEs, in
+    // case any of them recreated a cascade path into the ledger.
     await IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db);
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
@@ -1480,6 +1526,23 @@ WHERE TABLE_SCHEMA = DATABASE()
                 await db.Database.ExecuteSqlRawAsync(alterSql);
             }
             catch (MySqlConnector.MySqlException ex)
+                when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.NoSuchTable)
+            {
+                // The TABLE doesn't exist, not just the column. INFORMATION_SCHEMA.COLUMNS returns 0
+                // for a missing table exactly as it does for a missing column, so the check above
+                // cannot tell the two apart and we only find out when the ALTER raises 1146.
+                //
+                // Until 2026-08-15 this escaped and killed startup, which meant NO app could boot
+                // against an empty database -- the documented disaster-recovery path was unreachable.
+                //
+                // Continuing is right: either a later repair function creates the table, or
+                // MigrateAsync did. Loud on stderr rather than silent, because the other way to reach
+                // this line is a typo'd table name in a repair function.
+                Console.Error.WriteLine(
+                    $"[SchemaRepair] Skipped adding column '{columnName}': table '{tableName}' does not exist yet. " +
+                    "Expected on a fresh database; on an established one it means the table name is wrong.");
+            }
+            catch (MySqlConnector.MySqlException ex)
                 when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateFieldName)
             {
                 // ipro-prod-web added this column between our INFORMATION_SCHEMA check and this
@@ -1569,6 +1632,17 @@ WHERE TABLE_SCHEMA = DATABASE()
         try
         {
             await db.Database.ExecuteSqlRawAsync(alterSql);
+        }
+        catch (MySqlConnector.MySqlException ex)
+            when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.NoSuchTable)
+        {
+            // Same fresh-database case as EnsureTableColumnAsync: the table isn't there yet, so
+            // INFORMATION_SCHEMA.STATISTICS reported no index and the ALTER raised 1146. Skip and
+            // continue -- a later repair function creates the table, and the next boot adds the
+            // index. Loud, because a typo'd table name lands here too.
+            Console.Error.WriteLine(
+                $"[SchemaRepair] Skipped creating index '{indexName}': table '{tableName}' does not exist yet. " +
+                "Expected on a fresh database; on an established one it means the table name is wrong.");
         }
         catch (MySqlConnector.MySqlException ex)
             when (ex.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry ||
