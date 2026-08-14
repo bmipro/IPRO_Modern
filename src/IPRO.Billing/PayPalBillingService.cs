@@ -336,7 +336,17 @@ public class PayPalBillingService : IBillingService
         };
     }
 
-    private async Task<BillingChangeResult> ActivateSubscriptionBillingAsync(int userId, IPRO.Entities.Billing billing, IPRO.Entities.Invoice? invoice, string message)
+    // paymentConfirmed: has money actually settled? Only PAYMENT.SALE.COMPLETED (or a genuinely $0
+    // comped subscription) can say yes. Approval and BILLING.SUBSCRIPTION.ACTIVATED cannot: APPROVED
+    // is PayPal's post-consent, PRE-payment state, and our plans carry
+    // setup_fee_failure_action = "CONTINUE", which activates a subscription even when the setup-fee
+    // charge was DECLINED. Stamping IsPaid there produced a paid invoice and a "your payment has been
+    // received" receipt for money that never arrived, permanently mis-stating the ledger and the tax
+    // remitted on it (2026-08-14 ultra-audit). Access is still granted immediately -- only the
+    // financial record waits for the money. An unpaid invoice under an ACTIVE billing row raises no
+    // dunning banner (GetBillingIssueAsync keys on Failed, or Pending older than 24h), so the
+    // customer sees nothing odd while the sale webhook lands.
+    private async Task<BillingChangeResult> ActivateSubscriptionBillingAsync(int userId, IPRO.Entities.Billing billing, IPRO.Entities.Invoice? invoice, string message, bool paymentConfirmed = false)
     {
         var now = DateTime.UtcNow;
         if (invoice == null)
@@ -346,7 +356,7 @@ public class PayPalBillingService : IBillingService
                 .FirstOrDefault();
         }
 
-        if (invoice != null)
+        if (invoice != null && paymentConfirmed)
         {
             invoice.IsPaid = true;
             _uow.Invoices.Update(invoice);
@@ -1165,7 +1175,9 @@ public class PayPalBillingService : IBillingService
             && billing.Amount <= 0
             && setupFee <= 0)
         {
-            return await ActivateSubscriptionBillingAsync(userId, billing, invoice, "Your promotion code covers this package at no cost - your account is active now.");
+            // paymentConfirmed: true is correct here and only here -- the total is genuinely $0, so
+            // there is no money in flight and the invoice is settled the moment it is issued.
+            return await ActivateSubscriptionBillingAsync(userId, billing, invoice, "Your promotion code covers this package at no cost - your account is active now.", paymentConfirmed: true);
         }
 
         // UPGRADES MUST CREATE A REAL SUBSCRIPTION, NOT A ONE-OFF ORDER (2026-08-05 audit, Critical)
