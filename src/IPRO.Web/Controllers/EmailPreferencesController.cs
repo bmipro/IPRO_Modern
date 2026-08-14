@@ -163,11 +163,25 @@ public class EmailPreferencesController : Controller
             item.FailureReason = "Recipient unsubscribed before this was sent.";
         }
 
+        // Same reasoning for drip campaigns: an active enrollment is a standing instruction to keep
+        // mailing this client for weeks. The job now checks consent per step, but leaving the
+        // enrollment Active would show the agent a campaign that appears to be running and silently
+        // sends nothing. Cancel it here so the state matches reality (2026-08-14 ultra-audit).
+        var enrollments = await _db.DripCampaignEnrollments
+            .Where(e => e.ClientId == client.Id && e.Status == DripCampaignEnrollmentStatus.Active)
+            .ToListAsync();
+        foreach (var enrollment in enrollments)
+        {
+            enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+            enrollment.LastError = "Recipient unsubscribed from all email.";
+        }
+
         await _db.SaveChangesAsync();
 
         _logger.LogInformation(
-            "Client {ClientId} unsubscribed from all email via {Source}; {Queued} queued item(s) retired.",
-            client.Id, source, queued.Count);
+            "Client {ClientId} unsubscribed from all email via {Source}; {Queued} queued item(s) retired, " +
+            "{Enrollments} drip enrollment(s) cancelled.",
+            client.Id, source, queued.Count, enrollments.Count);
 
         await NotifyAgentAsync(client);
     }

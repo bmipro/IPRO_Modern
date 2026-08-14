@@ -14,13 +14,18 @@ namespace IPRO.Business.Services;
 // which is a complaint, not a bug report.
 //
 // Nothing else may re-implement this test. A dispatcher that needs a new exception changes this file.
+// A sender with no member here cannot be consent-checked, and the omission is invisible to anyone
+// reading this file -- which is exactly how drip campaigns and testimonial requests ended up mailing
+// unsubscribed clients (2026-08-14 ultra-audit). Every outbound path must name its channel here.
 public enum EmailChannel
 {
     Newsletter,
     ECard,
     ELetter,
     Poll,
-    DidYouKnow
+    DidYouKnow,
+    DripCampaign,
+    TestimonialRequest
 }
 
 public interface IEmailConsentService

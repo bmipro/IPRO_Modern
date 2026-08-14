@@ -1,3 +1,4 @@
+using IPRO.Business.Services;
 using IPRO.DataAccess.Repositories;
 using IPRO.DataAccess;
 using IPRO.Email;
@@ -12,11 +13,12 @@ public class DripCampaignJob
     private readonly IUnitOfWork _uow;
     private readonly IPRODbContext _db;
     private readonly NewsLetterDispatcher _dispatcher;
+    private readonly IEmailConsentService _consent;
     private readonly ILogger<DripCampaignJob> _logger;
 
-    public DripCampaignJob(IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, ILogger<DripCampaignJob> logger)
+    public DripCampaignJob(IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailConsentService consent, ILogger<DripCampaignJob> logger)
     {
-        _uow = uow; _db = db; _dispatcher = dispatcher; _logger = logger;
+        _uow = uow; _db = db; _dispatcher = dispatcher; _consent = consent; _logger = logger;
     }
 
     public async Task RunAsync()
@@ -50,6 +52,24 @@ public class DripCampaignJob
                 {
                     enrollment.Status = DripCampaignEnrollmentStatus.Completed;
                     enrollment.CompletedAt = DateTime.UtcNow;
+                    await _db.SaveChangesAsync();
+                    continue;
+                }
+
+                // Drip was the one outbound path that never asked. There was no EmailChannel member
+                // for it, so the omission was invisible to anyone reading EmailConsentService, and
+                // an unsubscribed client kept receiving every remaining step -- the most plausible
+                // in-product source of the spam complaints behind the shared-IP reputation problem
+                // (2026-08-14 ultra-audit). Cancelled, not Failed: they asked to stop, this is not
+                // an error to retry.
+                if (_consent.IsSuppressed(enrollment.Client, EmailChannel.DripCampaign))
+                {
+                    enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+                    enrollment.LastError = "Client has unsubscribed; enrollment cancelled.";
+                    await _db.SaveChangesAsync();
+                    _logger.LogInformation(
+                        "Drip enrollment {EnrollmentId} cancelled: client {ClientId} has opted out.",
+                        enrollment.Id, enrollment.ClientId);
                     continue;
                 }
 
@@ -81,16 +101,22 @@ public class DripCampaignJob
                     var nextStep = steps[enrollment.NextStepIndex];
                     enrollment.NextSendAt = DateTime.UtcNow.AddDays(Math.Max(0, nextStep.DelayDays));
                 }
+
+                // Persist THIS enrollment's advance immediately. The single SaveChangesAsync after
+                // the loop meant a transient failure at the end discarded every advance in the
+                // batch, and Hangfire's default retry (up to 10 attempts) then re-sent up to 100
+                // steps to clients who had already received them. DidYouKnowEmailDispatchJob fixed
+                // this shape for itself; its neighbours never got the same treatment.
+                await _db.SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 enrollment.Status = DripCampaignEnrollmentStatus.Failed;
                 enrollment.LastError = ex.Message;
                 _logger.LogError(ex, "Drip campaign enrollment {EnrollmentId} failed", enrollment.Id);
+                await _db.SaveChangesAsync();
             }
         }
-
-        await _db.SaveChangesAsync();
     }
 
     private async Task ProcessLegacySchedulerRowsAsync()
