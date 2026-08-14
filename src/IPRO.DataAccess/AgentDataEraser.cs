@@ -23,8 +23,10 @@ namespace IPRO.DataAccess;
 // The same map drives PreviewAsync, so "what would be deleted" and "what was deleted" can never drift
 // apart: they are the same list of predicates, counted instead of executed.
 //
-// ADDING A NEW AGENT-OWNED TABLE? Add it here. AssertMapCoversAllTables (see AgentDataEraserTests
-// guidance in DOCS/07_SUPER_ADMIN.md) is the reminder; the cost of forgetting is a silent orphan.
+// ADDING A NEW AGENT-OWNED TABLE? Add it here. tests/IPRO.IntegrationTests/AgentDataEraserCoverageTests
+// fails the build if you don't: it compares CoveredTables against every table in the live schema that
+// has an AgentUserId column. Until 2026-08-15 that test was only ever promised by this comment, and in
+// its absence two tables went missing from the map and one entry named a table that never existed.
 public static class AgentDataEraser
 {
     // Child rows first. Ordering is not required for correctness (no FKs exist) but keeps the report
@@ -40,6 +42,11 @@ public static class AgentDataEraser
         ("PortalAppointmentRequests",   "ClientId IN (SELECT Id FROM Clients WHERE AgentUserId = @agentId)"),
         // Queued but unsent "Did You Know" article emails -- scheduled mail that must not outlive the agent.
         ("DidYouKnowEmailQueueItems",   "ClientId IN (SELECT Id FROM Clients WHERE AgentUserId = @agentId)"),
+        // The client<->category join. EF names it with no Id column of its own, so it is scoped through
+        // the client side. Cascades from Clients today, but listing it keeps the count honest and keeps
+        // the erasure correct if that constraint is ever dropped -- which is exactly what the ledger
+        // guard now does to the financial tables.
+        ("ClientClientCategory",        "ClientsId IN (SELECT Id FROM Clients WHERE AgentUserId = @agentId)"),
 
         // -- Newsletters --
         ("NewsLetterArticles",          "NewsLetterId IN (SELECT Id FROM NewsLetters WHERE AgentUserId = @agentId)"),
@@ -73,6 +80,7 @@ public static class AgentDataEraser
         ("WebsiteMediaAssets",          "AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId)"),
         ("WebsitePageViews",            "AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId)"),
         ("WebsiteLeads",                "AgentUserId = @agentId"),
+        ("WebsiteSpamAttempts",         "AgentUserId = @agentId"),
         ("AgentWebsites",               "AgentUserId = @agentId"),
         ("AgentDomains",                "AgentUserId = @agentId"),
 
@@ -101,7 +109,8 @@ public static class AgentDataEraser
         ("Clients",                     "AgentUserId = @agentId"),
         ("ClientCategories",            "AgentUserId = @agentId"),
         ("Articles",                    "AgentUserId = @agentId"),
-        ("BannerSlides",                "AgentUserId = @agentId"),
+        // BannerSlides was listed here until 2026-08-15. No such table has ever existed -- TableExistsAsync
+        // skipped it silently, so it read as coverage that was never real. Do not re-add it.
         ("Schedulers",                  "AgentUserId = @agentId"),
         ("Coupons",                     "AgentUserId = @agentId"),
         ("CalendarEvents",              "AgentUserId = @agentId"),
@@ -137,6 +146,13 @@ public static class AgentDataEraser
         ("Billings",                    "AgentUserId = @agentId"),
         ("SubscriptionChanges",         "AgentUserId = @agentId")
     };
+
+    // Every table either map touches. Exposed solely so AgentDataEraserCoverageTests can compare it
+    // against the live schema and fail when a new agent-owned table lands without an entry above.
+    // That test is the mechanism the header has always pointed at; before 2026-08-15 it did not exist,
+    // and two tables (WebsiteSpamAttempts, ClientClientCategory) had in fact gone missing.
+    public static IReadOnlyList<string> CoveredTables { get; } =
+        Map.Concat(FinancialMap).Select(m => m.Table).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
     // Blobs the agent genuinely uploaded. Deliberately sourced from ownership records rather than from
     // every column that happens to hold an image URL: starter provisioning copies shared library URLs
