@@ -100,6 +100,22 @@ public class PayPalBillingService : IBillingService
             return BillingChangeResult.Failed("That package is invitation-only. Please choose one of our regular packages.");
         }
 
+        // The period arrives straight from a POST body and was never validated (2026-08-14
+        // ultra-audit). Quarterly is the sharp edge: the Super Admin package form hard-forces
+        // QuarterlyPrice to 0 while GetPayPalPlanId(Quarterly) returns the MONTHLY plan id, so
+        // posting period=Quarterly produced a $0 Billing.Amount, a $0 invoice (hence no tax
+        // gross-up, so PayPal billed the net price forever) and a NextBillingDate three months out
+        // on a monthly plan -- and the zeroed Amount then poisoned every later proration. Annually
+        // on a package with no annual price has the same shape. Validate at the boundary: a period
+        // is only offerable if it has both a real price and a real plan.
+        if (!IsPeriodOfferable(requestedPackage, period))
+        {
+            _logger.LogWarning(
+                "Rejected subscribe for agent {AgentId}: package {PackageId} has no price/plan for {Period}.",
+                userId, requestedPackage.Id, period);
+            return BillingChangeResult.Failed("That billing period is not available for this package. Please choose Monthly or Annually.");
+        }
+
         var activeSubscription = await GetActiveSubscriptionAsync(userId);
         if (activeSubscription == null)
         {
@@ -1115,12 +1131,22 @@ public class PayPalBillingService : IBillingService
         });
         await _uow.SaveChangesAsync();
 
-        if (changeType == SubscriptionChangeType.Subscribe && promotionCodeId.HasValue && billing.Amount <= 0 && setupFee <= 0)
+        // Fully comped by a PERMANENT promo code (recurring price and setup fee both $0 forever) -
+        // PayPal's Subscriptions API cannot represent a free-forever recurring plan, so there is
+        // nothing to check out; activate directly via the same path a real payment confirmation takes.
+        //
+        // The gate is the EMPTY PLAN ID, not the amounts. CreateSubscriptionAsync sets overridePlanId
+        // to string.Empty only when isFullyComped (which additionally requires RecurringDurationCycles
+        // == null); a time-limited "first 3 months free" promo gets a REAL plan that charges full price
+        // from cycle 4. Keying on `billing.Amount <= 0 && setupFee <= 0` matched that case too and
+        // activated it permanently for $0 with no PayPal subscription behind it -- nothing in this
+        // system bills anyone, so the agent kept the package free forever (2026-08-14 ultra-audit).
+        if (changeType == SubscriptionChangeType.Subscribe
+            && promotionCodeId.HasValue
+            && string.IsNullOrWhiteSpace(billing.PayPalPlanId)
+            && billing.Amount <= 0
+            && setupFee <= 0)
         {
-            // Fully comped by a permanent promo code (recurring price and setup fee both discounted to $0) -
-            // PayPal's Subscriptions API has no way to represent a free-forever recurring plan, so there is
-            // nothing to check out; activate the package directly using the same activation path a real
-            // PayPal payment confirmation would take.
             return await ActivateSubscriptionBillingAsync(userId, billing, invoice, "Your promotion code covers this package at no cost - your account is active now.");
         }
 
@@ -1186,6 +1212,26 @@ public class PayPalBillingService : IBillingService
                 AmountDue = invoice.Total,
                 Message = "Please approve the recurring PayPal subscription to activate this package."
             };
+        }
+
+        // Reaching here with startsSubscription means the plan id was empty and the change was NOT a
+        // permanent comp -- refuse rather than fall through to the one-time order below. That
+        // fall-through is the same defect the 2026-08-05 audit closed for upgrades, still reachable
+        // through two doors (2026-08-14 ultra-audit): a package whose PayPal plans were never synced
+        // (they start empty and syncing is a manual Super Admin button), and Annually on a package
+        // with no annual price (SyncPayPalPlansAsync deliberately stores an empty annual plan id).
+        // Both produced a single capture, an Active billing row with no PayPalSubscriptionId, and a
+        // package held indefinitely for one payment.
+        if (startsSubscription)
+        {
+            await MarkPendingBillingFailedAsync(billing);
+            _logger.LogError(
+                "Refusing subscription for agent {AgentId} on package {PackageId} ({Period}): no PayPal plan id. " +
+                "Sync the package's PayPal plans in Super Admin -> Packages before anyone can subscribe.",
+                userId, requestedPackage.Id, period);
+            return BillingChangeResult.Failed(
+                "This package is not ready for checkout yet - its PayPal plan has not been set up. " +
+                "Please contact support; no payment has been taken.");
         }
 
         PayPalOrderResult order;
@@ -2656,6 +2702,12 @@ public class PayPalBillingService : IBillingService
         BillingPeriod.Annually => package.AnnualPrice,
         _ => package.MonthlyPrice
     };
+
+    // A period may be sold only when the package carries BOTH a positive price and a PayPal plan to
+    // charge it on. Public so the pricing/registration screens can hide what cannot be bought, and
+    // enforced server-side in CreateSubscriptionAsync so hiding a radio is never the only defence.
+    public static bool IsPeriodOfferable(BillingRule package, BillingPeriod period) =>
+        GetAmount(package, period) > 0 && !string.IsNullOrWhiteSpace(GetPayPalPlanId(package, period));
 
     private static string GetPayPalPlanId(BillingRule package, BillingPeriod period) => period switch
     {
