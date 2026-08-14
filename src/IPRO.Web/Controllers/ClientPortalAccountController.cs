@@ -93,8 +93,7 @@ public class ClientPortalAccountController : Controller
     [HttpGet]
     public async Task<IActionResult> Activate(string token)
     {
-        var client = await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c =>
-            c.PortalInviteToken == token && (c.PortalInviteTokenExpiresAt == null || c.PortalInviteTokenExpiresAt > DateTime.UtcNow));
+        var client = await FindByInviteTokenAsync(token);
         if (client == null) return NotFound();
 
         return View(new PortalActivateViewModel { Token = token, CompanyName = client.AgentUser?.CompanyName ?? string.Empty });
@@ -103,8 +102,7 @@ public class ClientPortalAccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(string token, string password, string confirmPassword)
     {
-        var client = await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c =>
-            c.PortalInviteToken == token && (c.PortalInviteTokenExpiresAt == null || c.PortalInviteTokenExpiresAt > DateTime.UtcNow));
+        var client = await FindByInviteTokenAsync(token);
         if (client == null) return NotFound();
 
         if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
@@ -123,10 +121,27 @@ public class ClientPortalAccountController : Controller
         client.PortalPasswordHash = _hasher.HashPassword(client, password);
         client.PortalActivatedAt = DateTime.UtcNow;
         client.PortalInviteToken = null;
+        client.PortalInviteTokenExpiresAt = null;
         await _db.SaveChangesAsync();
 
         await SignInClientAsync(client);
         return RedirectToAction("Index", "ClientPortal");
+    }
+
+    // A missing/empty token must NEVER match a row. EF rewrites `PortalInviteToken == null` into
+    // `IS NULL`, and NULL is the normal state for every uninvited client (all public-lead-form
+    // contacts) and every activated/revoked one -- so an omitted token would otherwise match an
+    // arbitrary client of an arbitrary agent and hand the caller their portal (the 2026-08-14
+    // ultra-audit's critical finding). The guard here mirrors EmailPreferencesController's, which
+    // documents the identical attack. Requiring a non-null expiry is defence in depth: every real
+    // invite sets one (ClientsController.InvitePortal), so this can only ever reject a forged call.
+    private async Task<Client?> FindByInviteTokenAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        return await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c =>
+            c.PortalInviteToken == token
+            && c.PortalInviteTokenExpiresAt != null
+            && c.PortalInviteTokenExpiresAt > DateTime.UtcNow);
     }
 
     [HttpPost, ValidateAntiForgeryToken]

@@ -228,6 +228,7 @@ public class ClientsController : Controller
 
         client.PortalPasswordHash = null;
         client.PortalInviteToken = null;
+        client.PortalInviteTokenExpiresAt = null;
         client.PortalActivatedAt = null;
         await _db.SaveChangesAsync();
 

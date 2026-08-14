@@ -6,6 +6,11 @@ using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+// The IPRO.Web reference (added for controller-level security tests) pulls the IPRO.Billing
+// namespace into scope, which shadows the Billing entity type. Entity uses are fully qualified
+// as IPRO.Entities.Billing below rather than relying on a using-alias (which does not shadow a
+// namespace in generic-argument position).
+using EBilling = IPRO.Entities.Billing;
 
 namespace IPRO.IntegrationTests;
 
@@ -68,7 +73,7 @@ public class AgentDeletionRetentionTests
             Assert.Contains("I-XEV6M0A7PHVX", invoice.PayPalTransactionId);
             Assert.Single(invoice.LineItems);
 
-            var billing = Assert.Single(await context.Set<Billing>()
+            var billing = Assert.Single(await context.Set<EBilling>()
                 .Where(b => b.PayPalSubscriptionId == "I-XEV6M0A7PHVX")
                 .ToListAsync());
             Assert.Equal(BillingStatus.Cancelled, billing.Status);
@@ -98,7 +103,7 @@ public class AgentDeletionRetentionTests
         await using (var context = db.CreateContext())
         {
             Assert.Equal(0, await context.Set<AgentUser>().CountAsync(a => a.Id == agentId));
-            Assert.Equal(1, await context.Set<Billing>().CountAsync(b => b.AgentUserId == agentId));
+            Assert.Equal(1, await context.Set<EBilling>().CountAsync(b => b.AgentUserId == agentId));
             Assert.Equal(1, await context.Set<Invoice>().CountAsync(i => i.AgentUserId == agentId));
             Assert.Equal(1, await context.Set<SubscriptionChange>().CountAsync(s => s.AgentUserId == agentId));
             Assert.Equal(1, await context.Set<InvoiceLineItem>()
@@ -150,7 +155,7 @@ public class AgentDeletionRetentionTests
 
         await using (var context = db.CreateContext())
         {
-            Assert.Equal(0, await context.Set<Billing>().CountAsync(b => b.AgentUserId == agentId));
+            Assert.Equal(0, await context.Set<EBilling>().CountAsync(b => b.AgentUserId == agentId));
             Assert.Equal(0, await context.Set<Invoice>().CountAsync(i => i.AgentUserId == agentId));
             Assert.Equal(0, await context.Set<SubscriptionChange>().CountAsync(s => s.AgentUserId == agentId));
         }
@@ -200,7 +205,7 @@ public class AgentDeletionRetentionTests
         db.Add(agent);
         await db.SaveChangesAsync();
 
-        var billing = new Billing
+        var billing = new EBilling
         {
             AgentUserId = agent.Id,
             BillingRuleId = rule.Id,

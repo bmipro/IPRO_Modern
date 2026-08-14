@@ -11,5 +11,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\IPRO.DataAccess\IPRO.DataAccess.csproj" />
+    <!-- Referenced so controller-level security fixes (client-portal token guard, entitlement
+         gates, promo-oracle) can be tested against the real controllers, not reimplementations. -->
+    <ProjectReference Include="..\..\src\IPRO.Web\IPRO.Web.csproj" />
   </ItemGroup>
 </Project>
