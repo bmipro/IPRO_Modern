@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using IPRO.Admin.Infrastructure;
 using IPRO.Admin.Models;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
@@ -13,9 +14,20 @@ namespace IPRO.Admin.Controllers;
 [Authorize(Policy = "AdminAccess")]
 public class StarterContentController : Controller
 {
+    // Shared with the starter ARTICLE artwork: both are the same library of stock imagery reused
+    // across every agent's provisioned site, so keeping them in one container means an image
+    // uploaded for a block can be picked for an article and vice versa.
+    private const string StarterImageContainer = "starter-content";
+
     private readonly IPRODbContext _db;
     private readonly IAdminAuditLogService _auditLog;
-    public StarterContentController(IPRODbContext db, IAdminAuditLogService auditLog) { _db = db; _auditLog = auditLog; }
+    private readonly IServiceProvider _services;
+    public StarterContentController(IPRODbContext db, IAdminAuditLogService auditLog, IServiceProvider services)
+    {
+        _db = db;
+        _auditLog = auditLog;
+        _services = services;
+    }
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
@@ -41,7 +53,54 @@ public class StarterContentController : Controller
         var page = await _db.WebsiteStarterPages.Include(p => p.Blocks).FirstOrDefaultAsync(p => p.Id == id);
         if (page == null) return NotFound();
         page.Blocks = page.Blocks.OrderBy(b => b.SortOrder).ToList();
+        ViewBag.ImagePool = await StarterImagePoolAsync();
         return View(new StarterPageEditViewModel { Page = page, Packages = await PackagesAsync() });
+    }
+
+    // Every image already in use anywhere in starter content -- blocks and articles both, since they
+    // draw on the same library. This is what the Image URL field's picker offers, so an admin can
+    // reuse existing artwork instead of hand-typing a path and hoping it resolves.
+    private async Task<List<string>> StarterImagePoolAsync()
+    {
+        var fromBlocks = await _db.WebsiteStarterBlocks
+            .Where(b => b.ImageUrl != null && b.ImageUrl != "")
+            .Select(b => b.ImageUrl!)
+            .ToListAsync();
+
+        var fromArticles = await _db.WebsiteStarterArticles
+            .Where(a => a.ImageUrl != null && a.ImageUrl != "")
+            .Select(a => a.ImageUrl!)
+            .ToListAsync();
+
+        return fromBlocks.Concat(fromArticles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(url => url, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    // Upload replaces the bare text box: the admin picks a file, it is validated and stored, and the
+    // resulting URL is written straight onto the block. Previously the only way to set a block image
+    // was to already know a working URL and type it in (owner report, 2026-08-15).
+    [HttpPost, ValidateAntiForgeryToken]
+    [RequestSizeLimit(AdminImageUpload.MaxBytes + 1024 * 1024)]
+    public async Task<IActionResult> UploadBlockImage(int id, IFormFile? image)
+    {
+        var block = await _db.WebsiteStarterBlocks.FirstOrDefaultAsync(b => b.Id == id);
+        if (block == null) return NotFound();
+
+        var result = await AdminImageUpload.TryUploadAsync(image!, _services, StarterImageContainer, "starter");
+        if (!result.Ok)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Edit), new { id = block.WebsiteStarterPageId });
+        }
+
+        block.ImageUrl = result.Url ?? string.Empty;
+        await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "StarterBlockImageUpload",
+            $"Uploaded image for starter block id {id} on page id {block.WebsiteStarterPageId}");
+        TempData["Success"] = "Image uploaded and applied to the block.";
+        return RedirectToAction(nameof(Edit), new { id = block.WebsiteStarterPageId });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
