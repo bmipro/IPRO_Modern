@@ -64,6 +64,22 @@ public class NewsLetterDispatcher
         await _uow.SaveChangesAsync();
 
         var subscribers = await GetAudienceClientsAsync(send);
+        if (subscribers == null)
+        {
+            // The client or category this send was aimed at has been deleted. Refuse rather than
+            // guess: the alternative the code used to take was mailing the agent's whole list.
+            send.Status = NewsLetterSendStatus.Failed;
+            send.TotalSent = 0;
+            // SentAt deliberately left null -- nothing was sent, and the Sends list reads it as the
+            // delivery timestamp.
+            _uow.NewsLetterSends.Update(send);
+            await _uow.SaveChangesAsync();
+            _logger.LogError(
+                "Newsletter send {SendId} was cancelled: its {AudienceType} audience no longer exists " +
+                "(the client or category was deleted after the send was scheduled). Nothing was emailed.",
+                send.Id, send.AudienceType);
+            return;
+        }
 
         var recipients = subscribers
             .Where(c => !string.IsNullOrWhiteSpace(c.Email))
@@ -178,7 +194,9 @@ public class NewsLetterDispatcher
             """;
     }
 
-    private async Task<List<Client>> GetAudienceClientsAsync(NewsLetterSend send)
+    // Returns null -- NOT an empty list -- when this send's audience no longer resolves, so the
+    // caller can tell "nobody matched the filter" apart from "the filter itself is gone".
+    private async Task<List<Client>?> GetAudienceClientsAsync(NewsLetterSend send)
     {
         // IsNewsletterSubscribed is the newsletter's own flag; EmailOptOutAt is the global "stop
         // everything" set by the unsubscribe link. Both must pass. Expressed here as a query filter
@@ -191,16 +209,40 @@ public class NewsLetterDispatcher
                         && c.IsNewsletterSubscribed
                         && c.EmailOptOutAt == null);
 
-        query = send.AudienceType switch
+        // FAIL CLOSED. The old `_ => query` fell through to the agent's ENTIRE subscriber list
+        // whenever the narrowing id was null -- and the ids go null on their own:
+        // FK_NewsLetterSends_Clients_ClientId and the ClientCategoryId FK are both ON DELETE SET NULL.
+        // So an agent who scheduled a newsletter for one client, then deleted that client before the
+        // send ran, got it broadcast to everybody, while AudienceLabel still displayed the original
+        // narrow audience -- the send history actively lied about what had happened.
+        //
+        // Widening an audience is never the safe default. Returning null here tells the caller to
+        // fail the send instead.
+        // Checking the row still EXISTS, not merely that the id is non-null. Today the FKs are
+        // ON DELETE SET NULL so a null id is the signal -- but PollSends models the same thing with
+        // no FK at all, where the id survives and dangles. Testing existence covers both, so this
+        // stays correct if the constraints change (and they do: the ledger guard drops FKs on
+        // purpose). Same rule enforced the same way in PollDispatcher.
+        var targeted = send.AudienceType switch
         {
-            NewsLetterAudienceType.AccountType when send.ClientCategoryId.HasValue =>
-                query.Where(c => c.Categories.Any(cat => cat.Id == send.ClientCategoryId.Value)),
-            NewsLetterAudienceType.IndividualClient when send.ClientId.HasValue =>
-                query.Where(c => c.Id == send.ClientId.Value),
+            NewsLetterAudienceType.AccountType =>
+                send.ClientCategoryId.HasValue
+                && await _db.ClientCategories.AnyAsync(cat => cat.Id == send.ClientCategoryId.Value)
+                    ? query.Where(c => c.Categories.Any(cat => cat.Id == send.ClientCategoryId.Value))
+                    : null,
+            NewsLetterAudienceType.IndividualClient =>
+                send.ClientId.HasValue
+                && await _db.Clients.AnyAsync(c => c.Id == send.ClientId.Value)
+                    ? query.Where(c => c.Id == send.ClientId.Value)
+                    : null,
+            // AllSubscribers (and any future member that genuinely means "everyone") keeps the
+            // unnarrowed query -- that IS its audience, not a fallback.
             _ => query
         };
 
-        return await query.ToListAsync();
+        if (targeted == null) return null;
+
+        return await targeted.ToListAsync();
     }
 
     public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null, int enrollmentId = 0)

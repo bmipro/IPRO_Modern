@@ -37,6 +37,20 @@ public class PollDispatcher
         await _db.SaveChangesAsync();
 
         var audience = await GetAudienceClientsAsync(send);
+        if (audience == null)
+        {
+            // The client or category this poll was aimed at has been deleted. Fail loudly instead of
+            // reporting a successful send to nobody (category path) or blasting every subscriber
+            // (individual-client path) -- both of which this code did before 2026-08-15.
+            send.Status = PollSendStatus.Failed;
+            _db.PollSends.Update(send);
+            await _db.SaveChangesAsync();
+            _logger.LogError(
+                "Poll send {SendId} was cancelled: its {AudienceType} audience no longer exists " +
+                "(the client or category was deleted after the send was scheduled). Nothing was emailed.",
+                send.Id, send.AudienceType);
+            return;
+        }
 
         // Consent is applied at AUDIENCE SELECTION here, not after the fact: poll recipient rows are
         // created by this method, so an unsubscribed client simply never becomes a recipient rather
@@ -173,21 +187,36 @@ public class PollDispatcher
             """;
     }
 
-    private async Task<List<Client>> GetAudienceClientsAsync(PollSend send)
+    // Returns null -- NOT an empty list -- when this send's audience no longer resolves. Same
+    // fail-closed contract as NewsLetterDispatcher; see the longer note there.
+    //
+    // PollSends.ClientCategoryId has no FK at all (this is one of the repair-created tables, which
+    // declare none), so deleting a category leaves the id pointing at nothing: the Categories.Any
+    // filter then matched nobody and the poll reported success having emailed zero people. The
+    // ClientId path is worse -- it took the `_ => query` fall-through and went to every subscriber.
+    private async Task<List<Client>?> GetAudienceClientsAsync(PollSend send)
     {
         var query = _db.Clients
             .Include(c => c.Categories)
             .Where(c => c.AgentUserId == send.AgentUserId && c.IsNewsletterSubscribed);
 
-        query = send.AudienceType switch
+        var targeted = send.AudienceType switch
         {
-            NewsLetterAudienceType.AccountType when send.ClientCategoryId.HasValue =>
-                query.Where(c => c.Categories.Any(cat => cat.Id == send.ClientCategoryId.Value)),
-            NewsLetterAudienceType.IndividualClient when send.ClientId.HasValue =>
-                query.Where(c => c.Id == send.ClientId.Value),
+            NewsLetterAudienceType.AccountType =>
+                send.ClientCategoryId.HasValue
+                && await _db.ClientCategories.AnyAsync(cat => cat.Id == send.ClientCategoryId.Value)
+                    ? query.Where(c => c.Categories.Any(cat => cat.Id == send.ClientCategoryId.Value))
+                    : null,
+            NewsLetterAudienceType.IndividualClient =>
+                send.ClientId.HasValue
+                && await _db.Clients.AnyAsync(c => c.Id == send.ClientId.Value)
+                    ? query.Where(c => c.Id == send.ClientId.Value)
+                    : null,
             _ => query
         };
 
-        return await query.ToListAsync();
+        if (targeted == null) return null;
+
+        return await targeted.ToListAsync();
     }
 }
