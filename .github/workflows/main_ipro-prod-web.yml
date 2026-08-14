@@ -9,7 +9,7 @@ on:
 # deploy must complete (cancelling mid-deploy can leave the site half-updated); the newest
 # queued run then deploys after it.
 concurrency:
-  group: deploy-ipro-production
+  group: deploy-ipro-web
   cancel-in-progress: false
 jobs:
   build:
