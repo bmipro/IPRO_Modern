@@ -266,6 +266,11 @@ using (var scope = app.Services.CreateScope())
     // schema complete (INVARIANTS.md rule 4).
     await EmailDeliverySchema.EnsureAsync(db);
     await db.Database.MigrateAsync();
+    // AFTER MigrateAsync, never before: the migrations create the ON DELETE CASCADE constraints on
+    // the financial ledger, so the guard must run once they exist to strip them. Running it earlier
+    // (as it did until 2026-08-14) is a no-op on a fresh/restored database -- the tables don't exist
+    // yet -- and leaves the first boot serving with the cascade live.
+    await IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db);
     await PackageEntitlementSeeder.SeedAsync(db);
     await TaxRateSeeder.SeedAsync(db);
     await WebsiteTemplateSeeder.SeedAsync(db);
@@ -300,9 +305,6 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
         await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaived", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaived` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaivedUntil", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaivedUntil` datetime(6) NULL");
 
-        // Strip FK cascades off the financial ledger and restore the invoice the 2026-08-14 cascade
-        // destroyed. Must run every startup: MigrateAsync recreates the cascades on a fresh database.
-        await IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db);
         // Quebec's 14.975% needs 5 decimals as a fraction (0.14975); the original decimal(7,4) column
         // rounded it to 0.1498, so invoices displayed "14.980 %" beside a region label saying 14.975%.
         await EnsureDecimalColumnScaleAsync(db, "Invoices", "TaxRate", 5, "ALTER TABLE `Invoices` MODIFY COLUMN `TaxRate` decimal(7,5) NOT NULL");

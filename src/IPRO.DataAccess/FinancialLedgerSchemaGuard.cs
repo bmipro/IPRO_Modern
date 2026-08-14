@@ -26,10 +26,19 @@ public static class FinancialLedgerSchemaGuard
 {
     private static readonly string[] LedgerTables = { "billings", "invoices", "subscriptionchanges" };
 
+    // Runs at startup in BOTH apps, AFTER MigrateAsync (Program.cs) -- never before, or it is a no-op
+    // on a fresh/restored database whose ledger tables do not exist yet.
+    //
+    // History: this guard also performed a one-time restore of invoice IPRO-2026-000008, destroyed by
+    // the cascade on 2026-08-14, reconstructed from the invoice email + PayPal's records. That restore
+    // succeeded in production and was removed on 2026-08-15: keying it on "does this DB already have
+    // the row" meant it re-fabricated the invoice (against a nonexistent agent) on every fresh, local,
+    // and DR database -- a phantom in the Revenue report and tax remittance (2026-08-14 ultra-audit).
+    // If 000008 ever needs restoring again it is a one-off manual SQL operation, not startup code.
     public static async Task EnsureAsync(IPRODbContext db, ILogger? logger = null)
     {
-        // Neither phase may take the app down (see the 2026-08-01 seeder crash-loop): a failure here
-        // is logged as an error and retried on the next startup.
+        // Must not take the app down (see the 2026-08-01 seeder crash-loop): a failure here is logged
+        // as an error and retried on the next startup.
         try
         {
             await DropLedgerCascadesAsync(db, logger);
@@ -38,15 +47,6 @@ public static class FinancialLedgerSchemaGuard
         {
             logger?.LogError(ex, "FinancialLedgerSchemaGuard: FAILED to drop ledger CASCADE constraints -- " +
                 "agent deletion can still destroy invoices. Fix before deleting any agent.");
-        }
-
-        try
-        {
-            await RestoreInvoice000008Async(db, logger);
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "FinancialLedgerSchemaGuard: FAILED to restore invoice IPRO-2026-000008.");
         }
     }
 
@@ -81,48 +81,5 @@ public static class FinancialLedgerSchemaGuard
                 "FinancialLedgerSchemaGuard: dropped CASCADE constraint {Constraint} on {Table} -- " +
                 "the financial ledger must never be deletable via cascade.", constraint, table);
         }
-    }
-
-    // One-time restoration of invoice IPRO-2026-000008 (agent Bob2Mot, deleted 2026-08-14), the
-    // invoice the cascade destroyed. Every value below is reconstructed from primary evidence: the
-    // invoice email the customer received (number, bill-to snapshot, line, amounts, ON 13% HST) and
-    // PayPal's own records (subscription I-XEV6M0A7PHVX created 2026-08-13 21:35:33Z, activated
-    // 21:36:15Z, sale 0M110368MY262274R for $67.80, cancelled 2026-08-14 13:06:27Z).
-    //
-    // AgentUserId 16: the real id died with the agent row and cannot be recovered. 16 is a
-    // historical id verified free (deleted long before invoice retention existed, no surviving rows
-    // reference it) and, being far below the table's AUTO_INCREMENT, can never be assigned to a
-    // future agent. The ledger renders such rows with the "deleted" badge and prints from the
-    // bill-to snapshot, so the id is bookkeeping only.
-    private static async Task RestoreInvoice000008Async(IPRODbContext db, ILogger? logger)
-    {
-        var already = await db.Database
-            .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM Invoices WHERE PayPalTransactionId LIKE '%I-XEV6M0A7PHVX%'")
-            .FirstAsync();
-        if (already > 0) return;
-
-        await db.Database.ExecuteSqlRawAsync(@"
-INSERT INTO Billings (AgentUserId, BillingRuleId, PayPalSubscriptionId, PayPalPlanId, Amount, Currency, Status, Period, StartDate, CancelledAt, CreatedAt)
-SELECT 16, (SELECT Id FROM BillingRules WHERE PackageName = 'IPro Gold' LIMIT 1),
-       'I-XEV6M0A7PHVX', 'P-7CH55713C8636634HNJ7BLZA', 67.80, 'CAD', 2, 0,
-       '2026-08-13 21:36:15', '2026-08-14 13:06:27', '2026-08-13 21:35:33'
-WHERE NOT EXISTS (SELECT 1 FROM Billings WHERE PayPalSubscriptionId = 'I-XEV6M0A7PHVX')");
-
-        await db.Database.ExecuteSqlRawAsync(@"
-INSERT INTO Invoices (BillingId, AgentUserId, InvoiceNumber, SubTotal, TaxAmount, Total, Currency, PayPalTransactionId, IssuedAt, IsPaid, TaxRate, TaxRegion, BillToName, BillToCompany, BillToEmail, BillToAddress)
-SELECT (SELECT Id FROM Billings WHERE PayPalSubscriptionId = 'I-XEV6M0A7PHVX' LIMIT 1),
-       16, 'IPRO-2026-000008', 60.00, 7.80, 67.80, 'CAD',
-       'I-XEV6M0A7PHVX, 0M110368MY262274R', '2026-08-13 21:36:15', 1, 0.13000, 'ON 13% HST',
-       'Bob2 Mot', 'ABC Inc.', 'bmotamed@yahoo.com',
-       CONCAT_WS('\n', '123 Front street', 'Toronto', 'Ontario M5R 1R5', 'Canada')");
-
-        await db.Database.ExecuteSqlRawAsync(@"
-INSERT INTO InvoiceLineItems (InvoiceId, Description, Amount, SortOrder, CreatedAt)
-SELECT Id, 'IPro Gold monthly recurring subscription', 60.00, 1, '2026-08-13 21:36:15'
-FROM Invoices WHERE InvoiceNumber = 'IPRO-2026-000008' AND AgentUserId = 16");
-
-        logger?.LogWarning(
-            "FinancialLedgerSchemaGuard: restored invoice IPRO-2026-000008 ($67.80, Bob2Mot) destroyed " +
-            "by the FK cascade on 2026-08-14. Reconstructed from the invoice email and PayPal's records.");
     }
 }

@@ -48,35 +48,28 @@ public class AgentDeletionRetentionTests
         }
     }
 
+    // The guard must NEVER create ledger rows. Its earlier one-time restore of invoice 000008 keyed
+    // on "does this DB already have the row", which re-fabricated a phantom $67.80 invoice against a
+    // nonexistent agent on every fresh/local/DR database (2026-08-14 ultra-audit). The restore is
+    // gone; this pins that the guard is drop-only, even with a matching BillingRule present.
     [Fact]
-    public async Task Guard_restores_invoice_000008_exactly_once()
+    public async Task Guard_never_fabricates_any_ledger_row()
     {
         await using var db = await TestDatabase.CreateAsync(applyLedgerGuard: false);
         await using (var context = db.CreateContext())
         {
-            // The restore resolves its BillingRuleId from the live package table, same as prod.
             context.Add(new BillingRule { PackageName = "IPro Gold", MonthlyPrice = 60m, SetupFee = 150m });
             await context.SaveChangesAsync();
 
             await FinancialLedgerSchemaGuard.EnsureAsync(context);
-            await FinancialLedgerSchemaGuard.EnsureAsync(context); // must not duplicate
+            await FinancialLedgerSchemaGuard.EnsureAsync(context);
         }
 
         await using (var context = db.CreateContext())
         {
-            var invoice = Assert.Single(await context.Set<Invoice>()
-                .Include(i => i.LineItems)
-                .Where(i => i.InvoiceNumber == "IPRO-2026-000008")
-                .ToListAsync());
-            Assert.Equal(67.80m, invoice.Total);
-            Assert.True(invoice.IsPaid);
-            Assert.Contains("I-XEV6M0A7PHVX", invoice.PayPalTransactionId);
-            Assert.Single(invoice.LineItems);
-
-            var billing = Assert.Single(await context.Set<EBilling>()
-                .Where(b => b.PayPalSubscriptionId == "I-XEV6M0A7PHVX")
-                .ToListAsync());
-            Assert.Equal(BillingStatus.Cancelled, billing.Status);
+            Assert.Equal(0, await context.Set<Invoice>().CountAsync());
+            Assert.Equal(0, await context.Set<EBilling>().CountAsync());
+            Assert.Equal(0, await context.Set<InvoiceLineItem>().CountAsync());
         }
     }
 
