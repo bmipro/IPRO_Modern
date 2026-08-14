@@ -26,9 +26,17 @@ public class ClientLifeEventReminderJob
         // Ordered by LastCheckedAt (oldest-checked-first, nulls -- never checked -- come first via
         // CreatedAt) so that if there are ever more active rows than the cap, every row still gets
         // a turn on a rotating basis instead of the same 500 winning every single day forever.
+        // e.Client != null excludes orphans, and it has to happen HERE rather than in the loop below.
+        // ClientLifeEvents has no FK to Clients (it is one of the ~40 tables created by the startup
+        // schema repairs, which declare none), so deleting a client leaves its life events behind.
+        // e.Client.AgentUserId is then read below OUTSIDE the per-row try, so a single orphan threw
+        // before the loop started -- and because LastCheckedAt is only written inside the loop, the
+        // orphan kept the oldest timestamp, stayed at the front of this OrderBy forever, and killed
+        // life-event AND birthday reminders for every agent in the system permanently. Filtering
+        // server-side also stops orphans consuming slots in the 500 cap.
         var events = await _db.ClientLifeEvents
             .Include(e => e.Client)
-            .Where(e => e.IsActive)
+            .Where(e => e.IsActive && e.Client != null)
             .OrderBy(e => e.LastCheckedAt ?? e.CreatedAt)
             .Take(500)
             .ToListAsync();
