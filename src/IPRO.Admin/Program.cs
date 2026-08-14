@@ -299,6 +299,10 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
         await EnsureTableColumnAsync(db, "BillingRules", "IsHiddenTestPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsHiddenTestPackage` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaived", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaived` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaivedUntil", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaivedUntil` datetime(6) NULL");
+
+        // Strip FK cascades off the financial ledger and restore the invoice the 2026-08-14 cascade
+        // destroyed. Must run every startup: MigrateAsync recreates the cascades on a fresh database.
+        await IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db);
         // Quebec's 14.975% needs 5 decimals as a fraction (0.14975); the original decimal(7,4) column
         // rounded it to 0.1498, so invoices displayed "14.980 %" beside a region label saying 14.975%.
         await EnsureDecimalColumnScaleAsync(db, "Invoices", "TaxRate", 5, "ALTER TABLE `Invoices` MODIFY COLUMN `TaxRate` decimal(7,5) NOT NULL");

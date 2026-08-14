@@ -9,12 +9,16 @@ namespace IPRO.DataAccess;
 
 // Complete removal of one agent's data.
 //
-// Why raw SQL rather than EF: the Ensure*SchemaAsync path in each app's Program.cs creates 47 tables
-// with NO foreign-key constraints at all (verified 2026-08-04 -- 47 CREATE TABLE, 0 FOREIGN KEY). So
-// `OnDelete(DeleteBehavior.Cascade)` in OnModelCreating is decorative for those tables: EF only
-// cascades entities it has actually loaded, and there is no database constraint to fall back on.
-// Deleting an AgentUser row therefore orphans everything silently. A declarative table map deletes by
-// predicate without loading rows, and -- because there are no FKs -- ordering can't trip a constraint.
+// Why raw SQL rather than EF: deleting an AgentUser through EF only cascades entities it has loaded,
+// so a declarative table map that deletes by predicate is the only way to guarantee nothing is
+// orphaned. A 2026-08-04 note here claimed the schema had NO foreign keys -- that was WRONG: both
+// apps run MigrateAsync at startup and the EF migrations create ~48 FK constraints, several with
+// ON DELETE CASCADE. On 2026-08-14 that false assumption destroyed a retained invoice: deleting the
+// AgentUsers row cascaded Billings -> Invoices -> InvoiceLineItems at the DATABASE level, behind
+// this class's back, after it had carefully skipped those tables (see the Bob2Mot post-mortem in
+// DOCS/TODO.md). FinancialLedgerSchemaGuard now drops every CASCADE path into the financial ledger
+// at startup, and RunAsync below counts retained rows BEFORE deleting and re-counts after, so any
+// future cascade shows up as a loud RetentionShortfall instead of a silent "0 retained".
 //
 // The same map drives PreviewAsync, so "what would be deleted" and "what was deleted" can never drift
 // apart: they are the same list of predicates, counted instead of executed.
@@ -177,6 +181,21 @@ public static class AgentDataEraser
         // to read them from, and the files would be stranded in blob storage forever.
         var (blobs, skipped) = await CollectBlobsAsync(db, agentId, ct);
 
+        // Retained financial rows are counted BEFORE any deletion, deliberately. On 2026-08-14 an FK
+        // cascade (Billings ON DELETE CASCADE from AgentUsers) destroyed the rows this class had
+        // skipped, and the after-the-fact count reported "0 retained" as if nothing had ever existed.
+        // Counting first means the report states what SHOULD survive; the re-count after deletion
+        // (below) turns any discrepancy into an explicit shortfall instead of silence.
+        if (!eraseFinancialRecords)
+        {
+            foreach (var (table, where) in FinancialMap)
+            {
+                if (!await TableExistsAsync(db, table, ct)) continue;
+                var rows = await ScalarAsync(db, $"SELECT COUNT(*) FROM `{table}` WHERE {where}", agentId, ct);
+                if (rows > 0) retained.Add(new AgentErasureLine(table, rows));
+            }
+        }
+
         var toDelete = eraseFinancialRecords ? Map.Concat(FinancialMap) : Map.AsEnumerable();
 
         foreach (var (table, where) in toDelete)
@@ -200,19 +219,22 @@ public static class AgentDataEraser
             if (rows > 0) lines.Add(new AgentErasureLine(table, rows));
         }
 
-        if (!eraseFinancialRecords)
+        // Re-count what should have been retained. If the numbers no longer match the pre-delete
+        // counts, something outside this class (an FK cascade, a trigger, anything) destroyed
+        // retained rows during the deletion -- exactly the failure mode that silently ate invoice
+        // IPRO-2026-000008 on 2026-08-14. Surface it; never let it read as "there was nothing".
+        var shortfall = 0;
+        if (execute && !eraseFinancialRecords)
         {
-            // Counted (never deleted) so both the preview and the post-delete report can say exactly
-            // what was kept -- an erasure report that silently omits surviving rows reads as a bug.
-            foreach (var (table, where) in FinancialMap)
+            foreach (var line in retained)
             {
-                if (!await TableExistsAsync(db, table, ct)) continue;
-                var rows = await ScalarAsync(db, $"SELECT COUNT(*) FROM `{table}` WHERE {where}", agentId, ct);
-                if (rows > 0) retained.Add(new AgentErasureLine(table, rows));
+                var where = FinancialMap.First(f => f.Table == line.Table).Where;
+                var now = await ScalarAsync(db, $"SELECT COUNT(*) FROM `{line.Table}` WHERE {where}", agentId, ct);
+                if (now < line.Rows) shortfall += line.Rows - now;
             }
         }
 
-        return new AgentErasureReport(agentId, lines, blobs, skipped, retained);
+        return new AgentErasureReport(agentId, lines, blobs, skipped, retained, shortfall);
     }
 
     private static async Task<(List<string> Blobs, List<string> Skipped)> CollectBlobsAsync(
@@ -346,10 +368,14 @@ public sealed record AgentErasureReport(
     List<AgentErasureLine> Tables,
     List<string> Blobs,
     List<string> SharedBlobsKept,
-    List<AgentErasureLine> RetainedFinancial)
+    List<AgentErasureLine> RetainedFinancial,
+    int RetentionShortfallRows = 0)
 {
     public int TotalRows => Tables.Sum(line => line.Rows);
     public int TableCount => Tables.Count;
     public int RetainedRows => RetainedFinancial.Sum(line => line.Rows);
     public int RetainedInvoices => RetainedFinancial.FirstOrDefault(l => l.Table == "Invoices")?.Rows ?? 0;
+    // > 0 means retained financial rows vanished DURING the deletion (e.g. an FK cascade). This is
+    // always a bug worth an immediate investigation; the banner and audit log surface it loudly.
+    public bool RetentionViolated => RetentionShortfallRows > 0;
 }

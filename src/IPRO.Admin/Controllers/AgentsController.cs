@@ -365,6 +365,16 @@ public class AgentsController : Controller
         var financialNote = eraseFinancialRecords
             ? "Financial records erased too (test-agent shred)."
             : $"Financial records retained: {report.RetainedInvoices} invoices ({report.RetainedRows} rows).";
+        if (report.RetentionViolated)
+        {
+            // Retained rows vanished DURING the deletion -- the FK-cascade failure mode that
+            // destroyed invoice IPRO-2026-000008 on 2026-08-14. Never let this pass quietly.
+            financialNote += $" *** RETENTION VIOLATION: {report.RetentionShortfallRows} financial row(s) " +
+                             "disappeared during deletion. Do NOT delete further agents; investigate immediately. ***";
+            _logger.LogError(
+                "RETENTION VIOLATION deleting agent {AgentId}: {Shortfall} retained financial rows vanished during erasure.",
+                id, report.RetentionShortfallRows);
+        }
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
             $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
