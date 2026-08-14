@@ -113,6 +113,28 @@ public class AdminUsersController : Controller
             ModelState.AddModelError("IsActive", "You cannot deactivate your own account.");
         }
 
+        // Losing the last SuperAdmin is unrecoverable from inside the app: Packages, AdminUsers,
+        // TaxRates and agent Delete/ResetPassword are all SuperAdmin-only, and the bootstrap seed
+        // re-creates the configured admin ONLY when the table is empty -- so it will not rescue a
+        // table full of Support users. Someone would have to hand-edit MySQL. Only the self-deactivate
+        // case was guarded before, leaving two open doors: demoting yourself, or deactivating the
+        // other SuperAdmin and then demoting yourself (2026-08-14 ultra-audit).
+        var losesSuperAdmin = user.Role == AdminRoles.SuperAdmin
+                              && user.IsActive
+                              && (role != AdminRoles.SuperAdmin || !isActive);
+        if (losesSuperAdmin)
+        {
+            var remainingSuperAdmins = (await _uow.AdminUsers
+                    .FindAsync(a => a.Id != id && a.Role == AdminRoles.SuperAdmin && a.IsActive))
+                .Count();
+            if (remainingSuperAdmins == 0)
+            {
+                ModelState.AddModelError("Role",
+                    "This is the last active Super Admin. Promote another account to Super Admin first, " +
+                    "or nobody will be able to manage packages, admins or agents.");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             user.FullName = fullName;
