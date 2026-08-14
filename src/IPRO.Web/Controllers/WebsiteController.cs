@@ -536,7 +536,13 @@ public class WebsiteController : Controller
 
         var domainParts = BuildDomainParts(customDomain);
         var dnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net";
-        var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.DomainName == customDomain);
+        // Scoped to THIS agent deliberately. Without the ownership filter this lookup could return
+        // another agent's row and the writes below would re-parent it -- serving their branded domain
+        // from this agent's site and capturing every lead posted there. That is the CRITICAL closed on
+        // 2026-08-05 (post-mortem further down this file); until now it was blocked only by
+        // DescribeDomainClaimAsync 400 lines earlier, which is both racy and one refactor from being
+        // bypassed. An unowned row now simply isn't found, so the claim check stays the only way in.
+        var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.DomainName == customDomain && d.AgentUserId == AgentId);
         if (domain == null)
         {
             domain = new AgentDomain

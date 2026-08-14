@@ -939,11 +939,14 @@ public class PublicWebsiteController : Controller
 
     private string GetAgentPortalBaseUrl() => IPRO.Web.Infrastructure.PortalUrlHelper.GetAgentPortalBaseUrl(_configuration);
 
-    private string GetRequestIpAddress()
-    {
-        var forwarded = Request.Headers["X-Forwarded-For"].ToString().Split(',').FirstOrDefault()?.Trim();
-        return string.IsNullOrWhiteSpace(forwarded) ? HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty : forwarded;
-    }
+    // UseForwardedHeaders (Program.cs) has already validated X-Forwarded-For against the trusted
+    // proxy list and applied the result to Connection.RemoteIpAddress. Re-reading the raw header
+    // here took its leftmost, entirely client-supplied entry -- so a forged header let a visitor
+    // choose the IP recorded on their lead, hide behind an untraceable value in the spam log, and
+    // inflate unique-visitor analytics arbitrarily (the visitorHash is built from this). Same
+    // header-trust class as the rate-limiter bug already fixed in Program.cs.
+    private string GetRequestIpAddress() =>
+        HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
 
     private bool IsCaptchaValid(string? token, string? answer)
     {

@@ -978,14 +978,32 @@ public class PayPalBillingService : IBillingService
             pendingInvoice = invoice;
         }
 
-        if (billing.Status != BillingStatus.Active)
+        // NEVER resurrect a subscription the agent (or we) already ended. This branch had no status
+        // guard, so a late webhook retry could flip a Cancelled/Expired/Failed row back to Active
+        // with a fresh NextBillingDate -- e.g. the renewal sale fires, our verification call blips
+        // and returns Unauthorized, PayPal queues a retry, the agent cancels the next day, and the
+        // retry lands afterwards and reinstates full access permanently, because nothing else ever
+        // expires an Active row (2026-08-14 ultra-audit). A sale arriving for an ended subscription
+        // is a real anomaly: record it against the ledger, but do not re-grant access.
+        if (billing.Status is BillingStatus.Cancelled or BillingStatus.Expired)
         {
-            billing.Status = BillingStatus.Active;
-            billing.StartDate = DateTime.UtcNow;
+            _logger.LogError(
+                "PAYMENT.SALE.COMPLETED {TransactionId} arrived for agent {AgentId}'s {Status} subscription " +
+                "{SubscriptionId}. Recording the invoice but NOT reactivating -- verify at PayPal whether " +
+                "this subscription is genuinely still billing.",
+                transactionId, billing.AgentUserId, billing.Status, billing.PayPalSubscriptionId);
         }
-        await SyncAgentPackageAsync(billing.AgentUserId, billing.BillingRuleId);
+        else
+        {
+            if (billing.Status != BillingStatus.Active)
+            {
+                billing.Status = BillingStatus.Active;
+                billing.StartDate = DateTime.UtcNow;
+            }
+            await SyncAgentPackageAsync(billing.AgentUserId, billing.BillingRuleId);
+            billing.NextBillingDate = GetNextBillingDate(DateTime.UtcNow, billing.Period);
+        }
 
-        billing.NextBillingDate = GetNextBillingDate(DateTime.UtcNow, billing.Period);
         _uow.Billings.Update(billing);
         await _uow.SaveChangesAsync();
         if (pendingInvoice != null)
@@ -2215,7 +2233,11 @@ public class PayPalBillingService : IBillingService
         if (promo == null || !promo.IsActive) return null;
         if (promo.ExpiresAt.HasValue && promo.ExpiresAt.Value < DateTime.UtcNow) return null;
         if (promo.MaxRedemptions.HasValue && promo.RedemptionCount >= promo.MaxRedemptions.Value) return null;
-        if (promo.RecurringDiscountType != PromoDiscountType.None && promo.RestrictedBillingRuleId != billingRuleId) return null;
+        // A package restriction binds whenever it is set, whatever the code discounts. Enforcing it
+        // only for recurring discounts meant a "100% off setup fee -- Silver only" code also waived
+        // Platinum's $400 setup fee for anyone who typed it, and recorded the redemption as
+        // legitimate (2026-08-14 ultra-audit).
+        if (promo.RestrictedBillingRuleId.HasValue && promo.RestrictedBillingRuleId != billingRuleId) return null;
 
         // Per-agent redemption uniqueness: only checkable when there's an existing agent to check
         // against (an existing agent choosing to (re)subscribe) -- registration-time validation
