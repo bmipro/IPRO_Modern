@@ -62,14 +62,19 @@ public class OverdueInvoiceReminderJob
                 await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(),
                     $"Reminder: Invoice {invoice.DocumentNumber} is overdue", html);
                 invoice.LastReminderSentAt = DateTime.UtcNow;
+
+                // Persist THIS invoice's marker immediately. Saving once after the loop meant a
+                // transient failure at the end discarded every marker in the batch, and Hangfire's
+                // default retry (up to 10 attempts) then re-sent overdue notices to clients who had
+                // already received them -- LastReminderSentAt is the only thing gating a resend
+                // (2026-08-14 ultra-audit).
+                await _db.SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Overdue reminder for invoice {InvoiceId} failed", invoice.Id);
             }
         }
-
-        await _db.SaveChangesAsync();
     }
 
     private string BuildInvoiceUrl(string token) =>

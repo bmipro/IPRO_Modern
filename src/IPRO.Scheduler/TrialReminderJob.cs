@@ -70,6 +70,13 @@ public class TrialReminderJob
                     else if (trialEndedDue == 1) await SendTrialEndedEmailAsync(agent, graceDays);
                     else await SendReminderEmailAsync(agent, daysRemaining);
                     agent.TrialRemindersSentCount = dueCount;
+
+                    // Persist THIS agent's counter immediately. Saving once after the loop meant a
+                    // transient failure at the end discarded every increment in the batch, and
+                    // Hangfire's default retry (up to 10 attempts) then re-sent trial reminders to
+                    // everyone already mailed -- the counter is the only thing preventing a replay
+                    // (2026-08-14 ultra-audit).
+                    await _db.SaveChangesAsync();
                 }
             }
             catch (Exception ex)
@@ -77,8 +84,6 @@ public class TrialReminderJob
                 _logger.LogError(ex, "Trial reminder processing failed for agent {AgentId}", agent.Id);
             }
         }
-
-        await _db.SaveChangesAsync();
     }
 
     private static List<int> ParseOffsets(string? raw)
