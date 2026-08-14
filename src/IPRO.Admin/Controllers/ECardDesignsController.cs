@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using IPRO.Admin.Infrastructure;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
@@ -21,7 +22,6 @@ namespace IPRO.Admin.Controllers;
 public class ECardDesignsController : Controller
 {
     private const string ArtworkContainer = "ecard-art";
-    private const long MaxArtworkBytes = 8 * 1024 * 1024;
 
     private readonly IPRODbContext _db;
     private readonly IServiceProvider _services;
@@ -187,60 +187,14 @@ public class ECardDesignsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // Same validation the agent-facing logo and gallery uploads use: extension, declared content
-    // type, and the file's actual magic bytes must all agree before anything reaches storage.
+    // Delegates to the one image-upload path every SuperAdmin screen shares. This screen used to
+    // carry its own copy of the extension/content-type/magic-byte checks; Starter Content needed the
+    // same thing on 2026-08-15, so the logic moved to AdminImageUpload and this call replaced the
+    // copy rather than a second one being made.
     private async Task<(bool Ok, string? Error, string? Url)> TryUploadArtworkAsync(IFormFile file)
     {
-        if (file.Length > MaxArtworkBytes)
-            return (false, "Artwork must be 8 MB or smaller.", null);
-
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var expectedContentType = extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => string.Empty
-        };
-        if (string.IsNullOrEmpty(expectedContentType) ||
-            !string.Equals(file.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
-            return (false, "Only JPG, JPEG, PNG, GIF and WebP images are allowed.", null);
-
-        await using var stream = file.OpenReadStream();
-        if (!await HasValidImageSignatureAsync(stream, extension))
-            return (false, "That file does not contain a valid image.", null);
-
-        IBlobStorageService blobs;
-        try
-        {
-            blobs = _services.GetRequiredService<IBlobStorageService>();
-        }
-        catch (Exception)
-        {
-            return (false, "Artwork storage isn't configured for the admin app. " +
-                           "Set the Azure__StorageConnectionString and Azure__StorageAccountName " +
-                           "app settings on ipro-prod-admin, then try again.", null);
-        }
-
-        stream.Position = 0;
-        var url = await blobs.UploadAsync(stream, $"design{extension}", ArtworkContainer, expectedContentType, isPrivate: false);
-        return (true, null, url);
-    }
-
-    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
-    {
-        var header = new byte[12];
-        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
-        if (read < 6) return false;
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
-            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
-            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
-            _ => false
-        };
+        var result = await AdminImageUpload.TryUploadAsync(file, _services, ArtworkContainer, "design");
+        return (result.Ok, result.Error, result.Url);
     }
 
     // Keys are URL-ish and stable. If the admin didn't type one, derive it from occasion + name.

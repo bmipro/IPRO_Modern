@@ -10,10 +10,12 @@ namespace IPRO.Admin.Infrastructure;
 // agree before anything reaches storage. Extension alone is trivially spoofed, and a declared
 // content type is just a header.
 //
-// Extracted from ECardDesignsController (2026-08-15) when Starter Content needed the same thing.
-// Copying it would have created a second definition that could drift -- the exact failure mode the
-// 2026-08-14 audit found repeatedly (two storage-usage definitions, two consent rules, two schema
-// repair sets). ECardDesignsController still has its own copy and should be migrated onto this.
+// Extracted from ECardDesignsController (2026-08-15) when Starter Content needed the same thing,
+// and that controller was moved onto this in the same change. Copying it would have created a
+// second definition that could drift -- the exact failure mode the 2026-08-14 audit found
+// repeatedly (two storage-usage definitions, two consent rules, two schema repair sets).
+//
+// Any new SuperAdmin screen that accepts artwork calls this. Do not re-implement the checks.
 public static class AdminImageUpload
 {
     public const long MaxBytes = 8 * 1024 * 1024;
