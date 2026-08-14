@@ -203,7 +203,11 @@ public class PayPalBillingService : IBillingService
             await CancelPendingChangesAsync(userId);
             var now = DateTime.UtcNow;
             var effectiveEnd = activeSubscription.NextBillingDate ?? GetNextBillingDate(now, activeSubscription.Period);
-            var remainingFraction = CalculateRemainingFraction(now, activeSubscription.StartDate, effectiveEnd);
+            // Measure from the start of the CURRENT cycle, not from Billing.StartDate -- see
+            // GetCurrentCycleStart for why the latter silently undercharges every upgrade that
+            // follows a renewal.
+            var cycleStart = GetCurrentCycleStart(effectiveEnd, activeSubscription.Period);
+            var remainingFraction = CalculateRemainingFraction(now, cycleStart, effectiveEnd);
             var credit = Math.Round(GetAmount(currentPackage, activeSubscription.Period) * remainingFraction, 2);
             var charge = Math.Round(GetAmount(requestedPackage, period) * remainingFraction, 2);
             var amountDue = Math.Max(0, charge - credit);
@@ -2754,6 +2758,21 @@ public class PayPalBillingService : IBillingService
         BillingPeriod.Quarterly => startDate.AddMonths(3),
         BillingPeriod.Annually => startDate.AddYears(1),
         _ => startDate.AddMonths(1)
+    };
+
+    // The start of the cycle the agent is currently paid through, derived by winding the NEXT
+    // billing date back one period. Proration must never measure from Billing.StartDate: that is
+    // written once at activation and never advanced on renewal, so after the first renewal the
+    // denominator becomes the whole lifetime of the subscription instead of one cycle. A Silver
+    // agent who renewed once and upgraded the next day was charged for ~48% of the difference
+    // instead of ~97%; after twelve renewals the same upgrade cost about a thirteenth of its price.
+    // The QA runs never caught it because every upgrade resets StartDate -- only a
+    // renewed-but-not-yet-upgraded subscription shows it (2026-08-14 ultra-audit).
+    private static DateTime GetCurrentCycleStart(DateTime nextBillingDate, BillingPeriod period) => period switch
+    {
+        BillingPeriod.Quarterly => nextBillingDate.AddMonths(-3),
+        BillingPeriod.Annually => nextBillingDate.AddYears(-1),
+        _ => nextBillingDate.AddMonths(-1)
     };
 
     private static bool IsPayPalSubscriptionApproved(string status) =>
