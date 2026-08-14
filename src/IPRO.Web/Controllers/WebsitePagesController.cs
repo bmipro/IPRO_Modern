@@ -424,6 +424,21 @@ public class WebsitePagesController : Controller
             return RedirectToAction(nameof(Edit), new { id = pageId });
         }
 
+        // Media-library images share the FileUploadCapacity pool with documents, gallery photos and
+        // portal files, but this path checked no quota and its bytes were never counted -- so an
+        // agent could push unlimited images through the page editor while the paths that DO enforce
+        // the limit reported a usage figure far below reality (2026-08-14 ultra-audit).
+        var capacity = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
+        var limitBytes = (long)(capacity.LimitValue ?? 0) * 1024 * 1024;
+        var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
+        if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
+        {
+            TempData["Error"] = $"That upload would exceed your storage limit " +
+                $"({IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes)} MB of {capacity.LimitValue ?? 0} MB used, counting documents, " +
+                "website photos and client portal files). Delete something to free up space, or contact us to increase your storage.";
+            return RedirectToAction(nameof(Edit), new { id = pageId });
+        }
+
         var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
         var expectedContentType = extension switch
         {

@@ -111,6 +111,16 @@ public class ClientsController : Controller
         return View(client);
     }
 
+    // One gate for every Client Portal action in this controller, so a new one cannot be added
+    // without the check the way UploadPortalDocument/Download/Delete/RevokePortal were.
+    private async Task<IActionResult?> RequireClientPortalAccessAsync()
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
+        if (access.IsIncluded) return null;
+        TempData["Error"] = access.UpgradeMessage;
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> InvitePortal(int id)
     {
@@ -155,6 +165,12 @@ public class ClientsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UploadPortalDocument(int clientId, IFormFile file)
     {
+        // Client Portal is Platinum/Broker only. InvitePortal checked this; the document actions and
+        // RevokePortal did not, so a Silver/Gold or downgraded agent could still run the document
+        // side of the portal by direct POST (2026-08-14 ultra-audit).
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
         if (client == null) return NotFound();
 
@@ -166,6 +182,20 @@ public class ClientsController : Controller
         if (file.Length > 20 * 1024 * 1024)
         {
             TempData["Error"] = "That file is larger than the 20 MB upload limit.";
+            return RedirectToAction(nameof(Details), new { id = clientId });
+        }
+
+        // Portal documents land in the same storage the FileUploadCapacity quota governs but were
+        // never checked against it, nor counted by it (2026-08-14 ultra-audit). Same check the
+        // documents and gallery paths already perform.
+        var capacity = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
+        var limitBytes = (long)(capacity.LimitValue ?? 0) * 1024 * 1024;
+        var usedBytes = await AgentStorageUsage.TotalBytesAsync(_db, AgentId);
+        if (limitBytes > 0 && usedBytes + file.Length > limitBytes)
+        {
+            TempData["Error"] = $"That upload would exceed your storage limit " +
+                $"({AgentStorageUsage.ToMb(usedBytes)} MB of {capacity.LimitValue ?? 0} MB used, counting documents, " +
+                "website photos and client portal files). Delete something to free up space, or contact us to increase your storage.";
             return RedirectToAction(nameof(Details), new { id = clientId });
         }
 
@@ -196,6 +226,9 @@ public class ClientsController : Controller
 
     public async Task<IActionResult> DownloadPortalDocument(int id)
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var document = await _db.PortalDocuments.Include(d => d.Client).AsNoTracking().FirstOrDefaultAsync(d => d.Id == id && d.Client.AgentUserId == AgentId);
         if (document == null) return NotFound();
 
@@ -208,6 +241,9 @@ public class ClientsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DeletePortalDocument(int id)
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var document = await _db.PortalDocuments.Include(d => d.Client).FirstOrDefaultAsync(d => d.Id == id && d.Client.AgentUserId == AgentId);
         if (document == null) return NotFound();
 
@@ -223,6 +259,9 @@ public class ClientsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RevokePortal(int id)
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
         if (client == null) return NotFound();
 

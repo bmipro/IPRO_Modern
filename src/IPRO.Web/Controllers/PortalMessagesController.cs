@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Web.Infrastructure;
@@ -12,12 +13,35 @@ namespace IPRO.Web.Controllers;
 public class PortalMessagesController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly IPackageEntitlementService _entitlements;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public PortalMessagesController(IPRODbContext db) => _db = db;
+    public PortalMessagesController(IPRODbContext db, IPackageEntitlementService entitlements)
+    {
+        _db = db;
+        _entitlements = entitlements;
+    }
+
+    // Client Portal is a Platinum/Broker feature (PackageEntitlementSeeder: no, no, all, all) but was
+    // enforced in exactly ONE action across the whole surface -- ClientsController.InvitePortal. This
+    // controller and PortalRequestsController had no entitlement check at all, so a Silver or Gold
+    // agent could run the full client-portal experience by direct navigation, and an agent who
+    // downgraded from Platinum kept it working indefinitely (2026-08-14 ultra-audit). Pattern copied
+    // from ClientInvoicesController.RequireClientInvoicingAccessAsync, which gates all 13 of its
+    // actions -- the shape this feature should have had from the start.
+    private async Task<IActionResult?> RequireClientPortalAccessAsync()
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
+        if (access.IsIncluded) return null;
+        TempData["Error"] = access.UpgradeMessage;
+        return RedirectToAction("Index", "Billing");
+    }
 
     public async Task<IActionResult> Index()
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var clientsWithMessages = await _db.Clients
             .AsNoTracking()
             .Where(c => c.AgentUserId == AgentId && c.Messages.Any())
@@ -46,6 +70,9 @@ public class PortalMessagesController : Controller
     [HttpGet("portal/PortalMessages/Thread/{clientId}")]
     public async Task<IActionResult> Thread(int clientId)
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
         if (client == null) return NotFound();
 
@@ -68,6 +95,9 @@ public class PortalMessagesController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Reply(int clientId, string body)
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
         if (client == null) return NotFound();
 

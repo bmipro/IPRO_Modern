@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
@@ -15,16 +16,33 @@ public class PortalRequestsController : Controller
 {
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
+    private readonly IPackageEntitlementService _entitlements;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public PortalRequestsController(IPRODbContext db, IEmailService email)
+    public PortalRequestsController(IPRODbContext db, IEmailService email, IPackageEntitlementService entitlements)
     {
         _db = db;
         _email = email;
+        _entitlements = entitlements;
+    }
+
+    // Client Portal is Platinum/Broker only; this controller had no entitlement check at all, so a
+    // Silver or Gold agent could manage portal appointment requests by direct navigation and a
+    // downgraded agent kept the feature (2026-08-14 ultra-audit). See PortalMessagesController for
+    // the full note; the pattern is ClientInvoicesController's.
+    private async Task<IActionResult?> RequireClientPortalAccessAsync()
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
+        if (access.IsIncluded) return null;
+        TempData["Error"] = access.UpgradeMessage;
+        return RedirectToAction("Index", "Billing");
     }
 
     public async Task<IActionResult> Index(string status = "pending")
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         status = status?.Trim().ToLowerInvariant() ?? "pending";
         var query = _db.PortalAppointmentRequests
             .AsNoTracking()
@@ -47,6 +65,9 @@ public class PortalRequestsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Schedule(int id, DateTime scheduledAt)
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var request = await _db.PortalAppointmentRequests.Include(r => r.Client).FirstOrDefaultAsync(r => r.Id == id && r.Client.AgentUserId == AgentId);
         if (request == null) return NotFound();
 
@@ -91,6 +112,9 @@ public class PortalRequestsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Decline(int id)
     {
+        var gate = await RequireClientPortalAccessAsync();
+        if (gate != null) return gate;
+
         var request = await _db.PortalAppointmentRequests.Include(r => r.Client).FirstOrDefaultAsync(r => r.Id == id && r.Client.AgentUserId == AgentId);
         if (request == null) return NotFound();
 

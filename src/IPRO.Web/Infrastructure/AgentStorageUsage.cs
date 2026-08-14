@@ -19,7 +19,21 @@ public static class AgentStorageUsage
             .Where(d => d.AgentUserId == agentId)
             .SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
 
-        return documentBytes + await GalleryBytesAsync(db, agentId);
+        // Website media (the page-editor image library) and client portal documents were uploaded
+        // into the same storage account but counted by nobody: neither their upload paths nor this
+        // total (2026-08-14 ultra-audit). An agent could push unbounded images through the page
+        // editor and unbounded files through the portal, and the two paths that DO enforce the quota
+        // reported a usage figure well below reality. Both tables already record a size; they just
+        // were never summed.
+        var websiteMediaBytes = await db.WebsiteMediaAssets
+            .Where(m => m.AgentWebsite.AgentUserId == agentId)
+            .SumAsync(m => (long?)m.FileSize) ?? 0;
+
+        var portalDocumentBytes = await db.PortalDocuments
+            .Where(d => d.Client.AgentUserId == agentId)
+            .SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
+
+        return documentBytes + websiteMediaBytes + portalDocumentBytes + await GalleryBytesAsync(db, agentId);
     }
 
     // Gallery photos record their size inside the block's settings JSON rather than in a column, so this
