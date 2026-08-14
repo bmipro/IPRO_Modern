@@ -58,6 +58,18 @@ The failure is caught and non-fatal; the **second boot** seeds them (verified: 1
 templates). Harmless locally, invisible in prod (tables pre-exist), queued as a review-step-6
 ordering fix.
 
+## Automated tests (regression suite)
+
+```
+dotnet test tests/IPRO.IntegrationTests
+```
+
+Needs local MySQL running (see above) — each test creates its own throwaway `ipro_test_*` database
+with the real schema, runs, and drops it. Root access on 127.0.0.1:3306 is assumed; override with
+the `IPRO_TEST_DB_TEMPLATE` environment variable (`{0}` = database name). Battery 1 covers agent
+deletion/retention and the financial-ledger cascade guard — the 2026-08-14 invoice-loss class of
+bug (TODO items 417/420). **Every bug fixed from now on should land with a test here that pins it.**
+
 ## Local test accounts
 
 | What | Value |
