@@ -14,6 +14,13 @@ public interface IBillingService
     Task<int> ProcessDueSubscriptionChangesAsync();
     Task<int> NotifyBillingIssuesAsync();
     Task<int> ReconcileDuplicateActiveSubscriptionsAsync();
+
+    // Ask PayPal the true state of every Active subscription and correct any that PayPal has stopped.
+    // Nothing else closes this gap: we learn a subscription ended only from a webhook, so a single
+    // lost CANCELLED/EXPIRED delivery -- or a buyer cancelling inside PayPal's own UI, which we may
+    // never be told about -- leaves an Active row granting full access forever. Returns how many rows
+    // were corrected.
+    Task<int> ReconcileActiveSubscriptionsWithPayPalAsync();
     Task<bool> HandleWebhookAsync(string eventType, string payload, PayPalWebhookHeaders headers, decimal amount);
     Task<PayPalPlanSyncResult> SyncPayPalPlansAsync(int billingRuleId);
     Task<PayPalPlanSyncResult> SyncDailyTestPlanAsync(int billingRuleId);

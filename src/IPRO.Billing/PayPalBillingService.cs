@@ -2433,6 +2433,68 @@ public class PayPalBillingService : IBillingService
     // subscription per agent: the newest Active row is the real one, every older Active row is
     // retried against PayPal until it confirms stopped. Rows with no PayPalSubscriptionId
     // (free/promo) converge immediately. Failures log at Error and are retried next run.
+    // The system learns that a subscription ended ONLY from a webhook. One lost CANCELLED/EXPIRED
+    // delivery -- or a buyer cancelling inside PayPal's own interface, which may never reach us --
+    // leaves an Active Billing row, and IsAccessGatedAsync grants full access on the mere existence
+    // of one. Nothing expired an Active row: BillingStatus.Expired was written only by the EXPIRED
+    // webhook, and ReconcileDuplicateActiveSubscriptionsAsync only looks at agents holding TWO active
+    // rows, so a single orphan was invisible forever (2026-08-14 ultra-audit).
+    //
+    // This asks PayPal directly, which is the only source that can be trusted about PayPal's state.
+    // Deliberately conservative: an empty status means we could not reach PayPal or the call failed,
+    // and that must never revoke a paying customer's access -- only an explicit CANCELLED/EXPIRED/
+    // SUSPENDED answer does. Rows with no PayPalSubscriptionId are skipped: they are the comped and
+    // trial agents, who legitimately have no subscription behind them.
+    public async Task<int> ReconcileActiveSubscriptionsWithPayPalAsync()
+    {
+        if (!HasPayPalSettings()) return 0;
+
+        var actives = (await _uow.Billings.FindAsync(b => b.Status == BillingStatus.Active))
+            .Where(b => !string.IsNullOrWhiteSpace(b.PayPalSubscriptionId))
+            .ToList();
+
+        var corrected = 0;
+        foreach (var billing in actives)
+        {
+            string status;
+            try
+            {
+                status = await GetPayPalSubscriptionStatusAsync(billing.PayPalSubscriptionId);
+            }
+            catch (Exception ex)
+            {
+                // One unreachable subscription must not abort the sweep for everyone else.
+                _logger.LogError(ex,
+                    "Reconciliation: could not read PayPal status for subscription {SubscriptionId} (agent {AgentUserId}); will retry next run.",
+                    billing.PayPalSubscriptionId, billing.AgentUserId);
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(status)) continue;
+
+            var endedAtPayPal =
+                status.Equals("CANCELLED", StringComparison.OrdinalIgnoreCase) ||
+                status.Equals("EXPIRED", StringComparison.OrdinalIgnoreCase) ||
+                status.Equals("SUSPENDED", StringComparison.OrdinalIgnoreCase);
+            if (!endedAtPayPal) continue;
+
+            billing.Status = status.Equals("EXPIRED", StringComparison.OrdinalIgnoreCase)
+                ? BillingStatus.Expired
+                : BillingStatus.Cancelled;
+            billing.CancelledAt ??= DateTime.UtcNow;
+            _uow.Billings.Update(billing);
+            corrected++;
+
+            _logger.LogWarning(
+                "Reconciliation: PayPal reports subscription {SubscriptionId} for agent {AgentUserId} is {Status}, " +
+                "but IPRO still had it Active -- a cancellation webhook was almost certainly lost. Local row corrected to {NewStatus}.",
+                billing.PayPalSubscriptionId, billing.AgentUserId, status, billing.Status);
+        }
+
+        if (corrected > 0) await _uow.SaveChangesAsync();
+        return corrected;
+    }
+
     public async Task<int> ReconcileDuplicateActiveSubscriptionsAsync()
     {
         var actives = await _uow.Billings.FindAsync(b => b.Status == BillingStatus.Active);
