@@ -197,6 +197,8 @@ public class PackagesController : Controller
             AnnualPrice = rule.AnnualPrice == 0 ? null : rule.AnnualPrice,
             PayPalMonthlyPlanId = rule.PayPalMonthlyPlanId,
             PayPalAnnualPlanId = rule.PayPalAnnualPlanId,
+            PayPalMonthlyPlanPrice = rule.PayPalMonthlyPlanPrice,
+            PayPalAnnualPlanPrice = rule.PayPalAnnualPlanPrice,
             MaxClients = rule.MaxClients,
             MaxNewsletters = rule.MaxNewsletters == 0 ? null : rule.MaxNewsletters,
             DefaultWebsiteTemplateId = rule.DefaultWebsiteTemplateId,

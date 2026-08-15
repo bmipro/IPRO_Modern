@@ -742,6 +742,10 @@ public class PayPalBillingService : IBillingService
 
             package.PayPalMonthlyPlanId = monthlyPlanId;
             package.PayPalAnnualPlanId = annualPlanId;
+            // Snapshot the price each plan is frozen at (422b) -- the Packages screen compares
+            // these against the editable prices and warns on divergence.
+            package.PayPalMonthlyPlanPrice = string.IsNullOrEmpty(monthlyPlanId) ? null : package.MonthlyPrice;
+            package.PayPalAnnualPlanPrice = string.IsNullOrEmpty(annualPlanId) ? null : package.AnnualPrice;
             _uow.BillingRules.Update(package);
             await _uow.SaveChangesAsync();
 
@@ -794,6 +798,7 @@ public class PayPalBillingService : IBillingService
             var dailyPlanId = await CreatePayPalPlanAsync(productId, package, BillingPeriod.Monthly, intervalUnitOverride: "DAY");
 
             package.PayPalMonthlyPlanId = dailyPlanId;
+            package.PayPalMonthlyPlanPrice = package.MonthlyPrice;
             _uow.BillingRules.Update(package);
             await _uow.SaveChangesAsync();
 

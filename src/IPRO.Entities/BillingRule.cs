@@ -17,6 +17,13 @@ public class BillingRule
     public DateTime? SetupFeeWaivedUntil { get; set; }
     public string PayPalMonthlyPlanId { get; set; } = string.Empty;
     public string PayPalAnnualPlanId { get; set; } = string.Empty;
+    // The recurring price each plan was CREATED at (audit item 422b). A PayPal plan's price is
+    // frozen at creation: editing MonthlyPrice/AnnualPrice here changes what the site advertises
+    // and what invoices record, but subscribers keep being charged the plan's frozen figure until
+    // the plans are re-synced. These snapshots let the Packages screen warn when the two diverge.
+    // Null = plan predates the snapshot (or no plan); set on every sync.
+    public decimal? PayPalMonthlyPlanPrice { get; set; }
+    public decimal? PayPalAnnualPlanPrice { get; set; }
     public int MaxClients { get; set; } = 500;
     public int MaxNewsletters { get; set; } = 12;
     public int? DefaultWebsiteTemplateId { get; set; }

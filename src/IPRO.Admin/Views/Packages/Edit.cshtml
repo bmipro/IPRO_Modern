@@ -68,6 +68,39 @@
     <div class="col-md-6"><label class="form-label fw-semibold">PayPal Monthly Plan ID</label><input asp-for="PayPalMonthlyPlanId" class="form-control"/></div>
     <div class="col-md-6"><label class="form-label fw-semibold">PayPal Annual Plan ID</label><input asp-for="PayPalAnnualPlanId" class="form-control"/></div>
   </div>
+  @{
+    // 422b: a PayPal plan's price is FROZEN at creation. Editing the price here changes what the
+    // site advertises and what invoices record, but subscribers keep being charged the plan's old
+    // figure until the plans are re-synced -- so the first invoice after an un-synced price change
+    // records an amount that was never charged.
+    var monthlyDiverges = Model.PayPalMonthlyPlanPrice.HasValue
+        && Model.PayPalMonthlyPlanPrice.Value != Model.MonthlyPrice
+        && !string.IsNullOrWhiteSpace(Model.PayPalMonthlyPlanId);
+    var annualDiverges = Model.PayPalAnnualPlanPrice.HasValue && Model.AnnualPrice.HasValue
+        && Model.PayPalAnnualPlanPrice.Value != Model.AnnualPrice.Value
+        && !string.IsNullOrWhiteSpace(Model.PayPalAnnualPlanId);
+    var priceUnrecorded = (!Model.PayPalMonthlyPlanPrice.HasValue && !string.IsNullOrWhiteSpace(Model.PayPalMonthlyPlanId))
+        || (!Model.PayPalAnnualPlanPrice.HasValue && !string.IsNullOrWhiteSpace(Model.PayPalAnnualPlanId));
+  }
+  @if (monthlyDiverges || annualDiverges)
+  {
+    <div class="alert alert-danger mb-4">
+      <div class="fw-bold"><i class="fas fa-triangle-exclamation me-2"></i>This package's price no longer matches its live PayPal plan</div>
+      <div class="small mt-1">
+        @if (monthlyDiverges) { <div>Monthly: package says <strong>@Model.MonthlyPrice.ToString("C")</strong>, but the PayPal plan charges <strong>@Model.PayPalMonthlyPlanPrice!.Value.ToString("C")</strong>.</div> }
+        @if (annualDiverges) { <div>Annual: package says <strong>@Model.AnnualPrice!.Value.ToString("C")</strong>, but the PayPal plan charges <strong>@Model.PayPalAnnualPlanPrice!.Value.ToString("C")</strong>.</div> }
+        <div class="mt-1">Subscribers are charged the <strong>plan</strong> figure, while the pricing page and invoices show the package figure &mdash; the books will record amounts that were never charged. Press <strong>Create / Replace PayPal Plans</strong> below to bring them back in line.</div>
+      </div>
+    </div>
+  }
+  else if (priceUnrecorded)
+  {
+    <div class="alert alert-warning mb-4 small">
+      <i class="fas fa-circle-info me-2"></i>The price this package's PayPal plan was created at wasn't recorded
+      (the plan predates price tracking). If you've changed prices since the last sync, subscribers are still
+      charged the old figure &mdash; re-sync once to be safe; the price will be recorded from then on.
+    </div>
+  }
   <div class="alert alert-light border d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
       <div class="fw-bold mb-1"><i class="fab fa-paypal me-2 text-primary"></i>PayPal recurring plans</div>

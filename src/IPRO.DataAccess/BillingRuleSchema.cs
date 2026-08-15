@@ -35,6 +35,10 @@ public static class BillingRuleSchema
         ("IsHiddenTestPackage",     "tinyint(1) NOT NULL DEFAULT FALSE"),
         ("SetupFeeWaived",          "tinyint(1) NOT NULL DEFAULT FALSE"),
         ("SetupFeeWaivedUntil",     "datetime(6) NULL"),
+        // 422b: the price each PayPal plan was created at, so the Packages screen can warn when the
+        // editable price diverges from what subscribers are actually charged.
+        ("PayPalMonthlyPlanPrice",  "decimal(10,2) NULL"),
+        ("PayPalAnnualPlanPrice",   "decimal(10,2) NULL"),
     };
 
     // Bill-to snapshot: invoices are financial records retained after their agent is deleted, so the

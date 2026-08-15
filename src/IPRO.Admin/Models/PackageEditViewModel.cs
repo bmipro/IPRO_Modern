@@ -23,6 +23,9 @@ public class PackageEditViewModel
     public decimal? AnnualPrice { get; set; }
     public string? PayPalMonthlyPlanId { get; set; }
     public string? PayPalAnnualPlanId { get; set; }
+    // Read-only snapshots for the divergence warning (422b); not editable, set only by plan sync.
+    public decimal? PayPalMonthlyPlanPrice { get; set; }
+    public decimal? PayPalAnnualPlanPrice { get; set; }
     public int MaxClients { get; set; } = 500;
     public int? MaxNewsletters { get; set; } = 12;
     public int? DefaultWebsiteTemplateId { get; set; }
