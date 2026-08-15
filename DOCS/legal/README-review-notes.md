@@ -100,8 +100,6 @@ keep "iPro Accountants" on it.
 ## 3. Placeholders that must be filled before publishing
 
 - **Effective date** — still empty, both documents. Set when counsel signs off.
-- **Support email** — still empty. Terms §12 asks for one; Bahman supplied a privacy@ address
-  but not a support one. They should not silently become the same inbox.
 - **Legal entity name.** The old agreement uses "iPro advisers Inc.", "Ipro Advisers" and
   "Ipro advisers" interchangeably. I standardised on **iPro Advisers Inc.** — see §2b(b), which
   is now a live question rather than a tidy-up.
@@ -109,8 +107,9 @@ keep "iPro Accountants" on it.
   Still worth confirming *every* resource sits there — if any does not, the table must say so.
 - **Discontinuation notice period.** Terms §3 offers 90 days. Confirm that is acceptable.
 
-Resolved 15 August 2026: registered address, privacy email, data region, and the Anthropic
-training question (Bahman confirmed; the caveat marker is removed from Privacy §3).
+Resolved 15 August 2026: registered address, privacy email, support email (one inbox, his call),
+data region, and the Anthropic training question (the caveat marker is removed from Privacy §3).
+**Only the effective date is still blank**, which is what keeps the draft banner honest.
 
 ## 4. Wiring the pages up — DONE 15 August 2026
 
@@ -148,10 +147,7 @@ Four of the six are now filled in `src/IPRO.Web/appsettings.json` (they are publ
 not secrets, so they live with the code rather than in Azure config). **Two remain:**
 
 ```
-Legal__EffectiveDate      STILL EMPTY -- set when counsel signs off
-Legal__SupportEmail       STILL EMPTY -- shown in Terms s.12. Bahman gave a privacy@ address
-                          but not a support one; they should not be the same inbox unless
-                          he wants them to be.
+Legal__EffectiveDate      STILL EMPTY -- the only one left. Set when counsel signs off.
 ```
 
 Already set, 15 August 2026:
@@ -159,6 +155,7 @@ Already set, 15 August 2026:
 ```
 Legal__RegisteredAddress  iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
 Legal__PrivacyEmail       privacy@iproadvisers.com
+Legal__SupportEmail       privacy@iproadvisers.com  -- Bahman confirmed one inbox serves both
 Legal__DataRegion         Eastern Canada
 Legal__ReviewComplete     false  -- set true LAST, once the two above are filled and counsel
                           has answered section 2b

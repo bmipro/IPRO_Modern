@@ -261,5 +261,5 @@ needed to make it enforceable, or severed, and the rest remains in force.
 about the platform, and replace the previous Online Subscription Agreement and any earlier
 statements or representations.
 
-**Contact.** Questions about these Terms: **[SUPPORT EMAIL]** · iPro Advisers Inc.,
-**[REGISTERED ADDRESS]**, Ontario, Canada.
+**Contact.** Questions about these Terms: **privacy@iproadvisers.com** · iPro Advisers Inc.,
+iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6.
