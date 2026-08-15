@@ -1,5 +1,10 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration AdminLayoutConfiguration
 <!DOCTYPE html>
 @{
+    // Break-glass recovery must not be left switched on: while Admin__RecoveryReset is set, every
+    // restart re-applies the configured password, so a stale flag is a standing backdoor. The startup
+    // log warns once where nobody looks; this nags on every admin page until the setting is removed.
+    var adminRecoveryResetActive = AdminLayoutConfiguration.GetValue<bool>("Admin:RecoveryReset");
     var adminPortalAccentColor = User.FindFirst("PortalAccentColor")?.Value ?? "";
     var adminEffectiveAccent = string.IsNullOrEmpty(adminPortalAccentColor) ? "#1457d9" : adminPortalAccentColor;
     var adminColorSwatches = new (string Hex, string Name)[]
@@ -230,6 +235,18 @@
 
 <!-- Main Content -->
 <main class="admin-content">
+    @if (adminRecoveryResetActive)
+    {
+        <div class="alert alert-danger border-0 shadow-sm">
+            <div class="fw-bold"><i class="fas fa-triangle-exclamation me-2"></i>Emergency admin recovery is still switched on</div>
+            <div class="small mt-1">
+                Every restart of this app resets the <strong>@(AdminLayoutConfiguration["Admin:Username"] ?? "configured admin")</strong>
+                account back to the password stored in Azure and forces it active as Super Admin. Once you have signed in and
+                set a new password, remove the <code>Admin__RecoveryReset</code> setting in the Azure Portal
+                (ipro-prod-admin &rarr; Environment variables) and restart, or this stays a standing back door.
+            </div>
+        </div>
+    }
     @if (TempData["Success"] != null)
     { <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm"><i class="fas fa-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
     @if (TempData["Warning"] != null)

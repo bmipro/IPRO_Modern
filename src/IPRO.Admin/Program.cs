@@ -682,6 +682,90 @@ CREATE TABLE IF NOT EXISTS `AdminAuditLogEntries` (
         db.AdminUsers.Add(bootstrapUser);
         await db.SaveChangesAsync();
     });
+
+    await RunAdminRecoveryResetAsync(db, configuration);
+}
+
+// BREAK-GLASS RECOVERY (2026-08-15). The Admin login has no "forgot password" link on purpose:
+// admin accounts carry no email address, and an email-based reset on the SuperAdmin door would be an
+// account-takeover vector. But that left one unrecoverable state -- the LAST SuperAdmin forgetting
+// their password. AdminUsersController's last-SuperAdmin guard keeps an account existing; it cannot
+// make a human remember. The bootstrap seeder above only fires when AdminUsers is EMPTY, so the old
+// answer was "hand-edit MySQL in production", which is a terrible thing to attempt under stress.
+//
+// Root of trust is the Azure portal -- already the root of trust for the connection string, the
+// PayPal credentials and the deploy itself, so this grants no new authority to anyone.
+//
+// RUNBOOK (also in DOCS/09_TROUBLESHOOTING.md):
+//   1. Azure Portal -> ipro-prod-admin -> Environment variables: set Admin__RecoveryReset = true
+//      (confirm Admin__Username / Admin__Password are the credentials you want restored).
+//   2. Restart the app. On boot this resets that ONE account: password re-hashed, IsActive = true,
+//      Role = SuperAdmin. No other account is touched, nothing is deleted.
+//   3. Log in, change the password in-app (Admin Users -> your account -> Reset Password).
+//   4. REMOVE Admin__RecoveryReset (or set it false) and restart again.
+//
+// Leaving the flag on is not a silent backdoor: it re-applies the configured password on every
+// restart and logs a warning each time, and step 4 is enforced by a startup nag below.
+static async Task RunAdminRecoveryResetAsync(IPRODbContext db, IConfiguration configuration)
+{
+    if (!configuration.GetValue<bool>("Admin:RecoveryReset")) return;
+
+    var username = configuration["Admin:Username"];
+    var password = configuration["Admin:Password"];
+    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+    {
+        Console.Error.WriteLine(
+            "[AdminRecovery] Admin:RecoveryReset is set but Admin:Username / Admin:Password are not configured. " +
+            "Nothing was changed -- set both and restart.");
+        return;
+    }
+
+    // Serialized like every other seeder: two instances booting at once must not race on the same row.
+    await IPRO.DataAccess.SeedGuard.RunAsync(db, "admin-recovery-reset", logger: null, async () =>
+    {
+        var hasher = new PasswordHasher<AdminUser>();
+        var user = await db.AdminUsers.FirstOrDefaultAsync(a => a.Username == username);
+        if (user == null)
+        {
+            // The account was deleted outright rather than forgotten -- recreate it, since an empty
+            // AdminUsers table is the only case the bootstrap seeder above would have covered.
+            user = new AdminUser
+            {
+                Username = username,
+                FullName = "System Administrator",
+                Role = AdminRoles.SuperAdmin,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            user.PasswordHash = hasher.HashPassword(user, password);
+            db.AdminUsers.Add(user);
+            await db.SaveChangesAsync();
+            Console.Error.WriteLine(
+                $"[AdminRecovery] RECOVERY RESET: admin account '{username}' did not exist and was RECREATED as an " +
+                "active Super Admin from configuration. Log in, change the password, then remove Admin__RecoveryReset.");
+            return;
+        }
+
+        user.PasswordHash = hasher.HashPassword(user, password);
+        user.IsActive = true;
+        user.Role = AdminRoles.SuperAdmin;
+        await db.SaveChangesAsync();
+
+        db.AdminAuditLogEntries.Add(new AdminAuditLogEntry
+        {
+            AdminUserId = user.Id,
+            AdminUsername = username,
+            Action = "AdminRecoveryReset",
+            Details = "Break-glass recovery: password reset from configuration, account forced active + Super Admin.",
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        Console.Error.WriteLine(
+            $"[AdminRecovery] RECOVERY RESET APPLIED to admin '{username}': password reset from configuration, " +
+            "account forced active and Super Admin. Log in, change the password in-app, then REMOVE the " +
+            "Admin__RecoveryReset setting and restart -- while it stays set, every restart re-applies this password.");
+    });
 }
 
 static async Task EnsureSupportTicketSchemaAsync(IPRODbContext db)

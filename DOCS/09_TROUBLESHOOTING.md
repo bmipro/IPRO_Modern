@@ -1,5 +1,40 @@
 # Troubleshooting and Deployment Checks
 
+## LOCKED OUT OF SUPERADMIN (break-glass recovery)
+
+**Use this only when nobody can sign in to admin.iproadvisers.com as a Super Admin.** If another
+active Super Admin still exists, do NOT use this — have them open **Admin Users → the account →
+Reset Password** instead, which needs no restart and no Azure access.
+
+There is deliberately no "forgot password" link on the Admin login: admin accounts hold no email
+address, and an email-based reset on the SuperAdmin door would be an account-takeover route. The
+recovery below is gated on Azure Portal access instead, which is already the root of trust for the
+database connection string, the PayPal credentials, and deployment itself.
+
+1. **Azure Portal → `ipro-prod-admin` → Settings → Environment variables.** Confirm
+   `Admin__Username` and `Admin__Password` hold the credentials you want restored (set
+   `Admin__Password` to a new strong value now if you would rather not reuse the old one).
+2. Add `Admin__RecoveryReset` = `true`. Save.
+3. **Restart the app.** On boot it resets that ONE account: password re-hashed from configuration,
+   `IsActive` forced true, role forced Super Admin. No other admin account is touched and nothing is
+   deleted. If the account no longer exists at all, it is recreated. The action is written to the
+   admin audit log as `AdminRecoveryReset`, and the startup log carries an `[AdminRecovery]` warning.
+4. Sign in, then immediately change the password in-app (**Admin Users → your account → Reset
+   Password**).
+5. **Remove `Admin__RecoveryReset`** (or set it `false`) and restart again.
+
+While the flag is set, every restart re-applies the configured password — that is why step 5 matters.
+A red banner appears on every admin page for as long as the setting is present, so it cannot be left
+on unnoticed.
+
+Verified end-to-end locally on 2026-08-15 against the worst case (password hash destroyed, account
+demoted to Support AND deactivated, zero active Super Admins): login genuinely failed first, one
+flagged restart restored role + active + password with an audit row written, login succeeded, the
+banner appeared, and after removing the flag the recovered password still worked with the banner gone.
+
+Implementation: `RunAdminRecoveryResetAsync` in `src/IPRO.Admin/Program.cs`, called at the end of
+`EnsureAdminUserSchemaAsync`; the banner lives in `src/IPRO.Admin/Views/Shared/_Layout.cshtml`.
+
 ## A Recent Change Is Not Visible
 
 1. Confirm the commit was pushed to `main`.
