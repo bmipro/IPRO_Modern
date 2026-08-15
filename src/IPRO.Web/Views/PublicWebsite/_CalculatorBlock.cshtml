@@ -62,6 +62,63 @@
             <label><span>Points paid (%)</span><input data-field="pointsPercent" type="number" step="0.01" value="0" /></label>
             <label><span>Other fees</span><input data-field="otherFees" type="number" step="50" value="1500" /></label>
             break;
+        case IPRO.Entities.CalculatorKinds.Affordability:
+            <label><span>Gross annual household income</span><input data-field="annualIncome" type="number" step="1000" value="120000" /></label>
+            <label><span>Monthly debt payments (loans, cards, leases)</span><input data-field="monthlyDebts" type="number" step="50" value="500" /></label>
+            <label><span>Down payment saved</span><input data-field="downPayment" type="number" step="1000" value="60000" /></label>
+            <label><span>Mortgage rate (%)</span><input data-field="rate" type="number" step="0.01" value="5.5" /></label>
+            <label><span>Amortization (years)</span><input data-field="years" type="number" step="1" value="25" /></label>
+            <label><span>Property tax + heating (% of home value / yr)</span><input data-field="carryPercent" type="number" step="0.05" value="1.3" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.BiWeeklyPayments:
+            <label><span>Mortgage amount</span><input data-field="loanAmount" type="number" step="1000" value="400000" /></label>
+            <label><span>Interest rate (%)</span><input data-field="rate" type="number" step="0.01" value="5.5" /></label>
+            <label><span>Amortization (years)</span><input data-field="years" type="number" step="1" value="25" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.MortgagePrepayment:
+            <label><span>Current mortgage balance</span><input data-field="balance" type="number" step="1000" value="350000" /></label>
+            <label><span>Interest rate (%)</span><input data-field="rate" type="number" step="0.01" value="5.5" /></label>
+            <label><span>Years remaining</span><input data-field="yearsRemaining" type="number" step="1" value="20" /></label>
+            <label><span>Extra payment each month</span><input data-field="extraMonthly" type="number" step="25" value="200" /></label>
+            <label><span>One-time lump sum this year</span><input data-field="lumpSum" type="number" step="500" value="0" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.LandTransferTax:
+            <label><span>Purchase price</span><input data-field="price" type="number" step="1000" value="600000" /></label>
+            <label><span>Province</span>
+              <select data-field-text="province">
+                <option value="ON">Ontario</option>
+                <option value="ON-TOR">Ontario -- Toronto (adds municipal LTT)</option>
+                <option value="BC">British Columbia</option>
+                <option value="AB">Alberta</option>
+                <option value="SK">Saskatchewan</option>
+                <option value="MB">Manitoba</option>
+                <option value="QC">Quebec (typical municipal brackets)</option>
+                <option value="NB">New Brunswick</option>
+                <option value="NS">Nova Scotia (Halifax)</option>
+                <option value="PE">Prince Edward Island</option>
+                <option value="NL">Newfoundland and Labrador</option>
+              </select>
+            </label>
+            break;
+        case IPRO.Entities.CalculatorKinds.SavingsGrowth:
+            <label><span>Starting amount</span><input data-field="startAmount" type="number" step="100" value="10000" /></label>
+            <label><span>Monthly deposit</span><input data-field="monthlyDeposit" type="number" step="10" value="400" /></label>
+            <label><span>Expected annual return (%)</span><input data-field="rate" type="number" step="0.01" value="5" /></label>
+            <label><span>Years</span><input data-field="years" type="number" step="1" value="15" /></label>
+            <label><span>Annual inflation (%)</span><input data-field="inflation" type="number" step="0.01" value="2.5" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.SavingsGoal:
+            <label><span>Goal amount (today's dollars)</span><input data-field="goal" type="number" step="1000" value="1000000" /></label>
+            <label><span>Starting amount</span><input data-field="startAmount" type="number" step="100" value="25000" /></label>
+            <label><span>Monthly deposit</span><input data-field="monthlyDeposit" type="number" step="10" value="750" /></label>
+            <label><span>Expected annual return (%)</span><input data-field="rate" type="number" step="0.01" value="6" /></label>
+            <label><span>Annual inflation (%)</span><input data-field="inflation" type="number" step="0.01" value="2.5" /></label>
+            break;
+        case IPRO.Entities.CalculatorKinds.AfterTaxReturn:
+            <label><span>Interest / return rate (%)</span><input data-field="rate" type="number" step="0.01" value="5" /></label>
+            <label><span>Your marginal tax rate (%)</span><input data-field="taxRate" type="number" step="0.1" value="35" /></label>
+            <label><span>Annual inflation (%)</span><input data-field="inflation" type="number" step="0.01" value="2.5" /></label>
+            break;
     }
   </div>
   <button type="button" class="calc-run"><i class="fas fa-calculator"></i> Calculate</button>
@@ -250,9 +307,171 @@
           '<p class="calc-note">APR reflects the true cost of the loan once fees are included, and is always at or above the stated interest rate.</p>';
       };
 
+      calculators.Affordability = function (v, out) {
+        // CMHC-style stress ratios: housing costs within 39% of gross income (GDS), housing + all
+        // other debt within 44% (TDS). The binding cap is whichever is lower.
+        var monthlyIncome = v.annualIncome / 12;
+        var gdsCap = monthlyIncome * 0.39;
+        var tdsCap = monthlyIncome * 0.44 - v.monthlyDebts;
+        var housingCap = Math.min(gdsCap, tdsCap);
+        if (housingCap <= 0) {
+          out.innerHTML = '<p class="calc-note">Based on these numbers, monthly debt payments already use up the lending ratios -- reducing debts will do more than a bigger down payment.</p>';
+          return;
+        }
+        var months = v.years * 12;
+        var i = monthlyRateFromAnnual(v.rate);
+        var annuityFactor = i <= 0 ? months : (1 - Math.pow(1 + i, -months)) / i;
+        // Carrying costs scale with the (unknown) home value, so iterate to convergence -- same
+        // fixed-point approach as the cal1 original.
+        var house = 0, loan = 0, carryingMonthly = 0;
+        for (var it = 0; it < 30; it++) {
+          carryingMonthly = house * v.carryPercent / 100 / 12;
+          var availableForPI = Math.max(0, housingCap - carryingMonthly);
+          loan = availableForPI * annuityFactor;
+          house = loan + v.downPayment;
+        }
+        var binding = gdsCap <= tdsCap ? 'income (GDS 39%)' : 'income minus debts (TDS 44%)';
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Estimated maximum home price</span><strong>' + fmtMoney(house) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Mortgage amount</span><strong>' + fmtMoney(loan) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Monthly principal &amp; interest</span><strong>' + fmtMoney(Math.max(0, housingCap - carryingMonthly)) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Monthly property tax &amp; heating allowance</span><strong>' + fmtMoney(carryingMonthly) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Limiting factor</span><strong>' + binding + '</strong></div>' +
+          '<p class="calc-note">Uses standard Canadian lending ratios (39% GDS / 44% TDS) at the rate entered. Lenders must also test you at a higher stress-test rate, and mortgage default insurance applies below 20% down -- treat this as a planning estimate, not a pre-approval.</p>';
+      };
+
+      calculators.BiWeeklyPayments = function (v, out) {
+        var months = v.years * 12;
+        var monthlyPayment = paymentFor(v.loanAmount, v.rate, months);
+        var monthlyInterest = monthlyPayment * months - v.loanAmount;
+        // Accelerated bi-weekly: half the monthly payment every two weeks = 26 half-payments, i.e.
+        // one extra monthly payment per year. Per-period rate keeps semi-annual compounding.
+        var biweeklyPayment = monthlyPayment / 2;
+        var biweeklyRate = Math.pow(1 + v.rate / 200, 2 / 26) - 1;
+        var balance = v.loanAmount, totalInterest = 0, periods = 0;
+        while (balance > 0 && periods < 26 * 100) {
+          var interest = balance * biweeklyRate;
+          totalInterest += interest;
+          balance = balance + interest - Math.min(biweeklyPayment, balance + interest);
+          periods++;
+        }
+        var payoffYears = periods / 26;
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Monthly payment</span><strong>' + fmtMoney(monthlyPayment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Accelerated bi-weekly payment</span><strong>' + fmtMoney(biweeklyPayment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Paid off in</span><strong>' + payoffYears.toFixed(1) + ' years instead of ' + v.years + '</strong></div>' +
+          '<div class="calc-result-row"><span>Interest, monthly schedule</span><strong>' + fmtMoney(monthlyInterest) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Interest, accelerated bi-weekly</span><strong>' + fmtMoney(totalInterest) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Interest saved</span><strong>' + fmtMoney(Math.max(0, monthlyInterest - totalInterest)) + '</strong></div>' +
+          '<p class="calc-note">Accelerated bi-weekly means paying half the monthly amount every two weeks -- 26 half-payments works out to one extra monthly payment a year, which is what shortens the mortgage.</p>';
+      };
+
+      calculators.MortgagePrepayment = function (v, out) {
+        var months = v.yearsRemaining * 12;
+        var payment = paymentFor(v.balance, v.rate, months);
+        var i = monthlyRateFromAnnual(v.rate);
+        function simulate(extra, lump) {
+          var bal = Math.max(0, v.balance - lump), interestTotal = 0, m = 0;
+          while (bal > 0 && m < 1200) {
+            var interest = bal * i;
+            interestTotal += interest;
+            bal = bal + interest - Math.min(payment + extra, bal + interest);
+            m++;
+          }
+          return { interest: interestTotal, months: m };
+        }
+        var baseline = simulate(0, 0);
+        var scenario = simulate(v.extraMonthly, v.lumpSum);
+        var monthsSaved = baseline.months - scenario.months;
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Current payment</span><strong>' + fmtMoney(payment) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Interest without prepaying</span><strong>' + fmtMoney(baseline.interest) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Interest with prepayments</span><strong>' + fmtMoney(scenario.interest) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Interest saved</span><strong>' + fmtMoney(Math.max(0, baseline.interest - scenario.interest)) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Mortgage-free sooner by</span><strong>' + Math.floor(monthsSaved / 12) + ' years ' + (monthsSaved % 12) + ' months</strong></div>' +
+          '<p class="calc-note">Assumes the lump sum is applied immediately and the extra amount is paid every month. Most Canadian lenders cap annual prepayments (often 10-20% of the original principal) -- check your mortgage\'s prepayment privileges.</p>';
+      };
+
+      calculators.LandTransferTax = function (v, out) {
+        // Marginal brackets: [upper bound, rate] applied to the slice below each bound.
+        function brackets(price, table) {
+          var tax = 0, prev = 0;
+          for (var b = 0; b < table.length; b++) {
+            var upper = Math.min(price, table[b][0]);
+            if (upper > prev) tax += (upper - prev) * table[b][1];
+            prev = table[b][0];
+            if (price <= prev) break;
+          }
+          return tax;
+        }
+        var p = v.price;
+        var ontario = [[55000, 0.005], [250000, 0.01], [400000, 0.015], [2000000, 0.02], [Infinity, 0.025]];
+        var rules = {
+          'ON':     { tax: brackets(p, ontario), label: 'Ontario land transfer tax' },
+          'ON-TOR': { tax: brackets(p, ontario) * 2, label: 'Ontario + Toronto municipal land transfer tax' },
+          'BC':     { tax: brackets(p, [[200000, 0.01], [2000000, 0.02], [3000000, 0.03], [Infinity, 0.05]]), label: 'BC property transfer tax' },
+          'AB':     { tax: 50 + Math.ceil(p / 5000) * 5, label: 'Alberta land title transfer fee (no transfer tax)' },
+          'SK':     { tax: p * 0.004, label: 'Saskatchewan title transfer fee' },
+          'MB':     { tax: brackets(p, [[30000, 0], [90000, 0.005], [150000, 0.01], [200000, 0.015], [Infinity, 0.02]]), label: 'Manitoba land transfer tax' },
+          'QC':     { tax: brackets(p, [[58900, 0.005], [294600, 0.01], [Infinity, 0.015]]), label: 'Quebec transfer duties ("welcome tax", typical brackets)' },
+          'NB':     { tax: p * 0.01, label: 'New Brunswick real property transfer tax' },
+          'NS':     { tax: p * 0.015, label: 'Halifax deed transfer tax (other NS municipalities vary)' },
+          'PE':     { tax: p * 0.01, label: 'PEI real property transfer tax' },
+          'NL':     { tax: 100 + Math.max(0, p - 500) * 0.004, label: 'Newfoundland and Labrador registration fee' }
+        };
+        var rule = rules[v.province] || rules.ON;
+        out.innerHTML =
+          '<div class="calc-result-row"><span>' + rule.label + '</span><strong>' + fmtMoney(rule.tax) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Effective rate</span><strong>' + (p > 0 ? (rule.tax / p * 100).toFixed(2) : '0.00') + '%</strong></div>' +
+          '<p class="calc-note">Estimate only. First-time-buyer rebates, non-resident surtaxes, Toronto\'s additional tiers above $3M, and municipal variations are not included, and provinces adjust these rates and brackets -- confirm the exact amount with your lawyer or notary before closing.</p>';
+      };
+
+      calculators.SavingsGrowth = function (v, out) {
+        var monthlyRate = v.rate / 100 / 12;
+        var months = v.years * 12;
+        var balance = v.startAmount;
+        for (var m = 0; m < months; m++) { balance = balance * (1 + monthlyRate) + v.monthlyDeposit; }
+        var contributed = v.startAmount + v.monthlyDeposit * months;
+        var todaysDollars = balance / Math.pow(1 + v.inflation / 100, v.years);
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Balance after ' + v.years + ' years</span><strong>' + fmtMoney(balance) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Total contributed</span><strong>' + fmtMoney(contributed) + '</strong></div>' +
+          '<div class="calc-result-row"><span>Growth earned</span><strong>' + fmtMoney(balance - contributed) + '</strong></div>' +
+          '<div class="calc-result-row"><span>In today\'s dollars</span><strong>' + fmtMoney(todaysDollars) + '</strong></div>' +
+          '<p class="calc-note">Deposits are made monthly and returns compound monthly. Estimates only -- actual returns vary year to year.</p>';
+      };
+
+      calculators.SavingsGoal = function (v, out) {
+        var monthlyRate = v.rate / 100 / 12;
+        var inflation = v.inflation / 100;
+        var balance = v.startAmount;
+        var nominalYears = null, realYears = null;
+        for (var y = 1; y <= 100 && (nominalYears === null || realYears === null); y++) {
+          for (var m = 0; m < 12; m++) { balance = balance * (1 + monthlyRate) + v.monthlyDeposit; }
+          if (nominalYears === null && balance >= v.goal) nominalYears = y;
+          if (realYears === null && balance >= v.goal * Math.pow(1 + inflation, y)) realYears = y;
+        }
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Reach ' + fmtMoney(v.goal) + ' on paper</span><strong>' + (nominalYears !== null ? 'in about ' + nominalYears + ' years' : 'not within 100 years') + '</strong></div>' +
+          '<div class="calc-result-row"><span>Reach the same buying power (inflation-adjusted)</span><strong>' + (realYears !== null ? 'in about ' + realYears + ' years' : 'not within 100 years') + '</strong></div>' +
+          '<div class="calc-result-row"><span>Balance after ' + (realYears || nominalYears || 100) + ' years</span><strong>' + fmtMoney(balance) + '</strong></div>' +
+          '<p class="calc-note">The second figure is the honest one: at ' + v.inflation + '% inflation, hitting the number and hitting the buying power are different milestones.</p>';
+      };
+
+      calculators.AfterTaxReturn = function (v, out) {
+        var afterTax = v.rate * (1 - v.taxRate / 100);
+        var real = ((1 + afterTax / 100) / (1 + v.inflation / 100) - 1) * 100;
+        out.innerHTML =
+          '<div class="calc-result-row"><span>Stated rate</span><strong>' + v.rate.toFixed(2) + '%</strong></div>' +
+          '<div class="calc-result-row"><span>After-tax return</span><strong>' + afterTax.toFixed(2) + '%</strong></div>' +
+          '<div class="calc-result-row"><span>Real return after tax and inflation</span><strong>' + real.toFixed(2) + '%</strong></div>' +
+          '<p class="calc-note">Assumes the return is fully taxed as interest income at your marginal rate. Canadian dividends and capital gains are taxed more favourably, and returns inside a TFSA or RRSP are not taxed this way at all.</p>';
+      };
+
       function collectInputs(root) {
         var values = {};
         root.querySelectorAll('[data-field]').forEach(function (el) { values[el.getAttribute('data-field')] = num(el); });
+        root.querySelectorAll('[data-field-text]').forEach(function (el) { values[el.getAttribute('data-field-text')] = el.value; });
         return values;
       }
 
@@ -275,8 +494,8 @@
   .calc-block { width: 100%; }
   .calc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
   .calc-fields label { display: grid; gap: 6px; font: 700 13px/1.4 Arial, sans-serif; color: inherit; }
-  .calc-fields input { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #17223a; font: 400 15px/1.4 Arial, sans-serif; }
-  .calc-fields input:focus { outline: 3px solid color-mix(in srgb, var(--site-theme, #1457d9) 20%, transparent); border-color: var(--site-theme, #1457d9); }
+  .calc-fields input, .calc-fields select { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #17223a; font: 400 15px/1.4 Arial, sans-serif; }
+  .calc-fields input:focus, .calc-fields select:focus { outline: 3px solid color-mix(in srgb, var(--site-theme, #1457d9) 20%, transparent); border-color: var(--site-theme, #1457d9); }
   .calc-run { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border: 0; border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: #fff; font: 800 14px Arial, sans-serif; cursor: pointer; }
   .calc-results { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e3eaf3; display: grid; gap: 10px; }
   .calc-result-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; font: 400 14px/1.4 Arial, sans-serif; color: #45526b; }

@@ -120,7 +120,8 @@ public static class ProspectWebsitePreviewBuilder
             .OrderBy(a => a.SortOrder)
             .ToList();
 
-        if (selectedArticles.Count > 0)
+        var previewCalculators = VerticalCalculatorCatalog.ForBusinessType(prospect.BusinessType);
+        if (selectedArticles.Count > 0 || previewCalculators.Count > 0)
         {
             var resourcesPage = new WebsitePage
             {
@@ -280,6 +281,76 @@ public static class ProspectWebsitePreviewBuilder
                         IsPublished = true,
                         SortOrder = articleOrder++,
                         Blocks = new List<WebsiteContentBlock> { block }
+                    });
+                }
+            }
+
+            // Calculators category -- mirrors WebsiteStarterResourcesHelper's cal1-derived category.
+            // Calculator blocks are self-contained (settings only, no database row), so the mirror
+            // needs nothing beyond fake page ids.
+            if (previewCalculators.Count > 0)
+            {
+                var calcCategorySlug = UniqueSlug("calculators", existingSlugs);
+                existingSlugs.Add(calcCategorySlug);
+                var calcCategoryPage = new WebsitePage
+                {
+                    Id = NextId(),
+                    AgentWebsiteId = website.Id,
+                    ParentPageId = resourcesPage.Id,
+                    Title = "Calculators",
+                    Slug = calcCategorySlug,
+                    NavigationLabel = "Calculators",
+                    MetaTitle = "Calculators",
+                    MetaDescription = "Free financial calculators you can use any time.",
+                    ShowInNavigation = true,
+                    IsPublished = true,
+                    SortOrder = childOrder++,
+                    Blocks = new List<WebsiteContentBlock>
+                    {
+                        new()
+                        {
+                            Id = NextId(),
+                            BlockType = WebsiteBlockTypes.SectionIndex,
+                            Heading = "Calculators",
+                            SortOrder = 0,
+                            IsVisible = true
+                        }
+                    }
+                };
+                pages.Add(calcCategoryPage);
+
+                var calcOrder = 0;
+                foreach (var entry in previewCalculators)
+                {
+                    var title = CalculatorKinds.DisplayName(entry.Kind);
+                    var calcSlug = UniqueSlug(Slugify(title), existingSlugs);
+                    existingSlugs.Add(calcSlug);
+                    pages.Add(new WebsitePage
+                    {
+                        Id = NextId(),
+                        AgentWebsiteId = website.Id,
+                        ParentPageId = calcCategoryPage.Id,
+                        Title = title,
+                        Slug = calcSlug,
+                        NavigationLabel = title,
+                        MetaTitle = title,
+                        MetaDescription = entry.Blurb,
+                        ShowInNavigation = true,
+                        IsPublished = true,
+                        SortOrder = calcOrder++,
+                        Blocks = new List<WebsiteContentBlock>
+                        {
+                            new()
+                            {
+                                Id = NextId(),
+                                BlockType = WebsiteBlockTypes.Calculator,
+                                Heading = title,
+                                Subheading = entry.Blurb,
+                                SettingsJson = new WebsiteCalculatorSettings { CalculatorKind = entry.Kind }.ToJson(),
+                                SortOrder = 0,
+                                IsVisible = true
+                            }
+                        }
                     });
                 }
             }

@@ -30,10 +30,20 @@ public static class CalculatorKinds
     public const string TaxAdvantageComparison = "TaxAdvantageComparison";
     public const string LoanAmortization = "LoanAmortization";
     public const string Apr = "Apr";
+    // Second wave, ported 2026-08-15 from the owner's cal1 library (Canada-appropriate subset --
+    // the US-only ones like Roth, estate tax and ARM-vs-fixed were deliberately left behind).
+    public const string Affordability = "Affordability";
+    public const string BiWeeklyPayments = "BiWeeklyPayments";
+    public const string MortgagePrepayment = "MortgagePrepayment";
+    public const string LandTransferTax = "LandTransferTax";
+    public const string SavingsGrowth = "SavingsGrowth";
+    public const string SavingsGoal = "SavingsGoal";
+    public const string AfterTaxReturn = "AfterTaxReturn";
 
     public static readonly string[] All =
     {
-        MortgagePayment, Refinance, RentVsBuy, Retirement, TaxAdvantageComparison, LoanAmortization, Apr
+        MortgagePayment, Refinance, RentVsBuy, Retirement, TaxAdvantageComparison, LoanAmortization, Apr,
+        Affordability, BiWeeklyPayments, MortgagePrepayment, LandTransferTax, SavingsGrowth, SavingsGoal, AfterTaxReturn
     };
 
     public static string DisplayName(string kind) => kind switch
@@ -45,6 +55,13 @@ public static class CalculatorKinds
         TaxAdvantageComparison => "Tax-Deferred vs. Tax-Free Savings",
         LoanAmortization => "Loan Amortization Schedule",
         Apr => "APR / Closing Cost",
+        Affordability => "How Much Home Can I Afford?",
+        BiWeeklyPayments => "Accelerated Bi-Weekly Payments",
+        MortgagePrepayment => "Mortgage Prepayment Savings",
+        LandTransferTax => "Land Transfer Tax (Canada)",
+        SavingsGrowth => "Savings Growth",
+        SavingsGoal => "Savings Goal Timeline",
+        AfterTaxReturn => "After-Tax Return",
         _ => kind
     };
 

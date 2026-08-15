@@ -28,7 +28,10 @@ public static class WebsiteStarterResourcesHelper
             .AsNoTracking()
             .Where(a => a.IsActive && (a.BusinessType == agent.BusinessType || a.BusinessType == "All"))
             .ToListAsync();
-        if (candidates.Count == 0) return;
+        var calculatorEntries = VerticalCalculatorCatalog.ForBusinessType(agent.BusinessType);
+        // Calculators come from a code-level catalog, so Resources is worth building even for a
+        // vertical that has no starter articles yet.
+        if (candidates.Count == 0 && calculatorEntries.Count == 0) return;
 
         var selected = candidates
             .GroupBy(a => a.Title, StringComparer.OrdinalIgnoreCase)
@@ -209,6 +212,73 @@ public static class WebsiteStarterResourcesHelper
                         {
                             BlockType = WebsiteBlockTypes.ArticleContent,
                             SettingsJson = new WebsiteArticleContentSettings { ArticleId = article.Id }.ToJson(),
+                            SortOrder = 0,
+                            IsVisible = true
+                        }
+                    }
+                });
+            }
+        }
+
+        // Calculators category -- the owner's cal1 library (2026-08-15), assigned per vertical by
+        // VerticalCalculatorCatalog. Same Category -> child-page shape as articles, but each child
+        // holds a Calculator block instead of an Article; the blurb doubles as the MetaDescription
+        // the parent SectionIndex renders on its cards.
+        if (calculatorEntries.Count > 0)
+        {
+            var calcCategorySlug = UniqueSlug("calculators", existingSlugs);
+            existingSlugs.Add(calcCategorySlug);
+            var calcCategoryPage = new WebsitePage
+            {
+                AgentWebsiteId = website.Id,
+                ParentPage = resourcesPage,
+                Title = "Calculators",
+                Slug = calcCategorySlug,
+                NavigationLabel = "Calculators",
+                MetaTitle = "Calculators",
+                MetaDescription = "Free financial calculators you can use any time.",
+                ShowInNavigation = true,
+                IsPublished = true,
+                SortOrder = childOrder++,
+                Blocks = new List<WebsiteContentBlock>
+                {
+                    new()
+                    {
+                        BlockType = WebsiteBlockTypes.SectionIndex,
+                        Heading = "Calculators",
+                        SortOrder = 0,
+                        IsVisible = true
+                    }
+                }
+            };
+            db.WebsitePages.Add(calcCategoryPage);
+
+            var calcOrder = 0;
+            foreach (var entry in calculatorEntries)
+            {
+                var title = CalculatorKinds.DisplayName(entry.Kind);
+                var calcSlug = UniqueSlug(Slugify(title), existingSlugs);
+                existingSlugs.Add(calcSlug);
+                db.WebsitePages.Add(new WebsitePage
+                {
+                    AgentWebsiteId = website.Id,
+                    ParentPage = calcCategoryPage,
+                    Title = title,
+                    Slug = calcSlug,
+                    NavigationLabel = title,
+                    MetaTitle = title,
+                    MetaDescription = entry.Blurb,
+                    ShowInNavigation = true,
+                    IsPublished = true,
+                    SortOrder = calcOrder++,
+                    Blocks = new List<WebsiteContentBlock>
+                    {
+                        new()
+                        {
+                            BlockType = WebsiteBlockTypes.Calculator,
+                            Heading = title,
+                            Subheading = entry.Blurb,
+                            SettingsJson = new WebsiteCalculatorSettings { CalculatorKind = entry.Kind }.ToJson(),
                             SortOrder = 0,
                             IsVisible = true
                         }
