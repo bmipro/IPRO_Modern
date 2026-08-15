@@ -93,12 +93,17 @@
 @if (!reviewComplete)
 {
   <div class="lg-wrap">
+    @* Wording matters here. Once Legal:EffectiveDate is set, this document IS what subscribers
+       accept at signup, so the banner must not claim otherwise -- an effective date and a
+       "not operative" notice on the same page contradict each other. It flags the outstanding
+       review without pretending the terms are inert. *@
     <div class="lg-draft">
-      <h2>Draft &mdash; pending legal review</h2>
-      <p>This document has not yet been reviewed by a lawyer, and the highlighted values below
-         have not been filled in. It is not yet the operative agreement.</p>
-      <p>Remove this notice by setting <strong>Legal__ReviewComplete = true</strong> once review
-         is complete and every highlighted placeholder has a real value.</p>
+      <h2>Pending legal review</h2>
+      <p>This version has not yet been reviewed by a lawyer. It is the version currently in
+         effect, and it is what subscribers accept at signup. Any correction from counsel will
+         be published here as a new version, and subscribers notified as section 11 requires.</p>
+      <p>Remove this notice by setting <strong>Legal__ReviewComplete = true</strong> once that
+         review is complete.</p>
     </div>
   </div>
 }

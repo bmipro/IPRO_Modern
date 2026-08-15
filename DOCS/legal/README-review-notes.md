@@ -79,12 +79,18 @@ substance of the acceptable-use list; entire-agreement and acknowledgement.
 > "If you are unhappy with how we have handled your information, tell us first — we try our best to
 > help you out. You could also cancel your services with us under 'Cancel anytime'"
 
-His wording is in. **The OPC sentence was kept as well**, and that was my call, not his instruction.
-Reasoning: PIPEDA gives individuals a statutory right to complain to the Commissioner. Omitting it
-while offering cancellation as the alternative reads as steering people away from their recourse —
-and cancellation is not a privacy remedy at all. It is also meaningless to the *other* group this
-policy covers: a subscriber's clients have no subscription to cancel, yet they are data subjects
-with the same rights. **Confirm keep or cut.** If cut, say so and it comes out.
+His wording is in, and **the Office of the Privacy Commissioner sentence is out** — I had initially
+retained it, raised the point with him, and he asked for it removed. Decision made; recorded here so
+a reviewer knows it was considered rather than overlooked.
+
+The argument that was put to him, for the reviewer's benefit: PIPEDA gives individuals a statutory
+right to complain to the Commissioner. That right exists whether or not the policy mentions it, so
+omitting it removes nothing legally — the question is presentation. Offering cancellation as the
+alternative route is the part worth a second opinion, since cancelling a subscription is not a
+privacy remedy, and it is not available at all to the *other* group this policy covers: a
+subscriber's own clients are data subjects here but have no subscription to cancel.
+
+**If counsel wants it back, it is one line in `Views/Shared/_LegalPrivacy.cshtml` section 8.**
 
 **(b) Which company is the legal entity?** Both documents say **iPro Advisers Inc.** throughout.
 The registered address Bahman supplied begins **iPro Accountants**:
@@ -99,7 +105,6 @@ keep "iPro Accountants" on it.
 
 ## 3. Placeholders that must be filled before publishing
 
-- **Effective date** — still empty, both documents. Set when counsel signs off.
 - **Legal entity name.** The old agreement uses "iPro advisers Inc.", "Ipro Advisers" and
   "Ipro advisers" interchangeably. I standardised on **iPro Advisers Inc.** — see §2b(b), which
   is now a live question rather than a tidy-up.
@@ -146,9 +151,13 @@ Fill these Azure app settings, then set `Legal__ReviewComplete=true` to clear th
 Four of the six are now filled in `src/IPRO.Web/appsettings.json` (they are public business details,
 not secrets, so they live with the code rather than in Azure config). **Two remain:**
 
-```
-Legal__EffectiveDate      STILL EMPTY -- the only one left. Set when counsel signs off.
-```
+All six are now set. **Nothing is left blank**, and `Legal__ReviewComplete` stays `false`, so both
+pages carry the "Pending legal review" banner and `noindex` until counsel reports back.
+
+Note the banner wording changed when the effective date went in on 15 August 2026. It previously
+said the documents were "not yet the operative agreement" -- that stopped being true the moment they
+acquired an effective date and became the text people accept at signup. Claiming otherwise on the
+same page as an effective date would have been a contradiction a reviewer should not have to catch.
 
 Already set, 15 August 2026:
 

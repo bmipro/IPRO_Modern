@@ -1,7 +1,7 @@
 # Privacy Policy
 
 **iPro Advisers Inc.**
-Effective date: **[SET ON PUBLICATION]** · Last updated: 15 August 2026
+Effective date: **15 August 2026** · Last updated: 15 August 2026
 
 > **Not yet legal advice.** Drafted from what the platform verifiably does, not from a
 > template. Every third-party processor named below was confirmed in the codebase. Not
@@ -176,14 +176,7 @@ in the portal; for anything else, write to **privacy@iproadvisers.com** and we w
 subscription depends on may mean we can no longer provide it.
 
 If you are unhappy with how we have handled your information, tell us first — we try our best to
-help you out. You could also cancel your services with us under “Cancel anytime”. You have the
-right to complain to the **Office of the Privacy Commissioner of Canada** as well
-(priv.gc.ca, 1-800-282-1376).
-
-> **Retained deliberately, not an oversight.** The OPC sentence was not in Bahman's replacement
-> wording. It is kept because PIPEDA gives individuals a statutory right to complain to the
-> Commissioner, and a policy that omits it while pointing people at cancellation instead reads as
-> steering them away from that recourse. **Lawyer: please confirm keep or cut.**
+help you out. You could also cancel your services with us under “Cancel anytime”.
 
 ## 9. Cookies
 

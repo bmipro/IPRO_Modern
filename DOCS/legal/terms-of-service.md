@@ -1,7 +1,7 @@
 # Terms of Service
 
 **iPro Advisers Inc.**
-Effective date: **[SET ON PUBLICATION]** · Last updated: 15 August 2026
+Effective date: **15 August 2026** · Last updated: 15 August 2026
 
 > **Not yet legal advice.** This document was drafted from the existing Online Subscription
 > Agreement (`src/IPRO.Web/wwwroot/content/ipro_agreement.txt`) plus what the platform
