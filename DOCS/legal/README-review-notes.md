@@ -92,16 +92,10 @@ subscriber's own clients are data subjects here but have no subscription to canc
 
 **If counsel wants it back, it is one line in `Views/Shared/_LegalPrivacy.cshtml` section 8.**
 
-**(b) Which company is the legal entity?** Both documents say **iPro Advisers Inc.** throughout.
-The registered address Bahman supplied begins **iPro Accountants**:
-
-> iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
-
-It is rendering exactly as given, so the contact block currently reads "iPro Advisers Inc. /
-iPro Accountants, 3230 Yonge Street…", which looks like a care-of. That may be right if the office
-is shared, or the contracting entity may actually be iPro Accountants. **A contract naming the wrong
-entity is worth catching now.** Confirm the registered name, and whether the address line should
-keep "iPro Accountants" on it.
+**(b) Which company is the legal entity? RESOLVED.** Bahman confirmed **iPro Advisers Inc.** is the
+contracting entity. "iPro Accountants" has been removed from the address line, which now reads just
+the street address, so the contact block no longer looks like a care-of. Both documents use
+iPro Advisers Inc. throughout, consistently.
 
 ## 2c. The effective date is 15 February 2012 — reviewer, please sanity-check this pairing
 
@@ -182,7 +176,7 @@ same page as an effective date would have been a contradiction a reviewer should
 Already set, 15 August 2026:
 
 ```
-Legal__RegisteredAddress  iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
+Legal__RegisteredAddress  3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
 Legal__PrivacyEmail       privacy@iproadvisers.com
 Legal__SupportEmail       privacy@iproadvisers.com  -- Bahman confirmed one inbox serves both
 Legal__DataRegion         Eastern Canada

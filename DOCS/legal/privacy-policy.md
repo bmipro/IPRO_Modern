@@ -27,7 +27,7 @@ We do not sell personal information to anyone, ever.
 ## 1. Who to contact
 
 iPro Advisers Inc.
-iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
+3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
 Privacy questions and requests: **privacy@iproadvisers.com**
 
 If you are a client of one of our subscribers and you want your information corrected or

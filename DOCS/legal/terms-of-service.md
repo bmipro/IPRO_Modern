@@ -262,4 +262,4 @@ about the platform, and replace the previous Online Subscription Agreement and a
 statements or representations.
 
 **Contact.** Questions about these Terms: **privacy@iproadvisers.com** · iPro Advisers Inc.,
-iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6.
+3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6.

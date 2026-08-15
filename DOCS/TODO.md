@@ -142,6 +142,50 @@ not to be decisive on the strictest recipient available.
 
 ---
 
+## Homepage claims — two removed 2026-08-15, one needed a DB repair
+
+The public homepage advertised two things IPRO does not do. Both are gone as of `1d10e48`.
+
+- **"email & SMS reminders"**, listed under *On every plan*. SMS is not built — nothing in the
+  codebase sends one. Worse, `PackageFeature` had `SmsReminder` seeded **included on all four
+  packages**, so the pricing comparison table showed a green tick against it on every plan and the
+  entitlement system believed every agent had it. Fixed in the seeder *and* via
+  `RepairSmsReminderEntitlementAsync`, a one-time startup repair — the seeder alone would not have
+  touched production, because `EnsureFeaturesAsync` never re-syncs `IsIncluded` on existing rows.
+  Verified in production: the row now reads "Mobile SMS reminder (not yet available)" with dashes.
+  **If SMS is ever built, flip the definition and delete the repair method** — otherwise it will
+  switch the feature back off on every startup.
+- **"One managed blog post/month, written for you"**, under *Platinum adds*. Promised a human
+  writing service. Now "AI drafting for newsletters, articles and social posts".
+
+**The lesson worth keeping:** the copy fix alone would have looked complete while the tick stayed
+on the pricing table. When a claim appears in both a view and seeded data, check both.
+
+- [ ] **Sweep the rest of the marketing surface for the same class of problem.** Only the homepage
+      was audited. `/Preview`, the Register page, and the agent-facing help docs have not been
+      checked against `DOCS/MARKETING_BUSINESS_BRIEF.md` section 3.
+
+## Homepage: Navy/Aqua redesign — APPROVED, not started (2026-08-15)
+
+Bahman approved porting the prototype design, not just the copy. Today's change put the settled
+**words** into the existing blue Bootstrap page; the prototype's navy/aqua layout is a separate,
+full-page rewrite of `Views/Home/Index.cshtml`.
+
+Prototype: `DOCS/marketing-site-prototype/concept02-navy.html` (design + link map).
+Copy source: `DOCS/marketing-site-prototype/copy-merged.html`.
+
+**Everything below must survive the port — it is all live machinery, not decoration:**
+
+- `@model List<BillingRule>` pricing cards, including `IsSetupFeeWaivedOn` (the same call decides
+  what PayPal charges, so the displayed figure cannot drift from the charge)
+- the feature comparison table, built from `package.Features` at runtime
+- `?package=` carried into `/Account/Register` and `/Preview`
+- `ViewBag.HeroInsight` (the AI assistant mock) and `ViewBag.TemporaryRootDomain`
+- footer `/terms` and `/privacy` links
+
+Never hardcode prices into the new page. The prototype's pricing block carries a RAZOR PORT NOTE
+saying exactly this.
+
 ## Legal pages — shipped as draft, blocked on review (2026-08-15)
 
 `/terms` and `/privacy` now exist and are linked from the site footer and the signup checkbox.
@@ -152,15 +196,18 @@ and there was no privacy policy at all.
 the operative agreement yet. Unfilled values render as yellow highlights so they cannot be shipped
 unnoticed.
 
+- [x] **Legal entity confirmed 2026-08-15: iPro Advisers Inc.** "iPro Accountants" removed from the
+      address line; both documents now name one entity consistently.
 - [ ] **Lawyer review.** Lead with clause 7 of the superseded agreement (archived at
       `DOCS/legal/archive/2026-08-15-superseded-online-subscription-agreement.txt`): it purported to
       grant *the public* an unrestricted licence to everything a subscriber uploaded, including
       client data, and to waive their copyright. Every agent who has signed up agreed to it.
       New Terms s.4 replaces it. **Ask counsel whether existing subscribers must re-accept or
       whether notice under old clause 3 suffices.**
-- [ ] **Fill and then flip** these Azure app settings — `Legal__EffectiveDate`,
-      `Legal__RegisteredAddress`, `Legal__SupportEmail`, `Legal__PrivacyEmail`, `Legal__DataRegion`,
-      then `Legal__ReviewComplete=true` last.
+- [x] **All six Legal__ values are set** in `appsettings.json` (public business details, not
+      secrets, so they live with the code). Effective date 15 February 2012, last updated
+      15 August 2026. **`Legal__ReviewComplete` is still `false`** — that is the only thing keeping
+      the "Pending legal review" banner and `noindex` on both pages. Flip it when counsel signs off.
 - [ ] **Confirm two facts** the privacy policy asserts: that every Azure resource really is in
       Canada East, and Anthropic's current commercial terms on not training from API content.
 - [ ] `Support:NotificationEmail` in `src/IPRO.Web/appsettings.json` is still the literal
