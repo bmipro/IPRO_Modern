@@ -34,6 +34,10 @@
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="Delete this agent's Resources pages so they rebuild with the three-level menu structure? Their articles are kept and reused."><i class="fas fa-sitemap me-1"></i>Rebuild Resources</button>
         </form>
+        <form asp-action="RebuildRequestMeeting" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="Replace this agent's Request Meeting page content with their business type's meeting-request form? The change is live immediately. If they already own a 'Request a Meeting' form it is reused with their edits intact."><i class="fas fa-calendar-check me-1"></i>Rebuild Request Meeting</button>
+        </form>
         <a asp-action="ErasurePreview" asp-route-id="@Model.Id" class="btn btn-outline-secondary"><i class="fas fa-list-check me-1"></i>Preview Erasure</a>
         <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()

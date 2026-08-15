@@ -181,6 +181,103 @@ public class AgentsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    // Unlike Resources, Request Meeting has no lazy rebuild path to lean on -- starter-page
+    // provisioning only runs for agents with ZERO pages -- so this does the work directly, the same
+    // way signup provisioning does since 2026-08-15: copy the vertical's "Request a Meeting" starter
+    // form into a real form the agent owns, then point the page's block at it. If the agent already
+    // owns a form with that title (a prior rebuild, or self-adopted from the template gallery), it is
+    // REUSED so their edits survive; only the page's blocks are replaced.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RebuildRequestMeeting(int id)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+        var website = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .FirstOrDefaultAsync(_db.AgentWebsites, w => w.AgentUserId == id);
+        if (website == null)
+        {
+            TempData["Error"] = "This agent has no website yet, so there is nothing to rebuild.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var meetingTitle = IPRO.DataAccess.WebsiteStarterFormSeeder.MeetingFormTitle;
+        var template = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .ToListAsync(_db.WebsiteStarterForms.Where(f => f.IsActive && f.Title == meetingTitle &&
+                    (f.BusinessType == agent.BusinessType || f.BusinessType == "All"))))
+            .OrderByDescending(f => f.BusinessType == agent.BusinessType)
+            .FirstOrDefault();
+        if (template == null)
+        {
+            TempData["Error"] = $"No active \"{meetingTitle}\" starter form exists for this agent's business type (or \"All\") -- check Starter Forms.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var form = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .ToListAsync(_db.WebsiteForms.Where(f => f.AgentUserId == id && f.IsActive && f.Title == meetingTitle)))
+            .OrderBy(f => f.Id)
+            .FirstOrDefault();
+        var reusedExistingForm = form != null;
+        form ??= await IPRO.DataAccess.WebsiteFormTemplateCopier.CopyToAgentAsync(_db, template, id);
+
+        // The starter page definition supplies the page/block wording so a rebuilt page matches what
+        // a fresh signup gets; fall back to plain defaults if that seed row is ever deactivated.
+        var starterPage = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .ToListAsync(Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                    .Include(_db.WebsiteStarterPages.Where(p => p.IsActive && p.Slug == "request-meeting" &&
+                        (p.BusinessType == agent.BusinessType || p.BusinessType == "All")), p => p.Blocks)))
+            .OrderByDescending(p => p.BusinessType == agent.BusinessType)
+            .FirstOrDefault();
+        var starterBlock = starterPage?.Blocks.OrderBy(b => b.SortOrder).FirstOrDefault();
+
+        var page = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .FirstOrDefaultAsync(_db.WebsitePages, p => p.AgentWebsiteId == website.Id && p.Slug == "request-meeting");
+        var createdPage = page == null;
+        if (page == null)
+        {
+            page = new WebsitePage
+            {
+                AgentWebsiteId = website.Id,
+                Title = starterPage?.Title ?? "Request Meeting",
+                Slug = "request-meeting",
+                NavigationLabel = starterPage?.NavigationLabel ?? "Request Meeting",
+                MetaTitle = starterPage?.MetaTitle ?? "Request Meeting",
+                MetaDescription = starterPage?.MetaDescription ?? "Request a meeting - professional service and support.",
+                IsHomePage = false,
+                ShowInNavigation = true,
+                IsPublished = true,
+                SortOrder = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                    .CountAsync(_db.WebsitePages.Where(p => p.AgentWebsiteId == website.Id))
+            };
+            _db.WebsitePages.Add(page);
+            await _db.SaveChangesAsync();
+        }
+        else
+        {
+            var oldBlocks = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .ToListAsync(_db.WebsiteContentBlocks.Where(b => b.WebsitePageId == page.Id));
+            _db.WebsiteContentBlocks.RemoveRange(oldBlocks);
+        }
+
+        _db.WebsiteContentBlocks.Add(new WebsiteContentBlock
+        {
+            WebsitePageId = page.Id,
+            BlockType = WebsiteBlockTypes.Form,
+            Heading = starterBlock?.Heading ?? "Request a meeting",
+            Subheading = starterBlock?.Subheading ?? string.Empty,
+            Body = starterBlock?.Body ?? string.Empty,
+            SettingsJson = new WebsiteFormSettings { WebsiteFormId = form.Id }.ToJson(),
+            SortOrder = 0,
+            IsVisible = true
+        });
+        await _db.SaveChangesAsync();
+
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentRebuildRequestMeeting",
+            $"Agent #{id}: request-meeting page {(createdPage ? "created" : "blocks replaced")}, wired to form #{form.Id} ({(reusedExistingForm ? "existing form reused" : $"copied from starter template #{template.Id}")})");
+        TempData["Success"] = $"Request Meeting page now carries the \"{meetingTitle}\" form " +
+            $"({(reusedExistingForm ? "reused the form this agent already had, edits intact" : $"created their own copy of the {template.BusinessType} template")}). Live immediately.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     public async Task<IActionResult> Edit(int id)
     {
         var agent = await _agents.GetByIdAsync(id);
