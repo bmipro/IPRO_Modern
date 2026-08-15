@@ -78,6 +78,22 @@ public class PackagesController : Controller
             return View(model);
         }
 
+        // PackageName is a natural key: the entitlement seeder (every startup, both apps), the
+        // legacy package-number mapping and the QA seeder all resolve packages BY NAME. A second
+        // "IPro Gold" would make agents resolve to whichever row MySQL returns first -- wrong
+        // features, wrong price, wrong PayPal plan. The UX_BillingRules_PackageName unique index is
+        // the backstop; this check gives the admin a message instead of an exception page.
+        var newName = model.PackageName?.Trim() ?? string.Empty;
+        if (await _uow.BillingRules.CountAsync(r => r.PackageName == newName) > 0)
+        {
+            ModelState.AddModelError(nameof(model.PackageName),
+                $"A package named '{newName}' already exists. Package names must be unique -- billing and " +
+                "entitlements resolve packages by name.");
+            await EnsureFeatureRowsAsync(model);
+            await LoadWebsiteTemplatesAsync();
+            return View(model);
+        }
+
         var rule = new BillingRule();
         ApplyRuleFields(rule, model);
         rule.CreatedAt = DateTime.UtcNow;
@@ -110,6 +126,18 @@ public class PackagesController : Controller
 
         var rule = await _uow.BillingRules.GetByIdAsync(model.Id);
         if (rule == null) return NotFound();
+
+        // Same natural-key guard as Create: renaming onto another package's name collides too.
+        var renamedTo = model.PackageName?.Trim() ?? string.Empty;
+        if (await _uow.BillingRules.CountAsync(r => r.PackageName == renamedTo && r.Id != model.Id) > 0)
+        {
+            ModelState.AddModelError(nameof(model.PackageName),
+                $"Another package is already named '{renamedTo}'. Package names must be unique -- billing and " +
+                "entitlements resolve packages by name.");
+            await EnsureFeatureRowsAsync(model);
+            await LoadWebsiteTemplatesAsync();
+            return View(model);
+        }
 
         ApplyRuleFields(rule, model);
         _uow.BillingRules.Update(rule);

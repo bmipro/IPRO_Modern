@@ -652,29 +652,43 @@ CREATE TABLE IF NOT EXISTS `AdminAuditLogEntries` (
     PRIMARY KEY (`Id`)
 ) CHARACTER SET=utf8mb4;");
 
-    if (await db.AdminUsers.AnyAsync())
-    {
-        return;
-    }
+    // Auditor 5, F11: Username is the login identifier -- every auth path does
+    // FirstOrDefaultAsync(u => u.Username == ...) -- but the table had only a primary key. With a
+    // duplicate, the second account can never log in and audit-log attribution is ambiguous.
+    // AdminUsersController's ExistsAsync check is check-then-insert; this makes the database the
+    // final arbiter. EnsureUniqueIndexAsync screams (but does not crash) if duplicates already exist.
+    await EnsureUniqueIndexAsync(db, "AdminUsers", "UX_AdminUsers_Username",
+        "ALTER TABLE `AdminUsers` ADD UNIQUE INDEX `UX_AdminUsers_Username` (`Username`)");
 
-    var bootstrapUsername = configuration["Admin:Username"];
-    var bootstrapPassword = configuration["Admin:Password"];
-    if (string.IsNullOrWhiteSpace(bootstrapUsername) || string.IsNullOrWhiteSpace(bootstrapPassword))
+    // SeedGuard, not bare check-then-insert (INVARIANTS rule on seeders; this one was missed): both
+    // this app's instances can boot at once, and two racing inserts would create two bootstrap
+    // admins -- with the unique index above, one of them would now crash on startup instead.
+    await IPRO.DataAccess.SeedGuard.RunAsync(db, "seed-bootstrap-admin", logger: null, async () =>
     {
-        return;
-    }
+        if (await db.AdminUsers.AnyAsync())
+        {
+            return;
+        }
 
-    var bootstrapUser = new AdminUser
-    {
-        Username = bootstrapUsername,
-        FullName = "System Administrator",
-        Role = AdminRoles.SuperAdmin,
-        IsActive = true,
-        CreatedAt = DateTime.UtcNow
-    };
-    bootstrapUser.PasswordHash = new PasswordHasher<AdminUser>().HashPassword(bootstrapUser, bootstrapPassword);
-    db.AdminUsers.Add(bootstrapUser);
-    await db.SaveChangesAsync();
+        var bootstrapUsername = configuration["Admin:Username"];
+        var bootstrapPassword = configuration["Admin:Password"];
+        if (string.IsNullOrWhiteSpace(bootstrapUsername) || string.IsNullOrWhiteSpace(bootstrapPassword))
+        {
+            return;
+        }
+
+        var bootstrapUser = new AdminUser
+        {
+            Username = bootstrapUsername,
+            FullName = "System Administrator",
+            Role = AdminRoles.SuperAdmin,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        bootstrapUser.PasswordHash = new PasswordHasher<AdminUser>().HashPassword(bootstrapUser, bootstrapPassword);
+        db.AdminUsers.Add(bootstrapUser);
+        await db.SaveChangesAsync();
+    });
 }
 
 static async Task EnsureSupportTicketSchemaAsync(IPRODbContext db)
@@ -845,6 +859,11 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
         // or whichever app happens to start first is the only one that creates it.
         await EnsureUniqueIndexAsync(db, "AgentDomains", "UX_AgentDomains_DomainName",
             "ALTER TABLE `AgentDomains` ADD UNIQUE INDEX `UX_AgentDomains_DomainName` (`DomainName`)");
+        // Auditor 5, F9/F10 -- mirrored in IPRO.Web; see the notes there.
+        await EnsureUniqueIndexAsync(db, "WebsiteTemplates", "IX_WebsiteTemplates_TemplateKey",
+            "ALTER TABLE `WebsiteTemplates` ADD UNIQUE INDEX `IX_WebsiteTemplates_TemplateKey` (`TemplateKey`)");
+        await EnsureUniqueIndexAsync(db, "BillingRules", "UX_BillingRules_PackageName",
+            "ALTER TABLE `BillingRules` ADD UNIQUE INDEX `UX_BillingRules_PackageName` (`PackageName`(191))");
     }
     finally
     {

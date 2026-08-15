@@ -1189,6 +1189,22 @@ CREATE TABLE IF NOT EXISTS `RecurringInvoiceLineItems` (
         // (it catches 1062 and leaves the index uncreated), so a dirty table cannot block startup.
         await EnsureUniqueIndexAsync(db, "AgentDomains", "UX_AgentDomains_DomainName",
             "ALTER TABLE `AgentDomains` ADD UNIQUE INDEX `UX_AgentDomains_DomainName` (`DomainName`)");
+        // Auditor 5, F9: the model declares TemplateKey unique (IPRODbContext) but the two migrations
+        // that create the index are among the 28 EF cannot see (TODO 425), and nothing else created
+        // it. TemplateKey is the natural key template resolution joins on; a duplicate makes the
+        // template an agent gets non-deterministic.
+        await EnsureUniqueIndexAsync(db, "WebsiteTemplates", "IX_WebsiteTemplates_TemplateKey",
+            "ALTER TABLE `WebsiteTemplates` ADD UNIQUE INDEX `IX_WebsiteTemplates_TemplateKey` (`TemplateKey`)");
+        // Auditor 5, F10: PackageName is resolved by SEVEN call sites -- including
+        // PackageEntitlementSeeder, which runs at every startup of both apps, and the legacy
+        // package-number mapping in PackageEntitlementService. A second "IPro Gold" means agents
+        // resolve to whichever row MySQL returns first: wrong features, wrong price, wrong PayPal
+        // plan. PackagesController.Create also refuses duplicates now; this is the backstop.
+        // (191) because PackageName is longtext (the migration-created type) and MySQL requires a
+        // key length to index BLOB/TEXT -- found when the un-prefixed ALTER crashed a local boot.
+        // 191 utf8mb4 chars fits the 767-byte index limit and is effectively full uniqueness here.
+        await EnsureUniqueIndexAsync(db, "BillingRules", "UX_BillingRules_PackageName",
+            "ALTER TABLE `BillingRules` ADD UNIQUE INDEX `UX_BillingRules_PackageName` (`PackageName`(191))");
     }
     finally
     {
