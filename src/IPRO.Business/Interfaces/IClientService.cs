@@ -8,7 +8,10 @@ public interface IClientService
     Task<Client?> GetByIdAsync(int id);
     Task<Client> CreateAsync(Client client);
     Task UpdateAsync(Client client);
-    Task DeleteAsync(int id);
+    // Erases the client and every row that belongs to them (declarative map -- see ClientDataEraser),
+    // and returns the blob-storage URLs of their portal documents so the caller can delete the files.
+    // Blob deletion stays with the caller because IBlobStorageService lives in the web app's DI.
+    Task<IReadOnlyList<string>> DeleteAsync(int id);
     Task<IEnumerable<Client>> SearchAsync(int agentId, string query);
     Task<IEnumerable<Client>> GetNewsletterSubscribersAsync(int agentId);
     Task<int> GetCountAsync(int agentId);

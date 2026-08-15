@@ -585,7 +585,20 @@ public class ClientsController : Controller
     {
         var client = await _clients.GetByIdAsync(id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
-        await _clients.DeleteAsync(id);
+        var blobUrls = await _clients.DeleteAsync(id);
+
+        // The rows are gone; now remove their files. Per-file try/catch: a storage hiccup on one
+        // document must not fail the whole deletion (the DB rows no longer exist to retry from --
+        // an orphaned blob is the recoverable outcome, a failed delete-with-partial-erasure is not).
+        foreach (var url in blobUrls)
+        {
+            try { await _blob.DeleteAsync(url); }
+            catch (Exception)
+            {
+                // Deliberately swallowed; the blob is unreachable by the app either way.
+            }
+        }
+
         TempData["Success"] = "Client deleted.";
         return RedirectToAction(nameof(Index));
     }

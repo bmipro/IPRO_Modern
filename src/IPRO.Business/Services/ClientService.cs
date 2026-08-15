@@ -7,8 +7,13 @@ namespace IPRO.Business.Services;
 public class ClientService : IClientService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IPRO.DataAccess.IPRODbContext _db;
 
-    public ClientService(IUnitOfWork uow) => _uow = uow;
+    public ClientService(IUnitOfWork uow, IPRO.DataAccess.IPRODbContext db)
+    {
+        _uow = uow;
+        _db = db;
+    }
 
     public Task<IEnumerable<Client>> GetByAgentAsync(int agentId) =>
         _uow.Clients.FindAsync(c => c.AgentUserId == agentId);
@@ -32,14 +37,18 @@ public class ClientService : IClientService
         await _uow.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<IReadOnlyList<string>> DeleteAsync(int id)
     {
+        // Until 2026-08-15 this was Remove + SaveChanges on an entity loaded with no Includes. EF's
+        // cascade only reaches entities it has loaded, and only 7 of the 19 client-linked tables
+        // carry database FKs, so the other 12 quietly kept their rows -- portal document files
+        // stranded in blob storage among them (auditor 5, F6). The eraser's declarative map is the
+        // complete list, with a coverage test that fails when a new client-linked table isn't added.
         var client = await _uow.Clients.GetByIdAsync(id);
-        if (client != null)
-        {
-            _uow.Clients.Remove(client);
-            await _uow.SaveChangesAsync();
-        }
+        if (client == null) return Array.Empty<string>();
+
+        var report = await IPRO.DataAccess.ClientDataEraser.EraseAsync(_db, id);
+        return report.BlobUrls;
     }
 
     public async Task<IEnumerable<Client>> SearchAsync(int agentId, string query)
