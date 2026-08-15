@@ -1,0 +1,121 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration LegalConfig
+@{
+    Layout = null;
+    // Safe default: the draft banner shows unless someone explicitly turns it off.
+    // Flip with the Azure app setting  Legal__ReviewComplete = true  once counsel has signed off
+    // AND every [TO BE CONFIRMED] placeholder below has been filled in.
+    var reviewComplete = LegalConfig.GetValue<bool>("Legal:ReviewComplete");
+    var effectiveDate = LegalConfig["Legal:EffectiveDate"];
+}
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>@ViewData["Title"] &mdash; IPRO Advisers</title>
+@if (!reviewComplete)
+{
+    <meta name="robots" content="noindex"/>
+}
+<style>
+  :root{
+    --navy:#1a3a6b; --blue:#2563eb; --ink:#1e293b; --muted:#5b6b7f;
+    --line:#dde5ee; --bg:#f4f7fb; --paper:#fff; --amber:#b45309; --amber-bg:#fff7ed;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.65;}
+  .lg-top{background:var(--navy);padding:16px 0;}
+  .lg-wrap{width:min(820px,calc(100% - 40px));margin:0 auto;}
+  .lg-top .lg-wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .lg-logo{display:block;height:34px;width:auto;filter:brightness(0) invert(1);}
+  .lg-top nav a{color:#c7d8ea;text-decoration:none;font-size:.85rem;margin-left:18px;}
+  .lg-top nav a:hover{color:#fff;text-decoration:underline;}
+
+  .lg-doc{background:var(--paper);margin:26px auto 40px;padding:44px 52px 52px;
+          border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(15,23,42,.05);}
+  .lg-doc h1{margin:0 0 6px;font-size:2rem;line-height:1.15;color:var(--navy);font-weight:700;}
+  .lg-org{margin:0 0 4px;font-weight:600;color:var(--ink);}
+  .lg-dates{margin:0 0 26px;font-size:.85rem;color:var(--muted);}
+  .lg-doc h2{margin:34px 0 10px;font-size:1.18rem;color:var(--navy);font-weight:700;
+             padding-top:16px;border-top:1px solid var(--line);}
+  .lg-doc h2:first-of-type{border-top:0;padding-top:0;}
+  .lg-doc h3{margin:22px 0 6px;font-size:.98rem;color:var(--navy);font-weight:700;}
+  .lg-doc p{margin:0 0 13px;}
+  .lg-doc ul{margin:0 0 13px;padding-left:22px;}
+  .lg-doc li{margin-bottom:7px;}
+  .lg-doc a{color:var(--blue);}
+  .lg-doc strong{color:#0f2440;}
+  .lg-lead{font-size:1.02rem;color:var(--muted);}
+
+  .lg-table-wrap{overflow-x:auto;margin:0 0 16px;}
+  .lg-doc table{border-collapse:collapse;width:100%;font-size:.88rem;min-width:460px;}
+  .lg-doc th,.lg-doc td{text-align:left;vertical-align:top;padding:9px 12px;border:1px solid var(--line);}
+  .lg-doc th{background:#f6f9fc;font-weight:700;color:var(--navy);}
+
+  .lg-callout{background:#f6f9fc;border-left:3px solid var(--blue);padding:14px 18px;
+              border-radius:0 8px 8px 0;margin:0 0 18px;}
+  .lg-callout p:last-child{margin-bottom:0;}
+
+  .lg-draft{background:var(--amber-bg);border:1px solid #fdba74;border-left:5px solid var(--amber);
+            border-radius:10px;padding:16px 20px;margin:26px auto 0;}
+  .lg-draft h2{margin:0 0 6px;font-size:1rem;color:var(--amber);border:0;padding:0;}
+  .lg-draft p{margin:0 0 8px;font-size:.87rem;color:#7c2d12;}
+  .lg-draft p:last-child{margin-bottom:0;}
+
+  /* Unfilled values. Deliberately loud so they cannot be published unnoticed. */
+  .lg-todo{background:#fef08a;color:#713f12;padding:1px 6px;border-radius:3px;
+           font-weight:700;font-size:.85em;white-space:nowrap;}
+
+  .lg-foot{padding:0 0 46px;text-align:center;font-size:.82rem;color:var(--muted);}
+  .lg-foot a{color:var(--muted);margin:0 9px;}
+
+  @@media(max-width:620px){
+    .lg-doc{padding:28px 22px 34px;border-radius:0;border-left:0;border-right:0;}
+    .lg-doc h1{font-size:1.55rem;}
+  }
+</style>
+</head>
+<body>
+<header class="lg-top">
+  <div class="lg-wrap">
+    <a href="/"><img class="lg-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/></a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/Account/Login">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+@if (!reviewComplete)
+{
+  <div class="lg-wrap">
+    <div class="lg-draft">
+      <h2>Draft &mdash; pending legal review</h2>
+      <p>This document has not yet been reviewed by a lawyer, and the highlighted values below
+         have not been filled in. It is not yet the operative agreement.</p>
+      <p>Remove this notice by setting <strong>Legal__ReviewComplete = true</strong> once review
+         is complete and every highlighted placeholder has a real value.</p>
+    </div>
+  </div>
+}
+
+<main class="lg-wrap">
+  <article class="lg-doc">
+    @RenderBody()
+  </article>
+</main>
+
+<footer class="lg-foot">
+  <div class="lg-wrap">
+    &copy; @DateTime.UtcNow.Year IPRO Advisers Inc.
+    <a href="/terms">Terms of Service</a>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="/">Home</a>
+  </div>
+</footer>
+</body>
+</html>

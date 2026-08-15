@@ -57,6 +57,18 @@ public class HomeController : Controller
 
     public IActionResult Error() => View();
 
+    // Public legal pages. Attribute-routed to bare /terms and /privacy rather than the
+    // conventional /Home/Terms, because these get linked from email footers, the signup form
+    // and (eventually) external documents, where a short stable URL matters.
+    //
+    // Both render the same partials the signup acceptance box uses, so the text a subscriber
+    // agrees to and the text published here cannot drift apart. See DOCS/legal/.
+    [HttpGet("terms")]
+    public IActionResult Terms() => View();
+
+    [HttpGet("privacy")]
+    public IActionResult Privacy() => View();
+
     private static int GetPackageRank(BillingRule package) => package.PackageName switch
     {
         "IPro Silver" => 1,

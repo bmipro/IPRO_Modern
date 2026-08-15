@@ -1,0 +1,203 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration PrivacyConfig
+@*
+    CANONICAL PRIVACY POLICY TEXT.  Rendered by /privacy (Views/Home/Privacy.cshtml).
+
+    Every third-party processor named in section 4 was confirmed present in the codebase on
+    15 August 2026. If a provider is added or removed, THIS TABLE MUST BE UPDATED -- an
+    undisclosed cross-border processor is a PIPEDA problem, not a documentation gap.
+
+    Markdown source and the reviewer's change log:
+      DOCS/legal/privacy-policy.md
+      DOCS/legal/README-review-notes.md
+*@
+@{
+    var effDate = PrivacyConfig["Legal:EffectiveDate"];
+    var orgAddress = PrivacyConfig["Legal:RegisteredAddress"];
+    var privacyEmail = PrivacyConfig["Legal:PrivacyEmail"];
+    var dataRegion = PrivacyConfig["Legal:DataRegion"];
+}
+
+<h1>Privacy Policy</h1>
+<p class="lg-org">iPro Advisers Inc.</p>
+<p class="lg-dates">
+  Effective date:
+  @if (string.IsNullOrWhiteSpace(effDate)) { <span class="lg-todo">SET ON PUBLICATION</span> }
+  else { <strong>@effDate</strong> }
+  &nbsp;&middot;&nbsp; Last updated: 15 August 2026
+</p>
+
+<h2>The short version</h2>
+<p class="lg-lead">iPro Advisers Inc. builds websites and business tools for Canadian
+professional-service firms. This policy explains what we do with personal information.</p>
+<p>There are two different relationships here and they matter:</p>
+<ul>
+  <li><strong>You, our subscriber.</strong> We hold your account and billing information, and we are
+      responsible for it.</li>
+  <li><strong>Your clients.</strong> You upload information about them. It stays yours. We hold and process
+      it on your behalf, to run the service for you &mdash; nothing else. We do not sell it, we do not
+      market to your clients, and we do not use it to build anything for anyone else.</li>
+</ul>
+<p><strong>We do not sell personal information to anyone, ever.</strong></p>
+
+<h2>1. Who to contact</h2>
+<p>iPro Advisers Inc.<br/>
+@if (string.IsNullOrWhiteSpace(orgAddress)) { <span class="lg-todo">REGISTERED ADDRESS</span> }
+else { @orgAddress }, Ontario, Canada<br/>
+Privacy questions and requests:
+@if (string.IsNullOrWhiteSpace(privacyEmail)) { <span class="lg-todo">PRIVACY EMAIL</span> }
+else { <a href="mailto:@privacyEmail">@privacyEmail</a> }</p>
+<p>If you are a client of one of our subscribers and you want your information corrected or removed,
+contact the adviser or firm you deal with &mdash; the information is theirs, and they decide. If you cannot
+reach them, write to us and we will help you get to the right place.</p>
+
+<h2>2. What we collect, and why</h2>
+
+<h3>From you, when you subscribe</h3>
+<div class="lg-table-wrap">
+<table>
+  <thead><tr><th>What</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Name, business name, email, business phone, address, country</td><td>To create and administer your account, and to contact you about it</td></tr>
+    <tr><td>Username and password (stored hashed, never in readable form)</td><td>To sign you in</td></tr>
+    <tr><td>Business type and chosen package</td><td>To provision the right starter content and features</td></tr>
+    <tr><td>Time zone</td><td>To show dates and times correctly and to schedule sends</td></tr>
+    <tr><td>Profile photo, logo, designation, contact details you publish</td><td>To render your public website, newsletters and greeting cards</td></tr>
+    <tr><td>Promotion or trial invite code</td><td>To apply the offer you were given</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>About your billing</h3>
+<p>Your subscription is charged through <strong>PayPal</strong>, which is our only payment method. <strong>We never see,
+receive or store your card or bank details.</strong> PayPal gives us a subscription identifier and the status
+and history of payments, which we use to keep your access correct and to issue your invoices.</p>
+
+<h3>The information you upload about your clients</h3>
+<p>Client names, contact details, account types, notes, meetings, life events, documents, invoices,
+testimonials and portal messages &mdash; whatever you choose to record. <strong>We treat this as yours.</strong> We handle
+it to operate the platform for you, to deliver the email you send, and to provide support when you ask.
+We do not access it for any other purpose except where we must to fix a fault, prevent abuse, or comply
+with the law.</p>
+
+<h3>From visitors to your public website</h3>
+<p>When someone fills in one of your website forms &mdash; an enquiry, a meeting request, a newsletter signup,
+a testimonial, a &ldquo;Did You Know&rdquo; unlock &mdash; we record what they submitted and pass it to you as a lead. We
+also record their IP address and the time, to rate-limit and to block automated abuse. Your website sets
+no advertising or tracking cookies.</p>
+
+<h3>Automatically, when the platform is used</h3>
+<p>Sign-in times, IP addresses, browser and device type, pages visited within the portal, and error
+diagnostics. We use this to keep the service secure and working, to investigate problems, and to detect
+abuse. Diagnostic telemetry is scrubbed of tokens and credentials before it is stored.</p>
+
+<h3>Email delivery and engagement</h3>
+<p>For email sent through the platform, we record what was sent, to whom, when, and whether it was
+delivered, bounced, opened or reported as spam. You need this to know your mail is arriving. We need it
+to keep our sending reputation intact.</p>
+
+<h2>3. Artificial intelligence features</h2>
+<p>If your package includes the AI daily assistant or AI drafting tools, and you use them, the relevant
+content &mdash; for example the record you asked for a suggestion about, or the topic you asked for a
+newsletter draft on &mdash; is sent to <strong>Anthropic PBC</strong> (United States) for processing, using the Claude API.
+The generated text comes back to your portal for you to review, edit or discard.</p>
+<ul>
+  <li>These features run <strong>only when your package includes them and you use them.</strong> They are not applied
+      to your data in the background.</li>
+  <li>Content sent to the API is processed to produce your result. Under our API terms with Anthropic, it
+      is not used to train their models. <span class="lg-todo">CONFIRM AGAINST CURRENT ANTHROPIC TERMS</span></li>
+  <li>We record token counts per day for billing and capacity, not the content of your prompts.</li>
+  <li><strong>AI output is a draft, not advice.</strong> Review it before it reaches a client. See section 9 of our
+      <a href="/terms">Terms of Service</a>.</li>
+</ul>
+<p>If you would rather no client information reached an AI provider, do not use these features, and ask
+us to disable them on your account.</p>
+
+<h2>4. Who else handles the information</h2>
+<p>We use a small number of service providers. Each gets only what it needs to do its job. None of them
+may use it for their own purposes.</p>
+<div class="lg-table-wrap">
+<table>
+  <thead><tr><th>Provider</th><th>What they handle</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Microsoft Azure</strong></td><td>Hosting, database, uploaded files, diagnostic telemetry (Application Insights)</td>
+        <td>@if (string.IsNullOrWhiteSpace(dataRegion)) { <span class="lg-todo">CONFIRM REGION</span> } else { @dataRegion }</td></tr>
+    <tr><td><strong>PayPal</strong></td><td>Subscription payments and card details</td><td>Canada / United States</td></tr>
+    <tr><td><strong>SendGrid (Twilio)</strong></td><td>Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery</td><td>United States</td></tr>
+    <tr><td><strong>Anthropic PBC</strong></td><td>AI drafting and daily-assistant content, when you use those features</td><td>United States</td></tr>
+    <tr><td><strong>Google</strong></td><td>Calendar synchronisation &mdash; only if you connect your Google Calendar</td><td>United States</td></tr>
+    <tr><td><strong>Let&rsquo;s Encrypt</strong></td><td>Issuing SSL certificates for custom domains (domain name only)</td><td>International</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Some of these are outside Canada. While information is held in another country it is subject to that
+country&rsquo;s laws, and may be accessible to its courts and law enforcement. We keep the list short
+deliberately, and we will update this table whenever it changes.</p>
+<p>We may also disclose information where we are legally required to, to protect our rights or someone&rsquo;s
+safety, or to a buyer or successor if the business is sold &mdash; in which case we will tell you, and this
+policy will continue to apply until replaced.</p>
+
+<h2>5. Email consent and unsubscribing</h2>
+<p>Canada&rsquo;s Anti-Spam Legislation governs commercial email. The platform is built for it:</p>
+<ul>
+  <li>Every commercial message carries a working unsubscribe link and standard one-click unsubscribe
+      headers.</li>
+  <li>One opt-out applies across every kind of message the platform sends &mdash; newsletters, campaigns,
+      greeting cards, letters, polls. There is one suppression list, honoured by every sender, so an
+      opt-out cannot leak through a channel that missed it.</li>
+  <li>Suppression is checked at send time, so an opt-out takes effect immediately.</li>
+  <li>Subscribers can see who has opted out.</li>
+</ul>
+<p><strong>Transactional messages are different.</strong> Password resets, invoices, billing notices and account alerts
+are not marketing, and you cannot unsubscribe from them while you hold an account.</p>
+<p><strong>Consent for your own lists is yours to obtain.</strong> We provide the machinery; you are responsible for
+having permission to email the people you upload.</p>
+
+<h2>6. How long we keep things</h2>
+<ul>
+  <li><strong>While you subscribe</strong> &mdash; for as long as you need it.</li>
+  <li><strong>After you cancel</strong> &mdash; 30 days, so you can reactivate or export. Sooner if you ask.</li>
+  <li><strong>After deletion</strong> &mdash; the account and its data are removed, including uploaded files. This is
+      thorough and cannot be undone, so export first.</li>
+  <li><strong>Invoices and payment records</strong> &mdash; kept as long as tax and accounting law requires, even after
+      deletion.</li>
+  <li><strong>Backups</strong> &mdash; expire on their own cycle, after which deleted data is gone from those too.</li>
+  <li><strong>Unsubscribe records</strong> &mdash; kept after deletion of the underlying contact where needed, so we do not
+      accidentally start emailing someone again.</li>
+</ul>
+
+<h2>7. How we protect it</h2>
+<p>Encryption in transit (HTTPS everywhere, including custom domains); passwords stored hashed, never
+recoverable; access to production restricted; content security policy, anti-forgery protection, rate
+limiting on public forms, and signature verification on incoming webhooks; tokens and credentials
+scrubbed from diagnostic logs; regular security review of the codebase.</p>
+<p>No system is perfectly secure, and we do not claim otherwise. <strong>If a breach occurs that creates a real
+risk of significant harm, we will notify affected subscribers and the Privacy Commissioner of Canada as
+PIPEDA requires</strong>, and give you what you need to notify your own clients.</p>
+
+<h2>8. Your rights</h2>
+<p>You may <strong>see</strong> the personal information we hold about you, <strong>correct</strong> it, <strong>export</strong> it, <strong>delete</strong> it,
+and <strong>withdraw consent</strong> to optional features. Most of this you can do yourself in the portal; for
+anything else, write to
+@if (string.IsNullOrWhiteSpace(privacyEmail)) { <span class="lg-todo">PRIVACY EMAIL</span> }
+else { <a href="mailto:@privacyEmail">@privacyEmail</a> }
+and we will respond within <strong>30 days</strong>. We may need to verify who you are first. Withdrawing consent to
+something the subscription depends on may mean we can no longer provide it.</p>
+<p>If you are unhappy with how we have handled your information, tell us first &mdash; we would rather fix it.
+You also have the right to complain to the <strong>Office of the Privacy Commissioner of Canada</strong>
+(priv.gc.ca, 1-800-282-1376).</p>
+
+<h2>9. Cookies</h2>
+<p>We use cookies that are necessary for the service to work: keeping you signed in, protecting forms
+against cross-site request forgery, and remembering interface preferences. We do not use advertising
+cookies, and we do not run third-party ad or social tracking pixels &mdash; on our site or on the public
+websites we host for subscribers.</p>
+
+<h2>10. Children</h2>
+<p>The platform is a business tool and is not intended for anyone under 18. We do not knowingly collect
+information from children. If you believe a child&rsquo;s information has reached us through one of our
+subscribers&rsquo; websites, contact us and we will help get it removed.</p>
+
+<h2>11. Changes to this policy</h2>
+<p>We will post any change here and update the date at the top. If a change materially affects how we
+handle personal information, we will notify subscribers by email or in the platform before it takes
+effect.</p>
