@@ -9,7 +9,8 @@ public interface INewsLetterService
     Task<NewsLetter> CreateAsync(NewsLetter newsletter);
     Task<NewsLetter?> DuplicateAsync(int id, int agentId);
     Task UpdateAsync(NewsLetter newsletter);
-    Task DeleteAsync(int id);
+    // No DeleteAsync on purpose -- see the note in NewsLetterService (F13): a hard delete cascades
+    // away delivery history and live unsubscribe tokens. Soft delete or nothing.
     Task ScheduleAsync(int id, DateTime scheduledAt);
     Task<NewsLetterSend?> ScheduleSendAsync(int newsletterId, int agentId, DateTime scheduledAt, NewsLetterAudienceType audienceType = NewsLetterAudienceType.AllSubscribers, int? clientCategoryId = null, int? clientId = null);
     Task<bool> CancelSendAsync(int sendId, int agentId);

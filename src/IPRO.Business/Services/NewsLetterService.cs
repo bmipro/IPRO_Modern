@@ -68,11 +68,12 @@ public class NewsLetterService : INewsLetterService
         await _uow.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
-    {
-        var nl = await _uow.NewsLetters.GetByIdAsync(id);
-        if (nl != null) { _uow.NewsLetters.Remove(nl); await _uow.SaveChangesAsync(); }
-    }
+    // DeleteAsync was removed on 2026-08-15 (auditor 5, F13). It had NO callers, and wiring it up
+    // would have been destructive: FK_NewsLetterRecipients_NewsLetters is ON DELETE CASCADE, so
+    // deleting a newsletter erases every recipient row -- the open/click/bounce delivery record AND
+    // the UnsubscribeToken for mail already sitting in inboxes, which breaks those unsubscribe links
+    // (CASL/CAN-SPAM exposure, same already-delivered-mail-breaks class as an expired image cert).
+    // If newsletter deletion is ever wanted, build it as a soft delete.
 
     public async Task ScheduleAsync(int id, DateTime scheduledAt)
     {

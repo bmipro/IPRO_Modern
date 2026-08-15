@@ -322,6 +322,11 @@ using (var scope = app.Services.CreateScope())
     await WebsiteTemplateSeeder.SeedAsync(db);
     await WebsiteStarterContentSeeder.SeedAsync(db, seedLogger);
     await WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db, seedLogger);
+
+    // LAST, after every schema repair and seeder: report any model relationship whose foreign key
+    // the database does not enforce and that is not in the known baseline (auditor 5, F14). Never
+    // fatal -- see SchemaIntegrityReporter.
+    await IPRO.DataAccess.SchemaIntegrityReporter.ReportAsync(db, "IPRO.Admin");
 }
 
 app.Run();

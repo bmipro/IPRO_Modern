@@ -560,6 +560,11 @@ using (var scope = app.Services.CreateScope())
     var blob = scope.ServiceProvider.GetRequiredService<IBlobStorageService>();
     await blob.EnsureContainerAccessAsync("portal-documents", isPrivate: true);
     await blob.EnsureContainerAccessAsync("agent-documents", isPrivate: true);
+
+    // LAST, after every schema repair and seeder: report any model relationship whose foreign key
+    // the database does not enforce and that is not in the known baseline (auditor 5, F14). Never
+    // fatal -- see SchemaIntegrityReporter.
+    await IPRO.DataAccess.SchemaIntegrityReporter.ReportAsync(db, "IPRO.Web");
 }
 
 app.Run();
