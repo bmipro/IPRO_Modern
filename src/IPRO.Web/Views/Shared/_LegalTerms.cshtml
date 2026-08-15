@@ -222,5 +222,5 @@ representations.</p>
 @if (string.IsNullOrWhiteSpace(supportEmail)) { <span class="lg-todo">SUPPORT EMAIL</span> }
 else { <a href="mailto:@supportEmail">@supportEmail</a> }
 &nbsp;&middot;&nbsp; iPro Advisers Inc.,
-@if (string.IsNullOrWhiteSpace(orgAddress)) { <span class="lg-todo">REGISTERED ADDRESS</span> }
-else { @orgAddress }, Ontario, Canada.</p>
+@if (string.IsNullOrWhiteSpace(orgAddress)) { <span class="lg-todo">REGISTERED ADDRESS</span><text>, Ontario, Canada.</text> }
+else { @orgAddress<text>.</text> }</p>

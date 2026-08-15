@@ -72,19 +72,45 @@ being able to show that we corrected it deliberately and told people.
 (first 60 minutes free, capped at one month's fee); 9–5 Eastern support hours; the
 substance of the acceptable-use list; entire-agreement and acknowledgement.
 
+## 2b. Two questions from Bahman's 15 Aug edits — please answer these
+
+**(a) The Privacy Commissioner sentence.** Bahman's replacement wording for Privacy s.8 was:
+
+> "If you are unhappy with how we have handled your information, tell us first — we try our best to
+> help you out. You could also cancel your services with us under 'Cancel anytime'"
+
+His wording is in. **The OPC sentence was kept as well**, and that was my call, not his instruction.
+Reasoning: PIPEDA gives individuals a statutory right to complain to the Commissioner. Omitting it
+while offering cancellation as the alternative reads as steering people away from their recourse —
+and cancellation is not a privacy remedy at all. It is also meaningless to the *other* group this
+policy covers: a subscriber's clients have no subscription to cancel, yet they are data subjects
+with the same rights. **Confirm keep or cut.** If cut, say so and it comes out.
+
+**(b) Which company is the legal entity?** Both documents say **iPro Advisers Inc.** throughout.
+The registered address Bahman supplied begins **iPro Accountants**:
+
+> iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
+
+It is rendering exactly as given, so the contact block currently reads "iPro Advisers Inc. /
+iPro Accountants, 3230 Yonge Street…", which looks like a care-of. That may be right if the office
+is shared, or the contracting entity may actually be iPro Accountants. **A contract naming the wrong
+entity is worth catching now.** Confirm the registered name, and whether the address line should
+keep "iPro Accountants" on it.
+
 ## 3. Placeholders that must be filled before publishing
 
-- `[SET ON PUBLICATION]` — effective date, both documents
-- `[REGISTERED ADDRESS]` — both documents
-- `[SUPPORT EMAIL]`, `[PRIVACY EMAIL]` — decide whether these are the same inbox
+- **Effective date** — still empty, both documents. Set when counsel signs off.
+- **Support email** — still empty. Terms §12 asks for one; Bahman supplied a privacy@ address
+  but not a support one. They should not silently become the same inbox.
 - **Legal entity name.** The old agreement uses "iPro advisers Inc.", "Ipro Advisers" and
-  "Ipro advisers" interchangeably. I standardised on **iPro Advisers Inc.** — confirm the
-  exact registered name and use it consistently.
-- **Azure region.** Privacy §4 says Canada; the repo shows `"Location": "Canada East"`.
-  Confirm every resource is actually in Canada — if any is not, the table must say so.
-- **Anthropic terms.** Privacy §3 states API content is not used to train models. Confirm
-  against Anthropic's current commercial terms before publishing.
+  "Ipro advisers" interchangeably. I standardised on **iPro Advisers Inc.** — see §2b(b), which
+  is now a live question rather than a tidy-up.
+- **Azure region.** Now reads "Eastern Canada" per Bahman. The repo shows `"Location": "Canada East"`.
+  Still worth confirming *every* resource sits there — if any does not, the table must say so.
 - **Discontinuation notice period.** Terms §3 offers 90 days. Confirm that is acceptable.
+
+Resolved 15 August 2026: registered address, privacy email, data region, and the Anthropic
+training question (Bahman confirmed; the caveat marker is removed from Privacy §3).
 
 ## 4. Wiring the pages up — DONE 15 August 2026
 
@@ -118,13 +144,24 @@ without pretending to be finished.
 
 Fill these Azure app settings, then set `Legal__ReviewComplete=true` to clear the banner:
 
+Four of the six are now filled in `src/IPRO.Web/appsettings.json` (they are public business details,
+not secrets, so they live with the code rather than in Azure config). **Two remain:**
+
 ```
-Legal__EffectiveDate      e.g. 1 September 2026
-Legal__RegisteredAddress  registered office, Ontario
-Legal__SupportEmail       shown in Terms s.12
-Legal__PrivacyEmail       shown in Privacy s.1 and s.8
-Legal__DataRegion         e.g. Canada East -- only after confirming every resource is there
-Legal__ReviewComplete     true  (last, once the five above are filled and counsel has signed off)
+Legal__EffectiveDate      STILL EMPTY -- set when counsel signs off
+Legal__SupportEmail       STILL EMPTY -- shown in Terms s.12. Bahman gave a privacy@ address
+                          but not a support one; they should not be the same inbox unless
+                          he wants them to be.
+```
+
+Already set, 15 August 2026:
+
+```
+Legal__RegisteredAddress  iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
+Legal__PrivacyEmail       privacy@iproadvisers.com
+Legal__DataRegion         Eastern Canada
+Legal__ReviewComplete     false  -- set true LAST, once the two above are filled and counsel
+                          has answered section 2b
 ```
 
 ### Two things noticed while wiring this up

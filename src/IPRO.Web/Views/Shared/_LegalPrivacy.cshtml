@@ -31,8 +31,8 @@
 professional-service firms. This policy explains what we do with personal information.</p>
 <p>There are two different relationships here and they matter:</p>
 <ul>
-  <li><strong>You, our subscriber.</strong> We hold your account and billing information, and we are
-      responsible for it.</li>
+  <li><strong>You, our subscriber.</strong> We hold your account and billing contact information, and we
+      are responsible for it.</li>
   <li><strong>Your clients.</strong> You upload information about them. It stays yours. We hold and process
       it on your behalf, to run the service for you &mdash; nothing else. We do not sell it, we do not
       market to your clients, and we do not use it to build anything for anyone else.</li>
@@ -41,8 +41,10 @@ professional-service firms. This policy explains what we do with personal inform
 
 <h2>1. Who to contact</h2>
 <p>iPro Advisers Inc.<br/>
-@if (string.IsNullOrWhiteSpace(orgAddress)) { <span class="lg-todo">REGISTERED ADDRESS</span> }
-else { @orgAddress }, Ontario, Canada<br/>
+@* The configured address already carries city/province/postcode, so nothing is appended to it.
+   Only the placeholder branch supplies "Ontario, Canada" for shape. *@
+@if (string.IsNullOrWhiteSpace(orgAddress)) { <span class="lg-todo">REGISTERED ADDRESS</span><text>, Ontario, Canada</text> }
+else { @orgAddress }<br/>
 Privacy questions and requests:
 @if (string.IsNullOrWhiteSpace(privacyEmail)) { <span class="lg-todo">PRIVACY EMAIL</span> }
 else { <a href="mailto:@privacyEmail">@privacyEmail</a> }</p>
@@ -104,7 +106,7 @@ The generated text comes back to your portal for you to review, edit or discard.
   <li>These features run <strong>only when your package includes them and you use them.</strong> They are not applied
       to your data in the background.</li>
   <li>Content sent to the API is processed to produce your result. Under our API terms with Anthropic, it
-      is not used to train their models. <span class="lg-todo">CONFIRM AGAINST CURRENT ANTHROPIC TERMS</span></li>
+      is not used to train their models.</li>
   <li>We record token counts per day for billing and capacity, not the content of your prompts.</li>
   <li><strong>AI output is a draft, not advice.</strong> Review it before it reaches a client. See section 9 of our
       <a href="/terms">Terms of Service</a>.</li>
@@ -182,8 +184,14 @@ anything else, write to
 else { <a href="mailto:@privacyEmail">@privacyEmail</a> }
 and we will respond within <strong>30 days</strong>. We may need to verify who you are first. Withdrawing consent to
 something the subscription depends on may mean we can no longer provide it.</p>
-<p>If you are unhappy with how we have handled your information, tell us first &mdash; we would rather fix it.
-You also have the right to complain to the <strong>Office of the Privacy Commissioner of Canada</strong>
+@* Bahman's wording, 15 Aug 2026. The Privacy Commissioner sentence was NOT in his replacement text
+   but is retained deliberately -- PIPEDA gives individuals a statutory right to complain to the OPC,
+   and a policy that omits it while pointing people at cancellation instead reads as steering them
+   away from their recourse. Flagged to him and to the reviewing lawyer; remove only on their say-so.
+   See DOCS/legal/README-review-notes.md. *@
+<p>If you are unhappy with how we have handled your information, tell us first &mdash; we try our best to
+help you out. You could also cancel your services with us under &ldquo;Cancel anytime&rdquo;. You have the
+right to complain to the <strong>Office of the Privacy Commissioner of Canada</strong> as well
 (priv.gc.ca, 1-800-282-1376).</p>
 
 <h2>9. Cookies</h2>

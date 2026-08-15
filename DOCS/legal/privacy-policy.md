@@ -16,7 +16,7 @@ firms. This policy explains what we do with personal information.
 
 There are two different relationships here and they matter:
 
-- **You, our subscriber.** We hold your account and billing information, and we are
+- **You, our subscriber.** We hold your account and billing contact information, and we are
   responsible for it.
 - **Your clients.** You upload information about them. It stays yours. We hold and process
   it on your behalf, to run the service for you — nothing else. We do not sell it, we do not
@@ -27,8 +27,8 @@ We do not sell personal information to anyone, ever.
 ## 1. Who to contact
 
 iPro Advisers Inc.
-**[REGISTERED ADDRESS]**, Ontario, Canada
-Privacy questions and requests: **[PRIVACY EMAIL]**
+iPro Accountants, 3230 Yonge Street, Suite 2005, Toronto, ON M4N 3P6
+Privacy questions and requests: **privacy@iproadvisers.com**
 
 If you are a client of one of our subscribers and you want your information corrected or
 removed, contact the adviser or firm you deal with — the information is theirs, and they
@@ -93,8 +93,7 @@ discard.
 - These features run **only when your package includes them and you use them.** They are not
   applied to your data in the background.
 - Content sent to the API is processed to produce your result. Under our API terms with
-  Anthropic, it is not used to train their models. **[CONFIRM against the current Anthropic
-  commercial terms before publishing.]**
+  Anthropic, it is not used to train their models.
 - We record token counts per day for billing and capacity, not the content of your prompts.
 - **AI output is a draft, not advice.** Review it before it reaches a client. See section 9
   of our [Terms of Service](/terms).
@@ -109,7 +108,7 @@ of them may use it for their own purposes.
 
 | Provider | What they handle | Where |
 |---|---|---|
-| **Microsoft Azure** | Hosting, database, uploaded files, diagnostic telemetry (Application Insights) | Canada **[CONFIRM REGION — repo shows "Canada East"]** |
+| **Microsoft Azure** | Hosting, database, uploaded files, diagnostic telemetry (Application Insights) | Eastern Canada |
 | **PayPal** | Subscription payments and card details | Canada / United States |
 | **SendGrid (Twilio)** | Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery | United States |
 | **Anthropic PBC** | AI drafting and daily-assistant content, when you use those features | United States |
@@ -172,13 +171,19 @@ clients.
 
 You may **see** the personal information we hold about you, **correct** it, **export** it,
 **delete** it, and **withdraw consent** to optional features. Most of this you can do yourself
-in the portal; for anything else, write to **[PRIVACY EMAIL]** and we will respond within
+in the portal; for anything else, write to **privacy@iproadvisers.com** and we will respond within
 **30 days**. We may need to verify who you are first. Withdrawing consent to something the
 subscription depends on may mean we can no longer provide it.
 
-If you are unhappy with how we have handled your information, tell us first — we would rather
-fix it. You also have the right to complain to the **Office of the Privacy Commissioner of
-Canada** (priv.gc.ca, 1-800-282-1376).
+If you are unhappy with how we have handled your information, tell us first — we try our best to
+help you out. You could also cancel your services with us under “Cancel anytime”. You have the
+right to complain to the **Office of the Privacy Commissioner of Canada** as well
+(priv.gc.ca, 1-800-282-1376).
+
+> **Retained deliberately, not an oversight.** The OPC sentence was not in Bahman's replacement
+> wording. It is kept because PIPEDA gives individuals a statutory right to complain to the
+> Commissioner, and a policy that omits it while pointing people at cancellation instead reads as
+> steering them away from that recourse. **Lawyer: please confirm keep or cut.**
 
 ## 9. Cookies
 
