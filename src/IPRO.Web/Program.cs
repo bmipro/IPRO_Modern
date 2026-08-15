@@ -688,7 +688,10 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     {
         await EnsureAgentDomainSchemaAsync(db);
         await EnsureTeamMemberSchemaAsync(db);
-        await EnsureBillingRuleSchemaAsync(db);
+        // Shared with IPRO.Admin (auditor 5, F4): the BillingRules/Invoices money columns live in
+        // IPRO.DataAccess.BillingRuleSchema so the two apps cannot drift -- Admin had silently
+        // fallen 10 columns behind this file's local copy.
+        await IPRO.DataAccess.BillingRuleSchema.EnsureAsync(db);
         await EnsureWebsiteTemplateColumnAsync(db, "BusinessType", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `BusinessType` longtext CHARACTER SET utf8mb4 NULL");
         await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
         await EnsureWebsiteTemplateColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
@@ -735,45 +738,6 @@ static async Task EnsureWebsiteTemplateSchemaAsync(IPRODbContext db)
     }
 }
 
-static async Task EnsureBillingRuleSchemaAsync(IPRODbContext db)
-{
-    await EnsureTableColumnAsync(db, "BillingRules", "MonthlyPrice", "ALTER TABLE `BillingRules` ADD COLUMN `MonthlyPrice` decimal(10,2) NOT NULL DEFAULT 0");
-    await EnsureTableColumnAsync(db, "BillingRules", "QuarterlyPrice", "ALTER TABLE `BillingRules` ADD COLUMN `QuarterlyPrice` decimal(10,2) NOT NULL DEFAULT 0");
-    await EnsureTableColumnAsync(db, "BillingRules", "AnnualPrice", "ALTER TABLE `BillingRules` ADD COLUMN `AnnualPrice` decimal(10,2) NOT NULL DEFAULT 0");
-    await EnsureTableColumnAsync(db, "BillingRules", "SetupFee", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFee` decimal(10,2) NOT NULL DEFAULT 0");
-    await EnsureTableColumnAsync(db, "BillingRules", "PayPalMonthlyPlanId", "ALTER TABLE `BillingRules` ADD COLUMN `PayPalMonthlyPlanId` longtext CHARACTER SET utf8mb4 NULL");
-    await EnsureTableColumnAsync(db, "BillingRules", "PayPalAnnualPlanId", "ALTER TABLE `BillingRules` ADD COLUMN `PayPalAnnualPlanId` longtext CHARACTER SET utf8mb4 NULL");
-    await EnsureTableColumnAsync(db, "BillingRules", "MaxClients", "ALTER TABLE `BillingRules` ADD COLUMN `MaxClients` int NOT NULL DEFAULT 500");
-    await EnsureTableColumnAsync(db, "BillingRules", "MaxNewsletters", "ALTER TABLE `BillingRules` ADD COLUMN `MaxNewsletters` int NOT NULL DEFAULT 12");
-    await EnsureTableColumnAsync(db, "BillingRules", "DefaultWebsiteTemplateId", "ALTER TABLE `BillingRules` ADD COLUMN `DefaultWebsiteTemplateId` int NULL");
-    await EnsureTableColumnAsync(db, "BillingRules", "IsActive", "ALTER TABLE `BillingRules` ADD COLUMN `IsActive` tinyint(1) NOT NULL DEFAULT TRUE");
-    await EnsureTableColumnAsync(db, "BillingRules", "CreatedAt", "ALTER TABLE `BillingRules` ADD COLUMN `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
-    await EnsureTableColumnAsync(db, "BillingRules", "IsTrialPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsTrialPackage` tinyint(1) NOT NULL DEFAULT FALSE");
-    await EnsureTableColumnAsync(db, "BillingRules", "TrialDurationDays", "ALTER TABLE `BillingRules` ADD COLUMN `TrialDurationDays` int NULL");
-    await EnsureTableColumnAsync(db, "BillingRules", "TrialReminderDayOffsets", "ALTER TABLE `BillingRules` ADD COLUMN `TrialReminderDayOffsets` varchar(120) CHARACTER SET utf8mb4 NULL");
-    await EnsureTableColumnAsync(db, "BillingRules", "IsHiddenTestPackage", "ALTER TABLE `BillingRules` ADD COLUMN `IsHiddenTestPackage` tinyint(1) NOT NULL DEFAULT FALSE");
-    await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaived", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaived` tinyint(1) NOT NULL DEFAULT FALSE");
-    await EnsureTableColumnAsync(db, "BillingRules", "SetupFeeWaivedUntil", "ALTER TABLE `BillingRules` ADD COLUMN `SetupFeeWaivedUntil` datetime(6) NULL");
-
-    // Quebec's 14.975% needs 5 decimals as a fraction (0.14975); the original decimal(7,4) column
-    // rounded it to 0.1498, so invoices displayed "14.980 %" beside a region label saying 14.975%.
-    await EnsureDecimalColumnScaleAsync(db, "Invoices", "TaxRate", 5, "ALTER TABLE `Invoices` MODIFY COLUMN `TaxRate` decimal(7,5) NOT NULL");
-
-    // Bill-to snapshot: invoices are financial records retained after their agent is deleted, so the
-    // bill-to must live ON the invoice. Backfill fills blanks from AgentUsers while the row still
-    // exists; it runs every startup and touches only invoices whose snapshot is empty.
-    await EnsureTableColumnAsync(db, "Invoices", "BillToName", "ALTER TABLE `Invoices` ADD COLUMN `BillToName` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
-    await EnsureTableColumnAsync(db, "Invoices", "BillToCompany", "ALTER TABLE `Invoices` ADD COLUMN `BillToCompany` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
-    await EnsureTableColumnAsync(db, "Invoices", "BillToEmail", "ALTER TABLE `Invoices` ADD COLUMN `BillToEmail` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
-    await EnsureTableColumnAsync(db, "Invoices", "BillToAddress", "ALTER TABLE `Invoices` ADD COLUMN `BillToAddress` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
-    await db.Database.ExecuteSqlRawAsync(
-        "UPDATE `Invoices` i JOIN `AgentUsers` a ON a.Id = i.AgentUserId SET " +
-        "i.BillToName = CASE WHEN TRIM(CONCAT(COALESCE(a.FirstName,''),' ',COALESCE(a.LastName,''))) = '' THEN COALESCE(a.UserName,'') ELSE TRIM(CONCAT(COALESCE(a.FirstName,''),' ',COALESCE(a.LastName,''))) END, " +
-        "i.BillToCompany = COALESCE(a.CompanyName,''), " +
-        "i.BillToEmail = COALESCE(a.Email,''), " +
-        "i.BillToAddress = CONCAT_WS('\\n', NULLIF(a.CompanyAddress,''), NULLIF(a.City,''), NULLIF(TRIM(CONCAT(COALESCE(a.Province,''),' ',COALESCE(a.PostalCode,''))),''), NULLIF(a.Country,'')) " +
-        "WHERE i.BillToName = ''");
-}
 
 // Widens a decimal column whose scale proved too small. Only ever widens: if the live column's
 // NUMERIC_SCALE is already at or above the requested scale, nothing runs, so this is idempotent
