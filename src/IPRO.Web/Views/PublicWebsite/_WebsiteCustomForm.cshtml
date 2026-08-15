@@ -12,7 +12,7 @@
         : Context.Request.Path.ToString();
     var captchaToken = DataProtectionProvider
         .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
-        .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+        .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}"); // nonce -> single-use (422g)
     var answerIndex = 0;
 }
 <div class="website-lead-form-shell">

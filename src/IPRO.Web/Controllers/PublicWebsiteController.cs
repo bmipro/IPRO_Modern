@@ -1,6 +1,7 @@
 using IPRO.DataAccess;
 using IPRO.Business.Interfaces;
 using IPRO.Email;
+using Microsoft.Extensions.Caching.Memory;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
@@ -26,8 +27,9 @@ public class PublicWebsiteController : Controller
     private readonly IDataProtector _captchaProtector;
     private readonly IDataProtector _leadMagnetProtector;
     private readonly IBlobStorageService _blob;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
-    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider, IBlobStorageService blob)
+    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider, IBlobStorageService blob, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
     {
         _db = db;
         _entitlements = entitlements;
@@ -37,6 +39,7 @@ public class PublicWebsiteController : Controller
         _captchaProtector = dataProtectionProvider.CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1");
         _leadMagnetProtector = dataProtectionProvider.CreateProtector("IPRO.Web.PublicWebsite.LeadMagnetDownload.v1");
         _blob = blob;
+        _cache = cache;
     }
 
     public async Task<IActionResult> Index()
@@ -331,6 +334,33 @@ public class PublicWebsiteController : Controller
         }
 
         var now = DateTime.UtcNow;
+
+        // Abuse cap (audit item 422g): this queue emails whatever address the visitor typed, with no
+        // verification that they own it. The captcha (now single-use) and the SubmitLead rate limit
+        // gate the front door, but the queue itself must also refuse to become a mail cannon aimed
+        // at someone else's inbox: skip articles this client already has queued or received, and cap
+        // the address at 10 queued items per 24 hours. Legitimate visitors never notice either rule.
+        var alreadyQueuedArticleIds = await _db.DidYouKnowEmailQueueItems
+            .Where(q => q.ClientId == client.Id)
+            .Select(q => q.ArticleId)
+            .ToListAsync();
+        var recentCount = await _db.DidYouKnowEmailQueueItems
+            .CountAsync(q => q.ClientId == client.Id && q.CreatedAt > now.AddHours(-24));
+
+        ordered = ordered.Where(a => !alreadyQueuedArticleIds.Contains(a.Id)).ToList();
+        var capacity = Math.Max(0, 10 - recentCount);
+        if (ordered.Count == 0 || capacity == 0)
+        {
+            _logger.LogWarning(
+                "Did You Know queueing capped for {Email}: {Requested} article(s) requested, {Recent} queued in the last 24h, duplicates removed. Nothing added.",
+                client.Email, articleIds.Count, recentCount);
+            return 0;
+        }
+        if (ordered.Count > capacity)
+        {
+            ordered = ordered.Take(capacity).ToList();
+        }
+
         var scheduledFor = now.AddMinutes(1);
         foreach (var article in ordered)
         {
@@ -959,7 +989,10 @@ public class PublicWebsiteController : Controller
         {
             var payload = _captchaProtector.Unprotect(token);
             var parts = payload.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2 ||
+            // 3 parts since 2026-08-15: answer|issuedAt|nonce. 2-part tokens are still accepted for
+            // the 30-minute grace so forms rendered by the previous build don't all fail at deploy,
+            // but they age out on their own; every new token carries a nonce.
+            if (parts.Length is not (2 or 3) ||
                 !int.TryParse(parts[0], out var expected) ||
                 !long.TryParse(parts[1], out var issuedAt) ||
                 !int.TryParse(answer.Trim(), out var actual))
@@ -968,7 +1001,28 @@ public class PublicWebsiteController : Controller
             }
 
             var age = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - issuedAt;
-            return age >= 0 && age <= 1800 && actual == expected;
+            if (age < 0 || age > 1800 || actual != expected)
+            {
+                return false;
+            }
+
+            // SINGLE-USE (audit item 422g). The token used to stay valid for its whole 30-minute
+            // window, so a bot that solved one 2+7 could replay the same token+answer pair hundreds
+            // of times, turning the captcha into a one-time cost. A successful submission now burns
+            // the nonce for the remainder of the token's lifetime; replays fail like a wrong answer.
+            // In-memory is sufficient: the app runs single-instance, and the worst case after a
+            // restart is one extra use of a token issued in the prior 30 minutes.
+            if (parts.Length == 3)
+            {
+                var nonceKey = $"captcha-used:{parts[2]}";
+                if (_cache.TryGetValue(nonceKey, out _))
+                {
+                    return false;
+                }
+                _cache.Set(nonceKey, true, TimeSpan.FromMinutes(31));
+            }
+
+            return true;
         }
         catch
         {
