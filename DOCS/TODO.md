@@ -142,6 +142,40 @@ not to be decisive on the strictest recipient available.
 
 ---
 
+## Legal pages — shipped as draft, blocked on review (2026-08-15)
+
+`/terms` and `/privacy` now exist and are linked from the site footer and the signup checkbox.
+Neither existed before; the signup form required agreement to a document that was never published,
+and there was no privacy policy at all.
+
+**Both pages carry a visible draft banner and `noindex` until a lawyer signs off.** They are not
+the operative agreement yet. Unfilled values render as yellow highlights so they cannot be shipped
+unnoticed.
+
+- [ ] **Lawyer review.** Lead with clause 7 of the superseded agreement (archived at
+      `DOCS/legal/archive/2026-08-15-superseded-online-subscription-agreement.txt`): it purported to
+      grant *the public* an unrestricted licence to everything a subscriber uploaded, including
+      client data, and to waive their copyright. Every agent who has signed up agreed to it.
+      New Terms s.4 replaces it. **Ask counsel whether existing subscribers must re-accept or
+      whether notice under old clause 3 suffices.**
+- [ ] **Fill and then flip** these Azure app settings — `Legal__EffectiveDate`,
+      `Legal__RegisteredAddress`, `Legal__SupportEmail`, `Legal__PrivacyEmail`, `Legal__DataRegion`,
+      then `Legal__ReviewComplete=true` last.
+- [ ] **Confirm two facts** the privacy policy asserts: that every Azure resource really is in
+      Canada East, and Anthropic's current commercial terms on not training from API content.
+- [ ] `Support:NotificationEmail` in `src/IPRO.Web/appsettings.json` is still the literal
+      `CHANGE_THIS_SUPPORT_EMAIL`. Confirm it is overridden in Azure — if not, support
+      notifications are going nowhere.
+- [ ] `BillingCompany` has a name, email and website but **no postal address**. Invoices and the
+      legal pages both want one. Consider making `Legal__RegisteredAddress` the single source and
+      having invoices read it, rather than adding a second copy.
+
+Reviewer's copy and the full change log: `DOCS/legal/` — start with `README-review-notes.md`.
+The shipped text lives in `Views/Shared/_LegalTerms.cshtml` and `_LegalPrivacy.cshtml`; **edits to
+the markdown must be carried into the partials**, which are what the site actually serves.
+
+---
+
 ## Where to look for detail
 
 | For | Read |
