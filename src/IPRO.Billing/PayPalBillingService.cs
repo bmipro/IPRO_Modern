@@ -864,7 +864,7 @@ public class PayPalBillingService : IBillingService
         return true;
     }
 
-    private async Task<bool> HandleSubscriptionPaymentFailedWebhookAsync(string subscriptionId, string transactionId)
+    internal async Task<bool> HandleSubscriptionPaymentFailedWebhookAsync(string subscriptionId, string transactionId)
     {
         if (string.IsNullOrWhiteSpace(subscriptionId))
         {
@@ -874,6 +874,36 @@ public class PayPalBillingService : IBillingService
         var billing = await _uow.Billings.FirstOrDefaultAsync(b => b.PayPalSubscriptionId == subscriptionId);
         if (billing == null)
         {
+            return true;
+        }
+
+        // ONE open failure marker per billing, ever (audit item 422d). This used to mint a fresh
+        // numbered unpaid invoice for EVERY failure delivery -- and PayPal retries a failing payment
+        // on its own schedule and redelivers the webhook on top, so one bad card produced a pile of
+        // phantom invoices consuming real invoice numbers, cluttering Revenue as unpaid rows, and
+        // competing to be "oldest unpaid" when a success finally arrived. The marker invoice itself
+        // is load-bearing (NotifyBillingIssuesAsync keys the dunning email on it), so the first
+        // failure still creates it; subsequent failures append their transaction ids to the same
+        // marker for the audit trail. When the retry eventually succeeds, the completed handler
+        // settles this marker and the ledger shows one invoice: failed attempts, then paid.
+        var invoices = await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id);
+
+        // Replay of a failure event we already recorded: acknowledge, change nothing.
+        if (!string.IsNullOrWhiteSpace(transactionId) &&
+            invoices.Any(i => (i.PayPalTransactionId ?? string.Empty).Contains(transactionId)))
+        {
+            return true;
+        }
+
+        var openMarker = invoices
+            .Where(i => !i.IsPaid && (i.PayPalTransactionId ?? string.Empty).Contains("PAYPAL_FAILED:"))
+            .OrderByDescending(i => i.IssuedAt)
+            .FirstOrDefault();
+        if (openMarker != null)
+        {
+            openMarker.PayPalTransactionId = $"{openMarker.PayPalTransactionId}, PAYPAL_FAILED:{transactionId}";
+            _uow.Invoices.Update(openMarker);
+            await _uow.SaveChangesAsync();
             return true;
         }
 
@@ -887,7 +917,7 @@ public class PayPalBillingService : IBillingService
         return true;
     }
 
-    private async Task<bool> HandleSubscriptionPaymentCompletedWebhookAsync(string subscriptionId, string transactionId, decimal amount)
+    internal async Task<bool> HandleSubscriptionPaymentCompletedWebhookAsync(string subscriptionId, string transactionId, decimal amount)
     {
         if (string.IsNullOrWhiteSpace(subscriptionId))
         {
@@ -900,13 +930,41 @@ public class PayPalBillingService : IBillingService
             return true;
         }
 
-        var pendingInvoice = (await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id && !i.IsPaid))
+        // REPLAY GUARD, before any window logic (audit item 422c). PayPal redelivers events -- on
+        // retry schedules that reach DAYS, and again when webhooks are resent by hand (2026-08-10,
+        // three resends). The absorb window below only recognises a duplicate for 6 hours, so a
+        // replay arriving later minted a second PAID invoice for the same charge. A transaction id
+        // is globally unique at PayPal: if ANY invoice on this billing already records it (alone, in
+        // a comma-joined list, or as a PAYPAL_FAILED marker), this delivery has been processed --
+        // acknowledge and stop. Time plays no part, so a replay is idempotent forever.
+        if (!string.IsNullOrWhiteSpace(transactionId))
+        {
+            var alreadyRecorded = (await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id))
+                .Any(i => (i.PayPalTransactionId ?? string.Empty).Contains(transactionId));
+            if (alreadyRecorded)
+            {
+                return true;
+            }
+        }
+
+        // Settle the unpaid invoice whose TOTAL matches what PayPal actually charged, and only fall
+        // back to oldest-first when nothing matches (audit item 422d, second half). Oldest-first
+        // alone could mark a failed-payment marker or a pending upgrade invoice as paid by an
+        // unrelated charge, misstating which bill the money settled.
+        var unpaidInvoices = (await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id && !i.IsPaid))
             .OrderBy(i => i.IssuedAt)
-            .FirstOrDefault();
+            .ToList();
+        var pendingInvoice = amount > 0
+            ? unpaidInvoices.FirstOrDefault(i => Math.Abs(i.Total - amount) <= 0.02m) ?? unpaidInvoices.FirstOrDefault()
+            : unpaidInvoices.FirstOrDefault();
         if (pendingInvoice != null)
         {
             pendingInvoice.IsPaid = true;
-            pendingInvoice.PayPalTransactionId = transactionId;
+            // A failed-payment marker being settled by the successful retry keeps its failure ids
+            // for the audit trail; the settling transaction is appended, not overwritten.
+            pendingInvoice.PayPalTransactionId = string.IsNullOrWhiteSpace(pendingInvoice.PayPalTransactionId)
+                ? transactionId
+                : $"{pendingInvoice.PayPalTransactionId}, {transactionId}";
             _uow.Invoices.Update(pendingInvoice);
         }
         else

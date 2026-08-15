@@ -18,6 +18,11 @@
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.Core" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The webhook handlers are internal-not-private so the integration tests can drive them
+         directly: HandleWebhookAsync's PayPal signature verification requires a live API call. -->
+    <InternalsVisibleTo Include="IPRO.IntegrationTests" />
+  </ItemGroup>
 </Project>
 
 
