@@ -1566,7 +1566,6 @@ public class PayPalBillingService : IBillingService
         {
             BillingId = billingId,
             AgentUserId = userId,
-            InvoiceNumber = await GenerateInvoiceNumberAsync(issuedAt),
             SubTotal = subtotal,
             TaxAmount = taxAmount,
             TaxRate = taxRate,
@@ -1582,7 +1581,30 @@ public class PayPalBillingService : IBillingService
         };
 
         await _uow.Invoices.AddAsync(invoice);
-        await _uow.SaveChangesAsync();
+
+        // Number generation is MAX(existing)+1 read from committed rows, so two concurrent writers
+        // (a PayPal webhook racing SubscriptionBillingJob, or the app scaled past one instance) can
+        // both compute the same number. The unique index on InvoiceNumber then makes the LOSER throw
+        // -- and this code runs AFTER PayPal has captured the money, so the old behaviour didn't
+        // produce a duplicate number, it produced a PAID CHARGE WITH NO INVOICE ROW: the same end
+        // state as the 2026-08-14 invoice loss by a different route (auditor 5, F12; observed live
+        // on 2026-08-10 when two webhook resends raced). The index stays the arbiter; the loser now
+        // re-reads and takes the next number instead of losing the invoice.
+        for (var attempt = 1; ; attempt++)
+        {
+            invoice.InvoiceNumber = await GenerateInvoiceNumberAsync(issuedAt);
+            try
+            {
+                await _uow.SaveChangesAsync();
+                break;
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+                when (attempt <= 5 && IsDuplicateInvoiceNumber(ex))
+            {
+                // Another writer committed this number between our MAX() read and the insert. The
+                // entity is still tracked as Added; loop to take a fresh number and save again.
+            }
+        }
 
         var sortOrder = 10;
         foreach (var line in lines)
@@ -1611,6 +1633,13 @@ public class PayPalBillingService : IBillingService
         await _uow.SaveChangesAsync();
         return invoice;
     }
+
+    // True when a DbUpdateException is specifically the InvoiceNumber unique index rejecting a
+    // duplicate -- the one failure the retry loop above may safely absorb. Anything else re-throws.
+    private static bool IsDuplicateInvoiceNumber(Microsoft.EntityFrameworkCore.DbUpdateException ex) =>
+        ex.InnerException is MySqlConnector.MySqlException mysql
+        && mysql.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry
+        && mysql.Message.Contains("InvoiceNumber", StringComparison.OrdinalIgnoreCase);
 
     private async Task<string> GenerateInvoiceNumberAsync(DateTime issuedAt)
     {
