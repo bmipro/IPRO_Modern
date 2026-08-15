@@ -85,6 +85,42 @@ public static class WebsiteStarterFormSeeder
                     Field(WebsiteFormFieldTypes.Dropdown, "Do you have your tax slips/documents ready?", required: true, options: new[] { "Yes", "No", "Not sure what I need" }),
                     Field(WebsiteFormFieldTypes.Text, "Preferred Appointment Timeframe"),
                     Field(WebsiteFormFieldTypes.Textarea, "Anything specific to flag before we meet?")),
+
+                // "Request a Meeting" family, one per vertical -- adapted from the owner's reference
+                // designs (2026-08-15). These are what provisioning wires onto every new agent's
+                // /request-meeting page (WebsiteStarterPagesHelper matches on this exact title), so
+                // renaming one here without updating the helper downgrades new signups to the plain
+                // contact block. Name/email/phone are NOT fields: the public renderer already builds
+                // those in. The Insurance and Financial reference forms are deliberately merged --
+                // Insurance / Financial is one vertical in this product.
+                MeetingTemplate("All",
+                    "Tell us what you would like to talk through, pick a time that suits you, and we will confirm your meeting within one business day.",
+                    Field(WebsiteFormFieldTypes.Dropdown, "What would you like to discuss?", required: true,
+                        options: new[] { "Getting started as a new client", "Reviewing my current situation", "A specific question", "Something else" })),
+
+                MeetingTemplate("Insurance / Financial",
+                    "Protect what matters and plan what is next. Tell us what you would like to cover and we will confirm your meeting within one business day.",
+                    Field(WebsiteFormFieldTypes.Dropdown, "What would you like to discuss?", required: true,
+                        options: new[] { "Life insurance (term or permanent)", "Income protection / disability", "Critical illness coverage", "Reviewing an existing policy", "Retirement planning", "Wealth & investment management", "Estate & generational planning", "Tax-efficient investing", "Something else" }),
+                    Field(WebsiteFormFieldTypes.Dropdown, "Who is this for?", required: true,
+                        options: new[] { "Myself", "My family", "My business or employees" })),
+
+                MeetingTemplate("Mortgage",
+                    "Take 60 seconds to request your mortgage consultation. We will confirm your meeting details within one business day.",
+                    Field(WebsiteFormFieldTypes.Dropdown, "What are you looking to do?", required: true,
+                        options: new[] { "Buy my first home", "Buy my next home / move", "Refinance or renew", "Invest in property" }),
+                    Field(WebsiteFormFieldTypes.Dropdown, "Employment status", required: true,
+                        options: new[] { "Full-time employee", "Self-employed / business owner", "Contract / temporary", "Retired" }),
+                    Field(WebsiteFormFieldTypes.Text, "Estimated purchase price or property value", placeholder: "e.g. $450,000")),
+
+                MeetingTemplate("Accountants",
+                    "Tell us about your business or tax situation and we will confirm your meeting details within one business day.",
+                    Field(WebsiteFormFieldTypes.Dropdown, "Business / entity type", required: true,
+                        options: new[] { "Individual / employed", "Sole proprietor / freelancer", "Partnership", "Corporation" }),
+                    Field(WebsiteFormFieldTypes.Dropdown, "Service needed", required: true,
+                        options: new[] { "Annual tax preparation & filing", "Ongoing bookkeeping & payroll", "Corporate advisory / fractional CFO", "CRA / tax authority audit assistance" }),
+                    Field(WebsiteFormFieldTypes.Dropdown, "Estimated annual business revenue (if applicable)",
+                        options: new[] { "Pre-revenue / startup", "Under $100,000", "$100,000 - $500,000", "$500,000 - $2,000,000", "Over $2,000,000" })),
             };
 
             var missing = desired.Where(t => !existingKeys.Contains((t.BusinessType, t.Title))).ToList();
@@ -97,6 +133,8 @@ public static class WebsiteStarterFormSeeder
                     BusinessType = template.BusinessType,
                     Title = template.Title,
                     Description = template.Description,
+                    SubmitButtonText = template.SubmitButtonText,
+                    SuccessMessage = template.SuccessMessage,
                     SortOrder = template.SortOrder,
                     IsActive = true
                 };
@@ -139,10 +177,34 @@ public static class WebsiteStarterFormSeeder
     private static FormTemplate Template(string businessType, string title, string description, int sortOrder, params FieldSeed[] fields) =>
         new(businessType, title, description, sortOrder, fields);
 
+    // Vertical-specific fields go first; every meeting form then shares the same logistics tail
+    // (format, preferred time, notes) so the family stays consistent as verticals are added.
+    private static FormTemplate MeetingTemplate(string businessType, string description, params FieldSeed[] verticalFields) =>
+        new(businessType, MeetingFormTitle, description, 2,
+            verticalFields.Concat(new[]
+            {
+                Field(WebsiteFormFieldTypes.Dropdown, "Preferred meeting format", required: true,
+                    options: new[] { "Video call (Zoom / Teams)", "Phone call", "In person at the office" }),
+                Field(WebsiteFormFieldTypes.DateTime, "Preferred date & time", required: true,
+                    helpText: "We will confirm or suggest the closest available time."),
+                Field(WebsiteFormFieldTypes.Textarea, "Anything else we should know?",
+                    placeholder: "Timelines, specific concerns, or anything you would like us to prepare for..."),
+            }).ToArray())
+        {
+            SubmitButtonText = "Request my meeting",
+            SuccessMessage = "Thank you - your meeting request is in. We will confirm the details by email within one business day."
+        };
+
+    public const string MeetingFormTitle = "Request a Meeting";
+
     private static FieldSeed Field(string fieldType, string label, string placeholder = "", string helpText = "", bool required = false, string[]? options = null) =>
         new(fieldType, label, placeholder, helpText, required, options ?? System.Array.Empty<string>());
 
-    private record FormTemplate(string BusinessType, string Title, string Description, int SortOrder, FieldSeed[] Fields);
+    private record FormTemplate(string BusinessType, string Title, string Description, int SortOrder, FieldSeed[] Fields)
+    {
+        public string SubmitButtonText { get; init; } = "Submit";
+        public string SuccessMessage { get; init; } = "Thank you. Your response was sent.";
+    }
 
     private record FieldSeed(string FieldType, string Label, string Placeholder, string HelpText, bool IsRequired, string[] Options);
 }

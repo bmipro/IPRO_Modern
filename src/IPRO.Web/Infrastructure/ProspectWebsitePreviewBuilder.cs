@@ -285,6 +285,53 @@ public static class ProspectWebsitePreviewBuilder
             }
         }
 
+        // Request Meeting form -- mirrors WebsiteStarterPagesHelper, which swaps the seeded contact
+        // block for the vertical's "Request a Meeting" form at signup. Real provisioning copies the
+        // template into a saved WebsiteForm and references its database id; here fake negative ids
+        // serve the same purpose (the form is render-only: _WebsiteCustomForm disables submission
+        // whenever IsProspectPreview is set, same gate as the testimonial form).
+        var formsByBlockId = new Dictionary<int, PublicFormBlockData>();
+        var meetingPage = pages.FirstOrDefault(p => string.Equals(p.Slug, "request-meeting", StringComparison.OrdinalIgnoreCase));
+        var meetingBlock = meetingPage?.Blocks.FirstOrDefault(b => b.BlockType == WebsiteBlockTypes.ContactForm);
+        if (meetingBlock != null)
+        {
+            var meetingTemplate = (await db.WebsiteStarterForms
+                    .AsNoTracking()
+                    .Where(f => f.IsActive && f.Title == WebsiteStarterFormSeeder.MeetingFormTitle &&
+                                (f.BusinessType == prospect.BusinessType || f.BusinessType == "All"))
+                    .ToListAsync())
+                .OrderByDescending(f => f.BusinessType == prospect.BusinessType)
+                .FirstOrDefault();
+            if (meetingTemplate != null)
+            {
+                var templateFields = await db.WebsiteStarterFormFields.AsNoTracking()
+                    .Where(f => f.WebsiteStarterFormId == meetingTemplate.Id).OrderBy(f => f.SortOrder).ToListAsync();
+                var templateFieldIds = templateFields.Select(f => f.Id).ToList();
+                var templateOptions = await db.WebsiteStarterFormFieldOptions.AsNoTracking()
+                    .Where(o => templateFieldIds.Contains(o.WebsiteStarterFormFieldId)).OrderBy(o => o.SortOrder).ToListAsync();
+
+                meetingBlock.BlockType = WebsiteBlockTypes.Form;
+                formsByBlockId[meetingBlock.Id] = new PublicFormBlockData
+                {
+                    WebsiteFormId = NextId(),
+                    Title = meetingTemplate.Title,
+                    Description = meetingTemplate.Description,
+                    SubmitButtonText = meetingTemplate.SubmitButtonText,
+                    SuccessMessage = meetingTemplate.SuccessMessage,
+                    Fields = templateFields.Select(f => new PublicFormField
+                    {
+                        FieldId = NextId(),
+                        FieldType = f.FieldType,
+                        Label = f.Label,
+                        Placeholder = f.Placeholder,
+                        HelpText = f.HelpText,
+                        IsRequired = f.IsRequired,
+                        Options = templateOptions.Where(o => o.WebsiteStarterFormFieldId == f.Id).Select(o => o.Text).ToList()
+                    }).ToList()
+                };
+            }
+        }
+
         var currentPage = string.IsNullOrWhiteSpace(prospect.Page)
             ? null
             : pages.FirstOrDefault(p => string.Equals(p.Slug, prospect.Page, StringComparison.OrdinalIgnoreCase));
@@ -296,7 +343,8 @@ public static class ProspectWebsitePreviewBuilder
             Pages = pages,
             CurrentPage = currentPage,
             ApprovedTestimonials = BuildTestimonials(prospect.BusinessType),
-            ArticleContentByBlockId = articleContentByBlockId
+            ArticleContentByBlockId = articleContentByBlockId,
+            FormsByBlockId = formsByBlockId
         };
     }
 

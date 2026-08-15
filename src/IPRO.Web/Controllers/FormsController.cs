@@ -83,43 +83,7 @@ public class FormsController : Controller
             && f.IsActive && (f.BusinessType == businessType || f.BusinessType == "All"));
         if (template == null) return NotFound();
 
-        var templateFields = await _db.WebsiteStarterFormFields.Where(f => f.WebsiteStarterFormId == template.Id).OrderBy(f => f.SortOrder).ToListAsync();
-        var templateFieldIds = templateFields.Select(f => f.Id).ToList();
-        var templateOptions = await _db.WebsiteStarterFormFieldOptions.Where(o => templateFieldIds.Contains(o.WebsiteStarterFormFieldId)).OrderBy(o => o.SortOrder).ToListAsync();
-
-        var form = new WebsiteForm
-        {
-            AgentUserId = AgentId,
-            Title = template.Title,
-            Description = template.Description,
-            SubmitButtonText = template.SubmitButtonText,
-            SuccessMessage = template.SuccessMessage,
-            IsActive = true
-        };
-        _db.WebsiteForms.Add(form);
-        await _db.SaveChangesAsync();
-
-        foreach (var templateField in templateFields)
-        {
-            var field = new WebsiteFormField
-            {
-                WebsiteFormId = form.Id,
-                FieldType = templateField.FieldType,
-                Label = templateField.Label,
-                Placeholder = templateField.Placeholder,
-                HelpText = templateField.HelpText,
-                IsRequired = templateField.IsRequired,
-                SortOrder = templateField.SortOrder
-            };
-            _db.WebsiteFormFields.Add(field);
-            await _db.SaveChangesAsync();
-
-            foreach (var option in templateOptions.Where(o => o.WebsiteStarterFormFieldId == templateField.Id))
-            {
-                _db.WebsiteFormFieldOptions.Add(new WebsiteFormFieldOption { WebsiteFormFieldId = field.Id, Text = option.Text, SortOrder = option.SortOrder });
-            }
-            await _db.SaveChangesAsync();
-        }
+        var form = await IPRO.DataAccess.WebsiteFormTemplateCopier.CopyToAgentAsync(_db, template, AgentId);
 
         TempData["Success"] = $"Template adopted as '{form.Title}'. Use it as-is, or make changes below.";
         return RedirectToAction(nameof(Edit), new { id = form.Id });

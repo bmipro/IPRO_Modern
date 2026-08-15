@@ -15,6 +15,7 @@ A way to build a custom form once — with text fields, multi-line text, checkbo
    - **Checkboxes (select multiple)** — a group of options a visitor can pick any number of, e.g. "which services are you interested in?"
    - **Dropdown (select one)** — a single choice from a list.
    - **Section header** — a heading with no input of its own, used to break a long form into clearly labeled parts.
+   - **Date & time picker** — a calendar/clock input, e.g. "preferred meeting time."
 5. For Checkbox and Dropdown fields, add 2 or more answer options.
 6. Mark a field **Required** if a visitor must fill it in before submitting (not available on Section headers).
 7. Click **Save Form**.
@@ -31,6 +32,15 @@ edit it right away, or leave it exactly as it is and attach it to a page.
 A template you adopt becomes a completely independent form the moment you adopt it: it's yours to edit
 or delete, and it stays exactly as you left it even if the original template is later changed or removed
 from the library.
+
+## The Request Meeting Page Comes Pre-Wired
+
+Every new website starts with a **Request Meeting** page that already carries a real meeting-request
+form matched to your business type — what you'd like to discuss, who it's for (or loan intent /
+entity type for Mortgage / Accountants), preferred meeting format, a date & time picker, and a notes
+box. It appears in your Forms list as **"Request a Meeting"** the moment your site is created, so you
+can edit its questions like any other form, and submissions land in Website Leads like any other form.
+IPRO manages the per-vertical master templates in SuperAdmin → Starter Forms; your copy is yours alone.
 
 ## Attach a Form to a Page
 

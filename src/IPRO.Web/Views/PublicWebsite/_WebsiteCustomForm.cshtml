@@ -3,6 +3,9 @@
 @inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
 @{
     var formId = $"website-form-{Guid.NewGuid():N}";
+    // Same isPreview gate as _TestimonialForm -- the prospect-preview flow now renders the Request
+    // Meeting form to strangers, and its fake negative form id must never reach SubmitCustomForm.
+    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true || ViewBag.IsProspectPreview == true;
     var submitted = Context.Request.Query["submitted"].ToString();
     var submittedFormId = Context.Request.Query["formId"].ToString();
     var captchaLeft = Random.Shared.Next(2, 10);
@@ -27,6 +30,10 @@
     {
       <div class="website-lead-error" role="alert">@formError</div>
     }
+    @if (isPreview)
+    {
+      <div class="website-lead-preview-note" role="note"><i class="fas fa-circle-info"></i> Preview only -- this form can't be submitted here.</div>
+    }
     @if (!string.IsNullOrWhiteSpace(Model.Description))
     {
       <p class="website-form-description">@Model.Description</p>
@@ -45,6 +52,7 @@
         <label><span>Phone</span><input name="Phone" maxlength="40" autocomplete="tel" /></label>
       </div>
 
+      <div class="website-form-fields">
       @foreach (var field in Model.Fields)
       {
         if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Section)
@@ -61,7 +69,9 @@
         {
           var idx = answerIndex;
           answerIndex++;
-          <div class="website-form-field">
+          var isWide = field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Textarea
+              || field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.CheckboxGroup;
+          <div class="website-form-field @(isWide ? "website-form-field--wide" : "")">
             <input type="hidden" name="Answers[@idx].FieldId" value="@field.FieldId" />
             <label>
               <span>@field.Label @(field.IsRequired ? "*" : "")</span>
@@ -88,6 +98,10 @@
                   }
                 </span>
               }
+              else if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.DateTime)
+              {
+                <input type="datetime-local" name="Answers[@idx].Values" required="@(field.IsRequired ? "required" : null)" />
+              }
               else
               {
                 <input type="text" name="Answers[@idx].Values" maxlength="500" placeholder="@field.Placeholder" required="@(field.IsRequired ? "required" : null)" />
@@ -100,6 +114,7 @@
           </div>
         }
       }
+      </div>
 
       <label class="website-lead-captcha">
         <span>Security check *</span>
@@ -109,7 +124,7 @@
         </span>
       </label>
       <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>I agree that this adviser may use my information to respond to this request.</span></label>
-      <button type="submit" class="website-lead-submit"><i class="fas fa-paper-plane"></i> @Model.SubmitButtonText</button>
+      <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas fa-paper-plane"></i> @Model.SubmitButtonText</button>
     </form>
   }
 </div>
@@ -131,11 +146,14 @@
   .website-lead-error{margin-bottom:12px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
   .website-lead-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
   .website-form-description{font:400 15px/1.5 Arial,sans-serif;color:inherit;margin:0 0 4px;}
+  .website-form-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .website-form-field--wide,.website-form-fields .website-form-section{grid-column:1/-1;}
+  .website-lead-preview-note{padding:12px 14px;border-radius:6px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;font:700 13px/1.4 Arial,sans-serif;}
   .website-form-section{margin-top:6px;padding-top:14px;border-top:1px solid #e2e8f0;}
   .website-form-section h4{margin:0 0 4px;font:800 16px Arial,sans-serif;color:inherit;}
   .website-form-section-help{margin:0;font:400 13px/1.4 Arial,sans-serif;color:#64748b;}
   .website-form-help{font:400 12px/1.4 Arial,sans-serif;color:#64748b;}
   .website-form-checkbox-options{display:grid;gap:6px;}
   .website-form-checkbox-option{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:8px;font-weight:400!important;}
-  @@media(max-width:640px){.website-lead-grid{grid-template-columns:1fr}}
+  @@media(max-width:640px){.website-lead-grid,.website-form-fields{grid-template-columns:1fr}}
 </style>

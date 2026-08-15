@@ -7,8 +7,9 @@ public static class WebsiteFormFieldTypes
     public const string CheckboxGroup = "CheckboxGroup";
     public const string Dropdown = "Dropdown";
     public const string Section = "Section";
+    public const string DateTime = "DateTime";
 
-    public static readonly string[] All = { Text, Textarea, CheckboxGroup, Dropdown, Section };
+    public static readonly string[] All = { Text, Textarea, CheckboxGroup, Dropdown, Section, DateTime };
 
     public static string DisplayName(string type) => type switch
     {
@@ -17,6 +18,7 @@ public static class WebsiteFormFieldTypes
         CheckboxGroup => "Checkboxes (select multiple)",
         Dropdown => "Dropdown (select one)",
         Section => "Section header",
+        DateTime => "Date & time picker",
         _ => type
     };
 
