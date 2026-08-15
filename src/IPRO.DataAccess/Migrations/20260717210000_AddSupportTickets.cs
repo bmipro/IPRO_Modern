@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace IPRO.DataAccess.Migrations
 {
+    [DbContext(typeof(IPRODbContext))]
     [Migration("20260717210000_AddSupportTickets")]
     public partial class AddSupportTickets : Migration
     {

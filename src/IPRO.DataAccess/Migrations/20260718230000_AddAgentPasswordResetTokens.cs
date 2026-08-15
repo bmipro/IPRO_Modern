@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace IPRO.DataAccess.Migrations
 {
+    [DbContext(typeof(IPRODbContext))]
     [Migration("20260718230000_AddAgentPasswordResetTokens")]
     public partial class AddAgentPasswordResetTokens : Migration
     {

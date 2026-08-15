@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace IPRO.DataAccess.Migrations
 {
+    [DbContext(typeof(IPRODbContext))]
     [Migration("20260716180000_AddWebsiteDesignOverrides")]
     public partial class AddWebsiteDesignOverrides : Migration
     {

@@ -193,6 +193,15 @@ using (var scope = app.Services.CreateScope())
     //
     // Must stay identical to IPRO.Web/Program.cs (INVARIANTS.md rule 4).
     await db.Database.MigrateAsync();
+    // Silence here is not success (TODO 425) -- see the identical check in IPRO.Web/Program.cs.
+    var pendingMigrations = (await db.Database.GetPendingMigrationsAsync()).ToList();
+    if (pendingMigrations.Count > 0)
+    {
+        Console.Error.WriteLine(
+            $"[Migrations] {pendingMigrations.Count} migration(s) are discoverable but NOT applied -- " +
+            "MigrateAsync did not run them. This is the silent-no-op failure of TODO 425: " +
+            string.Join(", ", pendingMigrations));
+    }
     // Immediately after MigrateAsync, never before: the migrations create the ON DELETE CASCADE
     // constraints on the financial ledger, so the guard must run once they exist to strip them.
     // Running it earlier (as it did until 2026-08-14) is a no-op on a fresh/restored database and

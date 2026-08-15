@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -5,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace IPRO.DataAccess.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(IPRODbContext))]
     [Migration("20260711143000_RepairWebsiteTemplateColumns")]
     public partial class RepairWebsiteTemplateColumns : Migration
     {
