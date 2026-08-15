@@ -382,16 +382,17 @@ textarea:focus{box-shadow:none;}
     </div>
 
     <div class="field-card">
-      <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-file-contract"></i></span><h2>Terms and Verification</h2></div>
+      <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-file-contract"></i></span><h2>Terms and Conditions</h2></div>
       <div class="form-grid">
+        @* No separate "Terms and Conditions:" field label here -- the card heading above and the
+           box heading below both already say it, and three identical labels stacked is noise. *@
         <div class="form-row agreement-row">
-          <label>Terms and Conditions:</label>
           <div class="terms-box">
             <div class="terms-box-head">
-              <i class="fas fa-scroll"></i> Terms of Service
+              <i class="fas fa-scroll"></i> Terms and Conditions
               <a href="/terms" target="_blank" rel="noopener" class="terms-box-open">Open in a new tab</a>
             </div>
-            <div class="terms-scroll" tabindex="0" role="region" aria-label="Terms of Service">
+            <div class="terms-scroll" tabindex="0" role="region" aria-label="Terms and Conditions">
               @await Html.PartialAsync("_LegalTerms")
             </div>
           </div>

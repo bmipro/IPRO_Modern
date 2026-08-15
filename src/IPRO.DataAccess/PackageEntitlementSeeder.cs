@@ -29,6 +29,7 @@ public static class PackageEntitlementSeeder
             var packages = await EnsurePackagesAsync(db, logger);
             await EnsureFeaturesAsync(db, packages);
             await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
+            await RepairSmsReminderEntitlementAsync(db);
         });
     }
 
@@ -174,6 +175,45 @@ public static class PackageEntitlementSeeder
         }
     }
 
+    // The mirror image of the repair above, for the opposite mistake: SMS reminders were seeded as
+    // INCLUDED on all four packages and the feature does not exist. Nothing sends an SMS anywhere in
+    // this codebase; it sits in DOCS/TODO.md as backlog. The consequence was public: the pricing
+    // page's feature comparison table showed "Mobile SMS reminder" with a tick against every plan,
+    // so the cheapest tier advertised a capability that cannot fire.
+    //
+    // As above, EnsureFeaturesAsync never re-syncs IsIncluded on an existing row, so fixing the
+    // definition only helps fresh installs. This corrects databases seeded before 15 Aug 2026.
+    // Scoped to this one feature code, and a permanent no-op once it has run.
+    //
+    // If SMS is ever built: flip the definition in BuildFeatureDefinitions, and DELETE this method
+    // rather than leaving it to switch the feature back off on every startup.
+    private static async Task RepairSmsReminderEntitlementAsync(IPRODbContext db)
+    {
+        var rows = await db.PackageFeatures
+            .Where(f => f.FeatureCode == PackageFeatureCodes.SmsReminder)
+            .ToListAsync();
+
+        var changed = false;
+        foreach (var feature in rows)
+        {
+            if (feature.IsIncluded)
+            {
+                feature.IsIncluded = false;
+                changed = true;
+            }
+            if (feature.FeatureName == "Mobile SMS reminder")
+            {
+                feature.FeatureName = "Mobile SMS reminder (not yet available)";
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
     private static IReadOnlyList<FeatureDefinition> BuildFeatureDefinitions()
     {
         var all = new FeatureValue(true);
@@ -187,7 +227,14 @@ public static class PackageEntitlementSeeder
             Feature(20, PackageFeatureCodes.LeadGenerator, "Automated lead generator", all, all, all, all),
             Feature(30, PackageFeatureCodes.CalendarScheduler, "Calendar scheduler", all, all, all, all),
             Feature(40, PackageFeatureCodes.EmailReminder, "Email reminder", all, all, all, all),
-            Feature(50, PackageFeatureCodes.SmsReminder, "Mobile SMS reminder", all, all, all, all),
+            // SMS IS NOT BUILT. Seeded as excluded on every package so a fresh database never
+            // advertises it on the public pricing comparison, and no agent is entitled to a
+            // feature that cannot fire. It stays in the catalogue rather than being deleted so the
+            // feature code keeps its identity if SMS is ever implemented -- flip the values then.
+            // NOTE: this seeder only fills blank names and never rewrites IsIncluded on existing
+            // rows, so databases seeded before 15 Aug 2026 still have this ticked on all four
+            // packages and must be corrected in Super Admin -> Packages. See DOCS/TODO.md.
+            Feature(50, PackageFeatureCodes.SmsReminder, "Mobile SMS reminder (not yet available)", no, no, no, no),
             Feature(60, PackageFeatureCodes.PreDesignedECard, "Pre-designed e-card", no, all, all, all),
             Feature(70, PackageFeatureCodes.PreDesignedELetters, "Pre-designed e-letters", no, all, all, all),
             Feature(80, PackageFeatureCodes.MarketingCampaign, "Automated marketing campaign", all, all, all, all),

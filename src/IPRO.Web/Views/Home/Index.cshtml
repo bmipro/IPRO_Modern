@@ -84,9 +84,12 @@
   <div class="container py-5">
     <div class="hero-grid">
       <div>
-        <h1 class="fw-bold display-5 mb-3">Still juggling five logins to run your practice?</h1>
-        <p class="fs-5 mb-4" style="color:#dbeafe;">IPRO puts your website, CRM, marketing, and scheduling in one place — plus a daily assistant that tells you who to call and why.</p>
-        <a href="/Preview" class="hero-cta"><i class="fas fa-wand-magic-sparkles me-2"></i>See Your Website in 30 Seconds</a>
+        @* Copy settled with Bahman 15 Aug 2026. Source deck: DOCS/marketing-site-prototype/
+           copy-merged.html (hero section). Do not reintroduce claims that are not in
+           DOCS/MARKETING_BUSINESS_BRIEF.md section 3. *@
+        <h1 class="fw-bold display-5 mb-3">Be the ONE they find first.</h1>
+        <p class="fs-5 mb-4" style="color:#dbeafe;">Your website, client records, follow-ups and newsletters run on one system, from one login, on one bill. It arrives already written for your market.</p>
+        <a href="/Preview" class="hero-cta"><i class="fas fa-wand-magic-sparkles me-2"></i>See it before I sign up</a>
         <div class="hero-sublinks">
           <a href="/Account/Register">Start a free account</a><span class="sep">&middot;</span><a href="#pricing">See pricing</a>
         </div>
@@ -126,7 +129,10 @@
       <div class="row g-1">
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Instant website, pre-populated for your vertical</div></div>
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Lead capture &amp; automatic prospect manager</div></div>
-        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Calendar / scheduler + email &amp; SMS reminders</div></div>
+        @* SMS removed 15 Aug 2026 -- it is NOT BUILT. It sits in DOCS/TODO.md under "backlog kept
+           only in the roadmap doc". This line advertised it on every plan, including Silver.
+           Do not restore until SMS actually sends. *@
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Calendar / scheduler with email reminders</div></div>
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Newsletters &amp; automated marketing campaigns</div></div>
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Testimonials, polls, custom forms, lead magnets</div></div>
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Built-in SEO tools &amp; social integration</div></div>
@@ -161,7 +167,10 @@
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>Client Portal</b> — login, messages, documents, appointments</span></div></div>
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>Client invoicing &amp; estimates</b></span></div></div>
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Life-event reminders (birthdays, renewals, anniversaries)</div></div>
-        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>One managed blog post/month, written for you</div></div>
+        @* Was "One managed blog post/month, written for you" -- removed 15 Aug 2026. That promised a
+           HUMAN WRITING SERVICE that IPRO does not perform. The platform drafts with AI for the
+           subscriber to review; it does not write and publish on their behalf. *@
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>AI drafting for newsletters, articles and social posts</div></div>
         <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Managed SEO across every page + PayPal integration</div></div>
       </div>
       <div class="tier-note">This is the plan behind the AI Daily Assistant you'll see in your 30-second preview — the one that tells you who to call today, and why.</div>
@@ -332,6 +341,36 @@
     {
       <p class="text-center text-muted">Pricing is being updated — <a href="/Account/Register">start your registration</a> and we'll follow up with plan details.</p>
     }
+  </div>
+</div>
+
+@* Why IPRO -- the four items Bahman settled on 15 Aug 2026, item by item.
+   Source deck: DOCS/marketing-site-prototype/copy-merged.html ("Why businesses move to IPRO").
+   Every claim here is verifiable in the product. Do not add a fifth without checking
+   DOCS/MARKETING_BUSINESS_BRIEF.md section 3 first. *@
+<div class="container py-5">
+  <div class="text-center mb-5">
+    <div class="section-eyebrow mb-2">Why businesses move to IPRO</div>
+    <h2 class="fw-bold">One provider. One login. One number to call when something breaks.</h2>
+    <p class="text-muted mt-2 mb-0 mx-auto" style="max-width:56ch;">IPRO has built websites and business tools for Canadian professional-service firms since 2014. That is the whole pitch: instead of a web designer, a spreadsheet and a mail tool that do not speak to each other, there is one system and one place to ask.</p>
+  </div>
+  <div class="row g-4 justify-content-center">
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Your data leaves as easily as it arrives</h5>
+      <p class="text-muted small mb-0">Import the records you have, work from them here, and export them whenever you want &mdash; no hostage-taking on the way out.</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Hosting, domain and SSL are ours to worry about</h5>
+      <p class="text-muted small mb-0">The certificate, the renewal and the connection to your domain are part of the subscription.</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Nothing starts from a blank page</h5>
+      <p class="text-muted small mb-0">Your site launches with written pages, a Resources library, a &ldquo;Request a Meeting&rdquo; form and Canadian calculators.</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Nothing to adjust for the border</h5>
+      <p class="text-muted small mb-0">No line to correct before it reaches a client.</p>
+    </div>
   </div>
 </div>
 
