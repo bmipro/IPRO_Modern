@@ -103,6 +103,26 @@ is shared, or the contracting entity may actually be iPro Accountants. **A contr
 entity is worth catching now.** Confirm the registered name, and whether the address line should
 keep "iPro Accountants" on it.
 
+## 2c. The effective date is 15 February 2012 — reviewer, please sanity-check this pairing
+
+Bahman gave 15 February 2012 as the effective date, so that is what both documents carry. Each page
+renders the pair:
+
+> Effective date: **15 February 2012** · Last updated: **15 August 2026**
+
+That pairing is the standard convention and is defensible: the subscription relationship dates from
+2012, and the "last updated" line signals that the current text is not the 2012 text.
+
+**The thing to check:** today's version is not a tidy-up. Terms §4 materially replaces the old
+clause 7 — the one that purported to licence subscriber content to the public (see §1). A reader
+seeing "effective 2012" could reasonably assume the current wording has applied throughout, when in
+fact the old clause was in force until 15 August 2026. That matters if anyone ever argues about what
+they agreed to and when.
+
+Options if the reviewer is uncomfortable: date this version 15 August 2026 and note the relationship
+has run since 2012 elsewhere; or keep 2012 and add a short version-history line. Either is a
+one-line change. Bahman's instruction stands until counsel says otherwise.
+
 ## 3. Placeholders that must be filled before publishing
 
 - **Legal entity name.** The old agreement uses "iPro advisers Inc.", "Ipro Advisers" and

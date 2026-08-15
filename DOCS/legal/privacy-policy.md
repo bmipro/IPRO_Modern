@@ -1,7 +1,7 @@
 # Privacy Policy
 
 **iPro Advisers Inc.**
-Effective date: **15 August 2026** · Last updated: 15 August 2026
+Effective date: **15 February 2012** · Last updated: 15 August 2026
 
 > **Not yet legal advice.** Drafted from what the platform verifiably does, not from a
 > template. Every third-party processor named below was confirmed in the codebase. Not
