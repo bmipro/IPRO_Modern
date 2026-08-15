@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPRO copy comparison — A vs B</title>
+<style>
+  :root{
+    color-scheme: light;
+    --navy:#173b55; --aqua:#087d83; --bg:#f2f6f8; --paper:#fff; --paper-soft:#e5eef2;
+    --line:#d4ddd6; --muted:#607068; --ink:#18231f; --coral:#d06a35; --coral-soft:#f9e9df;
+    --a:#0f5c8c; --b:#8a3d10;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:Inter,"Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{width:min(1500px,calc(100% - 40px));margin:0 auto}
+
+  /* ---- control bar ---- */
+  .bar{position:sticky;top:0;z-index:40;background:var(--navy);color:#fff;padding:14px 0;
+       box-shadow:0 2px 14px rgb(0 0 0/.18)}
+  .bar-in{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .bar h1{margin:0;font-size:1rem;font-weight:600;letter-spacing:.01em}
+  .bar p{margin:0;font-size:.78rem;color:#a9c3d4}
+  .modes{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  .modes button{appearance:none;border:1px solid rgb(255 255 255/.28);background:transparent;color:#dceaf3;
+    font:600 .78rem Inter,Arial,sans-serif;padding:7px 14px;border-radius:999px;cursor:pointer}
+  .modes button[aria-pressed="true"]{background:#5bd4d3;border-color:#5bd4d3;color:#0d2434}
+
+  /* ---- layout ---- */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:24px 0 60px;align-items:start}
+  body[data-mode="a"] .cols{grid-template-columns:minmax(0,880px);justify-content:center}
+  body[data-mode="b"] .cols{grid-template-columns:minmax(0,880px);justify-content:center}
+  body[data-mode="a"] .col-b,body[data-mode="b"] .col-a{display:none}
+
+  .col{min-width:0}
+  .col-head{position:sticky;top:64px;z-index:30;padding:12px 16px;border-radius:10px 10px 0 0;
+            color:#fff;font-weight:600;font-size:.85rem;display:flex;align-items:center;gap:10px}
+  .col-a .col-head{background:var(--a)} .col-b .col-head{background:var(--b)}
+  .col-head span{font-weight:400;opacity:.85;font-size:.78rem}
+
+  .sec{background:var(--paper);border:1px solid var(--line);border-top:0;padding:26px 28px}
+  .sec:last-child{border-radius:0 0 10px 10px}
+  .sec.alt{background:var(--paper-soft)}
+  .sec.navy{background:var(--navy);color:#f7fafc;border-color:var(--navy)}
+  .sec.navy h2,.sec.navy h1{color:#fff}
+  .sec.navy .lead,.sec.navy p{color:#c4d5e0}
+  .sec.navy .label{color:#5bd4d3}
+
+  .tag{font:600 .62rem/1 Inter,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;
+       color:var(--muted);background:var(--bg);border:1px solid var(--line);
+       padding:5px 9px;border-radius:4px;display:inline-block;margin-bottom:16px}
+  .sec.navy .tag{color:#9fc4d8;background:rgb(255 255 255/.07);border-color:rgb(255 255 255/.16)}
+
+  .label{margin:0 0 12px;color:var(--aqua);font:500 .72rem/1 Inter,Arial,sans-serif;
+         letter-spacing:.09em;text-transform:uppercase}
+  h1.hero{margin:0 0 14px;color:var(--navy);font-size:2.5rem;line-height:1.1;font-weight:500;max-width:16ch}
+  .sec.navy h1.hero{color:#fff}
+  h2{margin:0 0 12px;color:var(--navy);font-size:1.55rem;line-height:1.2;font-weight:500}
+  .lead{margin:0 0 18px;color:var(--muted);font-size:1rem;line-height:1.6;max-width:56ch}
+  .sub{margin:0 0 20px;color:var(--muted);font-size:.95rem;line-height:1.6;max-width:52ch}
+
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 14px}
+  .btn{display:inline-flex;align-items:center;padding:11px 20px;border-radius:6px;
+       font:600 .85rem Inter,Arial,sans-serif;text-decoration:none}
+  .btn-1{background:var(--aqua);color:#fff}
+  .sec.navy .btn-1{background:#5bd4d3;color:#0d2434}
+  .btn-2{border:1px solid var(--line);color:var(--navy)}
+  .sec.navy .btn-2{border-color:rgb(255 255 255/.35);color:#dceaf3}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .chip{font:500 .74rem Inter,Arial,sans-serif;color:var(--muted);
+        border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+  .sec.navy .chip{color:#c4d5e0;border-color:rgb(255 255 255/.22)}
+
+  .alts{margin:14px 0 0;padding:14px 16px;border-left:3px solid var(--aqua);background:var(--bg);border-radius:0 6px 6px 0}
+  .alts b{display:block;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:600}
+  .alts ol{margin:0;padding-left:20px;color:var(--navy);font-size:.92rem;line-height:1.75}
+  .sec.navy .alts{background:rgb(255 255 255/.06);border-left-color:#5bd4d3}
+  .sec.navy .alts ol{color:#e7f2f8} .sec.navy .alts b{color:#9fc4d8}
+
+  .pts{list-style:none;margin:16px 0 0;padding:0}
+  .pts li{display:grid;grid-template-columns:26px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .pts li:last-child{border-bottom:0}
+  .pts .n{width:26px;height:26px;border-radius:50%;background:var(--aqua);color:#fff;
+          display:grid;place-items:center;font:700 .72rem Inter,Arial,sans-serif}
+  .pts h3{margin:0 0 4px;font-size:.95rem;color:var(--navy);font-weight:600;line-height:1.35}
+  .pts p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.6}
+
+  .win{border:2px solid var(--aqua);border-radius:10px;padding:20px 22px;background:#f4fbfb;position:relative;margin-top:6px}
+  .win::before{content:"RECOMMENDED";position:absolute;top:-10px;left:18px;background:var(--aqua);color:#fff;
+    font:700 .6rem Inter,Arial,sans-serif;letter-spacing:.1em;padding:4px 9px;border-radius:3px}
+  .opt{border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-top:16px;background:var(--paper)}
+  .opt-h{font:600 .68rem Inter,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;
+         color:var(--muted);margin:0 0 12px}
+  .strike{background:var(--coral-soft);border-left:3px solid var(--coral);padding:12px 14px;border-radius:0 6px 6px 0;margin-bottom:18px}
+  .strike p{margin:0;font-size:.84rem;color:#7a3d18;line-height:1.55}
+  .strike s{opacity:.75}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--paper)}
+  .card h4{margin:0 0 6px;font-size:.85rem;color:var(--navy);font-weight:600;line-height:1.35}
+  .card p{margin:0;font-size:.82rem;color:var(--muted);line-height:1.55}
+  .card .ed{font:600 .6rem Inter,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--aqua);display:block;margin-bottom:6px}
+
+  @media(max-width:1180px){.cols{grid-template-columns:1fr}.col-head{position:static}}
+  @media print{.bar{position:static}.cols{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body data-mode="both">
+
+<div class="bar">
+  <div class="wrap bar-in">
+    <div>
+      <h1>IPRO homepage copy — Version A vs Version B</h1>
+      <p>Same navy design. Two voices. Toggle to compare.</p>
+    </div>
+    <div class="modes">
+      <button data-m="both" aria-pressed="true">Side by side</button>
+      <button data-m="a" aria-pressed="false">A only</button>
+      <button data-m="b" aria-pressed="false">B only</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="cols">
+
+<!-- ===================== COLUMN A ===================== -->
+<div class="col col-a">
+  <div class="col-head">VERSION A — Trust <span>· calm, plainspoken, for the adviser burned by an agency</span></div>
+
+  <!-- hero -->
+  <section class="sec navy">
+    <span class="tag">Hero</span>
+    <p class="label">Canadian software for adviser businesses since 2014</p>
+    <h1 class="hero">Your website and your client records, one subscription.</h1>
+    <p class="sub">One place for the website, the client records, the follow-ups and the newsletters. Built in Canada, priced in Canadian dollars, cancel whenever you like.</p>
+    <div class="btns"><span class="btn btn-1">See a free preview</span><span class="btn btn-2">Look at my market first</span></div>
+    <div class="chips"><span class="chip">No credit card</span><span class="chip">No contract, cancel anytime</span><span class="chip">Canadian company since 2014</span></div>
+    <div class="alts"><b>Other headline options</b><ol>
+      <li>See your finished website before you pay anything.</li>
+      <li>The website is the easy part.</li>
+    </ol></div>
+  </section>
+
+  <!-- markets -->
+  <section class="sec">
+    <span class="tag">Choose your market</span>
+    <p class="label">Four starting points</p>
+    <h2>Your site starts with the writing already done.</h2>
+    <p class="lead">The platform is identical for everyone. What changes is the words: the starter pages, the article library, the meeting request form and the terminology are written for the market you pick.</p>
+    <div class="cards">
+      <div class="card"><span class="ed">Insurance and financial</span><h4>Written for advisers who manage relationships over years.</h4><p>Your pages arrive explaining protection, retirement and investment advice in the words you already use with clients.</p></div>
+      <div class="card"><span class="ed">Accounting</span><h4>A practice that reads as established from the first day.</h4><p>Accounting, bookkeeping and tax pages come written and organised. Every enquiry becomes a record you can follow up on.</p></div>
+      <div class="card"><span class="ed">Mortgage</span><h4>Explain purchases, renewals and refinancing once, properly.</h4><p>The pages that answer the same six borrower questions are already written. Canadian calculators are built in.</p></div>
+      <div class="card"><span class="ed">General professional</span><h4>A neutral starting point you can point at your own work.</h4><p>Structure in place, language kept general, so you change the services and wording to match what you do.</p></div>
+    </div>
+  </section>
+
+  <!-- journey -->
+  <section class="sec alt">
+    <span class="tag">Client journey</span>
+    <p class="label">One record, start to finish</p>
+    <h2>From a stranger on your website to a client you keep.</h2>
+    <p class="lead">No exporting, no retyping, no second subscription. The record created when someone fills in your form is the same record you are still working from three years later.</p>
+    <ul class="pts">
+      <li><span class="n">1</span><div><h3>They find you</h3><p>Your website explains the work in finished, written pages, so the first impression is not a placeholder.</p></div></li>
+      <li><span class="n">2</span><div><h3>A lead arrives</h3><p>The form creates a prospect record and tells you it is there.</p></div></li>
+      <li><span class="n">3</span><div><h3>You follow up</h3><p>Your follow-up list holds the name, the reason and the date, so it is not sitting in your head.</p></div></li>
+      <li><span class="n">4</span><div><h3>They become a client</h3><p>Notes, account type, meetings and history live on one record you can search.</p></div></li>
+      <li><span class="n">5</span><div><h3>You stay in mind</h3><p>Newsletters, drip campaigns and review reminders keep you present between the meetings that matter.</p></div></li>
+    </ul>
+  </section>
+
+  <!-- the disliked section -->
+  <section class="sec">
+    <span class="tag">★ The section you flagged</span>
+    <div class="strike"><p><b>Replaces:</b> <s>“Your first week” · Today → Day one → This week → Then</s></p></div>
+
+    <div class="win">
+      <p class="opt-h">Option 3 — what is already done before you touch anything</p>
+      <p class="label">Before you change a thing</p>
+      <h2>Nothing starts from a blank page.</h2>
+      <p class="lead">Most website tools hand you an empty canvas and call it freedom. Yours arrives with the writing already done for the market you chose, so the first decision is what to change, not what to write.</p>
+      <ul class="pts">
+        <li><span class="n">1</span><div><h3>The pages are already written</h3><p>Real starter content for insurance and financial, accounting, mortgage or general practice, in the language of that market.</p></div></li>
+        <li><span class="n">2</span><div><h3>The article library is real</h3><p>A Resources section of genuine articles, not headings with placeholder text underneath.</p></div></li>
+        <li><span class="n">3</span><div><h3>The meeting form fits your market</h3><p>A “Request a Meeting” form worded for the work you do, connected to your client records.</p></div></li>
+        <li><span class="n">4</span><div><h3>The Canadian calculators are in place</h3><p>Mortgage payment, affordability, land transfer tax by province, retirement, savings and after-tax return.</p></div></li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <p class="opt-h">Option 1 — sequence, no time words at all</p>
+      <p class="label">In your own order</p>
+      <h2>Four things to do, and none of them wait on us.</h2>
+      <p class="lead">You see the site before you sign up, you edit it yourself, you bring your records over, and you point your domain at it. How long that takes is your call, not a schedule we set.</p>
+      <ul class="pts">
+        <li><span class="n">1</span><div><h3>Look before you sign up</h3><p>Enter your name, business name and market, and a real website appears; no account, no credit card.</p></div></li>
+        <li><span class="n">2</span><div><h3>Make it yours</h3><p>Change the pages, colours, services and wording yourself in the page builder, without asking anyone.</p></div></li>
+        <li><span class="n">3</span><div><h3>Bring your clients in</h3><p>Import the records you already keep, and organise them by account type.</p></div></li>
+        <li><span class="n">4</span><div><h3>Point your domain at it</h3><p>Connect your own web address; hosting and the SSL certificate are part of the subscription.</p></div></li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <p class="opt-h">Option 2 — time, used to show speed</p>
+      <p class="label">From preview to live</p>
+      <h2>You can be online the same afternoon.</h2>
+      <p class="lead">The preview takes about a minute. Everything after that is your own editing time, and you decide how much of it to spend.</p>
+      <ul class="pts">
+        <li><span class="n">1</span><div><h3>About a minute: see a real site</h3><p>Name, business name, market, and a working website appears on screen.</p></div></li>
+        <li><span class="n">2</span><div><h3>The same afternoon: make it yours</h3><p>Rewrite the pages, change the colours, set your services. Nothing is queued and nobody schedules you.</p></div></li>
+        <li><span class="n">3</span><div><h3>Whenever you are ready: bring your clients</h3><p>Import your existing records and organise them by account type.</p></div></li>
+        <li><span class="n">4</span><div><h3>Then your domain, on DNS time</h3><p>You connect it in a few minutes; the internet takes a few hours to catch up. That wait is the one part nobody controls.</p></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- trust -->
+  <section class="sec alt">
+    <span class="tag">Why IPRO</span>
+    <p class="label">Why IPRO</p>
+    <h2>One company for the site, the software and the help.</h2>
+    <p class="lead">IPRO has built websites and business tools for Canadian professional-service firms since 2014. You edit your own pages, and when something needs answering there is one place to ask rather than a web designer, a host and a CRM vendor pointing at each other.</p>
+    <ul class="pts">
+      <li><span class="n">1</span><div><h3>Your data stays yours</h3><p>Import the records you already have, and export them whenever you want, including on the way out.</p></div></li>
+      <li><span class="n">2</span><div><h3>Hosting, domain and SSL handled</h3><p>Your web address, hosting and security certificate are part of the subscription, not three separate renewals.</p></div></li>
+      <li><span class="n">3</span><div><h3>Nothing starts from a blank page</h3><p>Your site goes live already written for your market, and every page is yours to edit from the first day.</p></div></li>
+      <li><span class="n">4</span><div><h3>Built for Canadian businesses</h3><p>Canadian dollars, provincial tax handled, Canadian mortgage conventions, and consent rules built into the mailing tools.</p></div></li>
+    </ul>
+  </section>
+
+  <!-- contact -->
+  <section class="sec">
+    <span class="tag">Contact</span>
+    <p class="label">Get in touch</p>
+    <h2>Look at it first. Ask us after.</h2>
+    <p class="lead">The preview needs nothing from you but a name, a business name and a market, and it runs on its own. This form is for the questions that come after: packages, domains, moving your records over, or how a team would work.</p>
+    <div class="btns"><span class="btn btn-1">Send my question</span></div>
+  </section>
+</div>
+
+<!-- ===================== COLUMN B ===================== -->
+<div class="col col-b">
+  <div class="col-head">VERSION B — Momentum <span>· confident, outcome-first, for the adviser losing to competitors</span></div>
+
+  <section class="sec navy">
+    <span class="tag">Hero</span>
+    <p class="label">One subscription. The website that wins the enquiry and the system that keeps the client.</p>
+    <h1 class="hero">Be the adviser they find first.</h1>
+    <p class="sub">Your website, client records, follow-ups and newsletters run on one system, from one login, on one bill. It arrives already written for your market.</p>
+    <div class="btns"><span class="btn btn-1">See my site free</span><span class="btn btn-2">Pick my market</span></div>
+    <div class="chips"><span class="chip">No credit card</span><span class="chip">Cancel anytime</span><span class="chip">Canadian since 2014</span></div>
+    <div class="alts"><b>Other headline options</b><ol>
+      <li>Win the enquiry. Then keep the client.</li>
+      <li>Better marketing wins the client. Be better marketed.</li>
+    </ol></div>
+    <div class="alts"><b>Other button options</b><ol>
+      <li>Show me my website</li>
+      <li>See it before I sign up</li>
+    </ol></div>
+  </section>
+
+  <section class="sec">
+    <span class="tag">Choose your market</span>
+    <p class="label">Choose your market</p>
+    <h2>Your site arrives written. Not blank.</h2>
+    <p class="lead">One platform underneath, four starting points on top. Pick your market and the pages, wording, articles, enquiry form and calculators arrive already written for it.</p>
+    <div class="cards">
+      <div class="card"><span class="ed">Insurance / Financial</span><h4>Advisers do not lose clients. They lose track of them.</h4><p>Your site explains the advice and captures the enquiry; the record behind it holds every review, renewal and life event.</p></div>
+      <div class="card"><span class="ed">Accounting</span><h4>A practice that looks established on day one.</h4><p>Accounting, bookkeeping and tax pages arrive written, and every enquiry lands in the same client list you work from.</p></div>
+      <div class="card"><span class="ed">Mortgage</span><h4>Turn mortgage enquiries into booked conversations.</h4><p>Explain purchases, renewals and refinancing clearly, and keep every borrower and next action in one list.</p></div>
+      <div class="card"><span class="ed">Generic</span><h4>Any professional-service business, same engine underneath.</h4><p>Start from a neutral professional site, change the pages to the work you do, run the same tools as everyone else.</p></div>
+    </div>
+  </section>
+
+  <section class="sec alt">
+    <span class="tag">Client journey</span>
+    <p class="label">One record, start to finish</p>
+    <h2>A stranger finds you on Monday. You still know why on Friday.</h2>
+    <p class="lead">No exports between tools, no retyping the same name three times, no second subscription. The record created by your website form is the record you work from for the life of the relationship.</p>
+    <ul class="pts">
+      <li><span class="n">1</span><div><h3>They find you</h3><p>Your site is written, live and public from day one, so it earns the click your competitor is currently taking.</p></div></li>
+      <li><span class="n">2</span><div><h3>The enquiry lands</h3><p>The website form creates a prospect record in your client list the moment it is submitted.</p></div></li>
+      <li><span class="n">3</span><div><h3>You follow up</h3><p>Follow-ups carry a name, a reason and a date, so the next call is decided before you sit down to make it.</p></div></li>
+      <li><span class="n">4</span><div><h3>They become a client</h3><p>Notes, account type, meetings, campaigns and — on Platinum — the client portal and their invoices hang off one record.</p></div></li>
+      <li><span class="n">5</span><div><h3>They stay</h3><p>Newsletters, campaigns and review reminders keep you in front of them between meetings, which is where most advisers quietly lose people.</p></div></li>
+    </ul>
+  </section>
+
+  <section class="sec">
+    <span class="tag">★ The section you flagged</span>
+    <div class="strike"><p><b>Replaces:</b> <s>“Your first week” · Today → Day one → This week → Then</s></p></div>
+
+    <div class="win">
+      <p class="opt-h">Option 3 — objection handling</p>
+      <p class="label">What actually holds people back</p>
+      <h2>Switching costs you nothing you are afraid of losing.</h2>
+      <p class="lead">Advisers rarely stall on features. They stall on the four things they think a move will cost them.</p>
+      <ul class="pts">
+        <li><span class="n">1</span><div><h3>“I’d lose the site I already paid for.”</h3><p>Build and look at yours first — the preview costs nothing and commits you to nothing, so you compare before you decide.</p></div></li>
+        <li><span class="n">2</span><div><h3>“My client list is a mess.”</h3><p>Import what you have, tidy it inside the CRM, and export the whole thing whenever you want it back.</p></div></li>
+        <li><span class="n">3</span><div><h3>“My domain took years to build up.”</h3><p>Keep it. You point your existing domain at IPRO, and hosting and SSL are part of the subscription.</p></div></li>
+        <li><span class="n">4</span><div><h3>“I don’t have a week to give this.”</h3><p>You do not need one — nothing to install, nobody to brief, and the site starts from finished content rather than a blank page.</p></div></li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <p class="opt-h">Option 1 — sequence, no time references at all</p>
+      <p class="label">The order of operations</p>
+      <h2>Four moves and the business is running.</h2>
+      <p class="lead">Nothing here waits on a designer, a developer or a support ticket. You do each step yourself, in this order, and stop when it looks right.</p>
+      <ul class="pts">
+        <li><span class="n">1</span><div><h3>See it before you commit</h3><p>Enter your name, business name and market, and a real website appears — no account, no card.</p></div></li>
+        <li><span class="n">2</span><div><h3>Make it sound like you</h3><p>Rewrite pages, swap colours and rearrange content blocks yourself in the built-in page builder.</p></div></li>
+        <li><span class="n">3</span><div><h3>Bring your clients across</h3><p>Import the records you already keep and sort them by account type.</p></div></li>
+        <li><span class="n">4</span><div><h3>Point your domain at it</h3><p>Connect the address you already own; hosting and the SSL certificate come with the subscription.</p></div></li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <p class="opt-h">Option 2 — genuine speed, no invented numbers</p>
+      <p class="label">Faster than a quote from an agency</p>
+      <h2>Most of this is done before your coffee goes cold.</h2>
+      <p class="lead">There is no build queue, no kickoff call and nothing to install. The site is generated the moment you describe the business — everything after that is editing, not waiting.</p>
+      <ul class="pts">
+        <li><span class="n">1</span><div><h3>First, look at it</h3><p>The preview builds while you are still on the page, before you have created anything.</p></div></li>
+        <li><span class="n">2</span><div><h3>Then make it yours</h3><p>Change the words, colours and services in the same sitting, block by block.</p></div></li>
+        <li><span class="n">3</span><div><h3>Then bring your clients</h3><p>Import your records and start working from the follow-up list the same day.</p></div></li>
+        <li><span class="n">4</span><div><h3>Your domain, when you are ready</h3><p>Connect the domain you already own — the only wait left is your registrar, not us.</p></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec alt">
+    <span class="tag">Why IPRO</span>
+    <p class="label">Why businesses move to IPRO</p>
+    <h2>One provider. One login. One number to call when something breaks.</h2>
+    <p class="lead">IPRO has built websites and business tools for Canadian professional-service firms since 2014. That is the whole pitch: instead of a web designer, a spreadsheet and a mail tool that do not speak to each other, there is one system and one place to ask.</p>
+    <ul class="pts">
+      <li><span class="n">1</span><div><h3>Your data leaves as easily as it arrives</h3><p>Import the records you have, work from them here, and export them whenever you want — no hostage-taking on the way out.</p></div></li>
+      <li><span class="n">2</span><div><h3>Hosting, domain and SSL are ours to worry about</h3><p>The certificate, the renewal and the connection to your domain are part of the subscription.</p></div></li>
+      <li><span class="n">3</span><div><h3>Nothing starts from a blank page</h3><p>Your site launches with written pages, a Resources library, a “Request a Meeting” form and Canadian calculators.</p></div></li>
+      <li><span class="n">4</span><div><h3>Built to Canadian rules, not adapted to them</h3><p>Prices in CAD, provincial tax handled, Canadian mortgage conventions, consent and unsubscribe handling built in.</p></div></li>
+    </ul>
+  </section>
+
+  <section class="sec">
+    <span class="tag">Contact</span>
+    <p class="label">Talk to IPRO</p>
+    <h2>See the site first. Decide after.</h2>
+    <p class="lead">Give us your name, your business name and your market, and the preview builds immediately — no account, no card, no call booked before you have seen anything. Questions about packages, domains, migration or team use get a straight answer.</p>
+    <div class="btns"><span class="btn btn-1">Build my preview</span></div>
+  </section>
+</div>
+
+</div>
+</div>
+
+<script>
+  var btns = document.querySelectorAll('.modes button');
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      document.body.setAttribute('data-mode', b.dataset.m);
+      btns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+  });
+</script>
+</body>
+</html>

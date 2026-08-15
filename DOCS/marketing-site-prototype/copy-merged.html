@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPRO homepage — merged copy</title>
+<style>
+  :root{color-scheme:light;
+    --navy:#173b55;--aqua:#087d83;--bg:#f2f6f8;--paper:#fff;--paper-soft:#e5eef2;
+    --line:#d4ddd6;--muted:#607068;--ink:#18231f;--coral:#d06a35;--coral-soft:#f9e9df;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{width:min(880px,calc(100% - 40px));margin:0 auto}
+  .bar{position:sticky;top:0;z-index:40;background:var(--navy);color:#fff;padding:13px 0;box-shadow:0 2px 14px rgb(0 0 0/.18)}
+  .bar-in{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .bar h1{margin:0;font-size:.98rem;font-weight:600}
+  .bar p{margin:0;font-size:.78rem;color:#a9c3d4}
+  .page{padding:22px 0 70px}
+  .sec{background:var(--paper);border:1px solid var(--line);border-top:0;padding:28px 30px}
+  .sec:first-of-type{border-top:1px solid var(--line);border-radius:10px 10px 0 0}
+  .sec:last-of-type{border-radius:0 0 10px 10px}
+  .sec.alt{background:var(--paper-soft)}
+  .sec.navy{background:var(--navy);color:#f7fafc;border-color:var(--navy)}
+  .sec.navy h1,.sec.navy h2{color:#fff}.sec.navy .lead,.sec.navy p{color:#c4d5e0}.sec.navy .label{color:#5bd4d3}
+  .src{font:600 .6rem Inter,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#fff;
+       background:var(--aqua);padding:4px 9px;border-radius:3px;display:inline-block;margin-bottom:16px}
+  .src.you{background:var(--coral)}
+  .label{margin:0 0 12px;color:var(--aqua);font:500 .72rem/1 Inter,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase}
+  h1.hero{margin:0 0 14px;color:var(--navy);font-size:2.6rem;line-height:1.08;font-weight:500;max-width:15ch}
+  .sec.navy h1.hero{color:#fff}
+  h2{margin:0 0 12px;color:var(--navy);font-size:1.6rem;line-height:1.2;font-weight:500}
+  .lead{margin:0 0 18px;color:var(--muted);font-size:1rem;line-height:1.6;max-width:58ch}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 14px}
+  .btn{display:inline-flex;align-items:center;padding:11px 20px;border-radius:6px;font:600 .85rem Inter,Arial,sans-serif}
+  .btn-1{background:var(--aqua);color:#fff}.sec.navy .btn-1{background:#5bd4d3;color:#0d2434}
+  .btn-2{border:1px solid var(--line);color:var(--navy)}.sec.navy .btn-2{border-color:rgb(255 255 255/.35);color:#dceaf3}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font:500 .74rem Inter,Arial,sans-serif;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+  .sec.navy .chip{color:#c4d5e0;border-color:rgb(255 255 255/.22)}
+  .pts{list-style:none;margin:16px 0 0;padding:0}
+  .pts li{display:grid;grid-template-columns:26px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .pts li:last-child{border-bottom:0}
+  .pts .n{width:26px;height:26px;border-radius:50%;background:var(--aqua);color:#fff;display:grid;place-items:center;font:700 .72rem Inter,Arial,sans-serif}
+  .pts h3{margin:0 0 4px;font-size:.95rem;color:var(--navy);font-weight:600;line-height:1.35}
+  .pts p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.6}
+  .pts em{font-style:normal;color:var(--aqua);font-weight:600}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--paper)}
+  .card h4{margin:0 0 6px;font-size:.85rem;color:var(--navy);font-weight:600;line-height:1.35}
+  .card p{margin:0;font-size:.82rem;color:var(--muted);line-height:1.55}
+  .card .ed{font:600 .6rem Inter,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--aqua);display:block;margin-bottom:6px}
+  .ask{border:2px dashed var(--coral);background:var(--coral-soft);border-radius:10px;padding:20px 22px;margin:20px 0}
+  .ask h3{margin:0 0 6px;font-size:1rem;color:#7a3d18}
+  .ask>p{margin:0 0 14px;font-size:.88rem;color:#7a3d18;line-height:1.6}
+  .pick{background:#fff;border:1px solid #e6c9b4;border-radius:7px;padding:12px 14px;margin-bottom:9px}
+  .pick b{display:block;font-size:.92rem;color:var(--navy);margin-bottom:3px}
+  .pick span{font-size:.83rem;color:var(--muted);line-height:1.55;display:block}
+  .pick .why{font-size:.76rem;color:#8a6a52;margin-top:6px;display:block;font-style:italic}
+  .note{background:#eef6fa;border-left:3px solid var(--aqua);padding:12px 14px;border-radius:0 6px 6px 0;margin-top:16px}
+  .note p{margin:0;font-size:.83rem;color:#2b4a5e;line-height:1.6}
+  @media(max-width:640px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="bar"><div class="wrap bar-in">
+  <h1>IPRO homepage — merged from your picks</h1>
+  <p>Green = from A or B as you marked it · Orange = your own edit, or a decision still open</p>
+</div></div>
+
+<div class="wrap page">
+
+<section class="sec navy">
+  <span class="src you">Hero · B, with your edits</span>
+  <p class="label">One subscription. The website that wins the enquiry and the system that keeps the client.</p>
+  <h1 class="hero">Be the ONE they find first.</h1>
+  <p class="lead">Your website, client records, follow-ups and newsletters run on one system, from one login, on one bill. It arrives already written for your market.</p>
+  <div class="btns"><span class="btn btn-1">See it before I sign up</span><span class="btn btn-2">Pick my market</span></div>
+  <div class="chips"><span class="chip">No credit card</span><span class="chip">Cancel anytime</span><span class="chip">Canadian since 2014</span></div>
+</section>
+
+<section class="sec">
+  <span class="src">Markets · Version B</span>
+  <p class="label">Choose your market</p>
+  <h2>Your site arrives written. Not blank.</h2>
+  <p class="lead">One platform underneath, four starting points on top. Pick your market and the pages, wording, articles, enquiry form and calculators arrive already written for it.</p>
+  <div class="cards">
+    <div class="card"><span class="ed">Insurance / Financial</span><h4>Advisers do not lose clients. They lose track of them.</h4><p>Your site explains the advice and captures the enquiry; the record behind it holds every review, renewal and life event.</p></div>
+    <div class="card"><span class="ed">Accounting</span><h4>A practice that looks established on day one.</h4><p>Accounting, bookkeeping and tax pages arrive written, and every enquiry lands in the same client list you work from.</p></div>
+    <div class="card"><span class="ed">Mortgage</span><h4>Turn mortgage enquiries into booked conversations.</h4><p>Explain purchases, renewals and refinancing clearly, and keep every borrower and next action in one list.</p></div>
+    <div class="card"><span class="ed">Generic</span><h4>Any professional-service business, same engine underneath.</h4><p>Start from a neutral professional site, change the pages to the work you do, run the same tools as everyone else.</p></div>
+  </div>
+</section>
+
+<section class="sec alt">
+  <span class="src you">Client journey · merged (A's headline + B's steps)</span>
+  <p class="label">One record, start to finish</p>
+  <h2>From a stranger on your website to a client you keep.</h2>
+  <p class="lead">No exporting, no retyping, no second subscription. The record created when someone fills in your form is the same record you are still working from three years later.</p>
+  <ul class="pts">
+    <li><span class="n">1</span><div><h3>They find you</h3><p>Your site is written, live and public from day one, so it earns the click your competitor is currently taking.</p></div></li>
+    <li><span class="n">2</span><div><h3>The enquiry lands</h3><p>The website form creates a prospect record in your client list the moment it is submitted.</p></div></li>
+    <li><span class="n">3</span><div><h3>You follow up</h3><p>Follow-ups carry a name, a reason and a date, so the next call is decided before you sit down to make it.</p></div></li>
+    <li><span class="n">4</span><div><h3>They become a client</h3><p>Notes, account type, meetings, campaigns and — on Platinum — the client portal and their invoices hang off one record.</p></div></li>
+    <li><span class="n">5</span><div><h3>They stay</h3><p>Newsletters, campaigns and review reminders keep you in front of them between meetings, which is where most advisers quietly lose people.</p></div></li>
+  </ul>
+</section>
+
+<section class="sec">
+  <span class="src you">The section you flagged · my merge of A + B — needs your yes</span>
+  <p class="label">Before you change a thing</p>
+  <h2>Nothing starts from a blank page.</h2>
+  <p class="lead">Your site arrives with the writing already done for your market. From there it is four moves, and not one of them waits on us.</p>
+  <ul class="pts">
+    <li><span class="n">1</span><div><h3>The pages are already written</h3><p>Real starter content for your market, in the language you already use. <em>Your move: rewrite any of it in the page builder.</em></p></div></li>
+    <li><span class="n">2</span><div><h3>The article library is real</h3><p>A Resources section of genuine articles, not headings with placeholder text underneath. <em>Your move: add your own.</em></p></div></li>
+    <li><span class="n">3</span><div><h3>The meeting form fits your market</h3><p>A “Request a Meeting” form worded for the work you do, wired into your client records. <em>Your move: reword it, or bring your clients across.</em></p></div></li>
+    <li><span class="n">4</span><div><h3>The Canadian calculators are in place</h3><p>Mortgage payment, affordability, land transfer tax by province, retirement and savings. <em>Your move: point your own domain at it and go.</em></p></div></li>
+  </ul>
+  <div class="note"><p><b>Why this shape:</b> A's four items are the proof (what already exists — your strongest true claim), B's framing is the energy (four moves, nothing waiting on us). Pairing them per item keeps both and still removes every calendar word, which was your original complaint.</p></div>
+</section>
+
+<section class="sec alt">
+  <span class="src">Why IPRO · Version B</span>
+  <p class="label">Why businesses move to IPRO</p>
+  <h2>One provider. One login. One number to call when something breaks.</h2>
+  <p class="lead">IPRO has built websites and business tools for Canadian professional-service firms since 2014. That is the whole pitch: instead of a web designer, a spreadsheet and a mail tool that do not speak to each other, there is one system and one place to ask.</p>
+  <ul class="pts">
+    <li><span class="n">1</span><div><h3>Your data leaves as easily as it arrives</h3><p>Import the records you have, work from them here, and export them whenever you want — no hostage-taking on the way out.</p></div></li>
+    <li><span class="n">2</span><div><h3>Hosting, domain and SSL are ours to worry about</h3><p>The certificate, the renewal and the connection to your domain are part of the subscription.</p></div></li>
+    <li><span class="n">3</span><div><h3>Nothing starts from a blank page</h3><p>Your site launches with written pages, a Resources library, a “Request a Meeting” form and Canadian calculators.</p></div></li>
+    <li><span class="n">4</span><div><h3>Nothing to adjust for the border</h3><p>No line to correct before it reaches a client.</p></div></li>
+  </ul>
+  <div class="note"><p><b>Item 4 is settled — heading yours, line H.</b> It is the only item on the page under ten words, which is what makes it land after three longer ones. Two consequences, both deliberate: the section no longer states anywhere that prices are in CAD, that provincial tax is handled, or that mail carries consent and unsubscribe. Item 3's “Canadian calculators” is the only Canadian evidence left standing. If those facts matter to a buyer, the natural homes are the feature grid and the newsletter section — say the word and I will place them there rather than reopening this line.</p></div>
+</section>
+
+<section class="sec">
+  <span class="src you">Contact · merged (A's intro, hybrid headline, B's button)</span>
+  <p class="label">Get in touch</p>
+  <h2>Look at it first. Decide after.</h2>
+  <p class="lead">The preview needs nothing from you but a name, a business name and a market, and it runs on its own. This form is for the questions that come after: packages, domains, moving your records over, or how a team would work.</p>
+  <div class="btns"><span class="btn btn-1">Build my preview</span></div>
+  <div class="note"><p><b>One thing to decide:</b> this button says “Build my preview”, but the form beneath it collects a written question and sends it to IPRO — it does not build anything. A visitor who presses it expecting a website gets an email receipt instead. Either rename it (<b>“Send my question”</b>) or put a genuine preview control here and move the enquiry form lower. Your call — I have left your choice in place.</p></div>
+</section>
+
+</div>
+</body>
+</html>
