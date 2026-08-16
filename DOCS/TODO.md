@@ -165,6 +165,47 @@ on the pricing table. When a claim appears in both a view and seeded data, check
       was audited. `/Preview`, the Register page, and the agent-facing help docs have not been
       checked against `DOCS/MARKETING_BUSINESS_BRIEF.md` section 3.
 
+## UPGRADE PRORATION AUDIT — 2026-08-16, six defects found, NONE fixed yet
+
+Trigger: owner upgraded his real BahmanMotamed account Silver-ANNUAL ($480 paid Jul 6 2026) →
+Gold-MONTHLY on Aug 16 and asked where the unused ~$427 went. Four-agent audit, every citation
+re-verified. Short answer: he was compensated **in kind, not in cash** — the new Gold PayPal
+subscription was created with `start_time = Jul 6 2027` (his paid-through date), $0 up front, and
+the old annual sub was properly cancelled. The banner's "Next billing Sept 16 2026" is FALSE
+(defect 3); PayPal's real first charge is $60 on Jul 6 2027. The agent loses nothing; IPRO
+under-collects ~$214 + all HST. Defects, all in `src/IPRO.Billing/PayPalBillingService.cs`:
+
+1. **CRITICAL — proration unit mismatch (line 212).** `charge = newPackage MONTHLY price ×
+   remaining fraction of the old ANNUAL cycle` — prices ~10.7 months of Gold as 0.89 of ONE month
+   ($53.26 instead of ~$640). Correct amountDue was ~$214; it computed $0. Every annual→monthly
+   upgrade is free for the tier difference.
+2. **HIGH — `Math.Max(0, charge-credit)` (line 213) silently forfeits excess credit.** The
+   ~$373 remainder is written to `SubscriptionChange.ProratedCredit` which NOTHING reads
+   (write-only column, grep-verified). No balance, no refund path anywhere in src (ToS says
+   no refunds — fine — but the ledger should still record the forfeiture).
+3. **HIGH — banner lies for deferred-start upgrades (line 390).** `ActivateSubscriptionBillingAsync`
+   unconditionally overwrites the correct NextBillingDate (Jul 6 2027, stored at 1199) with
+   now+1 period (Sep 16 2026). Right for fresh signups, wrong for upgrades. Self-corrects only
+   when the first real payment webhook lands (~11 months of wrong banner). No alarm when the
+   fake date passes unpaid — GetBillingIssueAsync ignores Active rows.
+4. **HIGH — HST never collected on the new sub (line 2106).** Tax gross-up is gated on
+   `invoice.TaxRate > 0`; the $0 adjustment invoice short-circuits to TaxRate 0 (1729-1731), so
+   the Gold sub bills $60 NET forever while the banner says "plus applicable taxes". This is
+   audit-2026-08-14 issue #7, still open — this incident is its first live instance.
+5. **MEDIUM — the $0 Unpaid adjustment invoice (IPRO-2026-000009) gets falsely settled later.**
+   First real $60 sale (~Jul 6 2027) fails the amount-match and falls into the oldest-unpaid
+   fallback (962-964): marks the $0 invoice Paid, emails a $0.00 receipt, and the $60 charge
+   never gets an invoice of its own.
+6. **MEDIUM/latent — credit priced from the CURRENT BillingRule row (line 211 + GetAmount).**
+   Worked here only because the 10× repricing never touches existing DB rows (seeder updates
+   non-price fields only), so Silver still holds $480 in prod. Any SuperAdmin price edit would
+   silently recompute past customers' credit at the new price. No column records what was
+   actually paid for the running period.
+
+Cross-check for 418b: the regression battery for billing money paths should cover 1, 3 and 5.
+Owner's own account is the affected one, so no customer harm; decide fix order before real
+agents start upgrading.
+
 ## SEO pass — shipped 2026-08-16 (`6e04a5f`)
 
 Prompted by Bahman's "was SEO ever considered?" — audit found the foundation solid (per-page
