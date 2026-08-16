@@ -1,11 +1,31 @@
 @model List<IPRO.Entities.BillingRule>
+@inject Microsoft.Extensions.Configuration.IConfiguration HomeSeoConfig
 @{
     ViewData["Title"] = "IPRO Advisers";
     Layout = null;
+    // The marketing front door had a bare head -- title only -- while the agent sites it sells
+    // carry a full SEO head (_PublicSeoHead.cshtml). Canonical comes from App:BaseUrl so test
+    // hosts pointed at this app (e.g. 4ipro.com) defer to the real front door instead of
+    // competing with it; the placeholder guard mirrors Program.cs's base-URL fallback.
+    var configuredBase = HomeSeoConfig["App:BaseUrl"];
+    var seoOrigin = !string.IsNullOrWhiteSpace(configuredBase) && !configuredBase.Contains("yourdomain", StringComparison.OrdinalIgnoreCase)
+        ? configuredBase.TrimEnd('/')
+        : $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var seoDescription = "Website, client records, follow-ups and newsletters for Canadian insurance, financial, accounting and mortgage professionals — one system, one login, one bill.";
 }
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>IPRO Advisers - Website, CRM &amp; Marketing for Growing Businesses</title>
+<meta name="description" content="@seoDescription"/>
+<link rel="canonical" href="@(seoOrigin)/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="IPRO Advisers"/>
+<meta property="og:title" content="IPRO Advisers — Website, CRM &amp; Marketing for Growing Businesses"/>
+<meta property="og:description" content="@seoDescription"/>
+<meta property="og:url" content="@(seoOrigin)/"/>
+<meta property="og:image" content="@(seoOrigin)/images/ipro-advisers-logo.png"/>
+<meta name="twitter:card" content="summary"/>
+<script type="application/ld+json">{"@@context":"https://schema.org","@@type":"Organization","name":"iPro Advisers Inc.","url":"@(seoOrigin)/","logo":"@(seoOrigin)/images/ipro-advisers-logo.png","address":{"@@type":"PostalAddress","streetAddress":"3230 Yonge Street, Suite 2005","addressLocality":"Toronto","addressRegion":"ON","postalCode":"M4N 3P6","addressCountry":"CA"}}</script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet"/>
 <style>

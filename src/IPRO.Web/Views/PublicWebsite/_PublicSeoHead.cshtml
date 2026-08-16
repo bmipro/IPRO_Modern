@@ -26,7 +26,12 @@
                 ? website.TagLine
                 : $"Learn more about {siteName} and the professional services available.";
     var publicPath = page == null || page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}";
-    var origin = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    // Canonical origin comes from the controller (custom domain when fully bound, else the
+    // request host) so a site reachable on both its subdomain and its custom domain names ONE
+    // host to search engines instead of competing with itself. Previews leave it empty.
+    var origin = !string.IsNullOrWhiteSpace(Model.CanonicalOrigin)
+        ? Model.CanonicalOrigin
+        : $"{Context.Request.Scheme}://{Context.Request.Host}";
     var canonicalUrl = origin + publicPath;
     var imagePath = page?.Blocks.OrderBy(b => b.SortOrder).Select(b => b.ImageUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
     imagePath = string.IsNullOrWhiteSpace(imagePath) ? website.LogoUrl : imagePath;

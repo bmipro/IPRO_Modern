@@ -69,6 +69,14 @@ signup, a testimonial, a "Did You Know" unlock — we record what they submitted
 you as a lead. We also record their IP address and the time, to rate-limit and to block
 automated abuse. Your website sets no advertising or tracking cookies.
 
+We also count page views so your adviser can see how their site is performing — the page visited,
+the referring site, and the date. Visitors are counted with a one-way hashed identifier; the
+analytics keep no raw address and set no cookie.
+
+> **Added 16 August 2026, after the first hand-off to counsel.** The platform's Website Analytics
+> feature existed but was not disclosed in the first draft. Cookieless by design — the analytics
+> store holds the path, referring host, a one-way hashed visitor identifier and a timestamp only.
+
 ### Automatically, when the platform is used
 
 Sign-in times, IP addresses, browser and device type, pages visited within the portal, and

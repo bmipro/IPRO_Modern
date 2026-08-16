@@ -68,12 +68,44 @@ public class PublicWebsiteController : Controller
         return View("~/Views/PublicWebsite/Index.cshtml", model);
     }
 
+    // Canonical host selection. A site bound to a custom domain deliberately stays reachable on
+    // its 247advisers subdomain -- certificates renew manually, so the subdomain is the fallback
+    // if one lapses. But serving identical content on two hosts, each self-canonicalizing, makes
+    // search engines treat them as competing duplicates and split the agent's ranking. So every
+    // SEO surface (rel=canonical, og:url, structured data, sitemap URLs, robots' Sitemap line)
+    // names ONE origin: the custom domain when it is fully healthy (Azure binding AND SSL both
+    // Bound), otherwise the host the request arrived on. Deliberately NOT a 301 -- a hard
+    // redirect would take the site down with a lapsed cert; canonical only tells crawlers which
+    // copy counts while humans keep working on either host.
+    private async Task<string> ResolveCanonicalOriginAsync(IPRO.Entities.AgentWebsite website)
+    {
+        var requestOrigin = $"{Request.Scheme}://{Request.Host}";
+        if (string.IsNullOrWhiteSpace(website.CustomDomain)) return requestOrigin;
+
+        var custom = website.CustomDomain.Trim().ToLowerInvariant();
+        if (string.Equals(NormalizeHost(Request.Host.Host), custom, StringComparison.OrdinalIgnoreCase))
+        {
+            return requestOrigin;
+        }
+
+        // "SslBound" alongside the current constant: rows written before the status scheme settled
+        // on AgentDomainStatus.Bound carry the legacy value (seen in real data), and a healthy
+        // legacy domain must not silently fail this gate.
+        var healthy = await _db.AgentDomains.AsNoTracking().AnyAsync(d =>
+            d.AgentWebsiteId == website.Id &&
+            (d.DomainName.ToLower() == custom || d.WwwDomain.ToLower() == custom || d.RootDomain.ToLower() == custom) &&
+            d.AzureBindingStatus == AgentDomainStatus.Bound &&
+            (d.SslStatus == AgentDomainStatus.Bound || d.SslStatus == "SslBound"));
+
+        return healthy ? $"https://{custom}" : requestOrigin;
+    }
+
     [HttpGet("/robots.txt")]
     public async Task<IActionResult> Robots()
     {
         var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
         if (website == null) return NotFound();
-        var origin = $"{Request.Scheme}://{Request.Host}";
+        var origin = await ResolveCanonicalOriginAsync(website);
         return Content($"User-agent: *\nAllow: /\nSitemap: {origin}/sitemap.xml\n", "text/plain", Encoding.UTF8);
     }
 
@@ -89,7 +121,7 @@ public class PublicWebsiteController : Controller
             .OrderBy(p => p.SortOrder)
             .ThenBy(p => p.Title)
             .ToListAsync();
-        var origin = $"{Request.Scheme}://{Request.Host}";
+        var origin = await ResolveCanonicalOriginAsync(website);
         var urls = pages.Select(page => new
         {
             Location = origin + (page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}"),
@@ -815,7 +847,8 @@ public class PublicWebsiteController : Controller
                     Website = website,
                     Pages = pages,
                     CurrentPage = null,
-                    PageNotFound = true
+                    PageNotFound = true,
+                    CanonicalOrigin = await ResolveCanonicalOriginAsync(website)
                 });
             }
         }
@@ -839,6 +872,7 @@ public class PublicWebsiteController : Controller
             Website = website,
             Pages = pages,
             CurrentPage = currentPage,
+            CanonicalOrigin = await ResolveCanonicalOriginAsync(website),
             ApprovedTestimonials = approvedTestimonials,
             PollResultsByBlockId = pollResultsByBlockId,
             FormsByBlockId = formsByBlockId,
