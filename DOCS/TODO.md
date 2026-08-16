@@ -206,6 +206,52 @@ Cross-check for 418b: the regression battery for billing money paths should cove
 Owner's own account is the affected one, so no customer harm; decide fix order before real
 agents start upgrading.
 
+### Downgrade-path companion audit (same day, second 4-agent pass, all citations re-verified)
+
+Downgrades are scheduled (`ScheduleDowngradeAsync` ~1392-1413), zero proration BY DESIGN (nothing
+is cut short), applied by the hourly job OR lazily on any page load, old sub cancelled at PayPal,
+nothing auto-activated (H-7), agent re-subscribes through normal approval. That skeleton is sound.
+Ten defects on top of it:
+
+- **CRITICAL — EffectiveDate frozen from the local `NextBillingDate` column, PayPal never
+  consulted (1396).** On the owner's corrupted account (DB says Sep 16 2026, PayPal reality
+  Jul 6 2027) a downgrade clicked today fires Sep 16: cancels a sub paid through Jul 2027,
+  forfeits ~10 prepaid months (credit hardcoded 0, no refund code exists), gates the account,
+  and the re-subscribe bills full Silver + setup fee immediately. **OWNER MUST NOT CLICK
+  DOWNGRADE OR CANCEL until fixed.** No self-service undo exists once scheduled (no endpoint;
+  both escape buttons disabled in the UI).
+- **CRITICAL — stale pending downgrade destroys a later fully-paid upgrade.** Downgrade
+  scheduled while an upgrade's PayPal approval link is outstanding → `CancelPendingChangesAsync`
+  cancels the upgrade LOCALLY but the approval link survives; completing it resurrects the
+  Cancelled billing (CapturePaymentAsync invoice-first path has NO status filter, ~243-251) and
+  the still-Pending downgrade later cancels ALL Active billings (apply loop never checks
+  `change.BillingId`, 1460-1480) — killing the subscription the agent just paid for.
+- **HIGH — renewal race:** apply predicate is `EffectiveDate <= now` + hourly cadence, so the
+  PayPal cancel always lands AT/AFTER the renewal instant. If PayPal charges first the agent
+  pays a full extra term (a whole YEAR on annual) and then gets cancelled. No refund path.
+- **HIGH — no UI way to undo a scheduled downgrade** (mis-click = locked in unless they pick a
+  third package or cancel everything).
+- **HIGH — same-package period switch silently discarded** (line 189 compares BillingRuleId
+  only): Gold monthly→Gold annual returns "already on that package", so term switching is
+  IMPOSSIBLE product-wide — and as a side effect the request silently wipes any pending change.
+- **MEDIUM** — equal-price lateral move takes the downgrade path (interruption + fresh setup fee
+  for a price-neutral switch); re-subscribe after downgrade re-charges the setup fee and resets
+  the billing anniversary; exactly ONE email after apply, no dunning → non-responder = silent
+  permanent revenue loss.
+- **LOW** — "downgrade now in effect" email sent even when the buyer already cancelled at
+  PayPal; the requested target period (e.g. "Silver ANNUALLY") is stored but dropped at
+  completion.
+
+Fix order agreed with owner 2026-08-16 (combined with the six upgrade defects above):
+(A) date integrity first — stop the line-390 clobber, extend the hourly reconcile job to sync
+`NextBillingDate` from PayPal (auto-repairs the owner's row, no manual prod write), derive
+downgrade EffectiveDate/apply from reconciled truth; (B) proration units + credit ledger +
+historical-paid basis; (C) tax-from-agent + settle-fallback tightening; (D) downgrade UX/safety
+(undo endpoint+button, apply-loop BillingId guard + status filter in capture, term-switch
+support, pre-boundary apply buffer, waive setup fee on downgrade re-subscribe, dunning);
+(E) battery 418b = full cross-period regression matrix so no period×direction pair is ever
+first executed by a customer again.
+
 ## SEO pass — shipped 2026-08-16 (`6e04a5f`)
 
 Prompted by Bahman's "was SEO ever considered?" — audit found the foundation solid (per-page
