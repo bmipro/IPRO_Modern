@@ -165,6 +165,31 @@ on the pricing table. When a claim appears in both a view and seeded data, check
       was audited. `/Preview`, the Register page, and the agent-facing help docs have not been
       checked against `DOCS/MARKETING_BUSINESS_BRIEF.md` section 3.
 
+## SEO pass — shipped 2026-08-16 (`6e04a5f`)
+
+Prompted by Bahman's "was SEO ever considered?" — audit found the foundation solid (per-page
+titles/meta, OG cards, ProfessionalService schema with address, per-site sitemap + robots,
+noindexed previews, proper 404s) with two real holes, both now fixed:
+
+- **Custom-domain duplicate content.** A site on both its subdomain and a bound custom domain
+  self-canonicalized on each, so Google saw two competing copies. Now every SEO surface names ONE
+  origin via `ResolveCanonicalOriginAsync`: the custom domain when binding+SSL are `Bound`, else
+  the request host. **Deliberately canonical, not a 301** — browsers cache 301s permanently (a
+  removed domain would strand past visitors), and a lapsed cert would take the site down; the
+  choice recomputes per request, so deleting/breaking a domain reverts the subdomain instantly.
+  Gate also accepts legacy `SslStatus='SslBound'` rows — caught by testing against real data.
+- **Marketing homepage had a bare head.** Now: meta description, canonical from `App:BaseUrl`
+  (placeholder-guarded so 4ipro.com defers to the real front door), OG tags, Organization schema.
+- Privacy policy gained the **Website Analytics disclosure** (page views, hashed visitor, no
+  cookie) — it was collecting undisclosed. Lawyer notified as a post-hand-off addition.
+- New `DOCS/21_AGENT_GOOGLE_VISIBILITY.md` — the agent-side half (Google Business Profile,
+  reviews, per-page meta, Search Console). Consider linking it from the portal's My Website page.
+
+**Correction for the record:** the competitor gap analysis claimed agents lack traffic analytics.
+Wrong — `/portal/WebsiteAnalytics` exists, cookieless, shipped as "privacy-safe". Remaining real
+gaps, Bahman's priority order pending: IPRO's own social proof (his), abandoned-checkout email
+nudge, real-time booking (post-launch), referrals/blog (later).
+
 ## Homepage: Navy/Aqua redesign — APPROVED, not started (2026-08-15)
 
 Bahman approved porting the prototype design, not just the copy. Today's change put the settled
