@@ -48,6 +48,37 @@ public static class FinancialLedgerSchemaGuard
             logger?.LogError(ex, "FinancialLedgerSchemaGuard: FAILED to drop ledger CASCADE constraints -- " +
                 "agent deletion can still destroy invoices. Fix before deleting any agent.");
         }
+
+        try
+        {
+            await SettleZeroTotalInvoicesAsync(db, logger);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "FinancialLedgerSchemaGuard: could not settle $0 unpaid invoices; will retry next startup.");
+        }
+    }
+
+    // A $0 invoice has no money outstanding by definition, so Unpaid is a lie -- and a dangerous
+    // one: the webhook's oldest-unpaid fallback could hand a REAL later charge to it, emailing a
+    // $0.00 receipt while the real charge went uninvoiced (2026-08-16 audit, IPRO-2026-000009,
+    // minted Unpaid by a zero-due upgrade before BeginPaidChangeAsync started issuing $0
+    // adjustments as born-paid). UPDATE of existing rows only -- nothing is fabricated, so unlike
+    // the retired 000008 restore this is safe on fresh/local/DR databases, where it is a no-op.
+    private static async Task SettleZeroTotalInvoicesAsync(IPRODbContext db, ILogger? logger)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = "UPDATE `Invoices` SET IsPaid = 1 WHERE Total = 0 AND IsPaid = 0";
+        if (command.Connection!.State != System.Data.ConnectionState.Open)
+        {
+            await command.Connection.OpenAsync();
+        }
+
+        var settled = await command.ExecuteNonQueryAsync();
+        if (settled > 0)
+        {
+            logger?.LogWarning("FinancialLedgerSchemaGuard: marked {Count} zero-total invoice(s) as settled -- nothing was ever owed on them.", settled);
+        }
     }
 
     private static async Task DropLedgerCascadesAsync(IPRODbContext db, ILogger? logger)

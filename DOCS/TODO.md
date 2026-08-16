@@ -206,6 +206,25 @@ Cross-check for 418b: the regression battery for billing money paths should cove
 Owner's own account is the affected one, so no customer harm; decide fix order before real
 agents start upgrading.
 
+**FIXED 2026-08-16 — the whole block (A–E) shipped in one change**, plus a 15-finding adversarial
+review round on the diff itself before commit. The review's keepers, all fixed same day:
+`CalculateUpgradeProration` now handles DEFERRED-start rows (a second upgrade on a repaired
+account would have clamped the fraction and sold ~11 months of the next tier for one month's
+difference); `ResolveNextBillingDateOnPayment` guards BOTH date-write sites (activation AND the
+sale webhook — fixing only one let the other re-corrupt within minutes) and keeps only dates
+beyond one period, so fresh signups/renewals behave exactly as before; the ACTIVATED webhook and
+CapturePaymentAsync both refuse superseded billings AND cancel the live PayPal subscription the
+buyer just approved (refusing quietly left it billing with no account attached);
+`Billing.Amount` follows PayPal's settled charge (promo-lapse credit fix); zero-due invoices
+settle at ACTIVATION not creation (born-paid stranded abandoned checkouts with no Resume
+banner); the setup-fee completion waiver is consumed by the next Applied Subscribe and the
+banner honours the same 90-day window; term switching got its UI button (it was unreachable);
+undo-vs-apply race narrowed to a pre-cancel fresh-status read (row-locking residual accepted);
+dunning skips agents who completed-then-cancelled. ACCEPTED tradeoff, not a bug: a scheduled
+downgrade fires up to 6h BEFORE the boundary (so the cancel always beats PayPal's charge), and
+within that window the "Keep My Current Plan" button can lose the race. Battery 418b: 15 tests
+in `BillingProrationMatrixTests` incl. the deferred-row and date-guard cases; 60/60 green.
+
 ### Downgrade-path companion audit (same day, second 4-agent pass, all citations re-verified)
 
 Downgrades are scheduled (`ScheduleDowngradeAsync` ~1392-1413), zero proration BY DESIGN (nothing

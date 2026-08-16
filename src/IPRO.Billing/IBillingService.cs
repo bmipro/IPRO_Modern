@@ -7,6 +7,7 @@ public interface IBillingService
     Task<BillingChangeResult> ResumePaymentAsync(int userId, int invoiceId, string returnUrl, string cancelUrl);
     Task<BillingChangeResult> CapturePaymentAsync(int userId, string orderId);
     Task<IPRO.Entities.SubscriptionChange?> GetPendingChangeAsync(int userId);
+    Task<BillingChangeResult> CancelScheduledChangeAsync(int userId);
     Task<BillingIssue?> GetBillingIssueAsync(int userId);
     Task<bool> CancelPendingPaymentAsync(int userId, int invoiceId);
     Task<bool> CancelPendingPaymentByOrderAsync(int userId, string orderId);

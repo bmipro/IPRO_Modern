@@ -60,6 +60,10 @@ public class BillingController : Controller
             if (mostRecentDowngrade != null)
             {
                 ViewBag.PendingDowngradeCompletionPackage = await _uow.BillingRules.GetByIdAsync(mostRecentDowngrade.RequestedBillingRuleId);
+                // The term the agent originally asked for ("Silver ANNUALLY") used to be stored on
+                // the change and then forgotten at completion; surfacing it here lets the banner
+                // remind them which billing period they picked.
+                ViewBag.PendingDowngradeCompletionPeriod = mostRecentDowngrade.Period;
             }
         }
 
@@ -173,6 +177,14 @@ public class BillingController : Controller
             ? "Pending payment cancelled. You can choose a package again when you are ready."
             : "We could not cancel that pending payment.";
 
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelScheduledChange()
+    {
+        var result = await _billing.CancelScheduledChangeAsync(AgentId);
+        TempData[result.Success ? "Success" : "Error"] = result.Message;
         return RedirectToAction(nameof(Index));
     }
 
