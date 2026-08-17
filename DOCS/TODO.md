@@ -271,6 +271,44 @@ support, pre-boundary apply buffer, waive setup fee on downgrade re-subscribe, d
 (E) battery 418b = full cross-period regression matrix so no period×direction pair is ever
 first executed by a customer again.
 
+## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
+
+Owner asked how a client who prepaid Gold ANNUAL is treated when they downgrade to Silver MONTHLY.
+The flow itself is correct (defers to the paid-through date, keeps Gold meanwhile, no proration
+because nothing is cut short, setup fee waived, HST collected, first Silver charge on approval).
+Three real defects surfaced, all verified by reading the code, NONE fixed yet:
+
+1. **"Cancel Subscription" is immediate but promises otherwise — decide the fix.**
+   `Index.cshtml:96` confirm text: *"Your site will go offline at the end of the billing period."*
+   `CancelSubscriptionAsync` (PayPalBillingService.cs ~656-658) sets `Status=Cancelled` +
+   `CancelledAt=now`, and `IsAccessGatedAsync` (PackageEntitlementService.cs) gates the moment no
+   Active row exists. An annual subscriber 3 months in loses ~9 prepaid months instantly, and no
+   refund path exists anywhere. This is ALSO the only "downgrade immediately" lever a client has.
+   Two options, owner's call: (a) one-line copy fix telling the truth ("access ends immediately, no
+   refund for the remainder"), or (b) make behaviour match the promise — cancel at PayPal now so
+   billing stops, keep local access until the paid-through date. (b) is the better product but is
+   NOT a one-liner: the hourly `ReconcileActiveSubscriptionsWithPayPalAsync` sees PayPal say
+   CANCELLED and would flip the local row Cancelled, defeating the deferral. Needs a deliberate
+   "cancelled but paid through" state that reconcile respects.
+
+2. **The term-switch button (added 2026-08-16) silently destroys a scheduled downgrade.**
+   `Index.cshtml:222-240`: the `isCurrent` branch renders "Switch to Annual/Monthly Billing"
+   unconditionally, with no `isPending` check — unlike the other cards, which correctly render a
+   disabled "Scheduled". Clicking it enters the same-package branch → `ScheduleDowngradeAsync` →
+   `CancelPendingChangesAsync`, wiping the pending Silver downgrade with no warning. Mine, from
+   yesterday; unambiguous, no product decision needed. Fix: hide/disable it whenever a pending
+   change exists.
+
+3. **The requested term is stored and displayed but never applied.** `ScheduleDowngradeAsync`
+   persists `Period=Monthly` and the completion banner says "with monthly billing (the term you
+   originally chose)", but nothing reads `change.Period` at completion — the completion form
+   renders BOTH Monthly and Annually buttons, so someone who scheduled Silver-monthly can land on
+   Silver-annual. Fix: pre-select/only offer the stored term, or drop the banner's claim.
+
+Lower priority, same trace: the 90-day setup-fee waiver expires with no warning on the page or in
+any email; a comped agent (no PayPal subscription id) can be gated by a downgrade with nothing to
+re-approve; `ApplyDuePendingChangesAsync` makes synchronous PayPal calls on the web request thread.
+
 ## SEO pass — shipped 2026-08-16 (`6e04a5f`)
 
 Prompted by Bahman's "was SEO ever considered?" — audit found the foundation solid (per-page
