@@ -271,6 +271,20 @@ support, pre-boundary apply buffer, waive setup fee on downgrade re-subscribe, d
 (E) battery 418b = full cross-period regression matrix so no period×direction pair is ever
 first executed by a customer again.
 
+## AUDIT RECONCILIATION — 2026-08-17 — READ THIS BEFORE TRUSTING ANY AUDIT DOC
+
+All 183 findings from all four audits re-verified against the CURRENT code, not against the
+audit documents. Full result: `DOCS/AUDIT_RECONCILIATION_2026-08-17.md`.
+
+**125 fixed / 13 partial / 45 not fixed → 54 distinct defects still open (1 critical-partial,
+20 high).** The July C/H/M/L audit is 33/35 genuinely fixed (all 15 Lows verified fixed). What
+is open is overwhelmingly from the LATER audits (A5 45% closed, Admin 33%, Jobs 18%) and was
+never worked — not fixed-then-regressed.
+
+That reconciliation doc is now the single source of truth for finding status. The four audit
+docs describe the findings; they do NOT reliably describe their state. Update the reconciliation
+doc when something is fixed.
+
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 
 Owner asked how a client who prepaid Gold ANNUAL is treated when they downgrade to Silver MONTHLY.
