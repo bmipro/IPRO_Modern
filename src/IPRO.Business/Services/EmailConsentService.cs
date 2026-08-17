@@ -117,10 +117,27 @@ public class EmailConsentService : IEmailConsentService
             if (!greetingIsWanted) return true;
         }
 
-        // Newsletters have their own long-standing flag on top of the global opt-out: an agent or
-        // the website signup form can turn the newsletter off without the client ever unsubscribing
-        // from everything.
-        if (channel == EmailChannel.Newsletter && !client.IsNewsletterSubscribed) return true;
+        // IsNewsletterSubscribed is the older flag, and despite the name it governs the two BULK
+        // BROADCAST channels, not just the newsletter. That is what it has always meant in practice:
+        // PublicWebsiteController creates a lead-form contact with IsNewsletterSubscribed = false
+        // unless the visitor ticked "send me the newsletter", and PollDispatcher filtered its
+        // audience on the same flag from the day it was written. So for someone who arrived through
+        // a contact form, false means "never opted into bulk mail from this adviser" -- not "opted
+        // out of one channel". Mailing them a poll is the same CASL problem as mailing them a
+        // newsletter.
+        //
+        // The other channels are deliberately NOT gated on it, and the distinction is who chose the
+        // recipient: e-cards and e-letters are sent to people the agent picked one at a time, a Did
+        // You Know email answers an article the person specifically asked for, a drip enrollment is
+        // an explicit act by the agent, and a testimonial request goes to one named client. None of
+        // those is a broadcast, and none of them has ever consulted this flag.
+        //
+        // This rule used to live in PollDispatcher's SQL as well. It was removed from there on
+        // 2026-08-17 -- correctly, because a second copy of a consent rule is exactly what this
+        // file exists to prevent -- but the rule has to arrive HERE in the same change or the
+        // deletion is a live exposure. It did not, for about an hour. Hence this comment.
+        var isBulkBroadcast = channel is EmailChannel.Newsletter or EmailChannel.Poll;
+        if (isBulkBroadcast && !client.IsNewsletterSubscribed) return true;
 
         return false;
     }

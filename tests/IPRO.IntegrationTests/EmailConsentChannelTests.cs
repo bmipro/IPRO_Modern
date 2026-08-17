@@ -95,23 +95,36 @@ public class EmailConsentChannelTests
         Assert.True(NewService().IsSuppressed(new Client { Email = "" }, EmailChannel.DripCampaign));
     }
 
-    // Turning the newsletter off is a CHANNEL preference, not a global opt-out. An agent unticking
-    // the newsletter box on a client record must not silently stop that client's birthday cards or
-    // meeting-follow-up letters. PollDispatcher used to pre-filter its audience on this flag, which
-    // made a newsletter preference silently govern polls too.
+    // IsNewsletterSubscribed governs the two BULK BROADCAST channels. A contact who arrived through
+    // a website form without ticking "send me the newsletter" is created with this false and no
+    // opt-out, and mailing them a poll is the same CASL problem as mailing them a newsletter --
+    // PollDispatcher filtered on exactly this flag from the day it was written.
     [Theory]
-    [InlineData(EmailChannel.ECard)]
-    [InlineData(EmailChannel.ELetter)]
+    [InlineData(EmailChannel.Newsletter)]
     [InlineData(EmailChannel.Poll)]
-    [InlineData(EmailChannel.DidYouKnow)]
-    [InlineData(EmailChannel.DripCampaign)]
-    [InlineData(EmailChannel.TestimonialRequest)]
-    public void Unticking_the_newsletter_flag_does_not_suppress_the_other_channels(EmailChannel channel)
+    public void A_client_who_never_opted_into_bulk_mail_gets_no_broadcast(EmailChannel channel)
     {
         var client = SubscribedClient();
         client.IsNewsletterSubscribed = false;
 
-        Assert.True(NewService().IsSuppressed(client, EmailChannel.Newsletter));
+        Assert.True(NewService().IsSuppressed(client, channel));
+    }
+
+    // The other side of the same rule. Those channels are not broadcasts -- the agent picks the
+    // recipient one at a time, or the person asked for that specific thing -- and none of them has
+    // ever consulted this flag. An agent unticking the newsletter box must not silently stop that
+    // client's birthday cards or their meeting-follow-up letters.
+    [Theory]
+    [InlineData(EmailChannel.ECard)]
+    [InlineData(EmailChannel.ELetter)]
+    [InlineData(EmailChannel.DidYouKnow)]
+    [InlineData(EmailChannel.DripCampaign)]
+    [InlineData(EmailChannel.TestimonialRequest)]
+    public void Unticking_the_newsletter_flag_does_not_suppress_the_one_to_one_channels(EmailChannel channel)
+    {
+        var client = SubscribedClient();
+        client.IsNewsletterSubscribed = false;
+
         Assert.False(NewService().IsSuppressed(client, channel));
     }
 }
