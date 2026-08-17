@@ -196,9 +196,15 @@ public class PollDispatcher
     // ClientId path is worse -- it took the `_ => query` fall-through and went to every subscriber.
     private async Task<List<Client>?> GetAudienceClientsAsync(PollSend send)
     {
+        // Deliberately NOT filtered on IsNewsletterSubscribed. That flag is the newsletter's own
+        // preference; a poll is a different channel, and EmailConsentService.IsSuppressed (applied
+        // at :59) is the one place allowed to decide who may be mailed. Filtering here also made
+        // the "N of M suppressed" log at :61 always report zero, because the suppressed clients had
+        // already been removed before the count was taken -- the audit trail said nobody was
+        // skipped on exactly the sends where people were.
         var query = _db.Clients
             .Include(c => c.Categories)
-            .Where(c => c.AgentUserId == send.AgentUserId && c.IsNewsletterSubscribed);
+            .Where(c => c.AgentUserId == send.AgentUserId);
 
         var targeted = send.AudienceType switch
         {

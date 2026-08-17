@@ -34,6 +34,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<DripCampaign>? _dripCampaigns;
     private IRepository<DripCampaignStep>? _dripCampaignSteps;
     private IRepository<DripCampaignStepSend>? _dripCampaignStepSends;
+    private IRepository<DripCampaignEnrollment>? _dripCampaignEnrollments;
     private IRepository<Scheduler>? _schedulers;
     private IRepository<Article>? _articles;
     private IRepository<Coupon>? _coupons;
@@ -84,6 +85,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     public IRepository<DripCampaign> DripCampaigns => _dripCampaigns ??= new Repository<DripCampaign>(_context);
     public IRepository<DripCampaignStep> DripCampaignSteps => _dripCampaignSteps ??= new Repository<DripCampaignStep>(_context);
     public IRepository<DripCampaignStepSend> DripCampaignStepSends => _dripCampaignStepSends ??= new Repository<DripCampaignStepSend>(_context);
+    public IRepository<DripCampaignEnrollment> DripCampaignEnrollments => _dripCampaignEnrollments ??= new Repository<DripCampaignEnrollment>(_context);
     public IRepository<Scheduler> Schedulers => _schedulers ??= new Repository<Scheduler>(_context);
     public IRepository<Article> Articles => _articles ??= new Repository<Article>(_context);
     public IRepository<Coupon> Coupons => _coupons ??= new Repository<Coupon>(_context);

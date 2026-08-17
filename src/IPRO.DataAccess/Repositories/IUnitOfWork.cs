@@ -29,6 +29,7 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<DripCampaign> DripCampaigns { get; }
     IRepository<DripCampaignStep> DripCampaignSteps { get; }
     IRepository<DripCampaignStepSend> DripCampaignStepSends { get; }
+    IRepository<DripCampaignEnrollment> DripCampaignEnrollments { get; }
     IRepository<Scheduler> Schedulers { get; }
     IRepository<Article> Articles { get; }
     IRepository<Coupon> Coupons { get; }

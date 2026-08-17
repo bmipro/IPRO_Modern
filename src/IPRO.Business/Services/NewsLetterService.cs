@@ -7,7 +7,13 @@ namespace IPRO.Business.Services;
 public class NewsLetterService : INewsLetterService
 {
     private readonly IUnitOfWork _uow;
-    public NewsLetterService(IUnitOfWork uow) => _uow = uow;
+    private readonly IEmailConsentService _consent;
+
+    public NewsLetterService(IUnitOfWork uow, IEmailConsentService consent)
+    {
+        _uow = uow;
+        _consent = consent;
+    }
 
     public Task<IEnumerable<NewsLetter>> GetByAgentAsync(int agentId) =>
         _uow.NewsLetters.FindAsync(n => n.AgentUserId == agentId);
@@ -227,9 +233,11 @@ public class NewsLetterService : INewsLetterService
                     var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
                     if (client != null)
                     {
-                        client.IsNewsletterSubscribed = false;
-                        client.UpdatedAt = DateTime.UtcNow;
-                        _uow.Clients.Update(client);
+                        // Was IsNewsletterSubscribed = false and nothing else, so someone who marked
+                        // a newsletter as spam went on receiving that agent's e-cards, e-letters,
+                        // polls, Did You Know mail and drip campaigns. A complaint is not a
+                        // channel-scoped preference (JOBS-4).
+                        await _consent.SuppressAllAsync(client, $"sendgrid:{normalizedEvent}:newsletter");
                     }
                 }
                 break;
@@ -329,10 +337,34 @@ public class NewsLetterService : INewsLetterService
                 stepSend.Status = NewsLetterRecipientStatus.Deferred;
                 stepSend.FailureReason = reason ?? stepSend.FailureReason;
                 break;
+            // This case did not exist. A spam complaint or an unsubscribe on a drip-campaign email
+            // fell out of the switch entirely, so the campaign kept mailing that person its
+            // remaining steps on schedule -- the worst version of the JOBS-4 gap, because a drip is
+            // a standing instruction rather than a single send.
+            case "spamreport":
+            case "unsubscribe":
+            case "group_unsubscribe":
+                stepSend.Status = NewsLetterRecipientStatus.Unsubscribed;
+                stepSend.FailureReason = reason ?? stepSend.FailureReason;
+                await SuppressDripRecipientAsync(stepSend.DripCampaignEnrollmentId, normalizedEvent);
+                break;
         }
 
         _uow.DripCampaignStepSends.Update(stepSend);
         await _uow.SaveChangesAsync();
+    }
+
+    // A step send names an enrollment, not a client, so the client is one hop away. SuppressAllAsync
+    // cancels the enrollment itself, which is what actually stops the rest of the campaign.
+    private async Task SuppressDripRecipientAsync(int enrollmentId, string normalizedEvent)
+    {
+        var enrollment = await _uow.DripCampaignEnrollments.GetByIdAsync(enrollmentId);
+        if (enrollment == null) return;
+
+        var client = await _uow.Clients.GetByIdAsync(enrollment.ClientId);
+        if (client == null) return;
+
+        await _consent.SuppressAllAsync(client, $"sendgrid:{normalizedEvent}:dripcampaign");
     }
 
     public Task<IEnumerable<NewsLetterArticle>> GetArticlesAsync(int newsletterId) =>

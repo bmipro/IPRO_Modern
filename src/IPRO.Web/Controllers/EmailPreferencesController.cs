@@ -35,12 +35,19 @@ public class EmailPreferencesController : Controller
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailPreferencesController> _logger;
 
+    // The suppression itself now lives in EmailConsentService so that SendGrid's spamreport and
+    // unsubscribe events reach the SAME code this page does. This page used to own it privately,
+    // which is why a spam complaint suppressed nothing (JOBS-4).
+    private readonly IEmailConsentService _consent;
+
     public EmailPreferencesController(
         IPRODbContext db,
         IEmailService email,
         IConfiguration configuration,
-        ILogger<EmailPreferencesController> logger)
+        ILogger<EmailPreferencesController> logger,
+        IEmailConsentService consent)
     {
+        _consent = consent;
         _db = db;
         _email = email;
         _configuration = configuration;
@@ -67,7 +74,7 @@ public class EmailPreferencesController : Controller
             return Ok();
         }
 
-        await SuppressAllAsync(client, "one-click");
+        await _consent.SuppressAllAsync(client, "one-click");
         return Ok();
     }
 
@@ -86,7 +93,7 @@ public class EmailPreferencesController : Controller
         // pattern that gets senders reported. Suppress first, then offer choices.
         if (!client.EmailOptOutAt.HasValue)
         {
-            await SuppressAllAsync(client, "link");
+            await _consent.SuppressAllAsync(client, "link");
         }
 
         await LoadViewDataAsync(client);
@@ -107,9 +114,7 @@ public class EmailPreferencesController : Controller
 
         if (resubscribeAll)
         {
-            client.EmailOptOutAt = null;
-            client.GreetingsOptInAt = null;
-            client.IsNewsletterSubscribed = true;
+            await _consent.ResubscribeAsync(client);
             ViewBag.Message = "You're subscribed again. You'll receive updates from your adviser as before.";
         }
         else
@@ -140,84 +145,11 @@ public class EmailPreferencesController : Controller
         return await _db.Clients.FirstOrDefaultAsync(c => c.EmailPreferencesToken == trimmed);
     }
 
-    // The broad suppression. Sets the global opt-out AND clears the pre-existing newsletter flag, so
-    // one action produces one consistent result across both mechanisms rather than two that can
-    // disagree -- see the note on Client.EmailOptOutAt.
-    private async Task SuppressAllAsync(Client client, string source)
-    {
-        client.EmailOptOutAt = DateTime.UtcNow;
-        client.GreetingsOptInAt = null;
-        client.IsNewsletterSubscribed = false;
-        client.UpdatedAt = DateTime.UtcNow;
-
-        // Any queued Did You Know mail is already scheduled and would otherwise still go out after
-        // they unsubscribed. The dispatcher re-checks consent, but retiring the rows here means the
-        // Email Activity screen shows the truth instead of a queue that silently never sends.
-        var queued = await _db.DidYouKnowEmailQueueItems
-            .Where(q => q.ClientId == client.Id && q.SentAtUtc == null)
-            .ToListAsync();
-        foreach (var item in queued)
-        {
-            item.SentAtUtc = DateTime.UtcNow;
-            item.Status = DidYouKnowQueueStatuses.Failed;
-            item.FailureReason = "Recipient unsubscribed before this was sent.";
-        }
-
-        // Same reasoning for drip campaigns: an active enrollment is a standing instruction to keep
-        // mailing this client for weeks. The job now checks consent per step, but leaving the
-        // enrollment Active would show the agent a campaign that appears to be running and silently
-        // sends nothing. Cancel it here so the state matches reality (2026-08-14 ultra-audit).
-        var enrollments = await _db.DripCampaignEnrollments
-            .Where(e => e.ClientId == client.Id && e.Status == DripCampaignEnrollmentStatus.Active)
-            .ToListAsync();
-        foreach (var enrollment in enrollments)
-        {
-            enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
-            enrollment.LastError = "Recipient unsubscribed from all email.";
-        }
-
-        await _db.SaveChangesAsync();
-
-        _logger.LogInformation(
-            "Client {ClientId} unsubscribed from all email via {Source}; {Queued} queued item(s) retired, " +
-            "{Enrollments} drip enrollment(s) cancelled.",
-            client.Id, source, queued.Count, enrollments.Count);
-
-        await NotifyAgentAsync(client);
-    }
-
-    // The agent is told, because a client going quiet is something an adviser wants to know about
-    // rather than discover from a dwindling open rate. Best-effort: a failure here must never make
-    // the unsubscribe itself fail, which is the one thing on this page that has to work.
-    private async Task NotifyAgentAsync(Client client)
-    {
-        try
-        {
-            var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == client.AgentUserId);
-            if (agent == null || string.IsNullOrWhiteSpace(agent.Email)) return;
-
-            var clientName = $"{client.FirstName} {client.LastName}".Trim();
-            if (string.IsNullOrWhiteSpace(clientName)) clientName = client.Email;
-
-            var html = $"""
-                <p>{System.Net.WebUtility.HtmlEncode(clientName)} has unsubscribed from your emails.</p>
-                <p style="color:#475569;">They will no longer receive your newsletter, e-letters, polls
-                or website follow-ups. If they chose to keep receiving birthday and anniversary
-                greetings, those will still go out.</p>
-                <p style="color:#475569;">You can still contact them directly — this only affects the
-                marketing emails sent from your IPRO portal.</p>
-                """;
-
-            await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
-                $"{clientName} unsubscribed from your emails", html);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex,
-                "Could not notify agent {AgentId} that client {ClientId} unsubscribed. The unsubscribe itself succeeded.",
-                client.AgentUserId, client.Id);
-        }
-    }
+    // SuppressAllAsync and NotifyAgentAsync used to live here as private methods. They moved to
+    // EmailConsentService / UnsubscribeNotifier so that EVERY suppression path shares them -- this
+    // page, SendGrid spamreport events, and SendGrid unsubscribe events. While they were private to
+    // this controller, a spam complaint set nothing at all and the client kept receiving e-cards,
+    // e-letters, polls and Did You Know mail (JOBS-4, 2026-08-14 ultra-audit).
 
     private async Task LoadViewDataAsync(Client client)
     {

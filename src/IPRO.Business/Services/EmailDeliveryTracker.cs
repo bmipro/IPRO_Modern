@@ -26,16 +26,18 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
 {
     private readonly IPRODbContext _db;
     private readonly ILogger<EmailDeliveryTracker> _logger;
+    private readonly IEmailConsentService _consent;
 
-    public EmailDeliveryTracker(IPRODbContext db, ILogger<EmailDeliveryTracker> logger)
+    public EmailDeliveryTracker(IPRODbContext db, ILogger<EmailDeliveryTracker> logger, IEmailConsentService consent)
     {
         _db = db;
         _logger = logger;
+        _consent = consent;
     }
 
     // The subset of SendGrid events worth persisting, normalized away from SendGrid's inconsistent
     // naming (it emits "open"/"click" singular but "delivered"/"processed" past-tense).
-    private enum Outcome { Ignored, Sent, Delivered, Opened, Clicked, Bounced, Failed }
+    private enum Outcome { Ignored, Sent, Delivered, Opened, Clicked, Bounced, Failed, Unsubscribed }
 
     private static Outcome Map(string? eventName) => (eventName ?? string.Empty).Trim().ToLowerInvariant() switch
     {
@@ -45,11 +47,21 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
         "click" or "clicked" => Outcome.Clicked,
         "bounce" or "blocked" => Outcome.Bounced,
         "dropped" or "deferred" or "spamreport" => Outcome.Failed,
+        // These used to fall through to Ignored and be discarded at the top of RecordAsync, so an
+        // unsubscribe reported by SendGrid -- including the one-click header in every card, letter
+        // and poll -- suppressed nothing on any of the four channels (JOBS-4).
+        "unsubscribe" or "group_unsubscribe" => Outcome.Unsubscribed,
         _ => Outcome.Ignored
     };
 
     // A bounce or a drop is terminal: a later "processed" event for the same message must not
     // overwrite it back to a healthy-looking state. Events can and do arrive out of order.
+    //
+    // Unsubscribed is deliberately NOT terminal. Terminal means "the send failed", and it writes
+    // Status = Failed plus a FailureReason. An unsubscribe means the opposite: the mail arrived, was
+    // read, and the person acted on it. Marking those recipients Failed would silently corrupt the
+    // Delivered column this class was written to populate. It suppresses future mail; it does not
+    // rewrite the history of a delivery that succeeded.
     private static bool IsTerminal(Outcome current) => current is Outcome.Bounced or Outcome.Failed;
 
     public async Task RecordAsync(string entityKind, int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt)
@@ -59,30 +71,57 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
 
         var normalized = (eventName ?? string.Empty).Trim().ToLowerInvariant();
 
+        // Each recorder hands back the client the recipient row belongs to, so suppression can be
+        // decided ONCE below instead of four times. A fifth sender added to this switch inherits
+        // consent automatically; it cannot forget, which is precisely how the four existing ones
+        // ended up mailing people who had complained.
+        int? clientId;
         switch ((entityKind ?? string.Empty).ToLowerInvariant())
         {
             case "ecard":
-                await RecordECardAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
+                clientId = await RecordECardAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
                 break;
             case "eletter":
-                await RecordELetterAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
+                clientId = await RecordELetterAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
                 break;
             case "poll":
-                await RecordPollAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
+                clientId = await RecordPollAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
                 break;
             case "didyouknow":
-                await RecordDidYouKnowAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
+                clientId = await RecordDidYouKnowAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
                 break;
             default:
                 _logger.LogWarning("Unrecognised email entity kind '{EntityKind}' in SendGrid event; ignoring.", entityKind);
-                break;
+                return;
+        }
+
+        await SuppressIfRequestedAsync(clientId, outcome, normalized, entityKind);
+    }
+
+    // A spam complaint and an unsubscribe are the same instruction in law: stop mailing this person.
+    // "dropped" and "deferred" also map to Outcome.Failed but are SendGrid's own delivery problems,
+    // not a decision by the recipient, so the normalized name is checked rather than the outcome.
+    private async Task SuppressIfRequestedAsync(int? clientId, Outcome outcome, string normalized, string? entityKind)
+    {
+        var recipientAsked = outcome == Outcome.Unsubscribed || (outcome == Outcome.Failed && normalized == "spamreport");
+        if (!recipientAsked || !clientId.HasValue) return;
+
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId.Value);
+        if (client == null) return;
+
+        var result = await _consent.SuppressAllAsync(client, $"sendgrid:{normalized}:{entityKind}");
+        if (!result.WasAlreadySuppressed)
+        {
+            _logger.LogInformation(
+                "SendGrid '{Event}' on a {EntityKind} suppressed all email for client {ClientId}.",
+                normalized, entityKind, client.Id);
         }
     }
 
-    private async Task RecordECardAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
+    private async Task<int?> RecordECardAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
     {
         var recipient = await _db.ECardRecipients.FirstOrDefaultAsync(r => r.Id == id);
-        if (recipient == null) return;
+        if (recipient == null) return null;
 
         recipient.LastEvent = normalized;
         recipient.UpdatedAt = DateTime.UtcNow;
@@ -97,18 +136,19 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
             recipient.Status = ECardRecipientStatuses.Failed;
             recipient.FailureReason = reason ?? string.Empty;
         }
-        else if (!alreadyTerminal && outcome != Outcome.Ignored)
+        else if (!alreadyTerminal && outcome is not (Outcome.Ignored or Outcome.Unsubscribed))
         {
             recipient.Status = ECardRecipientStatuses.Sent;
         }
 
         await _db.SaveChangesAsync();
+        return recipient.ClientId;
     }
 
-    private async Task RecordELetterAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
+    private async Task<int?> RecordELetterAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
     {
         var recipient = await _db.ELetterRecipients.FirstOrDefaultAsync(r => r.Id == id);
-        if (recipient == null) return;
+        if (recipient == null) return null;
 
         recipient.LastEvent = normalized;
         recipient.UpdatedAt = DateTime.UtcNow;
@@ -123,18 +163,19 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
             recipient.Status = ELetterRecipientStatuses.Failed;
             recipient.FailureReason = reason ?? string.Empty;
         }
-        else if (!alreadyTerminal && outcome != Outcome.Ignored)
+        else if (!alreadyTerminal && outcome is not (Outcome.Ignored or Outcome.Unsubscribed))
         {
             recipient.Status = ELetterRecipientStatuses.Sent;
         }
 
         await _db.SaveChangesAsync();
+        return recipient.ClientId;
     }
 
-    private async Task RecordPollAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
+    private async Task<int?> RecordPollAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
     {
         var recipient = await _db.PollRecipients.FirstOrDefaultAsync(r => r.Id == id);
-        if (recipient == null) return;
+        if (recipient == null) return null;
 
         recipient.LastEvent = normalized;
         recipient.UpdatedAt = DateTime.UtcNow;
@@ -152,18 +193,19 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
             recipient.FailedAt ??= at;
             recipient.FailureReason = reason ?? string.Empty;
         }
-        else if (!alreadyTerminal)
+        else if (!alreadyTerminal && outcome != Outcome.Unsubscribed)
         {
             recipient.Status = PollRecipientStatus.Sent;
         }
 
         await _db.SaveChangesAsync();
+        return recipient.ClientId;
     }
 
-    private async Task RecordDidYouKnowAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
+    private async Task<int?> RecordDidYouKnowAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
     {
         var item = await _db.DidYouKnowEmailQueueItems.FirstOrDefaultAsync(q => q.Id == id);
-        if (item == null) return;
+        if (item == null) return null;
 
         item.LastEvent = normalized;
         if (!string.IsNullOrWhiteSpace(messageId)) item.SendGridMessageId = messageId;
@@ -177,12 +219,13 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
             item.Status = DidYouKnowQueueStatuses.Failed;
             item.FailureReason = reason ?? string.Empty;
         }
-        else if (!alreadyTerminal)
+        else if (!alreadyTerminal && outcome != Outcome.Unsubscribed)
         {
             item.Status = DidYouKnowQueueStatuses.Sent;
         }
 
         await _db.SaveChangesAsync();
+        return item.ClientId;
     }
 
     // Timestamps are write-once (??=): the FIRST time an event type is seen is the interesting one.

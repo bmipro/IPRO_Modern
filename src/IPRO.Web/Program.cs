@@ -72,6 +72,10 @@ builder.Services.AddScoped<IEmailDeliveryTracker, EmailDeliveryTracker>();
 // The single "may we email this client?" decision point. Every dispatcher asks this and nothing
 // re-implements it -- see EmailConsentService.
 builder.Services.AddScoped<IEmailConsentService, EmailConsentService>();
+// Lets EmailConsentService tell the agent when a client unsubscribes, without IPRO.Business having
+// to reference IPRO.Email (the dependency runs the other way). Registered here only: IPRO.Admin has
+// no reason to send this, and the service takes IEnumerable so its absence there is not an error.
+builder.Services.AddScoped<IPRO.Business.Services.IUnsubscribeNotifier, IPRO.Email.UnsubscribeNotifier>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.AddScoped<IClientInvoiceService, ClientInvoiceService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
