@@ -361,22 +361,27 @@ saying exactly this.
 Neither existed before; the signup form required agreement to a document that was never published,
 and there was no privacy policy at all.
 
-**Both pages carry a visible draft banner and `noindex` until a lawyer signs off.** They are not
-the operative agreement yet. Unfilled values render as yellow highlights so they cannot be shipped
-unnoticed.
+**RELEASED 2026-08-17 (`3ef650e`).** Counsel signed off — approved as-is with minor changes, said
+what exists is good enough for now, and will revisit a couple of months after launch. The draft
+banner and `noindex` are gone from both pages, verified live. Unfilled values would still render as
+yellow highlights, and there were none at release (all six values set).
 
 - [x] **Legal entity confirmed 2026-08-15: iPro Advisers Inc.** "iPro Accountants" removed from the
-      address line; both documents now name one entity consistently.
-- [ ] **Lawyer review.** Lead with clause 7 of the superseded agreement (archived at
-      `DOCS/legal/archive/2026-08-15-superseded-online-subscription-agreement.txt`): it purported to
-      grant *the public* an unrestricted licence to everything a subscriber uploaded, including
-      client data, and to waive their copyright. Every agent who has signed up agreed to it.
-      New Terms s.4 replaces it. **Ask counsel whether existing subscribers must re-accept or
-      whether notice under old clause 3 suffices.**
-- [x] **All six Legal__ values are set** in `appsettings.json` (public business details, not
-      secrets, so they live with the code). Effective date 15 February 2012, last updated
-      15 August 2026. **`Legal__ReviewComplete` is still `false`** — that is the only thing keeping
-      the "Pending legal review" banner and `noindex` on both pages. Flip it when counsel signs off.
+      address line; both documents now name one entity consistently. **Owner re-listed "iPro
+      Accountants" above the address on 2026-08-17 — flagged back to him rather than re-added,
+      because changing an entity name in a document counsel just approved needs his explicit word.
+      Unanswered.**
+- [x] **Lawyer review — DONE 2026-08-17.** Approved as-is. NOTE: counsel's blanket approval did not
+      explicitly answer the clause-7 question (whether existing subscribers who accepted the
+      superseded agreement — archived at
+      `DOCS/legal/archive/2026-08-15-superseded-online-subscription-agreement.txt`, which purported
+      to grant *the public* an unrestricted licence over everything a subscriber uploaded including
+      client data — must RE-ACCEPT the new Terms, or whether notice suffices). Treated as "no
+      re-accept required" by implication only. Worth one explicit question at the post-launch review
+      if any subscriber from before 2026-08-15 is still active.
+- [x] **All six Legal__ values set** in `appsettings.json` (public business details, not secrets, so
+      they live with the code). Effective date 15 February 2012, last updated 15 August 2026.
+      `Legal__ReviewComplete` flipped to `true` on 2026-08-17.
 - [ ] **Confirm two facts** the privacy policy asserts: that every Azure resource really is in
       Canada East, and Anthropic's current commercial terms on not training from API content.
 - [ ] `Support:NotificationEmail` in `src/IPRO.Web/appsettings.json` is still the literal
