@@ -62,6 +62,34 @@ public static class EmailDeliverySchema
         ("ECardDesigns", "SendAfterUnsubscribe", "tinyint(1) NOT NULL DEFAULT 0")
     };
 
+    // The atomic-claim marker on the four SEND tables (not the recipient tables above).
+    //
+    // Status alone cannot arbitrate a race: two dispatch jobs can both read Scheduled, both write
+    // Sending, and both mail the whole list. ClaimedAt is the timestamp the winner stamps in the same
+    // conditional UPDATE that flips the status, so a second runner's UPDATE matches nothing.
+    //
+    // ClaimAttempts does double duty. It bounds retries (a send that crashes the process three times
+    // is retired rather than looping forever), and it guarantees the claim UPDATE always changes at
+    // least one column -- Pomelo pins MySqlConnector with UseAffectedRows defaulting to true, so an
+    // UPDATE whose SET is a no-op reports 0 rows and the claim would silently fail. That matters
+    // exactly in the stale-reclaim case, where Status is already Sending.
+    //
+    // Same reasoning as DidYouKnowEmailQueueItems.ClaimedAtUtc, which has worked this way since the
+    // Did You Know queue shipped; this generalises it to the other four senders.
+    private static readonly string[] SendTables =
+    {
+        "NewsLetterSends",
+        "ECards",
+        "ELetters",
+        "PollSends"
+    };
+
+    private static readonly (string Column, string Definition)[] SendClaimColumns =
+    {
+        ("ClaimedAt",     "datetime(6) NULL"),
+        ("ClaimAttempts", "int NOT NULL DEFAULT 0")
+    };
+
     public static async Task EnsureAsync(IPRODbContext db)
     {
         var ownsConnection = db.Database.GetDbConnection().State != ConnectionState.Open;
@@ -81,6 +109,24 @@ public static class EmailDeliverySchema
             // Unsubscribe links are looked up by token on every click, and the token is the only
             // thing identifying the client, so it needs an index.
             await EnsureTokenIndexAsync(db);
+
+            foreach (var table in SendTables)
+            {
+                if (!await TableExistsAsync(db, table)) continue;
+
+                foreach (var (column, definition) in SendClaimColumns)
+                {
+                    if (await ColumnExistsAsync(db, table, column)) continue;
+
+                    await using var alter = db.Database.GetDbConnection().CreateCommand();
+                    alter.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `{column}` {definition};";
+                    await alter.ExecuteNonQueryAsync();
+                }
+
+                // The stale-claim sweep filters on (Status, ClaimedAt) every time a dispatch job
+                // runs. Without this it is a full scan of the send table on every pass.
+                await EnsureIndexAsync(db, table, $"idx_{table.ToLowerInvariant()}_claim", "`Status`, `ClaimedAt`");
+            }
 
             foreach (var table in RecipientTables)
             {
@@ -125,6 +171,28 @@ public static class EmailDeliverySchema
         await using var create = db.Database.GetDbConnection().CreateCommand();
         create.CommandText =
             "CREATE INDEX `idx_clients_email_preferences_token` ON `Clients` (`EmailPreferencesToken`);";
+        await create.ExecuteNonQueryAsync();
+    }
+
+    // Generalised from EnsureTokenIndexAsync. Identifiers come from the compile-time arrays above.
+    private static async Task EnsureIndexAsync(IPRODbContext db, string table, string indexName, string columnList)
+    {
+        await using var check = db.Database.GetDbConnection().CreateCommand();
+        check.CommandText =
+            "SELECT COUNT(*) FROM information_schema.STATISTICS " +
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @table AND INDEX_NAME = @index;";
+        var tableParameter = check.CreateParameter();
+        tableParameter.ParameterName = "@table";
+        tableParameter.Value = table;
+        check.Parameters.Add(tableParameter);
+        var indexParameter = check.CreateParameter();
+        indexParameter.ParameterName = "@index";
+        indexParameter.Value = indexName;
+        check.Parameters.Add(indexParameter);
+        if (Convert.ToInt32(await check.ExecuteScalarAsync()) > 0) return;
+
+        await using var create = db.Database.GetDbConnection().CreateCommand();
+        create.CommandText = $"CREATE INDEX `{indexName}` ON `{table}` ({columnList});";
         await create.ExecuteNonQueryAsync();
     }
 

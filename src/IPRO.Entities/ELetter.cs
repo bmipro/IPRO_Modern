@@ -43,6 +43,22 @@ public class ELetter
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // -- atomic claim (see IPRO.DataAccess.SendClaims) --
+    //
+    // Status alone cannot arbitrate a race between two dispatch runs: both can read Scheduled, both
+    // write Sending, and both mail the entire list. ClaimedAt is stamped in the SAME conditional
+    // UPDATE that flips the status, so the loser's UPDATE matches nothing. It is also the staleness
+    // marker -- a claim older than SendClaims.ClaimTimeout means the process died mid-send and the
+    // work may be picked up again.
+    //
+    // Cleared to NULL on every terminal path, so a finished row can never look like a live claim.
+    public DateTime? ClaimedAt { get; set; }
+
+    // Bounds retries, and guarantees the claim UPDATE always changes at least one column -- Pomelo
+    // pins MySqlConnector with UseAffectedRows on, so a SET that changes nothing reports 0 rows and
+    // the claim would silently fail on a stale reclaim where Status is already Sending.
+    public int ClaimAttempts { get; set; }
+
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<ELetterRecipient> Recipients { get; set; } = new List<ELetterRecipient>();
 }
