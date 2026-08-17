@@ -198,6 +198,20 @@ public class RecurringInvoicesController : Controller
         var schedule = await _db.RecurringInvoiceSchedules.FirstOrDefaultAsync(s => s.Id == id && s.AgentUserId == AgentId);
         if (schedule == null) return NotFound();
 
+        // Delete the line items EXPLICITLY, by query -- not through schedule.LineItems, which is not
+        // loaded on this path (no Include above), so EF's client-side cascade never fires.
+        //
+        // There is no FK on RecurringInvoiceLineItems.RecurringInvoiceScheduleId (see
+        // SchemaIntegrityReporter.KnownUnenforced), so nothing else removes them either. Left behind,
+        // they are permanently unerasable: both AgentDataEraser and ClientDataEraser reach them
+        // through the schedule that this line just deleted. Same defect shape as the custom-form
+        // submission answers -- an eraser predicate anchored on a parent the agent's own UI can
+        // destroy first.
+        var lineItems = await _db.RecurringInvoiceLineItems
+            .Where(li => li.RecurringInvoiceScheduleId == schedule.Id)
+            .ToListAsync();
+        _db.RecurringInvoiceLineItems.RemoveRange(lineItems);
+
         _db.RecurringInvoiceSchedules.Remove(schedule);
         await _db.SaveChangesAsync();
 

@@ -143,6 +143,50 @@ it is a spam complaint, and complaints damage deliverability for every agent on 
 non-greeting card, and confirm the recipient row says "unsubscribed" rather than reaching the mail
 provider at all.
 
+**Every path that records a "stop" goes through `SuppressAllAsync`.** As of 2026-08-17 that is the
+newsletter footer link, the drip footer link, the one-click endpoint, the preferences page, and
+SendGrid's `spamreport` / `unsubscribe` / `group_unsubscribe` events on **any** sender. `EmailOptOutAt`
+is written in exactly one file; a grep that finds a second writer is a defect. Turning consent back
+ON is narrower: only the person themselves may do it (preferences page, their own portal, or a signup
+form they filled in). An agent may switch the newsletter off for a client but may not switch it back
+on for someone who opted out of everything.
+
+**Transactional mail is exempt and must stay exempt.** Password resets, invoice and document links,
+overdue reminders, portal invitations and every billing email send regardless of `EmailOptOutAt`.
+This holds because those senders never consult consent, and because the delivery tracker dispatches
+only on `ecard | eletter | poll | didyouknow`. Do not add a consent check to a transactional sender,
+and do not widen that dispatch list.
+
+**Delivery statistics stay honest.** An unsubscribe is not a delivery failure. Recording one must
+never set a recipient's status to Failed or write `BouncedAt` — the mail arrived and was read, and
+the "Delivered" column exists to say so.
+
+---
+
+## 8. An erasure predicate must anchor on something the agent cannot delete first
+
+Every `AgentDataEraser` / `ClientDataEraser` map entry deletes by a `WHERE` clause. If that clause
+selects **through a parent row**, the entry is only as good as that parent's continued existence.
+
+- **Membership in the map is not reachability.** The coverage tests assert a table is listed. They
+  cannot assert the predicate still matches anything. `WebsiteFormSubmissionAnswers` was in the map
+  for its whole life and erased nothing, because the agent's own Delete Form button removed the row
+  the predicate selected through. Preview said 0, erase said 0, four audits agreed. (2026-08-17)
+- **Before writing a parent-scoped predicate, name the delete action for that parent** and say why it
+  cannot run first. If one exists and can, anchor somewhere else — the agent or client id directly,
+  or a table only the erasers delete.
+- **A real `ON DELETE CASCADE`, or a UI that refuses to delete a parent with children, is a valid
+  reason** to keep a parent anchor. "No delete action exists today" is a reason with an expiry date;
+  write it down at the entry so the person adding that action finds it.
+- The same shape hits controllers: `RecurringInvoicesController.Delete` removed a schedule without
+  its line items, which had no FK and no loaded navigation collection, so nothing removed them and
+  both erasers lost them. Fixed in the same pass.
+
+**Violation looks like:** a deletion request the product cannot honour, on rows that no longer say
+whose they were. `AgentErasureOrphanTests.Nothing_the_agent_owned_survives_a_full_shred` is the
+generic guard — it runs the agent-visible deletes first, then shreds, then requires every covered
+table to be empty.
+
 ---
 
 ## Before calling a cross-cutting change "done"

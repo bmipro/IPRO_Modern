@@ -27,6 +27,24 @@ namespace IPRO.DataAccess;
 // fails the build if you don't: it compares CoveredTables against every table in the live schema that
 // has an AgentUserId column. Until 2026-08-15 that test was only ever promised by this comment, and in
 // its absence two tables went missing from the map and one entry named a table that never existed.
+//
+// MEMBERSHIP IS NOT REACHABILITY. The coverage tests assert a table is IN this map. They cannot
+// assert the predicate still MATCHES anything, and that is a different failure with the same
+// appearance of safety: WebsiteFormSubmissionAnswers was in the map, the preview reported 0, the
+// erase deleted 0, and the rows survived every audit -- because the agent's own Delete button had
+// already removed the parent the predicate selected through (fixed 2026-08-17, see the note on that
+// entry below).
+//
+// So: a parent-scoped predicate is only safe if NOTHING outside this class can delete that parent
+// first. Before writing one, name the delete action for the parent and say why it cannot run before
+// an erasure. Prefer anchoring on the agent id directly, or on a table only the erasers delete.
+//
+// Audited 2026-08-17. Safe today ONLY because no delete action exists for the parent -- if you add
+// one, come back here first: NewsLetterArticles/NewsLetterRecipients (no newsletter delete),
+// ECardRecipients, ELetterRecipients, SupportTicketMessages, ClientInvoiceLineItems,
+// InvoiceLineItems. Safe for a stronger reason -- a real ON DELETE CASCADE, or the agent UI refuses
+// to delete a parent that has children: WebsiteContentBlocks, WebsiteMediaAssets, WebsitePageViews,
+// and the whole Polls family.
 public static class AgentDataEraser
 {
     // Child rows first. Ordering is not required for correctness (no FKs exist) but keeps the report
@@ -68,8 +86,27 @@ public static class AgentDataEraser
         ("PollSends",                   "AgentUserId = @agentId"),
         ("PollSurveys",                 "AgentUserId = @agentId"),
 
-        // -- Custom forms (submission answers hang off the lead, not the form owner) --
-        ("WebsiteFormSubmissionAnswers","WebsiteFormId IN (SELECT Id FROM WebsiteForms WHERE AgentUserId = @agentId)"),
+        // -- Custom forms --
+        //
+        // Anchored on the LEAD first, and that ordering is the whole point. Submission answers are
+        // DESIGNED to outlive the form: WebsiteFormSubmissionAnswer snapshots FieldLabel/FieldType at
+        // submission time, DOCS/17_FORMS.md promises the agent their past submissions survive a form
+        // delete, and WebsiteLeadsController.Details renders them off WebsiteLeadId. So deleting them
+        // when the form goes is not an option -- but anchoring the ERASER on the form meant that the
+        // moment an agent used FormsController.Delete, this predicate matched nothing and every
+        // answer row became permanently unerasable. There is no FK to catch it either; the form
+        // family is created by raw DDL with no FOREIGN KEY clause.
+        //
+        // WebsiteLeads is the durable anchor: it carries AgentUserId directly, it is in this map
+        // below and deleted AFTER this row, no answer can exist without one (the write path saves the
+        // lead first and back-fills WebsiteLeadId), and nothing outside this class deletes a lead.
+        // The form-side clause is kept as an OR for the reverse orphan and to document both routes.
+        //
+        // Rejected: a denormalised AgentUserId column (silently 0 on every existing row) and a real
+        // FK (ADD CONSTRAINT fails at boot on exactly the databases that already have orphans).
+        // Predicates must contain no literal { or } -- ExecuteSqlRawAsync runs them through
+        // string.Format. @agentId may repeat; the Replace at the bottom of this file is replace-all.
+        ("WebsiteFormSubmissionAnswers","(WebsiteLeadId IN (SELECT Id FROM WebsiteLeads WHERE AgentUserId = @agentId)) OR (WebsiteFormId IN (SELECT Id FROM WebsiteForms WHERE AgentUserId = @agentId))"),
         ("WebsiteFormFieldOptions",     "WebsiteFormFieldId IN (SELECT Id FROM WebsiteFormFields WHERE WebsiteFormId IN (SELECT Id FROM WebsiteForms WHERE AgentUserId = @agentId))"),
         ("WebsiteFormFields",           "WebsiteFormId IN (SELECT Id FROM WebsiteForms WHERE AgentUserId = @agentId)"),
         ("WebsiteForms",                "AgentUserId = @agentId"),

@@ -212,6 +212,14 @@ public class FormsController : Controller
 
         // Website blocks pointing at this form (WebsiteFormSettings.WebsiteFormId) are left as-is -
         // PublicFormBuilder skips a block whose linked form no longer resolves, same as a deleted Poll.
+        //
+        // WebsiteFormSubmissionAnswers are DELIBERATELY not deleted here, and must not be added.
+        // DOCS/17_FORMS.md promises the agent that submissions they already received survive a form
+        // delete; WebsiteFormSubmissionAnswer snapshots FieldLabel/FieldType precisely so they can;
+        // and WebsiteLeadsController.Details renders them off WebsiteLeadId, not off the form.
+        // AgentDataEraser reaches them through the lead (fixed 2026-08-17 -- it used to reach them
+        // through the form, which this method had just deleted, so they became unerasable). If you
+        // came here to "clean up the orphans", the orphan was in the eraser and is already fixed.
         _db.WebsiteFormFieldOptions.RemoveRange(options);
         _db.WebsiteFormFields.RemoveRange(fields);
         _db.WebsiteForms.Remove(form);
