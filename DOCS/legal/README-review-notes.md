@@ -47,10 +47,18 @@ Why this is urgent, in order:
 narrow licence to host and process it only to run the service; no public licence; no
 copyright waiver; export whenever you like; we own the software and templates.
 
-**Ask the reviewer specifically:** do existing subscribers need to re-accept, or is notice of
-the change enough? Clause 3 of the old agreement lets us change terms on notice, which
-probably covers it — but this change is materially in the subscriber's favour, and it is worth
-being able to show that we corrected it deliberately and told people.
+~~**Ask the reviewer specifically:** do existing subscribers need to re-accept, or is notice of
+the change enough?~~
+
+**CLOSED 2026-08-17 — moot, no affected subscribers exist.** Owner confirmed: every account on
+this platform is a demo/test account, none of which are real subscribers relying on the terms.
+The old clause-7 agreement belonged to the *previous* version of the product — approved back in
+2012, ran for a few years, then retired, and the client count has been zero since well before
+this platform. So there is nobody who accepted clause 7 and is still an active subscriber, and
+no re-accept-vs-notice question to answer. Counsel approved the new Terms as-is on 2026-08-17.
+
+Keep this section for the record: it documents that the defect was found, understood, and
+replaced by Terms s.4 deliberately — not that it was ever live against a paying customer.
 
 ## 2. Other substantive changes from the old agreement
 

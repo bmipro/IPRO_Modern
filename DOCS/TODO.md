@@ -371,14 +371,13 @@ yellow highlights, and there were none at release (all six values set).
       Accountants" above the address on 2026-08-17 — flagged back to him rather than re-added,
       because changing an entity name in a document counsel just approved needs his explicit word.
       Unanswered.**
-- [x] **Lawyer review — DONE 2026-08-17.** Approved as-is. NOTE: counsel's blanket approval did not
-      explicitly answer the clause-7 question (whether existing subscribers who accepted the
-      superseded agreement — archived at
-      `DOCS/legal/archive/2026-08-15-superseded-online-subscription-agreement.txt`, which purported
-      to grant *the public* an unrestricted licence over everything a subscriber uploaded including
-      client data — must RE-ACCEPT the new Terms, or whether notice suffices). Treated as "no
-      re-accept required" by implication only. Worth one explicit question at the post-launch review
-      if any subscriber from before 2026-08-15 is still active.
+- [x] **Lawyer review — DONE 2026-08-17.** Approved as-is; counsel revisits a couple of months after
+      launch. The clause-7 re-accept question is **CLOSED as moot** (owner, 2026-08-17): every
+      account on this platform is a demo/test account, and the superseded agreement (archived at
+      `DOCS/legal/archive/2026-08-15-superseded-online-subscription-agreement.txt`) belonged to the
+      PREVIOUS product — approved in 2012, ran a few years, retired, zero clients since well before
+      this platform. Nobody who accepted clause 7 is an active subscriber, so there is no
+      re-accept-vs-notice decision to make. Do not re-raise.
 - [x] **All six Legal__ values set** in `appsettings.json` (public business details, not secrets, so
       they live with the code). Effective date 15 February 2012, last updated 15 August 2026.
       `Legal__ReviewComplete` flipped to `true` on 2026-08-17.
