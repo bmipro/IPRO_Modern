@@ -165,7 +165,7 @@ on the pricing table. When a claim appears in both a view and seeded data, check
       was audited. `/Preview`, the Register page, and the agent-facing help docs have not been
       checked against `DOCS/MARKETING_BUSINESS_BRIEF.md` section 3.
 
-## UPGRADE PRORATION AUDIT — 2026-08-16, six defects found, NONE fixed yet
+## UPGRADE PRORATION AUDIT — 2026-08-16 — ALL FIXED same day (`1909426`, see FIXED block below)
 
 Trigger: owner upgraded his real BahmanMotamed account Silver-ANNUAL ($480 paid Jul 6 2026) →
 Gold-MONTHLY on Aug 16 and asked where the unused ~$427 went. Four-agent audit, every citation
@@ -236,9 +236,9 @@ Ten defects on top of it:
   consulted (1396).** On the owner's corrupted account (DB says Sep 16 2026, PayPal reality
   Jul 6 2027) a downgrade clicked today fires Sep 16: cancels a sub paid through Jul 2027,
   forfeits ~10 prepaid months (credit hardcoded 0, no refund code exists), gates the account,
-  and the re-subscribe bills full Silver + setup fee immediately. **OWNER MUST NOT CLICK
-  DOWNGRADE OR CANCEL until fixed.** No self-service undo exists once scheduled (no endpoint;
-  both escape buttons disabled in the UI).
+  and the re-subscribe bills full Silver + setup fee immediately. ~~OWNER MUST NOT CLICK
+  DOWNGRADE OR CANCEL until fixed~~ (FIXED `1909426` — safe again; owner-verified the corrected
+  Jul 6 2027 banner live). No self-service undo existed once scheduled — now there is one.
 - **CRITICAL — stale pending downgrade destroys a later fully-paid upgrade.** Downgrade
   scheduled while an upgrade's PayPal approval link is outstanding → `CancelPendingChangesAsync`
   cancels the upgrade LOCALLY but the approval link survives; completing it resurrects the
