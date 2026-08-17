@@ -36,6 +36,16 @@
          [0.17.1] dependency) is NOT bumped here - HtmlSanitizer 9.0.967 is its latest release and
          forcing a newer AngleSharp would break the H-3/H-4 sanitizer fix. Revisit when HtmlSanitizer
          ships a version compatible with a patched AngleSharp. -->
+    <!-- Newtonsoft.Json arrives only transitively (PayPalCheckoutSdk 1.0.4 asks for 11.0.1), and
+         before this pin a transitive package listing showed IPRO.Business,
+         IPRO.DataAccess and IPRO.Utility resolving the vulnerable 11.0.1 while IPRO.Web and
+         IPRO.Admin happened to float to 13.0.2 because something else in their graph asked higher.
+         The 2026-07-24 audit recorded this as "gone entirely". It was not; the check only looked
+         at the two app projects, which is exactly where it looks clean (2026-08-17
+         reconciliation). Central transitive pinning is on, so this one line forces every project.
+         13.0.2 rather than 13.0.3 deliberately: it is what the apps already resolved and what is in
+         the local NuGet cache, so offline builds via ops\Start-LocalEnv.ps1 keep working. -->
+    <PackageVersion Include="Newtonsoft.Json" Version="[13.0.2]" />
     <PackageVersion Include="System.Text.Json" Version="[8.0.6]" />
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="[8.0.4]" />
     <PackageVersion Include="System.Formats.Asn1" Version="[8.0.2]" />

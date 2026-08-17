@@ -494,8 +494,15 @@ public class AccountController : Controller
         }
     }
 
+    // Anonymous by necessity -- the account does not exist yet at this point in signup -- but NOT
+    // callable by anything that has not loaded a real Register page. Previously this was
+    // [IgnoreAntiforgeryToken], so anyone on the internet could POST codes at it in bulk and read
+    // the exact discount terms back: a promo-code oracle (WEB-H-2, open since the 2026-08-14
+    // ultra-audit). Antiforgery costs the legitimate visitor nothing (the token is already on the
+    // page they are standing on) while removing the "from anywhere, with no session" property.
+    // Paired with a 5m/5 IP rate-limit rule on this exact endpoint in appsettings.json.
     [HttpPost]
-    [IgnoreAntiforgeryToken]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ValidatePromoCode(string code, int packageId)
     {
         var package = await _uow.BillingRules.FirstOrDefaultAsync(p => p.Id == packageId && p.IsActive);

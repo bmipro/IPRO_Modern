@@ -451,9 +451,18 @@ textarea:focus{box-shadow:none;}
     result.style.color = '#334155';
     result.textContent = 'Checking...';
 
+    // The endpoint now requires antiforgery (WEB-H-2: it was an open promo-code oracle). The token
+    // input is already rendered by @@Html.AntiForgeryToken() in the form above, so read it from
+    // there rather than adding a second one.
+    var tokenField = document.querySelector('input[name="__RequestVerificationToken"]');
+    var tokenValue = tokenField ? tokenField.value : '';
+
     fetch('/Account/ValidatePromoCode', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'RequestVerificationToken': tokenValue
+      },
       body: 'code=' + encodeURIComponent(code) + '&packageId=' + encodeURIComponent(packageId)
     })
       .then(function (r) { return r.json(); })
