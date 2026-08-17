@@ -1,0 +1,439 @@
+@* ============================================================================
+   ARCHIVED HOMEPAGE — the blue Bootstrap design, as it stood on 2026-08-16.
+
+   This is the page that was live from launch until the Navy/Aqua redesign
+   replaced it. Kept for reference at Bahman's request (2026-08-17).
+
+   It holds the SETTLED COPY DECK agreed 2026-08-15 ("Be the ONE they find
+   first.") with the two false claims already removed (SMS reminders, managed
+   blog post), plus the SEO head added 2026-08-16 — so it is a good reference
+   for wording and for the dynamic bindings, not just the old look.
+
+   NOT COMPILED: it lives under DOCS/, outside src/IPRO.Web, so the Razor SDK
+   never sees it. Do not move a copy of this into Views/ — a stray .cshtml
+   there gets compiled and was deleted once before as dead code (Hygiene-4).
+
+   To restore:  git show <sha>:src/IPRO.Web/Views/Home/Index.cshtml
+   or copy this file back to src/IPRO.Web/Views/Home/Index.cshtml and delete
+   this header block.
+   ============================================================================ *@
+
+@model List<IPRO.Entities.BillingRule>
+@inject Microsoft.Extensions.Configuration.IConfiguration HomeSeoConfig
+@{
+    ViewData["Title"] = "IPRO Advisers";
+    Layout = null;
+    // The marketing front door had a bare head -- title only -- while the agent sites it sells
+    // carry a full SEO head (_PublicSeoHead.cshtml). Canonical comes from App:BaseUrl so test
+    // hosts pointed at this app (e.g. 4ipro.com) defer to the real front door instead of
+    // competing with it; the placeholder guard mirrors Program.cs's base-URL fallback.
+    var configuredBase = HomeSeoConfig["App:BaseUrl"];
+    var seoOrigin = !string.IsNullOrWhiteSpace(configuredBase) && !configuredBase.Contains("yourdomain", StringComparison.OrdinalIgnoreCase)
+        ? configuredBase.TrimEnd('/')
+        : $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var seoDescription = "Website, client records, follow-ups and newsletters for Canadian insurance, financial, accounting and mortgage professionals — one system, one login, one bill.";
+}
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IPRO Advisers - Website, CRM &amp; Marketing for Growing Businesses</title>
+<meta name="description" content="@seoDescription"/>
+<link rel="canonical" href="@(seoOrigin)/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="IPRO Advisers"/>
+<meta property="og:title" content="IPRO Advisers — Website, CRM &amp; Marketing for Growing Businesses"/>
+<meta property="og:description" content="@seoDescription"/>
+<meta property="og:url" content="@(seoOrigin)/"/>
+<meta property="og:image" content="@(seoOrigin)/images/ipro-advisers-logo.png"/>
+<meta name="twitter:card" content="summary"/>
+<script type="application/ld+json">{"@@context":"https://schema.org","@@type":"Organization","name":"iPro Advisers Inc.","url":"@(seoOrigin)/","logo":"@(seoOrigin)/images/ipro-advisers-logo.png","address":{"@@type":"PostalAddress","streetAddress":"3230 Yonge Street, Suite 2005","addressLocality":"Toronto","addressRegion":"ON","postalCode":"M4N 3P6","addressCountry":"CA"}}</script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  body{color:#1e293b;}
+  .ipro-hero{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);color:#fff;}
+  .ipro-nav{background:rgba(255,255,255,0.08);}
+  .feature-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.06);height:100%;}
+  .feature-icon{width:52px;height:52px;border-radius:12px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:1.4rem;}
+  .price-card{border:none;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.08);height:100%;display:flex;flex-direction:column;}
+  .price-card.featured{box-shadow:0 0 0 2px #2563eb,0 16px 40px rgba(37,99,235,0.22);border:none;position:relative;}
+  .price-card.featured::before{content:"";position:absolute;top:0;left:16px;right:16px;height:3px;background:#a9812f;border-radius:0 0 3px 3px;}
+  .price-amount{font-size:2.5rem;font-weight:800;color:#1a3a6b;font-variant-numeric:tabular-nums;}
+  .section-eyebrow{letter-spacing:.08em;font-weight:700;font-size:.8rem;color:#2563eb;text-transform:uppercase;}
+  .brand-logo{display:block;height:42px;width:auto;filter:brightness(0) invert(1);}
+  h1,h2,h3,h4,h5{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;}
+  .badge-plain{background:#eef2f8;color:#64748b;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
+  .badge-featured{background:#f4ead2;color:#a9812f;font-weight:700;font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;}
+  .setup-waived{margin:0;line-height:1.35;}
+  .setup-waived .was{color:#94a3b8;text-decoration:line-through;font-size:.9rem;}
+  .setup-waived .now{color:#a9812f;font-weight:800;font-size:1.15rem;margin-left:6px;font-variant-numeric:tabular-nums;}
+  .setup-waived .lbl{display:block;color:#64748b;font-size:.8rem;margin-top:1px;}
+  .price-limits{border-top:1px solid #eef1f6;border-bottom:1px solid #eef1f6;padding:12px 0;margin:10px 0 14px;}
+  .price-limits li{padding:2px 0;}
+  .preview-plan-link{display:block;text-align:center;font-size:.82rem;font-weight:700;color:#2563eb;text-decoration:none;margin-top:10px;}
+  .preview-plan-link:hover{text-decoration:underline;}
+  .tier-stack{display:flex;flex-direction:column;gap:14px;}
+  .tier-row{background:#fff;border:1px solid #e5e9f2;border-radius:16px;padding:26px 28px;box-shadow:0 8px 24px rgba(15,23,42,0.05);}
+  .tier-row.tier-gold{margin-left:3%;}
+  .tier-row.tier-platinum{margin-left:6%;box-shadow:0 0 0 1px #2563eb,0 12px 28px rgba(37,99,235,.16);position:relative;}
+  .tier-row.tier-platinum::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:#a9812f;border-radius:16px 16px 0 0;}
+  .tier-row.tier-broker{margin-left:9%;}
+  .tier-icon-wrap{width:36px;height:36px;border-radius:10px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;flex:none;font-size:1rem;}
+  .tier-row.tier-platinum .tier-icon-wrap{background:#f4ead2;color:#a9812f;}
+  .tier-badge-pill{margin-left:auto;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#2563eb;background:#eff6ff;padding:5px 12px;border-radius:999px;white-space:nowrap;}
+  .tier-row.tier-platinum .tier-badge-pill{color:#a9812f;background:#f4ead2;}
+  .tier-feature-item{font-size:.92rem;color:#475569;display:flex;gap:8px;align-items:flex-start;padding:4px 0;}
+  .tier-feature-item i{color:#16a34a;margin-top:4px;flex:none;font-size:.8rem;}
+  .tier-feature-item b{color:#1e293b;}
+  .tier-note{font-size:.82rem;color:#64748b;margin-top:16px;padding-top:16px;border-top:1px solid #eef1f6;}
+
+  .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center;text-align:left;}
+  @@media (max-width:768px){.hero-grid{grid-template-columns:1fr;text-align:center;}}
+  .hero-cta{display:inline-block;background:#fff;color:#1a3a6b;border-radius:8px;padding:13px 22px;font-weight:600;font-size:1.05rem;text-decoration:none;margin-bottom:14px;}
+  .hero-cta:hover{color:#1a3a6b;opacity:.92;}
+  .hero-sublinks{font-size:.88rem;}
+  .hero-sublinks a{color:#cfe0ff;text-decoration:underline;text-underline-offset:2px;}
+  .hero-sublinks a:hover{color:#fff;}
+  .hero-sublinks .sep{opacity:.5;margin:0 10px;}
+  .browser-frame{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.45);max-width:360px;margin:0 auto;}
+  .browser-chrome{background:#e7e9ee;padding:9px 12px;display:flex;align-items:center;gap:6px;}
+  .browser-chrome .dot{width:8px;height:8px;border-radius:50%;background:#c7cbd4;flex:none;}
+  .browser-chrome .url{margin-left:8px;background:#fff;border-radius:5px;padding:4px 10px;font-size:.72rem;color:#7c8494;flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .ai-card{padding:18px 20px;color:#1e293b;text-align:left;}
+  .ai-card .ai-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.94rem;margin-bottom:2px;}
+  .ai-card .ai-tier-note{font-size:.74rem;color:#64748b;margin:0 0 14px;}
+  .ai-card .ai-stats{display:flex;gap:10px;margin-bottom:14px;}
+  .ai-card .ai-stat{flex:1;text-align:center;background:#f6f7fb;border-radius:8px;padding:9px 4px;}
+  .ai-card .ai-stat b{display:block;font-size:1.25rem;color:#2563eb;font-variant-numeric:tabular-nums;}
+  .ai-card .ai-stat span{font-size:.66rem;color:#64748b;}
+  .ai-card .ai-action{background:#f9f7f2;border:1px solid #ece5d4;border-radius:9px;padding:12px 13px;font-size:.82rem;line-height:1.55;}
+  .ai-card .ai-action .reason{color:#64748b;margin-top:5px;display:block;}
+</style></head>
+<body>
+
+<div class="ipro-hero">
+  <nav class="navbar navbar-expand ipro-nav py-3">
+    <div class="container d-flex justify-content-between align-items-center">
+      <img class="brand-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
+      <div>
+        <a href="/Account/Login" class="btn btn-outline-light me-2">Sign In</a>
+        <a href="/Account/Register" class="btn btn-light fw-semibold">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-5">
+    <div class="hero-grid">
+      <div>
+        @* Copy settled with Bahman 15 Aug 2026. Source deck: DOCS/marketing-site-prototype/
+           copy-merged.html (hero section). Do not reintroduce claims that are not in
+           DOCS/MARKETING_BUSINESS_BRIEF.md section 3. *@
+        <h1 class="fw-bold display-5 mb-3">Be the ONE they find first.</h1>
+        <p class="fs-5 mb-4" style="color:#dbeafe;">Your website, client records, follow-ups and newsletters run on one system, from one login, on one bill. It arrives already written for your market.</p>
+        <a href="/Preview" class="hero-cta"><i class="fas fa-wand-magic-sparkles me-2"></i>See it before I sign up</a>
+        <div class="hero-sublinks">
+          <a href="/Account/Register">Start a free account</a><span class="sep">&middot;</span><a href="#pricing">See pricing</a>
+        </div>
+      </div>
+      <div class="browser-frame">
+        <div class="browser-chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">firstnamelastname.@ViewBag.TemporaryRootDomain</span></div>
+        <div class="ai-card">
+          <div class="ai-title"><i class="fas fa-robot text-primary"></i>AI Daily Assistant</div>
+          <p class="ai-tier-note">Included in Platinum &amp; Broker plans</p>
+          <div class="ai-stats">
+            <div class="ai-stat"><b>@ViewBag.HeroInsight.NewLeadCount</b><span>New leads</span></div>
+            <div class="ai-stat"><b>@ViewBag.HeroInsight.StaleLeadCount</b><span>&gt;24h old</span></div>
+            <div class="ai-stat"><b>@ViewBag.HeroInsight.NoFollowUpClientCount</b><span>No follow-up</span></div>
+          </div>
+          <div class="ai-action">
+            <div><strong>Suggested next action:</strong> @ViewBag.HeroInsight.ActionText</div>
+            <div class="reason"><i class="fas fa-sparkles me-1"></i>@ViewBag.HeroInsight.ActionReason</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <div class="text-center mb-5">
+    <div class="section-eyebrow mb-2">What's included</div>
+    <h2 class="fw-bold">From your first client to your whole team.</h2>
+    <p class="text-muted mt-2 mb-0">The tools scale with your practice — start solo, add what you need as you grow.</p>
+  </div>
+  <div class="tier-stack">
+    <div class="tier-row">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-table-cells"></i></span>
+        <div><div class="fw-bold">On every plan</div><div class="text-muted small">Including Silver, from day one</div></div>
+      </div>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Instant website, pre-populated for your vertical</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Lead capture &amp; automatic prospect manager</div></div>
+        @* SMS removed 15 Aug 2026 -- it is NOT BUILT. It sits in DOCS/TODO.md under "backlog kept
+           only in the roadmap doc". This line advertised it on every plan, including Silver.
+           Do not restore until SMS actually sends. *@
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Calendar / scheduler with email reminders</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Newsletters &amp; automated marketing campaigns</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Testimonials, polls, custom forms, lead magnets</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Built-in SEO tools &amp; social integration</div></div>
+      </div>
+      <div class="tier-note">Silver caps at 500 clients / 2 domains / 50&nbsp;MB storage — everything above is unlimited on every other tier.</div>
+    </div>
+
+    <div class="tier-row tier-gold">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-star"></i></span>
+        <div><div class="fw-bold">Gold adds</div><div class="text-muted small">Campaign &amp; brand polish</div></div>
+        <span class="tier-badge-pill">+6 tools</span>
+      </div>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Pre-designed e-cards &amp; e-letters</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Rotating homepage banner</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Coupon manager</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Mail merge</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Printable client mailing labels</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Unlimited clients, domains &amp; 500&nbsp;MB storage</div></div>
+      </div>
+    </div>
+
+    <div class="tier-row tier-platinum">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-shield-halved"></i></span>
+        <div><div class="fw-bold">Platinum adds</div><div class="text-muted small">The real differentiator</div></div>
+        <span class="tier-badge-pill">Runs your day</span>
+      </div>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>AI Daily Assistant</b> — who to call today, and why</span></div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>Client Portal</b> — login, messages, documents, appointments</span></div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i><span><b>Client invoicing &amp; estimates</b></span></div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Life-event reminders (birthdays, renewals, anniversaries)</div></div>
+        @* Was "One managed blog post/month, written for you" -- removed 15 Aug 2026. That promised a
+           HUMAN WRITING SERVICE that IPRO does not perform. The platform drafts with AI for the
+           subscriber to review; it does not write and publish on their behalf. *@
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>AI drafting for newsletters, articles and social posts</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Managed SEO across every page + PayPal integration</div></div>
+      </div>
+      <div class="tier-note">This is the plan behind the AI Daily Assistant you'll see in your 30-second preview — the one that tells you who to call today, and why.</div>
+    </div>
+
+    <div class="tier-row tier-broker">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tier-icon-wrap"><i class="fas fa-users"></i></span>
+        <div><div class="fw-bold">Broker Package adds</div><div class="text-muted small">For teams &amp; brokerages</div></div>
+        <span class="tier-badge-pill">Custom</span>
+      </div>
+      <div class="row g-1">
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Designated support contact</div></div>
+        <div class="col-md-6"><div class="tier-feature-item"><i class="fas fa-check"></i>Custom team / multi-agent pricing — contact us</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bg-light py-5" id="pricing">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="section-eyebrow mb-2">Pricing</div>
+      <h2 class="fw-bold">Straightforward pricing, four plans.</h2>
+      <p class="text-muted mt-2 mb-0">What you pay monthly, what you pay once, and what you get — no asterisks.</p>
+    </div>
+    @if (Model.Any())
+    {
+      // Union of every feature code across the loaded packages, in a stable order, so the
+      // comparison table has one row per feature regardless of which package(s) include it.
+      var allFeatures = Model
+        .SelectMany(p => p.Features)
+        .GroupBy(f => f.FeatureCode)
+        .Select(g => g.OrderBy(f => f.SortOrder).First())
+        .OrderBy(f => f.SortOrder)
+        .ToList();
+      Func<string, string> badgeFor = name => name switch
+      {
+        "IPro Silver" => "Just getting started",
+        "IPro Gold" => "Most flexible",
+        "IPro Platinum" => "Most complete",
+        "Broker Package" => "For teams",
+        _ => "Plan"
+      };
+
+      <div class="row g-4 justify-content-center">
+        @foreach (var package in Model)
+        {
+          // Platinum, not Gold, is the featured tier -- it's the only one that includes the AI
+          // Daily Assistant, Client Portal, and Client Invoicing, which is what the rest of the
+          // site (including the /Preview flow) is actually selling.
+          var isFeatured = package.PackageName == "IPro Platinum";
+          var clientsLabel = package.Features.FirstOrDefault(f => f.FeatureCode == PackageFeatureCodes.Contacts)?.LimitLabel;
+          var domainsLabel = package.Features.FirstOrDefault(f => f.FeatureCode == PackageFeatureCodes.MultiDomainSupport)?.LimitLabel;
+          var storageLabel = package.Features.FirstOrDefault(f => f.FeatureCode == PackageFeatureCodes.FileUploadCapacity)?.LimitLabel;
+          <div class="col-md-6 col-lg-4">
+            <div class="card price-card p-4 @(isFeatured ? "featured" : "")">
+              <div class="badge @(isFeatured ? "badge-featured" : "badge-plain") align-self-start mb-2">@badgeFor(package.PackageName)</div>
+              <h4 class="fw-bold">@package.PackageName</h4>
+              @if (!string.IsNullOrWhiteSpace(package.Description))
+              {
+                <p class="text-muted small">@package.Description</p>
+              }
+              <div class="my-3">
+                @if (package.MonthlyPrice > 0)
+                {
+                  <span class="price-amount">$@package.MonthlyPrice.ToString("N0")</span><span class="text-muted">/month</span>
+                  @* Prices are pre-tax; provincial sales tax is added at checkout. Saying so on the
+                     public pricing page keeps the advertised figure honest. *@
+                  <div class="small text-muted">plus applicable taxes</div>
+                }
+                else
+                {
+                  <span class="price-amount">Contact Us</span>
+                }
+              </div>
+              @if (package.AnnualPrice > 0)
+              {
+                <p class="text-muted small mb-1">or $@package.AnnualPrice.ToString("N0")/year</p>
+              }
+              @if (package.SetupFee > 0)
+              {
+                @* Waiver comes from the package row (Super Admin -> Packages -> Edit). The same
+                   BillingRule.IsSetupFeeWaivedOn call decides what PayPal charges, so this figure
+                   cannot advertise a saving the checkout won't honour. *@
+                if (package.IsSetupFeeWaivedOn(DateTime.UtcNow))
+                {
+                  <p class="setup-waived mb-3">
+                    <span class="was">$@package.SetupFee.ToString("N0")</span>
+                    <span class="now">$0</span>
+                    <span class="lbl">one-time setup &mdash; waived@(package.SetupFeeWaivedUntil.HasValue ? $" until {package.SetupFeeWaivedUntil.Value:MMMM d}" : "")</span>
+                  </p>
+                }
+                else
+                {
+                  <p class="text-muted small mb-3">+ $@package.SetupFee.ToString("N0") one-time setup</p>
+                }
+              }
+              @if (clientsLabel != null || domainsLabel != null || storageLabel != null)
+              {
+                <ul class="list-unstyled small text-muted price-limits mb-0">
+                  @if (clientsLabel != null) { <li><b class="text-dark">@clientsLabel</b> clients</li> }
+                  @if (domainsLabel != null) { <li><b class="text-dark">@domainsLabel</b> domains</li> }
+                  @if (storageLabel != null) { <li><b class="text-dark">@storageLabel</b> storage</li> }
+                </ul>
+              }
+              @* Carry the chosen plan into registration (?package= preselects it there) -- without
+                 this, a visitor who clicked "Get Started" on Platinum landed on an empty package
+                 dropdown and had to choose again. *@
+              <a href="/Account/Register?package=@Uri.EscapeDataString(package.PackageName)" class="btn @(isFeatured ? "btn-primary" : "btn-outline-primary") w-100 fw-semibold mt-auto">Get Started</a>
+              <a href="/Preview?package=@Uri.EscapeDataString(package.PackageName)" class="preview-plan-link">See a live @package.PackageName site in 30s <i class="fas fa-arrow-right ms-1 small"></i></a>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (allFeatures.Any())
+      {
+        <div class="text-center mt-4">
+          <button class="btn btn-link fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#compareFeatures" aria-expanded="false" aria-controls="compareFeatures">
+            Compare all features <i class="fas fa-chevron-down ms-1 small"></i>
+          </button>
+        </div>
+        <div class="collapse mt-3" id="compareFeatures">
+          <div class="table-responsive bg-white rounded-4 shadow-sm p-2">
+            <table class="table table-borderless align-middle mb-0">
+              <thead>
+                <tr>
+                  <th class="text-muted small text-uppercase">Feature</th>
+                  @foreach (var package in Model)
+                  {
+                    <th class="text-center">@package.PackageName</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var feature in allFeatures)
+                {
+                  <tr>
+                    <td class="small">@feature.FeatureName</td>
+                    @foreach (var package in Model)
+                    {
+                      var match = package.Features.FirstOrDefault(f => f.FeatureCode == feature.FeatureCode);
+                      <td class="text-center">
+                        @if (match != null && match.IsIncluded)
+                        {
+                          <i class="fas fa-check text-success"></i>
+                          @if (!string.IsNullOrWhiteSpace(match.LimitLabel))
+                          {
+                            <div class="small text-muted">@match.LimitLabel</div>
+                          }
+                        }
+                        else
+                        {
+                          <i class="fas fa-minus text-muted opacity-50"></i>
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    }
+    else
+    {
+      <p class="text-center text-muted">Pricing is being updated — <a href="/Account/Register">start your registration</a> and we'll follow up with plan details.</p>
+    }
+  </div>
+</div>
+
+@* Why IPRO -- the four items Bahman settled on 15 Aug 2026, item by item.
+   Source deck: DOCS/marketing-site-prototype/copy-merged.html ("Why businesses move to IPRO").
+   Every claim here is verifiable in the product. Do not add a fifth without checking
+   DOCS/MARKETING_BUSINESS_BRIEF.md section 3 first. *@
+<div class="container py-5">
+  <div class="text-center mb-5">
+    <div class="section-eyebrow mb-2">Why businesses move to IPRO</div>
+    <h2 class="fw-bold">One provider. One login. One number to call when something breaks.</h2>
+    <p class="text-muted mt-2 mb-0 mx-auto" style="max-width:56ch;">IPRO has built websites and business tools for Canadian professional-service firms since 2014. That is the whole pitch: instead of a web designer, a spreadsheet and a mail tool that do not speak to each other, there is one system and one place to ask.</p>
+  </div>
+  <div class="row g-4 justify-content-center">
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Your data leaves as easily as it arrives</h5>
+      <p class="text-muted small mb-0">Import the records you have, work from them here, and export them whenever you want &mdash; no hostage-taking on the way out.</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Hosting, domain and SSL are ours to worry about</h5>
+      <p class="text-muted small mb-0">The certificate, the renewal and the connection to your domain are part of the subscription.</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Nothing starts from a blank page</h5>
+      <p class="text-muted small mb-0">Your site launches with written pages, a Resources library, a &ldquo;Request a Meeting&rdquo; form and Canadian calculators.</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <h5 class="fw-bold">Nothing to adjust for the border</h5>
+      <p class="text-muted small mb-0">No line to correct before it reaches a client.</p>
+    </div>
+  </div>
+</div>
+
+<div class="ipro-hero py-5">
+  <div class="container text-center">
+    <h3 class="fw-bold mb-2">You've seen what it does. Now see it with your name on it.</h3>
+    <p class="mb-4" style="color:#dbeafe;">Free, no account needed — just enter your info and look around.</p>
+    <a href="/Account/Register" class="btn btn-light btn-lg fw-semibold px-5 me-2">Start Your Free Account</a>
+    <a href="/Preview" class="btn btn-outline-light btn-lg px-5"><i class="fas fa-wand-magic-sparkles me-2"></i>Haven't seen your site yet? Preview it</a>
+  </div>
+</div>
+
+<footer class="py-4 bg-white border-top">
+  <div class="container d-flex flex-wrap justify-content-between align-items-center small text-muted">
+    <span>&copy; @DateTime.UtcNow.Year IPRO Advisers</span>
+    <span>
+      <a href="/terms" class="text-muted me-3">Terms</a>
+      <a href="/privacy" class="text-muted me-3">Privacy</a>
+      <a href="/Account/Login" class="text-muted me-3">Sign In</a>
+      <a href="/Account/Register" class="text-muted">Register</a>
+    </span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body></html>
