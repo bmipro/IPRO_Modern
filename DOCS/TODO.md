@@ -367,10 +367,9 @@ banner and `noindex` are gone from both pages, verified live. Unfilled values wo
 yellow highlights, and there were none at release (all six values set).
 
 - [x] **Legal entity confirmed 2026-08-15: iPro Advisers Inc.** "iPro Accountants" removed from the
-      address line; both documents now name one entity consistently. **Owner re-listed "iPro
-      Accountants" above the address on 2026-08-17 — flagged back to him rather than re-added,
-      because changing an entity name in a document counsel just approved needs his explicit word.
-      Unanswered.**
+      address line; both documents now name one entity consistently. Owner re-listed "iPro
+      Accountants" on 2026-08-17; asked whether to add it back and answered **NO** the same day.
+      The legal pages name **iPro Advisers Inc. only**. Settled — do not re-raise.
 - [x] **Lawyer review — DONE 2026-08-17.** Approved as-is; counsel revisits a couple of months after
       launch. The clause-7 re-accept question is **CLOSED as moot** (owner, 2026-08-17): every
       account on this platform is a demo/test account, and the superseded agreement (archived at
