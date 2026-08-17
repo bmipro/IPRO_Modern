@@ -62,8 +62,12 @@ public class ClientService : IClientService
              c.Phone.Contains(query)));
     }
 
+    // EmailOptOutAt is part of the test, not just the newsletter flag: this feeds the subscriber
+    // count the agent is shown before sending, and it must match the audience NewsLetterDispatcher
+    // will actually build. Without it the agent is told "142 subscribers", the send reaches 130, and
+    // nothing explains the gap.
     public Task<IEnumerable<Client>> GetNewsletterSubscribersAsync(int agentId) =>
-        _uow.Clients.FindAsync(c => c.AgentUserId == agentId && c.IsNewsletterSubscribed);
+        _uow.Clients.FindAsync(c => c.AgentUserId == agentId && c.IsNewsletterSubscribed && c.EmailOptOutAt == null);
 
     public Task<int> GetCountAsync(int agentId) =>
         _uow.Clients.CountAsync(c => c.AgentUserId == agentId);

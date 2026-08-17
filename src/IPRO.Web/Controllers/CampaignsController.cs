@@ -544,7 +544,9 @@ public class CampaignsController : Controller
                 Name = c.Name,
                 Description = c.Description,
                 ClientCount = c.Clients.Count,
-                SubscriberCount = c.Clients.Count(client => client.IsNewsletterSubscribed)
+                // Same rule as ClientService.GetNewsletterSubscribersAsync: the number an agent is
+                // shown has to be the number a send will actually reach.
+                SubscriberCount = c.Clients.Count(client => client.IsNewsletterSubscribed && client.EmailOptOutAt == null)
             })
             .OrderBy(c => c.Name)
             .ToListAsync();

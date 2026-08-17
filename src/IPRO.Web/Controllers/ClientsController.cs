@@ -877,7 +877,16 @@ public class ClientsController : Controller
         client.Province = model.Province;
         client.PostalCode = model.PostalCode;
         client.Country = model.Country;
-        client.IsNewsletterSubscribed = model.IsNewsletterSubscribed;
+        // An agent may turn the newsletter OFF for anyone, but may not turn it back ON for someone
+        // who has unsubscribed from everything. That is the one direction the client themselves has
+        // to choose -- through the preferences page or their portal -- and letting a tickbox in the
+        // agent's contact editor undo a recorded opt-out is exactly the thing CASL exists to stop.
+        // (It would not even work: IsSuppressed reads EmailOptOutAt, so the contact would show as
+        // subscribed and never receive anything.)
+        if (!client.EmailOptOutAt.HasValue || !model.IsNewsletterSubscribed)
+        {
+            client.IsNewsletterSubscribed = model.IsNewsletterSubscribed;
+        }
         client.Notes = model.Notes;
     }
 

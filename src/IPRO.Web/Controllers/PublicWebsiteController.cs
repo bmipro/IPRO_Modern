@@ -28,14 +28,16 @@ public class PublicWebsiteController : Controller
     private readonly IDataProtector _leadMagnetProtector;
     private readonly IBlobStorageService _blob;
     private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+    private readonly IPRO.Business.Services.IEmailConsentService _consent;
 
-    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider, IBlobStorageService blob, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
+    public PublicWebsiteController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, ILogger<PublicWebsiteController> logger, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider, IBlobStorageService blob, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, IPRO.Business.Services.IEmailConsentService consent)
     {
         _db = db;
         _entitlements = entitlements;
         _email = email;
         _logger = logger;
         _configuration = configuration;
+        _consent = consent;
         _captchaProtector = dataProtectionProvider.CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1");
         _leadMagnetProtector = dataProtectionProvider.CreateProtector("IPRO.Web.PublicWebsite.LeadMagnetDownload.v1");
         _blob = blob;
@@ -242,7 +244,28 @@ public class PublicWebsiteController : Controller
             if (string.IsNullOrWhiteSpace(client.Phone) && !string.IsNullOrWhiteSpace(model.Phone)) client.Phone = model.Phone;
             if (string.IsNullOrWhiteSpace(client.FirstName)) client.FirstName = model.FirstName;
             if (string.IsNullOrWhiteSpace(client.LastName)) client.LastName = model.LastName;
-            if (submissionType == WebsiteLeadTypes.Newsletter) client.IsNewsletterSubscribed = true;
+            if (submissionType == WebsiteLeadTypes.Newsletter)
+            {
+                if (client.EmailOptOutAt.HasValue)
+                {
+                    // Setting IsNewsletterSubscribed alone here produced a contact who LOOKS
+                    // subscribed on every screen and whom IsSuppressed will never let a dispatcher
+                    // mail -- an agent watching a signup arrive and no email ever go out.
+                    //
+                    // Filling in a signup form is fresh express consent, so the opt-out is lifted;
+                    // but because it reverses a recorded "stop", it is logged and written into the
+                    // contact's notes so there is a trail if the person later disputes it.
+                    await _consent.ResubscribeAsync(client);
+                    client.Notes = $"{client.Notes}\nRe-subscribed {DateTime.UtcNow:yyyy-MM-dd} via the newsletter form on {Request.Host.Host} (previously opted out).".TrimStart();
+                    _logger.LogInformation(
+                        "Client {ClientId} had opted out of all email and re-subscribed through the public newsletter form on {Host}.",
+                        client.Id, Request.Host.Host);
+                }
+                else
+                {
+                    client.IsNewsletterSubscribed = true;
+                }
+            }
             client.UpdatedAt = DateTime.UtcNow;
         }
 

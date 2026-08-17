@@ -38,10 +38,19 @@ public class Client
     // The three fields below are the GLOBAL opt-out, and they deliberately sit alongside it
     // rather than replacing it.
     //
-    // One user action, one result: NewsletterController.Unsubscribe and the RFC 8058 one-click
-    // endpoint both set EmailOptOutAt AND clear IsNewsletterSubscribed together. A second opt-out
-    // mechanism that could disagree with the first is exactly what made the public-slug collision
-    // survive four separate fixes -- see DOCS/INVARIANTS.md rule 1.
+    // One user action, one result. As of 2026-08-17 this is true of EVERY path, not just the
+    // preferences page: the newsletter footer link, the drip footer link, the RFC 8058 one-click
+    // endpoint, and SendGrid's spamreport / unsubscribe / group_unsubscribe events on ANY sender all
+    // funnel into EmailConsentService.SuppressAllAsync, which sets EmailOptOutAt and clears
+    // IsNewsletterSubscribed together.
+    //
+    // This comment previously claimed that and was wrong -- the webhook paths and the newsletter
+    // footer link set IsNewsletterSubscribed alone, so a client who complained about a newsletter
+    // kept receiving that agent's cards, letters, polls and drip campaigns.
+    //
+    // Nothing may write these fields directly. A second opt-out mechanism that could disagree with
+    // the first is exactly what made the public-slug collision survive four separate fixes -- see
+    // DOCS/INVARIANTS.md rule 1.
 
     // Set when the client unsubscribes. Null means they have never opted out. A timestamp rather
     // than a bool because "when did they opt out" is the question asked in a complaint.

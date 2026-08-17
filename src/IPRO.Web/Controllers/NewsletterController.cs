@@ -32,8 +32,9 @@ public class NewsletterController : Controller
     // lives on this controller for historical reasons -- newsletters were the first sender to have
     // one -- so every other sender's events arrive here too.
     private readonly IEmailDeliveryTracker _deliveryTracker;
+    private readonly IEmailConsentService _consent;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email, IAiSuggestionService aiSuggestions, IEmailDeliveryTracker deliveryTracker, IConfiguration configuration, ILogger<NewsletterController> logger) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; _aiSuggestions = aiSuggestions; _deliveryTracker = deliveryTracker; _configuration = configuration; _logger = logger; }
+    public NewsletterController(INewsLetterService newsletters, IClientService clients, IPackageEntitlementService entitlements, IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailService email, IAiSuggestionService aiSuggestions, IEmailDeliveryTracker deliveryTracker, IEmailConsentService consent, IConfiguration configuration, ILogger<NewsletterController> logger) { _newsletters = newsletters; _clients = clients; _entitlements = entitlements; _uow = uow; _db = db; _dispatcher = dispatcher; _email = email; _aiSuggestions = aiSuggestions; _deliveryTracker = deliveryTracker; _consent = consent; _configuration = configuration; _logger = logger; }
 
     public async Task<IActionResult> Index() { var gate = await RequireNewsletterAccessAsync(); if (gate != null) return gate; await LoadAgentTimeZoneAsync(); return View(await _newsletters.GetByAgentAsync(AgentId)); }
     public async Task<IActionResult> Create()
@@ -269,9 +270,10 @@ public class NewsletterController : Controller
                 var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
                 if (client != null)
                 {
-                    client.IsNewsletterSubscribed = false;
-                    client.UpdatedAt = DateTime.UtcNow;
-                    _uow.Clients.Update(client);
+                    // Clicking unsubscribe in a newsletter is a person saying "stop", not "send me
+                    // the cards and letters instead". This used to set IsNewsletterSubscribed only,
+                    // which is what made the promise in Client.cs untrue.
+                    await _consent.SuppressAllAsync(client, "newsletter-footer-link");
                 }
             }
 
@@ -290,6 +292,11 @@ public class NewsletterController : Controller
             await _db.SaveChangesAsync();
 
             var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == enrollment.ClientId);
+            // Cancelling the one enrollment was all this did. Someone who clicks unsubscribe in a
+            // drip email is asking to stop hearing from this adviser, not to be moved onto their
+            // newsletter -- the same reading the one-click header path already takes.
+            if (client != null) await _consent.SuppressAllAsync(client, "drip-footer-link");
+
             ViewBag.Success = true;
             ViewBag.Email = client?.Email ?? string.Empty;
             ViewBag.Channel = "series";

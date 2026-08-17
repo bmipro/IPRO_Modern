@@ -12,9 +12,14 @@ namespace IPRO.Web.Controllers;
 public class ClientPortalPreferencesController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly IPRO.Business.Services.IEmailConsentService _consent;
     private int ClientId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientPortalPreferencesController(IPRODbContext db) => _db = db;
+    public ClientPortalPreferencesController(IPRODbContext db, IPRO.Business.Services.IEmailConsentService consent)
+    {
+        _db = db;
+        _consent = consent;
+    }
 
     public async Task<IActionResult> Index()
     {
@@ -40,9 +45,20 @@ public class ClientPortalPreferencesController : Controller
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == ClientId);
         if (client == null) return NotFound();
 
-        client.IsNewsletterSubscribed = subscribed;
-        client.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        if (subscribed && client.EmailOptOutAt.HasValue)
+        {
+            // The client is signed in as themselves and has just asked to be put back on the list,
+            // which is the strongest consent signal there is. Setting the newsletter flag alone
+            // would leave EmailOptOutAt in place, so IsSuppressed would keep refusing every send and
+            // the toggle would appear to do nothing.
+            await _consent.ResubscribeAsync(client);
+        }
+        else
+        {
+            client.IsNewsletterSubscribed = subscribed;
+            client.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
 
         TempData["Success"] = "Preferences updated.";
         return RedirectToAction(nameof(Index));

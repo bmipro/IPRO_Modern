@@ -155,7 +155,10 @@ public class ContactImporter : IContactImporter
                 Province     = c.Province,
                 PostalCode   = c.PostalCode,
                 Country      = c.Country,
-                Subscribed   = c.IsNewsletterSubscribed
+                // Effective consent, not the newsletter flag alone. This column travels into
+                // whatever tool the agent imports the CSV into, and a globally opted-out client
+                // exported as Subscribed=true becomes a CASL problem somewhere this code cannot see.
+                Subscribed   = c.IsNewsletterSubscribed && c.EmailOptOutAt == null
             });
             csv.NextRecord();
         }
