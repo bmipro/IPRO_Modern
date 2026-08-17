@@ -91,11 +91,11 @@ Replacing or deleting an article's image deletes the underlying file without che
 
 A send that is interrupted mid-flight - crash, deploy, restart, or just a failure on the final save - is stuck in the 'Sending' state permanently. Nothing anywhere in the system looks for stuck sends, and the jobs only pick up sends marked 'Scheduled'. It will never go out and nobody is told. Per-recipient results are also all held in memory until one save at the end, so an interruption loses the record of who already received it.
 
-### [HIGH] WEB-H-2
+### [MOSTLY CLOSED 2026-08-17 `ee497e8`] WEB-H-2
 
-Anyone on the internet, not logged in, can POST promo codes at /Account/ValidatePromoCode and the reply tells them the exact discount terms. There is no rate limit on that endpoint specifically, so codes can be guessed in bulk. Flagged as a top-priority item in an earlier triage; never done.
+Anyone on the internet, not logged in, can POST promo codes at /Account/ValidatePromoCode and the reply tells them the exact discount terms. There is no rate limit on that endpoint specifically, so codes can be guessed in bulk. Flagged as a top-priority item in an earlier triage. FIXED 2026-08-17: antiforgery now required (invisible to a real visitor) plus a 5m/5 IP rate limit on the bare and /portal paths, so bulk guessing is impractical. Deliberately NOT done, owner decision 2026-08-17: the discount terms are still shown for a code that is already known-valid, because that confirmation is worth more to genuine customers than the secrecy is worth against a non-threat. Residual exposure accepted.
 
-### [HIGH (partial)] DEP-Newtonsoft.Json
+### [CLOSED 2026-08-17 `ee497e8`] DEP-Newtonsoft.Json
 
 A vulnerable library version (Newtonsoft.Json 11.0.1) is still resolved in three internal projects. The earlier 'gone entirely' claim was wrong about the cause, and the check that produced it only looked at the two app projects, which hid it. In practice what ships to production is the safe 13.0.2, but only by luck - nothing pins it, and any change to two unrelated packages silently drops both apps back to the vulnerable version. Any CI security scan reports HIGH today. One line in one file fixes it.
 
