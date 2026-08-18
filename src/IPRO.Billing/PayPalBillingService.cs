@@ -116,6 +116,26 @@ public class PayPalBillingService : IBillingService
             return BillingChangeResult.Failed("That billing period is not available for this package. Please choose Monthly or Annually.");
         }
 
+        // ADMIN-2 / BILLING-9: a PayPal plan charges the price it was CREATED with, frozen — editing
+        // the package price in Super Admin does not touch the plan. The Packages screen warns on
+        // divergence (422b), but a warning an admin can ignore is not a guard: checkout would charge
+        // the frozen plan price while the invoice shows the edited package price. Refuse instead —
+        // fail closed until the admin re-syncs the plans. Null recorded price = plan synced before
+        // the snapshot columns existed (pre-422b); that is "divergence unknown", allowed, and the
+        // banner still nags the admin to re-sync. The customer message carries no numbers on
+        // purpose; the log carries both for the operator.
+        if (HasDivergentPlanPrice(requestedPackage, period))
+        {
+            _logger.LogError(
+                "Refusing checkout for agent {AgentId} on package {PackageId} ({Period}): package price {PackagePrice} " +
+                "diverges from the PayPal plan's frozen price {PlanPrice}. Re-sync the plans in Super Admin -> Packages.",
+                userId, requestedPackage.Id, period, GetAmount(requestedPackage, period),
+                period == BillingPeriod.Annually ? requestedPackage.PayPalAnnualPlanPrice : requestedPackage.PayPalMonthlyPlanPrice);
+            return BillingChangeResult.Failed(
+                "This package's pricing is being updated and checkout is paused for a moment. " +
+                "Please try again shortly or contact support; no payment has been taken.");
+        }
+
         var activeSubscription = await GetActiveSubscriptionAsync(userId);
         if (activeSubscription == null)
         {
@@ -875,24 +895,40 @@ public class PayPalBillingService : IBillingService
             return PayPalPlanSyncResult.Failed("PayPal plans were not created because this package has no monthly or annual recurring price.");
         }
 
+        // ADMIN-9 shape, both halves fixed here. (1) Each plan id is PERSISTED the moment it is
+        // created: the old code created monthly, then annual, then saved both -- so an exception on
+        // the annual creation discarded a real, just-created monthly plan, leaving it live at
+        // PayPal with no local record of its existence. (2) The plan id being REPLACED (or wiped by
+        // a zeroed price) used to be simply overwritten -- the old plan stayed ACTIVE at PayPal,
+        // subscribable, unfindable. It is now deactivated best-effort and the old->new transition is
+        // written to OperateLogs either way, so an orphan is at worst a logged, deactivation-failed
+        // plan rather than an untraceable one. Deactivation does not touch existing subscribers:
+        // PayPal keeps billing active subscriptions on a deactivated plan; it only blocks NEW ones.
+        var previousMonthlyPlanId = package.PayPalMonthlyPlanId?.Trim() ?? string.Empty;
+        var previousAnnualPlanId = package.PayPalAnnualPlanId?.Trim() ?? string.Empty;
         try
         {
             var productId = await CreatePayPalProductAsync(package);
+
             var monthlyPlanId = package.MonthlyPrice > 0
                 ? await CreatePayPalPlanAsync(productId, package, BillingPeriod.Monthly)
                 : string.Empty;
+            package.PayPalMonthlyPlanId = monthlyPlanId;
+            // Snapshot the price the plan is frozen at (422b) -- the Packages screen warns on
+            // divergence, and CreateSubscriptionAsync refuses checkout on it.
+            package.PayPalMonthlyPlanPrice = string.IsNullOrEmpty(monthlyPlanId) ? null : package.MonthlyPrice;
+            _uow.BillingRules.Update(package);
+            await _uow.SaveChangesAsync();
+            await RetireReplacedPlanAsync(package, "Monthly", previousMonthlyPlanId, monthlyPlanId);
+
             var annualPlanId = package.AnnualPrice > 0
                 ? await CreatePayPalPlanAsync(productId, package, BillingPeriod.Annually)
                 : string.Empty;
-
-            package.PayPalMonthlyPlanId = monthlyPlanId;
             package.PayPalAnnualPlanId = annualPlanId;
-            // Snapshot the price each plan is frozen at (422b) -- the Packages screen compares
-            // these against the editable prices and warns on divergence.
-            package.PayPalMonthlyPlanPrice = string.IsNullOrEmpty(monthlyPlanId) ? null : package.MonthlyPrice;
             package.PayPalAnnualPlanPrice = string.IsNullOrEmpty(annualPlanId) ? null : package.AnnualPrice;
             _uow.BillingRules.Update(package);
             await _uow.SaveChangesAsync();
+            await RetireReplacedPlanAsync(package, "Annual", previousAnnualPlanId, annualPlanId);
 
             return new PayPalPlanSyncResult
             {
@@ -907,6 +943,56 @@ public class PayPalBillingService : IBillingService
         {
             return PayPalPlanSyncResult.Failed(ex.Message);
         }
+    }
+
+    // When a re-sync replaces or wipes a plan id, the OLD plan does not disappear from PayPal --
+    // deactivate it so it cannot take new subscribers, and record the transition in OperateLogs so
+    // it can always be found again. Best-effort by design: a deactivation failure must not fail the
+    // sync (the new plans are already live and saved), it just leaves a logged, findable orphan.
+    private async Task RetireReplacedPlanAsync(BillingRule package, string periodName, string previousPlanId, string newPlanId)
+    {
+        if (string.IsNullOrWhiteSpace(previousPlanId) || string.Equals(previousPlanId, newPlanId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var deactivated = false;
+        try
+        {
+            var accessToken = await GetPayPalAccessTokenAsync();
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var response = await client.PostAsync(
+                $"{_settings.BaseUrl}/v1/billing/plans/{previousPlanId}/deactivate",
+                new StringContent("", System.Text.Encoding.UTF8, "application/json"));
+            // 204 = deactivated; 422 UNPROCESSABLE typically means it already was. Either way the
+            // plan can no longer take new subscribers.
+            deactivated = response.IsSuccessStatusCode || (int)response.StatusCode == 422;
+            if (!deactivated)
+            {
+                _logger.LogWarning(
+                    "Could not deactivate replaced PayPal {Period} plan {PlanId} for package {PackageId}: HTTP {Status}. " +
+                    "The plan is still ACTIVE at PayPal and recorded only in OperateLogs.",
+                    periodName, previousPlanId, package.Id, (int)response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Could not deactivate replaced PayPal {Period} plan {PlanId} for package {PackageId}. " +
+                "The plan is still ACTIVE at PayPal and recorded only in OperateLogs.",
+                periodName, previousPlanId, package.Id);
+        }
+
+        await _uow.OperateLogs.AddAsync(new OperateLog
+        {
+            AgentUserId = 0,
+            Module = "Billing",
+            Action = "PayPalPlanReplaced",
+            Description = $"Package:{package.Id}:{periodName}:old={previousPlanId}:new={(string.IsNullOrEmpty(newPlanId) ? "(none)" : newPlanId)}:deactivated={deactivated}",
+            CreatedAt = DateTime.UtcNow
+        });
+        await _uow.SaveChangesAsync();
     }
 
     // QA-only: creates a real PayPal Plan billed every 1 day instead of every month, so a manual
@@ -3357,6 +3443,21 @@ public class PayPalBillingService : IBillingService
     // enforced server-side in CreateSubscriptionAsync so hiding a radio is never the only defence.
     public static bool IsPeriodOfferable(BillingRule package, BillingPeriod period) =>
         GetAmount(package, period) > 0 && !string.IsNullOrWhiteSpace(GetPayPalPlanId(package, period));
+
+    // ADMIN-2 / BILLING-9: true when the package's editable price no longer matches the price its
+    // PayPal plan was created with (the snapshot SyncPayPalPlansAsync records). A plan's price is
+    // frozen at creation, so in this state checkout would CHARGE the frozen price while the invoice
+    // SHOWS the edited one — CreateSubscriptionAsync refuses rather than letting them disagree.
+    // A null snapshot means the plan predates the snapshot columns: divergence unknown, allowed,
+    // and the Packages screen's banner keeps nagging for a re-sync. Internal so the guard tests can
+    // pin it the way BillingPeriodGuardTests pins IsPeriodOfferable.
+    internal static bool HasDivergentPlanPrice(BillingRule package, BillingPeriod period)
+    {
+        var recorded = period == BillingPeriod.Annually
+            ? package.PayPalAnnualPlanPrice
+            : package.PayPalMonthlyPlanPrice;
+        return recorded.HasValue && recorded.Value != GetAmount(package, period);
+    }
 
     private static string GetPayPalPlanId(BillingRule package, BillingPeriod period) => period switch
     {

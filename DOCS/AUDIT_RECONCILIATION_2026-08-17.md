@@ -147,13 +147,17 @@ Anyone on the internet, not logged in, can POST promo codes at /Account/Validate
 
 A vulnerable library version (Newtonsoft.Json 11.0.1) is still resolved in three internal projects. The earlier 'gone entirely' claim was wrong about the cause, and the check that produced it only looked at the two app projects, which hid it. In practice what ships to production is the safe 13.0.2, but only by luck - nothing pins it, and any change to two unrelated packages silently drops both apps back to the vulnerable version. Any CI security scan reports HIGH today. One line in one file fixes it.
 
-### [HIGH (partial)] ADMIN-2 / BILLING-9
+### [FIXED 2026-08-18] ADMIN-2 / BILLING-9
 
 Editing a package price in Admin does not update the corresponding PayPal plan. PayPal keeps charging the old frozen price while the invoice IPRO issues shows the new one. A warning banner was added so an admin can see the divergence, but nothing blocks checkout or reconciles the invoice - if the admin ignores the banner, customers get invoices that do not match what was charged.
 
-### [MEDIUM] ADMIN-9
+FIXED 2026-08-18 on branch fix/audit-high-five: checkout now FAILS CLOSED on divergence. CreateSubscriptionAsync refuses (HasDivergentPlanPrice, next to IsPeriodOfferable) whenever the package's editable price differs from the price snapshot the sync stamped for that period's plan -- covering both subscribe and upgrade, which share the method. A null snapshot (plan synced before the 422b columns existed) is "divergence unknown": allowed, banner keeps nagging -- blocking there would brick every legacy package on no evidence. ResumePayment deliberately not guarded: it resumes an already-minted invoice at the already-agreed amount. 4 tests in PlanPriceDivergenceGuardTests.
+
+### [FIXED 2026-08-18] ADMIN-9
 
 Related to the above: re-running the PayPal plan sync after zeroing a price wipes the live plan ID for that billing period, and if the second plan creation fails PayPal is left with an orphaned plan the system has no record of.
+
+FIXED 2026-08-18, both halves. SyncPayPalPlansAsync now persists each plan id THE MOMENT it is created (monthly saved before annual is attempted), so a failure partway leaves the created plan recorded instead of discarded-but-live-at-PayPal. And a replaced or zeroed plan id is no longer silently overwritten: the old plan is deactivated at PayPal best-effort (existing subscribers keep billing; only NEW subscriptions are blocked) and the old->new transition is written to OperateLogs (Action=PayPalPlanReplaced) either way, so the worst case is a logged, findable orphan rather than an untraceable one.
 
 ### [HIGH] A5-H11
 

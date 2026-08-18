@@ -61,3 +61,67 @@ public class BillingPeriodGuardTests
         Assert.True(PayPalBillingService.IsPeriodOfferable(monthlyOnly, BillingPeriod.Monthly));
     }
 }
+
+// ADMIN-2 / BILLING-9 regression suite: a PayPal plan charges the price it was CREATED with — the
+// snapshot columns record that frozen price at sync time, and editing the package price in Super
+// Admin does not touch the plan. When they disagree, checkout must refuse (fail closed) instead of
+// charging one number while invoicing another. The Packages screen's banner already warns; a
+// warning an admin can ignore is not a guard.
+public class PlanPriceDivergenceGuardTests
+{
+    private static BillingRule SyncedGold() => new()
+    {
+        PackageName = "IPro Gold",
+        MonthlyPrice = 60m,
+        AnnualPrice = 600m,
+        PayPalMonthlyPlanId = "P-MONTHLY-REAL",
+        PayPalAnnualPlanId = "P-ANNUAL-REAL",
+        PayPalMonthlyPlanPrice = 60m,     // the snapshot SyncPayPalPlansAsync records
+        PayPalAnnualPlanPrice = 600m
+    };
+
+    [Fact]
+    public void A_freshly_synced_package_has_no_divergence()
+    {
+        var package = SyncedGold();
+        Assert.False(PayPalBillingService.HasDivergentPlanPrice(package, BillingPeriod.Monthly));
+        Assert.False(PayPalBillingService.HasDivergentPlanPrice(package, BillingPeriod.Annually));
+    }
+
+    [Fact]
+    public void Editing_the_monthly_price_after_sync_is_a_divergence_on_monthly_only()
+    {
+        // The exact ADMIN-2 scenario: admin raises the price, forgets to re-sync. The plan at
+        // PayPal still charges $60; the invoice would say $70.
+        var package = SyncedGold();
+        package.MonthlyPrice = 70m;
+
+        Assert.True(PayPalBillingService.HasDivergentPlanPrice(package, BillingPeriod.Monthly));
+        Assert.False(PayPalBillingService.HasDivergentPlanPrice(package, BillingPeriod.Annually));
+    }
+
+    [Fact]
+    public void Editing_the_annual_price_after_sync_is_a_divergence_on_annual_only()
+    {
+        var package = SyncedGold();
+        package.AnnualPrice = 700m;
+
+        Assert.False(PayPalBillingService.HasDivergentPlanPrice(package, BillingPeriod.Monthly));
+        Assert.True(PayPalBillingService.HasDivergentPlanPrice(package, BillingPeriod.Annually));
+    }
+
+    [Fact]
+    public void A_plan_synced_before_the_snapshot_columns_existed_is_not_treated_as_divergent()
+    {
+        // Null snapshot = pre-422b sync. Divergence is UNKNOWN, not present — blocking here would
+        // brick checkout for every legacy package until someone re-syncs, with no actual evidence
+        // of a mismatch. The banner still nags for the re-sync that stamps the snapshot.
+        var legacy = SyncedGold();
+        legacy.PayPalMonthlyPlanPrice = null;
+        legacy.PayPalAnnualPlanPrice = null;
+        legacy.MonthlyPrice = 999m;
+
+        Assert.False(PayPalBillingService.HasDivergentPlanPrice(legacy, BillingPeriod.Monthly));
+        Assert.False(PayPalBillingService.HasDivergentPlanPrice(legacy, BillingPeriod.Annually));
+    }
+}
