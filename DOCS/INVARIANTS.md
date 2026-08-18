@@ -189,6 +189,39 @@ table to be empty.
 
 ---
 
+## 9. A scheduled send is owned by exactly one runner, and abandonment is visible
+
+Every dispatch of a newsletter, e-card, e-letter or poll is arbitrated by `SendClaims`. Status alone
+cannot do it: two runners can both read Scheduled, both write Sending, and both mail the whole list.
+
+- **CLAIM FIRST, LOAD SECOND, and both halves are required.** Jobs select IDs only and untracked;
+  dispatchers call `SendClaims.ForgetTracked` before reading. Both callers of every dispatcher have
+  already materialised the send row into the SAME scoped context, so without this the pre-claim copy
+  is written back over the claim by the first per-recipient save. This is not tidiness — omit either
+  half and the claim silently does nothing.
+- **Save after every recipient.** It is what makes a resume safe: the Queued-only filter is only a
+  real guard if the database already knows who was reached. Keep the save OUTSIDE the per-recipient
+  try — `SaveChangesAsync` is all-or-nothing, so swallowing a failure mails the rest of the list and
+  records every one of them as a failure.
+- **Never re-resolve an audience on a resume.** Gate on existing recipient rows ABOVE the audience
+  query, and re-check consent at send time so someone who unsubscribed since is dropped.
+- **Counts come from the recipient rows, never a local counter.** A resume's counter is only what
+  that pass did.
+- **A terminal status clears the claim, in the same statement. An exception does not** — leaving it
+  set is what makes the sweep a recovery instead of a loss. `Sending` with `ClaimedAt` NULL matches
+  no query anywhere and is unreachable by design; a test asserts it.
+- **Cancelling is a conditional UPDATE**, guarded on Scheduled, reporting whether it applied. A
+  read-then-write cancel loses to a claim and tells the agent the opposite of what happened.
+
+**Violation looks like:** a client receives the same newsletter twice, or a send sits on "Sending"
+for a week and nobody is told. Both were reachable before 2026-08-17.
+
+**Adding a fifth sender?** Add its four members to `SendClaims` — they sit side by side so a missing
+one is visible on screen — and follow the shape of `ECardDispatcher`, which is the simplest of the
+four.
+
+---
+
 ## Before calling a cross-cutting change "done"
 
 **Fix by SURFACE, not by symptom.** When a change alters a shared convention — routing, auth, naming,

@@ -285,6 +285,69 @@ That reconciliation doc is now the single source of truth for finding status. Th
 docs describe the findings; they do NOT reliably describe their state. Update the reconciliation
 doc when something is fixed.
 
+## LAUNCH BLOCKERS — email/legal + data-loss/privacy blocks CLOSED 2026-08-17
+
+Six commits, all local, **none deployed yet**. Suite 60 -> 110 tests, all green against real MySQL.
+
+### LB-2 — email consent + dispatcher integrity (JOBS-4, A5-H6, A5-H7/JOBS-3) — DONE
+
+| Commit | What |
+|---|---|
+| `f998d59` | **JOBS-4.** `EmailOptOutAt` was written in exactly two places, both in the preferences page. SendGrid `spamreport` stamped a row and stopped; `unsubscribe`/`group_unsubscribe` were dropped before reaching any recorder; a newsletter complaint set the newsletter flag only; drip campaigns had no case at all and kept sending. Six feeders now funnel into one `SuppressAllAsync`, called ONCE in the tracker's shared entry point. `Unsubscribed` is deliberately non-terminal — an unsubscribe means the mail was delivered and read, and marking those rows Failed would corrupt the Delivered column. |
+| `6d060e9` | Consent leaks at the edges: subscriber counts ignored the opt-out (screen said 142, send reached 130); CSV export marked opted-out people Subscribed; three paths could silently resurrect an opt-out. Signup form and client portal now do a real, logged resubscribe; **the agent's contact editor refuses** — an agent may switch the newsletter off for anyone but may not switch it back on for someone who opted out of everything. |
+| `d0ec9ea` | `SendClaims` primitive + `ClaimedAt`/`ClaimAttempts` columns, inert. |
+| `01b9cff` | **A CASL regression I introduced and the adversarial pass caught.** Deleting the newsletter filter from `PollDispatcher` was half a fix: that flag is what a website form sets from the "send me the newsletter" tick, so on a lead-form contact `false` means "never opted into bulk mail". Removing the filter without moving the rule meant those contacts started receiving polls. `IsSuppressed` now treats Newsletter and Poll as the bulk-broadcast channels. Also seven blocking defects in the primitive — the worst being a comment instructing callers to clear the claim on the exception path, which produces a row no query can ever see again. |
+| `1f6cedd` | **A5-H6 + A5-H7/JOBS-3.** All four dispatchers claim before loading, save after every recipient, resume without re-mailing, derive counts from recipient rows, and release the claim in the same statement as the terminal status. Both cancel paths became conditional UPDATEs. |
+
+Two things worth remembering from this block, because both were invisible to code reading:
+
+- The conditional retry counter relied on MySQL evaluating UPDATE assignments left to right so it
+  could read `ClaimedAt` while overwriting it. **It does not survive EF** — the first test run showed
+  a fresh claim already charged an attempt. Replaced with two separately-atomic arms.
+- `UseAffectedRows` defaults to **false**, not true. Six comments in the tree asserted the opposite
+  and the false rationale would have justified "simplifying" the retry counter away.
+
+### LB-4 (A5-H13) — rows that were IN the erasure map and still could not be erased — DONE
+
+`9c160d8`. Deleting a custom form left every submission answer permanently unerasable: the eraser
+reached them through the form, `FormsController.Delete` had just removed it, and no FK exists to
+catch it. Preview reported 0, erase deleted 0, four audits agreed — because the coverage tests
+assert a table is IN the map, which it was. **Membership is not reachability.**
+
+The obvious fix is forbidden: `DOCS/17_FORMS.md` promises the agent their submissions survive a form
+delete. Re-anchored on the lead instead (carries `AgentUserId`, nothing outside the eraser deletes
+one, no answer can exist without one).
+
+Found a live sibling no audit reported: `RecurringInvoicesController.Delete` left its line items
+behind — no FK, nav collection not loaded, so EF's cascade never fired either.
+
+`INVARIANTS.md` rule 8 states the general rule. `AgentErasureOrphanTests` has six cases including a
+generic guard: on a single-agent database, after running the agent-visible deletes and then a full
+shred, every covered table must be empty. Verified they bite — reverting the predicate fails 4 of 6,
+and the 2 that survive are the two designed to.
+
+### Still open from these blocks
+
+1. **Deploy.** Nothing above is live. `/health/version` must equal the pushed SHA, never `/health`.
+2. **One-time production cleanup** of answer rows whose agent was already erased. They are
+   unattributable — no column left says whose they were — so this is a manual, counted operation
+   recorded here, never scripted into a deploy step. The code fix cannot reduce that count.
+3. **A5-H11/H12/H14, the blob family — NOT DONE, and the proposed design was rejected.** The orphan
+   sweep as designed would delete images that are live in already-delivered mail: the index sees
+   database rows only, so a newsletter photo sitting in an inbox is referenced by nothing it can see
+   and looks unreferenced the moment its row goes. Two of the three proposed new deletion sources
+   would also have put agent-typed, unvalidated URLs into a delete path. Safe subset (container
+   registry, reference index, keep-if-referenced at the six sites that today delete unconditionally)
+   is worth doing; the sweep must be report-only until a human has read one report.
+4. **After a CLIENT erasure the person's name, email, phone, IP and typed form answers survive** on
+   the `WebsiteLead` row — unlinked, not deleted, per a documented earlier decision. A client-level
+   deletion request is therefore not fully honoured today. Owner's product call, not a defect fix.
+5. **Flaky test.** `AgentDeletionRetentionTests.Erase_with_retention_keeps_the_full_ledger` failed
+   once under full-suite load (110 parallel throwaway databases) and passed alone and on re-run.
+   Not a regression. A suite that fails intermittently stops being believed, so this needs a real
+   diagnosis rather than a retry.
+6. **LB-1 (WEB-H-1)** — signup/upgrade started on an agent's custom domain never activates. Untouched.
+
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 
 Owner asked how a client who prepaid Gold ANNUAL is treated when they downgrade to Silver MONTHLY.

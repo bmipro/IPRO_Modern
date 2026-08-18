@@ -1,5 +1,47 @@
 # Audit reconciliation — 2026-08-17
 
+## STATUS CHANGES — 2026-08-17 (later the same day)
+
+Six local commits, **not yet deployed**. Suite 60 -> 110 tests, green against real MySQL.
+
+| Finding | Was | Now | Commit |
+|---|---|---|---|
+| JOBS-4 (consent never written outside the preferences page) | open | **FIXED** | `f998d59`, `6d060e9` |
+| A5-H6 (two dispatch runs can both mail a whole list) | open | **FIXED** | `d0ec9ea`, `01b9cff`, `1f6cedd` |
+| A5-H7 / JOBS-3 (a send stuck on Sending forever, nobody told) | open | **FIXED** | same |
+| A5-H13 (form submission answers permanently unerasable) | open | **FIXED** | `9c160d8` |
+| A5-H11 / A5-H12 / A5-H14 (blob ownership + orphans) | open | **STILL OPEN — design rejected** | — |
+
+### Three corrections to what this document said
+
+1. **A5-H13 is a predicate-REACHABILITY bug, not a missing cleanup in `FormsController`.** Deleting
+   the answers with the form is FORBIDDEN — `DOCS/17_FORMS.md` promises the agent they survive. The
+   eraser had to re-anchor on the lead.
+2. **The same answer text is already duplicated into `WebsiteLead.Message`,** which the eraser does
+   reach. So the exposure was the structured per-field rows, not the only copy.
+3. **Rows belonging to agents already erased are unattributable** — nothing left says whose they
+   were. The code fix cannot reduce that count; it needs a one-time, counted manual cleanup.
+
+### One finding this document did not contain
+
+`RecurringInvoicesController.Delete` removed a schedule and left its line items behind. No FK, and
+the navigation collection is not loaded on that path so EF's client-side cascade never fired either.
+Same defect class as A5-H13, different feature area, never reported by any of the four audits. Fixed
+in `9c160d8`.
+
+### Why the blob family was not done
+
+An adversarial pass over the proposed design found three ways it destroys or never cleans data. The
+decisive one: **the orphan sweep would delete images that are live in already-delivered mail.** The
+reference index sees database rows only, so a newsletter photo sitting in someone's inbox is
+referenced by nothing it can see and looks unreferenced the moment its row goes. Two of the three
+proposed new deletion sources would also have put agent-typed, unvalidated URLs into a delete path.
+
+The safe subset — container registry, reference index, and keep-if-referenced at the six sites that
+today delete unconditionally — is worth doing and can only ever keep MORE files than today. The
+sweep must be report-only until a human has read one report. Detail in `DOCS/TODO.md`.
+
+
 **Every finding from every audit, re-verified against the CURRENT code rather than against
 the audit documents.** Commissioned because the owner asked, fairly, why defects he found
 himself had been reported as fixed. A doc saying "Status: Fixed" was treated as a claim to
