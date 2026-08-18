@@ -1,6 +1,5 @@
 using IPRO.DataAccess;
 using IPRO.Email;
-using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -21,20 +20,44 @@ public class ECardDispatchJob
 
     public async Task RunAsync()
     {
-        var due = await _db.ECards
-            .Where(c => c.Status == ECardStatuses.Scheduled && c.ScheduledAt <= DateTime.UtcNow)
+        var now = DateTime.UtcNow;
+
+        // Retire first, so a send that has exhausted its retries is not selected again on this pass.
+        // This is the half of the stuck-send problem that is about TELLING somebody: before it, a
+        // card left Sending by a crashed process sat there indefinitely and no log line ever
+        // mentioned it.
+        var retired = await SendClaims.RetireExhaustedAsync(_db, now, _logger);
+        if (retired > 0)
+        {
+            _logger.LogWarning("{Count} abandoned send(s) were retired this pass.", retired);
+        }
+
+        // IDs ONLY, and untracked. Materialising the card entities here would put pre-claim copies in
+        // the change tracker that the dispatcher shares, and the first SaveChangesAsync inside the
+        // send loop would write Status=Scheduled straight back over the claim.
+        //
+        // The predicate is SendClaims.DueECards rather than a local Where, so what the job picks up
+        // and what the claim will accept cannot drift apart. It also now includes stale Sending rows
+        // -- that IS the sweep; there is no separate recovery job.
+        var due = await SendClaims.DueECards(_db, now)
+            .AsNoTracking()
+            .OrderBy(c => c.ScheduledAt)
+            .Select(c => c.Id)
             .ToListAsync();
 
-        foreach (var card in due)
+        foreach (var cardId in due)
         {
             try
             {
-                _logger.LogInformation("Dispatching e-card {ECardId}", card.Id);
-                await _dispatcher.DispatchAsync(card.Id);
+                _logger.LogInformation("Dispatching e-card {ECardId}", cardId);
+                await _dispatcher.DispatchAsync(cardId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "E-card {ECardId} dispatch failed", card.Id);
+                // Per-item isolation: one bad card must not stop the rest of the pass. The claim it
+                // holds is deliberately NOT released here -- leaving it set is what lets the sweep
+                // pick the card up again in 15 minutes rather than losing it.
+                _logger.LogError(ex, "E-card {ECardId} dispatch failed", cardId);
             }
         }
     }

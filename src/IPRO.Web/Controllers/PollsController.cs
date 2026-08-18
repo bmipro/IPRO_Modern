@@ -299,15 +299,24 @@ public class PollsController : Controller
         var gate = await RequirePollAccessAsync();
         if (gate != null) return gate;
 
-        var send = await _db.PollSends.FirstOrDefaultAsync(s => s.Id == sendId && s.PollSurveyId == pollSurveyId && s.AgentUserId == AgentId);
-        if (send == null || send.Status != PollSendStatus.Scheduled)
+        // ONE conditional UPDATE -- see the matching note in NewsLetterService.CancelSendAsync. The
+        // old read-then-write could stamp Cancelled on a send a dispatcher had already claimed; the
+        // dispatcher then kept mailing and its terminal write put Sent back, so the agent was told
+        // the send was cancelled while the whole list received it. Zero rows matched means the send
+        // was already claimed, and the agent needs to be told that rather than reassured.
+        var cancelled = await _db.PollSends
+            .Where(s => s.Id == sendId
+                     && s.PollSurveyId == pollSurveyId
+                     && s.AgentUserId == AgentId
+                     && s.Status == PollSendStatus.Scheduled)
+            .ExecuteUpdateAsync(u => u.SetProperty(s => s.Status, PollSendStatus.Cancelled));
+
+        if (cancelled != 1)
         {
-            TempData["Error"] = "Scheduled poll send could not be cancelled.";
+            TempData["Error"] = "That poll send could not be cancelled -- it has already started sending.";
             return RedirectToAction(nameof(Preview), new { id = pollSurveyId });
         }
-
-        send.Status = PollSendStatus.Cancelled;
-        await _db.SaveChangesAsync();
+        IPRO.DataAccess.SendClaims.ForgetTracked<PollSend>(_db, sendId);
 
         var hasOtherActiveSend = await _db.PollSends.AnyAsync(s => s.PollSurveyId == pollSurveyId && s.Id != sendId && s.Status != PollSendStatus.Cancelled);
         if (!hasOtherActiveSend)

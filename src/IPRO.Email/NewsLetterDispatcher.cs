@@ -26,32 +26,50 @@ public class NewsLetterDispatcher
         _logger = logger;
     }
 
+    // Not called from anywhere today, but it is the shape the next person copies, so it obeys the
+    // same rule as the job: select the ID ONLY, untracked. Materialising the send row here would put
+    // a pre-claim copy in the shared change tracker and the claim inside DispatchSendAsync would be
+    // silently written back over.
     public async Task DispatchAsync(int newsletterId)
     {
-        var newsletter = await _uow.NewsLetters.GetByIdAsync(newsletterId);
-        if (newsletter == null) return;
-
-        var send = (await _uow.NewsLetterSends.FindAsync(s =>
-                s.NewsLetterId == newsletterId &&
-                s.Status == NewsLetterSendStatus.Scheduled))
+        var sendId = await _db.NewsLetterSends.AsNoTracking()
+            .Where(s => s.NewsLetterId == newsletterId && s.Status == NewsLetterSendStatus.Scheduled)
             .OrderBy(s => s.ScheduledAt)
-            .FirstOrDefault();
+            .Select(s => (int?)s.Id)
+            .FirstOrDefaultAsync();
 
-        if (send == null)
-        {
-            return;
-        }
+        if (sendId == null) return;
 
-        await DispatchSendAsync(send.Id);
+        await DispatchSendAsync(sendId.Value);
     }
 
     public async Task DispatchSendAsync(int sendId)
     {
-        var send = await _uow.NewsLetterSends.GetByIdAsync(sendId);
-        if (send == null || send.Status != NewsLetterSendStatus.Scheduled) return;
+        // CLAIM FIRST, LOAD SECOND -- and for this sender the rule needs BOTH halves, because both
+        // callers materialise the row before we are entered: the job iterates tracked send entities,
+        // and NewsletterController's "send now" adds and saves the send then dispatches it on the
+        // same scoped context. GetByIdAsync is FindAsync, which returns the tracked copy without
+        // querying, so a read here would return Status=Scheduled no matter how early the claim ran.
+        var heldAttempts = await SendClaims.TryClaimNewsletterSendAsync(_db, sendId, DateTime.UtcNow);
+        if (heldAttempts == null) return;
+        SendClaims.ForgetTracked<NewsLetterSend>(_db, sendId);
+
+        // Untracked, and every write to this row below goes through a guarded conditional UPDATE.
+        // Repository.Update marks EVERY column modified, which on this table would rewrite
+        // TotalOpened/TotalClicked from a stale snapshot and undo webhook increments that landed
+        // while the blast was running.
+        var send = await _db.NewsLetterSends.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sendId);
+        if (send == null) return;
 
         var newsletter = await _uow.NewsLetters.GetByIdAsync(send.NewsLetterId);
-        if (newsletter == null) return;
+        if (newsletter == null)
+        {
+            // Before the claim this returned with the row still Scheduled. Now it is Sending, so
+            // returning would leave it claimed: swept every 15 minutes, three times, before anyone
+            // was told about a send that can never work. Retire it on the spot.
+            await FailAndReleaseAsync(sendId, heldAttempts.Value, "its newsletter no longer exists");
+            return;
+        }
 
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(newsletter.AgentUserId);
         var newsletterReplyToName = sendingAgent == null ? null : $"{sendingAgent.FirstName} {sendingAgent.LastName}".Trim();
@@ -59,50 +77,100 @@ public class NewsLetterDispatcher
         var sidebarCtas = NewsLetterSidebarCtas.FromJson(newsletter.SidebarCtasJson);
         var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl(), articles, sidebarCtas);
 
-        send.Status = NewsLetterSendStatus.Sending;
-        _uow.NewsLetterSends.Update(send);
-        await _uow.SaveChangesAsync();
+        // RESUME GATE, ABOVE the audience query. If recipient rows exist this send's audience was
+        // settled by an earlier pass, and re-resolving it would do two harmful things: add rows for
+        // anyone who joined the target category since, and let the audience-failure branch below
+        // stamp Failed over a send that had already delivered hundreds of emails.
+        var existing = await _db.NewsLetterRecipients.Where(r => r.NewsLetterSendId == send.Id).ToListAsync();
+        List<NewsLetterRecipient> recipients;
 
-        var subscribers = await GetAudienceClientsAsync(send);
-        if (subscribers == null)
+        if (existing.Count > 0)
         {
-            // The client or category this send was aimed at has been deleted. Refuse rather than
-            // guess: the alternative the code used to take was mailing the agent's whole list.
-            send.Status = NewsLetterSendStatus.Failed;
-            send.TotalSent = 0;
-            // SentAt deliberately left null -- nothing was sent, and the Sends list reads it as the
-            // delivery timestamp.
-            _uow.NewsLetterSends.Update(send);
+            recipients = existing.Where(r => r.Status == NewsLetterRecipientStatus.Queued).ToList();
+
+            // Consent, re-checked at resume time. The audience query below applies it, but that ran
+            // in the earlier pass -- somebody queued then who unsubscribed since must not be mailed
+            // now. Same predicate as the audience query, so the two cannot drift.
+            var stillConsenting = await _db.Clients
+                .Where(c => c.AgentUserId == send.AgentUserId && c.IsNewsletterSubscribed && c.EmailOptOutAt == null)
+                .Select(c => c.Id)
+                .ToListAsync();
+            var consenting = stillConsenting.ToHashSet();
+
+            var withdrawn = recipients.Where(r => r.ClientId == null || !consenting.Contains(r.ClientId.Value)).ToList();
+            foreach (var recipient in withdrawn)
+            {
+                recipient.Status = NewsLetterRecipientStatus.Failed;
+                recipient.LastEvent = "suppressed";
+                recipient.FailedAt = DateTime.UtcNow;
+                recipient.FailureReason = "Recipient unsubscribed before this send could be completed.";
+                recipient.UpdatedAt = DateTime.UtcNow;
+            }
+            if (withdrawn.Count > 0) await _uow.SaveChangesAsync();
+
+            recipients = recipients.Except(withdrawn).ToList();
+
+            _logger.LogInformation(
+                "Newsletter send {SendId} resumed after an interrupted run: {Remaining} of {Total} still to mail, {Withdrawn} unsubscribed in the meantime.",
+                send.Id, recipients.Count, existing.Count, withdrawn.Count);
+        }
+        else
+        {
+            var subscribers = await GetAudienceClientsAsync(send);
+            if (subscribers == null)
+            {
+                // The client or category this send was aimed at has been deleted. Refuse rather than
+                // guess: the alternative the code used to take was mailing the agent's whole list.
+                // SentAt is deliberately left null -- nothing was sent, and the Sends list reads it
+                // as the delivery timestamp.
+                await FailAndReleaseAsync(sendId, heldAttempts.Value,
+                    $"its {send.AudienceType} audience no longer exists (the client or category was " +
+                    "deleted after the send was scheduled). Nothing was emailed");
+                return;
+            }
+
+            recipients = subscribers
+                .Where(c => !string.IsNullOrWhiteSpace(c.Email))
+                .Select(c => new NewsLetterRecipient
+                {
+                    NewsLetterId = newsletter.Id,
+                    NewsLetterSendId = send.Id,
+                    ClientId = c.Id,
+                    Email = c.Email.Trim().ToLowerInvariant(),
+                    RecipientName = $"{c.FirstName} {c.LastName}".Trim(),
+                    Status = NewsLetterRecipientStatus.Queued,
+                    UnsubscribeToken = Guid.NewGuid().ToString("N")
+                })
+                .ToList();
+
+            await _uow.NewsLetterRecipients.AddRangeAsync(recipients);
             await _uow.SaveChangesAsync();
-            _logger.LogError(
-                "Newsletter send {SendId} was cancelled: its {AudienceType} audience no longer exists " +
-                "(the client or category was deleted after the send was scheduled). Nothing was emailed.",
-                send.Id, send.AudienceType);
-            return;
+
+            // First build only. A resume must not overwrite the original audience size.
+            await _db.NewsLetterSends.Where(s => s.Id == send.Id)
+                .ExecuteUpdateAsync(u => u.SetProperty(s => s.TotalRecipients, recipients.Count));
         }
 
-        var recipients = subscribers
-            .Where(c => !string.IsNullOrWhiteSpace(c.Email))
-            .Select(c => new NewsLetterRecipient
-            {
-                NewsLetterId = newsletter.Id,
-                NewsLetterSendId = send.Id,
-                ClientId = c.Id,
-                Email = c.Email.Trim().ToLowerInvariant(),
-                RecipientName = $"{c.FirstName} {c.LastName}".Trim(),
-                Status = NewsLetterRecipientStatus.Queued,
-                UnsubscribeToken = Guid.NewGuid().ToString("N")
-            })
-            .ToList();
-
-        send.TotalRecipients = recipients.Count;
-        await _uow.NewsLetterRecipients.AddRangeAsync(recipients);
-        _uow.NewsLetterSends.Update(send);
-        await _uow.SaveChangesAsync();
-
         var sentCount = 0;
+        var lastHeartbeat = DateTime.UtcNow;
         foreach (var recipient in recipients)
         {
+            // Time-based rather than every-N-recipients: one degraded SendGrid call can take a
+            // minute or more, which is exactly when a claim is at risk of being judged stale.
+            if (DateTime.UtcNow - lastHeartbeat > SendClaims.HeartbeatInterval)
+            {
+                lastHeartbeat = DateTime.UtcNow;
+                if (!await SendClaims.HeartbeatNewsletterSendAsync(_db, send.Id, heldAttempts.Value, lastHeartbeat))
+                {
+                    // Another run owns this send now. Stop before mailing the overlap between our
+                    // remaining list and theirs.
+                    _logger.LogWarning(
+                        "Newsletter send {SendId} was re-claimed by another run; abandoning this one after {Sent} sends.",
+                        send.Id, sentCount);
+                    return;
+                }
+            }
+
             try
             {
                 var unsubscribeUrl = BuildUnsubscribeUrl(recipient.UnsubscribeToken);
@@ -132,7 +200,10 @@ public class NewsLetterDispatcher
                 recipient.FailedAt = result.Success ? null : DateTime.UtcNow;
                 recipient.FailureReason = result.Success ? string.Empty : result.Message;
                 recipient.UpdatedAt = DateTime.UtcNow;
-                _uow.NewsLetterRecipients.Update(recipient);
+                // No _uow.NewsLetterRecipients.Update() here: Repository.Update marks EVERY column
+                // modified, which would rewrite DeliveredAt/OpenedAt/ClickedAt/LastEvent from this
+                // run's snapshot over webhook events that landed mid-blast. The entity is tracked;
+                // assignment is enough, and only genuinely-changed columns are written.
 
                 if (result.Success)
                 {
@@ -147,18 +218,59 @@ public class NewsLetterDispatcher
                 recipient.FailedAt = DateTime.UtcNow;
                 recipient.FailureReason = ex.Message;
                 recipient.UpdatedAt = DateTime.UtcNow;
-                _uow.NewsLetterRecipients.Update(recipient);
             }
+
+            // Persist THIS recipient before the next one. Deliberately outside the try: a save
+            // failure is not a per-recipient problem to log and step over. SaveChangesAsync is
+            // all-or-nothing, so a failed entity stays Modified and every later save in this loop
+            // throws too -- swallowing it would mail the remaining hundreds and record every one of
+            // them as a failure. Let it propagate; the claim keeps the send recoverable.
+            await _uow.SaveChangesAsync();
         }
 
-        send.Status = sentCount > 0 ? NewsLetterSendStatus.Sent : NewsLetterSendStatus.Cancelled;
-        send.SentAt = DateTime.UtcNow;
-        send.TotalSent = sentCount;
-        _uow.NewsLetterSends.Update(send);
-        await _uow.SaveChangesAsync();
+        // Counted from the RECIPIENT ROWS, never from this run's local counter. A resume that
+        // finishes the last 100 of a 1,000-recipient blast would otherwise write TotalSent = 100 --
+        // and if those last 100 all failed, would write Cancelled over a send that reached 900
+        // people, erasing them from the record entirely.
+        var sentTotal = await _db.NewsLetterRecipients.CountAsync(r =>
+            r.NewsLetterSendId == send.Id && r.SentAt != null);
 
-        _logger.LogInformation("Newsletter send {SendId} for newsletter {NewsletterId} dispatched to {Count} recipients. Success: {Success}",
-            send.Id, newsletter.Id, recipients.Count, sentCount > 0);
+        var now = DateTime.UtcNow;
+        var applied = await _db.NewsLetterSends
+            .Where(s => s.Id == send.Id && s.ClaimAttempts == heldAttempts.Value)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(s => s.Status, sentTotal > 0 ? NewsLetterSendStatus.Sent : NewsLetterSendStatus.Cancelled)
+                // ??= so a resume does not re-date a send that first went out an hour ago.
+                .SetProperty(s => s.SentAt, s => s.SentAt ?? now)
+                .SetProperty(s => s.TotalSent, sentTotal)
+                // The terminal status and the claim release in ONE statement: the row can never sit
+                // in the "finished but still claimed" state the sweep would re-run.
+                .SetProperty(s => s.ClaimedAt, (DateTime?)null));
+
+        if (applied != 1)
+        {
+            _logger.LogWarning("Newsletter send {SendId} finished but was already re-claimed; leaving the new owner's state alone.", send.Id);
+            return;
+        }
+
+        _logger.LogInformation(
+            "Newsletter send {SendId} for newsletter {NewsletterId}: {Count} handled this pass, {Sent} sent this pass, {Total} sent in total.",
+            send.Id, newsletter.Id, recipients.Count, sentCount, sentTotal);
+    }
+
+    // A send that cannot proceed at all. Terminal status and claim release in one guarded statement,
+    // so it is never left Sending-and-claimed for the sweep to retry three times over 45 minutes
+    // before reporting something that was never going to work.
+    private async Task FailAndReleaseAsync(int sendId, int heldAttempts, string reason)
+    {
+        _logger.LogError("Newsletter send {SendId} was cancelled because {Reason}.", sendId, reason);
+
+        await _db.NewsLetterSends
+            .Where(s => s.Id == sendId && s.ClaimAttempts == heldAttempts)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(s => s.Status, NewsLetterSendStatus.Failed)
+                .SetProperty(s => s.TotalSent, 0)
+                .SetProperty(s => s.ClaimedAt, (DateTime?)null));
     }
 
     private string GetBaseUrl() => IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);

@@ -360,7 +360,7 @@ public class EmailConsentWriteTests
         new(db, NullLogger<EmailDeliveryTracker>.Instance, NewConsent(db));
 
     private static NewsLetterService NewNewsletterService(IPRODbContext db) =>
-        new(new UnitOfWork(db), NewConsent(db));
+        new(new UnitOfWork(db), NewConsent(db), db);
 
     private sealed record Seed(
         int ClientId,

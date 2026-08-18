@@ -1,6 +1,8 @@
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Business.Services;
 
@@ -9,10 +11,16 @@ public class NewsLetterService : INewsLetterService
     private readonly IUnitOfWork _uow;
     private readonly IEmailConsentService _consent;
 
-    public NewsLetterService(IUnitOfWork uow, IEmailConsentService consent)
+    // The SAME context the UnitOfWork wraps. Taken directly for the two places that need a
+    // conditional UPDATE -- cancelling a send has to be atomic against a dispatcher's claim, and the
+    // repository abstraction has no way to express that.
+    private readonly IPRODbContext _db;
+
+    public NewsLetterService(IUnitOfWork uow, IEmailConsentService consent, IPRODbContext db)
     {
         _uow = uow;
         _consent = consent;
+        _db = db;
     }
 
     public Task<IEnumerable<NewsLetter>> GetByAgentAsync(int agentId) =>
@@ -122,18 +130,35 @@ public class NewsLetterService : INewsLetterService
         return send;
     }
 
+    // ONE conditional UPDATE, not read-then-write, and the change is not cosmetic.
+    //
+    // The old shape read the row, checked Status == Scheduled, and saved a moment later. If a
+    // dispatcher claimed the send in that gap, the save stamped Cancelled over Sending -- and
+    // because Repository.Update marks every column modified, it also wrote ClaimedAt = NULL and
+    // ClaimAttempts = 0 back from its own pre-claim snapshot, erasing the claim entirely. The
+    // in-flight dispatcher carried on mailing (nothing re-checks Status inside the loop), its
+    // heartbeat silently no-opped, and its terminal write stamped Sent over Cancelled. Net effect:
+    // the agent is told the send was cancelled, the whole list is mailed anyway, and the history
+    // says Sent.
+    //
+    // That race existed before the claim, but the dispatcher's own Status != Scheduled guard used to
+    // catch it. The claim removed that guard, so this has to become atomic in the same change.
+    // Reporting false when zero rows matched is what tells the agent the truth: too late.
     public async Task<bool> CancelSendAsync(int sendId, int agentId)
     {
-        var send = await _uow.NewsLetterSends.GetByIdAsync(sendId);
-        if (send == null || send.AgentUserId != agentId || send.Status != NewsLetterSendStatus.Scheduled)
+        var cancelled = await _db.NewsLetterSends
+            .Where(s => s.Id == sendId
+                     && s.AgentUserId == agentId
+                     && s.Status == NewsLetterSendStatus.Scheduled)
+            .ExecuteUpdateAsync(u => u.SetProperty(s => s.Status, NewsLetterSendStatus.Cancelled));
+
+        if (cancelled == 1)
         {
-            return false;
+            // The tracked copy, if any caller had already loaded one, now disagrees with the row.
+            SendClaims.ForgetTracked<NewsLetterSend>(_db, sendId);
         }
 
-        send.Status = NewsLetterSendStatus.Cancelled;
-        _uow.NewsLetterSends.Update(send);
-        await _uow.SaveChangesAsync();
-        return true;
+        return cancelled == 1;
     }
 
     public async Task MarkAsSentAsync(int id, int totalSent)

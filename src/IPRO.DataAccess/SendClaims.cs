@@ -70,6 +70,26 @@ public static class SendClaims
     // and logged, rather than being re-claimed forever.
     public const int MaxAttempts = 3;
 
+    // Detach any already-tracked copy of a send row.
+    //
+    // This is not housekeeping, it is the other half of CLAIM FIRST, LOAD SECOND. Both callers of
+    // every dispatcher -- the Hangfire job and the agent's own "send now" button -- have already
+    // materialised the row into the SAME scoped DbContext before the dispatcher is entered. The
+    // claim goes round the change tracker, so that copy still says Scheduled with no claim, and the
+    // next SaveChangesAsync in the send loop would write it straight back over the claim.
+    //
+    // Call this immediately after a successful claim, before reading anything.
+    public static void ForgetTracked<TEntity>(IPRODbContext db, int id) where TEntity : class
+    {
+        foreach (var entry in db.ChangeTracker.Entries<TEntity>().ToList())
+        {
+            if (entry.Property("Id").CurrentValue is int trackedId && trackedId == id)
+            {
+                entry.State = EntityState.Detached;
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------------------------
     // Due predicates. The jobs MUST select through these rather than writing their own Where, so
     // "what the job picked up" and "what the claim will accept" cannot drift apart. A job whose
