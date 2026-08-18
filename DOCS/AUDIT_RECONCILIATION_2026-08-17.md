@@ -243,9 +243,13 @@ The audit states that the Web and Admin deploys now share one concurrency group 
 
 If a uniqueness constraint fails to be created at startup (because the data already has duplicates), the app logs one line to the error stream and keeps serving without it. You would not notice. This was an accepted decision, not an oversight - but it is why nobody can tell you from code alone which constraints are actually live in production.
 
-### [HIGH (scheduled initiative)] A2-H8
+### [HIGH (half closed 2026-08-18; unification still scheduled)] A2-H8
 
 Two competing systems still define your database schema: EF migrations and hand-written startup repair code. Known, documented, and scheduled - but until it is done, schema drift between what the code expects and what the database has stays possible.
+
+HALF CLOSED 2026-08-18 (branch fix/audit-high-five): the WORSE drift axis is gone. The ~30 repair functions existed as two hand-maintained copies, one per Program.cs (~1,200 duplicated lines) -- and a mechanical diff during extraction found the copies had ALREADY drifted in 9 of 32 functions. All 9 drifts were comments/ordering, never SQL, but nothing guaranteed that. They now live once in IPRO.DataAccess.StartupSchemaRepair, called by both apps; Web's Program.cs shrank 2,019 -> 718 lines, Admin's 1,776 -> 519. Admin-only pieces (EnsureAdminUserSchemaAsync, recovery reset) stay in Admin by design. Verified: both apps boot clean on the shared repair against the existing dev DB, concurrently; and the F3 disaster path re-proven -- Web booted against a COMPLETELY EMPTY database, shared repair created all 98 tables, zero errors.
+
+STILL OPEN: the EF-migrations-vs-repair duality itself (the snapshot covers 28 of 85 tables). That unification remains the separate scheduled initiative; this extraction makes it easier, not done.
 
 ### [HIGH (partial, open cost decision)] R-H9
 
