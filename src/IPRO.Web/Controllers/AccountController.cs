@@ -758,7 +758,10 @@ public class AccountController : Controller
         agent.PhotoUrl = url;
         await _agents.UpdateAsync(agent);
 
-        if (!string.IsNullOrWhiteSpace(previousPhotoUrl))
+        // The old photo may still be embedded in newsletter footers already composed or delivered
+        // (A5-H14's shape): keep the file whenever anything still references it.
+        if (!string.IsNullOrWhiteSpace(previousPhotoUrl) &&
+            !await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, previousPhotoUrl))
         {
             try { await _blob.DeleteAsync(previousPhotoUrl); } catch { /* best effort */ }
         }
@@ -776,9 +779,16 @@ public class AccountController : Controller
 
         if (!string.IsNullOrWhiteSpace(agent.PhotoUrl))
         {
-            try { await _blob.DeleteAsync(agent.PhotoUrl); } catch { /* best effort */ }
+            // Row first, file second — the old order deleted the file before the save, so a failed
+            // save left the profile pointing at a destroyed photo. And the file only goes at all
+            // when nothing else (newsletter footers, most likely) still references it.
+            var removedPhotoUrl = agent.PhotoUrl;
             agent.PhotoUrl = null;
             await _agents.UpdateAsync(agent);
+            if (!await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, removedPhotoUrl))
+            {
+                try { await _blob.DeleteAsync(removedPhotoUrl); } catch { /* best effort */ }
+            }
         }
 
         TempData["Success"] = "Photo removed.";

@@ -10,6 +10,9 @@ public interface IBlobStorageService
     Task<string> UploadAsync(Stream fileStream, string fileName, string containerName, string contentType, bool isPrivate);
     Task<bool> DeleteAsync(string blobUrl);
     Task<Stream?> DownloadAsync(string blobUrl);
+    // Full public URLs of every blob in a container. Exists for the Admin orphan REPORT only --
+    // nothing that deletes may be built on top of an enumeration (the rejected A5-H11 sweep design).
+    Task<List<string>> ListAsync(string containerName);
     string GetPublicUrl(string containerName, string fileName);
     Task EnsureContainerAccessAsync(string containerName, bool isPrivate);
 }
@@ -76,6 +79,20 @@ public class AzureBlobStorageService : IBlobStorageService
 
     public string GetPublicUrl(string containerName, string fileName) =>
         $"https://{_accountName}.blob.core.windows.net/{containerName}/{fileName}";
+
+    public async Task<List<string>> ListAsync(string containerName)
+    {
+        var container = _client.GetBlobContainerClient(containerName);
+        var urls = new List<string>();
+        if (!await container.ExistsAsync()) return urls;
+        await foreach (var blob in container.GetBlobsAsync())
+        {
+            // Built through the container client's own Uri (not GetPublicUrl) so Azurite's
+            // path-style addressing in local dev produces the same URLs the app stored at upload.
+            urls.Add($"{container.Uri}/{blob.Name}");
+        }
+        return urls;
+    }
 
     // Azurite uses path-style URLs (account name as a path segment) while real Azure Storage
     // uses virtual-hosted-style URLs (account name in the host). Strip the service client's own

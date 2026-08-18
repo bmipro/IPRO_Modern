@@ -127,13 +127,17 @@ REMAINING: one production sandbox buyer pass from an agent host (signup + upgrad
 
 Deleting a website form deletes the form but not the submissions or the answers visitors typed into it. Because the eraser finds those answers by looking up the parent form, once the form is gone that visitor personal data is orphaned in the database and unreachable by the erase tool. A deletion request cannot actually be honoured for this data today.
 
-### [HIGH] A5-H12
+### [FIXED 2026-08-18] A5-H12
 
 Erasing one agent can delete image files that OTHER agents are still using. The 'is this shared?' check only looks at three starter-content tables and never checks other agents' article images. Their pages and newsletters go to broken images and there is no undo.
 
-### [HIGH] A5-H14
+FIXED 2026-08-18 (branch fix/audit-high-five): after the shred, every candidate blob is re-checked against BlobReferences — a live query over EVERY URL-bearing column and stored HTML body (15 table/column pairs, not three). Any file another agent still points at moves to the kept list. Test: Erasing_one_agent_keeps_a_file_another_agent_still_uses, plus the inverse (a file only the erased agent used still goes).
+
+### [FIXED 2026-08-18] A5-H14
 
 Replacing or deleting an article's image deletes the underlying file without checking whether a newsletter already copied that image. Newsletters already sitting in clients' inboxes lose their picture.
+
+FIXED 2026-08-18: all six image-delete sites (article image, agent photo replace + remove, website logo replace, media-asset delete, gallery-image delete) now ask BlobReferences first and KEEP the file when anything still references it — including newsletter/drip/e-letter HTML and block SettingsJson, which the old two-table checks never saw. Two of the six also deleted the file BEFORE saving the row (a failed save left rows pointing at destroyed files); both reordered to row-first. The property the tests pin: the guards can only ever keep MORE files than the unconditional deletes they replaced.
 
 ### [HIGH (same defect, two audits)] A5-H7 / JOBS-3
 
@@ -159,9 +163,11 @@ Related to the above: re-running the PayPal plan sync after zeroing a price wipe
 
 FIXED 2026-08-18, both halves. SyncPayPalPlansAsync now persists each plan id THE MOMENT it is created (monthly saved before annual is attempted), so a failure partway leaves the created plan recorded instead of discarded-but-live-at-PayPal. And a replaced or zeroed plan id is no longer silently overwritten: the old plan is deactivated at PayPal best-effort (existing subscribers keep billing; only NEW subscriptions are blocked) and the old->new transition is written to OperateLogs (Action=PayPalPlanReplaced) either way, so the worst case is a logged, findable orphan rather than an untraceable one.
 
-### [HIGH] A5-H11
+### [MOSTLY CLOSED 2026-08-18 — report-only by design] A5-H11
 
 Deleting a Gallery block or a website page leaves its uploaded image files in blob storage forever, invisible to the cleanup tool and not credited back against the agent's storage quota. Silent, permanent storage cost growth.
+
+MOSTLY CLOSED 2026-08-18: orphans are no longer invisible — Admin -> Blob Storage walks every registered container (BlobReferences.Containers is the registry) and lists each file no database row references, with a banner stating why nothing on that page deletes: "unreferenced in the database" is not proof the file is absent from already-delivered mail, which is exactly how the original sweep design would have destroyed live images. Deletion stays a manual, per-file human decision. Residual accepted: storage is not auto-reclaimed (the whole account holds ~17 MB; the trade is deliberate) and quota is not credited back.
 
 ### [MODERATE, and understated] DEP-AngleSharp
 

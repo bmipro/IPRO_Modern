@@ -341,13 +341,15 @@ and the 2 that survive are the two designed to.
 2. **One-time production cleanup** of answer rows whose agent was already erased. They are
    unattributable — no column left says whose they were — so this is a manual, counted operation
    recorded here, never scripted into a deploy step. The code fix cannot reduce that count.
-3. **A5-H11/H12/H14, the blob family — NOT DONE, and the proposed design was rejected.** The orphan
-   sweep as designed would delete images that are live in already-delivered mail: the index sees
-   database rows only, so a newsletter photo sitting in an inbox is referenced by nothing it can see
-   and looks unreferenced the moment its row goes. Two of the three proposed new deletion sources
-   would also have put agent-typed, unvalidated URLs into a delete path. Safe subset (container
-   registry, reference index, keep-if-referenced at the six sites that today delete unconditionally)
-   is worth doing; the sweep must be report-only until a human has read one report.
+3. **A5-H11/H12/H14, the blob family — SAFE SUBSET SHIPPED 2026-08-18** (branch
+   `fix/audit-high-five`). Exactly the approved subset, nothing from the rejected design:
+   `IPRO.DataAccess.BlobReferences` is the reference check (live query over 15 URL/HTML columns —
+   no index table to maintain or forget); the six unconditional-delete sites now keep any file
+   something still references (two also reordered row-first — they deleted the file before the
+   save); agent erasure re-checks every candidate post-shred so another agent's file survives
+   (A5-H12); and the sweep is Admin → Blob Storage, REPORT ONLY, with the why stated on the page —
+   no delete action exists there and none may be added. 6 tests. The property throughout: can only
+   ever keep MORE files than before.
 4. **After a CLIENT erasure the person's name, email, phone, IP and typed form answers survive** on
    the `WebsiteLead` row — unlinked, not deleted, per a documented earlier decision. A client-level
    deletion request is therefore not fully honoured today. Owner's product call, not a defect fix.

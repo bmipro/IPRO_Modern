@@ -487,9 +487,14 @@ public class WebsitePagesController : Controller
             .Where(b => b.WebsitePage.AgentWebsiteId == page.AgentWebsiteId && b.ImageUrl == asset.BlobUrl)
             .ToListAsync();
         foreach (var block in blocks) block.ImageUrl = string.Empty;
-        await _blob.DeleteAsync(asset.BlobUrl);
         _db.WebsiteMediaAssets.Remove(asset);
         await _db.SaveChangesAsync();
+        // Rows first, file second -- and the file only goes when nothing else still references it
+        // (another agent's page, an article, or newsletter HTML that copied the URL; A5-H12/H14).
+        if (!await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, asset.BlobUrl))
+        {
+            await _blob.DeleteAsync(asset.BlobUrl);
+        }
         TempData["Success"] = "Image removed from the media library.";
         return RedirectToAction(nameof(Edit), new { id = pageId });
     }
@@ -574,10 +579,15 @@ public class WebsitePagesController : Controller
         var gallerySettings = WebsiteGallerySettings.FromJson(block.SettingsJson);
         if (gallerySettings.Images.RemoveAll(i => i.Url == url) > 0)
         {
-            await _blob.DeleteAsync(url);
             block.SettingsJson = gallerySettings.ToJson();
             block.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            // Row first, file second (the old order destroyed the file even when the save failed),
+            // and only when no other gallery/article/newsletter still references it.
+            if (!await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, url))
+            {
+                await _blob.DeleteAsync(url);
+            }
             TempData["Success"] = "Photo removed from gallery.";
         }
         return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });

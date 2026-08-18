@@ -192,8 +192,12 @@ public class WebsiteController : Controller
             if (!string.IsNullOrEmpty(model.LogoUrl)) existing.LogoUrl = model.LogoUrl;
             await _websites.UpdateAsync(existing);
 
-            // Only after the new URL is persisted -- deleting first would lose the old logo if the save failed.
-            if (!string.IsNullOrWhiteSpace(replacedLogoUrl))
+            // Only after the new URL is persisted -- deleting first would lose the old logo if the save
+            // failed. And only when nothing else still references the old file (A5-H14's shape: a logo
+            // can sit inside composed newsletter HTML); a kept file is cheap, a blanked image in
+            // delivered mail is not undoable.
+            if (!string.IsNullOrWhiteSpace(replacedLogoUrl) &&
+                !await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, replacedLogoUrl))
             {
                 try { await _blob.DeleteAsync(replacedLogoUrl); }
                 catch (Exception ex) { _logger.LogError(ex, "Replaced logo {Url} could not be deleted", replacedLogoUrl); }

@@ -1,0 +1,69 @@
+@model List<IPRO.Admin.Controllers.BlobReportController.ContainerReport>
+@{
+    ViewData["Title"] = "Blob Storage Report";
+    var totalUnreferenced = Model.Sum(r => r.Unreferenced.Count);
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-hdd me-2 text-primary"></i>Blob Storage Report</h4>
+    <p class="text-muted mb-0">Files in storage that no database row references any more.</p>
+  </div>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm mb-4">
+  <i class="fas fa-info-circle me-2"></i>
+  <strong>This page is a report only — nothing here deletes.</strong>
+  A file listed as unreferenced may still be embedded in emails that were already delivered
+  (newsletter and e-card images live on in inboxes long after their rows are gone), so
+  "unreferenced in the database" is not proof it is safe to remove. If a file must be removed,
+  that is a manual decision, made per file, outside this screen.
+</div>
+
+@foreach (var report in Model)
+{
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <h6 class="fw-bold mb-0"><code>@report.Container</code></h6>
+          <small class="text-muted">@report.Holds</small>
+        </div>
+        <div class="text-end">
+          @if (report.Error != null)
+          {
+            <span class="badge bg-danger">could not scan</span>
+          }
+          else
+          {
+            <span class="badge bg-secondary me-1">@report.TotalBlobs files</span>
+            <span class="badge bg-success me-1">@report.Referenced referenced</span>
+            <span class="badge @(report.Unreferenced.Count > 0 ? "bg-warning text-dark" : "bg-light text-muted")">
+              @report.Unreferenced.Count unreferenced
+            </span>
+          }
+        </div>
+      </div>
+      @if (report.Error != null)
+      {
+        <div class="text-danger small mt-2">@report.Error</div>
+      }
+      else if (report.Unreferenced.Count > 0)
+      {
+        <ul class="small mb-0 mt-3" style="word-break: break-all;">
+          @foreach (var url in report.Unreferenced)
+          {
+            <li><a href="@url" target="_blank" rel="noopener">@url</a></li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+}
+
+@if (totalUnreferenced == 0 && Model.All(r => r.Error == null))
+{
+  <div class="alert alert-success border-0 shadow-sm">
+    <i class="fas fa-check-circle me-2"></i>Every file in storage is referenced by at least one database row.
+  </div>
+}
