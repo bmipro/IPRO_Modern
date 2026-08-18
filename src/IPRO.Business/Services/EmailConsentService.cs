@@ -62,6 +62,14 @@ public interface IEmailConsentService
     // The deliberate reverse, made by a person looking at the preferences page.
     Task ResubscribeAsync(Client client);
 
+    // JOBS-1's truth sweep: cancel every ACTIVE drip enrollment whose client is suppressed.
+    // SuppressAllAsync already cancels enrollments at the moment of a NEW opt-out; this covers the
+    // rows that predate that (clients who opted out before 2026-08-17) and any writer that slips
+    // past the single-writer rule. Without it, a suppressed client's enrollment shows Active until
+    // its next step comes due -- which can be weeks away for a campaign that will never mail.
+    // Returns how many enrollments were cancelled.
+    Task<int> CancelSuppressedDripEnrollmentsAsync();
+
     // Returns the client's preferences token, creating and persisting one if they don't have it yet.
     // Every outgoing email needs a List-Unsubscribe URL, and a client created before this feature
     // existed has an empty token.
@@ -223,6 +231,30 @@ public class EmailConsentService : IEmailConsentService
 
         return new SuppressionResult(false, queued.Count, enrollments.Count);
     }
+
+    public async Task<int> CancelSuppressedDripEnrollmentsAsync()
+    {
+        // SQL narrows (EmailOptOutAt is what suppression writes for every channel), IsSuppressed
+        // DECIDES -- so if the drip channel's rule ever changes in the method above, this sweep
+        // follows it instead of freezing today's rule into a query.
+        var candidates = await _db.DripCampaignEnrollments
+            .Include(e => e.Client)
+            .Where(e => e.Status == DripCampaignEnrollmentStatus.Active && e.Client.EmailOptOutAt != null)
+            .ToListAsync();
+
+        var cancelled = 0;
+        foreach (var enrollment in candidates)
+        {
+            if (!IsSuppressed(enrollment.Client, EmailChannel.DripCampaign)) continue;
+            enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+            enrollment.LastError = "Client has unsubscribed; enrollment cancelled.";
+            cancelled++;
+        }
+
+        if (cancelled > 0) await _db.SaveChangesAsync();
+        return cancelled;
+    }
+
 
     // Deliberately does NOT revive retired queue items or cancelled enrollments. Those were specific
     // sends the client was opted out of at the time; resubscribing is consent to receive future mail,

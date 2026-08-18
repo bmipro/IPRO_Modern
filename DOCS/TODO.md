@@ -372,6 +372,15 @@ and the 2 that survive are the two designed to.
    PayPal and then closes the tab still leaves an activated PayPal subscription with a Pending local
    row, healed only by the ACTIVATED webhook. Wanted: a reconcile sweep over Pending Billings with a
    non-empty PayPalSubscriptionId.
+9. **JOBS-1, the last CRITICAL — FIXED 2026-08-18** (branch `fix/audit-high-five`). An opted-out
+   client could still be ENROLLED in a drip campaign (no mail went, but the campaign screen showed
+   them enrolled and the agent was never told). Three parts: enrollment now refuses suppressed
+   clients on both paths with an agent-visible message (rule 7's `IsSuppressed`, and the generic
+   "already active" fallbacks no longer overwrite it); `CancelSuppressedDripEnrollmentsAsync` sweeps
+   legacy Active enrollments of already-opted-out clients at the top of every hourly `DripCampaignJob`
+   tick; and the spam-complaint half was already closed by LB-2 (`RecordDripStepEventAsync` →
+   `SuppressAllAsync`), verified in code this session. 5 tests in `DripEnrollmentConsentTests`.
+   Full entry in `AUDIT_RECONCILIATION_2026-08-17.md`.
 
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 

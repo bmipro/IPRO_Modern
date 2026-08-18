@@ -23,6 +23,16 @@ public class DripCampaignJob
 
     public async Task RunAsync()
     {
+        // Truth first (JOBS-1): cancel enrollments of clients who are already suppressed, however
+        // long ago that happened, so the campaign screens stop showing Active rows that will never
+        // mail. The per-send IsSuppressed check below stays -- it catches an opt-out that lands
+        // between this sweep and the send.
+        var swept = await _consent.CancelSuppressedDripEnrollmentsAsync();
+        if (swept > 0)
+        {
+            _logger.LogInformation("Drip sweep cancelled {Count} enrollment(s) of unsubscribed clients.", swept);
+        }
+
         await ProcessEnrollmentsAsync();
         await ProcessLegacySchedulerRowsAsync();
     }

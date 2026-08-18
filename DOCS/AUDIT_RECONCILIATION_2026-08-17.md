@@ -101,9 +101,17 @@ For the July audit specifically, "everything was fixed" was very nearly true, an
 
 ## OPEN — 54 distinct defects, worst first
 
-### [CRITICAL (partial)] JOBS-1
+### [FIXED 2026-08-18] JOBS-1 (was CRITICAL partial)
 
 Drip campaigns: a client who opted out of your email can still be ENROLLED into a campaign. No mail actually reaches them any more (the job now cancels the enrollment at the first due send), so the legal exposure is largely closed, but the enrollment screen will still show opted-out people as enrolled. Separately, a spam complaint against a drip email is not recorded at all.
+
+FIXED 2026-08-18 on branch fix/audit-high-five, in three parts matching the finding's three halves:
+
+1. Enrollment gate: CampaignsController.EnrollClientsAsync now filters out suppressed clients (EmailConsentService.IsSuppressed, EmailChannel.DripCampaign — rule 7's single decision point) before enrolling, on BOTH paths (category bulk-enroll and single-client). The agent is told how many were skipped and why, and the generic "already active" fallback messages no longer overwrite that warning.
+2. Truth sweep: EmailConsentService.CancelSuppressedDripEnrollmentsAsync cancels Active enrollments whose client is already suppressed — the legacy rows created BEFORE LB-2 taught SuppressAllAsync to cancel enrollments at opt-out time. DripCampaignJob runs the sweep at the top of every hourly tick, so a stale "enrolled" row now survives at most an hour instead of until its next due send (up to the step's full delay, weeks). SQL narrows on EmailOptOutAt, IsSuppressed makes the decision.
+3. The spam-complaint half was already closed by LB-2 (f998d59/6d060e9): RecordDripStepEventAsync handles spamreport/unsubscribe/group_unsubscribe on drip sends → SuppressAllAsync, which records the opt-out AND cancels the client's active enrollments. Verified in code this session, not assumed.
+
+The per-due-send IsSuppressed check in DripCampaignJob stays as the last line of defence. 5 tests in DripEnrollmentConsentTests (gate refuses + agent told, clean client still enrolls, new opt-out cancels immediately, sweep cancels legacy rows and spares subscribed ones, sweep no-op).
 
 ### [HIGH] A5-H6
 
