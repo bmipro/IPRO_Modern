@@ -197,6 +197,29 @@ The preview URL is the least of it. In rough order of value:
 - **Setup effort.** Provisioning, config, a seeded and usable test database, and a second deploy
   workflow: a day or two of work, not an afternoon.
 
+## The unsettled question: duplicate data, or synthetic data?
+
+Added 2026-08-18 after Bahman widened the ask from "somewhere to look at a page before it ships"
+to **"a duplicate and full testing environment"** — a real second copy of IPRO he can exercise end
+to end. That is a bigger thing than a preview URL, and it forces a decision the costing above does
+not settle.
+
+**A duplicate needs data. Where does that data come from?**
+
+| Option | What it gives | What it costs |
+|---|---|---|
+| **Restore a copy of production** | Faithful. Real agents, real clients, real invoices — bugs reproduce exactly as reported. | Real client names, emails, phone numbers and IP addresses sitting in a second, less-guarded system. A **PIPEDA exposure**, and directly contrary to the agent-erasure work already shipped: erasing a client from production would leave their record intact in staging. Also a larger DB. |
+| **Synthetic seed data** | No personal data leaves production. Nothing to leak, nothing to erase twice. | More work to build, and it is *not* faithful — the bugs that matter here (FK cascades, invoice numbering races, proration edge cases) are the ones that emerge from real, messy history. |
+| **Anonymised restore** | Real shape and volume, scrubbed identities. The usual middle path. | Someone has to write and maintain the scrubbing step, and be right about it every time. A missed column is a silent leak. |
+
+This is a **product and privacy decision, not a technical one**, and it should be made before any
+provisioning. It also changes the cost: a faithful restore needs a database sized like production's,
+while synthetic data can stay on the 20 GB floor.
+
+Related: if the copy route is chosen, the staging environment inherits every obligation the
+production one has — the erasure paths, the consent/suppression state, the retention rules. That is
+the argument for synthetic or anonymised data even though it is more work.
+
 ## Trigger points (the recommendation on record)
 
 Revised 2026-08-18 in light of the corrected prices:
