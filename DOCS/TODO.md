@@ -354,7 +354,21 @@ and the 2 that survive are the two designed to.
    once under full-suite load (110 parallel throwaway databases) and passed alone and on re-run.
    Not a regression. A suite that fails intermittently stops being believed, so this needs a real
    diagnosis rather than a retry.
-6. **LB-1 (WEB-H-1)** — signup/upgrade started on an agent's custom domain never activates. Untouched.
+6. **LB-1 (WEB-H-1)** — **FIXED 2026-08-18** (branch `fix/audit-high-five`): PortalUrlHelper made
+   genuinely host-aware; PayPal return/cancel URLs now come back to the session's own host (allowlist
+   + bound custom domains, forged Host falls back to canonical). Both call sites — BillingController
+   AND AccountController's hand-rolled signup copy — go through one producer; a source-walking test
+   fails on any third copy. 21 tests. Remaining: one production sandbox buyer pass from an agent host
+   after deploy (webhooks only reach production; prod PayPal is sandbox, so it is safe).
+7. **Sibling found during LB-1, NOT fixed (opposite direction):** `NewsletterController.cs:606`
+   `GetRequestBaseUrl()` bakes the CURRENT request host into **test-send emails** (line ~234). A test
+   send composed on a custom domain puts that host into image/link URLs inside a real delivered email;
+   if that domain's cert later lapses, images break in mail already in inboxes. Fix separately: test
+   sends should use the canonical base like every other out-of-band email.
+8. **Follow-up from LB-1, money-in-flight (out of scope of the host fix):** a buyer who approves at
+   PayPal and then closes the tab still leaves an activated PayPal subscription with a Pending local
+   row, healed only by the ACTIVATED webhook. Wanted: a reconcile sweep over Pending Billings with a
+   non-empty PayPalSubscriptionId.
 
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 

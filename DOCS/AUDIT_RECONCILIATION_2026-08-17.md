@@ -113,9 +113,15 @@ All four email dispatchers (newsletter, e-card, e-letter, poll) claim a send by 
 
 Spam complaints and unsubscribes only suppress the recipient for newsletters. E-cards, e-letters, polls and Did-You-Know emails ignore them entirely - nothing outside the preferences page ever writes the opt-out date. Someone who hits 'this is spam' keeps receiving your other email types. This is the CASL/CAN-SPAM item, and it is fully open.
 
-### [HIGH] WEB-H-1
+### [FIXED 2026-08-18, pending production buyer pass] WEB-H-1
 
-If a prospect starts signup or an upgrade on an agent's own domain (someagent.247advisers.com or a custom domain) rather than the canonical app URL, PayPal sends them back to the canonical host where their login cookie does not exist. They get bounced to the login page and the payment capture never runs - money moves at PayPal, the subscription does not activate in IPRO. Nothing about this has changed.
+If a prospect starts signup or an upgrade on an agent's own domain (someagent.247advisers.com or a custom domain) rather than the canonical app URL, PayPal sends them back to the canonical host where their login cookie does not exist. They get bounced to the login page and the payment capture never runs - money moves at PayPal, the subscription does not activate in IPRO.
+
+FIXED 2026-08-18 on branch fix/audit-high-five: PortalUrlHelper is now genuinely host-aware (it was a 2-line canonical pass-through). PayPal return/cancel URLs are built for the session's host via an allowlisted GetSessionBaseUrlAsync (canonical + platform domains + *.247advisers.com + bound custom domains from AgentDomains, NOT gated on SslStatus; unknown hosts fall back to canonical so a forged Host header never reaches PayPal). Both call sites fixed: BillingController.Subscribe/ResumePayment AND AccountController's hand-rolled duplicate on the signup path. The /Billing/PayPalReturn and /Billing/Cancel literals now exist only in PortalUrlHelper, enforced by a source-walking test. GoogleCalendarController keeps its canonical bounce (Google has a pre-registered redirect-URI allowlist; PayPal does not) but now shares the one host list. 21 tests in CheckoutHostPreservationTests.
+
+Two facts the original entry omitted, recorded so nobody relies on them: BILLING.SUBSCRIPTION.ACTIVATED webhook handling is a partial backstop (activates the row if delivered), and the login ReturnUrl replay is a fragile second one (lost on MustChangePassword, TempData lost). Neither is the fix.
+
+REMAINING: one production sandbox buyer pass from an agent host (signup + upgrade + cancel legs) after deploy — webhook-dependent activation is only verifiable in production, and production PayPal is sandbox mode so the pass is safe.
 
 ### [HIGH] A5-H13
 

@@ -423,13 +423,17 @@ public class AccountController : Controller
         var period = string.Equals(model.BillingPeriodChoice, "Annually", StringComparison.OrdinalIgnoreCase)
             ? BillingPeriod.Annually
             : BillingPeriod.Monthly;
-        var portalBase = PortalUrlHelper.GetAgentPortalBaseUrl(_configuration);
+        // Session-host-aware (WEB-H-1). This POST arrives on whichever host the prospect signed up
+        // from — the templates deliberately sell signup on the agent's own domain — and the cookie
+        // SignInAgentAsync just issued is host-only. A canonical return URL here logged the buyer
+        // out between PayPal approval and capture: money moved, nothing activated. The URL producer
+        // lives in PortalUrlHelper; this used to be a hand-rolled copy of BillingController's.
         var checkout = await _billing.CreateSubscriptionAsync(
             agent.Id,
             model.PackageId,
             period,
-            $"{portalBase}/Billing/PayPalReturn",
-            $"{portalBase}/Billing/Cancel");
+            await PortalUrlHelper.BuildBillingActionUrlAsync(Request, _configuration, _db, "PayPalReturn", _logger),
+            await PortalUrlHelper.BuildBillingActionUrlAsync(Request, _configuration, _db, "Cancel", _logger));
 
         if (checkout.Success && checkout.RequiresPayment && !string.IsNullOrWhiteSpace(checkout.ApprovalUrl))
         {

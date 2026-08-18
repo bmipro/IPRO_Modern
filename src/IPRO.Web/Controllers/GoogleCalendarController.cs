@@ -37,24 +37,16 @@ public class GoogleCalendarController : Controller
     // own custom/temporary domain (e.g. someagent.247advisers.com/Account/Profile), and Url.ActionLink
     // would then build a redirect_uri Google has never seen, failing with redirect_uri_mismatch. Bounce
     // to the canonical host first so the redirect_uri we send always matches what's registered.
-    private IActionResult? RedirectToCanonicalHostIfNeeded()
-    {
-        var canonicalBaseUrl = PortalUrlHelper.GetAgentPortalBaseUrl(_configuration);
-        var canonicalHost = new Uri(canonicalBaseUrl).Host;
-        var currentHost = Request.Host.Host;
-        if (string.Equals(currentHost, canonicalHost, StringComparison.OrdinalIgnoreCase)
-            || currentHost.EndsWith(".azurewebsites.net", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return Redirect($"{canonicalBaseUrl}{Request.Path}{Request.QueryString}");
-    }
-
+    //
+    // This is the ONE caller that bounces instead of preserving the session host, and only because
+    // Google enforces a pre-registered redirect-URI allowlist. PayPal does not (return_url is
+    // per-order), which is why Billing/Account keep the host instead. The bounce itself lives in
+    // PortalUrlHelper so "which hosts are ours" has a single answer — the private copy that used to
+    // sit here knew only canonical + azurewebsites and had already drifted from the platform list.
     public async Task<IActionResult> Connect()
     {
-        var hostRedirect = RedirectToCanonicalHostIfNeeded();
-        if (hostRedirect != null) return hostRedirect;
+        var canonicalUrl = PortalUrlHelper.CanonicalRedirectUrlIfNeeded(Request, _configuration);
+        if (canonicalUrl != null) return Redirect(canonicalUrl);
 
         var gate = await RequireGoogleCalendarAccessAsync();
         if (gate != null) return gate;
@@ -64,6 +56,8 @@ public class GoogleCalendarController : Controller
         return Redirect(_googleCalendar.BuildAuthorizationUrl(redirectUri, state));
     }
 
+    // No canonical bounce here on purpose: Google only ever calls the redirect_uri that was
+    // registered with it, which is on the canonical host — this action cannot arrive anywhere else.
     public async Task<IActionResult> Callback(string? code, string? state, string? error)
     {
         var gate = await RequireGoogleCalendarAccessAsync();
