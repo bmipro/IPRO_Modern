@@ -423,13 +423,17 @@ public class AccountController : Controller
         var period = string.Equals(model.BillingPeriodChoice, "Annually", StringComparison.OrdinalIgnoreCase)
             ? BillingPeriod.Annually
             : BillingPeriod.Monthly;
-        var portalBase = PortalUrlHelper.GetAgentPortalBaseUrl(_configuration);
+        // Session-host-aware (WEB-H-1). This POST arrives on whichever host the prospect signed up
+        // from — the templates deliberately sell signup on the agent's own domain — and the cookie
+        // SignInAgentAsync just issued is host-only. A canonical return URL here logged the buyer
+        // out between PayPal approval and capture: money moved, nothing activated. The URL producer
+        // lives in PortalUrlHelper; this used to be a hand-rolled copy of BillingController's.
         var checkout = await _billing.CreateSubscriptionAsync(
             agent.Id,
             model.PackageId,
             period,
-            $"{portalBase}/Billing/PayPalReturn",
-            $"{portalBase}/Billing/Cancel");
+            await PortalUrlHelper.BuildBillingActionUrlAsync(Request, _configuration, _db, "PayPalReturn", _logger),
+            await PortalUrlHelper.BuildBillingActionUrlAsync(Request, _configuration, _db, "Cancel", _logger));
 
         if (checkout.Success && checkout.RequiresPayment && !string.IsNullOrWhiteSpace(checkout.ApprovalUrl))
         {
@@ -754,7 +758,10 @@ public class AccountController : Controller
         agent.PhotoUrl = url;
         await _agents.UpdateAsync(agent);
 
-        if (!string.IsNullOrWhiteSpace(previousPhotoUrl))
+        // The old photo may still be embedded in newsletter footers already composed or delivered
+        // (A5-H14's shape): keep the file whenever anything still references it.
+        if (!string.IsNullOrWhiteSpace(previousPhotoUrl) &&
+            !await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, previousPhotoUrl))
         {
             try { await _blob.DeleteAsync(previousPhotoUrl); } catch { /* best effort */ }
         }
@@ -772,9 +779,16 @@ public class AccountController : Controller
 
         if (!string.IsNullOrWhiteSpace(agent.PhotoUrl))
         {
-            try { await _blob.DeleteAsync(agent.PhotoUrl); } catch { /* best effort */ }
+            // Row first, file second — the old order deleted the file before the save, so a failed
+            // save left the profile pointing at a destroyed photo. And the file only goes at all
+            // when nothing else (newsletter footers, most likely) still references it.
+            var removedPhotoUrl = agent.PhotoUrl;
             agent.PhotoUrl = null;
             await _agents.UpdateAsync(agent);
+            if (!await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, removedPhotoUrl))
+            {
+                try { await _blob.DeleteAsync(removedPhotoUrl); } catch { /* best effort */ }
+            }
         }
 
         TempData["Success"] = "Photo removed.";

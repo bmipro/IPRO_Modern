@@ -101,9 +101,17 @@ For the July audit specifically, "everything was fixed" was very nearly true, an
 
 ## OPEN — 54 distinct defects, worst first
 
-### [CRITICAL (partial)] JOBS-1
+### [FIXED 2026-08-18] JOBS-1 (was CRITICAL partial)
 
 Drip campaigns: a client who opted out of your email can still be ENROLLED into a campaign. No mail actually reaches them any more (the job now cancels the enrollment at the first due send), so the legal exposure is largely closed, but the enrollment screen will still show opted-out people as enrolled. Separately, a spam complaint against a drip email is not recorded at all.
+
+FIXED 2026-08-18 on branch fix/audit-high-five, in three parts matching the finding's three halves:
+
+1. Enrollment gate: CampaignsController.EnrollClientsAsync now filters out suppressed clients (EmailConsentService.IsSuppressed, EmailChannel.DripCampaign — rule 7's single decision point) before enrolling, on BOTH paths (category bulk-enroll and single-client). The agent is told how many were skipped and why, and the generic "already active" fallback messages no longer overwrite that warning.
+2. Truth sweep: EmailConsentService.CancelSuppressedDripEnrollmentsAsync cancels Active enrollments whose client is already suppressed — the legacy rows created BEFORE LB-2 taught SuppressAllAsync to cancel enrollments at opt-out time. DripCampaignJob runs the sweep at the top of every hourly tick, so a stale "enrolled" row now survives at most an hour instead of until its next due send (up to the step's full delay, weeks). SQL narrows on EmailOptOutAt, IsSuppressed makes the decision.
+3. The spam-complaint half was already closed by LB-2 (f998d59/6d060e9): RecordDripStepEventAsync handles spamreport/unsubscribe/group_unsubscribe on drip sends → SuppressAllAsync, which records the opt-out AND cancels the client's active enrollments. Verified in code this session, not assumed.
+
+The per-due-send IsSuppressed check in DripCampaignJob stays as the last line of defence. 5 tests in DripEnrollmentConsentTests (gate refuses + agent told, clean client still enrolls, new opt-out cancels immediately, sweep cancels legacy rows and spares subscribed ones, sweep no-op).
 
 ### [HIGH] A5-H6
 
@@ -113,21 +121,31 @@ All four email dispatchers (newsletter, e-card, e-letter, poll) claim a send by 
 
 Spam complaints and unsubscribes only suppress the recipient for newsletters. E-cards, e-letters, polls and Did-You-Know emails ignore them entirely - nothing outside the preferences page ever writes the opt-out date. Someone who hits 'this is spam' keeps receiving your other email types. This is the CASL/CAN-SPAM item, and it is fully open.
 
-### [HIGH] WEB-H-1
+### [FIXED 2026-08-18, pending production buyer pass] WEB-H-1
 
-If a prospect starts signup or an upgrade on an agent's own domain (someagent.247advisers.com or a custom domain) rather than the canonical app URL, PayPal sends them back to the canonical host where their login cookie does not exist. They get bounced to the login page and the payment capture never runs - money moves at PayPal, the subscription does not activate in IPRO. Nothing about this has changed.
+If a prospect starts signup or an upgrade on an agent's own domain (someagent.247advisers.com or a custom domain) rather than the canonical app URL, PayPal sends them back to the canonical host where their login cookie does not exist. They get bounced to the login page and the payment capture never runs - money moves at PayPal, the subscription does not activate in IPRO.
+
+FIXED 2026-08-18 on branch fix/audit-high-five: PortalUrlHelper is now genuinely host-aware (it was a 2-line canonical pass-through). PayPal return/cancel URLs are built for the session's host via an allowlisted GetSessionBaseUrlAsync (canonical + platform domains + *.247advisers.com + bound custom domains from AgentDomains, NOT gated on SslStatus; unknown hosts fall back to canonical so a forged Host header never reaches PayPal). Both call sites fixed: BillingController.Subscribe/ResumePayment AND AccountController's hand-rolled duplicate on the signup path. The /Billing/PayPalReturn and /Billing/Cancel literals now exist only in PortalUrlHelper, enforced by a source-walking test. GoogleCalendarController keeps its canonical bounce (Google has a pre-registered redirect-URI allowlist; PayPal does not) but now shares the one host list. 21 tests in CheckoutHostPreservationTests.
+
+Two facts the original entry omitted, recorded so nobody relies on them: BILLING.SUBSCRIPTION.ACTIVATED webhook handling is a partial backstop (activates the row if delivered), and the login ReturnUrl replay is a fragile second one (lost on MustChangePassword, TempData lost). Neither is the fix.
+
+REMAINING: one production sandbox buyer pass from an agent host (signup + upgrade + cancel legs) after deploy — webhook-dependent activation is only verifiable in production, and production PayPal is sandbox mode so the pass is safe.
 
 ### [HIGH] A5-H13
 
 Deleting a website form deletes the form but not the submissions or the answers visitors typed into it. Because the eraser finds those answers by looking up the parent form, once the form is gone that visitor personal data is orphaned in the database and unreachable by the erase tool. A deletion request cannot actually be honoured for this data today.
 
-### [HIGH] A5-H12
+### [FIXED 2026-08-18] A5-H12
 
 Erasing one agent can delete image files that OTHER agents are still using. The 'is this shared?' check only looks at three starter-content tables and never checks other agents' article images. Their pages and newsletters go to broken images and there is no undo.
 
-### [HIGH] A5-H14
+FIXED 2026-08-18 (branch fix/audit-high-five): after the shred, every candidate blob is re-checked against BlobReferences — a live query over EVERY URL-bearing column and stored HTML body (15 table/column pairs, not three). Any file another agent still points at moves to the kept list. Test: Erasing_one_agent_keeps_a_file_another_agent_still_uses, plus the inverse (a file only the erased agent used still goes).
+
+### [FIXED 2026-08-18] A5-H14
 
 Replacing or deleting an article's image deletes the underlying file without checking whether a newsletter already copied that image. Newsletters already sitting in clients' inboxes lose their picture.
+
+FIXED 2026-08-18: all six image-delete sites (article image, agent photo replace + remove, website logo replace, media-asset delete, gallery-image delete) now ask BlobReferences first and KEEP the file when anything still references it — including newsletter/drip/e-letter HTML and block SettingsJson, which the old two-table checks never saw. Two of the six also deleted the file BEFORE saving the row (a failed save left rows pointing at destroyed files); both reordered to row-first. The property the tests pin: the guards can only ever keep MORE files than the unconditional deletes they replaced.
 
 ### [HIGH (same defect, two audits)] A5-H7 / JOBS-3
 
@@ -141,17 +159,23 @@ Anyone on the internet, not logged in, can POST promo codes at /Account/Validate
 
 A vulnerable library version (Newtonsoft.Json 11.0.1) is still resolved in three internal projects. The earlier 'gone entirely' claim was wrong about the cause, and the check that produced it only looked at the two app projects, which hid it. In practice what ships to production is the safe 13.0.2, but only by luck - nothing pins it, and any change to two unrelated packages silently drops both apps back to the vulnerable version. Any CI security scan reports HIGH today. One line in one file fixes it.
 
-### [HIGH (partial)] ADMIN-2 / BILLING-9
+### [FIXED 2026-08-18] ADMIN-2 / BILLING-9
 
 Editing a package price in Admin does not update the corresponding PayPal plan. PayPal keeps charging the old frozen price while the invoice IPRO issues shows the new one. A warning banner was added so an admin can see the divergence, but nothing blocks checkout or reconciles the invoice - if the admin ignores the banner, customers get invoices that do not match what was charged.
 
-### [MEDIUM] ADMIN-9
+FIXED 2026-08-18 on branch fix/audit-high-five: checkout now FAILS CLOSED on divergence. CreateSubscriptionAsync refuses (HasDivergentPlanPrice, next to IsPeriodOfferable) whenever the package's editable price differs from the price snapshot the sync stamped for that period's plan -- covering both subscribe and upgrade, which share the method. A null snapshot (plan synced before the 422b columns existed) is "divergence unknown": allowed, banner keeps nagging -- blocking there would brick every legacy package on no evidence. ResumePayment deliberately not guarded: it resumes an already-minted invoice at the already-agreed amount. 4 tests in PlanPriceDivergenceGuardTests.
+
+### [FIXED 2026-08-18] ADMIN-9
 
 Related to the above: re-running the PayPal plan sync after zeroing a price wipes the live plan ID for that billing period, and if the second plan creation fails PayPal is left with an orphaned plan the system has no record of.
 
-### [HIGH] A5-H11
+FIXED 2026-08-18, both halves. SyncPayPalPlansAsync now persists each plan id THE MOMENT it is created (monthly saved before annual is attempted), so a failure partway leaves the created plan recorded instead of discarded-but-live-at-PayPal. And a replaced or zeroed plan id is no longer silently overwritten: the old plan is deactivated at PayPal best-effort (existing subscribers keep billing; only NEW subscriptions are blocked) and the old->new transition is written to OperateLogs (Action=PayPalPlanReplaced) either way, so the worst case is a logged, findable orphan rather than an untraceable one.
+
+### [MOSTLY CLOSED 2026-08-18 — report-only by design] A5-H11
 
 Deleting a Gallery block or a website page leaves its uploaded image files in blob storage forever, invisible to the cleanup tool and not credited back against the agent's storage quota. Silent, permanent storage cost growth.
+
+MOSTLY CLOSED 2026-08-18: orphans are no longer invisible — Admin -> Blob Storage walks every registered container (BlobReferences.Containers is the registry) and lists each file no database row references, with a banner stating why nothing on that page deletes: "unreferenced in the database" is not proof the file is absent from already-delivered mail, which is exactly how the original sweep design would have destroyed live images. Deletion stays a manual, per-file human decision. Residual accepted: storage is not auto-reclaimed (the whole account holds ~17 MB; the trade is deliberate) and quota is not credited back.
 
 ### [MODERATE, and understated] DEP-AngleSharp
 
@@ -233,9 +257,13 @@ The audit states that the Web and Admin deploys now share one concurrency group 
 
 If a uniqueness constraint fails to be created at startup (because the data already has duplicates), the app logs one line to the error stream and keeps serving without it. You would not notice. This was an accepted decision, not an oversight - but it is why nobody can tell you from code alone which constraints are actually live in production.
 
-### [HIGH (scheduled initiative)] A2-H8
+### [HIGH (half closed 2026-08-18; unification still scheduled)] A2-H8
 
 Two competing systems still define your database schema: EF migrations and hand-written startup repair code. Known, documented, and scheduled - but until it is done, schema drift between what the code expects and what the database has stays possible.
+
+HALF CLOSED 2026-08-18 (branch fix/audit-high-five): the WORSE drift axis is gone. The ~30 repair functions existed as two hand-maintained copies, one per Program.cs (~1,200 duplicated lines) -- and a mechanical diff during extraction found the copies had ALREADY drifted in 9 of 32 functions. All 9 drifts were comments/ordering, never SQL, but nothing guaranteed that. They now live once in IPRO.DataAccess.StartupSchemaRepair, called by both apps; Web's Program.cs shrank 2,019 -> 718 lines, Admin's 1,776 -> 519. Admin-only pieces (EnsureAdminUserSchemaAsync, recovery reset) stay in Admin by design. Verified: both apps boot clean on the shared repair against the existing dev DB, concurrently; and the F3 disaster path re-proven -- Web booted against a COMPLETELY EMPTY database, shared repair created all 98 tables, zero errors.
+
+STILL OPEN: the EF-migrations-vs-repair duality itself (the snapshot covers 28 of 85 tables). That unification remains the separate scheduled initiative; this extraction makes it easier, not done.
 
 ### [HIGH (partial, open cost decision)] R-H9
 

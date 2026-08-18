@@ -177,8 +177,11 @@ public class ArticlesController : Controller
     private async Task DeleteImageIfNotSharedAsync(string? imageUrl)
     {
         if (string.IsNullOrWhiteSpace(imageUrl)) return;
-        if (await _db.WebsiteStarterArticles.AnyAsync(s => s.ImageUrl == imageUrl)) return;
-        if (await _db.Articles.AnyAsync(a => a.ImageUrl == imageUrl)) return; // another article still uses it
+        // BlobReferences covers what the two ad-hoc checks that used to sit here covered (starter
+        // library, other articles) PLUS the references they missed (A5-H14): newsletter and drip
+        // HTML that copied this image by URL. Deleting a file a sent newsletter embeds blanks the
+        // image in mail already delivered, with no undo — so anything still referenced is kept.
+        if (await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, imageUrl)) return;
 
         // Best effort, same as the agent-photo replacement in AccountController: the article change the
         // agent asked for has already been saved, so a storage hiccup must not fail their request.

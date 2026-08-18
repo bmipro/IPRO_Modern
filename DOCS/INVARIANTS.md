@@ -56,10 +56,25 @@ the public site on an agent's own domain.
 An agent signing in at `www.theirfirm.com` gets a cookie for that host and no other. It does not
 carry to `app.iproadvisers.com` or to another agent's domain.
 
-So any **absolute** URL that must stay authenticated — redirects, callbacks, links in email — has to
-be built for the host the agent is actually on (`PortalUrlHelper`), or bounce through the canonical
-host first. A hard-coded `https://app.iproadvisers.com/...` sent to an agent working on their own
-domain lands them on a login page.
+So which base URL is correct depends on who the URL is for, and `PortalUrlHelper` now has one
+method per answer — pick by this rule, not by habit:
+
+- **In-session redirects and third-party return URLs** (PayPal `return_url`/`cancel_url`):
+  `PortalUrlHelper.GetSessionBaseUrlAsync` / `BuildBillingActionUrlAsync` — the host the cookie
+  actually lives on. Unrecognised hosts fall back to canonical, so a forged `Host:` header cannot
+  reach PayPal. This is the WEB-H-1 fix: a canonical URL here logged the buyer out between PayPal
+  approval and capture — money moved, nothing activated.
+- **Out-of-band links** (email bodies, background jobs, webhooks): `GetAgentPortalBaseUrl`, the
+  canonical origin. There is no request, and the link outlives any session. Sweeping these to the
+  session-aware method bakes a transient host into mail that outlives it — do not.
+- **Bounce through canonical FIRST only when the third party enforces a pre-registered redirect-URI
+  allowlist** (`CanonicalRedirectUrlIfNeeded`). Today that is Google OAuth and nothing else. PayPal
+  is not such a party — `return_url` is a per-order field.
+
+The literals `/Billing/PayPalReturn` and `/Billing/Cancel` exist only in `PortalUrlHelper`; a test
+walks the source tree and fails on any second copy. That is what caught nothing for months while
+`AccountController` carried a hand-rolled canonical pair on the highest-volume path (signup from an
+agent's own site).
 
 **Never** decide anything from the mere *presence* of a cookie. It is unvalidated at the middleware
 stage — any stale or forged `.AspNetCore.Cookies` value passes a presence check. This is exactly how

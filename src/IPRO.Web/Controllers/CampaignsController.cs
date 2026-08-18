@@ -15,12 +15,14 @@ public class CampaignsController : Controller
 {
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IEmailConsentService _consent;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public CampaignsController(IPRODbContext db, IPackageEntitlementService entitlements)
+    public CampaignsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailConsentService consent)
     {
         _db = db;
         _entitlements = entitlements;
+        _consent = consent;
     }
 
     public async Task<IActionResult> Index()
@@ -436,10 +438,10 @@ public class CampaignsController : Controller
         var enrolled = await EnrollClientsAsync(campaign, clients, clientCategoryId);
         if (!TempData.ContainsKey("Error"))
         {
-            TempData[enrolled == 0 ? "Warning" : "Success"] =
-                enrolled == 0
-                    ? "No new clients were enrolled. They may already be active in this campaign."
-                    : $"{enrolled} client{(enrolled == 1 ? "" : "s")} enrolled in {campaign.Name}.";
+            if (enrolled > 0)
+                TempData["Success"] = $"{enrolled} client{(enrolled == 1 ? "" : "s")} enrolled in {campaign.Name}.";
+            else if (!TempData.ContainsKey("Warning"))
+                TempData["Warning"] = "No new clients were enrolled. They may already be active in this campaign.";
         }
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -455,7 +457,10 @@ public class CampaignsController : Controller
 
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId && !string.IsNullOrWhiteSpace(c.Email));
         var enrolled = client == null ? 0 : await EnrollClientsAsync(campaign, new[] { client }, null);
-        TempData[enrolled == 0 ? "Warning" : "Success"] = enrolled == 0 ? "That client is already active in this campaign or has no email address." : "Client enrolled in campaign.";
+        if (enrolled > 0)
+            TempData["Success"] = "Client enrolled in campaign.";
+        else if (!TempData.ContainsKey("Warning") && !TempData.ContainsKey("Error"))
+            TempData["Warning"] = "That client is already active in this campaign or has no email address.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -504,6 +509,19 @@ public class CampaignsController : Controller
             TempData["Error"] = "Add at least one campaign step before enrolling clients.";
             return 0;
         }
+
+        // JOBS-1: enrolling an opted-out client used to succeed -- the job would cancel it at the
+        // first due send, so no mail went, but the screen showed a running campaign for someone who
+        // asked to be left alone, and the agent was never told. Same decision point as everywhere
+        // else (INVARIANTS rule 7): IsSuppressed, never a re-implemented test.
+        var eligible = clients.Where(c => !_consent.IsSuppressed(c, EmailChannel.DripCampaign)).ToList();
+        var skippedAsUnsubscribed = clients.Count() - eligible.Count;
+        if (skippedAsUnsubscribed > 0)
+        {
+            TempData["Warning"] =
+                $"{skippedAsUnsubscribed} client{(skippedAsUnsubscribed == 1 ? " was" : "s were")} not enrolled because they have unsubscribed from email.";
+        }
+        clients = eligible;
 
         var clientIds = clients.Select(c => c.Id).ToList();
         var existingIds = await _db.DripCampaignEnrollments

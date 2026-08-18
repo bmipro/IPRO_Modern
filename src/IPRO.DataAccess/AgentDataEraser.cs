@@ -287,6 +287,26 @@ public static class AgentDataEraser
             }
         }
 
+        // A5-H12: the "is this shared?" decision used to consult only the three library tables, so
+        // erasing one agent could destroy a file OTHER agents still point at (their pages and
+        // newsletters go to broken images, no undo). After the shred this agent's rows are gone, so
+        // any reference BlobReferences still finds belongs to someone else — those files move to
+        // the kept list. Runs only on execute: in a preview the agent's own rows still exist and
+        // would make every file look shared.
+        if (execute && blobs.Count > 0)
+        {
+            var stillReferenced = new List<string>();
+            foreach (var url in blobs)
+            {
+                if (await BlobReferences.IsReferencedAsync(db, url, ct)) stillReferenced.Add(url);
+            }
+            if (stillReferenced.Count > 0)
+            {
+                blobs = blobs.Where(u => !stillReferenced.Contains(u, StringComparer.OrdinalIgnoreCase)).ToList();
+                skipped = skipped.Concat(stillReferenced).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+
         return new AgentErasureReport(agentId, lines, blobs, skipped, retained, shortfall);
     }
 

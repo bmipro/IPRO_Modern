@@ -179,6 +179,9 @@
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AiUsage" ? "active" : "")" href="/AiUsage">
               <i class="fas fa-robot"></i>AI Usage
           </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "BlobReport" ? "active" : "")" href="/BlobReport">
+              <i class="fas fa-hdd"></i>Blob Storage
+          </a>
         }
         @* One button for money (owner request 2026-08-13): the merged Revenue screen carries the
            chart AND the invoice ledger. Active-state covers the per-invoice print view too. *@

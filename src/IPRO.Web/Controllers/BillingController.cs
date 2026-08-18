@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using IPRO.Billing;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Web.Infrastructure;
@@ -18,17 +19,27 @@ public class BillingController : Controller
     private readonly IUnitOfWork _uow;
     private readonly IConfiguration _configuration;
     private readonly IPackageEntitlementService _entitlements;
+    private readonly IPRODbContext _db;
+    private readonly ILogger<BillingController> _logger;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public BillingController(IBillingService billing, IUnitOfWork uow, IConfiguration configuration, IPackageEntitlementService entitlements)
+    // IPRODbContext, not IUnitOfWork: the session-host check needs AgentDomains and IUnitOfWork has
+    // no repository for it.
+    public BillingController(IBillingService billing, IUnitOfWork uow, IConfiguration configuration, IPackageEntitlementService entitlements, IPRODbContext db, ILogger<BillingController> logger)
     {
         _billing = billing;
         _uow = uow;
         _configuration = configuration;
         _entitlements = entitlements;
+        _db = db;
+        _logger = logger;
     }
 
-    private string BuildBillingActionUrl(string action) => $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/Billing/{action}";
+    // Session-host-aware (WEB-H-1): the PayPal return/cancel URLs must come back to the host the
+    // buyer's host-only auth cookie lives on, or CapturePaymentAsync never runs. The literals live
+    // in PortalUrlHelper — one producer, so the AccountController signup path cannot drift again.
+    private Task<string> BuildBillingActionUrlAsync(string action) =>
+        PortalUrlHelper.BuildBillingActionUrlAsync(Request, _configuration, _db, action, _logger);
 
     public async Task<IActionResult> Index()
     {
@@ -102,8 +113,8 @@ public class BillingController : Controller
             AgentId,
             billingRuleId,
             period,
-            BuildBillingActionUrl(nameof(PayPalReturn)),
-            BuildBillingActionUrl(nameof(Cancel)));
+            await BuildBillingActionUrlAsync(nameof(PayPalReturn)),
+            await BuildBillingActionUrlAsync(nameof(Cancel)));
 
         if (!result.Success)
         {
@@ -151,8 +162,8 @@ public class BillingController : Controller
         var result = await _billing.ResumePaymentAsync(
             AgentId,
             invoiceId,
-            BuildBillingActionUrl(nameof(PayPalReturn)),
-            BuildBillingActionUrl(nameof(Cancel)));
+            await BuildBillingActionUrlAsync(nameof(PayPalReturn)),
+            await BuildBillingActionUrlAsync(nameof(Cancel)));
 
         if (!result.Success)
         {
