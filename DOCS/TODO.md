@@ -80,8 +80,16 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
   mostly additive; (B) is a different product.
 - **Secretary mode: what can an assistant see?** Everything the agent sees, or role-scoped? Blocks
   #379's design.
-- **Standard App Service tier?** Buys real deployment slots (zero-downtime swap instead of
-  restart-and-poll). Costs money. Current setup works without it.
+- **Staging environment — decide week of 2026-08-24.** Supersedes the old "Standard App Service
+  tier?" bullet, which asked only about deployment slots. Fully costed and written up in
+  `DOCS/18_AZURE_INFRASTRUCTURE.md` on 2026-08-18. Headlines: production actually costs
+  **~$42/mo**, not the ~$120 previously recorded (the 2026-08-07 sheet priced **Windows** App
+  Service for a **Linux** plan). A **slot** is now the worst option — **+$103/mo** and it cannot
+  have its own database, which is fatal because PayPal plan IDs are per-mode data in a
+  mode-agnostic column. A **separate staging environment** is **+$29/mo**, or **~$16** with the
+  MySQL server stopped between tests, and it is the option that lets sandbox and live PayPal run
+  side by side. The second-worker availability lever also turns out to be **+$25.55/mo**, not
+  +$120 — cheap enough to reconsider on its own merits. Nothing to be bought before the revisit.
 - **In-portal payments** — blocked on there being a Stripe or equivalent merchant account at all.
 
 ## Backlog — designed or conceptual, none started
