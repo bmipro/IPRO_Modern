@@ -6,12 +6,16 @@ on:
       - main
   workflow_dispatch:
 
-# One production deployment at a time. Push-triggered and manually dispatched runs share this
-# group, so they queue instead of overlapping. cancel-in-progress stays false: an in-flight
-# deploy must complete (cancelling mid-deploy can leave the site half-updated); the newest
-# queued run then deploys after it.
+# ONE deployment at a time ACROSS BOTH APPS — this group name is shared with
+# main_ipro-prod-web.yml on purpose (A2-H6). Web and Admin run schema repair against the SAME
+# MySQL database at startup; per-app groups let one push start both deploys at once and
+# interleave those repairs. The shared group serializes them (a push now deploys web, then
+# admin, ~12 min total instead of ~6 parallel — that cost is the point). DOCS/INVARIANTS.md
+# rule 6 documents this group name; change it in BOTH files and the doc together, or not at
+# all. cancel-in-progress stays false: an in-flight deploy must complete (cancelling
+# mid-deploy can leave the site half-updated); the newest queued run then deploys after it.
 concurrency:
-  group: deploy-ipro-admin
+  group: deploy-ipro-production
   cancel-in-progress: false
 
 jobs:
