@@ -7,6 +7,11 @@
 <!--
   IPRO ADVISERS - marketing page concept 02 "Connected business" - NAVY + AQUA.
 
+  PORTED 2026-08-18 to src/IPRO.Web/Views/Home/Index.cshtml. This file stays as the design
+  reference; the shipped page is the one to edit. Deviations made during the port (the inert
+  contact form, the hardcoded prices, the embedded logo, the CSP nonce) are listed on TODO.md
+  row 416.
+
   Standalone prototype. 100% self-contained: no external stylesheets, scripts, fonts
   or images. Icons are inline SVG (lucide geometry), the corporate logo is an embedded
   base64 PNG. Opens directly from disk.
@@ -32,9 +37,9 @@
                          footer "Website preview"
       /Account/Login  <- nav "Sign in", footer "Sign in"
 
-    ROUTES THAT DO NOT EXIST YET - these two 404 until someone builds them:
-      /privacy   <- footer "Privacy"
-      /terms     <- footer "Terms"
+    /privacy and /terms - STALE AS OF 2026-08-18. Both exist now (HomeController.Privacy
+    and .Terms, attribute-routed to the bare paths) and return 200; Register.cshtml's
+    required "I accept the General Terms and Conditions" checkbox links to /terms.
     HomeController has only Index and Error; there is no Privacy or Terms action or
     view anywhere in IPRO.Web. This is not only a footer problem: Account/Register.cshtml
     line 384 makes "Yes, I have read and accept the General Terms and Conditions" a
