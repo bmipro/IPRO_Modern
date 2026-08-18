@@ -3,6 +3,9 @@ obj/
 publish/
 publish-*/
 publish-*-check/
+# The zipped form of the same build output. The directory was untracked on 2026-08-08 but the zip
+# was missed, so 14 MB of build artifact stayed in the repository and in every backup taken since.
+publish.zip
 
 *.user
 *.suo
