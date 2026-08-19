@@ -381,6 +381,23 @@ and the 2 that survive are the two designed to.
    tick; and the spam-complaint half was already closed by LB-2 (`RecordDripStepEventAsync` →
    `SuppressAllAsync`), verified in code this session. 5 tests in `DripEnrollmentConsentTests`.
    Full entry in `AUDIT_RECONCILIATION_2026-08-17.md`.
+10. **MERGED + DEPLOYED 2026-08-18 (`51b5f24`).** `fix/audit-high-five` (the 5 actionable HIGHs +
+   JOBS-1) is on main and live — both apps verified serving `51b5f24` at `/health/version`, which
+   also proves the A2-H8 schema-repair extraction boots cleanly in production. Suite 146/146.
+11. **STILL OPEN — the WEB-H-1 production buyer pass.** One sandbox signup started from an agent host
+   (`bahmanmotamed.247advisers.com`), confirming PayPal returns to THAT host and the subscription
+   activates. Attempted 2026-08-18, blocked by the signup verify-code defect below; not yet done.
+   Use a NORMAL package (Silver) — the hidden QA Daily plan needs a console override whose injected
+   `<option>` disappears on any re-render, which turns one fumbled field into an unwinnable loop.
+12. **NEW DEFECT 2026-08-18 — signup says "Verify code is incorrect" when the code is right.** The
+   expected code lives only in session (30-min `IdleTimeout`); an expired session takes the SAME
+   branch as a wrong code (`AccountController.cs:313`), so the form becomes permanently unsubmittable
+   and blames the user. Proven locally on the merged build: correct code + live session → no verify
+   error; identical code with the session dropped → the error. Compounded by
+   `POST:/Account/Register` being rate-limited to 5/hour per IP — a few retries and the user is locked
+   out for an hour. Real-buyer impact, not just a test-harness problem. Fix: give the null/blank case
+   its own honest message and consider a longer idle timeout for signup. Full write-up in
+   `09_TROUBLESHOOTING.md`.
 
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 

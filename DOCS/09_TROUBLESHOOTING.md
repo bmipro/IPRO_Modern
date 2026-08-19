@@ -1376,3 +1376,50 @@ Check in this order:
    working as specified.
 4. **Nothing at all arriving, including greetings** — check `Client.GreetingsOptInAt`. A one-click
    unsubscribe from Gmail deliberately clears it, because that path has no human to ask.
+
+## "Verify code is incorrect" when the code on screen is exactly what was typed (2026-08-18)
+
+**Symptom.** A prospect fills the signup form, types the 4 digits shown next to *Verify Code*, submits,
+and is told **"Verify code is incorrect."** Retyping the same digits fails again, indefinitely. The
+digits on screen do not change between attempts, which makes it look like the code itself is broken.
+
+**Root cause.** The expected code lives **only in session** — `AccountController.SetRegistrationVerifyCode()`
+writes it to `Session["RegistrationVerifyCode"]`, and session `IdleTimeout` is **30 minutes**
+(`Program.cs`, `AddSession`). The check at `AccountController.cs:313` is:
+
+```csharp
+if (string.IsNullOrWhiteSpace(expectedVerificationCode)
+    || !string.Equals(verificationCode?.Trim(), expectedVerificationCode, StringComparison.Ordinal))
+```
+
+A **missing** expected code takes the same branch as a **wrong** one. So once the session lapses the
+form can never be submitted successfully, and the message blames the user for something they typed
+correctly. Anyone who spends more than half an hour on the form hits this.
+
+**Why the digits appear frozen.** A server re-render *does* issue a new code. But in a real browser a
+resubmit usually never reaches the server — the form's HTML5 `required` attributes block it and focus
+the first empty field — so the page (and its digits) stay exactly as they were. Reproduced with curl,
+the code does rotate on every re-render; reproduced by clicking in a browser, it does not. Both are
+true, which is why this reads as inconsistent.
+
+**Compounding factor.** `POST:/Account/Register` is rate-limited to **5 per hour per IP**
+(`appsettings.json`). A user who retries a handful of times locks themselves out for an hour and gets
+a 429, which looks different enough to add a second layer of confusion.
+
+**Proof.** Reproduced locally against the merged build, holding everything else constant:
+correct code + intact session → only the genuine field errors, no verify error; the **same** code with
+the session cookie removed → *"Verify code is incorrect."*
+
+**Recovery (user-side).** Hard-reload the register page and complete it in one sitting; type the digits
+last. Never resubmit a page that has already errored — reload it. If the page starts behaving oddly,
+the hourly limit may have been reached: wait, or use a different network.
+
+**Fix (not yet applied — tracked as its own item).** Give the null/blank case its own message
+("Your session timed out — the form was refreshed, please enter the new code shown") instead of
+accusing the user, and consider a longer idle timeout for the signup flow specifically.
+
+**Diagnostic caution recorded on purpose.** The first pass at this concluded the failure was
+*host-specific* (agent domain vs canonical) because the agent-domain probe failed while the canonical
+one passed. That was wrong: the failing probe's GET and POST straddled a long pause, so the session had
+simply expired. Re-run back-to-back, both hosts behave identically. When a bug looks host-specific,
+control for elapsed time before believing it.
