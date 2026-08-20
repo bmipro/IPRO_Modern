@@ -15,4 +15,7 @@
     <ProjectReference Include="..\IPRO.Email\IPRO.Email.csproj" />
     <ProjectReference Include="..\IPRO.Utility\IPRO.Utility.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="IPRO.IntegrationTests" />
+  </ItemGroup>
 </Project>

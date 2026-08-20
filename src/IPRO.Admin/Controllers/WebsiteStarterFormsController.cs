@@ -13,7 +13,9 @@ namespace IPRO.Admin.Controllers;
 // WebsiteStarterArticlesController. Adopting a template (Forms/AdoptTemplate in IPRO.Web) copies it
 // into a real, independent WebsiteForm the agent owns; editing or deleting a master row here never
 // touches an agent's already-adopted copy.
-[Authorize(Policy = "AdminAccess")]
+// A5-M-STARTER (2026-08-20): SuperAdmin-only, matching the template and e-card libraries --
+// content written here lands on EVERY agent's public site, which is not day-to-day support work.
+[Authorize(Policy = "SuperAdmin")]
 public class WebsiteStarterFormsController : Controller
 {
     private readonly IPRODbContext _db;

@@ -81,6 +81,7 @@ public class ArticlesController : Controller
             Summary = (model.Summary ?? string.Empty).Trim(),
             Content = HtmlContentSanitizer.Sanitize((model.Content ?? string.Empty).Trim()),
             ImageUrl = imageUrl,
+            ImageSizeBytes = image?.Length ?? 0,
             IsPublished = model.IsPublished,
             PublishedAt = model.IsPublished ? now : null,
             CreatedAt = now,
@@ -132,6 +133,7 @@ public class ArticlesController : Controller
             }
             replacedImageUrl = existing.ImageUrl;
             existing.ImageUrl = uploadResult.Url ?? string.Empty;
+            existing.ImageSizeBytes = image?.Length ?? 0;
         }
 
         existing.Title = model.Title.Trim();
@@ -218,6 +220,7 @@ public class ArticlesController : Controller
         stream.Position = 0;
         var url = await _blob.UploadAsync(stream, image.FileName, "article-media", expectedContentType, isPrivate: false);
         return (url, null);
+        // (size is read from IFormFile.Length at the call sites -- see ImageSizeBytes assignments)
     }
 
     private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)

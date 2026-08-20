@@ -72,7 +72,12 @@ public class SendGridEmailService : IEmailService
             {
                 var body = await response.Body.ReadAsStringAsync();
                 _logger.LogWarning("SendGrid rejected email to {Email}. Status: {StatusCode}. Body: {Body}", toEmail, response.StatusCode, body);
-                return EmailSendResult.Failed($"SendGrid rejected the email. Status: {(int)response.StatusCode} {response.StatusCode}. {SummarizeBody(body)}");
+                var failureMessage = $"SendGrid rejected the email. Status: {(int)response.StatusCode} {response.StatusCode}. {SummarizeBody(body)}";
+                // JOBS-5/8: 429 and 5xx are "not right now", not "never" -- transient, retryable.
+                var statusCode = (int)response.StatusCode;
+                return statusCode == 429 || statusCode >= 500
+                    ? EmailSendResult.FailedTransient(failureMessage)
+                    : EmailSendResult.Failed(failureMessage);
             }
 
             var messageId = response.Headers.TryGetValues("X-Message-Id", out var values)
@@ -83,7 +88,8 @@ public class SendGridEmailService : IEmailService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {Email}", toEmail);
-            return EmailSendResult.Failed($"Email send failed: {ex.Message}");
+            // The HTTP conversation itself failed (timeout, DNS, socket): outcome unknown, retryable.
+            return EmailSendResult.FailedTransient($"Email send failed: {ex.Message}");
         }
     }
 

@@ -207,7 +207,9 @@ FIXED on branch fix/audit-medium-seven: RebuildResources is now [Authorize(Polic
 
 The 'Rebuild Resources' button hard-deletes an agent's Resources pages and all their customised content blocks, and ANY admin (including a support-role admin) can press it. The confirmation text does not warn that customised content is destroyed - it says articles are kept, which is only half the story.
 
-### [MEDIUM] A5-M-STARTER
+### [FIXED 2026-08-20] A5-M-STARTER
+
+FIXED on fix/medium-sweep: all three starter-library controllers are SuperAdmin-only and their nav links joined the SuperAdmin block, matching Templates. Reflection test pins the policy. Original finding below.
 
 Support-level admins can write the starter-content libraries (starter articles, starter blocks, starter forms) even though the comparable template and e-card libraries are SuperAdmin-only. Content written there propagates into every future agent's site.
 
@@ -229,39 +231,57 @@ FIXED on branch fix/audit-medium-seven: the telemetry scrubber now also redacts 
 
 Live access tokens are still written to Application Insights logs. The scrubber was added but only inspects the query string, and the two links that carry tokens (client invoice and testimonial links) put the token in the URL path instead. The code comment claims those are covered; they are not.
 
-### [MEDIUM] A5-M-ERASEATOMIC
+### [FIXED 2026-08-20] A5-M-ERASEATOMIC
+
+FIXED on fix/medium-sweep: the account is deactivated FIRST (AuthenticateAsync refuses inactive agents), then the whole row shred runs in one transaction -- a partial failure now rolls back to locked-out-but-intact instead of a half-erased account with a working login. Preview still touches nothing (tested). Original finding below.
 
 Agent erasure is not a transaction and the account is not locked out first. If it fails partway, the agent still has a working login to an account whose files have already been deleted.
 
-### [MEDIUM] ADMIN-6
+### [FIXED 2026-08-20] ADMIN-6
+
+FIXED on fix/medium-sweep: agent deletion unbinds each custom domain (www + apex) from Azure via RemoveDomainAsync BEFORE the rows are shredded; a failed unbind is logged loudly and never blocks the deletion. Original finding below.
 
 Deleting an agent never unbinds their custom domain from Azure. The hostname binding and its managed SSL certificate survive the deletion, attached to your Azure resources, with no owner.
 
-### [MEDIUM] A5-M-RESEND
+### [FIXED 2026-08-20] A5-M-RESEND
+
+FIXED on fix/medium-sweep: re-sending a PAID client invoice keeps it Paid (the client just gets a copy); only Draft/Sent invoices flip to Sent. Pinned by a real-controller test. Original finding below.
 
 Re-sending a client invoice that is already PAID silently flips it back to unpaid and puts it back into the overdue-reminder queue. Your client gets dunned for a bill they already settled.
 
-### [MEDIUM] JOBS-7
+### [FIXED 2026-08-20] JOBS-7
+
+FIXED on fix/medium-sweep: DispatchDripStepAsync now returns the real send outcome, and the job refuses to advance past a failed step -- the error stays on the enrollment instead of being blanked. Original finding below.
 
 When a drip campaign step fails to send, the failure is recorded on a sub-record and then the enrollment advances anyway and the error message is blanked. The client silently misses that step and you cannot see it happened.
 
-### [MEDIUM] JOBS-8
+### [FIXED 2026-08-20] JOBS-8
+
+FIXED on fix/medium-sweep: transient failures (timeout/429/5xx/exceptions) retry on later ticks with a SendAttempts counter, failing honestly at 5 with a 'gave up' summary; answered rejections fail immediately. State machine unit-tested across the whole matrix. Original finding below.
 
 A single transient error (one timeout) marks a drip enrollment 'Failed' permanently. There is no retry and no screen that lists failed enrollments - that client's campaign just stops forever.
 
-### [MEDIUM] JOBS-5
+### [FIXED 2026-08-20] JOBS-5
+
+FIXED on fix/medium-sweep: EmailSendResult now distinguishes transient from final (SendGridEmailService classifies 429/5xx/exceptions as transient), and the DYK job leaves transient failures claimed for the 15-minute stale-claim retry instead of retiring them. Original finding below.
 
 The Did-You-Know mailer treats any send failure as final and retires the email, including cases where SendGrid never actually answered (rate limit, 5xx, socket timeout). Those emails are dropped and never retried.
 
-### [MEDIUM] JOBS-6
+### [FIXED 2026-08-20] JOBS-6
+
+FIXED on fix/medium-sweep: each event in a SendGrid webhook batch is processed in its own try/catch -- one malformed event is logged and skipped, the rest of the batch survives, and the endpoint answers 200 so SendGrid neither re-duplicates nor drops the batch. Original finding below.
 
 The SendGrid event webhook processes a batch of events with no per-event error handling. One malformed event makes the whole request fail, so every later event in that batch is lost and SendGrid retries into the same poison event - open/click/bounce data silently stops updating.
 
-### [MEDIUM] JOBS-9
+### [VERIFIED ALREADY FIXED] JOBS-9
+
+VERIFIED 2026-08-20: closed by the LB-2 consent work -- PollDispatcher deliberately does NOT filter on IsNewsletterSubscribed (its own comment says so) and suppresses via EmailConsentService.IsSuppressed(Poll) with an honest skipped-count log. No change needed. Original finding below.
 
 Poll sends use their own stricter consent rule than the rest of the system, so clients who never opted into the newsletter are dropped from poll audiences before the count is taken. Your poll reports show them as neither sent nor suppressed - they just vanish.
 
-### [MEDIUM] JOBS-10
+### [FIXED 2026-08-20] JOBS-10
+
+FIXED on fix/medium-sweep: testimonial requests now refuse suppressed clients (the unused TestimonialRequest channel finally used) with an agent-visible message, and the email carries the standard List-Unsubscribe header. Original finding below.
 
 Testimonial request emails skip the consent check entirely and carry no unsubscribe header. An opted-out client can still receive one. A consent category for it was added to the code and is never actually used.
 
@@ -269,7 +289,9 @@ Testimonial request emails skip the consent check entirely and carry no unsubscr
 
 The SendGrid webhook checks the signature but never checks the timestamp, so a captured genuine payload can be replayed against you indefinitely.
 
-### [MODERATE] A5-M-JOBISOLATION
+### [FIXED 2026-08-20] A5-M-JOBISOLATION
+
+FIXED on fix/medium-sweep: the due-changes loop wraps each agent in its own try/catch -- one agent's PayPal error is logged and the rest of the hour's run continues. Original finding below.
 
 The hourly subscription-billing job still has no per-agent error isolation in its main loop. One agent's PayPal error aborts that hour's run for every remaining agent - scheduled plan changes and billing-issue notices silently do not happen.
 
@@ -299,27 +321,39 @@ Each deploy workflow can no longer overlap itself, but there is still no staging
 
 Client invoice numbers are still generated by reading the highest existing number and adding one, with no lock. Two invoices created at the same instant can collide. A retry was added elsewhere so it now self-heals rather than erroring, but the race itself is still in the code.
 
-### [MEDIUM (partial, same defect)] M-8 / A2-H4
+### [FIXED 2026-08-20] M-8 / A2-H4
+
+FIXED on fix/medium-sweep: the cap slot is claimed ATOMICALLY AT CHECKOUT CREATION, before any discount is priced -- the race's loser is refused while the discount is still just a number on a screen, instead of redeeming one past the cap after money moved. Failed/abandoned checkouts release their slot (every post-claim exit covered; leak found and closed during testing). Two integration tests. Original finding below.
 
 A promo code with a redemption cap can still be redeemed one time past its cap. The system now detects the breach and logs an error - and then grants the discount anyway rather than refusing. The window is actually wider than when first reported, because the cap is checked at subscribe time but claimed minutes later at activation. The equivalent trial-code path WAS fixed properly; this one was not given the same treatment.
 
-### [MODERATE (partial)] A5-M-QUOTA
+### [FIXED 2026-08-20] A5-M-QUOTA
+
+FIXED on fix/medium-sweep: article images now count against the shared pool (size captured at upload; pre-existing rows contribute 0, documented), and a package with NO storage limit value defaults to 1024 MB instead of unlimited. Agent photo + logo stay deliberately excluded: one bounded file each. Original finding below.
 
 Storage quota now counts documents, website media, portal documents and gallery images - but still not article images, agent photos or logos. And if an agent's package has no storage limit value set, the check is skipped entirely rather than defaulting to deny.
 
-### [MODERATE] A5-M-DOCUSAGE
+### [FIXED 2026-08-20] A5-M-DOCUSAGE
+
+FIXED on fix/medium-sweep: the Documents page now shows the SAME shared-pool figure the upload check enforces. Original finding below.
 
 The Documents page shows a storage figure that counts only documents, while uploads are actually blocked against a larger total. Agents will see 'plenty of space left' and get rejected. The gap is now bigger than when it was first reported.
 
-### [MODERATE] A5-M-PARENT
+### [FIXED 2026-08-20] A5-M-PARENT
+
+FIXED on fix/medium-sweep: a rejected parent-page choice still falls back to top-level (established behaviour) but now says so plainly in the flash instead of claiming success, on both save paths. Original finding below.
 
 If an agent sets an invalid parent page (nonexistent, circular, or too deep), the system silently makes it a top-level page and reports 'Navigation settings saved'. The agent is told it worked; it did something else.
 
-### [MODERATE] A5-M-CACHE404
+### [FIXED 2026-08-20] A5-M-CACHE404
+
+FIXED on fix/medium-sweep: the [ResponseCache] attribute that stamped max-age=31536000 on every response is gone; responses start no-store and only the success path sets the immutable year header. Source-walk test pins it. Original finding below.
 
 Media 'not found' responses are stamped with a one-year cache header. A browser or CDN that hits a missing image once will keep showing it as missing for a year even after you upload the file.
 
-### [MODERATE] A5-M-EMPTYHOST
+### [FIXED 2026-08-20] A5-M-EMPTYHOST
+
+FIXED on fix/medium-sweep: FindWebsiteForHostAsync refuses an empty host outright -- previously an empty Host header matched any AgentDomains row with an empty RootDomain and handed robots/sitemap/form submissions to an arbitrary agent's site. One guard covers every caller. Original finding below.
 
 Public form-submission, robots.txt and sitemap endpoints do not guard against an empty Host header the way page rendering does - the same request that returns 'not found' for a page is handled for a submission.
 
@@ -329,7 +363,9 @@ FIXED on branch fix/audit-medium-seven: OverdueInvoiceReminderJob resolves entit
 
 Most of the database-query inefficiency was fixed, but the overdue-invoice reminder job still queries per invoice inside its loop - roughly 600-1600 database round trips per run instead of a handful, with the batched alternative already written and sitting unused.
 
-### [MEDIUM] ADMIN-8
+### [FIXED 2026-08-20] ADMIN-8
+
+FIXED on fix/medium-sweep: the revenue chart buckets by the SAME agent-local clock the ledger rows print (AgentLocalTime per issuing agent), so month-boundary invoices land in the month their own row shows. Original finding below.
 
 The revenue chart buckets by UTC month while the ledger rows underneath it print agent-local dates. Two clocks on one screen - month-boundary invoices will appear in a different month than the row below says.
 

@@ -189,7 +189,7 @@ public class ClientsController : Controller
         // never checked against it, nor counted by it (2026-08-14 ultra-audit). Same check the
         // documents and gallery paths already perform.
         var capacity = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
-        var limitBytes = (long)(capacity.LimitValue ?? 0) * 1024 * 1024;
+        var limitBytes = IPRO.Web.Infrastructure.AgentStorageUsage.LimitBytes(capacity.LimitValue);
         var usedBytes = await AgentStorageUsage.TotalBytesAsync(_db, AgentId);
         if (limitBytes > 0 && usedBytes + file.Length > limitBytes)
         {

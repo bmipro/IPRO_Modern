@@ -89,7 +89,7 @@ public class DripCampaignJob
                 }
 
                 var clientName = $"{enrollment.Client.FirstName} {enrollment.Client.LastName}".Trim();
-                await _dispatcher.DispatchDripStepAsync(
+                var sendResult = await _dispatcher.DispatchDripStepAsync(
                     enrollment.DripCampaignId,
                     enrollment.NextStepIndex,
                     enrollment.Client.Email,
@@ -97,6 +97,18 @@ public class DripCampaignJob
                     enrollment.UnsubscribeToken,
                     enrollment.Id);
 
+                // JOBS-7 (fixed 2026-08-20): a failed send must not advance the enrollment -- the
+                // client silently skipped the step while the error was blanked. JOBS-8: a
+                // transient failure retries on later ticks instead of killing the campaign; the
+                // attempt counter stops a permanent problem from retrying forever.
+                if (sendResult != null && !sendResult.Success)
+                {
+                    HandleSendFailure(enrollment, sendResult.IsTransient, sendResult.Message);
+                    await _db.SaveChangesAsync();
+                    continue;
+                }
+
+                enrollment.SendAttempts = 0;
                 enrollment.LastSentAt = DateTime.UtcNow;
                 enrollment.LastError = string.Empty;
                 enrollment.NextStepIndex++;
@@ -121,12 +133,35 @@ public class DripCampaignJob
             }
             catch (Exception ex)
             {
-                enrollment.Status = DripCampaignEnrollmentStatus.Failed;
-                enrollment.LastError = ex.Message;
-                _logger.LogError(ex, "Drip campaign enrollment {EnrollmentId} failed", enrollment.Id);
+                // JOBS-8 (fixed 2026-08-20): an unexpected exception used to mark the enrollment
+                // Failed PERMANENTLY on the first occurrence -- one hiccup and that client's
+                // campaign stopped forever, with no retry and no screen to notice it on.
+                // Exceptions get the same capped transient retry as a transient send failure.
+                HandleSendFailure(enrollment, transient: true, ex.Message);
+                _logger.LogError(ex, "Drip campaign enrollment {EnrollmentId} send attempt failed (attempt {Attempts})", enrollment.Id, enrollment.SendAttempts);
                 await _db.SaveChangesAsync();
             }
         }
+    }
+
+    private const int MaxSendAttempts = 5;
+
+    internal static void HandleSendFailure(IPRO.Entities.DripCampaignEnrollment enrollment, bool transient, string message)
+    {
+        enrollment.LastError = message;
+        if (!transient)
+        {
+            // SendGrid answered no (bad address, rejected payload): retrying would be spam.
+            enrollment.Status = DripCampaignEnrollmentStatus.Failed;
+            return;
+        }
+        enrollment.SendAttempts++;
+        if (enrollment.SendAttempts >= MaxSendAttempts)
+        {
+            enrollment.Status = DripCampaignEnrollmentStatus.Failed;
+            enrollment.LastError = $"Gave up after {MaxSendAttempts} attempts. Last error: {message}";
+        }
+        // Otherwise stay Active: NextSendAt is already due, so the next hourly tick retries.
     }
 
     private async Task ProcessLegacySchedulerRowsAsync()

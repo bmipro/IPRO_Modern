@@ -788,6 +788,13 @@ public class PublicWebsiteController : Controller
 
     private async Task<IPRO.Entities.AgentWebsite?> FindWebsiteForHostAsync(string host, bool requirePublished = true)
     {
+        // A5-M-EMPTYHOST (fixed 2026-08-20): an empty Host header must resolve to NOTHING. Many
+        // AgentDomains rows legitimately hold an empty RootDomain, and the match below compares
+        // by value -- so an empty host used to match the first such row and hand a form
+        // submission, robots.txt or sitemap to an arbitrary agent's site. Page rendering already
+        // refused these requests; this closes the same door for every other caller at once.
+        if (string.IsNullOrWhiteSpace(host)) return null;
+
         var hostMatches = BuildHostMatches(host);
         var domainMatch = await _db.AgentDomains
             .Include(d => d.AgentWebsite).ThenInclude(w => w.AgentUser)

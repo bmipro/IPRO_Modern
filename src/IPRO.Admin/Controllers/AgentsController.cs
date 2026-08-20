@@ -463,6 +463,34 @@ public class AgentsController : Controller
             }
         }
 
+        // ADMIN-6 (fixed 2026-08-20): deleting an agent used to leave their custom-domain
+        // hostname bindings and managed certificates attached to the Azure app with no owner --
+        // invisible cost and a dangling hostname someone else's DNS could later point at. Unbind
+        // BEFORE the rows are shredded (the domain list dies with them); a failed unbind never
+        // blocks the deletion, it just stays visible in the log for manual cleanup.
+        var domainsToUnbind = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .ToListAsync(_db.AgentDomains.Where(d => d.AgentUserId == id));
+        // Lazily resolved for the same reason the blob service is (see the _services comment above).
+        var _azureDomains = _services.GetService<IPRO.Utility.IAzureDomainAutomationService>();
+        foreach (var domain in _azureDomains == null ? new List<IPRO.Entities.AgentDomain>() : domainsToUnbind)
+        {
+            foreach (var host in new[] { domain.DomainName, domain.WwwDomain }.Where(h => !string.IsNullOrWhiteSpace(h)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var unbind = await _azureDomains.RemoveDomainAsync(host);
+                    if (!unbind.Success)
+                    {
+                        _logger.LogError("Azure unbind failed for {Host} while deleting agent {AgentId}: {Message}", host, id, unbind.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Azure unbind threw for {Host} while deleting agent {AgentId}", host, id);
+                }
+            }
+        }
+
         var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id, eraseFinancialRecords);
 
         var financialNote = eraseFinancialRecords

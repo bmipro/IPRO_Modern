@@ -45,8 +45,17 @@ public class ReportsController : Controller
 
         // Chart series: paid revenue by month WITHIN the filtered range, so the chart and the ledger
         // always describe the same set of invoices and can never disagree again.
+        // ADMIN-8 (fixed 2026-08-20): the chart used to bucket by UTC month while the rows
+        // beneath print agent-LOCAL dates (AgentLocalTime.FromUtc) -- an evening month-boundary
+        // invoice appeared in a different month than its own ledger row. Both now read the same
+        // clock: the issuing agent's, defaulting like the rows do when the agent is deleted.
         ViewBag.ChartMonths = paid
-            .GroupBy(i => new { i.IssuedAt.Year, i.IssuedAt.Month })
+            .GroupBy(i =>
+            {
+                var local = IPRO.DataAccess.AgentLocalTime.FromUtc(
+                    i.IssuedAt, agents.TryGetValue(i.AgentUserId, out var a) ? a.TimeZone : null);
+                return new { local.Year, local.Month };
+            })
             .Select(g => new { Label = $"{g.Key.Year}-{g.Key.Month:D2}", Total = g.Sum(i => i.Total) })
             .OrderBy(g => g.Label)
             .Cast<dynamic>()
