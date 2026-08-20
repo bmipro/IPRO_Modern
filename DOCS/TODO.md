@@ -414,22 +414,26 @@ and the 2 that survive are the two designed to.
    out for an hour. Real-buyer impact, not just a test-harness problem. Fix: give the null/blank case
    its own honest message and consider a longer idle timeout for signup. Full write-up in
    `09_TROUBLESHOOTING.md`.
-13. **NEW 2026-08-20 — PayPal setup-fee payment is not reconcilable to anything in IPRO.** The
-   buyer pass produced TWO PayPal transactions ($169.50 setup `9PP86578B74290832`, $45.20 first
-   cycle `7EL32123RU019305Y`) but the invoice records a THIRD id, `9V157229VL199150M` (the
-   Subscribe path stores the subscription id at `PayPalBillingService.cs:1589`; the settle path
-   appends a webhook-supplied txn id), and Admin reports **Billing Events: 1** for two charges.
-   So the LARGER payment has nothing in IPRO tying back to it. Two consequences: (a) reconciliation
-   — the same blind spot as open bug #394 ("PayPal charged ~6 times, IPRO recorded 1 event");
-   (b) the webhook-replay dedupe added in `8dcc6d3` matches on txn id against the billing's
-   invoices, so a setup-fee sale webhook carrying an id IPRO never stored cannot be matched and
-   could mint a spurious invoice. Money was CORRECT here — this is a records/guard gap, not a loss.
-14. **DUE 2026-08-21 — does the QA Daily plan actually bill daily?** Admin shows the QA Silver
-   (Daily) subscription with Period **Monthly** and next billing **Sep 20, 2026**, which is the
-   known cosmetic mismatch (IPRO keeps monthly bookkeeping; PayPal's DAY-frequency plan drives the
-   real cadence). Tomorrow settles it: a charge on **Aug 21** means the display is merely wrong and
-   should be fixed; NO charge until Sep 20 means the daily harness is not daily and items 367-369
-   are invalid.
+13. **UNCONFIRMED 2026-08-20 — possible gap recording the setup-fee transaction id.** At 12:51 the
+   invoice `IPRO-2026-000010` showed `I-VG1A3CKSK6DX, 9V157229VL199150M` and Admin showed Billing
+   Events: 1, while PayPal took TWO charges ($169.50 setup `9PP86578B74290832`, $45.20 first cycle
+   `7EL32123RU019305Y`). **Caveat: that snapshot was almost certainly taken before the second sale
+   settled** — the $45.20 arrived visibly later — and the absorb rule (`f4424fd`, `1dfacdb`) appends
+   transaction ids to a settled invoice as sales land. Item 403 previously verified buyer-side
+   activity reconciling charge-for-charge. **VERIFY FIRST:** re-open the agent's invoice row now; if
+   both txn ids are present this item is void. Only if the setup-fee id is still absent is there a
+   real gap, and then it matters twice — reconciliation (cf. #394) and the `8dcc6d3` replay dedupe,
+   which matches on the stored txn id. Money was correct either way.
+14. **WITHDRAWN — the QA Daily cadence is already proven; this was over-flagging.** Admin shows the
+   QA Silver (Daily) sub with Period **Monthly** / next billing **Sep 20**, which is the DOCUMENTED
+   cosmetic mismatch (IPRO keeps monthly bookkeeping; PayPal's DAY-frequency plan drives the real
+   cadence — roadmap line ~2130 states this outright). The 4-day protocol already settled the
+   substance: item 402 recorded the **overnight daily charge of $42.00 producing exactly one
+   invoice**, and item 403 recorded buyer-side PayPal activity reconciling **charge-for-charge**
+   with our invoices across three days and three provinces. Nothing in the 2026-08-18 batch touches
+   billing frequency (the only billing change was the ADMIN-2 divergence guard, which did not fire,
+   plus plan retirement that runs on sync, not signup). Remaining OPTIONAL cosmetic fix: show the
+   real next-charge date for DAY-frequency plans instead of the monthly bookkeeping date.
 
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 
