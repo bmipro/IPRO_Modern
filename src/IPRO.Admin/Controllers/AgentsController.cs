@@ -129,6 +129,12 @@ public class AgentsController : Controller
     // agent provisioned before three-tier navigation keeps the old flat shape forever. Deleting the
     // subtree lets WebsiteStarterResourcesHelper rebuild it the next time they open Website Pages;
     // their Article rows are reused by title rather than duplicated, so nothing they wrote is lost.
+    // ADMIN-10 / A5-M-REBUILDRES (2026-08-20): this deletes the agent's Resources pages INCLUDING
+    // any content blocks they customised, so it is SuperAdmin-only -- a support-role admin could
+    // previously destroy agent content with a button whose confirm text did not say anything would
+    // be lost. The button stays VISIBLE but disabled for support admins (the owner's standing rule:
+    // disable, don't hide -- people should see what the role gates).
+    [Authorize(Policy = "SuperAdmin")]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RebuildResources(int id)
     {

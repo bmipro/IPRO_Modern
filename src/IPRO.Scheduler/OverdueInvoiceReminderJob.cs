@@ -41,11 +41,17 @@ public class OverdueInvoiceReminderJob
             .Take(200)
             .ToListAsync();
 
+        // One entitlement resolution for the whole batch instead of one per invoice. The per-invoice
+        // HasAccessAsync inside this loop was M-9's "hundreds of round trips per run" -- the batched
+        // pattern below is the same one AiDailyDigestJob and ClientLifeEventReminderJob already use.
+        var accessByAgent = await _entitlements.HasAccessBulkAsync(
+            overdue.Select(i => i.AgentUserId), PackageFeatureCodes.ClientInvoicing);
+
         foreach (var invoice in overdue)
         {
             try
             {
-                if (!await _entitlements.HasAccessAsync(invoice.AgentUserId, PackageFeatureCodes.ClientInvoicing)) continue;
+                if (!accessByAgent.TryGetValue(invoice.AgentUserId, out var hasAccess) || !hasAccess) continue;
                 if (string.IsNullOrWhiteSpace(invoice.Client?.Email)) continue;
 
                 var url = BuildInvoiceUrl(invoice.ViewToken);

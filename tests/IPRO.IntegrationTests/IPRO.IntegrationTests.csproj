@@ -14,5 +14,7 @@
     <!-- Referenced so controller-level security fixes (client-portal token guard, entitlement
          gates, promo-oracle) can be tested against the real controllers, not reimplementations. -->
     <ProjectReference Include="..\..\src\IPRO.Web\IPRO.Web.csproj" />
+    <!-- Referenced for the ADMIN-7 cookie revalidator and ADMIN-10 policy-attribute tests. -->
+    <ProjectReference Include="..\..\src\IPRO.Admin\IPRO.Admin.csproj" />
   </ItemGroup>
 </Project>

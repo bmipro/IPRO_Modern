@@ -11,7 +11,7 @@
     <PackageVersion Include="Azure.Storage.Blobs" Version="[12.19.1]" />
     <PackageVersion Include="Azure.Security.KeyVault.Secrets" Version="[4.6.0]" />
     <PackageVersion Include="CsvHelper" Version="[30.0.1]" />
-    <PackageVersion Include="HtmlSanitizer" Version="9.0.967" />
+    <PackageVersion Include="HtmlSanitizer" Version="9.2.995" />
     <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="[2.2.0]" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="[8.0.0]" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="[8.0.0]" />
@@ -32,10 +32,9 @@
     <PackageVersion Include="Markdig" Version="[0.37.0]" />
     <PackageVersion Include="Microsoft.ApplicationInsights.AspNetCore" Version="[2.22.0]" />
     <!-- Explicit pins below patch known transitive advisories flagged in the security audit
-         (DOCS/SECURITY_AUDIT_2026-07-24.md). AngleSharp (via HtmlSanitizer 9.0.967's exact-pinned
-         [0.17.1] dependency) is NOT bumped here - HtmlSanitizer 9.0.967 is its latest release and
-         forcing a newer AngleSharp would break the H-3/H-4 sanitizer fix. Revisit when HtmlSanitizer
-         ships a version compatible with a patched AngleSharp. -->
+         (DOCS/SECURITY_AUDIT_2026-07-24.md). DEP-AngleSharp CLOSED 2026-08-20: HtmlSanitizer
+         9.2.995 depends on AngleSharp 1.7.1, which carries the sanitizer-bypass fix the old
+         exact-pinned [0.17.1] lacked. The "no compatible upgrade exists" deferral is obsolete. -->
     <!-- Newtonsoft.Json arrives only transitively (PayPalCheckoutSdk 1.0.4 asks for 11.0.1), and
          before this pin a transitive package listing showed IPRO.Business,
          IPRO.DataAccess and IPRO.Utility resolving the vulnerable 11.0.1 while IPRO.Web and

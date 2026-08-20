@@ -189,15 +189,21 @@ Deleting a Gallery block or a website page leaves its uploaded image files in bl
 
 MOSTLY CLOSED 2026-08-18: orphans are no longer invisible — Admin -> Blob Storage walks every registered container (BlobReferences.Containers is the registry) and lists each file no database row references, with a banner stating why nothing on that page deletes: "unreferenced in the database" is not proof the file is absent from already-delivered mail, which is exactly how the original sweep design would have destroyed live images. Deletion stays a manual, per-file human decision. Residual accepted: storage is not auto-reclaimed (the whole account holds ~17 MB; the trade is deliberate) and quota is not credited back.
 
-### [MODERATE, and understated] DEP-AngleSharp
+### [FIXED 2026-08-20] DEP-AngleSharp
+
+FIXED on branch fix/audit-medium-seven: HtmlSanitizer 9.0.967 -> 9.2.995, which depends on AngleSharp 1.7.1 (the old release exact-pinned the vulnerable [0.17.1]). The "no compatible upgrade exists" deferral was verified obsolete against NuGet before bumping. Four sanitizer regression tests guard the parser swap (script/onerror still die, formatting survives). Original finding below.
 
 The HTML-parsing library underneath your XSS sanitizer has a known sanitizer-bypass bug. This was deliberately deferred because no compatible upgrade existed - that is no longer true. Newer HtmlSanitizer releases (up to 9.2.995) use a patched version. Because this is the exact library implementing the stored-XSS fix, leaving it partially weakens a HIGH fix you have already paid for.
 
-### [MEDIUM] ADMIN-7
+### [FIXED 2026-08-20] ADMIN-7
+
+FIXED on branch fix/audit-medium-seven: AdminCookieRevalidator (CookieAuthenticationEvents.ValidatePrincipal) re-checks the database on EVERY authenticated request -- account missing, deactivated, or role differing from the cookie's claim (either direction) rejects the principal and signs it out. One PK lookup per request for a handful of admins. VERIFIED LIVE locally: logged in as superadmin, demoted the row to Support in the DB, next request bounced to the login page; restored, logged back in fine. 3 tests on the decision matrix. Original finding below.
 
 An admin's role and active/inactive status live only in their 4-hour login cookie. Demoting or deactivating an admin has no effect until that cookie expires - up to four hours of continued full access after you revoke it.
 
-### [MEDIUM (same defect, two audits)] ADMIN-10 / A5-M-REBUILDRES
+### [FIXED 2026-08-20] ADMIN-10 / A5-M-REBUILDRES
+
+FIXED on branch fix/audit-medium-seven: RebuildResources is now [Authorize(Policy = "SuperAdmin")], the confirm text says plainly that customised content blocks are DELETED and unrecoverable (it previously only mentioned what was kept), and for support-role admins the button renders disabled with a tooltip rather than hidden (the owner's standing rule: disable, don't hide). Reflection test pins the policy attribute. Original finding below.
 
 The 'Rebuild Resources' button hard-deletes an agent's Resources pages and all their customised content blocks, and ANY admin (including a support-role admin) can press it. The confirmation text does not warn that customised content is destroyed - it says articles are kept, which is only half the story.
 
@@ -205,15 +211,21 @@ The 'Rebuild Resources' button hard-deletes an agent's Resources pages and all t
 
 Support-level admins can write the starter-content libraries (starter articles, starter blocks, starter forms) even though the comparable template and e-card libraries are SuperAdmin-only. Content written there propagates into every future agent's site.
 
-### [MEDIUM] A5-M-SSRF
+### [FIXED 2026-08-20] A5-M-SSRF
+
+FIXED on branch fix/audit-medium-seven: new PublicHostGuard screens every hostname the domain checker touches -- IP-literal "domains" are refused outright, and any name resolving to loopback / RFC1918 / link-local (incl. 169.254.169.254) / CGNAT / ULA / unspecified space is refused AFTER resolution, so an internal name pointing at internal space is caught the same as a raw IP. Applied at all three fetch points in DomainCheckService (www check, Azure-binding probe, root-domain check), and the binding probe no longer follows redirects, closing the 302-to-internal variant. 15 address-matrix tests. Original finding below.
 
 The custom-domain checker will resolve and fetch whatever hostname an agent types, with no filter for internal or loopback addresses, and reports back whether it was reachable. That turns your server into a probe an agent can point at your internal network.
 
-### [MEDIUM] A5-M-SANITIZER
+### [FIXED 2026-08-20] A5-M-SANITIZER
+
+FIXED on branch fix/audit-medium-seven: HtmlContentSanitizer no longer runs stock defaults. Removed: every form control tag (form/input/button/select/textarea/option/label/fieldset/...) and the overlay CSS properties (position, z-index, inset offsets, pointer-events). Kept deliberately: the rest of the inline-style whitelist, because newsletters and articles are built from inline formatting and stripping style wholesale would visibly break existing content. Tests pin both directions (phishing vectors die, newsletter table/color/padding survive). Original finding below.
 
 The HTML sanitizer runs on stock defaults, which permit <form>, <input>, <button> and inline style. An agent's article or drip email can therefore contain a working form or a visually convincing overlay. Not script execution, but enough for a credential-harvest lookalike.
 
-### [MODERATE (partial)] SO-M-NEW-6
+### [FIXED 2026-08-20] SO-M-NEW-6
+
+FIXED on branch fix/audit-medium-seven: the telemetry scrubber now also redacts PATH-carried tokens -- /invoice/{token} and /testimonial/{token}, the two links the finding named -- in request.Url, request.Name and Operation.Name, alongside the existing query-string scrub. The Admin app's copy carries the identical logic so the two files cannot drift. 3 tests. Original finding below.
 
 Live access tokens are still written to Application Insights logs. The scrubber was added but only inspects the query string, and the two links that carry tokens (client invoice and testimonial links) put the token in the URL path instead. The code comment claims those are covered; they are not.
 
@@ -311,7 +323,9 @@ Media 'not found' responses are stamped with a one-year cache header. A browser 
 
 Public form-submission, robots.txt and sitemap endpoints do not guard against an empty Host header the way page rendering does - the same request that returns 'not found' for a page is handled for a submission.
 
-### [MEDIUM (partial)] M-9
+### [FIXED 2026-08-20] M-9
+
+FIXED on branch fix/audit-medium-seven: OverdueInvoiceReminderJob resolves entitlements ONCE per run via HasAccessBulkAsync over the batch's distinct agents -- the same pattern AiDailyDigestJob and ClientLifeEventReminderJob already used -- instead of a per-invoice HasAccessAsync inside the loop. The per-invoice SaveChangesAsync stays: that one is deliberate (idempotency marker, 2026-08-14). Original finding below.
 
 Most of the database-query inefficiency was fixed, but the overdue-invoice reminder job still queries per invoice inside its loop - roughly 600-1600 database round trips per run instead of a handful, with the batched alternative already written and sitting unused.
 

@@ -435,6 +435,27 @@ and the 2 that survive are the two designed to.
    plus plan retirement that runs on sync, not signup). Remaining OPTIONAL cosmetic fix: show the
    real next-charge date for DAY-frequency plans instead of the monthly bookkeeping date.
 
+## Medium-severity batch — FIXED 2026-08-20 (branch `fix/audit-medium-seven`, pending review)
+
+Seven findings the owner picked off the reconciled register, all closed in one pass, each with
+tests (28 new, suite green) and its entry updated in `AUDIT_RECONCILIATION_2026-08-17.md`:
+
+- **M-9** — overdue-reminder job: one `HasAccessBulkAsync` per run instead of per-invoice checks.
+- **DEP-AngleSharp** — HtmlSanitizer 9.0.967 → 9.2.995 (AngleSharp 0.17.1 → 1.7.1, the patched
+  parser); the "no compatible upgrade" deferral was verified obsolete against NuGet first.
+- **A5-M-SANITIZER** — form-control tags and overlay CSS (position/z-index/inset/pointer-events)
+  removed from the whitelist; inline formatting kept so existing newsletters don't break.
+- **A5-M-SSRF** — `PublicHostGuard` screens the domain checker at all three fetch points
+  (IP literals refused; names resolving to loopback/private/link-local/CGNAT/ULA refused after
+  resolution); the binding probe no longer follows redirects.
+- **SO-M-NEW-6** — telemetry scrubber now redacts path-carried tokens (`/invoice/{t}`,
+  `/testimonial/{t}`) in Url, Name and Operation.Name; Admin copy kept identical.
+- **ADMIN-7** — admin cookies revalidated against the DB on every request; demotion/deactivation
+  is immediate. Verified live: demoted the logged-in superadmin mid-session, next request bounced
+  to login.
+- **ADMIN-10 / A5-M-REBUILDRES** — RebuildResources is SuperAdmin-only, the confirm says what is
+  destroyed, and support admins see the button disabled, not hidden.
+
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 
 Owner asked how a client who prepaid Gold ANNUAL is treated when they downgrade to Silver MONTHLY.
