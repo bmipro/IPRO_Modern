@@ -246,6 +246,29 @@ public static class StartupSchemaRepair
         }
     }
 
+    // DOCS/22 (prepaid-value honesty, 2026-08-20): cancelled-but-paid-through on Billings, and
+    // refund bookkeeping on SubscriptionChanges for the SuperAdmin manual-refund queue.
+    public static async Task EnsurePrepaidValueSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "Billings", "PaidThroughAt", "ALTER TABLE `Billings` ADD COLUMN `PaidThroughAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundNetAmount", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundNetAmount` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundTaxAmount", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundTaxAmount` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundGrossAmount", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundGrossAmount` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundStatus", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundStatus` int NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundPayPalTransactionId", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundPayPalTransactionId` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundWindowEndsAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundWindowEndsAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundResolvedAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundResolvedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundResolutionNote", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundResolutionNote` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     public static async Task EnsureNewsLetterTemplateSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

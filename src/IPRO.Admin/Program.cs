@@ -217,6 +217,7 @@ using (var scope = app.Services.CreateScope())
     await StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db);
     await StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db);
     await StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync(db);
+    await StartupSchemaRepair.EnsurePrepaidValueSchemaAsync(db);
     await StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync(db);
 
     // Starter content is optional: an agent can work without a card design or a letter template,

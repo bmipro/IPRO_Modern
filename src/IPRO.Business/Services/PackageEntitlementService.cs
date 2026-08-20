@@ -65,6 +65,14 @@ public class PackageEntitlementService : IPackageEntitlementService
             b.AgentUserId == agentId && b.Status == BillingStatus.Active);
         if (activeBilling != null) return false;
 
+        // Cancelled-but-paid-through (DOCS/22): billing has stopped, but the agent paid for this
+        // period and keeps access until it ends. Rows cancelled before the design shipped have a
+        // null PaidThroughAt and gate immediately, as they always did.
+        var paidThrough = await _uow.Billings.FirstOrDefaultAsync(b =>
+            b.AgentUserId == agentId && b.Status == BillingStatus.Cancelled &&
+            b.PaidThroughAt != null && b.PaidThroughAt > DateTime.UtcNow);
+        if (paidThrough != null) return false;
+
         var agent = await _uow.AgentUsers.GetByIdAsync(agentId);
         // No active subscription and never on a trial (e.g. registered for a paid package
         // directly, or has no account at all) - no free ride, gated immediately.
@@ -106,12 +114,18 @@ public class PackageEntitlementService : IPackageEntitlementService
     {
         var result = new Dictionary<int, int?>();
 
+        // Active rows win; a cancelled-but-paid-through row (DOCS/22) carries the agent's package
+        // until it expires. Must stay logically identical to IsAccessGatedAsync above.
+        var now = DateTime.UtcNow;
         var activeBillings = await _db.Billings
-            .Where(b => agentIds.Contains(b.AgentUserId) && b.Status == BillingStatus.Active)
+            .Where(b => agentIds.Contains(b.AgentUserId) &&
+                        (b.Status == BillingStatus.Active ||
+                         (b.Status == BillingStatus.Cancelled && b.PaidThroughAt != null && b.PaidThroughAt > now)))
             .ToListAsync();
         var billingRuleIdByBilledAgent = activeBillings
             .GroupBy(b => b.AgentUserId)
-            .ToDictionary(g => g.Key, g => (int?)g.First().BillingRuleId);
+            .ToDictionary(g => g.Key,
+                g => (int?)g.OrderByDescending(b => b.Status == BillingStatus.Active).First().BillingRuleId);
 
         var unbilledAgentIds = agentIds.Where(id => !billingRuleIdByBilledAgent.ContainsKey(id)).ToList();
 

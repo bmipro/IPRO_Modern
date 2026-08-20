@@ -93,7 +93,7 @@ else if (subscription == null && trialEndsAt.HasValue)
     </div>
     <form asp-action="CancelSubscription" method="post">
       @Html.AntiForgeryToken()
-      <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Cancel your subscription? Your site will go offline at the end of the billing period. IMPORTANT: please download or print copies of your invoices from the Invoice History below BEFORE cancelling - once your account is closed and later removed, you will no longer be able to sign in to retrieve them.">Cancel Subscription</button>
+      <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Cancel your subscription? Billing stops immediately and you keep access until the end of what you have already paid for. If you are partway through a prepaid year, any refund you qualify for is calculated automatically and shown after you cancel. IMPORTANT: please download or print copies of your invoices from the Invoice History below BEFORE your access ends - once your account is closed and later removed, you will no longer be able to sign in to retrieve them.">Cancel Subscription</button>
     </form>
   </div>
 }

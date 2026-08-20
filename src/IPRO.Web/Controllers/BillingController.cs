@@ -8,6 +8,7 @@ using IPRO.Entities;
 using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace IPRO.Web.Controllers;
@@ -208,7 +209,24 @@ public class BillingController : Controller
         // about their money; it has to be true.
         if (await _billing.CancelSubscriptionAsync(AgentId))
         {
-            TempData["Success"] = "Subscription cancelled. You will not be billed again.";
+            // The cancel just wrote its outcome (DOCS/22); read it back so the promise on screen
+            // is the computed one, not a generic line.
+            var outcome = await _db.SubscriptionChanges.AsNoTracking()
+                .Where(c => c.AgentUserId == AgentId && c.ChangeType == SubscriptionChangeType.Cancel)
+                .OrderByDescending(c => c.Id)
+                .FirstOrDefaultAsync();
+            var paidThrough = await _db.Billings.AsNoTracking()
+                .Where(b => b.AgentUserId == AgentId && b.Status == BillingStatus.Cancelled && b.PaidThroughAt != null)
+                .OrderByDescending(b => b.Id)
+                .Select(b => b.PaidThroughAt)
+                .FirstOrDefaultAsync();
+
+            var msg = "Subscription cancelled. You will not be billed again.";
+            if (paidThrough != null)
+                msg += $" You keep full access until {paidThrough:MMMM d, yyyy}.";
+            if (outcome != null && outcome.RefundGrossAmount > 0m)
+                msg += $" A refund of ${outcome.RefundGrossAmount:N2} {outcome.Currency} (incl. tax) for your unused prepaid time will be sent to your PayPal account within a few business days.";
+            TempData["Success"] = msg;
         }
         else
         {
