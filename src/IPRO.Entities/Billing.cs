@@ -17,6 +17,10 @@ public class Billing
     public DateTime StartDate { get; set; }
     public DateTime? NextBillingDate { get; set; }
     public DateTime? CancelledAt { get; set; }
+    // Cancelled-but-paid-through (DOCS/22): when Status is Cancelled and this is still in the
+    // future, the agent keeps access at this row's package until it passes. Null = old-style
+    // immediate gate (rows cancelled before this design shipped).
+    public DateTime? PaidThroughAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;
     public BillingRule BillingRule { get; set; } = null!;

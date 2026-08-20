@@ -463,7 +463,13 @@ The flow itself is correct (defers to the paid-through date, keeps Gold meanwhil
 because nothing is cut short, setup fee waived, HST collected, first Silver charge on approval).
 Three real defects surfaced, all verified by reading the code, NONE fixed yet:
 
-1. **"Cancel Subscription" is immediate but promises otherwise — decide the fix.**
+1. ~~"Cancel Subscription" is immediate but promises otherwise~~ — **FIXED 2026-08-20** (branch
+   `feat/prepaid-value-honesty`, DOCS/22): cancelled-but-paid-through shipped. Billing stops at
+   PayPal immediately; access runs to `Billing.PaidThroughAt` (monthly: next billing date + 2 days
+   grace; annual months 1-9: end of current month + the discount-clawback REFUND queued for manual
+   processing in SuperAdmin → Refunds; annual months 10-12: the anniversary). Confirm dialog and
+   post-cancel message now state the computed truth. ToS updated (clause 3). 16 tests.
+   ORIGINAL ENTRY: **"Cancel Subscription" is immediate but promises otherwise — decide the fix.**
    `Index.cshtml:96` confirm text: *"Your site will go offline at the end of the billing period."*
    `CancelSubscriptionAsync` (PayPalBillingService.cs ~656-658) sets `Status=Cancelled` +
    `CancelledAt=now`, and `IsAccessGatedAsync` (PackageEntitlementService.cs) gates the moment no

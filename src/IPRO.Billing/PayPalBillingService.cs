@@ -673,9 +673,55 @@ public class PayPalBillingService : IBillingService
         }
 
         await CancelPendingChangesAsync(userId);
+
+        // DOCS/22 (2026-08-20): cancelled-but-paid-through. Billing stops NOW (already done at
+        // PayPal above); access is honored to what was paid for, and an annual cancel before the
+        // month-10 crossover produces a refund the owner processes manually from the SuperAdmin
+        // refund queue. All math in PrepaidValue; every input recorded on the Cancel change row.
+        var now = DateTime.UtcNow;
+        var rule = await _uow.BillingRules.GetByIdAsync(subscription.BillingRuleId);
+        var taxRate = (await CalculateTaxAsync(userId, Math.Max(subscription.Amount, 0.01m))).Rate;
+
+        var outcome = subscription.Period == BillingPeriod.Annually && rule != null
+            ? PrepaidValue.AnnualCancel(subscription.Amount, rule.MonthlyPrice, taxRate, subscription.StartDate, now)
+            : PrepaidValue.MonthlyCancel(subscription.NextBillingDate, now);
+
         subscription.Status = BillingStatus.Cancelled;
-        subscription.CancelledAt = DateTime.UtcNow;
+        subscription.CancelledAt = now;
+        subscription.PaidThroughAt = outcome.PaidThroughAt;
         _uow.Billings.Update(subscription);
+
+        // The refund is claimed against the payment that bought the running period -- the most
+        // recent PAID invoice on this billing. Its transaction id and age drive the queue's
+        // "refund at PayPal against txn X, window closes in N days" display.
+        var lastPaid = (await _uow.Invoices.FindAsync(i => i.BillingId == subscription.Id && i.IsPaid))
+            .OrderByDescending(i => i.IssuedAt)
+            .FirstOrDefault();
+
+        await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
+        {
+            AgentUserId = userId,
+            CurrentBillingRuleId = subscription.BillingRuleId,
+            RequestedBillingRuleId = subscription.BillingRuleId,
+            BillingId = subscription.Id,
+            ChangeType = SubscriptionChangeType.Cancel,
+            Status = SubscriptionChangeStatus.Applied,
+            Period = subscription.Period,
+            EffectiveDate = now,
+            AppliedAt = now,
+            AmountDue = 0m,
+            Currency = subscription.Currency,
+            RefundNetAmount = outcome.RefundNet,
+            RefundTaxAmount = outcome.RefundTax,
+            RefundGrossAmount = outcome.RefundGross,
+            RefundStatus = outcome.RefundGross > 0m ? RefundStatus.Pending : RefundStatus.None,
+            RefundPayPalTransactionId = lastPaid?.PayPalTransactionId ?? string.Empty,
+            RefundWindowEndsAt = lastPaid != null ? PrepaidValue.RefundWindowEndsAt(lastPaid.IssuedAt) : null,
+            RefundResolutionNote = outcome.RefundGross > 0m
+                ? $"Annual clawback: {outcome.MonthsUsed} month(s) used at {rule?.MonthlyPrice:0.00}/mo net of {subscription.Amount:0.00} paid; refund {outcome.RefundNet:0.00} + tax {outcome.RefundTax:0.00} (rate {taxRate:0.###})."
+                : $"No refund due ({(subscription.Period == BillingPeriod.Annually ? $"month {outcome.MonthsUsed} is at/past the crossover" : "monthly plan")}); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}."
+        });
+
         await _uow.SaveChangesAsync();
         return true;
     }

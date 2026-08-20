@@ -1,0 +1,95 @@
+@model List<IPRO.Entities.SubscriptionChange>
+@{
+    ViewData["Title"] = "Refund Queue";
+    var pending = Model.Where(m => m.RefundStatus == IPRO.Entities.RefundStatus.Pending).ToList();
+    var resolved = Model.Where(m => m.RefundStatus != IPRO.Entities.RefundStatus.Pending).ToList();
+    var now = DateTime.UtcNow;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-hand-holding-usd me-2 text-primary"></i>Refund Queue</h4>
+    <p class="text-muted mb-0">Cancellations with money owed. Refund manually at PayPal against the transaction shown, then mark the row.</p>
+  </div>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm mb-4">
+  <i class="fas fa-info-circle me-2"></i>
+  <strong>Nothing on this page moves money.</strong> The gross amount already includes the HST that was
+  charged on the refunded portion — type that exact figure into PayPal. PayPal generally refuses refunds
+  against transactions older than ~@IPRO.Billing.PrepaidValue.PayPalRefundWindowDays days; expired rows
+  should be converted to credit or waived with a reason instead.
+</div>
+
+<h6 class="fw-bold mb-2">Pending (@pending.Count)</h6>
+@if (pending.Count == 0)
+{
+  <p class="text-muted">Nothing waiting. Cancellations that owe a refund appear here automatically.</p>
+}
+@foreach (var row in pending)
+{
+  var windowDaysLeft = row.RefundWindowEndsAt.HasValue ? (int)Math.Floor((row.RefundWindowEndsAt.Value - now).TotalDays) : (int?)null;
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between flex-wrap gap-2">
+        <div>
+          <h6 class="fw-bold mb-1">
+            <a asp-controller="Agents" asp-action="Details" asp-route-id="@row.AgentUserId">@((row.AgentUser == null ? null : (row.AgentUser.FirstName + " " + row.AgentUser.LastName).Trim()) ?? $"Agent #{row.AgentUserId}")</a>
+            <span class="text-muted fw-normal">— @(row.CurrentBillingRule?.PackageName ?? "?") (@row.Period), cancelled @row.CreatedAt.ToString("MMM d, yyyy")</span>
+          </h6>
+          <div class="small text-muted">@row.RefundResolutionNote</div>
+          <div class="small mt-1">
+            Refund against PayPal txn <code>@(string.IsNullOrWhiteSpace(row.RefundPayPalTransactionId) ? "(no txn recorded — locate the payment in PayPal activity)" : row.RefundPayPalTransactionId)</code>
+            @if (windowDaysLeft.HasValue)
+            {
+              if (windowDaysLeft.Value >= 0)
+              { <span class="badge @(windowDaysLeft.Value < 21 ? "bg-warning text-dark" : "bg-secondary") ms-1">window: @windowDaysLeft.Value days left</span> }
+              else
+              { <span class="badge bg-danger ms-1">refund window EXPIRED — convert to credit or waive</span> }
+            }
+          </div>
+        </div>
+        <div class="text-end">
+          <div class="fs-5 fw-bold">$@row.RefundGrossAmount.ToString("N2") @row.Currency</div>
+          <div class="small text-muted">net $@row.RefundNetAmount.ToString("N2") + tax $@row.RefundTaxAmount.ToString("N2")</div>
+        </div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <form asp-action="MarkRefunded" asp-route-id="@row.Id" method="post" class="d-flex gap-2">
+          @Html.AntiForgeryToken()
+          <input type="text" name="refundTransactionId" class="form-control form-control-sm" style="width:220px" placeholder="PayPal REFUND txn id" required />
+          <button type="submit" class="btn btn-success btn-sm">Mark Refunded</button>
+        </form>
+        <form asp-action="MarkWaived" asp-route-id="@row.Id" method="post" class="d-flex gap-2">
+          @Html.AntiForgeryToken()
+          <input type="text" name="reason" class="form-control form-control-sm" style="width:260px" placeholder="Reason (required)" required />
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Waive</button>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+@if (resolved.Count > 0)
+{
+  <h6 class="fw-bold mb-2 mt-4">Resolved (last @resolved.Count)</h6>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead><tr><th class="ps-3">Agent</th><th>Gross</th><th>Status</th><th>Resolved</th><th>Note</th></tr></thead>
+        <tbody>
+        @foreach (var row in resolved)
+        {
+          <tr>
+            <td class="ps-3">@((row.AgentUser == null ? null : (row.AgentUser.FirstName + " " + row.AgentUser.LastName).Trim()) ?? $"#{row.AgentUserId}")</td>
+            <td>$@row.RefundGrossAmount.ToString("N2")</td>
+            <td><span class="badge @(row.RefundStatus == IPRO.Entities.RefundStatus.Refunded ? "bg-success" : "bg-secondary")">@row.RefundStatus</span></td>
+            <td>@row.RefundResolvedAt?.ToString("MMM d, yyyy")</td>
+            <td class="small text-muted">@row.RefundResolutionNote</td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}
