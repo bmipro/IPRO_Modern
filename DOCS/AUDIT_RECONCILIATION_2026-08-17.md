@@ -129,7 +129,11 @@ FIXED 2026-08-18 on branch fix/audit-high-five: PortalUrlHelper is now genuinely
 
 Two facts the original entry omitted, recorded so nobody relies on them: BILLING.SUBSCRIPTION.ACTIVATED webhook handling is a partial backstop (activates the row if delivered), and the login ReturnUrl replay is a fragile second one (lost on MustChangePassword, TempData lost). Neither is the fix.
 
-REMAINING: one production sandbox buyer pass from an agent host (signup + upgrade + cancel legs) after deploy — webhook-dependent activation is only verifiable in production, and production PayPal is sandbox mode so the pass is safe.
+RUN 2026-08-20 — SIGNUP LEG PASSED, with a caveat worth stating plainly. Agent BobyMot #35 signed up on QA Silver (Daily); subscription I-VG1A3CKSK6DX went Active, invoice IPRO-2026-000010 ($214.70) was minted, marked Paid and the receipt emailed, all inside the same minute as registration. That means the return-and-capture leg RAN — the precise thing WEB-H-1 broke, whose failure mode is a bounce to a login page where capture never runs. Money reconciles exactly: two PayPal charges, $169.50 (setup + HST) and $45.20 (first cycle + HST), totalling the invoice.
+
+CAVEAT: it is NOT proven that the run started on an agent host. The owner recalls starting on bahmanmotamed.247advisers.com and returning there but is not certain, and it cannot be reconstructed after the fact — Azure retains no HTTP logs for this app. The portal screenshot showing bobymot.247advisers.com is NOT evidence either way: PayPalReturn ends in a relative redirect (host-preserving), so that screenshot is a separate later login to the new agent's own portal, corroborated by "Last Login: Never" on the admin page at 12:51. And BILLING.SUBSCRIPTION.ACTIVATED remains a documented partial backstop that can activate the row on its own, so activation alone does not isolate the return leg. Treat the signup leg as strong evidence, not proof.
+
+REMAINING: the upgrade and cancel legs, run from bobymot.247advisers.com — the upgrade goes through the same BuildBillingActionUrlAsync producer and, started from an agent host, is the definitive WEB-H-1 proof the signup leg could not supply. It is also required QA work (day 3 of items 367-369), so it costs nothing extra. Original remaining note: one production sandbox buyer pass from an agent host (signup + upgrade + cancel legs) after deploy — webhook-dependent activation is only verifiable in production, and production PayPal is sandbox mode so the pass is safe.
 
 ### [HIGH] A5-H13
 

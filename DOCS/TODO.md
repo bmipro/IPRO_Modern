@@ -384,7 +384,23 @@ and the 2 that survive are the two designed to.
 10. **MERGED + DEPLOYED 2026-08-18 (`51b5f24`).** `fix/audit-high-five` (the 5 actionable HIGHs +
    JOBS-1) is on main and live — both apps verified serving `51b5f24` at `/health/version`, which
    also proves the A2-H8 schema-repair extraction boots cleanly in production. Suite 146/146.
-11. **STILL OPEN — the WEB-H-1 production buyer pass.** One sandbox signup started from an agent host
+11. **RUN 2026-08-20 — the WEB-H-1 production buyer pass, PASSED with one caveat.** Agent
+   **BobyMot #35** signed up on **QA Silver (Daily)** (package 7). Subscription
+   `I-VG1A3CKSK6DX` Active, invoice `IPRO-2026-000010` $214.70 Paid, receipt emailed, all within
+   the same minute as registration — so **the return-and-capture leg ran**, which is exactly the
+   leg WEB-H-1 broke (its failure mode is a bounce to login where capture never runs).
+   MONEY RECONCILES EXACTLY: PayPal took two charges, $169.50 (setup $150 + 13% HST) and $45.20
+   (first month $40 + HST) = $214.70. The second lands a few minutes after the first; do not read
+   the gap as a shortfall.
+   **CAVEAT — not yet airtight.** The owner recalls starting on `bahmanmotamed.247advisers.com` and
+   returning there, but is not certain, and it cannot be reconstructed: Azure retains no HTTP logs
+   for this app, and the portal screenshot showing `bobymot.247advisers.com` proves nothing because
+   `PayPalReturn` ends in a RELATIVE redirect (host-preserving) — that screenshot is a separate
+   later login to the new agent's own portal ("Last Login: Never" at 12:51 confirms the ordering).
+   The ACTIVATED webhook is also a documented partial backstop, so activation alone is not proof of
+   the return leg. **Definitive proof comes free with the day-3 upgrade** from
+   `bobymot.247advisers.com` — same `BuildBillingActionUrlAsync` path, and required QA work anyway.
+   ORIGINAL ENTRY: **the WEB-H-1 production buyer pass.** One sandbox signup started from an agent host
    (`bahmanmotamed.247advisers.com`), confirming PayPal returns to THAT host and the subscription
    activates. Attempted 2026-08-18, blocked by the signup verify-code defect below; not yet done.
    Use a NORMAL package (Silver) — the hidden QA Daily plan needs a console override whose injected
@@ -398,6 +414,22 @@ and the 2 that survive are the two designed to.
    out for an hour. Real-buyer impact, not just a test-harness problem. Fix: give the null/blank case
    its own honest message and consider a longer idle timeout for signup. Full write-up in
    `09_TROUBLESHOOTING.md`.
+13. **NEW 2026-08-20 — PayPal setup-fee payment is not reconcilable to anything in IPRO.** The
+   buyer pass produced TWO PayPal transactions ($169.50 setup `9PP86578B74290832`, $45.20 first
+   cycle `7EL32123RU019305Y`) but the invoice records a THIRD id, `9V157229VL199150M` (the
+   Subscribe path stores the subscription id at `PayPalBillingService.cs:1589`; the settle path
+   appends a webhook-supplied txn id), and Admin reports **Billing Events: 1** for two charges.
+   So the LARGER payment has nothing in IPRO tying back to it. Two consequences: (a) reconciliation
+   — the same blind spot as open bug #394 ("PayPal charged ~6 times, IPRO recorded 1 event");
+   (b) the webhook-replay dedupe added in `8dcc6d3` matches on txn id against the billing's
+   invoices, so a setup-fee sale webhook carrying an id IPRO never stored cannot be matched and
+   could mint a spurious invoice. Money was CORRECT here — this is a records/guard gap, not a loss.
+14. **DUE 2026-08-21 — does the QA Daily plan actually bill daily?** Admin shows the QA Silver
+   (Daily) subscription with Period **Monthly** and next billing **Sep 20, 2026**, which is the
+   known cosmetic mismatch (IPRO keeps monthly bookkeeping; PayPal's DAY-frequency plan drives the
+   real cadence). Tomorrow settles it: a charge on **Aug 21** means the display is merely wrong and
+   should be fixed; NO charge until Sep 20 means the daily harness is not daily and items 367-369
+   are invalid.
 
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 
