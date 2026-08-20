@@ -1,0 +1,22 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+@* This view was MISSING until 2026-08-20: AdminController.AccessDenied returned View() and the
+   cookie options have pointed AccessDeniedPath here since the beginning, but no admin had ever
+   been denied anything -- the ADMIN-10 SuperAdmin gate on Rebuild Resources made this page
+   reachable for the first time, and it turned out to be a 500. *@
+
+<div class="d-flex justify-content-center mt-5">
+  <div class="card border-0 shadow-sm" style="max-width: 440px;">
+    <div class="card-body text-center p-4">
+      <div class="text-warning mb-3"><i class="fas fa-lock fa-2x"></i></div>
+      <h5 class="fw-bold mb-2">That action needs SuperAdmin access</h5>
+      <p class="text-muted mb-3">
+        Your admin account doesn't include this permission. If you need it, ask the account owner
+        to change your role under Admin Users.
+      </p>
+      <a class="btn btn-primary" href="/AdminDashboard"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
+    </div>
+  </div>
+</div>
