@@ -113,11 +113,15 @@ FIXED 2026-08-18 on branch fix/audit-high-five, in three parts matching the find
 
 The per-due-send IsSuppressed check in DripCampaignJob stays as the last line of defence. 5 tests in DripEnrollmentConsentTests (gate refuses + agent told, clean client still enrolls, new opt-out cancels immediately, sweep cancels legacy rows and spares subscribed ones, sweep no-op).
 
-### [HIGH] A5-H6
+### [FIXED 2026-08-17 `1fLB`] A5-H6
+
+**STATUS CORRECTED 2026-08-20:** this heading said HIGH/open until today even though the STATUS CHANGES table at the top of this file recorded it FIXED on 2026-08-17 (`d0ec9ea`, `01b9cff`, `1f6cedd` — the four dispatchers adopted the atomic claim primitive). Commits verified present. Original finding below.
 
 All four email dispatchers (newsletter, e-card, e-letter, poll) claim a send by reading its status and then writing it, not atomically. If two runs overlap - a slow send plus the next hourly tick, or a deploy restarting mid-run - both can see the same send as 'Scheduled' and the newsletter dispatcher will build a second complete recipient list and mail it. That is the mass-duplicate-email scenario.
 
-### [HIGH] JOBS-4
+### [FIXED 2026-08-17] JOBS-4
+
+**STATUS CORRECTED 2026-08-20:** fixed by `f998d59` + `6d060e9` (LB-2 stage 1/1b — every unsubscribe path writes consent; EmailChannel now covers DidYouKnow, DripCampaign and the rest). The heading below was never updated. Commits verified present. Original finding below.
 
 Spam complaints and unsubscribes only suppress the recipient for newsletters. E-cards, e-letters, polls and Did-You-Know emails ignore them entirely - nothing outside the preferences page ever writes the opt-out date. Someone who hits 'this is spam' keeps receiving your other email types. This is the CASL/CAN-SPAM item, and it is fully open.
 
@@ -135,7 +139,9 @@ CAVEAT: it is NOT proven that the run started on an agent host. The owner recall
 
 REMAINING: the upgrade and cancel legs, run from bobymot.247advisers.com — the upgrade goes through the same BuildBillingActionUrlAsync producer and, started from an agent host, is the definitive WEB-H-1 proof the signup leg could not supply. It is also required QA work (day 3 of items 367-369), so it costs nothing extra. Original remaining note: one production sandbox buyer pass from an agent host (signup + upgrade + cancel legs) after deploy — webhook-dependent activation is only verifiable in production, and production PayPal is sandbox mode so the pass is safe.
 
-### [HIGH] A5-H13
+### [FIXED 2026-08-17] A5-H13
+
+**STATUS CORRECTED 2026-08-20:** fixed by `9c160d8` (LB-4 — the eraser re-anchors on the lead, so answers stay reachable after the form is deleted). Commit verified present. Original finding below.
 
 Deleting a website form deletes the form but not the submissions or the answers visitors typed into it. Because the eraser finds those answers by looking up the parent form, once the form is gone that visitor personal data is orphaned in the database and unreachable by the erase tool. A deletion request cannot actually be honoured for this data today.
 
@@ -151,7 +157,9 @@ Replacing or deleting an article's image deletes the underlying file without che
 
 FIXED 2026-08-18: all six image-delete sites (article image, agent photo replace + remove, website logo replace, media-asset delete, gallery-image delete) now ask BlobReferences first and KEEP the file when anything still references it — including newsletter/drip/e-letter HTML and block SettingsJson, which the old two-table checks never saw. Two of the six also deleted the file BEFORE saving the row (a failed save left rows pointing at destroyed files); both reordered to row-first. The property the tests pin: the guards can only ever keep MORE files than the unconditional deletes they replaced.
 
-### [HIGH (same defect, two audits)] A5-H7 / JOBS-3
+### [FIXED 2026-08-17] A5-H7 / JOBS-3
+
+**STATUS CORRECTED 2026-08-20:** fixed by `1f6cedd` alongside A5-H6 (stuck-send detection came with the claim primitive). Commit verified present. Original finding below.
 
 A send that is interrupted mid-flight - crash, deploy, restart, or just a failure on the final save - is stuck in the 'Sending' state permanently. Nothing anywhere in the system looks for stuck sends, and the jobs only pick up sends marked 'Scheduled'. It will never go out and nobody is told. Per-recipient results are also all held in memory until one save at the end, so an interruption loses the record of who already received it.
 
@@ -253,7 +261,9 @@ The SendGrid webhook checks the signature but never checks the timestamp, so a c
 
 The hourly subscription-billing job still has no per-agent error isolation in its main loop. One agent's PayPal error aborts that hour's run for every remaining agent - scheduled plan changes and billing-issue notices silently do not happen.
 
-### [HIGH (documentation was false)] A2-H6
+### [FIXED 2026-08-18 `79480ad`] A2-H6
+
+**STATUS CORRECTED 2026-08-20:** genuinely fixed on 2026-08-18 but this entry was never updated — verified today in the workflow files: BOTH `main_ipro-prod-web.yml` and `main_ipro-prod-admin.yml` now declare `group: deploy-ipro-production` with `cancel-in-progress: false`, so the deploys serialize and the documentation is finally true. Original finding below.
 
 The audit states that the Web and Admin deploys now share one concurrency group and fully serialize. They do not - they use two different groups, so one push to main still starts both deploys at once and both run schema changes against the same database simultaneously. The specific crash this caused is now caught and handled, so the risk is reduced, but the written claim is untrue.
 
