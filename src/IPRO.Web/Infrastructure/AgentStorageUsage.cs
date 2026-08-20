@@ -33,8 +33,23 @@ public static class AgentStorageUsage
             .Where(d => d.Client.AgentUserId == agentId)
             .SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
 
-        return documentBytes + websiteMediaBytes + portalDocumentBytes + await GalleryBytesAsync(db, agentId);
+        // A5-M-QUOTA (2026-08-20): article images now count too. Sizes are captured at upload,
+        // so images from before then contribute 0 -- the total only ever grows toward honesty.
+        // Agent photos and website logos stay deliberately excluded: one bounded file each,
+        // replaced in place, immaterial next to a shared pool measured in hundreds of MB.
+        var articleImageBytes = await db.Articles
+            .Where(a => a.AgentUserId == agentId)
+            .SumAsync(a => (long?)a.ImageSizeBytes) ?? 0;
+
+        return documentBytes + websiteMediaBytes + portalDocumentBytes + articleImageBytes + await GalleryBytesAsync(db, agentId);
     }
+
+    // A5-M-QUOTA: a package with no FileUploadCapacity limit value used to mean UNLIMITED --
+    // an omission in package setup silently disabled the quota. It now means this default.
+    public const int DefaultLimitMb = 1024;
+
+    public static long LimitBytes(int? limitValueMb) =>
+        (long)(limitValueMb ?? DefaultLimitMb) * 1024 * 1024;
 
     // Gallery photos record their size inside the block's settings JSON rather than in a column, so this
     // cannot be summed in SQL the way documents can.

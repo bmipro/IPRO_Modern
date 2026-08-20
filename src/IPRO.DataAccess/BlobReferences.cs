@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using MySqlConnector;
 
 namespace IPRO.DataAccess;
@@ -111,6 +112,9 @@ public static class BlobReferences
         try
         {
             await using var command = connection.CreateCommand();
+            // The eraser's post-shred re-check runs inside its transaction (A5-M-ERASEATOMIC);
+            // a raw command on the same connection must join it or MySqlConnector refuses.
+            command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
             command.CommandText = sql;
             command.Parameters.Add(p);
             var result = await command.ExecuteScalarAsync(ct);
@@ -130,6 +134,9 @@ public static class BlobReferences
         try
         {
             await using var command = connection.CreateCommand();
+            // The eraser's post-shred re-check runs inside its transaction (A5-M-ERASEATOMIC);
+            // a raw command on the same connection must join it or MySqlConnector refuses.
+            command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
             command.CommandText =
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @t";
             command.Parameters.Add(new MySqlParameter("@t", table));

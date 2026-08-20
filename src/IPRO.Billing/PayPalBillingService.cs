@@ -144,6 +144,25 @@ public class PayPalBillingService : IBillingService
             var agent = await _uow.AgentUsers.GetByIdAsync(userId);
             var promo = await ValidatePromotionCodeAsync(agent?.PromotionCode, requestedPackage.Id, userId);
 
+            // M-8 / A2-H4 (fixed 2026-08-20): the cap slot is claimed HERE, atomically, before the
+            // discount is priced into anything -- not at activation, after the money has moved.
+            // The old order let the race's loser redeem one past the cap "because the discount was
+            // already applied". Now the loser is simply told the code is used up, while the
+            // discount is still just a number on a screen. An abandoned checkout releases its slot
+            // when the pending change is cancelled (CancelPendingChangesAsync), so slots do not
+            // leak; between abandonment and that cancellation the code errs toward refusing --
+            // fail-closed, like the rest of billing.
+            if (promo != null && promo.MaxRedemptions.HasValue)
+            {
+                var slotClaimed = await _db.PromotionCodes
+                    .Where(pc => pc.Id == promo.Id && (pc.MaxRedemptions == null || pc.RedemptionCount < pc.MaxRedemptions))
+                    .ExecuteUpdateAsync(su => su.SetProperty(pc => pc.RedemptionCount, pc => pc.RedemptionCount + 1));
+                if (slotClaimed == 0)
+                {
+                    return BillingChangeResult.Failed("That promotion code has reached its redemption limit.");
+                }
+            }
+
             decimal? overrideAmount = null;
             string? overridePlanId = null;
 
@@ -180,6 +199,9 @@ public class PayPalBillingService : IBillingService
                         }
                         catch (InvalidOperationException)
                         {
+                            // M-8: this exit sits between the slot claim and checkout creation --
+                            // it must give the slot back like every other failure after the claim.
+                            await ReleasePromoSlotAsync(promo);
                             return BillingChangeResult.Failed("This promotion code's pricing can't be set up with PayPal right now (a permanent 100%-or-more discount isn't supported unless the setup fee is also fully discounted). Please contact support.");
                         }
                     }
@@ -213,7 +235,7 @@ public class PayPalBillingService : IBillingService
             }
 
             var effectiveAmount = overrideAmount ?? GetAmount(requestedPackage, period);
-            return await BeginPaidChangeAsync(
+            var checkoutResult = await BeginPaidChangeAsync(
                 userId,
                 null,
                 requestedPackage,
@@ -230,6 +252,16 @@ public class PayPalBillingService : IBillingService
                 overridePlanId: overridePlanId,
                 overrideSetupFee: overrideSetupFee,
                 promotionCodeId: promo?.Id);
+
+            // M-8: a checkout that failed to start never created the pending change whose later
+            // cancellation would release the claimed slot -- give it back here or capped codes
+            // leak capacity on every PayPal hiccup.
+            if (!checkoutResult.Success)
+            {
+                await ReleasePromoSlotAsync(promo);
+            }
+
+            return checkoutResult;
         }
 
         if (activeSubscription.BillingRuleId == requestedPackage.Id)
@@ -787,7 +819,19 @@ public class PayPalBillingService : IBillingService
         var applied = 0;
         foreach (var agentId in dueChanges.Select(c => c.AgentUserId).Distinct())
         {
-            applied += await ApplyDuePendingChangesAsync(agentId);
+            // A5-M-JOBISOLATION (fixed 2026-08-20): one agent's PayPal error used to abort the
+            // whole hour's run -- every remaining agent's scheduled change waited for the next
+            // tick, and kept waiting if the same agent kept failing. Each agent now fails alone.
+            try
+            {
+                applied += await ApplyDuePendingChangesAsync(agentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Applying due subscription changes for agent {AgentUserId} failed; continuing with the remaining agents.",
+                    agentId);
+            }
         }
 
         return applied;
@@ -1879,6 +1923,16 @@ public class PayPalBillingService : IBillingService
             change.Status = SubscriptionChangeStatus.Cancelled;
             change.CancelledAt = DateTime.UtcNow;
             _uow.SubscriptionChanges.Update(change);
+
+            // M-8: a dead checkout gives its claimed promo slot back (floor 0 -- a release can
+            // never invent capacity). Runs exactly once per change because only a Pending row can
+            // enter this loop, and it leaves as Cancelled.
+            if (change.PromotionCodeId.HasValue)
+            {
+                await _db.PromotionCodes
+                    .Where(p => p.Id == change.PromotionCodeId.Value && p.MaxRedemptions != null && p.RedemptionCount > 0)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+            }
         }
 
         var pendingBillings = await _uow.Billings.FindAsync(b =>
@@ -2999,6 +3053,16 @@ public class PayPalBillingService : IBillingService
         return promoDocument.RootElement.GetProperty("id").GetString() ?? string.Empty;
     }
 
+    // M-8: gives a claimed cap slot back after any post-claim failure. No-op for uncapped codes
+    // (they are never claimed early) and floored at zero -- a release can never invent capacity.
+    private async Task ReleasePromoSlotAsync(PromotionCode? promo)
+    {
+        if (promo == null || !promo.MaxRedemptions.HasValue) return;
+        await _db.PromotionCodes
+            .Where(pc => pc.Id == promo.Id && pc.MaxRedemptions != null && pc.RedemptionCount > 0)
+            .ExecuteUpdateAsync(su => su.SetProperty(pc => pc.RedemptionCount, pc => pc.RedemptionCount - 1));
+    }
+
     private async Task RecordPromoRedemptionAsync(int promotionCodeId, int userId, IPRO.Entities.Billing billing, DateTime redeemedAt)
     {
         var promo = await _uow.PromotionCodes.GetByIdAsync(promotionCodeId);
@@ -3019,22 +3083,18 @@ public class PayPalBillingService : IBillingService
         // two concurrent redemptions near the last available slot can't both pass a stale in-memory
         // RedemptionCount check and over-redeem past MaxRedemptions -- the WHERE clause is
         // re-evaluated by the database at update time, not read-then-written from memory.
-        var claimed = await _db.PromotionCodes
-            .Where(p => p.Id == promotionCodeId && (p.MaxRedemptions == null || p.RedemptionCount < p.MaxRedemptions))
-            .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount + 1));
-        if (claimed == 0)
+        // M-8 (2026-08-20): the capped slot is claimed at CHECKOUT CREATION now (see
+        // CreateSubscriptionAsync), so activation does NOT increment capped codes again --
+        // double-counting would burn a stranger's slot. Uncapped codes keep counting here, where
+        // they always did. Checkouts created before this change moved carry an unclaimed slot
+        // through activation; that tail undercounts by at most the few in-flight checkouts at
+        // deploy time and then disappears.
+        var promoRow = await _uow.PromotionCodes.GetByIdAsync(promotionCodeId);
+        if (promoRow != null && !promoRow.MaxRedemptions.HasValue)
         {
-            // The race's loser lands here (review H-10): validation passed earlier, the discount
-            // was already granted when the PayPal plan was priced, and only now does the database
-            // say the cap was full. The money has moved, so record what actually happened -- count
-            // it past the cap and say so loudly -- instead of leaving the counter disagreeing with
-            // the redemption rows.
             await _db.PromotionCodes
                 .Where(p => p.Id == promotionCodeId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount + 1));
-            _logger.LogError(
-                "Promotion code {PromotionCodeId} was redeemed past its cap by agent {AgentUserId}; the discount was already applied when the plan was created. Review the code's limits.",
-                promotionCodeId, userId);
         }
 
         await _uow.PromotionCodeRedemptions.AddAsync(new PromotionCodeRedemption

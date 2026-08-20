@@ -23,6 +23,8 @@ public class DripCampaignEnrollment
     public DateTime? CancelledAt { get; set; }
     public DateTime? LastSentAt { get; set; }
     public string LastError { get; set; } = string.Empty;
+    // JOBS-8: consecutive failed send attempts; reset on success, Failed at the cap.
+    public int SendAttempts { get; set; }
     public string UnsubscribeToken { get; set; } = string.Empty;
 
     public AgentUser AgentUser { get; set; } = null!;

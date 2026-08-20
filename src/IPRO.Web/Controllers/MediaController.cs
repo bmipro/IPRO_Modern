@@ -22,9 +22,15 @@ public class MediaController : Controller
     { _blobs = blobs; _logger = logger; }
 
     [HttpGet("{container}/{*blobPath}")]
-    [ResponseCache(Duration = 31536000, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> Get(string container, string blobPath)
     {
+        // A5-M-CACHE404 (fixed 2026-08-20): the [ResponseCache] attribute that used to sit here
+        // stamped max-age=31536000 on EVERY response -- including the NotFounds below -- so a
+        // browser or CDN that saw a missing image once kept showing it missing for a year after
+        // the file was uploaded. Misses are now uncacheable; the success path sets its own
+        // immutable header further down, which is the only place the year-long cache belongs.
+        Response.Headers["Cache-Control"] = "no-store";
+
         // 404 rather than 403 for a disallowed container: this endpoint should not confirm whether a
         // private container exists.
         if (!NewsletterMediaProxy.IsProxyableContainer(container) || string.IsNullOrWhiteSpace(blobPath))

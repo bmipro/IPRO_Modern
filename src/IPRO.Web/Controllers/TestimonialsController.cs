@@ -17,14 +17,16 @@ public class TestimonialsController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
+    private readonly IPRO.Business.Services.IEmailConsentService _consent;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public TestimonialsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IConfiguration configuration)
+    public TestimonialsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IConfiguration configuration, IPRO.Business.Services.IEmailConsentService consent)
     {
         _db = db;
         _entitlements = entitlements;
         _email = email;
         _configuration = configuration;
+        _consent = consent;
     }
 
     public async Task<IActionResult> Index(string status = "pending")
@@ -147,6 +149,16 @@ public class TestimonialsController : Controller
             return RedirectToAction("Details", "Clients", new { id = clientId });
         }
 
+        // JOBS-10 (fixed 2026-08-20): testimonial requests used to skip the consent check entirely
+        // -- the ONLY sender that did -- so an opted-out client could still receive one. Rule 7:
+        // IsSuppressed is the single decision point, and the TestimonialRequest channel had existed
+        // unused since the consent system was built.
+        if (_consent.IsSuppressed(client, IPRO.Business.Services.EmailChannel.TestimonialRequest))
+        {
+            TempData["Warning"] = "This client has unsubscribed from email, so a testimonial request was not sent.";
+            return RedirectToAction("Details", "Clients", new { id = clientId });
+        }
+
         var submission = await _db.TestimonialSubmissions.FirstOrDefaultAsync(t =>
             t.ClientId == clientId && t.AgentUserId == AgentId && t.Status == TestimonialStatus.Pending && t.Body == "");
         if (submission == null)
@@ -178,7 +190,10 @@ public class TestimonialsController : Controller
               </div>
             </div>
             """;
-        await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html);
+        // JOBS-10: the request now carries the standard List-Unsubscribe header like every other
+        // client-facing sender, so "this is spam" has a working alternative.
+        var unsubscribeUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
+        await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, listUnsubscribeUrl: unsubscribeUrl);
 
         TempData["Success"] = $"Testimonial request sent to {client.Email}.";
         return RedirectToAction("Details", "Clients", new { id = clientId });

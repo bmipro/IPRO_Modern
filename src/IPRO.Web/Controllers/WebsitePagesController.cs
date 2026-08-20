@@ -112,7 +112,16 @@ public class WebsitePagesController : Controller
         page.ParentPageId = await ResolveParentAsync(page.AgentWebsiteId, page.Id, page.IsHomePage, parentPageId);
         page.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        TempData["Success"] = $"Navigation settings saved for {page.Title}.";
+        // A5-M-PARENT (fixed 2026-08-20): a rejected parent (missing, circular, or too deep) used
+        // to fall back to top-level silently while the flash said everything worked.
+        if (parentPageId.HasValue && page.ParentPageId != parentPageId)
+        {
+            TempData["Warning"] = $"Navigation settings saved for {page.Title}, but the menu position you chose was not valid (it would create a loop or exceed the 3-level menu), so it was placed at the top level instead.";
+        }
+        else
+        {
+            TempData["Success"] = $"Navigation settings saved for {page.Title}.";
+        }
         return RedirectToAction(nameof(Navigation));
     }
 
@@ -429,7 +438,7 @@ public class WebsitePagesController : Controller
         // agent could push unlimited images through the page editor while the paths that DO enforce
         // the limit reported a usage figure far below reality (2026-08-14 ultra-audit).
         var capacity = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
-        var limitBytes = (long)(capacity.LimitValue ?? 0) * 1024 * 1024;
+        var limitBytes = IPRO.Web.Infrastructure.AgentStorageUsage.LimitBytes(capacity.LimitValue);
         var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
         if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
         {
@@ -547,7 +556,7 @@ public class WebsitePagesController : Controller
         // getting a separate quota to configure -- see the "gallery images" section of the file
         // upload capacity feature in DOCS.
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
-        var limitBytes = (long)(access.LimitValue ?? 0) * 1024 * 1024;
+        var limitBytes = IPRO.Web.Infrastructure.AgentStorageUsage.LimitBytes(access.LimitValue);
         var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
         if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
         {
@@ -626,7 +635,14 @@ public class WebsitePagesController : Controller
             return id == 0 ? RedirectToAction(nameof(Create)) : RedirectToAction(nameof(Edit), new { id });
         }
 
+        var requestedParentId = parentPageId;
         parentPageId = await ResolveParentAsync(website.Id, id, isHomePage, parentPageId);
+        if (requestedParentId.HasValue && parentPageId != requestedParentId)
+        {
+            // Same honesty as SaveNavigationItem: the save continues (matching the established
+            // fallback) but the agent is told their placement was rejected.
+            TempData["Warning"] = "The parent page you chose was not valid (it would create a loop or exceed the 3-level menu), so this page was saved at the top level instead.";
+        }
 
         if (page == null)
         {

@@ -11,7 +11,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Admin.Controllers;
 
-[Authorize(Policy = "AdminAccess")]
+// A5-M-STARTER (2026-08-20): SuperAdmin-only, matching the template and e-card libraries --
+// content written here lands on EVERY agent's public site, which is not day-to-day support work.
+[Authorize(Policy = "SuperAdmin")]
 public class StarterContentController : Controller
 {
     // Shared with the starter ARTICLE artwork: both are the same library of stock imagery reused

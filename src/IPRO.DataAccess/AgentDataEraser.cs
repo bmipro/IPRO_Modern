@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace IPRO.DataAccess;
 
@@ -249,6 +250,27 @@ public static class AgentDataEraser
             }
         }
 
+        // A5-M-ERASEATOMIC (fixed 2026-08-20), two halves:
+        //
+        // 1. LOCKOUT FIRST. The account is deactivated before anything is destroyed --
+        //    AuthenticateAsync refuses inactive agents -- so a partial failure can no longer leave
+        //    a working login to an account whose files are already gone.
+        // 2. ONE TRANSACTION. The row shred commits together or not at all; a failure partway
+        //    rolls back to "locked out but intact" instead of a half-erased account.
+        //
+        // The blob deletes stay outside (the caller runs them; storage has no transactions), which
+        // is exactly why the lockout must come first.
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? shredTx = null;
+        if (execute)
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE `AgentUsers` SET `IsActive` = 0 WHERE `Id` = {0}", new object[] { agentId }, ct);
+            shredTx = await db.Database.BeginTransactionAsync(ct);
+        }
+
+        try
+        {
+
         var toDelete = eraseFinancialRecords ? Map.Concat(FinancialMap) : Map.AsEnumerable();
 
         foreach (var (table, where) in toDelete)
@@ -307,7 +329,21 @@ public static class AgentDataEraser
             }
         }
 
+        if (shredTx != null)
+        {
+            await shredTx.CommitAsync(ct);
+        }
+
         return new AgentErasureReport(agentId, lines, blobs, skipped, retained, shortfall);
+
+        }
+        finally
+        {
+            if (shredTx != null)
+            {
+                await shredTx.DisposeAsync();
+            }
+        }
     }
 
     private static async Task<(List<string> Blobs, List<string> Skipped)> CollectBlobsAsync(
@@ -395,6 +431,9 @@ public static class AgentDataEraser
     {
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText = sql;
+        // The shred runs inside a transaction (A5-M-ERASEATOMIC); a raw command on the same
+        // connection must join it or MySqlConnector refuses to execute.
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         if (agentId.HasValue) command.Parameters.Add(AgentParam(agentId.Value, command));
         await EnsureOpenAsync(db, ct);
         var result = await command.ExecuteScalarAsync(ct);
@@ -405,6 +444,7 @@ public static class AgentDataEraser
     {
         var values = new List<string>();
         await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         command.CommandText = sql;
         if (agentId.HasValue) command.Parameters.Add(AgentParam(agentId.Value, command));
         await EnsureOpenAsync(db, ct);

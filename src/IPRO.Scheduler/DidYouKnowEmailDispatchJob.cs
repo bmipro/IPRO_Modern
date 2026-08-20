@@ -163,6 +163,18 @@ public class DidYouKnowEmailDispatchJob
                 // Either way this is a DEFINITIVE outcome -- SendGrid answered -- so the item is
                 // retired. A rejection is usually permanent (bad address), and retrying it every 15
                 // minutes forever would be worse than dropping it loudly.
+                // JOBS-5 (fixed 2026-08-20): a transient failure (timeout, 429, 5xx) is NOT a
+                // definitive outcome -- leaving the item claimed hands it to the stale-claim sweep
+                // for another attempt in 15 minutes, exactly like the exception path below. Only
+                // an answered rejection (4xx: bad address, bad payload) retires the item.
+                if (result.IsTransient)
+                {
+                    _logger.LogWarning(
+                        "Did You Know queued email {ItemId} (article {ArticleId}) hit a transient send failure and will be retried: {Error}",
+                        item.Id, item.ArticleId, result.Message);
+                    continue;
+                }
+
                 await MarkRetiredAsync(item.Id, result);
 
                 if (!result.Success)

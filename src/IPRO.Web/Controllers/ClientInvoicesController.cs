@@ -311,7 +311,13 @@ public class ClientInvoicesController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        invoice.Status = ClientInvoiceStatus.Sent;
+        // A5-M-RESEND (fixed 2026-08-20): re-sending a PAID invoice used to flip it back to Sent,
+        // which put it straight back into the overdue-reminder query -- the client got dunned for
+        // a bill they had already settled. A resend of a paid invoice is just a copy.
+        if (invoice.Status != ClientInvoiceStatus.Paid)
+        {
+            invoice.Status = ClientInvoiceStatus.Sent;
+        }
         invoice.SentAt = DateTime.UtcNow;
         invoice.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

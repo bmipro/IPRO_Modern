@@ -15,7 +15,9 @@ namespace IPRO.Admin.Controllers;
 // upload, no live-reference risk on delete -- each article is copied into a real, independent
 // Article row the moment it's provisioned to an agent, so removing or editing the master row here
 // never touches an agent's already-provisioned copy.
-[Authorize(Policy = "AdminAccess")]
+// A5-M-STARTER (2026-08-20): SuperAdmin-only, matching the template and e-card libraries --
+// content written here lands on EVERY agent's public site, which is not day-to-day support work.
+[Authorize(Policy = "SuperAdmin")]
 public class WebsiteStarterArticlesController : Controller
 {
     private readonly IPRODbContext _db;

@@ -310,8 +310,17 @@ public class AccountController : Controller
                 }
             }
         }
-        if (string.IsNullOrWhiteSpace(expectedVerificationCode)
-            || !string.Equals(verificationCode?.Trim(), expectedVerificationCode, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(expectedVerificationCode))
+        {
+            // SIGNUP-VERIFY (2026-08-18, fixed 2026-08-20): the expected code lives in session
+            // (30-minute idle timeout). When it expires this used to fall into the SAME branch as
+            // a wrong code, telling the user "Verify code is incorrect" while they typed exactly
+            // the digits on screen -- an unwinnable loop that then ran into the 5-per-hour rate
+            // limit. The re-render below regenerates the code, so with an honest message the very
+            // next attempt succeeds.
+            ModelState.AddModelError("", "Your session timed out, so the form was refreshed with a NEW verify code. Please enter the code now shown and submit again.");
+        }
+        else if (!string.Equals(verificationCode?.Trim(), expectedVerificationCode, StringComparison.Ordinal))
         {
             ModelState.AddModelError("", "Verify code is incorrect.");
         }

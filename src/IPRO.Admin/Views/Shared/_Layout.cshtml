@@ -115,16 +115,18 @@
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "WebsiteTemplates" ? "active" : "")" href="/WebsiteTemplates">
               <i class="fas fa-layer-group"></i>Templates
           </a>
+          @* A5-M-STARTER: the starter libraries joined the SuperAdmin block 2026-08-20 -- content
+             here lands on every agent's site, same blast radius as Templates. *@
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "StarterContent" ? "active" : "")" href="/StarterContent">
+              <i class="fas fa-wand-magic-sparkles"></i>Starter Content
+          </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "WebsiteStarterArticles" ? "active" : "")" href="/WebsiteStarterArticles">
+              <i class="fas fa-book-open"></i>Starter Articles
+          </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "WebsiteStarterForms" ? "active" : "")" href="/WebsiteStarterForms">
+              <i class="fas fa-rectangle-list"></i>Starter Forms
+          </a>
         }
-        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "StarterContent" ? "active" : "")" href="/StarterContent">
-            <i class="fas fa-wand-magic-sparkles"></i>Starter Content
-        </a>
-        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "WebsiteStarterArticles" ? "active" : "")" href="/WebsiteStarterArticles">
-            <i class="fas fa-book-open"></i>Starter Articles
-        </a>
-        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "WebsiteStarterForms" ? "active" : "")" href="/WebsiteStarterForms">
-            <i class="fas fa-rectangle-list"></i>Starter Forms
-        </a>
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Domains" ? "active" : "")" href="/Domains">
             <i class="fas fa-network-wired"></i>Domains
         </a>

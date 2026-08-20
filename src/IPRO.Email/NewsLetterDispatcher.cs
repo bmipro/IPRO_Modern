@@ -357,10 +357,14 @@ public class NewsLetterDispatcher
         return await targeted.ToListAsync();
     }
 
-    public async Task DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null, int enrollmentId = 0)
+    // JOBS-7 (2026-08-20): this used to swallow the send result -- the failure was recorded on
+    // the step-send row and the method returned as if nothing happened, so the job blanked the
+    // enrollment's error and advanced past the step the client never received. The caller now
+    // gets the real outcome; a null return means the step was skipped (campaign gone/inactive).
+    public async Task<EmailSendResult?> DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null, int enrollmentId = 0)
     {
         var campaign = await _uow.DripCampaigns.GetByIdAsync(campaignId);
-        if (campaign == null || !campaign.IsActive) return;
+        if (campaign == null || !campaign.IsActive) return null;
 
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(campaign.AgentUserId);
         var replyToName = sendingAgent == null ? null : $"{sendingAgent.FirstName} {sendingAgent.LastName}".Trim();
@@ -368,7 +372,7 @@ public class NewsLetterDispatcher
         var steps = (await _uow.DripCampaignSteps.FindAsync(s => s.DripCampaignId == campaignId))
             .OrderBy(s => s.SortOrder).ToList();
 
-        if (stepIndex >= steps.Count) return;
+        if (stepIndex >= steps.Count) return null;
         var step = steps[stepIndex];
 
         var stepSend = new DripCampaignStepSend
@@ -413,5 +417,6 @@ public class NewsLetterDispatcher
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("Drip step {Step} of campaign {Campaign} sent to {Email}. Success: {Success}", stepIndex, campaignId, toEmail, result.Success);
+        return result;
     }
 }

@@ -569,6 +569,12 @@ public class NewsletterController : Controller
 
             foreach (var item in events.EnumerateArray())
             {
+                // JOBS-6 (fixed 2026-08-20): one malformed event used to throw and fail the WHOLE
+                // request -- SendGrid then retried the entire batch (duplicating everything before
+                // the bad event) or eventually gave up (losing everything after it). Each event
+                // now sinks or swims alone; the batch always answers 200.
+                try
+                {
                 var eventName = ReadString(item, "event");
                 var providerMessageId = ReadString(item, "sg_message_id");
                 var reason = ReadString(item, "reason");
@@ -603,6 +609,11 @@ public class NewsletterController : Controller
 
                     await _deliveryTracker.RecordAsync(entityKind, trackedId, eventName, providerMessageId, reason, occurredAt);
                     break;
+                }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "SendGrid webhook: one event in the batch could not be processed and was skipped.");
                 }
             }
         }

@@ -40,7 +40,10 @@ public class DocumentsController : Controller
 
         var documents = await query.OrderByDescending(d => d.UploadedAt).ToListAsync();
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
-        var usedBytes = await _db.AgentDocuments.Where(d => d.AgentUserId == AgentId).SumAsync(d => (long?)d.FileSizeBytes) ?? 0;
+        // A5-M-DOCUSAGE (fixed 2026-08-20): this page used to show a documents-only figure while
+        // uploads were checked against the FULL shared pool -- agents saw "plenty of space" and
+        // then got rejected. One number everywhere now.
+        var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
 
         ViewBag.Search = search;
         ViewBag.Category = category;
@@ -68,7 +71,7 @@ public class DocumentsController : Controller
         }
 
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
-        var limitBytes = (long)(access.LimitValue ?? 0) * 1024 * 1024;
+        var limitBytes = IPRO.Web.Infrastructure.AgentStorageUsage.LimitBytes(access.LimitValue);
         // Documents and gallery photos share one FileUploadCapacity pool, so this has to count both.
         // Counting documents alone let an agent with a full gallery keep uploading past their limit.
         var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
