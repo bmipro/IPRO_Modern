@@ -1423,3 +1423,26 @@ accusing the user, and consider a longer idle timeout for the signup flow specif
 one passed. That was wrong: the failing probe's GET and POST straddled a long pause, so the session had
 simply expired. Re-run back-to-back, both hosts behave identically. When a bug looks host-specific,
 control for elapsed time before believing it.
+
+## Trap: Raw DbCommands Silently Sit Outside An Ambient EF Transaction (2026-08-20)
+
+**Symptom.** After wrapping the agent-erasure row shred in a transaction (A5-M-ERASEATOMIC),
+`MySqlConnector` threw *"The transaction associated with this command is not the connection's
+active transaction"* — first in `AgentDataEraser`'s own helpers, then again, in the full-suite
+gate, from `BlobReferences` (the post-shred shared-file re-check runs inside the same
+transaction). Production impact would have been agent deletion rolling back at the blob re-check.
+
+**Root cause.** `db.Database.GetDbConnection().CreateCommand()` creates a command that does NOT
+join `db.Database.CurrentTransaction`. EF's own APIs (`ExecuteSqlRawAsync`, LINQ) enlist
+automatically; hand-built commands must do it themselves:
+
+```csharp
+command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+```
+
+**The general rule.** Any helper that builds raw `DbCommand`s and can EVER be called from inside
+a transaction needs that line. Three sites needed it on day one (`ScalarAsync`, `StringsAsync`,
+and both `BlobReferences` commands); the third was only found because the full suite runs before
+every commit — the focused tests all passed, since their seeds happened not to cross the
+transaction boundary. When adding a transaction around existing code, grep the whole call graph
+for `CreateCommand()` first.
