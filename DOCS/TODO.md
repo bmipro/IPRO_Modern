@@ -465,6 +465,21 @@ tests (28 new, suite green) and its entry updated in `AUDIT_RECONCILIATION_2026-
 - **ADMIN-10 / A5-M-REBUILDRES** — RebuildResources is SuperAdmin-only, the confirm says what is
   destroyed, and support admins see the button disabled, not hidden.
 
+## POST-SWEEP AUDIT 2026-08-20 — 2 CRITICAL, 15 HIGH still open
+
+Six parallel auditors run against `94d36c3` after the day's five deploys. **Findings live in
+`DOCS/AUDIT_2026-08-20_POST_SWEEP.md`** — that file is the authority; fix entries THERE.
+
+Headlines: **A5-H12 reverts to NOT FIXED** (the shared-file guard never runs on the production
+delete path), and **annual cancellation measures from `Billing.StartDate`** so any renewed annual
+subscriber gets $0 refund and instant loss of access. Four findings are LIVE: sanitizer deleting
+`<form>`/`<button>` contents on save, the post-cancel double-charge state, the blob guard, and the
+erasure transaction's lock profile.
+
+**DO NOT run QA day-4 (cancel + delete) until wave 1 ships.** Corrections owed to this file: the
+medium sweep below was **18** fixes, not 16; `A5-M-RESEND`'s wording (the code flips anything not
+`Paid`, so a Void invoice resent becomes Sent).
+
 ## Medium sweep — 2026-08-20 (branch `fix/medium-sweep`, all 22 register mediums addressed)
 
 The owner asked for all 22 open mediums at once. Outcome: **16 real fixes** (SIGNUP-VERIFY,

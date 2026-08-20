@@ -1,97 +1,135 @@
-# Handoff — 2026-08-20 (supersedes the 2026-08-18 version)
+# Handoff — 2026-08-20 (end of day, post-audit)
 
-Companion to `DOCS/TODO.md` (durable backlog), `DOCS/AUDIT_RECONCILIATION_2026-08-17.md`
-(per-finding truth), and `DOCS/22_PREPAID_VALUE.md` (the billing redesign). Where they disagree
-with this snapshot, they win.
+Written to survive a reboot. If the working directory was wiped, see **§7 Recovery** first.
+
+Companion docs: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` (the audit findings — **read this before
+touching billing, erasure or the sanitizer**), `DOCS/TODO.md` (durable backlog),
+`DOCS/AUDIT_RECONCILIATION_2026-08-17.md` (per-finding status, partly stale — see §4),
+`DOCS/22_PREPAID_VALUE.md` (the billing redesign, Stage C partly unshipped).
 
 ---
 
-## Where things stand
+## 1. Production right now
 
-> **CORRECTION (2026-08-20, post-audit): the table below is wrong.** A six-auditor pass found
-> 2 CRITICAL and 15 HIGH defects, several introduced by that same day's work. "High (actionable): 0"
-> was false. See `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` — and do NOT run QA day-4 (cancel + delete)
-> until its wave 1 has shipped.
+**Both apps live on `94d36c3`**, verified via `/health/version`, all surfaces healthy
+(app 200, agent site 200, admin 302). Five deploys shipped today plus a docs commit.
 
+Production agents: **BahmanMotamed #12** (owner, Gold monthly) and **BobyMot #35** (QA daily,
+real PayPal sandbox subscription `I-VG1A3CKSK6DX`, charges every day — day 1 was 2026-08-20).
 
-**Production is at `783d98e`**, both apps verified serving it, all surfaces healthy.
-Suite: **209/209** (63 tests written today). Five deploys today, every one gated on a green
-full suite first.
+---
 
-**The defect register is effectively cleared above low severity:**
+## 2. STOP — do not do these until wave 1 ships
 
-| Severity | Morning | Now |
-|---|---|---|
-| Critical | 1 | **0** |
-| High (actionable) | 3 | **0** |
-| Medium | 27 | **0** |
-| Low (open) | 17 | **14** |
-| Owner decisions | 4 | 7 |
+1. **Do NOT run QA day-4 (cancel + delete BobyMot).** It trips three live defects at once:
+   the post-cancel double-charge state, the blob guard that never runs, and the erasure
+   transaction's lock profile.
+2. **Do NOT delete any agent** — same blob-guard and lock reasons.
+3. **Avoid bulk-re-saving article or drip content** — the sanitizer currently deletes the
+   *contents* of `<form>`/`<button>` tags on write.
 
-Live register (rev 6, everything visible, no filters):
-https://claude.ai/code/artifact/a7327af0-04c2-47c0-897c-a42c62e7c2b7
+---
 
-## What shipped today, in order
+## 3. What the audit found (summary — detail in DOCS/AUDIT_2026-08-20_POST_SWEEP.md)
 
-1. **Seven-medium batch** (`fix/audit-medium-seven`): M-9 bulk entitlements, HtmlSanitizer
-   9.2.995/AngleSharp 1.7.1, sanitizer hardening, SSRF guard on the domain checker, telemetry
-   path-token scrub, admin cookie revalidation (demotion verified live), Rebuild Resources
-   SuperAdmin-only — plus the AccessDenied view that gate exposed as missing.
-2. **Prepaid-value stages A–C** (`feat/prepaid-value-honesty`, DOCS/22): cancellation stops
-   robbing agents. Cancelled-but-paid-through, the annual discount clawback with the month-10
-   crossover, the SuperAdmin → Refunds manual queue (net/HST/gross precomputed, 180-day window
-   countdown), honest confirm dialog, ToS clause 3 rewritten. The owner's month-5 example
-   ($300 + $39 = $339) is a permanent test.
-3. **Stage D** (`feat/downgrade-offer-both`): annual downgraders choose defer or CONVERT
-   ("switch now + ~N months free", supersede + deferred start_time, credit at the rate actually
-   paid). Term-switch pending guard + stored-term completion fixed alongside. During the build,
-   re-verification showed `1909426` (Aug 16) had ALREADY fixed the proration critical, the false
-   banner, the HST skip and the $0-invoice settle — the register had overstated the open money
-   cluster.
-4. **The 22-medium sweep** (`fix/medium-sweep`): 16 fixed (signup verify-code honesty, 404
-   caching, silent parent fallback, empty-Host site mixup, paid-invoice resend, JOBS-5/6/7/8/10
-   email resilience, billing-job isolation, promo cap claim-at-checkout with release, starter
-   libraries SuperAdmin-only, Azure domain unbind on delete, revenue chart clock, storage
-   quota + honest figure, transactional lockout-first erasure), 2 verified already fixed
-   (JOBS-9, #410 — stale entries), #394 dispositioned, SETUPFEE-TXN voided by the owner's own
-   invoice check.
-5. **The WEB-H-1 buyer pass** completed by the owner (BobyMot #35, QA Silver Daily): money
-   reconciled to the cent across two PayPal charges; QA daily clock restarted (day 1 =
-   2026-08-20).
+Six parallel auditors against `94d36c3`. **2 CRITICAL, 15 HIGH, 20 MEDIUM, 12 LOW, 8 doc errors.**
+Both criticals were found independently by two auditors:
 
-## Recommendation on the table (owner reading now)
+- **C1 — the shared-file guard has never run in production.** `A5-H12` was marked FIXED on
+  2026-08-18 with a passing test; the Admin delete path deletes the *unfiltered* preview list
+  before `EraseAsync` (where the guard lives) ever runs. **A5-H12 reverts to NOT FIXED.**
+- **C2 — annual cancellation robs renewed subscribers.** The clawback measures from
+  `Billing.StartDate`, never advanced on renewal → `$0` refund and instant loss of access for
+  anyone past year one. Latent only because no annual subscriber has renewed yet.
 
-**Audit before fixing the 14 lows.** Today's ~2,700 changed lines are the risk, not the
-inventoried lows. Suggested shape: 5 parallel auditors targeted at today's changed surface
-(prepaid-value/billing, consent/jobs resilience, erasure transaction) + one dedicated
-doc-vs-code truth pass — stale "fixed" AND stale "open" claims both caused near-duplicate work
-this week. Hand auditors the register as the exclusion list. Optional pre-clean: the trivial
-third of the lows (two misleading admin texts, webhook timestamp, two URL-builder copies,
-newsletter test-send host) so they don't pollute the report.
+**Live right now:** sanitizer content destruction, post-cancel double-charge, the blob guard,
+the erasure lock hazard.
 
-## Next steps
+**What held up:** 31 of ~45 documented claims verify TRUE; no XSS regression from the AngleSharp
+major bump; admin auth fails **closed**; no third transaction-enlistment bug; the `PrepaidValue`
+math is exactly as designed.
 
-1. Owner decides: trivial-lows blitz first, or straight to audit briefs.
-2. **QA daily protocol**: day 3 (verify overnight charges arrived, upgrade BobyMot to Platinum
-   Daily FROM bobymot.247advisers.com — that also closes WEB-H-1's upgrade leg), day 4 (cancel +
-   delete; the new cancel flow and refund queue get their first production exercise).
-3. **Staging decision** returns Mon 2026-08-25 09:00 (scheduled reminder). Question is data
-   (PIPEDA), not cost.
-4. First real annual cancellation/downgrade will exercise the DOCS/22 machinery in production;
-   the SuperAdmin → Refunds queue is where refunds appear.
+**The pattern (most important):** the chronic failure moved rather than disappeared — *fixed the
+library not the caller*, *fixed one app not both*, *obeyed the invariant in the new path and broke
+it in the sibling written the same week*, *asserted the property but tested only the mechanism*.
 
-## Today's lessons (recorded in 09_TROUBLESHOOTING)
+---
 
-- Raw `DbCommand`s do not join an ambient EF transaction; three sites needed
-  `command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction()`. The full-suite
-  gate caught the third — focused tests missed it because their seeds didn't cross the boundary.
-- Stale status lists caused three near-duplicate-work incidents this week (five stale audit
-  headings, the "fixed-on-Aug-16" money cluster, JOBS-9/#410). Re-verify against code before
-  building; update the entry in the same commit as the fix.
+## 4. Documents that are currently WRONG (corrections pending, deliberately not yet applied)
 
-## Environment
+- `AUDIT_RECONCILIATION_2026-08-17.md` — `A5-H12` says FIXED (it is not); the `## Counts` block and
+  the "OPEN — 54 distinct defects" heading are stale (**15** are open, not 54); one heading cites
+  `1fLB`, not a valid SHA (correct: `1f6cedd`); the Newtonsoft "nothing pins it" bullet is wrong.
+- `DOCS/22_PREPAID_VALUE.md` — Stage C is PARTIAL (no ledger credit notes, `ConvertedToCredit`
+  unreachable); ToS path is `Views/Shared/_LegalTerms.cshtml`; Stage D added 4 tests, not 6.
+- `DOCS/TODO.md` — the medium sweep was **18** fixes, not 16.
+- Earlier versions of THIS file claimed "High (actionable): 0" — that was false.
 
-- Local dev via `ops\Start-LocalEnv.ps1`; both preview servers stopped.
-- Local test data: agent 11 (drip tester) + supporttest admin — local DB only.
-- Production agents: BahmanMotamed #12 (owner) + BobyMot #35 (QA daily, real sandbox sub
-  `I-VG1A3CKSK6DX`, charges daily).
+Full correction table: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Documentation corrections required".
+
+---
+
+## 5. Branch state — IMPORTANT
+
+| Branch | State |
+|---|---|
+| `main` | `94d36c3` — what production is serving. Clean. |
+| `docs/post-sweep-audit` | `e580698` — **the audit findings doc + READ-FIRST pointers. NOT merged.** Pushed to origin. |
+
+All feature branches from today (`fix/audit-medium-seven`, `feat/prepaid-value-honesty`,
+`feat/downgrade-offer-both`, `fix/medium-sweep`) are merged into `main` and deployed.
+
+**⚠ The test suite is currently RED on `docs/post-sweep-audit`** — 2 deliberately-failing tests
+encode audit findings H1 and M1 (`MediumSweepTests.Removing_form_tags_must_not_destroy_their_inner_content`
+and `Overlay_cannot_be_rebuilt_from_the_properties_left_allowed`). They are *supposed* to fail until
+wave 1 fixes the sanitizer. `main` itself is green (209/209).
+
+---
+
+## 6. Next steps — the three waves
+
+**Wave 1 — stop the bleeding. Blocks QA day-4.**
+H1 sanitizer deletes removed tags' contents (set `KeepChildNodes = true`, or keep the tags and strip
+only action/submit attributes) · H2 post-cancel double-charge · C1 make the blob guard actually run
+(**needs a design decision** — delete-after-shred with a stranding window, or a pre-shred snapshot;
+both options are written up in the audit doc) · H9 move the blob re-check outside the transaction ·
+H10 roll back on retention shortfall.
+
+**Wave 2 — correctness.** C2 `StartDate` → `GetCurrentCycleStart` · M3/M4 refund from the invoice,
+not today's prices · H3 the resolver split · M5 PayPal-initiated cancels · H5 promo slot release ·
+H6 setup-fee waiver · H7 SendGrid 401/403 classification + a resume path for Failed enrollments ·
+H8 suppression events must not be swallowed · H12 the convert's pending row · H13/H14 retry bounds ·
+H4 SSRF IP pinning + stop echoing `RootLastError` · M2 gate `RebuildRequestMeeting` · M8
+agent-portal revalidation · H15/M13 make the promises match the code.
+
+**Wave 3 — truth and prevention.** Apply every correction in §4. Add the tests these findings prove
+are missing — starting with a **controller-level** blob test (would have caught C1 on day one), an
+annual-cancel-after-renewal fixture, a cancelled-but-paid-through Billing-page test, and a
+resolver-agreement test with a divergent `AgentUser.PackageId`.
+
+**Also still open (unchanged by the audit):** the 14 known low-severity items and 7 owner decisions
+in the register; the **staging decision returns Mon 2026-08-25 09:00** (scheduled reminder — the
+question is data/PIPEDA, not cost).
+
+---
+
+## 7. Recovery after a reboot
+
+If this working directory survived: nothing to do, `git status` should be clean on
+`docs/post-sweep-audit`.
+
+If it was wiped (this has happened before — only OneDrive-synced folders survived):
+
+1. Everything is on GitHub: `https://github.com/bmipro/IPRO_Modern` — `main` at `94d36c3`,
+   plus the unmerged `docs/post-sweep-audit` at `e580698`.
+2. Backup zips (both written 2026-08-20, `git archive` of the audit branch, ~4.1 MB):
+   - **OneDrive** `C:\Users\admin\OneDrive\Codex_Code_Bkup\` — the copy proven to survive resets
+   - Local `C:\Users\admin\IPRO_Local_Backups\`
+3. `.claude` memory files have been lost to a reboot before — re-read `DOCS/` rather than trusting
+   recalled context. This file plus `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` are the two that matter.
+
+**Local dev environment:** `ops\Start-LocalEnv.ps1` starts MySQL + Azurite; apps run at
+`localhost:5100` (Web) and `localhost:5200` (Admin). Both preview servers are stopped. Local-only
+test data: agent 11 (drip tester), `supporttest` admin. Nothing local is needed for production.
+
+**Nothing is deploying and nothing is mid-flight.** Safe to reboot.
