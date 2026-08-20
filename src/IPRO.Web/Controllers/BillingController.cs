@@ -108,14 +108,15 @@ public class BillingController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Subscribe(int billingRuleId, BillingPeriod period)
+    public async Task<IActionResult> Subscribe(int billingRuleId, BillingPeriod period, string? downgradeMode = null)
     {
         var result = await _billing.CreateSubscriptionAsync(
             AgentId,
             billingRuleId,
             period,
             await BuildBillingActionUrlAsync(nameof(PayPalReturn)),
-            await BuildBillingActionUrlAsync(nameof(Cancel)));
+            await BuildBillingActionUrlAsync(nameof(Cancel)),
+            downgradeMode);
 
         if (!result.Success)
         {

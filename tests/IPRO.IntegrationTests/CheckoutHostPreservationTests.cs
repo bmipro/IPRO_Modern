@@ -313,7 +313,7 @@ public class CheckoutHostPreservationTests
             return new BillingChangeResult { Success = true, RequiresPayment = true, ApprovalUrl = "https://paypal.test/approve" };
         }
 
-        public Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, BillingPeriod period, string returnUrl, string cancelUrl) =>
+        public Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, BillingPeriod period, string returnUrl, string cancelUrl, string? downgradeMode = null) =>
             Task.FromResult(Capture(returnUrl, cancelUrl));
 
         public Task<BillingChangeResult> ResumePaymentAsync(int userId, int invoiceId, string returnUrl, string cancelUrl) =>

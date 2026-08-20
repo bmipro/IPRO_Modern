@@ -109,8 +109,16 @@ period re-converts the remaining dollars, which is why the dollars are stored, n
 - **B** — cancellation flow uses it: PaidThroughAt honored by gating, honest confirm dialog,
   Cancel SubscriptionChange rows with refund computation.
 - **C** — SuperAdmin refund queue + ledger credit notes + ToS clause.
-- **D** — downgrade Offer-Both / convert path, WITH the interlocked fixes (incl. the BILL-PRORATE
-  critical in the same file). Largest stage; its own review.
+- **D** — downgrade Offer-Both / convert path. SHIPPED 2026-08-20 (branch
+  `feat/downgrade-offer-both`). During implementation the "interlocked fixes" list was re-verified
+  against the code and most of it was ALREADY CLOSED by `1909426` (2026-08-16, "fix all 16
+  upgrade/downgrade defects once", pinned by BillingProrationMatrixTests): the proration unit
+  mismatch, the false banner (plus the hourly reconcile sync), the tax gross-up skip, and the
+  $0-invoice false settle. What Stage D actually added: the convert path itself
+  (`ComputeConvertCredit` + supersede with a deferred `start_time`, offered on the Billing page to
+  annual subscribers with an estimated free-months label), the shared `ResolvePaidThroughEndAsync`
+  (PayPal-verified period end used by scheduling AND credit), the term-switch pending-change guard
+  (UX-TERMSWITCH), and the stored-term completion buttons (UX-TERMAPPLY).
 
 Owner's standing rule: every stage tests green BEFORE commit; nothing deploys except by his
 merge.

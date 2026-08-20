@@ -456,6 +456,17 @@ tests (28 new, suite green) and its entry updated in `AUDIT_RECONCILIATION_2026-
 - **ADMIN-10 / A5-M-REBUILDRES** — RebuildResources is SuperAdmin-only, the confirm says what is
   destroyed, and support admins see the button disabled, not hidden.
 
+## Downgrade Offer-Both — SHIPPED 2026-08-20 (branch `feat/downgrade-offer-both`, pending review)
+
+DOCS/22 Stage D. Annual subscribers downgrading now choose on the Billing page: **defer** (keep the
+current package to the PayPal-verified paid-through date — the default, unchanged) or **convert**
+(switch now; unused prepaid value at the rate actually paid becomes free days on the new package,
+rounded up, via supersede + deferred `start_time`; the button shows the estimated free months and
+the confirm states no charge happens today). Monthly subscribers keep defer only — nothing to gain.
+Re-verification during the build found `1909426` (2026-08-16) had ALREADY fixed the proration
+critical, the banner, the HST gross-up and the $0-invoice settle — the register overstated the
+open money cluster; corrected. 6 new tests (convert matrix + routing + source-walk guards).
+
 ## OPEN — three billing/UX defects found 2026-08-17 tracing "Gold annual → Silver monthly"
 
 Owner asked how a client who prepaid Gold ANNUAL is treated when they downgrade to Silver MONTHLY.
@@ -482,7 +493,10 @@ Three real defects surfaced, all verified by reading the code, NONE fixed yet:
    CANCELLED and would flip the local row Cancelled, defeating the deferral. Needs a deliberate
    "cancelled but paid through" state that reconcile respects.
 
-2. **The term-switch button (added 2026-08-16) silently destroys a scheduled downgrade.**
+2. ~~The term-switch button silently destroys a scheduled downgrade~~ — **FIXED 2026-08-20**
+   (branch `feat/downgrade-offer-both`): the buttons no longer render while any change is pending;
+   a plain hint explains why. Source-walk test pins the guard.
+   ORIGINAL: **The term-switch button (added 2026-08-16) silently destroys a scheduled downgrade.**
    `Index.cshtml:222-240`: the `isCurrent` branch renders "Switch to Annual/Monthly Billing"
    unconditionally, with no `isPending` check — unlike the other cards, which correctly render a
    disabled "Scheduled". Clicking it enters the same-package branch → `ScheduleDowngradeAsync` →
@@ -490,7 +504,10 @@ Three real defects surfaced, all verified by reading the code, NONE fixed yet:
    yesterday; unambiguous, no product decision needed. Fix: hide/disable it whenever a pending
    change exists.
 
-3. **The requested term is stored and displayed but never applied.** `ScheduleDowngradeAsync`
+3. ~~The requested term is stored and displayed but never applied~~ — **FIXED 2026-08-20** (same
+   branch): the completion card leads with the stored term as "(as scheduled)" and offers the other
+   honestly as a switch, so the banner's promise is finally kept.
+   ORIGINAL: **The requested term is stored and displayed but never applied.** `ScheduleDowngradeAsync`
    persists `Period=Monthly` and the completion banner says "with monthly billing (the term you
    originally chose)", but nothing reads `change.Period` at completion — the completion form
    renders BOTH Monthly and Annually buttons, so someone who scheduled Silver-monthly can land on

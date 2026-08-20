@@ -186,6 +186,93 @@ public class PrepaidValueTests
         Assert.Equal(RefundStatus.None, change.RefundStatus);
     }
 
+    // ------------------------------------------------- Stage D: the convert-downgrade credit --
+
+    [Fact]
+    public void Convert_credit_prices_the_remainder_at_what_was_paid_and_rounds_up()
+    {
+        // The owner's shape: Gold annual ($600 paid), converting to Silver monthly on Dec 6 --
+        // 212 of 365 days left. Remaining value = 600 x 212/365 = $348.49; at Silver's net daily
+        // rate (480/365) that is 264.99 days -> 265 free days, rounded in the agent's favour.
+        var cycleStart = new DateTime(2026, 7, 6, 0, 0, 0, DateTimeKind.Utc);
+        var cycleEnd = cycleStart.AddYears(1);
+        var now = new DateTime(2026, 12, 6, 0, 0, 0, DateTimeKind.Utc);
+
+        var (remainingNet, creditDays, creditEnd) =
+            IPRO.Billing.PayPalBillingService.ComputeConvertCredit(600m, 40m, now, cycleStart, cycleEnd);
+
+        Assert.Equal(348.49m, remainingNet);
+        Assert.Equal(265, creditDays);
+        Assert.Equal(now.AddDays(265), creditEnd);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Convert_is_refused_for_monthly_subscribers_with_a_plain_explanation()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedAnnualGoldAsync(db, daysIn: 10, period: BillingPeriod.Monthly, amount: 60m, nextBillingInDays: 20);
+        // A cheaper package to downgrade to.
+        var silver = new BillingRule { PackageName = ($"PVs-{Guid.NewGuid():N}")[..20], MonthlyPrice = 40m, AnnualPrice = 400m, IsActive = true, PayPalMonthlyPlanId = "P-TEST-M", PayPalAnnualPlanId = "P-TEST-A" };
+        db.Add(silver);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await NewService(db).CreateSubscriptionAsync(
+            seed.AgentId, silver.Id, BillingPeriod.Monthly, "https://x/return", "https://x/cancel", downgradeMode: "convert");
+
+        Assert.False(result.Success);
+        Assert.Contains("annual subscriptions", result.Message);
+        // And nothing was written: no pending billing, no change row.
+        Assert.Equal(0, await db.SubscriptionChanges.AsNoTracking().CountAsync(c => c.AgentUserId == seed.AgentId));
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Convert_for_an_annual_subscriber_reaches_checkout_creation()
+    {
+        // Without PayPal settings the flow must stop at the explicit "PayPal is not configured"
+        // gate INSIDE BeginPaidChangeAsync -- proving the convert branch routed all the way to
+        // checkout creation with the credit computed, and failed clean without writing a billing.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedAnnualGoldAsync(db, daysIn: 135);
+        var silver = new BillingRule { PackageName = ($"PVs-{Guid.NewGuid():N}")[..20], MonthlyPrice = 40m, AnnualPrice = 400m, IsActive = true, PayPalMonthlyPlanId = "P-TEST-M", PayPalAnnualPlanId = "P-TEST-A" };
+        db.Add(silver);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await NewService(db).CreateSubscriptionAsync(
+            seed.AgentId, silver.Id, BillingPeriod.Monthly, "https://x/return", "https://x/cancel", downgradeMode: "convert");
+
+        Assert.False(result.Success);
+        Assert.Contains("PayPal is not configured", result.Message);
+        Assert.Equal(0, await db.Billings.AsNoTracking().CountAsync(b => b.AgentUserId == seed.AgentId && b.Status == BillingStatus.Pending));
+    }
+
+    [Fact]
+    public void The_view_offers_convert_through_a_framework_form_and_guards_the_term_switch()
+    {
+        // Source-walking guards, CheckoutHostPreservationTests-style: the convert mode must travel
+        // as a hidden field in an asp-action form (host-aware URL -- the WEB-H-1 lesson), never a
+        // hardcoded formaction path; and the term-switch buttons must be fenced behind the
+        // pending-change check that UX-TERMSWITCH demanded.
+        var view = System.IO.File.ReadAllText(FindViewPath());
+        Assert.Contains("name=\"downgradeMode\" value=\"convert\"", view);
+        Assert.DoesNotContain("formaction=", view);
+        Assert.Contains("pendingChange != null", view);
+    }
+
+    private static string FindViewPath()
+    {
+        var dir = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+        while (dir != null && !System.IO.Directory.Exists(System.IO.Path.Combine(dir.FullName, "src")))
+        {
+            dir = dir.Parent;
+        }
+        Assert.NotNull(dir);
+        return System.IO.Path.Combine(dir!.FullName, "src", "IPRO.Web", "Views", "Billing", "Index.cshtml");
+    }
+
     // ------------------------------------------------------------- the SuperAdmin refund queue --
 
     [Fact]

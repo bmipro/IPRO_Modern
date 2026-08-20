@@ -3,7 +3,7 @@ namespace IPRO.Billing;
 public interface IBillingService
 {
     Task<IPRO.Entities.Billing?> GetActiveSubscriptionAsync(int userId);
-    Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, IPRO.Entities.BillingPeriod period, string returnUrl, string cancelUrl);
+    Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, IPRO.Entities.BillingPeriod period, string returnUrl, string cancelUrl, string? downgradeMode = null);
     Task<BillingChangeResult> ResumePaymentAsync(int userId, int invoiceId, string returnUrl, string cancelUrl);
     Task<BillingChangeResult> CapturePaymentAsync(int userId, string orderId);
     Task<IPRO.Entities.SubscriptionChange?> GetPendingChangeAsync(int userId);
