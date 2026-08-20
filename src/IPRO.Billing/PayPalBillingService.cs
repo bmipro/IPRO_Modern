@@ -84,7 +84,7 @@ public class PayPalBillingService : IBillingService
         return null;
     }
 
-    public async Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, BillingPeriod period, string returnUrl, string cancelUrl)
+    public async Task<BillingChangeResult> CreateSubscriptionAsync(int userId, int billingRuleId, BillingPeriod period, string returnUrl, string cancelUrl, string? downgradeMode = null)
     {
         var requestedPackage = await _uow.BillingRules.FirstOrDefaultAsync(p => p.Id == billingRuleId && p.IsActive);
         if (requestedPackage == null)
@@ -298,12 +298,59 @@ public class PayPalBillingService : IBillingService
                 returnUrl, cancelUrl, activeSubscription.Id, effectiveEnd);
         }
 
+        // DOCS/22 Offer-Both: "convert" switches the agent to the cheaper package NOW and turns
+        // the unused prepaid value into free time on it, at the rate they actually paid (the
+        // annual discount belongs to those who stay). Mechanism: the same supersede machinery as
+        // upgrades -- a new PayPal subscription whose start_time sits at the end of the credit,
+        // with the old subscription cancelled only after the new one activates. The default
+        // (and the only mode for monthly subscribers) remains the scheduled end-of-period switch.
+        if (string.Equals(downgradeMode, "convert", StringComparison.OrdinalIgnoreCase))
+        {
+            if (activeSubscription.Period != BillingPeriod.Annually)
+            {
+                return BillingChangeResult.Failed(
+                    "Switching now with credit applies to annual subscriptions. Monthly downgrades take effect at the end of the paid month, so nothing is lost by scheduling.");
+            }
+
+            await CancelPendingChangesAsync(userId);
+            var convertNow = DateTime.UtcNow;
+            var paidThroughEnd = await ResolvePaidThroughEndAsync(activeSubscription);
+            var convertCycleStart = GetCurrentCycleStart(paidThroughEnd, activeSubscription.Period);
+            var paidForCycle = activeSubscription.Amount > 0
+                ? activeSubscription.Amount
+                : GetCycleEquivalentAmount(currentPackage, activeSubscription.Period);
+            var (remainingNet, creditDays, creditEnd) = ComputeConvertCredit(
+                paidForCycle, requestedPackage.MonthlyPrice, convertNow, convertCycleStart, paidThroughEnd);
+            if (creditDays <= 0)
+            {
+                return BillingChangeResult.Failed(
+                    "There is no unused prepaid value left to convert, so there is nothing to gain over the scheduled switch. Use the regular downgrade instead.");
+            }
+
+            return await BeginPaidChangeAsync(userId, currentPackage, requestedPackage, period,
+                SubscriptionChangeType.Downgrade, convertNow, remainingNet, 0m, 0m,
+                returnUrl, cancelUrl, activeSubscription.Id,
+                nextBillingDate: creditEnd, deferredStart: creditEnd);
+        }
+
         var downgradeDate = await ScheduleDowngradeAsync(userId, activeSubscription, currentPackage, requestedPackage, period);
         return new BillingChangeResult
         {
             Success = true,
             Message = $"Your downgrade to {requestedPackage.PackageName} is scheduled for {downgradeDate:MMMM d, yyyy}."
         };
+    }
+
+    // The unused value of the running annual cycle, at the rate ACTUALLY PAID for it, converted
+    // into whole free days on the new package (rounded up -- the agent's favour, DOCS/22). Pure
+    // and internal so the proration matrix tests can pin it like CalculateUpgradeProration.
+    internal static (decimal RemainingNet, int CreditDays, DateTime CreditEnd) ComputeConvertCredit(
+        decimal amountPaidForCycle, decimal newMonthlyPrice, DateTime now, DateTime cycleStart, DateTime cycleEnd)
+    {
+        var fraction = CalculateRemainingFraction(now, cycleStart, cycleEnd);
+        var remainingNet = Math.Round(amountPaidForCycle * fraction, 2);
+        var creditDays = PrepaidValue.CreditDays(remainingNet, newMonthlyPrice);
+        return (remainingNet, creditDays, now.AddDays(creditDays));
     }
 
     public async Task<BillingChangeResult> CapturePaymentAsync(int userId, string orderId)
@@ -1498,6 +1545,7 @@ public class PayPalBillingService : IBillingService
         string cancelUrl,
         int? currentBillingId = null,
         DateTime? nextBillingDate = null,
+        DateTime? deferredStart = null,
         bool includeSetupFee = false,
         decimal? overrideAmount = null,
         string? overridePlanId = null,
@@ -1592,7 +1640,9 @@ public class PayPalBillingService : IBillingService
         // The old subscription is still cancelled only AFTER the new one activates (CapturePaymentAsync),
         // so an abandoned approval leaves the agent on what they already had.
         var startsSubscription = changeType == SubscriptionChangeType.Subscribe
-                              || changeType == SubscriptionChangeType.Upgrade;
+                              || changeType == SubscriptionChangeType.Upgrade
+                              // A convert-downgrade (DOCS/22) also supersedes: new sub, deferred start.
+                              || deferredStart.HasValue;
 
         if (startsSubscription && !string.IsNullOrWhiteSpace(billing.PayPalPlanId))
         {
@@ -1604,7 +1654,7 @@ public class PayPalBillingService : IBillingService
 
             // Upgrades defer the first recurring charge to the date the agent has already paid up to.
             // A new subscription passes null and bills immediately, which is correct for a signup.
-            var subscriptionStart = changeType == SubscriptionChangeType.Upgrade ? nextBillingDate : null;
+            var subscriptionStart = changeType == SubscriptionChangeType.Upgrade ? nextBillingDate : deferredStart;
 
             // The gross-up rate comes from the AGENT, probed against the plan's own recurring
             // price -- the invoice's rate is 0 whenever the invoice is $0, and that must not
@@ -1725,16 +1775,15 @@ public class PayPalBillingService : IBillingService
     // call site away from returning. Zero-due upgrades now go through BeginPaidChangeAsync like every
     // other upgrade, which starts a real subscription that the agent approves at PayPal.
 
-    private async Task<DateTime> ScheduleDowngradeAsync(int userId, IPRO.Entities.Billing currentSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period)
+    // The date the agent's current paid period actually ends. It decides when a scheduled change
+    // fires and how much unused value a convert-downgrade credits, so it must come from PayPal's
+    // own schedule, not from the local NextBillingDate column -- that column has been wrong before
+    // (an upgrade's deferred start was clobbered to "now + one period"), and freezing a wrong date
+    // would destroy a subscription with months of prepaid service left (2026-08-16 audit, the
+    // owner's own account). PayPal unreachable or no linked subscription (comped agents) falls
+    // back to the local value; a confirmed >26h drift also repairs the local column on the spot.
+    private async Task<DateTime> ResolvePaidThroughEndAsync(IPRO.Entities.Billing currentSubscription)
     {
-        await CancelPendingChangesAsync(userId);
-
-        // The effective date decides when the paid subscription gets CANCELLED at PayPal, so it
-        // must come from PayPal's own schedule, not from the local NextBillingDate column -- that
-        // column has been wrong before (an upgrade's deferred start was clobbered to "now + one
-        // period"), and freezing a wrong date here would destroy a subscription the agent had
-        // months of prepaid service left on (2026-08-16 audit, the owner's own account). PayPal
-        // unreachable or no linked subscription (comped agents) falls back to the local value.
         DateTime? payPalNextBilling = null;
         if (!string.IsNullOrWhiteSpace(currentSubscription.PayPalSubscriptionId))
         {
@@ -1746,22 +1795,27 @@ public class PayPalBillingService : IBillingService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
-                    "Could not read PayPal's next billing time for subscription {SubscriptionId} while scheduling a downgrade; falling back to the locally stored date.",
+                    "Could not read PayPal's next billing time for subscription {SubscriptionId}; falling back to the locally stored date.",
                     currentSubscription.PayPalSubscriptionId);
             }
         }
 
-        var effectiveDate = payPalNextBilling
-            ?? currentSubscription.NextBillingDate
-            ?? GetNextBillingDate(DateTime.UtcNow, currentSubscription.Period);
-
         if (payPalNextBilling.HasValue && currentSubscription.NextBillingDate.HasValue &&
             Math.Abs((payPalNextBilling.Value - currentSubscription.NextBillingDate.Value).TotalHours) > 26)
         {
-            // The local column was wrong; fix it now rather than waiting for the hourly sweep.
             currentSubscription.NextBillingDate = payPalNextBilling.Value;
             _uow.Billings.Update(currentSubscription);
         }
+
+        return payPalNextBilling
+            ?? currentSubscription.NextBillingDate
+            ?? GetNextBillingDate(DateTime.UtcNow, currentSubscription.Period);
+    }
+
+    private async Task<DateTime> ScheduleDowngradeAsync(int userId, IPRO.Entities.Billing currentSubscription, BillingRule currentPackage, BillingRule requestedPackage, BillingPeriod period)
+    {
+        await CancelPendingChangesAsync(userId);
+        var effectiveDate = await ResolvePaidThroughEndAsync(currentSubscription);
 
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
         {

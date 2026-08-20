@@ -227,8 +227,14 @@ else if (currentPackage == null)
                       <button type="button" class="btn btn-outline-secondary btn-sm w-100" disabled>Current Plan</button>
                       @* Term switch: the service schedules it for the end of the paid period, like a
                          downgrade -- without this button the same-package branch was unreachable and
-                         switching billing terms was impossible product-wide (2026-08-16 review). *@
-                      @if (subscription?.Period == IPRO.Entities.BillingPeriod.Monthly && pkg.AnnualPrice > 0)
+                         switching billing terms was impossible product-wide (2026-08-16 review).
+                         Hidden while ANY change is pending: clicking it would silently destroy the
+                         scheduled change via CancelPendingChangesAsync (UX-TERMSWITCH, 2026-08-17). *@
+                      @if (pendingChange != null)
+                      {
+                        <div class="small text-muted mt-1">Term switching is unavailable while your scheduled plan change is pending.</div>
+                      }
+                      else if (subscription?.Period == IPRO.Entities.BillingPeriod.Monthly && pkg.AnnualPrice > 0)
                       {
                         <button type="submit" name="period" value="Annually" class="btn btn-outline-primary btn-sm w-100 js-confirm-submit" data-confirm-message="Switch to annual billing? The change takes effect when your current billing period ends; you will re-approve the new term at PayPal.">Switch to Annual Billing</button>
                       }
@@ -248,15 +254,63 @@ else if (currentPackage == null)
                   }
                   else
                   {
+                    var completionPeriodForCard = ViewBag.PendingDowngradeCompletionPeriod as IPRO.Entities.BillingPeriod?;
+                      var isCompletionCard = pendingDowngradeCompletionPackage?.Id == pkg.Id && completionPeriodForCard != null;
+                      // DOCS/22 Offer-Both: annual subscribers downgrading get the choice -- keep the
+                      // current package to the paid-through date (defer, the default), or switch now
+                      // and turn the unused value into free time on the new package (convert).
+                      var offerConvert = actionText == "Downgrade"
+                                         && subscription?.Period == IPRO.Entities.BillingPeriod.Annually
+                                         && subscription.NextBillingDate.HasValue
+                                         && subscription.NextBillingDate.Value > DateTime.UtcNow
+                                         && pkg.MonthlyPrice > 0;
+                      var convertMonthsLabel = "";
+                      if (offerConvert)
+                      {
+                        var fraction = (decimal)Math.Clamp((subscription!.NextBillingDate!.Value - DateTime.UtcNow).TotalDays / 365.0, 0.0, 1.0);
+                        var estDays = IPRO.Billing.PrepaidValue.CreditDays(Math.Round(subscription.Amount * fraction, 2), pkg.MonthlyPrice);
+                        var estMonths = Math.Max(1, (int)Math.Round(estDays / 30.4));
+                        convertMonthsLabel = $"~{estMonths} month{(estMonths == 1 ? "" : "s")}";
+                      }
                     <form asp-action="Subscribe" method="post" class="d-grid gap-2">
                       @Html.AntiForgeryToken()
                       <input type="hidden" name="billingRuleId" value="@pkg.Id"/>
-                      <button type="submit" name="period" value="Monthly" class="btn btn-primary btn-sm w-100">@actionText Monthly</button>
-                      @if (pkg.AnnualPrice > 0)
+                      @if (isCompletionCard)
                       {
-                        <button type="submit" name="period" value="Annually" class="btn btn-outline-primary btn-sm w-100">@actionText Annually</button>
+                        @* UX-TERMAPPLY: the banner promises "the term you originally chose" -- so the
+                           stored term leads, and the other is offered honestly as a change of mind. *@
+                        var storedTerm = completionPeriodForCard!.Value.ToString();
+                        var otherTerm = completionPeriodForCard == IPRO.Entities.BillingPeriod.Annually ? "Monthly" : "Annually";
+                        <button type="submit" name="period" value="@storedTerm" class="btn btn-primary btn-sm w-100">Subscribe @storedTerm (as scheduled)</button>
+                        @if (otherTerm != "Annually" || pkg.AnnualPrice > 0)
+                        {
+                          <button type="submit" name="period" value="@otherTerm" class="btn btn-outline-secondary btn-sm w-100">Switch to @otherTerm instead</button>
+                        }
+                      }
+                      else
+                      {
+                        <button type="submit" name="period" value="Monthly" class="btn btn-primary btn-sm w-100">@actionText Monthly@(offerConvert ? " — at period end" : "")</button>
+                        @if (pkg.AnnualPrice > 0)
+                        {
+                          <button type="submit" name="period" value="Annually" class="btn btn-outline-primary btn-sm w-100">@actionText Annually@(offerConvert ? " — at period end" : "")</button>
+                        }
                       }
                     </form>
+                    @if (!isCompletionCard && offerConvert)
+                    {
+                      @* Its own form so the framework generates the action URL (host-aware; never a
+                         hardcoded path -- the WEB-H-1 lesson) and the mode travels as a hidden field. *@
+                      <form asp-action="Subscribe" method="post" class="d-grid mt-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="billingRuleId" value="@pkg.Id"/>
+                        <input type="hidden" name="period" value="Monthly"/>
+                        <input type="hidden" name="downgradeMode" value="convert"/>
+                        <button type="submit" class="btn btn-outline-success btn-sm w-100 js-confirm-submit"
+                                data-confirm-message="Switch to @pkg.PackageName now? Your unused prepaid value becomes about @convertMonthsLabel of free @pkg.PackageName, and monthly billing at $@pkg.MonthlyPrice.ToString("N0") plus tax starts only after the free time ends. You will approve the new subscription at PayPal (no charge today).">
+                          Switch now + @convertMonthsLabel free
+                        </button>
+                      </form>
+                    }
                   }
                 </div>
               </th>
