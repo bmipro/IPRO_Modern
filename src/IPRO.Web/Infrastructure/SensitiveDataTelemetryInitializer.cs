@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
@@ -7,26 +8,49 @@ namespace IPRO.Web.Infrastructure;
 
 // Application Insights here is enabled via Azure's codeless auto-instrumentation agent (no SDK
 // reference otherwise), which captures the full request URL including query string by default.
-// Several links in this app carry a real, single-use, short-lived token in a query parameter
-// (password reset, client-invoice/testimonial view links, PayPal return) - without this scrub, that
+// Several links in this app carry a real, single-use, short-lived token - without this scrub, that
 // token would sit in App Insights telemetry, visible to anyone with read access to the Azure
-// resource, for as long as telemetry is retained - well beyond the token's own short validity window.
+// resource, for as long as telemetry is retained - well beyond the token's own validity window.
+//
+// Tokens travel two ways, and both are scrubbed (SO-M-NEW-6, completed 2026-08-20):
+//   query string  - ?token=..., ?subscription_id=...   (password reset, email preferences, PayPal)
+//   path segment  - /invoice/{token}, /testimonial/{token}   (client invoice + testimonial links)
+// The first pass only handled the query string; the two path-carried links kept logging live
+// tokens for another month. The path scrub also covers request.Name, which repeats the path.
 public class SensitiveDataTelemetryInitializer : ITelemetryInitializer
 {
     private static readonly string[] SensitiveQueryParams = { "token", "subscription_id" };
 
+    private static readonly Regex TokenPathSegment = new(
+        @"(?i)(/(?:invoice|testimonial)/)([^/?#\s]+)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     public void Initialize(ITelemetry telemetry)
     {
-        if (telemetry is not RequestTelemetry request || request.Url == null || string.IsNullOrEmpty(request.Url.Query))
+        if (telemetry is not RequestTelemetry request) return;
+
+        if (!string.IsNullOrEmpty(request.Name))
         {
-            return;
+            request.Name = TokenPathSegment.Replace(request.Name, "$1REDACTED");
+        }
+        if (!string.IsNullOrEmpty(telemetry.Context.Operation.Name))
+        {
+            telemetry.Context.Operation.Name = TokenPathSegment.Replace(telemetry.Context.Operation.Name, "$1REDACTED");
         }
 
-        var query = QueryHelpers.ParseQuery(request.Url.Query);
-        if (!SensitiveQueryParams.Any(p => query.ContainsKey(p)))
+        if (request.Url == null) return;
+
+        var url = request.Url.ToString();
+        var scrubbedPath = TokenPathSegment.Replace(url, "$1REDACTED");
+        if (!ReferenceEquals(scrubbedPath, url) && scrubbedPath != url)
         {
-            return;
+            request.Url = new Uri(scrubbedPath);
         }
+
+        if (string.IsNullOrEmpty(request.Url.Query)) return;
+
+        var query = QueryHelpers.ParseQuery(request.Url.Query);
+        if (!SensitiveQueryParams.Any(p => query.ContainsKey(p))) return;
 
         var withoutQuery = new UriBuilder(request.Url) { Query = string.Empty }.Uri.ToString();
         var scrubbed = query.ToDictionary(

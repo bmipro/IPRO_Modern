@@ -87,11 +87,30 @@ public class DomainCheckService : IDomainCheckService
     {
         try
         {
+            // A5-M-SSRF: an IP-literal "domain" is refused before we even resolve it.
+            if (PublicHostGuard.IsBlockedHost(domain.DomainName))
+            {
+                domain.DnsStatus = AgentDomainStatus.Failed;
+                domain.LastError = "This is not a public domain name, so it cannot be used as a website address.";
+                return;
+            }
+
             var addresses = await Dns.GetHostAddressesAsync(domain.DomainName, cancellationToken);
             if (addresses.Length == 0)
             {
                 domain.DnsStatus = AgentDomainStatus.PendingDns;
                 domain.LastError = "Waiting for DNS propagation. IPRO will check again automatically within 5 minutes.";
+                return;
+            }
+
+            // A5-M-SSRF: a name resolving to loopback / private / link-local space is a probe of
+            // things only this server can reach, not a customer domain. Refuse to fetch it, and do
+            // not ask Azure to bind it either.
+            if (PublicHostGuard.AnyBlocked(addresses))
+            {
+                domain.DnsStatus = AgentDomainStatus.Failed;
+                domain.LastError = "This domain points at a private or internal address, so it cannot be used as a website address.";
+                _logger.LogWarning("Custom domain {Domain} resolves to a non-public address; check refused.", domain.DomainName);
                 return;
             }
 
@@ -137,9 +156,12 @@ public class DomainCheckService : IDomainCheckService
     {
         try
         {
-            var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(12);
-            using var response = await client.GetAsync("http://" + domain.DomainName, cancellationToken);
+            // A5-M-SSRF: the factory client follows redirects, so a hostile domain could answer our
+            // probe with a 302 to an internal address and have us fetch it. The no-redirect client
+            // asks the only question this check has: what does the FIRST response look like? A 3xx
+            // has no Azure "not configured" marker in its body, so a legitimately-bound site that
+            // redirects http->https still lands in the Bound branch exactly as it did before.
+            using var response = await NoRedirectClient.GetAsync("http://" + domain.DomainName, cancellationToken);
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (body.Contains("Custom domain has not been configured inside Azure", StringComparison.OrdinalIgnoreCase) ||
@@ -181,6 +203,17 @@ public class DomainCheckService : IDomainCheckService
                 domain.RootDnsStatus = AgentDomainStatus.NotConfigured;
                 domain.RootRedirectsToWww = false;
                 domain.RootLastError = "The root domain does not resolve yet. Ask your registrar to forward it to the www address.";
+                return;
+            }
+
+            // A5-M-SSRF: same refusal as the www check -- the root fetch below must never target
+            // loopback / private / link-local space.
+            if (PublicHostGuard.IsBlockedHost(domain.RootDomain) || PublicHostGuard.AnyBlocked(addresses))
+            {
+                domain.RootDnsStatus = AgentDomainStatus.NotConfigured;
+                domain.RootRedirectsToWww = false;
+                domain.RootLastError = "The root domain points at a private or internal address, so it cannot be checked.";
+                _logger.LogWarning("Root domain {Domain} resolves to a non-public address; check refused.", domain.RootDomain);
                 return;
             }
 

@@ -113,11 +113,15 @@ FIXED 2026-08-18 on branch fix/audit-high-five, in three parts matching the find
 
 The per-due-send IsSuppressed check in DripCampaignJob stays as the last line of defence. 5 tests in DripEnrollmentConsentTests (gate refuses + agent told, clean client still enrolls, new opt-out cancels immediately, sweep cancels legacy rows and spares subscribed ones, sweep no-op).
 
-### [HIGH] A5-H6
+### [FIXED 2026-08-17 `1fLB`] A5-H6
+
+**STATUS CORRECTED 2026-08-20:** this heading said HIGH/open until today even though the STATUS CHANGES table at the top of this file recorded it FIXED on 2026-08-17 (`d0ec9ea`, `01b9cff`, `1f6cedd` — the four dispatchers adopted the atomic claim primitive). Commits verified present. Original finding below.
 
 All four email dispatchers (newsletter, e-card, e-letter, poll) claim a send by reading its status and then writing it, not atomically. If two runs overlap - a slow send plus the next hourly tick, or a deploy restarting mid-run - both can see the same send as 'Scheduled' and the newsletter dispatcher will build a second complete recipient list and mail it. That is the mass-duplicate-email scenario.
 
-### [HIGH] JOBS-4
+### [FIXED 2026-08-17] JOBS-4
+
+**STATUS CORRECTED 2026-08-20:** fixed by `f998d59` + `6d060e9` (LB-2 stage 1/1b — every unsubscribe path writes consent; EmailChannel now covers DidYouKnow, DripCampaign and the rest). The heading below was never updated. Commits verified present. Original finding below.
 
 Spam complaints and unsubscribes only suppress the recipient for newsletters. E-cards, e-letters, polls and Did-You-Know emails ignore them entirely - nothing outside the preferences page ever writes the opt-out date. Someone who hits 'this is spam' keeps receiving your other email types. This is the CASL/CAN-SPAM item, and it is fully open.
 
@@ -129,9 +133,15 @@ FIXED 2026-08-18 on branch fix/audit-high-five: PortalUrlHelper is now genuinely
 
 Two facts the original entry omitted, recorded so nobody relies on them: BILLING.SUBSCRIPTION.ACTIVATED webhook handling is a partial backstop (activates the row if delivered), and the login ReturnUrl replay is a fragile second one (lost on MustChangePassword, TempData lost). Neither is the fix.
 
-REMAINING: one production sandbox buyer pass from an agent host (signup + upgrade + cancel legs) after deploy — webhook-dependent activation is only verifiable in production, and production PayPal is sandbox mode so the pass is safe.
+RUN 2026-08-20 — SIGNUP LEG PASSED, with a caveat worth stating plainly. Agent BobyMot #35 signed up on QA Silver (Daily); subscription I-VG1A3CKSK6DX went Active, invoice IPRO-2026-000010 ($214.70) was minted, marked Paid and the receipt emailed, all inside the same minute as registration. That means the return-and-capture leg RAN — the precise thing WEB-H-1 broke, whose failure mode is a bounce to a login page where capture never runs. Money reconciles exactly: two PayPal charges, $169.50 (setup + HST) and $45.20 (first cycle + HST), totalling the invoice.
 
-### [HIGH] A5-H13
+CAVEAT: it is NOT proven that the run started on an agent host. The owner recalls starting on bahmanmotamed.247advisers.com and returning there but is not certain, and it cannot be reconstructed after the fact — Azure retains no HTTP logs for this app. The portal screenshot showing bobymot.247advisers.com is NOT evidence either way: PayPalReturn ends in a relative redirect (host-preserving), so that screenshot is a separate later login to the new agent's own portal, corroborated by "Last Login: Never" on the admin page at 12:51. And BILLING.SUBSCRIPTION.ACTIVATED remains a documented partial backstop that can activate the row on its own, so activation alone does not isolate the return leg. Treat the signup leg as strong evidence, not proof.
+
+REMAINING: the upgrade and cancel legs, run from bobymot.247advisers.com — the upgrade goes through the same BuildBillingActionUrlAsync producer and, started from an agent host, is the definitive WEB-H-1 proof the signup leg could not supply. It is also required QA work (day 3 of items 367-369), so it costs nothing extra. Original remaining note: one production sandbox buyer pass from an agent host (signup + upgrade + cancel legs) after deploy — webhook-dependent activation is only verifiable in production, and production PayPal is sandbox mode so the pass is safe.
+
+### [FIXED 2026-08-17] A5-H13
+
+**STATUS CORRECTED 2026-08-20:** fixed by `9c160d8` (LB-4 — the eraser re-anchors on the lead, so answers stay reachable after the form is deleted). Commit verified present. Original finding below.
 
 Deleting a website form deletes the form but not the submissions or the answers visitors typed into it. Because the eraser finds those answers by looking up the parent form, once the form is gone that visitor personal data is orphaned in the database and unreachable by the erase tool. A deletion request cannot actually be honoured for this data today.
 
@@ -147,7 +157,9 @@ Replacing or deleting an article's image deletes the underlying file without che
 
 FIXED 2026-08-18: all six image-delete sites (article image, agent photo replace + remove, website logo replace, media-asset delete, gallery-image delete) now ask BlobReferences first and KEEP the file when anything still references it — including newsletter/drip/e-letter HTML and block SettingsJson, which the old two-table checks never saw. Two of the six also deleted the file BEFORE saving the row (a failed save left rows pointing at destroyed files); both reordered to row-first. The property the tests pin: the guards can only ever keep MORE files than the unconditional deletes they replaced.
 
-### [HIGH (same defect, two audits)] A5-H7 / JOBS-3
+### [FIXED 2026-08-17] A5-H7 / JOBS-3
+
+**STATUS CORRECTED 2026-08-20:** fixed by `1f6cedd` alongside A5-H6 (stuck-send detection came with the claim primitive). Commit verified present. Original finding below.
 
 A send that is interrupted mid-flight - crash, deploy, restart, or just a failure on the final save - is stuck in the 'Sending' state permanently. Nothing anywhere in the system looks for stuck sends, and the jobs only pick up sends marked 'Scheduled'. It will never go out and nobody is told. Per-recipient results are also all held in memory until one save at the end, so an interruption loses the record of who already received it.
 
@@ -177,15 +189,21 @@ Deleting a Gallery block or a website page leaves its uploaded image files in bl
 
 MOSTLY CLOSED 2026-08-18: orphans are no longer invisible — Admin -> Blob Storage walks every registered container (BlobReferences.Containers is the registry) and lists each file no database row references, with a banner stating why nothing on that page deletes: "unreferenced in the database" is not proof the file is absent from already-delivered mail, which is exactly how the original sweep design would have destroyed live images. Deletion stays a manual, per-file human decision. Residual accepted: storage is not auto-reclaimed (the whole account holds ~17 MB; the trade is deliberate) and quota is not credited back.
 
-### [MODERATE, and understated] DEP-AngleSharp
+### [FIXED 2026-08-20] DEP-AngleSharp
+
+FIXED on branch fix/audit-medium-seven: HtmlSanitizer 9.0.967 -> 9.2.995, which depends on AngleSharp 1.7.1 (the old release exact-pinned the vulnerable [0.17.1]). The "no compatible upgrade exists" deferral was verified obsolete against NuGet before bumping. Four sanitizer regression tests guard the parser swap (script/onerror still die, formatting survives). Original finding below.
 
 The HTML-parsing library underneath your XSS sanitizer has a known sanitizer-bypass bug. This was deliberately deferred because no compatible upgrade existed - that is no longer true. Newer HtmlSanitizer releases (up to 9.2.995) use a patched version. Because this is the exact library implementing the stored-XSS fix, leaving it partially weakens a HIGH fix you have already paid for.
 
-### [MEDIUM] ADMIN-7
+### [FIXED 2026-08-20] ADMIN-7
+
+FIXED on branch fix/audit-medium-seven: AdminCookieRevalidator (CookieAuthenticationEvents.ValidatePrincipal) re-checks the database on EVERY authenticated request -- account missing, deactivated, or role differing from the cookie's claim (either direction) rejects the principal and signs it out. One PK lookup per request for a handful of admins. VERIFIED LIVE locally: logged in as superadmin, demoted the row to Support in the DB, next request bounced to the login page; restored, logged back in fine. 3 tests on the decision matrix. Original finding below.
 
 An admin's role and active/inactive status live only in their 4-hour login cookie. Demoting or deactivating an admin has no effect until that cookie expires - up to four hours of continued full access after you revoke it.
 
-### [MEDIUM (same defect, two audits)] ADMIN-10 / A5-M-REBUILDRES
+### [FIXED 2026-08-20] ADMIN-10 / A5-M-REBUILDRES
+
+FIXED on branch fix/audit-medium-seven: RebuildResources is now [Authorize(Policy = "SuperAdmin")], the confirm text says plainly that customised content blocks are DELETED and unrecoverable (it previously only mentioned what was kept), and for support-role admins the button renders disabled with a tooltip rather than hidden (the owner's standing rule: disable, don't hide). Reflection test pins the policy attribute. Original finding below.
 
 The 'Rebuild Resources' button hard-deletes an agent's Resources pages and all their customised content blocks, and ANY admin (including a support-role admin) can press it. The confirmation text does not warn that customised content is destroyed - it says articles are kept, which is only half the story.
 
@@ -193,15 +211,21 @@ The 'Rebuild Resources' button hard-deletes an agent's Resources pages and all t
 
 Support-level admins can write the starter-content libraries (starter articles, starter blocks, starter forms) even though the comparable template and e-card libraries are SuperAdmin-only. Content written there propagates into every future agent's site.
 
-### [MEDIUM] A5-M-SSRF
+### [FIXED 2026-08-20] A5-M-SSRF
+
+FIXED on branch fix/audit-medium-seven: new PublicHostGuard screens every hostname the domain checker touches -- IP-literal "domains" are refused outright, and any name resolving to loopback / RFC1918 / link-local (incl. 169.254.169.254) / CGNAT / ULA / unspecified space is refused AFTER resolution, so an internal name pointing at internal space is caught the same as a raw IP. Applied at all three fetch points in DomainCheckService (www check, Azure-binding probe, root-domain check), and the binding probe no longer follows redirects, closing the 302-to-internal variant. 15 address-matrix tests. Original finding below.
 
 The custom-domain checker will resolve and fetch whatever hostname an agent types, with no filter for internal or loopback addresses, and reports back whether it was reachable. That turns your server into a probe an agent can point at your internal network.
 
-### [MEDIUM] A5-M-SANITIZER
+### [FIXED 2026-08-20] A5-M-SANITIZER
+
+FIXED on branch fix/audit-medium-seven: HtmlContentSanitizer no longer runs stock defaults. Removed: every form control tag (form/input/button/select/textarea/option/label/fieldset/...) and the overlay CSS properties (position, z-index, inset offsets, pointer-events). Kept deliberately: the rest of the inline-style whitelist, because newsletters and articles are built from inline formatting and stripping style wholesale would visibly break existing content. Tests pin both directions (phishing vectors die, newsletter table/color/padding survive). Original finding below.
 
 The HTML sanitizer runs on stock defaults, which permit <form>, <input>, <button> and inline style. An agent's article or drip email can therefore contain a working form or a visually convincing overlay. Not script execution, but enough for a credential-harvest lookalike.
 
-### [MODERATE (partial)] SO-M-NEW-6
+### [FIXED 2026-08-20] SO-M-NEW-6
+
+FIXED on branch fix/audit-medium-seven: the telemetry scrubber now also redacts PATH-carried tokens -- /invoice/{token} and /testimonial/{token}, the two links the finding named -- in request.Url, request.Name and Operation.Name, alongside the existing query-string scrub. The Admin app's copy carries the identical logic so the two files cannot drift. 3 tests. Original finding below.
 
 Live access tokens are still written to Application Insights logs. The scrubber was added but only inspects the query string, and the two links that carry tokens (client invoice and testimonial links) put the token in the URL path instead. The code comment claims those are covered; they are not.
 
@@ -249,7 +273,9 @@ The SendGrid webhook checks the signature but never checks the timestamp, so a c
 
 The hourly subscription-billing job still has no per-agent error isolation in its main loop. One agent's PayPal error aborts that hour's run for every remaining agent - scheduled plan changes and billing-issue notices silently do not happen.
 
-### [HIGH (documentation was false)] A2-H6
+### [FIXED 2026-08-18 `79480ad`] A2-H6
+
+**STATUS CORRECTED 2026-08-20:** genuinely fixed on 2026-08-18 but this entry was never updated — verified today in the workflow files: BOTH `main_ipro-prod-web.yml` and `main_ipro-prod-admin.yml` now declare `group: deploy-ipro-production` with `cancel-in-progress: false`, so the deploys serialize and the documentation is finally true. Original finding below.
 
 The audit states that the Web and Admin deploys now share one concurrency group and fully serialize. They do not - they use two different groups, so one push to main still starts both deploys at once and both run schema changes against the same database simultaneously. The specific crash this caused is now caught and handled, so the risk is reduced, but the written claim is untrue.
 
@@ -297,7 +323,9 @@ Media 'not found' responses are stamped with a one-year cache header. A browser 
 
 Public form-submission, robots.txt and sitemap endpoints do not guard against an empty Host header the way page rendering does - the same request that returns 'not found' for a page is handled for a submission.
 
-### [MEDIUM (partial)] M-9
+### [FIXED 2026-08-20] M-9
+
+FIXED on branch fix/audit-medium-seven: OverdueInvoiceReminderJob resolves entitlements ONCE per run via HasAccessBulkAsync over the batch's distinct agents -- the same pattern AiDailyDigestJob and ClientLifeEventReminderJob already used -- instead of a per-invoice HasAccessAsync inside the loop. The per-invoice SaveChangesAsync stays: that one is deliberate (idempotency marker, 2026-08-14). Original finding below.
 
 Most of the database-query inefficiency was fixed, but the overdue-invoice reminder job still queries per invoice inside its loop - roughly 600-1600 database round trips per run instead of a handful, with the batched alternative already written and sitting unused.
 

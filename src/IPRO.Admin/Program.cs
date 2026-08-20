@@ -82,7 +82,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         o.Cookie.Name      = "IPRO.Admin.Auth";
         o.Cookie.HttpOnly  = true;
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        // ADMIN-7: role/active status are re-checked against the database on every request, so a
+        // demotion or deactivation takes effect immediately instead of at cookie expiry.
+        o.EventsType = typeof(IPRO.Admin.Infrastructure.AdminCookieRevalidator);
     });
+builder.Services.AddScoped<IPRO.Admin.Infrastructure.AdminCookieRevalidator>();
 
 builder.Services.AddAuthorization(o =>
 {

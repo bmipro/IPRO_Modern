@@ -32,7 +32,14 @@
         }
         <form asp-action="RebuildResources" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="Delete this agent's Resources pages so they rebuild with the three-level menu structure? Their articles are kept and reused."><i class="fas fa-sitemap me-1"></i>Rebuild Resources</button>
+            @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
+            {
+                <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="This DELETES the agent's current Resources pages, including any content blocks they customised on those pages — that customisation is lost and cannot be recovered. Their articles are kept and reused when the section rebuilds with the three-level menu. Continue?"><i class="fas fa-sitemap me-1"></i>Rebuild Resources</button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-outline-secondary" disabled title="SuperAdmin only — deletes the agent's customised Resources pages"><i class="fas fa-sitemap me-1"></i>Rebuild Resources</button>
+            }
         </form>
         <form asp-action="RebuildRequestMeeting" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
