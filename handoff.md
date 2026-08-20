@@ -8,6 +8,12 @@ with this snapshot, they win.
 
 ## Where things stand
 
+> **CORRECTION (2026-08-20, post-audit): the table below is wrong.** A six-auditor pass found
+> 2 CRITICAL and 15 HIGH defects, several introduced by that same day's work. "High (actionable): 0"
+> was false. See `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` — and do NOT run QA day-4 (cancel + delete)
+> until its wave 1 has shipped.
+
+
 **Production is at `783d98e`**, both apps verified serving it, all surfaces healthy.
 Suite: **209/209** (63 tests written today). Five deploys today, every one gated on a green
 full suite first.

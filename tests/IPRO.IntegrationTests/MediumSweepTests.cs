@@ -13,6 +13,34 @@ namespace IPRO.IntegrationTests;
 // The 2026-08-20 medium sweep. One region per finding; each pins the fix so it cannot reopen.
 public class MediumSweepTests
 {
+    // Reproduces the security audit's M-3 and H-2 claims against the REAL sanitizer, so the
+    // verdict is this suite's, not a report's. Both are expected to FAIL until fixed.
+
+    [Fact]
+    public void Removing_form_tags_must_not_destroy_their_inner_content()
+    {
+        // A styled <button> CTA is ordinary pasted email HTML. Stripping the tag is correct;
+        // deleting the words inside it is silent, permanent data loss -- and sanitisation runs on
+        // WRITE, including a re-save of existing article content.
+        var outp = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(
+            "<form action=\"https://evil\"><p>KEEPME paragraph</p></form><button>CTA TEXT</button>");
+        Assert.Contains("KEEPME paragraph", outp);
+        Assert.Contains("CTA TEXT", outp);
+    }
+
+    [Fact]
+    public void Overlay_cannot_be_rebuilt_from_the_properties_left_allowed()
+    {
+        // The overlay control removes position/z-index/inset/pointer-events, but transform +
+        // negative margin + viewport sizing reconstructs a full-page opaque cover -- the same
+        // phishing primitive, so the control does not do what its name claims.
+        var outp = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(
+            "<div style=\"transform:translateY(-500px);margin-top:-1000px;width:100vw;height:100vh\">OVERLAY</div>");
+        var flat = outp.Replace(" ", "").ToLowerInvariant();
+        Assert.False(flat.Contains("transform:translate") && flat.Contains("width:100vw") && flat.Contains("height:100vh"),
+            $"a full-viewport overlay survived sanitisation: {outp}");
+    }
+
     // ------------------------------------------------------------- JOBS-5/8: transient vs final --
 
     [Fact]
