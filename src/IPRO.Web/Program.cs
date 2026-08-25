@@ -530,6 +530,7 @@ using (var scope = app.Services.CreateScope())
 
     await StartupSchemaRepair.EnsureDripCampaignStepSendSchemaAsync(db);
     await StartupSchemaRepair.EnsureDidYouKnowEmailQueueSchemaAsync(db);
+    await StartupSchemaRepair.EnsureBillingCancellationClaimSchemaAsync(db);
     await StartupSchemaRepair.EnsureNewsLetterClickTrackingSchemaAsync(db);
     await StartupSchemaRepair.EnsureSupportTicketSchemaAsync(db);
     await StartupSchemaRepair.EnsurePromotionCodeSchemaAsync(db);

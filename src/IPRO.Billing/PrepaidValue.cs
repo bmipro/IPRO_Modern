@@ -82,17 +82,21 @@ public static class PrepaidValue
     /// Calendar months from periodStart to cancelAt where any started month counts as used --
     /// symmetric with the monthly rule (monthly cancellers also keep-and-pay-for the running
     /// month). Cancel at the very start of month 5 (4 whole months + 1 day) => 5.
+    ///
+    /// Boundaries are ANCHORED on periodStart (periodStart.AddMonths(n)), never on an iterated
+    /// cursor: .NET clamps month-end dates (Jan 31 -> Feb 28), and a cursor then hops 28ths
+    /// forever (Mar 28, Apr 28...), counting a phantom month for every cycle that starts on the
+    /// 29th-31st -- an under-refund, the opposite of the always-agent-favouring rule (wave-2
+    /// audit, money F4).
     public static int MonthsUsedRoundingUp(DateTime periodStartUtc, DateTime cancelAtUtc)
     {
         if (cancelAtUtc <= periodStartUtc) return 1; // day one still consumes month one
         var whole = 0;
-        var cursor = periodStartUtc;
-        while (cursor.AddMonths(1) <= cancelAtUtc && whole < 12)
+        while (whole < 12 && periodStartUtc.AddMonths(whole + 1) <= cancelAtUtc)
         {
-            cursor = cursor.AddMonths(1);
             whole++;
         }
-        var partial = cancelAtUtc > cursor ? 1 : 0;
+        var partial = cancelAtUtc > periodStartUtc.AddMonths(whole) ? 1 : 0;
         return Math.Min(12, Math.Max(1, whole + partial));
     }
 

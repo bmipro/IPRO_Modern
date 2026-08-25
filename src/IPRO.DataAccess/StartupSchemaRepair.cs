@@ -341,6 +341,20 @@ public static class StartupSchemaRepair
             "ALTER TABLE `DidYouKnowEmailQueueItems` ADD COLUMN `SendAttempts` int NOT NULL DEFAULT 0");
     }
 
+    // Wave-2 D (billing audit 2026-08-25): the cancellation-outcome fence -- see
+    // BillingCancellationClaim. One row per billing, inserted in the same transaction as the
+    // outcome it protects; the PRIMARY KEY is the mutual exclusion.
+    public static async Task EnsureBillingCancellationClaimSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `BillingCancellationClaims` (
+        `BillingId` int NOT NULL,
+        `ClaimedAt` datetime(6) NOT NULL,
+        `Trigger` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`BillingId`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNewsLetterClickTrackingSchemaAsync(IPRODbContext db)
     {
         await db.Database.OpenConnectionAsync();

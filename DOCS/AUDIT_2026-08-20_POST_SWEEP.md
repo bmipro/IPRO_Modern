@@ -248,10 +248,65 @@ H15/New A x4 -- controller-level where the defect lived), `SubscriptionBillingJo
 FIRST-year StartDate, which is exactly why C2 shipped invisible; the renewed fixture now exists.
 
 **Remaining open in the register after this wave:** M1 (CSS allow-list), H3 (resolver split), H4
-(SSRF pinning), H7 (SendGrid classification + resume), H8 (webhook suppression swallow), M2, M8,
-M13 (public site never goes offline), M9-M12, M17, M18, plus LOW and the owner-decision list.
-PayPal/billing itself: **no known open defects; every fix regression-tested; final proof is the
-live harness** (downgrade apply + re-subscribe + day-4 cancel/delete).
+(SSRF pinning), H7 (SendGrid classification + resume), H8 (webhook suppression swallow), H11/M14
+(erasure ordering only PARTLY closed by wave 1 -- Azure unbinds still precede the shred and
+EraseAsync has no try/catch), M2, M8, M13 (public site never goes offline), M9-M12, M15 (agents
+owed unresolved refunds are deletable with no warning -- WIDENED by M5, which mints more refund
+rows), M17, M18, plus LOW and the owner-decision list. The claim "PayPal/billing: no known open
+defects" was made here on 2026-08-25 and DISPROVED the same day by the four-auditor billing audit
+below -- kept as a lesson, not a fact.
+
+## Four-auditor billing audit -- 2026-08-25 (against a827bda) -- and WAVE 2, same day
+
+The owner asked "is there any other issue left with PayPal?" and then for auditors "to check the
+billing from a to z." Four parallel auditors (money math, state machine, jobs, truth) ran against
+the deployed a827bda. The truth auditor's verdict on the billing wave: **all 13 fixes HOLD** at
+their production call sites with genuinely-failing-pre-fix tests -- no C1-class green-but-useless
+test -- with one caveat (M5's reconcile leg was untested; now it is, see below). The audit also
+found what the tests could not: three of the most serious findings were defects the billing wave
+itself created. "New A" definition for the record: the scheduled-downgrade disclosure (message,
+term-switch message, and Billing-page banner now state the subscription end, the PayPal
+re-approval, and the access pause BEFORE the agent commits).
+
+### Wave 2 -- FIXED 2026-08-25 (branch fix/billing-wave-2), every fix verified both ways
+
+| Finding | Fix |
+|---|---|
+| **C (HIGH, wave-created)** | DripCampaignJob's H13 tracker clear detached the rest of the tracked batch: later enrollments' emails SENT but their NextStepIndex++ silently stopped persisting -- guaranteed duplicate steps next tick, worse than the abort it replaced. The batch now BREAKS after a clear; the untouched remainder runs next tick. Pinned by an invariant test: emails delivered == advances persisted. |
+| **A (HIGH)** | ApplyCancellationOutcomeAsync priced every cancel as if Billing.Amount was captured on that row for the running cycle -- false for deferred-start rows (converts, annual-to-annual upgrades): $270 phantom refunds on $0 collected, refund instructions exceeding the referenced capture, and PaidThroughAt slashed months into the past. The refund base is now min(Amount, invoices actually settled in the running cycle); a never-billed stretch takes the access-until-paid-through branch with $0 refund and the credit intact. |
+| **D (HIGH)** | The double-mint race: three cancel doors guarded by read-then-act status checks could each mint a refund row. The fence is now a BillingCancellationClaims INSERT (PK = BillingId) committed in the SAME transaction as the outcome: the loser's duplicate-key rolls its whole mint back, and a crash mid-mint rolls the claim back with it (a status-flip claim was rejected for exactly that reason). New table via StartupSchemaRepair, both apps. |
+| **B (HIGH)** | The 48h sweep consults PayPal before voiding: unreachable/unknown -> wait a pass; ACTIVE/APPROVED -> never voided (a lost activation, logged loudly); APPROVAL_PENDING -> best-effort PayPal cancel, then sweep. The money net: a payment captured against a Cancelled/Expired subscription now mints a refund-queue row (AppliedAt NULL so it can never consume the H6 waiver or suppress M16 dunning) instead of existing only as an error log. The stale-approval message stopped promising "you will not be charged" and points at the refund flagging instead. |
+| **ISO (MED)** | The reconcile loop's outcome leg now fails per-row (try/catch + tracker clear, M7-style); pre-fix one poisoned row aborted the whole hourly sweep indefinitely. |
+| **E (MED, wave-created)** | Expired rows get PaidThroughAt since the billing wave, but every gate honored it on Cancelled only -- instant lockout on paid-up time. All four predicates (both entitlement gates, the Billing-page banner, the H2 resubscribe deferral) now honor Cancelled OR Expired. |
+| **DRIFT (MED)** | MonthsUsedRoundingUp iterated a cursor that .NET clamps at month-end (Jan 31 -> Feb 28 -> Mar 28...), counting a phantom month for cycles starting the 29th-31st -- a $67.80 under-refund on the worked example, against the agent-favouring rule. Boundaries are now anchored on periodStart. |
+| **SLOT (MED)** | Promo slot releases moved AFTER the void's save commits, in all three release sites -- releasing first let a failed save release the same claim repeatedly (capped codes over-admitting). A crash now leaks a slot (fail-closed) instead of freeing claimed capacity. |
+| **TxnRef (MED)** | RefundPayPalTransactionId now stores only the SETTLING transaction (last comma segment, failed-marker prefix stripped, clamped to the varchar(64)) -- the raw comma-joined retry list overflowed the column and pointed the queue at a FAILED transaction. |
+| **M5R (coverage)** | The truth auditor's caveat closed: the reconcile door's outcome leg now has a scripted-PayPal test proving the full DOCS/22 outcome (not a raw status flip). |
+| **QUEUE (LOW)** | The refund screen no longer instructs "convert to credit" -- an action that does not exist (M6 remains an owner-decision feature; the screen now says waive or arrange manually). |
+
+18 new tests in BillingWave2Tests (16 defect-pinned red-to-green, 2 designed both-sides pins),
+verified in aggregate by a combined reverse run: pre-fix code fails 16 of 18. New scripted-PayPal
+test double (deterministic token/subscription/cancel HTTP) unlocks reconcile- and sweep-leg
+coverage that the offline HTTP factory could not reach.
+
+### Audit findings deliberately NOT fixed in wave 2 (now the open billing set)
+
+From the four reports, deduped: the renewal webhook re-taxes at the agent's CURRENT province and
+rewrites Billing.Amount (money F2) · free-text profile Province silently zero-rates tax (money
+F3) · promo plan price frozen with no divergence guard against later package-price edits (money
+F5) · convert credit fallback prices never-paid value at list (money F7) · culture-sensitive
+webhook amount parsing (money F8 / state F10c) · ClientInvoices.TaxRate still decimal(6,4) --
+the Quebec fix's sibling table (money F9) · "Keep My Current Plan" eats an in-flight convert
+leaving a live approval link (state F5 / money F10b) · Resume on an abandoned convert silently
+drops downgradeMode (money F10a) · the raw webhook path can relabel Cancelled rows on late
+SUSPENDED/EXPIRED deliveries, voiding paid-through honor (state F6) · supersede-vs-webhook race
+can still mint an outcome for a superseded subscription (state F3c / jobs 4 -- narrowed by the
+fence to same-instant races; the refund row it mints is now at least visible in the queue) ·
+stages 3-4 tracker discipline beyond the per-row guards (jobs 5) · dunning bucket skip + term
+switch emails omit the period (jobs 6) · DYK counter server-side increment + retire predicates
+(jobs 7) · post-upgrade annual cancel refund policy needs an OWNER DECISION (the wave-2 cap stops
+impossible refunds; cross-row fairness -- old-row remainder vs new-row clawback -- is not
+specified by DOCS/22).
 
 ## Remediation plan
 
