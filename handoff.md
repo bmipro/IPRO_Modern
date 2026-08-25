@@ -12,8 +12,9 @@ touching billing, erasure or the sanitizer**), `DOCS/TODO.md` (durable backlog),
 
 ## 1. Production right now
 
-**Both apps live on `d21ef09`** — the wave-1 merge. Verified via `/health/version` (never `/health`,
-which answers before the new build is serving).
+**Both apps live on the head of `main`.** The wave-1 *code* merge is **`d21ef09`**; anything on
+`main` after it is documentation only, so `d21ef09` is the SHA that matters for behaviour. Verified
+via `/health/version` (never `/health`, which answers before the new build is serving).
 
 Production agents:
 - **BahmanMotamed #12** — owner, Gold monthly.
@@ -102,8 +103,9 @@ Full correction table: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Documentation c
 
 | Branch | State |
 |---|---|
-| `main` | `d21ef09` — wave 1 merged, what production serves. Clean. |
+| `main` | wave 1 merged (`d21ef09`) plus docs. Clean. **Nothing is unmerged — `git branch -r --no-merged origin/main` returns empty.** |
 | `fix/audit-wave-1` | `37b0d91` — merged. Safe to delete. |
+| `docs/wave-1-handoff` | `e789ac3` — merged. Safe to delete. |
 | `docs/post-sweep-audit` | `092b49f` — superseded; its content reached `main` via the wave-1 merge. Safe to delete. |
 
 ---
@@ -136,8 +138,10 @@ If this working directory survived: nothing to do, `git status` should be clean 
 
 If it was wiped (this has happened before — only OneDrive-synced folders survived):
 
-1. Everything is on GitHub: `https://github.com/bmipro/IPRO_Modern` — `main` at `d21ef09`.
-2. Backup zips (`git archive` of `main`, ~4 MB):
+1. Everything is on GitHub: `https://github.com/bmipro/IPRO_Modern`. **Clone `main` — nothing of
+   value lives outside it.** (Wave-1 code = `d21ef09`; later commits on `main` are docs.)
+2. Backup zips — `IPRO_Modern_2026-08-24_wave1_d21ef09.zip`, 4.1 MB, 887 files, tree-identical to
+   `main` (verified, not assumed):
    - **OneDrive** `C:\Users\admin\OneDrive\Codex_Code_Bkup\` — the copy proven to survive resets
    - Local `C:\Users\admin\IPRO_Local_Backups\`
    - Older sets also exist under `C:\Users\admin\Documents\IPRO_Backups\`
