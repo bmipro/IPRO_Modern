@@ -153,6 +153,12 @@ If it was wiped (this has happened before — only OneDrive-synced folders survi
 restarting, run that script before the test suite, or you will read connection errors as test
 failures. Local-only test data: agent 11 (drip tester), `supporttest` admin.
 
+**Deploy hazard found 2026-08-24 (now `DOCS/INVARIANTS.md` rule 6):** admin and web share one
+Actions concurrency group, which holds only ONE pending run — so pushing to `main` while a deploy is
+in flight **cancels one of the two apps' runs before it starts**, leaving the hosts on different
+SHAs with nothing reporting a failure. Always check `/health/version` on **both** hosts after a push;
+if they disagree, `gh run list` and `gh run rerun <id>`. Don't push into an in-flight deploy.
+
 **Standing rules that keep being re-learned:** branch before deploying, never push straight to `main`
 without asking · tests must run and pass BEFORE the commit · verify a deploy at `/health/version` for
 the pushed SHA, never `/health` · a fix is not done when the library is right, it is done when the
