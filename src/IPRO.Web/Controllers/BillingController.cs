@@ -236,8 +236,17 @@ public class BillingController : Controller
             var msg = "Subscription cancelled. You will not be billed again.";
             if (paidThrough != null)
                 msg += $" You keep full access until {paidThrough:MMMM d, yyyy}.";
+            // H15: refunds are MANUAL (DOCS/22 -- no code moves money; the owner works a queue),
+            // and PayPal's ~180-day portal-refund window can already be closed by the time a
+            // month 6-9 annual cancel lands here. The old copy promised "will be sent ... within
+            // a few business days" unconditionally -- a promise about a process that does not
+            // exist. Say what actually happens, in both window states.
             if (outcome != null && outcome.RefundGrossAmount > 0m)
-                msg += $" A refund of ${outcome.RefundGrossAmount:N2} {outcome.Currency} (incl. tax) for your unused prepaid time will be sent to your PayPal account within a few business days.";
+            {
+                msg += outcome.RefundWindowEndsAt == null || outcome.RefundWindowEndsAt > DateTime.UtcNow
+                    ? $" A refund of ${outcome.RefundGrossAmount:N2} {outcome.Currency} (incl. tax) for your unused prepaid time has been queued; our team processes refunds manually to your original PayPal payment, usually within a few business days."
+                    : $" A refund of ${outcome.RefundGrossAmount:N2} {outcome.Currency} (incl. tax) for your unused prepaid time is owed to you. Because the original payment is past PayPal's refund window, our team will contact you to arrange it.";
+            }
             TempData["Success"] = msg;
         }
         else

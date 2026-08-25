@@ -1,4 +1,4 @@
-# Handoff — 2026-08-24 (wave 1 shipped)
+# Handoff — 2026-08-25 (wave 1 + billing wave)
 
 Written to survive a reboot. If the working directory was wiped, see **§8 Recovery** first.
 
@@ -123,16 +123,38 @@ Full correction table: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Documentation c
 
 ---
 
+## 6b. Billing wave — BUILT 2026-08-25, awaiting merge (branch `fix/billing-wave`)
+
+The owner asked for the whole PayPal/billing cluster at once. **13 findings fixed, 3
+dispositioned, 24 new tests, every fix verified both ways** (test fails on pre-fix code, passes
+on the fix — or the fix reverted and the green observed to go red). Full record:
+`DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Billing wave".
+
+Fixed: C2 (renewed-annual clawback — the money-critical one), M3/M4 (refund tax + amount derive
+from what was actually paid), M5 (a PayPal-side cancel now gets paid-through + a refund row), H5
+(promo slot leaks + 48h stale-checkout sweep), H12 (in-flight convert survives the hourly
+sweeper), H6 (setup-fee waiver door closed for converts and post-cancel re-entries), H15/New A
+(the cancel message and the downgrade banner tell the truth), M7/M16/M19 (batch isolation +
+convert-then-cancel dunning, confirmed empirically before fixing), H13/H14 (email-job retry
+bounds; new `SendAttempts` column via StartupSchemaRepair — INVARIANTS rule 4 respected).
+
+Dispositioned, deliberately not "fixed": New B (email links canonical BY DESIGN — PortalUrlHelper
+header), New C (display drift is self-healed hourly by the reconcile), M6 (Stage C credit notes =
+unshipped feature, owner-decision list).
+
+**Billing now has no known open defects.** The claim is the tests plus the live harness, not the
+label: the downgrade apply (2026-08-26), the re-subscribe, and day-4 cancel/delete are the final
+proof legs.
+
+---
+
 ## 7. What is left
 
-**Wave 2 — correctness.** C2 `Billing.StartDate` → `GetCurrentCycleStart` (annual cancellation robs
-renewed subscribers; latent only because no annual subscriber has renewed yet) · M1 the CSS
-allow-list · M3/M4 refund from the invoice, not today's prices · H3 the resolver split · M5
-PayPal-initiated cancels · H5 promo slot release · H6 setup-fee waiver · H7 SendGrid 401/403
-classification + a resume path for Failed enrollments · H8 suppression events must not be swallowed ·
-H12 the convert's pending row · H13/H14 retry bounds · H4 SSRF IP pinning + stop echoing
-`RootLastError` · M2 gate `RebuildRequestMeeting` · M8 agent-portal revalidation · H15/M13 make the
-promises match the code.
+**Wave 2 — what remains after the billing wave.** M1 the CSS allow-list · H3 the resolver split ·
+H4 SSRF IP pinning + stop echoing `RootLastError` · H7 SendGrid 401/403 classification + a resume
+path for Failed enrollments · H8 suppression events must not be swallowed · M2 gate
+`RebuildRequestMeeting` · M8 agent-portal revalidation · M13 the public site never goes offline ·
+M9–M12, M17, M18.
 
 **Wave 3 — truth and prevention.** Apply every correction in §5. Add the tests these findings prove
 are missing: an annual-cancel-after-renewal fixture, a cancelled-but-paid-through Billing-page test,

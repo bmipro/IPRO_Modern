@@ -25,6 +25,12 @@ public class DidYouKnowEmailQueueItem
     public string Status { get; set; } = DidYouKnowQueueStatuses.Queued;
     public string SendGridMessageId { get; set; } = string.Empty;
     public string FailureReason { get; set; } = string.Empty;
+
+    // H14 (audit 2026-08-20): transient failures re-enter via the stale-claim sweep, and without a
+    // counter that retry loop was INFINITE -- a send that succeeded but whose response timed out
+    // delivered the same article to the same client every 15 minutes indefinitely. Every other
+    // claimed sender already had an attempt counter; this was the one that did not.
+    public int SendAttempts { get; set; }
     public string LastEvent { get; set; } = string.Empty;
     public DateTime? DeliveredAt { get; set; }
     public DateTime? OpenedAt { get; set; }

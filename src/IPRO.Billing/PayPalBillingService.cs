@@ -229,19 +229,29 @@ public class PayPalBillingService : IBillingService
             // any later subscription has actually activated, the change was completed and a fresh
             // signup after a voluntary cancel pays the fee like anyone else (review pass).
             var completesScheduledChange = false;
+            // H6: only a SCHEDULED downgrade's Applied row opens this door. A convert-downgrade
+            // also lands as an Applied Downgrade, but it is ALREADY complete -- its own billing
+            // was the new subscription -- so a later voluntary re-signup after one must pay the
+            // fee like anyone else. The two are distinguishable by construction: a convert always
+            // carries the credit it converted (ProratedCredit > 0, ComputeConvertCredit refuses
+            // creditDays <= 0), while ScheduleDowngradeAsync writes ProratedCredit = 0.
             var latestAppliedDowngrade = (await _uow.SubscriptionChanges.FindAsync(c =>
                     c.AgentUserId == userId &&
                     c.ChangeType == SubscriptionChangeType.Downgrade &&
                     c.Status == SubscriptionChangeStatus.Applied &&
+                    c.ProratedCredit == 0m &&
                     c.RequestedBillingRuleId == requestedPackage.Id))
                 .Where(c => c.AppliedAt.HasValue && c.AppliedAt.Value > DateTime.UtcNow.AddDays(-90))
                 .OrderByDescending(c => c.AppliedAt)
                 .FirstOrDefault();
             if (latestAppliedDowngrade != null)
             {
+                // Consumption: once any later subscription actually activated, OR the agent
+                // answered the downgrade by cancelling outright (H6 -- a Cancel row is an answer,
+                // and re-entry after it is voluntary), the waiver is spent.
                 var alreadyCompleted = (await _uow.SubscriptionChanges.FindAsync(c =>
                         c.AgentUserId == userId &&
-                        c.ChangeType == SubscriptionChangeType.Subscribe &&
+                        (c.ChangeType == SubscriptionChangeType.Subscribe || c.ChangeType == SubscriptionChangeType.Cancel) &&
                         c.Status == SubscriptionChangeStatus.Applied))
                     .Any(c => c.AppliedAt.HasValue && c.AppliedAt.Value > latestAppliedDowngrade.AppliedAt!.Value);
                 completesScheduledChange = !alreadyCompleted;
@@ -294,10 +304,13 @@ public class PayPalBillingService : IBillingService
             // downgrade: it takes effect when the paid period ends, then the agent re-approves at
             // PayPal on the new term. Nothing is cut short, so there is nothing to prorate.
             var termSwitchDate = await ScheduleDowngradeAsync(userId, activeSubscription, requestedPackage, requestedPackage, period);
+            // New A: same mechanism as a scheduled downgrade, same disclosure duty.
             return new BillingChangeResult
             {
                 Success = true,
-                Message = $"Your switch to {FormatPeriod(period)} billing is scheduled for {termSwitchDate:MMMM d, yyyy}, when your current billing period ends."
+                Message = $"Your switch to {FormatPeriod(period)} billing is scheduled for {termSwitchDate:MMMM d, yyyy}, when your current billing period ends. " +
+                          $"On that date your current subscription ends, and we'll email you to finish the switch with a quick PayPal approval. " +
+                          $"Until you approve, your account pauses at the Billing page — everything is kept, nothing is deleted."
             };
         }
 
@@ -381,10 +394,16 @@ public class PayPalBillingService : IBillingService
         }
 
         var downgradeDate = await ScheduleDowngradeAsync(userId, activeSubscription, currentPackage, requestedPackage, period);
+        // New A (audit 2026-08-25): the apply is not a seamless switch -- it cancels the current
+        // subscription and PayPal requires the agent to re-approve the new one, with access
+        // paused at the Billing page in between. The agent must learn that HERE, when deciding,
+        // not from an email sent after it has already happened (which H7 says can silently fail).
         return new BillingChangeResult
         {
             Success = true,
-            Message = $"Your downgrade to {requestedPackage.PackageName} is scheduled for {downgradeDate:MMMM d, yyyy}."
+            Message = $"Your downgrade to {requestedPackage.PackageName} is scheduled for {downgradeDate:MMMM d, yyyy}. " +
+                      $"On that date your current subscription ends, and we'll email you to finish the switch with a quick PayPal approval. " +
+                      $"Until you approve, your account pauses at the Billing page — everything is kept, nothing is deleted."
         };
     }
 
@@ -725,6 +744,17 @@ public class PayPalBillingService : IBillingService
             pendingChange.Status = SubscriptionChangeStatus.Cancelled;
             pendingChange.CancelledAt = now;
             _uow.SubscriptionChanges.Update(pendingChange);
+
+            // H5: this is the "Cancel checkout" / Resume path -- it must give the claimed promo
+            // slot back exactly like CancelPendingChangesAsync does, or the slot leaks for good
+            // and the agent's own RETRY finds "redemption limit reached" and silently pays full
+            // price plus the un-waived setup fee. Same floor-0 conditional decrement.
+            if (pendingChange.PromotionCodeId.HasValue)
+            {
+                await _db.PromotionCodes
+                    .Where(p => p.Id == pendingChange.PromotionCodeId.Value && p.MaxRedemptions != null && p.RedemptionCount > 0)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+            }
         }
 
         await _uow.SaveChangesAsync();
@@ -752,6 +782,11 @@ public class PayPalBillingService : IBillingService
             return false;
         }
 
+        // C2: resolve the end of the CURRENT paid cycle BEFORE cancelling at PayPal --
+        // next_billing_time stops being reported once the subscription dies, and the clawback
+        // below must anchor on the cycle PayPal is actually billing, not on activation day.
+        var paidThroughEnd = await ResolvePaidThroughEndAsync(subscription);
+
         if (!string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId))
         {
             // Bail out BEFORE touching the local row. Marking it Cancelled while PayPal is still
@@ -768,33 +803,61 @@ public class PayPalBillingService : IBillingService
 
         await CancelPendingChangesAsync(userId);
 
-        // DOCS/22 (2026-08-20): cancelled-but-paid-through. Billing stops NOW (already done at
-        // PayPal above); access is honored to what was paid for, and an annual cancel before the
-        // month-10 crossover produces a refund the owner processes manually from the SuperAdmin
-        // refund queue. All math in PrepaidValue; every input recorded on the Cancel change row.
+        await ApplyCancellationOutcomeAsync(subscription, BillingStatus.Cancelled, paidThroughEnd,
+            "Agent cancelled from IPRO billing");
+        return true;
+    }
+
+    // DOCS/22 (2026-08-20): cancelled-but-paid-through. THE one place a subscription's death turns
+    // into money-and-access truth, whoever pulled the trigger: the agent in our portal, the agent
+    // inside PayPal's own interface (M5 -- our ToS explicitly invites that), or the reconcile job
+    // discovering a lost webhook. Access is honored to what was paid for; an annual cancel before
+    // the month-10 crossover produces a refund the owner processes manually from the SuperAdmin
+    // refund queue. All math in PrepaidValue; every input recorded on the Cancel change row.
+    private async Task ApplyCancellationOutcomeAsync(
+        IPRO.Entities.Billing subscription, BillingStatus targetStatus, DateTime paidThroughEnd, string trigger)
+    {
         var now = DateTime.UtcNow;
-        var rule = await _uow.BillingRules.GetByIdAsync(subscription.BillingRuleId);
-        var taxRate = (await CalculateTaxAsync(userId, Math.Max(subscription.Amount, 0.01m))).Rate;
-
-        var outcome = subscription.Period == BillingPeriod.Annually && rule != null
-            ? PrepaidValue.AnnualCancel(subscription.Amount, rule.MonthlyPrice, taxRate, subscription.StartDate, now)
-            : PrepaidValue.MonthlyCancel(subscription.NextBillingDate, now);
-
-        subscription.Status = BillingStatus.Cancelled;
-        subscription.CancelledAt = now;
-        subscription.PaidThroughAt = outcome.PaidThroughAt;
-        _uow.Billings.Update(subscription);
 
         // The refund is claimed against the payment that bought the running period -- the most
         // recent PAID invoice on this billing. Its transaction id and age drive the queue's
-        // "refund at PayPal against txn X, window closes in N days" display.
+        // "refund at PayPal against txn X, window closes in N days" display, and (M3) its TaxRate
+        // is the rate the refund's tax must return: DOCS/22 line 36 says "taxRate actually charged
+        // on the original invoice". Repricing at the agent's CURRENT province keeps HST already
+        // remitted to CRA when someone moves.
         var lastPaid = (await _uow.Invoices.FindAsync(i => i.BillingId == subscription.Id && i.IsPaid))
             .OrderByDescending(i => i.IssuedAt)
             .FirstOrDefault();
+        var taxRate = lastPaid != null
+            ? lastPaid.TaxRate
+            : (await CalculateTaxAsync(subscription.AgentUserId, Math.Max(subscription.Amount, 0.01m))).Rate;
+
+        // C2: measure from the start of the CURRENT cycle. Billing.StartDate is written at
+        // activation and never advanced on renewal, so anyone past their first anniversary
+        // measured 12+ months "used", hit the crossover branch, and got $0 refund with a
+        // PaidThroughAt in the PAST -- gated the moment they cancelled. Same prohibition the
+        // upgrade path already obeys via GetCurrentCycleStart; the cancel path did not.
+        //
+        // M4: the clawback's monthly rate derives from THIS subscription's frozen annual amount
+        // via the documented pricing structure (a year costs 10 months -- "two months free",
+        // DOCS/22 line 45), never today's BillingRule.MonthlyPrice, which reprices history
+        // (BILL-CREDITPRICE). Amount/10 also keeps the month-10 crossover exact by construction
+        // for every historical price and any promo discount.
+        var cycleStart = GetCurrentCycleStart(paidThroughEnd, subscription.Period);
+        var monthlyNetAtPurchase = subscription.Amount / 10m;
+
+        var outcome = subscription.Period == BillingPeriod.Annually
+            ? PrepaidValue.AnnualCancel(subscription.Amount, monthlyNetAtPurchase, taxRate, cycleStart, now)
+            : PrepaidValue.MonthlyCancel(paidThroughEnd, now);
+
+        subscription.Status = targetStatus;
+        subscription.CancelledAt ??= now;
+        subscription.PaidThroughAt = outcome.PaidThroughAt;
+        _uow.Billings.Update(subscription);
 
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
         {
-            AgentUserId = userId,
+            AgentUserId = subscription.AgentUserId,
             CurrentBillingRuleId = subscription.BillingRuleId,
             RequestedBillingRuleId = subscription.BillingRuleId,
             BillingId = subscription.Id,
@@ -811,17 +874,64 @@ public class PayPalBillingService : IBillingService
             RefundStatus = outcome.RefundGross > 0m ? RefundStatus.Pending : RefundStatus.None,
             RefundPayPalTransactionId = lastPaid?.PayPalTransactionId ?? string.Empty,
             RefundWindowEndsAt = lastPaid != null ? PrepaidValue.RefundWindowEndsAt(lastPaid.IssuedAt) : null,
-            RefundResolutionNote = outcome.RefundGross > 0m
-                ? $"Annual clawback: {outcome.MonthsUsed} month(s) used at {rule?.MonthlyPrice:0.00}/mo net of {subscription.Amount:0.00} paid; refund {outcome.RefundNet:0.00} + tax {outcome.RefundTax:0.00} (rate {taxRate:0.###})."
-                : $"No refund due ({(subscription.Period == BillingPeriod.Annually ? $"month {outcome.MonthsUsed} is at/past the crossover" : "monthly plan")}); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}."
+            RefundResolutionNote = (outcome.RefundGross > 0m
+                ? $"Annual clawback: {outcome.MonthsUsed} month(s) of the cycle starting {cycleStart:yyyy-MM-dd} used at {monthlyNetAtPurchase:0.00}/mo (= paid {subscription.Amount:0.00}/10) net; refund {outcome.RefundNet:0.00} + tax {outcome.RefundTax:0.00} (rate {taxRate:0.###} as invoiced)."
+                : $"No refund due ({(subscription.Period == BillingPeriod.Annually ? $"month {outcome.MonthsUsed} is at/past the crossover" : "monthly plan")}); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}.")
+                + $" [{trigger}]"
         });
 
         await _uow.SaveChangesAsync();
-        return true;
     }
 
     public async Task<int> ProcessDueSubscriptionChangesAsync()
     {
+        // H5: sweep stale checkouts first. A Pending change whose BILLING is still Pending is an
+        // approval link nobody completed -- the agent closed the PayPal tab and never came back.
+        // Left alone it holds its claimed promo slot forever (there was no sweeper at all), and
+        // an abandoned CONVERT checkout would sit Pending indefinitely once H12 below stopped the
+        // apply loop from wrongly eating it. 48 hours is far past any PayPal approval link's
+        // usefulness. Scheduled downgrades are untouchable here BY SELECTION: they ride an
+        // ACTIVE billing and may legitimately wait months. Guarded so a sweep failure cannot
+        // block the due downgrades below (M19).
+        try
+        {
+            var staleCutoff = DateTime.UtcNow.AddHours(-48);
+            var staleCandidates = await _uow.SubscriptionChanges.FindAsync(c =>
+                c.Status == SubscriptionChangeStatus.Pending && c.CreatedAt <= staleCutoff);
+            var sweptAny = false;
+            foreach (var stale in staleCandidates)
+            {
+                var checkoutBilling = stale.BillingId.HasValue
+                    ? await _uow.Billings.GetByIdAsync(stale.BillingId.Value)
+                    : null;
+                if (checkoutBilling == null || checkoutBilling.Status != BillingStatus.Pending) continue;
+
+                var sweepNow = DateTime.UtcNow;
+                stale.Status = SubscriptionChangeStatus.Cancelled;
+                stale.CancelledAt = sweepNow;
+                _uow.SubscriptionChanges.Update(stale);
+                checkoutBilling.Status = BillingStatus.Cancelled;
+                checkoutBilling.CancelledAt = sweepNow;
+                _uow.Billings.Update(checkoutBilling);
+                if (stale.PromotionCodeId.HasValue)
+                {
+                    await _db.PromotionCodes
+                        .Where(p => p.Id == stale.PromotionCodeId.Value && p.MaxRedemptions != null && p.RedemptionCount > 0)
+                        .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+                }
+                sweptAny = true;
+                _logger.LogInformation(
+                    "Swept stale checkout: change {ChangeId} (agent {AgentUserId}, {ChangeType}) sat Pending since {CreatedAt:yyyy-MM-dd HH:mm}Z with billing {BillingId} never completed; cancelled and promo slot (if any) released.",
+                    stale.Id, stale.AgentUserId, stale.ChangeType, stale.CreatedAt, checkoutBilling.Id);
+            }
+            if (sweptAny) await _uow.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _db.ChangeTracker.Clear();
+            _logger.LogError(ex, "Stale-checkout sweep failed; continuing with due subscription changes.");
+        }
+
         // Same lead window as ApplyDuePendingChangesAsync: the whole point of firing early is that
         // the PayPal cancel lands BEFORE PayPal bills the next cycle, so the hourly selector must
         // see the change inside the window too, not only once the boundary has already passed.
@@ -843,8 +953,13 @@ public class PayPalBillingService : IBillingService
             }
             catch (Exception ex)
             {
+                // M7: continuing on a DIRTY shared change tracker is not isolation -- agent A's
+                // unsaved poisoned mutations ride agent B's SaveChangesAsync and every remaining
+                // agent fails identically. Drop A's partial work (the hourly retry redoes it) so
+                // B starts clean.
+                _db.ChangeTracker.Clear();
                 _logger.LogError(ex,
-                    "Applying due subscription changes for agent {AgentUserId} failed; continuing with the remaining agents.",
+                    "Applying due subscription changes for agent {AgentUserId} failed; tracker cleared, continuing with the remaining agents.",
                     agentId);
             }
         }
@@ -861,6 +976,12 @@ public class PayPalBillingService : IBillingService
         var sent = 0;
         foreach (var billing in problemBillings.OrderBy(b => b.CreatedAt))
         {
+            // M19: each problem billing fails alone. GetActiveSubscriptionAsync below reaches
+            // PayPal (via the due-change apply) and the email leg can throw -- pre-fix, one bad
+            // item aborted the whole run and every remaining agent's notice waited for an hour
+            // that kept never coming while the same item kept failing first.
+            try
+            {
             var activeSubscription = await GetActiveSubscriptionAsync(billing.AgentUserId);
             if (!IsActionableBillingIssue(billing, activeSubscription))
             {
@@ -880,6 +1001,14 @@ public class PayPalBillingService : IBillingService
             {
                 sent++;
             }
+            }
+            catch (Exception ex)
+            {
+                _db.ChangeTracker.Clear();
+                _logger.LogError(ex,
+                    "Billing-issue notification for billing {BillingId} (agent {AgentUserId}) failed; tracker cleared, continuing with the remaining items.",
+                    billing.Id, billing.AgentUserId);
+            }
         }
 
         var failedSubscriptionInvoices = (await _uow.Invoices.FindAsync(i =>
@@ -888,6 +1017,8 @@ public class PayPalBillingService : IBillingService
             .ToList();
         foreach (var invoice in failedSubscriptionInvoices)
         {
+            try
+            {
             var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
             if (billing == null || billing.Status != BillingStatus.Active)
             {
@@ -898,6 +1029,14 @@ public class PayPalBillingService : IBillingService
             {
                 sent++;
             }
+            }
+            catch (Exception ex)
+            {
+                _db.ChangeTracker.Clear();
+                _logger.LogError(ex,
+                    "Failed-payment notification for invoice {InvoiceId} failed; tracker cleared, continuing with the remaining items.",
+                    invoice.Id);
+            }
         }
 
         // Applied downgrades the agent never completed. The apply path sends exactly ONE email,
@@ -905,24 +1044,40 @@ public class PayPalBillingService : IBillingService
         // above ever fires for it -- an agent who missed that one email simply stopped paying and
         // stopped being contacted (2026-08-16 audit). Two follow-ups at day 3 and day 7, deduped
         // through the same OperateLogs mechanism as the issue emails.
+        //
+        // M16: converts are excluded BY SELECTION -- a convert also lands as an Applied Downgrade
+        // but needs no completion (its own billing WAS the new subscription; ProratedCredit > 0
+        // marks it, same distinguisher as the H6 waiver). Dunning one is telling an agent to
+        // finish something already finished.
         var staleDowngrades = (await _uow.SubscriptionChanges.FindAsync(c =>
                 c.ChangeType == SubscriptionChangeType.Downgrade &&
-                c.Status == SubscriptionChangeStatus.Applied))
+                c.Status == SubscriptionChangeStatus.Applied &&
+                c.ProratedCredit == 0m))
             .Where(c => c.AppliedAt.HasValue && c.AppliedAt.Value > DateTime.UtcNow.AddDays(-30))
             .ToList();
         foreach (var change in staleDowngrades)
         {
+            try
+            {
             var daysSince = (DateTime.UtcNow - change.AppliedAt!.Value).TotalDays;
             var bucket = daysSince >= 7 ? 7 : daysSince >= 3 ? 3 : 0;
             if (bucket == 0) continue;
 
-            // "Acted on it" means EITHER a live/in-flight billing now, OR any billing created
-            // after the change applied -- an agent who completed the downgrade and then
-            // deliberately cancelled everything has answered and must not be dunned (review pass).
+            // "Acted on it" means a live/in-flight billing now, OR any billing created after the
+            // change applied, OR (M16) an Applied Cancel row after it -- an agent who answered the
+            // downgrade by cancelling outright must not be dunned to "complete" it (the cancel
+            // writes no Billing row, which is why the billing-only check missed it).
             var appliedAt = change.AppliedAt!.Value;
             var actedOn = (await _uow.Billings.FindAsync(b =>
                 b.AgentUserId == change.AgentUserId &&
                 (b.Status == BillingStatus.Active || b.Status == BillingStatus.Pending || b.CreatedAt > appliedAt))).Any();
+            if (!actedOn)
+            {
+                actedOn = (await _uow.SubscriptionChanges.FindAsync(c =>
+                    c.AgentUserId == change.AgentUserId &&
+                    c.ChangeType == SubscriptionChangeType.Cancel &&
+                    c.Status == SubscriptionChangeStatus.Applied)).Any(c => c.AppliedAt.HasValue && c.AppliedAt.Value > appliedAt);
+            }
             if (actedOn) continue;
 
             var dedupKey = $"Change:{change.Id}:Day:{bucket}";
@@ -947,6 +1102,14 @@ public class PayPalBillingService : IBillingService
             });
             await _uow.SaveChangesAsync();
             sent++;
+            }
+            catch (Exception ex)
+            {
+                _db.ChangeTracker.Clear();
+                _logger.LogError(ex,
+                    "Downgrade-completion reminder for change {ChangeId} (agent {AgentUserId}) failed; tracker cleared, continuing with the remaining items.",
+                    change.Id, change.AgentUserId);
+            }
         }
 
         return sent;
@@ -1257,7 +1420,7 @@ public class PayPalBillingService : IBillingService
         return true;
     }
 
-    private async Task<bool> HandleSubscriptionCancelledWebhookAsync(string subscriptionId, BillingStatus status)
+    internal async Task<bool> HandleSubscriptionCancelledWebhookAsync(string subscriptionId, BillingStatus status)
     {
         if (string.IsNullOrWhiteSpace(subscriptionId))
         {
@@ -1270,8 +1433,26 @@ public class PayPalBillingService : IBillingService
             return true;
         }
 
+        // M5: a PayPal-initiated cancellation is still a cancellation under DOCS/22 -- the agent
+        // owns what they paid for, and an annual cancel before the crossover is owed a refund.
+        // This used to set Status/CancelledAt raw: PaidThroughAt stayed null (= old-style
+        // IMMEDIATE gate) and no refund row was ever written, so cancelling "through PayPal" --
+        // which our shipped ToS explicitly invites -- silently forfeited both. Only a row that is
+        // Active RIGHT NOW takes this path: a supersede, a replayed delivery, or a self-cancel
+        // racing its own webhook arrives with the row already Cancelled and must not mint a
+        // second refund. Suspension (-> Failed) is a payment problem, not a cancel: it keeps the
+        // raw path and the immediate gate on purpose.
+        if (billing.Status == BillingStatus.Active &&
+            (status == BillingStatus.Cancelled || status == BillingStatus.Expired))
+        {
+            var paidThroughEnd = await ResolvePaidThroughEndAsync(billing);
+            await ApplyCancellationOutcomeAsync(billing, status, paidThroughEnd,
+                status == BillingStatus.Expired ? "PayPal reported the subscription expired" : "Cancelled at PayPal (webhook)");
+            return true;
+        }
+
         billing.Status = status;
-        billing.CancelledAt = DateTime.UtcNow;
+        billing.CancelledAt ??= DateTime.UtcNow;
         _uow.Billings.Update(billing);
         await _uow.SaveChangesAsync();
         return true;
@@ -2000,6 +2181,19 @@ public class PayPalBillingService : IBillingService
             var subscription = change.BillingId.HasValue
                 ? await _uow.Billings.GetByIdAsync(change.BillingId.Value)
                 : null;
+
+            // H12: a Downgrade row whose BillingId points at a PENDING billing is a CONVERT
+            // checkout in flight (BeginPaidChangeAsync writes the NEW billing's id), not a
+            // scheduled downgrade against a dead subscription. The agent may still be at PayPal
+            // approving it -- it is not ours to apply OR to cancel: completion activates it, the
+            // Cancel-checkout button voids it, and the 48h stale sweep above cleans true
+            // abandonment. Pre-fix this loop read "not Active" as "stale" and ate the convert
+            // within the hour, which also wrongly lifted the UX-TERMSWITCH guard.
+            if (subscription != null && subscription.Status == BillingStatus.Pending)
+            {
+                continue;
+            }
+
             if (subscription == null || subscription.Status != BillingStatus.Active)
             {
                 change.Status = SubscriptionChangeStatus.Cancelled;
@@ -3201,11 +3395,34 @@ public class PayPalBillingService : IBillingService
 
             if (!endedAtPayPal) continue;
 
-            billing.Status = status.Equals("EXPIRED", StringComparison.OrdinalIgnoreCase)
+            // SUSPENDED is a payment problem, not an ending: the webhook door already maps it to
+            // Failed (immediate gate, dunning fires, no refund) and this door must agree -- it
+            // used to fold suspensions into Cancelled, which under the M5 outcome below would
+            // have minted a refund row for a subscription PayPal can still reactivate.
+            if (status.Equals("SUSPENDED", StringComparison.OrdinalIgnoreCase))
+            {
+                billing.Status = BillingStatus.Failed;
+                billing.CancelledAt ??= DateTime.UtcNow;
+                _uow.Billings.Update(billing);
+                corrected++;
+                _logger.LogWarning(
+                    "Reconciliation: PayPal reports subscription {SubscriptionId} for agent {AgentUserId} is SUSPENDED; local row set to Failed (payment problem, no cancellation outcome).",
+                    billing.PayPalSubscriptionId, billing.AgentUserId);
+                continue;
+            }
+
+            // M5: the reconcile discovery of a lost CANCELLED/EXPIRED delivery is the same event
+            // as the webhook arriving -- it owes the agent the same paid-through honor and the
+            // same refund row, not just a status flip. The rows in this loop are Active by
+            // selection, so the double-refund guard is the selection itself.
+            var endedStatus = status.Equals("EXPIRED", StringComparison.OrdinalIgnoreCase)
                 ? BillingStatus.Expired
                 : BillingStatus.Cancelled;
-            billing.CancelledAt ??= DateTime.UtcNow;
-            _uow.Billings.Update(billing);
+            var reconciledPaidThroughEnd = payPalNextBilling
+                ?? billing.NextBillingDate
+                ?? GetNextBillingDate(DateTime.UtcNow, billing.Period);
+            await ApplyCancellationOutcomeAsync(billing, endedStatus, reconciledPaidThroughEnd,
+                "Reconcile: PayPal reported the subscription ended; the webhook was lost");
             corrected++;
 
             _logger.LogWarning(

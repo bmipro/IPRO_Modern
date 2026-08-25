@@ -134,7 +134,10 @@ else if (subscription == null && trialEndsAt.HasValue && trialEndsAt.Value > Dat
         }
         else
         {
-          @:Your change to @pendingPackage.PackageName (@(pendingChange.Period == IPRO.Entities.BillingPeriod.Annually ? "annual" : "monthly") billing) will take effect on @pendingChange.EffectiveDate.ToString("MMMM d, yyyy").
+          @* New A (audit 2026-08-25): the banner the agent re-reads for days must carry the same
+             disclosure as the one-time message -- the apply CANCELS the current subscription and
+             PayPal requires re-approval, with access paused at Billing in between. *@
+          @:Your change to @pendingPackage.PackageName (@(pendingChange.Period == IPRO.Entities.BillingPeriod.Annually ? "annual" : "monthly") billing) will take effect on @pendingChange.EffectiveDate.ToString("MMMM d, yyyy"). On that date your current subscription ends and we'll email you to finish the switch with a quick PayPal approval; until you approve, your account pauses at this Billing page (everything is kept).
         }
       </small>
     </div>

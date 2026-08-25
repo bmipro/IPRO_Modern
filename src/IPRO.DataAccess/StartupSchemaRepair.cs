@@ -335,6 +335,10 @@ public static class StartupSchemaRepair
         // lost. See DidYouKnowEmailDispatchJob.
         await EnsureTableColumnAsync(db, "DidYouKnowEmailQueueItems", "ClaimedAtUtc",
             "ALTER TABLE `DidYouKnowEmailQueueItems` ADD COLUMN `ClaimedAtUtc` datetime(6) NULL");
+
+        // H14 (billing wave 2026-08-25): the attempt counter that bounds the stale-claim retry loop.
+        await EnsureTableColumnAsync(db, "DidYouKnowEmailQueueItems", "SendAttempts",
+            "ALTER TABLE `DidYouKnowEmailQueueItems` ADD COLUMN `SendAttempts` int NOT NULL DEFAULT 0");
     }
 
     public static async Task EnsureNewsLetterClickTrackingSchemaAsync(IPRODbContext db)

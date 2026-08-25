@@ -139,16 +139,39 @@ public class DripCampaignJob
                 // Exceptions get the same capped transient retry as a transient send failure.
                 HandleSendFailure(enrollment, transient: true, ex.Message);
                 _logger.LogError(ex, "Drip campaign enrollment {EnrollmentId} send attempt failed (attempt {Attempts})", enrollment.Id, enrollment.SendAttempts);
-                await _db.SaveChangesAsync();
+                // H13: this save is the catch's own failure surface -- if IT throws (the original
+                // exception WAS a DbUpdateException, say), the whole job aborts and Hangfire
+                // replays the batch, re-sending steps that already went out. Clear the tracker so
+                // the next enrollment starts clean; this row's bookkeeping retries next tick.
+                try
+                {
+                    await _db.SaveChangesAsync();
+                }
+                catch (Exception saveEx)
+                {
+                    _db.ChangeTracker.Clear();
+                    _logger.LogError(saveEx,
+                        "Could not persist the failure bookkeeping for drip enrollment {EnrollmentId}; tracker cleared, continuing with the batch.",
+                        enrollment.Id);
+                }
             }
         }
     }
 
     private const int MaxSendAttempts = 5;
 
+    // H13: LastError is varchar(1000) (IPRODbContext HasMaxLength). ex.Message is unbounded --
+    // an EF inner-exception chain or a SendGrid response body easily exceeds 1000 chars, and an
+    // untruncated write made the CATCH's own SaveChangesAsync throw "Data too long", aborting
+    // the whole job; Hangfire then retried the batch with the same poison row at its head.
+    private const int LastErrorMaxLength = 1000;
+
+    private static string Truncate(string message) =>
+        message.Length <= LastErrorMaxLength ? message : message[..LastErrorMaxLength];
+
     internal static void HandleSendFailure(IPRO.Entities.DripCampaignEnrollment enrollment, bool transient, string message)
     {
-        enrollment.LastError = message;
+        enrollment.LastError = Truncate(message);
         if (!transient)
         {
             // SendGrid answered no (bad address, rejected payload): retrying would be spam.
@@ -159,9 +182,14 @@ public class DripCampaignJob
         if (enrollment.SendAttempts >= MaxSendAttempts)
         {
             enrollment.Status = DripCampaignEnrollmentStatus.Failed;
-            enrollment.LastError = $"Gave up after {MaxSendAttempts} attempts. Last error: {message}";
+            enrollment.LastError = Truncate($"Gave up after {MaxSendAttempts} attempts. Last error: {message}");
+            return;
         }
-        // Otherwise stay Active: NextSendAt is already due, so the next hourly tick retries.
+        // H13: back off instead of staying due. A still-due failing row sat at position 1 of
+        // EVERY batch (the query orders by NextSendAt), so one poison enrollment ate the head of
+        // each hourly run until its cap engaged. One hour per attempt already made keeps the
+        // pacing aligned with the hourly tick while pushing the row behind healthy ones.
+        enrollment.NextSendAt = DateTime.UtcNow.AddHours(enrollment.SendAttempts);
     }
 
     private async Task ProcessLegacySchedulerRowsAsync()
