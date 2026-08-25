@@ -501,7 +501,7 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
-## POST-SWEEP AUDIT 2026-08-20 — wave 1 SHIPPED 2026-08-24; C2 + 14 HIGH still open
+## POST-SWEEP AUDIT 2026-08-20 — wave 1 SHIPPED 2026-08-24; BILLING WAVE SHIPPED 2026-08-25 (C2 + the PayPal cluster closed)
 
 Six parallel auditors run against `94d36c3` after the day's five deploys. **Findings live in
 `DOCS/AUDIT_2026-08-20_POST_SWEEP.md`** — that file is the authority; fix entries THERE.
@@ -528,6 +528,20 @@ overlay hole; it needs a CSS allow-list, wave 2).
 
 **The QA day-4 block is LIFTED** -- cancel + delete BobyMot #35 is what exercises C1/H9/H10 against
 real data. Agent deletion and bulk content re-saves are both safe again.
+
+**BILLING WAVE 2026-08-25 (branch `fix/billing-wave`).** The owner asked for the whole
+PayPal/billing cluster at once: C2 (renewed-annual clawback), M3/M4 (refund tax + amount from
+what was actually paid), M5 (PayPal-initiated cancels get paid-through + the refund row), H5
+(promo slots released on cancel-checkout + a 48h stale-checkout sweep), H12 (in-flight convert no
+longer eaten as stale), H6 (waiver keyed to scheduled downgrades only; a Cancel consumes it), H15
++ New A (messages tell the truth about manual refunds and the downgrade access pause), M7/M19
+(tracker-clear isolation per agent, per item, per stage), M16 (convert-then-cancel dunning,
+confirmed empirically), H13/H14 (both email jobs' retry loops bounded; LastError truncated;
+DidYouKnow gets a SendAttempts column via StartupSchemaRepair). New B dispositioned
+works-as-designed (PortalUrlHelper header), New C mitigated by the hourly reconcile. Every fix
+verified BOTH ways; 24 new tests. Details in `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Billing
+wave". Billing now has **no known open defects**; the live harness (downgrade apply +
+re-subscribe + day-4 cancel/delete) is the final proof.
 
 Corrections owed to this file: the medium sweep below was **18** fixes, not 16; `A5-M-RESEND`'s
 wording (the code flips anything not `Paid`, so a Void invoice resent becomes Sent).

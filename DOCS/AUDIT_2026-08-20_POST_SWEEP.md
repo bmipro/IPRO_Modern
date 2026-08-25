@@ -206,6 +206,53 @@ plus H2 and sanitizer cases in `PrepaidValueTests` / `MediumSweepTests`.
 the deny-list cannot close it, and the real fix is a CSS allow-list that needs care not to break
 existing newsletter formatting. Wave 2.
 
+## Billing wave -- FIXED 2026-08-25 (branch `fix/billing-wave`)
+
+The owner asked for the whole PayPal/billing cluster in one wave, "no assumptions, all passes
+based on facts and tested before deploying." Discipline as wave 1: every fix's test was run
+against the PRE-FIX code and observed to FAIL first (or, for H13/H14, the fix was reverted and
+the green tests observed to go red -- same proof, other direction).
+
+| Finding | Fix |
+|---|---|
+| **C2** | The cancel path now measures from the CURRENT cycle: `GetCurrentCycleStart(ResolvePaidThroughEndAsync(...))`, resolved BEFORE the PayPal cancel (next_billing_time stops being reported once the subscription dies). The renewed-annual fixture the whole suite lacked now exists; pre-fix it produced $0 refund and a PaidThroughAt five months in the past. |
+| **M3** | Refund tax = the rate on the most recent PAID invoice (`Invoice.TaxRate`), falling back to the live calculation only when no invoice exists. Pre-fix an Ontario->Alberta mover was refunded at 5% for tax charged at 13%. |
+| **M4** | The clawback's monthly rate = `Billing.Amount / 10` -- the subscription's own frozen annual price under the documented two-months-free structure (DOCS/22:45). NOT the invoice SubTotal (first-year invoices include the setup fee, which would corrupt the rate) and NOT today's `BillingRule.MonthlyPrice` (reprices history). Amount/10 keeps the month-10 crossover exact by construction for every historical price and promo discount. |
+| **M5** | Cancellation outcome extracted to `ApplyCancellationOutcomeAsync` -- ONE place a subscription's death becomes money-and-access truth -- called by the self-cancel, the CANCELLED/EXPIRED webhook, and the reconcile job. Guard: only a row that is Active right now takes it (supersede/replay/self-cancel-race arrive already Cancelled). SUSPENDED now maps to Failed in the reconcile too, matching the webhook door -- it used to fold into Cancelled, which would have minted a refund row for a reactivatable subscription. |
+| **H5** | `CancelPendingPaymentAsync` releases the claimed promo slot like its sibling always did; and a stale-checkout sweep (48h, in the hourly job) cancels never-completed checkouts -- change + billing -- releasing their slots. Scheduled downgrades are untouchable by selection: they ride an ACTIVE billing. |
+| **H12** | The apply loop now recognises a Downgrade row whose billing is PENDING as an in-flight convert checkout and leaves it alone -- completion activates it, Cancel-checkout voids it, the 48h sweep cleans true abandonment. Pre-fix the hourly sweeper ate the convert as "stale" while the agent was still at PayPal. |
+| **H6** | The completion waiver keys on `ProratedCredit == 0` (a convert always carries its credit; a scheduled row writes 0) and a later Applied CANCEL now consumes the waiver like a Subscribe does. Pre-fix a finished convert waived $150-$400 on any later voluntary re-signup. |
+| **H15** | The cancel message stopped promising an automatic refund. In-window: "queued; our team processes refunds manually." Window closed (months 6-9): "our team will contact you to arrange it." |
+| **M7** | The per-agent catch clears the shared change tracker -- continuing dirty meant one agent's poisoned save failed every following agent identically. Proven with a poisoned-tracker fixture: pre-fix 0 of 2 agents applied, post-fix the healthy one does. |
+| **M16** | CONFIRMED empirically via the convert-then-cancel path (a convert's billing predates its AppliedAt, so the billing-only acted-on check missed the answer). Converts are now excluded from completion dunning by selection (`ProratedCredit == 0`, same distinguisher as H6) and an Applied Cancel row counts as acted-on. The unanswered-scheduled-downgrade reminder still fires (regression-pinned). |
+| **M19** | Per-item isolation + tracker clear in all three `NotifyBillingIssuesAsync` loops, and `SubscriptionBillingJob.RunAsync` guards every stage (the PayPal reconcile already had one). A throwing email for agent A no longer starves agent B's reminder, and a stage failure no longer starves the stages after it. |
+| **H13** | `LastError` truncated to its 1000-char column (compose-then-truncate for the give-up message); transient failures back off `NextSendAt` by an hour per attempt instead of hogging the batch head; the catch's own SaveChangesAsync is guarded with a tracker clear. |
+| **H14** | `DidYouKnowEmailQueueItems.SendAttempts` added (StartupSchemaRepair, both apps). Transient failures and exceptions both register attempts; at 5 the item retires as Failed with the last error preserved. The infinite 15-minute redelivery loop is closed, which makes the SendClaims cross-reference comment true. |
+
+**Dispositions, not fixes:**
+
+- **New B (downgrade email links the canonical host)** -- works as designed. `PortalUrlHelper`'s
+  header rules that OUT-OF-BAND links (emails, background jobs) go to canonical deliberately: a
+  baked-in custom host can outlive its binding, while canonical is always safe to land on
+  signed-out. Found by proposing the "fix" and then reading the header that already rejected it.
+- **New C (Billing page shows a stale NextBillingDate)** -- mitigated, not broken.
+  `ReconcileActiveSubscriptionsWithPayPalAsync` runs hourly and corrects >26h drift; the display
+  can lag at most ~1 cycle + tolerance. The 30-day skew observed 2026-08-25 was the QA harness's
+  daily/Monthly frequency mismatch, and the downgrade's own resolve self-healed it live.
+- **M6 (Stage C credit notes, `ConvertedToCredit` unreachable)** -- unshipped FEATURE work, not a
+  defect fix; stays on the owner-decision list.
+
+New tests: `BillingWaveTests` (20: refunds x3, M5 x2, H5/H12 x4, H6 x3, M7/M16 x3, M19 x1,
+H15/New A x4 -- controller-level where the defect lived), `SubscriptionBillingJobStageTests` (1),
+`JobRetryBoundTests` (3) -- 24 in all. The chronic-trap note: every pre-existing PrepaidValue fixture seeded a
+FIRST-year StartDate, which is exactly why C2 shipped invisible; the renewed fixture now exists.
+
+**Remaining open in the register after this wave:** M1 (CSS allow-list), H3 (resolver split), H4
+(SSRF pinning), H7 (SendGrid classification + resume), H8 (webhook suppression swallow), M2, M8,
+M13 (public site never goes offline), M9-M12, M17, M18, plus LOW and the owner-decision list.
+PayPal/billing itself: **no known open defects; every fix regression-tested; final proof is the
+live harness** (downgrade apply + re-subscribe + day-4 cancel/delete).
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**

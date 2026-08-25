@@ -169,9 +169,23 @@ public class DidYouKnowEmailDispatchJob
                 // an answered rejection (4xx: bad address, bad payload) retires the item.
                 if (result.IsTransient)
                 {
-                    _logger.LogWarning(
-                        "Did You Know queued email {ItemId} (article {ArticleId}) hit a transient send failure and will be retried: {Error}",
-                        item.Id, item.ArticleId, result.Message);
+                    // H14: the retry loop is BOUNDED. Leaving the item claimed hands it to the
+                    // stale-claim sweep in 15 minutes, and without a counter that repeated
+                    // forever -- including the worst case, a send that actually succeeded but
+                    // whose response timed out, which mailed the same article to the same client
+                    // every 15 minutes indefinitely.
+                    if (await RegisterAttemptAndRetireAtCapAsync(item, result.Message))
+                    {
+                        _logger.LogError(
+                            "Did You Know queued email {ItemId} (article {ArticleId}) gave up after {Max} transient failures: {Error}",
+                            item.Id, item.ArticleId, MaxSendAttempts, result.Message);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Did You Know queued email {ItemId} (article {ArticleId}) hit a transient send failure (attempt {Attempt} of {Max}) and will be retried: {Error}",
+                            item.Id, item.ArticleId, item.SendAttempts + 1, MaxSendAttempts, result.Message);
+                    }
                     continue;
                 }
 
@@ -188,13 +202,62 @@ public class DidYouKnowEmailDispatchJob
             {
                 // Per-item isolation: one bad row must not stop the rest of the batch.
                 //
-                // Note what is deliberately NOT done here: the item is left claimed-but-unsent. That
-                // is the recoverable state -- the stale-claim sweep will pick it up again in 15
-                // minutes. An unexpected exception is exactly the case where a retry is wanted, in
-                // contrast to a SendGrid rejection, which is answered and final.
+                // The item is left claimed-but-unsent -- the recoverable state: the stale-claim
+                // sweep picks it up again in 15 minutes. An unexpected exception is exactly the
+                // case where a retry is wanted, in contrast to a SendGrid rejection, which is
+                // answered and final. H14: the retry is BOUNDED by the same attempt counter as
+                // the transient branch, so a permanently-throwing row retires instead of cycling
+                // forever. The registration itself is best-effort: if the database is what is
+                // failing, this throw must not escape the per-item guard.
+                try
+                {
+                    if (await RegisterAttemptAndRetireAtCapAsync(item, ex.Message))
+                    {
+                        _logger.LogError(ex,
+                            "Did You Know queued email {ItemId} (article {ArticleId}) gave up after {Max} failed attempts.",
+                            item.Id, item.ArticleId, MaxSendAttempts);
+                        continue;
+                    }
+                }
+                catch (Exception registerEx)
+                {
+                    _logger.LogError(registerEx,
+                        "Could not register the failed attempt for Did You Know queued email {ItemId}; the stale-claim sweep will retry it.",
+                        item.Id);
+                }
                 _logger.LogError(ex, "Did You Know queued email {ItemId} (article {ArticleId}) failed; it will be retried after the stale-claim window.", item.Id, item.ArticleId);
             }
         }
+    }
+
+    // H14: how many times a claimed send may fail (transiently or by exception) before the item
+    // retires as Failed instead of re-entering via the stale-claim sweep. Matches the drip
+    // campaign job's cap.
+    private const int MaxSendAttempts = 5;
+
+    /// Records one more failed attempt; at the cap, retires the item as Failed with the last
+    /// error preserved. Returns true when the item was retired. ExecuteUpdate like every other
+    /// write in this job -- no change-tracker involvement.
+    private async Task<bool> RegisterAttemptAndRetireAtCapAsync(DidYouKnowEmailQueueItem item, string lastError)
+    {
+        var attempts = item.SendAttempts + 1;
+        if (attempts >= MaxSendAttempts)
+        {
+            var reason = $"Gave up after {MaxSendAttempts} attempts. Last error: {lastError}";
+            await _db.DidYouKnowEmailQueueItems
+                .Where(q => q.Id == item.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(q => q.SendAttempts, attempts)
+                    .SetProperty(q => q.SentAtUtc, DateTime.UtcNow)
+                    .SetProperty(q => q.Status, DidYouKnowQueueStatuses.Failed)
+                    .SetProperty(q => q.FailureReason, reason));
+            return true;
+        }
+
+        await _db.DidYouKnowEmailQueueItems
+            .Where(q => q.Id == item.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(q => q.SendAttempts, attempts));
+        return false;
     }
 
     // Retires an item: SentAtUtc is the terminal marker, so the row is never selected again. Named
