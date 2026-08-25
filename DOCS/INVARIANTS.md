@@ -127,6 +127,33 @@ Profile and the accent swatches shipped silently bouncing to `/Billing` because 
   never `/health`. Under the `health` prefix deliberately, so it inherits never-shadowed routing.
 - Both workflows share the GitHub Actions concurrency group `deploy-ipro-production`. Don't remove
   it: parallel deploys against one database interleave schema repair.
+- **A green run for one app says nothing about the other — the sibling run can be CANCELLED before
+  it starts.** GitHub keeps at most **one pending run per concurrency group**, and a newer pending
+  run cancels the older one. Because admin and web are separate workflows in the *same* group, they
+  evict each other. `cancel-in-progress: false` does not prevent this — that setting only protects
+  runs that are already *running*, not ones that are *queued*.
+
+  Observed 2026-08-24: `b19be7a` was pushed while `3730be1`'s deploys were still in flight. Both new
+  runs queued in the same second; the admin run took the pending slot and **the web run was
+  cancelled before it ever started**. Admin advanced, web stayed on the previous commit. Nothing
+  reported a failure — a cancelled run is not a red X, and the other app's run was green.
+
+  This is the same shape as the `RUN_FROM_PACKAGE` trap above, through a different door: the
+  pipeline is green and production is not what you think. The 2026-08-08 fix guarantees a green run
+  is honest *about the app it belongs to*; it cannot speak for the app whose run never ran.
+
+  **Therefore:**
+  1. After any push to `main`, check `/health/version` on **both** `app.iproadvisers.com` and
+     `admin.iproadvisers.com` for the pushed SHA. Checking one, or reading the workflow list, is not
+     sufficient.
+  2. If the two hosts disagree, look for a cancelled run and re-run it — it then queues normally:
+     `gh run list --limit 6 --json databaseId,status,conclusion,headSha,workflowName`
+     then `gh run rerun <databaseId>`.
+  3. **Do not push to `main` again while a deploy is in flight (~12 min).** Batch documentation
+     commits together with the code commit they describe, or wait. A push into an in-flight deploy
+     is precisely what triggers the eviction — and it is a self-inflicted wound, not a platform bug.
+
+  A single push when nothing is in flight is safe: one run starts, the other pends, and both fit.
 - Production currently runs PayPal in **sandbox** (`PayPal__IsSandbox=true`). Anything that creates
   real plans or charges must check this flag, and QA-only packages must set `IsHiddenTestPackage`.
 - Webhooks cannot reach localhost, so subscription *activation* can only be verified on production.

@@ -60,8 +60,21 @@ agent deletion is safe, and bulk content re-saves no longer destroy prose.
 
 ## 4. QA harness — next steps and one important limitation
 
-**Tomorrow (2026-08-25): Platinum → Silver downgrade.** Snippet already provided; the console POST
-uses `value="7"` (Silver Daily). Expect the Offer Both flow — credit vs. refund choice.
+**2026-08-25: Platinum → Silver downgrade.** Console POST to `/Billing/Subscribe` with
+`billingRuleId=7` (Silver Daily) and `period=Monthly`.
+
+**Correction to an earlier note in this file: do NOT expect the Offer Both flow.** `downgradeMode
+="convert"` is refused for anything that is not `BillingPeriod.Annually`
+(`PayPalBillingService.cs:356`), and BobyMot's period is Monthly. Platinum→Silver therefore takes
+the plain scheduled path: `ScheduleDowngradeAsync`, `AmountDue = 0`, no PayPal redirect, and the
+message "Your downgrade to <package> is scheduled for <date>." Offer Both can only be exercised by
+an annual subscriber, which the daily harness cannot be.
+
+**Second harness artifact, same class as the proration one:** `DowngradeApplyLeadWindow` is 6 hours
+(`PayPalBillingService.cs:1971`) — a due downgrade fires up to 6h early so the PayPal cancel always
+beats the next charge. On a monthly plan that is 0.8% of the period; on the DAILY harness plan it is
+**25% of the whole billing period**, so BobyMot will visibly lose about a quarter of a paid day.
+That is the harness's compressed cycle, not a production defect.
 
 **Then: day 4 — cancel, then delete BobyMot #35.** That exercises C1/H9/H10 end to end against real
 data, which is the whole reason wave 1 had to land first.
@@ -152,6 +165,12 @@ If it was wiped (this has happened before — only OneDrive-synced folders survi
 `localhost:5100` (Web) and `localhost:5200` (Admin). **MySQL does not survive a reboot** — after
 restarting, run that script before the test suite, or you will read connection errors as test
 failures. Local-only test data: agent 11 (drip tester), `supporttest` admin.
+
+**Deploy hazard found 2026-08-24 (now `DOCS/INVARIANTS.md` rule 6):** admin and web share one
+Actions concurrency group, which holds only ONE pending run — so pushing to `main` while a deploy is
+in flight **cancels one of the two apps' runs before it starts**, leaving the hosts on different
+SHAs with nothing reporting a failure. Always check `/health/version` on **both** hosts after a push;
+if they disagree, `gh run list` and `gh run rerun <id>`. Don't push into an in-flight deploy.
 
 **Standing rules that keep being re-learned:** branch before deploying, never push straight to `main`
 without asking · tests must run and pass BEFORE the commit · verify a deploy at `/health/version` for
