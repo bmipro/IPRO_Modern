@@ -5,6 +5,8 @@
         .ThenBy(p => p.MonthlyPrice <= 0 ? decimal.MaxValue : p.MonthlyPrice)
         .ToList();
     var subscription = ViewBag.Subscription as IPRO.Entities.Billing;
+    // AUDIT H2: cancelled, but still inside the period they paid for (DOCS/22).
+    var paidThrough = ViewBag.PaidThroughBilling as IPRO.Entities.Billing;
     var pendingChange = ViewBag.PendingChange as IPRO.Entities.SubscriptionChange;
     var invoices = ViewBag.Invoices as IEnumerable<IPRO.Entities.Invoice>;
     var allFeatures = ((ViewBag.PackageFeatures as IEnumerable<IPRO.Entities.PackageFeature>) ?? Enumerable.Empty<IPRO.Entities.PackageFeature>()).ToList();
@@ -68,7 +70,28 @@ else if (isAccessGated)
     </div>
   </div>
 }
-else if (subscription == null && trialEndsAt.HasValue)
+else if (paidThrough != null)
+{
+  @* AUDIT H2: cancelled but still paid through. This branch MUST come before the trial one -- a
+     cancelled subscriber was previously shown their long-expired signup trial date as if it were
+     live, and offered a Subscribe button that charged them again for this same window. *@
+  var paidThroughPackage = allPackageList.FirstOrDefault(p => p.Id == paidThrough.BillingRuleId);
+  <div class="alert alert-warning border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
+    <i class="fas fa-calendar-check fa-2x"></i>
+    <div>
+      <div class="fw-bold">
+        Subscription cancelled &mdash; you keep @(paidThroughPackage?.PackageName ?? "your current package")
+        until @paidThrough.PaidThroughAt!.Value.ToString("MMMM d, yyyy")
+      </div>
+      <small>
+        You will not be billed again. If you subscribe again below, the new plan starts when this
+        paid period ends on @paidThrough.PaidThroughAt!.Value.ToString("MMMM d, yyyy") &mdash; you
+        are never charged twice for the same days.
+      </small>
+    </div>
+  </div>
+}
+else if (subscription == null && trialEndsAt.HasValue && trialEndsAt.Value > DateTime.UtcNow)
 {
   <div class="alert alert-info border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
     <i class="fas fa-hourglass-half fa-2x"></i>

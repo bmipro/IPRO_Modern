@@ -51,6 +51,17 @@ public class BillingController : Controller
         // should be filtered, not what an existing subscriber already has.
         ViewBag.AllPackages  = await _uow.BillingRules.GetAllAsync();
         ViewBag.Subscription = await _billing.GetActiveSubscriptionAsync(AgentId);
+        // AUDIT H2: a cancelled agent still owns everything up to PaidThroughAt, but nothing on
+        // this page knew that -- so it showed no current package, suppressed the lock banner, fell
+        // through to a stale "Trial active" line, and offered Subscribe buttons that billed for
+        // time already paid for. The row is surfaced so the page can tell the truth.
+        ViewBag.PaidThroughBilling = await _db.Billings.AsNoTracking()
+            .Where(b => b.AgentUserId == AgentId
+                        && b.Status == BillingStatus.Cancelled
+                        && b.PaidThroughAt != null
+                        && b.PaidThroughAt > DateTime.UtcNow)
+            .OrderByDescending(b => b.PaidThroughAt)
+            .FirstOrDefaultAsync();
         ViewBag.PendingChange = await _billing.GetPendingChangeAsync(AgentId);
         ViewBag.Invoices     = await _billing.GetInvoicesAsync(AgentId);
         ViewBag.PackageFeatures = await _uow.PackageFeatures.GetAllAsync();

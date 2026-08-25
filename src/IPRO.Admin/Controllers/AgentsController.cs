@@ -434,33 +434,29 @@ public class AgentsController : Controller
         var domainName = agent.DomainName;
         _db.ChangeTracker.Clear();
 
-        // FILES BEFORE ROWS, deliberately. The rows are the only record of where an agent's files live,
-        // so deleting rows first makes any later failure unrecoverable -- the files are stranded with
-        // nothing left pointing at them. Doing files first is retryable: if anything fails afterwards,
-        // the rows still hold the URLs and blob deletion is idempotent. (Learned the hard way on
-        // 2026-08-04: an exception between the two stranded 10 files permanently.)
+        // ROWS BEFORE FILES, since 2026-08-24 (audit finding C1). This ordering was the OPPOSITE
+        // until today, and the reversal is deliberate:
+        //
+        //   The shared-file check can only tell "another agent still uses this" from "this was
+        //   only ever mine" once this agent's own rows are gone. Deleting files first therefore
+        //   made that check structurally impossible -- it ran inside EraseAsync, produced a
+        //   correct filtered list, and the caller had already deleted the unfiltered one. A5-H12
+        //   was shipped, tested and green on 2026-08-18 and never protected production once.
+        //
+        //   The old ordering existed for a real reason: rows are the only record of where an
+        //   agent's files live, so a crash between the two once stranded 10 files permanently
+        //   (2026-08-04). That risk is now carried by the log line below -- written before
+        //   anything is destroyed, listing every candidate URL -- which makes stranding
+        //   recoverable by hand. A wrongly deleted file that another agent still displays is not
+        //   recoverable at all, so the trade goes this way.
         var plan = await IPRO.DataAccess.AgentDataEraser.PreviewAsync(_db, id);
 
-        // Logged before anything is destroyed, so even an unexpected crash leaves a recoverable record
-        // of exactly which files belonged to this agent.
+        // The recovery record: even an unexpected crash mid-erasure leaves exactly which files
+        // belonged to this agent, in the log, before a single byte is deleted.
         if (plan.Blobs.Count > 0)
         {
-            _logger.LogInformation("Deleting agent {AgentId} ({UserName}); files to remove: {BlobUrls}",
+            _logger.LogInformation("Deleting agent {AgentId} ({UserName}); candidate files: {BlobUrls}",
                 id, userName, string.Join(" | ", plan.Blobs));
-        }
-
-        var blobsDeleted = 0;
-        foreach (var url in plan.Blobs)
-        {
-            try
-            {
-                if (await blobs.DeleteAsync(url)) blobsDeleted++;
-            }
-            catch (Exception ex)
-            {
-                // A single unreachable blob shouldn't block the erasure; the URL is in the log above.
-                _logger.LogError(ex, "Failed deleting blob {BlobUrl} for agent {AgentId}", url, id);
-            }
         }
 
         // ADMIN-6 (fixed 2026-08-20): deleting an agent used to leave their custom-domain
@@ -493,24 +489,48 @@ public class AgentsController : Controller
 
         var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id, eraseFinancialRecords);
 
+        // H10: the eraser VETOES a shred that would lose retained financial rows -- it rolls back
+        // and returns nothing to delete. Stop here: the agent is locked out but otherwise intact
+        // (Admin -> Activate restores them), and no file may be touched.
+        if (report.RetentionViolated)
+        {
+            _logger.LogError(
+                "RETENTION VIOLATION deleting agent {AgentId}: {Shortfall} retained financial rows would have been lost; erasure rolled back, no files deleted.",
+                id, report.RetentionShortfallRows);
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeleteAborted",
+                $"Agent '{userName}' (id {id}) NOT deleted: {report.RetentionShortfallRows} retained financial row(s) " +
+                "would have been destroyed by the shred. Transaction rolled back; no files deleted. The account is " +
+                "deactivated -- use Activate to restore it. Investigate the FK cascade before retrying.");
+            TempData["Error"] = $"Deletion ABORTED for {userName}: the shred would have destroyed " +
+                                $"{report.RetentionShortfallRows} retained financial row(s), so nothing was deleted. " +
+                                "The account has been deactivated only; use Activate to restore it. " +
+                                "This needs investigation before any further deletions.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // ONLY the eraser's filtered list may be deleted -- report.Blobs excludes files another
+        // agent still references (report.SharedBlobsKept). Never plan.Blobs.
+        var blobsDeleted = 0;
+        foreach (var url in report.Blobs)
+        {
+            try
+            {
+                if (await blobs.DeleteAsync(url)) blobsDeleted++;
+            }
+            catch (Exception ex)
+            {
+                // A single unreachable blob shouldn't block the erasure; the URL is in the log above.
+                _logger.LogError(ex, "Failed deleting blob {BlobUrl} for agent {AgentId}", url, id);
+            }
+        }
+
         var financialNote = eraseFinancialRecords
             ? "Financial records erased too (test-agent shred)."
             : $"Financial records retained: {report.RetainedInvoices} invoices ({report.RetainedRows} rows).";
-        if (report.RetentionViolated)
-        {
-            // Retained rows vanished DURING the deletion -- the FK-cascade failure mode that
-            // destroyed invoice IPRO-2026-000008 on 2026-08-14. Never let this pass quietly.
-            financialNote += $" *** RETENTION VIOLATION: {report.RetentionShortfallRows} financial row(s) " +
-                             "disappeared during deletion. Do NOT delete further agents; investigate immediately. ***";
-            _logger.LogError(
-                "RETENTION VIOLATION deleting agent {AgentId}: {Shortfall} retained financial rows vanished during erasure.",
-                id, report.RetentionShortfallRows);
-        }
-
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
             $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
-            $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{plan.Blobs.Count} files removed; " +
-            $"{plan.SharedBlobsKept.Count} shared library files kept. {financialNote}");
+            $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{report.Blobs.Count} files removed; " +
+            $"{report.SharedBlobsKept.Count} file(s) kept because another agent still references them. {financialNote}");
 
         TempData["Warning"] = $"Agent {userName} deleted: {report.TotalRows} rows across {report.TableCount} tables, " +
                               $"{blobsDeleted} uploaded files, PayPal subscription cancelled. {financialNote}";

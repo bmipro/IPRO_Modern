@@ -1,5 +1,12 @@
 # Audit reconciliation — 2026-08-17
 
+> **READ FIRST (2026-08-20): `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` supersedes parts of this file.**
+> A six-auditor pass found 3 status claims here FALSE and 10 overstated. In particular **A5-H12 is
+> NOT fixed** (the guard never runs on the production delete path), and the `## Counts` block plus
+> the "OPEN — 54 distinct defects" heading are stale: 15 entries are open, not 54. Corrections are
+> listed in that file's "Documentation corrections required" table and have NOT yet been applied here.
+
+
 ## STATUS CHANGES — 2026-08-17 (later the same day)
 
 Six local commits, **not yet deployed**. Suite 60 -> 110 tests, green against real MySQL.

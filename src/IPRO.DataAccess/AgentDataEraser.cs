@@ -250,16 +250,22 @@ public static class AgentDataEraser
             }
         }
 
-        // A5-M-ERASEATOMIC (fixed 2026-08-20), two halves:
+        // A5-M-ERASEATOMIC + audit findings C1/H9/H10 (2026-08-20). The ordering IS the design:
         //
         // 1. LOCKOUT FIRST. The account is deactivated before anything is destroyed --
         //    AuthenticateAsync refuses inactive agents -- so a partial failure can no longer leave
         //    a working login to an account whose files are already gone.
-        // 2. ONE TRANSACTION. The row shred commits together or not at all; a failure partway
-        //    rolls back to "locked out but intact" instead of a half-erased account.
-        //
-        // The blob deletes stay outside (the caller runs them; storage has no transactions), which
-        // is exactly why the lockout must come first.
+        // 2. ONE TRANSACTION, ROWS ONLY. The shred commits together or not at all. Nothing slow
+        //    happens inside it: the shared-file re-check used to run here, holding write locks
+        //    across ~66 tables while it issued ~30 queries per file, several of them unindexed
+        //    LIKE scans over every agent's longtext (H9).
+        // 3. RETENTION IS A VETO. If retained financial rows vanished during the shred -- the FK
+        //    cascade that ate invoice IPRO-2026-000008 on 2026-08-14 -- the transaction is ROLLED
+        //    BACK rather than committed with a warning after the fact (H10). Nothing is deleted,
+        //    and the caller is told to delete nothing.
+        // 4. THE SHARED-FILE CHECK RUNS AFTER COMMIT, and the CALLER deletes files only from the
+        //    list this method returns (C1). The check needs the agent's own rows gone to tell
+        //    "shared" from "mine", which is why it cannot happen before the shred.
         Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? shredTx = null;
         if (execute)
         {
@@ -309,12 +315,36 @@ public static class AgentDataEraser
             }
         }
 
-        // A5-H12: the "is this shared?" decision used to consult only the three library tables, so
-        // erasing one agent could destroy a file OTHER agents still point at (their pages and
-        // newsletters go to broken images, no undo). After the shred this agent's rows are gone, so
-        // any reference BlobReferences still finds belongs to someone else — those files move to
-        // the kept list. Runs only on execute: in a preview the agent's own rows still exist and
-        // would make every file look shared.
+        // H10: a detected retention violation is a VETO, not a footnote. Rolling back costs
+        // nothing now that the shred is transactional, and committing a known loss of the
+        // financial ledger is the one outcome this class exists to prevent. The caller sees an
+        // empty blob list, so it deletes no files either -- the agent is left locked out and
+        // otherwise whole, which is recoverable (Admin -> Activate).
+        if (execute && shortfall > 0 && shredTx != null)
+        {
+            await shredTx.RollbackAsync(ct);
+            return new AgentErasureReport(
+                agentId, new List<AgentErasureLine>(), new List<string>(), skipped, retained, shortfall);
+        }
+
+        if (shredTx != null)
+        {
+            await shredTx.CommitAsync(ct);
+            shredTx = null;   // committed: the finally-block dispose must not try to roll it back
+        }
+
+        // C1 + A5-H12: the "is this shared?" decision used to consult only the three library
+        // tables, so erasing one agent could destroy a file OTHER agents still point at (broken
+        // images on their pages and in already-delivered mail, no undo). With this agent's rows
+        // now gone, any reference BlobReferences still finds belongs to someone else -- those
+        // files move to the kept list.
+        //
+        // AFTER THE COMMIT on purpose (H9): it needs the rows gone, but it does not need the
+        // locks, and it is by far the slowest part of an erasure.
+        //
+        // The list returned here is the ONLY list a caller may delete from. Until 2026-08-24 the
+        // Admin controller deleted the unfiltered PREVIEW list before calling this method at all,
+        // so this filter -- shipped and tested on 2026-08-18 -- never once protected production.
         if (execute && blobs.Count > 0)
         {
             var stillReferenced = new List<string>();
@@ -327,11 +357,6 @@ public static class AgentDataEraser
                 blobs = blobs.Where(u => !stillReferenced.Contains(u, StringComparer.OrdinalIgnoreCase)).ToList();
                 skipped = skipped.Concat(stillReferenced).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             }
-        }
-
-        if (shredTx != null)
-        {
-            await shredTx.CommitAsync(ct);
         }
 
         return new AgentErasureReport(agentId, lines, blobs, skipped, retained, shortfall);

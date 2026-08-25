@@ -273,6 +273,106 @@ public class PrepaidValueTests
         return System.IO.Path.Combine(dir!.FullName, "src", "IPRO.Web", "Views", "Billing", "Index.cshtml");
     }
 
+    // ---------------------------------------------- AUDIT H2: no double-charge after cancelling --
+
+    [Fact]
+    public async Task Resubscribing_while_still_paid_through_defers_the_new_plan_instead_of_charging_twice()
+    {
+        // The reported shape: cancel, then click Subscribe again while prepaid time remains. Before
+        // 2026-08-24 this took the "no active subscription" branch and billed immediately -- a
+        // second charge for days the agent already owned.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedAnnualGoldAsync(db, daysIn: 10, period: BillingPeriod.Monthly,
+            amount: 60m, nextBillingInDays: 20);
+        Assert.True(await NewService(db).CancelSubscriptionAsync(seed.AgentId));
+        db.ChangeTracker.Clear();
+
+        var paidThrough = (await db.Billings.AsNoTracking().SingleAsync(b => b.Id == seed.BillingId)).PaidThroughAt;
+        Assert.NotNull(paidThrough);
+        Assert.True(paidThrough > DateTime.UtcNow, "precondition: prepaid time must remain");
+
+        // Resubscribe to the same package. No PayPal settings, so it stops at the configuration
+        // gate -- but the pending Billing row it would have created is what we inspect.
+        var silver = new BillingRule
+        {
+            PackageName = ($"H2-{Guid.NewGuid():N}")[..20], MonthlyPrice = 40m, AnnualPrice = 400m,
+            IsActive = true, PayPalMonthlyPlanId = "P-H2-M", PayPalAnnualPlanId = "P-H2-A"
+        };
+        db.Add(silver);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        // PayPal settings must be PRESENT or BeginPaidChangeAsync short-circuits before it writes
+        // the checkout row and the assertion below becomes vacuous -- which is exactly how the
+        // first version of this test passed against the unfixed code. BaseUrl points at a dead
+        // port so the HTTP leg fails fast AFTER the row exists.
+        await NewServiceWithPayPal(db).CreateSubscriptionAsync(
+            seed.AgentId, silver.Id, BillingPeriod.Monthly, "https://x/r", "https://x/c");
+
+        db.ChangeTracker.Clear();
+        var pending = await db.Billings.AsNoTracking()
+            .Where(b => b.AgentUserId == seed.AgentId && b.BillingRuleId == silver.Id)
+            .OrderByDescending(b => b.Id)
+            .FirstOrDefaultAsync();
+        Assert.NotNull(pending);
+        // The new plan must not begin before the prepaid period ends -- otherwise the agent is
+        // charged twice for the same days.
+        AssertClose(paidThrough!.Value, pending!.NextBillingDate);
+    }
+
+    private static PayPalBillingService NewServiceWithPayPal(IPRODbContext db) => new(
+        new UnitOfWork(db), db, new OfflineHttpClientFactory(), new StubEmailService2(),
+        Options.Create(new PayPalSettings { ClientId = "test-client", ClientSecret = "test-secret" }),
+        new ConfigurationBuilder().Build(),
+        NullLogger<PayPalBillingService>.Instance);
+
+    [Fact]
+    public async Task The_billing_page_shows_the_paid_through_state_not_a_stale_trial_banner()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedAnnualGoldAsync(db, daysIn: 10, period: BillingPeriod.Monthly,
+            amount: 60m, nextBillingInDays: 20);
+
+        // An agent whose signup trial expired long ago -- the exact case that rendered
+        // "Trial active until <a date in the past>" to a paying customer who had just cancelled.
+        var agent = await db.AgentUsers.SingleAsync(a => a.Id == seed.AgentId);
+        agent.TrialEndsAt = DateTime.UtcNow.AddMonths(-6);
+        await db.SaveChangesAsync();
+        Assert.True(await NewService(db).CancelSubscriptionAsync(seed.AgentId));
+        db.ChangeTracker.Clear();
+
+        var controller = NewBillingController(db, seed.AgentId);
+        await controller.Index();
+
+        var paidThroughRow = controller.ViewBag.PaidThroughBilling as IPRO.Entities.Billing;
+        Assert.NotNull(paidThroughRow);
+        Assert.True(paidThroughRow!.PaidThroughAt > DateTime.UtcNow);
+        // And the page is NOT treating them as gated, so the honest banner is the one that renders.
+        Assert.False((bool)controller.ViewBag.IsAccessGated);
+    }
+
+    private static IPRO.Web.Controllers.BillingController NewBillingController(IPRODbContext db, int agentId)
+    {
+        var uow = new UnitOfWork(db);
+        var controller = new IPRO.Web.Controllers.BillingController(
+            NewService(db),
+            uow,
+            new ConfigurationBuilder().Build(),
+            new PackageEntitlementService(uow, db),
+            db,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<IPRO.Web.Controllers.BillingController>.Instance);
+        var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, agentId.ToString()) }, "test"))
+        };
+        controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext = ctx };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(ctx, new NullTempData());
+        return controller;
+    }
+
     // ------------------------------------------------------------- the SuperAdmin refund queue --
 
     [Fact]
@@ -420,6 +520,19 @@ public class PrepaidValueTests
         Options.Create(new PayPalSettings()),
         new ConfigurationBuilder().Build(),
         NullLogger<PayPalBillingService>.Instance);
+
+    // Settings present (so the checkout row IS written) but every HTTP call fails instantly and
+    // offline -- no dependency on PayPal's sandbox being reachable from a test run.
+    private sealed class OfflineHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(new RefuseHandler());
+
+        private sealed class RefuseHandler : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
+                => throw new HttpRequestException("offline test handler");
+        }
+    }
 
     private sealed class StubHttpClientFactory : IHttpClientFactory
     {
