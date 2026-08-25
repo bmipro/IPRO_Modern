@@ -465,6 +465,42 @@ tests (28 new, suite green) and its entry updated in `AUDIT_RECONCILIATION_2026-
 - **ADMIN-10 / A5-M-REBUILDRES** — RebuildResources is SuperAdmin-only, the confirm says what is
   destroyed, and support admins see the button disabled, not hidden.
 
+## QA daily harness: it CANNOT validate upgrade proration amounts (learned 2026-08-24)
+
+The three hidden QA packages bill **daily** at PayPal but carry `BillingPeriod.Monthly` in IPRO's
+own bookkeeping -- that mismatch is the harness's whole design. Upgrade proration divides the
+remaining time by a cycle length derived from `BillingPeriod`
+(`GetCurrentCycleStart(nextBillingDate, Monthly)` = `nextBillingDate.AddMonths(-1)`), so for a daily
+plan the denominator is ~30x too large and every upgrade charge is ~30x too small.
+
+Observed 2026-08-24 on BobyMot #35, both upgrades run from `bobymot.247advisers.com`:
+
+| Upgrade | Tier difference | Charged | Implied fraction |
+|---|---|---|---|
+| QA Silver -> QA Gold (id 8) | $20.00 | $0.27 + $0.04 HST | 1.35% |
+| QA Gold -> QA Platinum (id 9) | $30.00 | $0.40 + $0.05 HST | 1.33% |
+
+The honest figure for a genuine daily plan with ~10h left would be ~$8.33 and ~$12.50.
+
+The Aug 11 run's "prorated $19.33 verified" was wrong in the OPPOSITE direction: `NextBillingDate`
+had not yet been synced from PayPal, so the denominator was a real month and the upgrade charged
+nearly a full month's difference for one day of service. The 2026-08-16 reconcile fix (which syncs
+`NextBillingDate` from PayPal's schedule) is what moved it to the other extreme. **Neither run
+validated the proration AMOUNT; both validated structure.**
+
+**NOT a production defect.** It requires a package whose `BillingPeriod` disagrees with its PayPal
+plan frequency, which only the QA harness deliberately creates (`SyncDailyTestPlanAsync` hard-refuses
+outside sandbox). Real Silver/Gold/Platinum monthly and annual plans match. The genuine monthly
+upgrade math is covered by `BillingProrationMatrixTests` (15 tests), independently verified correct
+by the 2026-08-20 truth audit.
+
+**What the daily harness DOES validate, and did again on 2026-08-24:** exactly one PayPal charge and
+exactly one invoice per upgrade (invoice numbers ran 11-16 strictly sequential -- the absorb-rule fix
+holding on the very path that minted a duplicate on Aug 11), the supersede cancelling the previous
+subscription at PayPal, correct HST, and the return landing on the agent's own host. That last one
+closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
+from `bobymot.247advisers.com`.
+
 ## POST-SWEEP AUDIT 2026-08-20 — 2 CRITICAL, 15 HIGH still open
 
 Six parallel auditors run against `94d36c3` after the day's five deploys. **Findings live in

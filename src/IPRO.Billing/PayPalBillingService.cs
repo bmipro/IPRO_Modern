@@ -141,6 +141,19 @@ public class PayPalBillingService : IBillingService
         {
             await CancelPendingChangesAsync(userId);
 
+            // AUDIT H2: "no Active row" does NOT mean "owes us money from today". An agent who
+            // cancelled still owns everything up to Billing.PaidThroughAt (DOCS/22), and until
+            // 2026-08-24 this branch billed them immediately for a window they had already paid
+            // for -- a straight double-charge, and the Billing page offered exactly that button
+            // because it showed no current package at all. The new subscription now STARTS when
+            // the prepaid time runs out, so cover is continuous and nothing is paid for twice.
+            var paidThrough = await _uow.Billings.FirstOrDefaultAsync(b =>
+                b.AgentUserId == userId &&
+                b.Status == BillingStatus.Cancelled &&
+                b.PaidThroughAt != null &&
+                b.PaidThroughAt > DateTime.UtcNow);
+            var resubscribeStart = paidThrough?.PaidThroughAt;
+
             var agent = await _uow.AgentUsers.GetByIdAsync(userId);
             var promo = await ValidatePromotionCodeAsync(agent?.PromotionCode, requestedPackage.Id, userId);
 
@@ -247,6 +260,8 @@ public class PayPalBillingService : IBillingService
                 effectiveAmount,
                 returnUrl,
                 cancelUrl,
+                nextBillingDate: resubscribeStart,
+                deferredStart: resubscribeStart,
                 includeSetupFee: !completesScheduledChange,
                 overrideAmount: overrideAmount,
                 overridePlanId: overridePlanId,

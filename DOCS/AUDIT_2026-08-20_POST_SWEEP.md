@@ -72,11 +72,11 @@ So the finding A5-H12 describes is still fully live: delete agent A, and agent B
 image dies with it — broken images on their public pages and in already-delivered mail, no undo.
 `BlobReferenceGuardTests.cs:89` passes because it asserts on the eraser's report, never the controller.
 
-**Design conflict to resolve, not a one-liner:** `AgentsController.cs:437-441` deliberately deletes
-files *before* rows (an exception between the two stranded 10 files on 2026-08-04); the shared-file
-check can only work *after* rows are gone. Options: delete after the shred and accept a stranding
-window (mitigated by the pre-delete log line already present), or compute shared-ness from a
-pre-shred snapshot that excludes this agent's own rows.
+**Design conflict — RESOLVED 2026-08-24, owner chose option A.** `AgentsController.cs` deliberately
+deleted files *before* rows (an exception between the two stranded 10 files on 2026-08-04), but the
+shared-file check can only work *after* rows are gone. Both could not hold. Decision: **delete after
+the shred**, accepting a small stranding window that the pre-destruction log line makes recoverable
+by hand — because a wrongly deleted file another agent still displays is not recoverable at all.
 
 **Consequence for the record:** `A5-H12` must revert to NOT FIXED, and today's handoff claim
 *"High (actionable): 0"* was false when written.
@@ -184,6 +184,27 @@ does not. Invisible to tests because every `PrepaidValueTests` fixture seeds a f
 | `handoff.md` | **"High (actionable): 0" was false** — C1 and the items above. |
 
 ---
+
+## Wave 1 — FIXED 2026-08-24 (branch `fix/audit-wave-1`)
+
+All five live-exposure findings closed. Every fix was verified BOTH ways: the new test was run
+against the pre-fix code and observed to FAIL, then against the fix and observed to PASS. That
+two-way check is the thing whose absence let C1 ship green on 2026-08-18.
+
+| Finding | Fix |
+|---|---|
+| **H1** sanitizer destroyed removed tags' contents | Two passes: pass 1 (`KeepChildNodes=false`) kills dangerous elements WITH their bodies, so `<script>` cannot leak as visible text; pass 2 (`KeepChildNodes=true`) **unwraps** every form control, so the words survive and no element remains. THREE wrong turns, each caught by a test rather than by review: (a) a single blanket unwrap leaked `alert(1)` as text; (b) keeping `<button>` allowed-but-attribute-stripped preserved prose but left an inert control, violating the existing A5-M-SANITIZER assertion — the full-suite gate caught it and the correct answer was to remove ALL form controls and let the unwrap keep their text, satisfying both rules with the existing test **unmodified**; (c) an H2 test that passed against the broken code because its assertion sat inside a condition that was never true. |
+| **C1** shared-file guard never ran | Ordering reversed to ROWS BEFORE FILES. The controller now calls `EraseAsync` first and deletes only from `report.Blobs` (the filtered list); `plan.Blobs` is used solely for the pre-destruction recovery log. The old files-first ordering's rationale (stranding, 2026-08-04) is now carried by that log line. |
+| **H9** blob re-check inside the transaction | Moved to AFTER commit. It needs the rows gone, not the locks — the slowest part of an erasure no longer holds write locks across ~66 tables. |
+| **H10** retention violation committed anyway | Now a VETO: `RollbackAsync`, an empty blob list so the caller deletes nothing, and the controller aborts with an explicit audit entry. The agent is left deactivated but whole (Admin → Activate restores). |
+| **H2** post-cancel double-charge | Two halves. Money: the no-active-subscription branch now finds a cancelled-but-paid-through row and starts the new subscription at `PaidThroughAt` (`deferredStart`), so cover is continuous and no day is paid for twice. UI: `BillingController` surfaces the row and the Billing page shows "cancelled — you keep X until <date>" instead of falling through to a stale, past-dated "Trial active" banner. The trial branch now also requires the trial to actually be in the future. |
+
+New tests: `AgentDeleteBlobOrderingTests` (3, controller-level — the level at which C1 was visible),
+plus H2 and sanitizer cases in `PrepaidValueTests` / `MediumSweepTests`.
+
+**M1 (overlay) is explicitly NOT fixed** and its test is `[Fact(Skip=...)]` with the reason inline:
+the deny-list cannot close it, and the real fix is a CSS allow-list that needs care not to break
+existing newsletter formatting. Wave 2.
 
 ## Remediation plan
 
