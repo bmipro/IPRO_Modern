@@ -12,16 +12,17 @@ touching billing, erasure or the sanitizer**), `DOCS/TODO.md` (durable backlog),
 
 ## 1. Production right now
 
-**Both apps live on the head of `main`.** The wave-1 *code* merge is **`d21ef09`**; anything on
-`main` after it is documentation only, so `d21ef09` is the SHA that matters for behaviour. Verified
-via `/health/version` (never `/health`, which answers before the new build is serving).
+**Both apps live on the head of `main`** — verify which SHA that is at `/health/version` on BOTH
+hosts (never `/health`, which answers before the new build is serving). Code merges so far:
+wave 1 (`d21ef09`), the billing wave (`a827bda`), and billing wave 2 (this branch, pending
+merge).
 
 Production agents:
 - **BahmanMotamed #12** — owner, Gold monthly.
 - **BobyMot #35** — QA daily harness, real PayPal sandbox subscription `I-VG1A3CKSK6DX`, charges
   every day. Day 1 was 2026-08-20. Currently **Platinum Daily** (package 9).
 
-Test suite on `main`: **216 passed, 0 failed, 1 skipped** (the skip is deliberate — audit M1, below).
+Test suite: **258 passed, 0 failed, 1 skipped** on the wave-2 branch (the skip is deliberate — audit M1, below).
 
 ---
 
@@ -123,7 +124,7 @@ Full correction table: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Documentation c
 
 ---
 
-## 6b. Billing wave — BUILT 2026-08-25, awaiting merge (branch `fix/billing-wave`)
+## 6b. Billing wave — MERGED + DEPLOYED 2026-08-25 (`a827bda`)
 
 The owner asked for the whole PayPal/billing cluster at once. **13 findings fixed, 3
 dispositioned, 24 new tests, every fix verified both ways** (test fails on pre-fix code, passes
@@ -148,6 +149,30 @@ proof legs.
 
 ---
 
+## 6c. Four-auditor billing audit + wave 2 — 2026-08-25 evening
+
+After the billing wave deployed, four parallel auditors (money math, state machine, jobs, truth)
+audited billing A-to-Z against `a827bda`. Verdict: all 13 billing-wave fixes HOLD — and the audit
+found 4 HIGHs the tests could not see, three of them created BY the wave. Wave 2 fixed them the
+same evening, both-ways verified, 18 new tests (register § "Four-auditor billing audit" has the
+full table):
+
+- **C** — my drip tracker-clear regression (duplicate step emails) — the live one, fixed first.
+- **A** — deferred-start rows minted phantom refunds and destroyed credit windows.
+- **D** — refund double-mint races closed by a claims-table fence (`BillingCancellationClaims`,
+  new table via StartupSchemaRepair, both apps).
+- **B** — the 48h sweep now consults PayPal before voiding, and money captured against an ended
+  subscription lands in the refund queue instead of an error log.
+- Plus: Expired rows honored by the gates, month-end refund drift, slot-release ordering, txn-ref
+  truncation, reconcile per-row isolation, the M5-reconcile-leg test, and the refund screen's
+  nonexistent-action instruction.
+
+The remaining audit findings (all MEDIUM/LOW) are recorded as the open billing set in the
+register — including one **owner decision**: the post-upgrade annual cancel refund policy
+(cross-row fairness is unspecified by DOCS/22; wave 2 caps the refund at what was captured).
+
+---
+
 ## 7. What is left
 
 **Wave 2 — what remains after the billing wave.** M1 the CSS allow-list · H3 the resolver split ·
@@ -161,7 +186,7 @@ are missing: an annual-cancel-after-renewal fixture, a cancelled-but-paid-throug
 and a resolver-agreement test with a divergent `AgentUser.PackageId`. (The controller-level blob test
 that would have caught C1 on day one now exists — `AgentDeleteBlobOrderingTests`.)
 
-**Also open:** the 14 known low-severity items and the owner-decision list in the register; the
+**Also open:** the 12 known low-severity items and the owner-decision list in the register; the
 **staging decision reminder fires Mon 2026-08-25 09:00** — the open question is data (a real copy
 means PIPEDA exposure), not cost.
 

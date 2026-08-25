@@ -149,7 +149,7 @@ public class PayPalBillingService : IBillingService
             // the prepaid time runs out, so cover is continuous and nothing is paid for twice.
             var paidThrough = await _uow.Billings.FirstOrDefaultAsync(b =>
                 b.AgentUserId == userId &&
-                b.Status == BillingStatus.Cancelled &&
+                (b.Status == BillingStatus.Cancelled || b.Status == BillingStatus.Expired) &&
                 b.PaidThroughAt != null &&
                 b.PaidThroughAt > DateTime.UtcNow);
             var resubscribeStart = paidThrough?.PaidThroughAt;
@@ -448,9 +448,13 @@ public class PayPalBillingService : IBillingService
             _logger.LogWarning(
                 "Agent {AgentUserId} completed a stale approval for superseded billing {BillingId} (status {Status}); PayPal subscription {SubscriptionId} cancel result: {Stopped}.",
                 userId, subscriptionBilling.Id, subscriptionBilling.Status, subscriptionBilling.PayPalSubscriptionId, stopped);
+            // Wave-2 B: no "you will not be charged" promise -- a subscription checkout can
+            // capture the setup fee and first cycle AT approval, before this guard runs. Any such
+            // capture lands in the refund queue via the sale handler's captured-after-end net;
+            // say that instead of promising what the code cannot guarantee.
             return BillingChangeResult.Failed(stopped
-                ? "That checkout was from an earlier plan change that has since been replaced, so it was not activated and the PayPal approval has been cancelled -- you will not be charged for it. Please choose your package again."
-                : "That checkout was from an earlier plan change that has since been replaced and was not activated. We could not immediately confirm the PayPal cancellation, so please also check your PayPal account for a subscription to cancel, and contact support if unsure.");
+                ? "That checkout was from an earlier plan change that has since been replaced, so it was not activated and the PayPal approval has been cancelled. If a payment was taken when you approved, it is flagged for refund automatically -- contact support if you have any doubt. Please choose your package again."
+                : "That checkout was from an earlier plan change that has since been replaced and was not activated. We could not immediately confirm the PayPal cancellation, so please also check your PayPal account for a subscription to cancel; any payment taken is flagged for refund. Contact support if unsure.");
         }
 
         if (subscriptionBilling != null &&
@@ -744,20 +748,22 @@ public class PayPalBillingService : IBillingService
             pendingChange.Status = SubscriptionChangeStatus.Cancelled;
             pendingChange.CancelledAt = now;
             _uow.SubscriptionChanges.Update(pendingChange);
-
-            // H5: this is the "Cancel checkout" / Resume path -- it must give the claimed promo
-            // slot back exactly like CancelPendingChangesAsync does, or the slot leaks for good
-            // and the agent's own RETRY finds "redemption limit reached" and silently pays full
-            // price plus the un-waived setup fee. Same floor-0 conditional decrement.
-            if (pendingChange.PromotionCodeId.HasValue)
-            {
-                await _db.PromotionCodes
-                    .Where(p => p.Id == pendingChange.PromotionCodeId.Value && p.MaxRedemptions != null && p.RedemptionCount > 0)
-                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
-            }
         }
 
         await _uow.SaveChangesAsync();
+
+        // H5: this is the "Cancel checkout" / Resume path -- it must give the claimed promo slot
+        // back exactly like CancelPendingChangesAsync does, or the slot leaks for good and the
+        // agent's own RETRY finds "redemption limit reached" and silently pays full price plus
+        // the un-waived setup fee. Wave-2 SLOT: released only AFTER the void committed -- the old
+        // order released first, so a failing save left the row Pending and a retry released the
+        // same claim twice, letting a capped code over-admit. Same floor-0 conditional decrement.
+        if (pendingChange?.PromotionCodeId != null)
+        {
+            await _db.PromotionCodes
+                .Where(p => p.Id == pendingChange.PromotionCodeId.Value && p.MaxRedemptions != null && p.RedemptionCount > 0)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+        }
         return true;
     }
 
@@ -814,40 +820,71 @@ public class PayPalBillingService : IBillingService
     // discovering a lost webhook. Access is honored to what was paid for; an annual cancel before
     // the month-10 crossover produces a refund the owner processes manually from the SuperAdmin
     // refund queue. All math in PrepaidValue; every input recorded on the Cancel change row.
-    private async Task ApplyCancellationOutcomeAsync(
+    internal async Task ApplyCancellationOutcomeAsync(
         IPRO.Entities.Billing subscription, BillingStatus targetStatus, DateTime paidThroughEnd, string trigger)
     {
         var now = DateTime.UtcNow;
 
-        // The refund is claimed against the payment that bought the running period -- the most
-        // recent PAID invoice on this billing. Its transaction id and age drive the queue's
-        // "refund at PayPal against txn X, window closes in N days" display, and (M3) its TaxRate
-        // is the rate the refund's tax must return: DOCS/22 line 36 says "taxRate actually charged
-        // on the original invoice". Repricing at the agent's CURRENT province keeps HST already
-        // remitted to CRA when someone moves.
-        var lastPaid = (await _uow.Invoices.FindAsync(i => i.BillingId == subscription.Id && i.IsPaid))
-            .OrderByDescending(i => i.IssuedAt)
-            .FirstOrDefault();
-        var taxRate = lastPaid != null
-            ? lastPaid.TaxRate
-            : (await CalculateTaxAsync(subscription.AgentUserId, Math.Max(subscription.Amount, 0.01m))).Rate;
+        // Wave-2 D (audit 2026-08-25): the outcome is minted EXACTLY ONCE, and the DATABASE --
+        // not this caller's possibly-stale tracked entity -- decides who mints it. Three doors
+        // (self-cancel, webhook, reconcile) can race: the webhook fires the instant our own
+        // cancel API call lands, and the reconcile acts on rows it loaded minutes earlier. A
+        // read-then-act status check let two doors both pass and put two identical Pending rows
+        // in the manual refund queue. The fence is an INSERT with BillingId as the primary key,
+        // committed in the SAME transaction as the outcome below: the losing door's duplicate-key
+        // failure rolls its whole mint back, and a crash mid-mint rolls the claim back with it,
+        // so the row stays Active and the next hourly pass retries cleanly. (A status-flip claim
+        // was rejected precisely because it commits ahead of the outcome and a failure between
+        // the two eats the cancellation.)
+        _db.BillingCancellationClaims.Add(new BillingCancellationClaim
+        {
+            BillingId = subscription.Id,
+            ClaimedAt = now,
+            Trigger = trigger.Length <= 64 ? trigger : trigger[..64]
+        });
 
         // C2: measure from the start of the CURRENT cycle. Billing.StartDate is written at
         // activation and never advanced on renewal, so anyone past their first anniversary
         // measured 12+ months "used", hit the crossover branch, and got $0 refund with a
         // PaidThroughAt in the PAST -- gated the moment they cancelled. Same prohibition the
         // upgrade path already obeys via GetCurrentCycleStart; the cancel path did not.
-        //
-        // M4: the clawback's monthly rate derives from THIS subscription's frozen annual amount
-        // via the documented pricing structure (a year costs 10 months -- "two months free",
-        // DOCS/22 line 45), never today's BillingRule.MonthlyPrice, which reprices history
-        // (BILL-CREDITPRICE). Amount/10 also keeps the month-10 crossover exact by construction
-        // for every historical price and any promo discount.
         var cycleStart = GetCurrentCycleStart(paidThroughEnd, subscription.Period);
+
+        // Wave-2 A: the refund derives from money ACTUALLY SETTLED on this row for the RUNNING
+        // cycle -- not from Billing.Amount, which is a price, not a payment. Deferred-start rows
+        // (convert credits, annual-to-annual upgrades) carry an Amount that was never captured:
+        // pricing the clawback off it minted phantom refunds (up to ~90% of an annual on $0
+        // collected) and, for credit windows, slashed PaidThroughAt months into the past. The
+        // window starts 3 days before cycleStart to absorb renewal invoices stamped slightly
+        // before the anniversary. Base is clamped to Amount because the first-year invoice's
+        // SubTotal includes the setup fee, which is not refundable prepaid value.
+        var cyclePayments = (await _uow.Invoices.FindAsync(i =>
+                i.BillingId == subscription.Id && i.IsPaid))
+            .Where(i => i.SubTotal > 0m && i.IssuedAt >= cycleStart.AddDays(-3))
+            .OrderByDescending(i => i.IssuedAt)
+            .ToList();
+        var settledThisCycle = cyclePayments.Sum(i => i.SubTotal);
+        var refundBase = Math.Min(subscription.Amount, settledThisCycle);
+        var payingInvoice = cyclePayments.FirstOrDefault();
+
+        // M3: tax at the rate actually charged on the invoice being refunded (DOCS/22 line 36),
+        // never the agent's CURRENT province -- repricing keeps HST already remitted to CRA.
+        var lastPaid = (await _uow.Invoices.FindAsync(i => i.BillingId == subscription.Id && i.IsPaid))
+            .OrderByDescending(i => i.IssuedAt)
+            .FirstOrDefault();
+        var rateSource = payingInvoice ?? lastPaid;
+        var taxRate = rateSource != null
+            ? rateSource.TaxRate
+            : (await CalculateTaxAsync(subscription.AgentUserId, Math.Max(subscription.Amount, 0.01m))).Rate;
+
+        // M4: the clawback's monthly rate stays Amount/10 (the documented two-months-free
+        // structure, DOCS/22 line 45) so the month-10 crossover holds by construction; only the
+        // refundable BASE shrinks to what was captured.
         var monthlyNetAtPurchase = subscription.Amount / 10m;
 
-        var outcome = subscription.Period == BillingPeriod.Annually
-            ? PrepaidValue.AnnualCancel(subscription.Amount, monthlyNetAtPurchase, taxRate, cycleStart, now)
+        var neverBilledThisCycle = now < cycleStart || refundBase <= 0m;
+        var outcome = subscription.Period == BillingPeriod.Annually && !neverBilledThisCycle
+            ? PrepaidValue.AnnualCancel(refundBase, monthlyNetAtPurchase, taxRate, cycleStart, now)
             : PrepaidValue.MonthlyCancel(paidThroughEnd, now);
 
         subscription.Status = targetStatus;
@@ -872,15 +909,53 @@ public class PayPalBillingService : IBillingService
             RefundTaxAmount = outcome.RefundTax,
             RefundGrossAmount = outcome.RefundGross,
             RefundStatus = outcome.RefundGross > 0m ? RefundStatus.Pending : RefundStatus.None,
-            RefundPayPalTransactionId = lastPaid?.PayPalTransactionId ?? string.Empty,
-            RefundWindowEndsAt = lastPaid != null ? PrepaidValue.RefundWindowEndsAt(lastPaid.IssuedAt) : null,
+            // The refund is claimed against the invoice that PAID the running cycle -- never the
+            // merely-latest invoice, which for a convert is the $0 conversion record. The id is
+            // normalized to the SETTLING transaction: a failed-payment marker appends every
+            // retry's id comma-joined, the settled one last, and the raw list both overflows the
+            // varchar(64) column and points the queue at a FAILED transaction.
+            RefundPayPalTransactionId = SettlingTransactionRef(payingInvoice?.PayPalTransactionId),
+            RefundWindowEndsAt = payingInvoice != null ? PrepaidValue.RefundWindowEndsAt(payingInvoice.IssuedAt) : null,
             RefundResolutionNote = (outcome.RefundGross > 0m
-                ? $"Annual clawback: {outcome.MonthsUsed} month(s) of the cycle starting {cycleStart:yyyy-MM-dd} used at {monthlyNetAtPurchase:0.00}/mo (= paid {subscription.Amount:0.00}/10) net; refund {outcome.RefundNet:0.00} + tax {outcome.RefundTax:0.00} (rate {taxRate:0.###} as invoiced)."
-                : $"No refund due ({(subscription.Period == BillingPeriod.Annually ? $"month {outcome.MonthsUsed} is at/past the crossover" : "monthly plan")}); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}.")
+                ? $"Annual clawback: {outcome.MonthsUsed} month(s) of the cycle starting {cycleStart:yyyy-MM-dd} used at {monthlyNetAtPurchase:0.00}/mo (= priced {subscription.Amount:0.00}/10) net of {refundBase:0.00} actually settled this cycle; refund {outcome.RefundNet:0.00} + tax {outcome.RefundTax:0.00} (rate {taxRate:0.###} as invoiced)."
+                : subscription.Period == BillingPeriod.Annually && neverBilledThisCycle
+                    ? $"No refund due (nothing has settled on this subscription for the running period -- deferred start or credit window); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}."
+                    : $"No refund due ({(subscription.Period == BillingPeriod.Annually ? $"month {outcome.MonthsUsed} is at/past the crossover" : "monthly plan")}); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}.")
                 + $" [{trigger}]"
         });
 
-        await _uow.SaveChangesAsync();
+        try
+        {
+            await _uow.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsDuplicateKey(ex))
+        {
+            // Another door won the fence between this caller's status read and its save. Its mint
+            // is complete (the claim only ever commits WITH an outcome); ours rolls back whole.
+            // The tracker still holds our rejected claim + change row -- clear it so the caller's
+            // loop (the reconcile iterates many rows) continues clean, M7-style.
+            _db.ChangeTracker.Clear();
+            subscription.Status = targetStatus;   // keep the caller's in-memory view coherent
+            _logger.LogInformation(
+                "Cancellation outcome for billing {BillingId} was minted by another door first; duplicate mint rolled back. [{Trigger}]",
+                subscription.Id, trigger);
+        }
+    }
+
+    private static bool IsDuplicateKey(DbUpdateException ex) =>
+        ex.InnerException is MySqlConnector.MySqlException { Number: 1062 };
+
+    /// The transaction a manual refund must target: the last comma-separated segment (the settled
+    /// payment -- failed-marker invoices append retry ids in order), with any failed-marker prefix
+    /// stripped, clamped to the column's 64 chars.
+    internal static string SettlingTransactionRef(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        var last = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault() ?? string.Empty;
+        const string failedPrefix = "PAYPAL_FAILED:";
+        if (last.StartsWith(failedPrefix, StringComparison.Ordinal)) last = last[failedPrefix.Length..];
+        return last.Length <= 64 ? last : last[..64];
     }
 
     public async Task<int> ProcessDueSubscriptionChangesAsync()
@@ -899,12 +974,63 @@ public class PayPalBillingService : IBillingService
             var staleCandidates = await _uow.SubscriptionChanges.FindAsync(c =>
                 c.Status == SubscriptionChangeStatus.Pending && c.CreatedAt <= staleCutoff);
             var sweptAny = false;
+            var slotsToRelease = new List<int>();
             foreach (var stale in staleCandidates)
             {
                 var checkoutBilling = stale.BillingId.HasValue
                     ? await _uow.Billings.GetByIdAsync(stale.BillingId.Value)
                     : null;
                 if (checkoutBilling == null || checkoutBilling.Status != BillingStatus.Pending) continue;
+
+                // Wave-2 B (audit 2026-08-25): a checkout that reached PayPal is asked about at
+                // PayPal BEFORE being voided locally -- "48h old here" says nothing about the
+                // approval link there. Fail-safe in every uncertain direction: unreachable or
+                // unrecognised -> leave it for an hour when PayPal can answer; ACTIVE/APPROVED ->
+                // the agent COMPLETED this checkout and our activation was lost -- voiding it
+                // guarantees PayPal bills forever against a Cancelled row, so it is left alone
+                // and logged for the activation/reconcile machinery; APPROVAL_PENDING -> a cancel
+                // is attempted best-effort (PayPal cannot always cancel an unapproved
+                // subscription) and the sweep proceeds -- a late approval is then caught by the
+                // stale-approval guard and its captured money by the refund-queue net in the sale
+                // handler.
+                if (!string.IsNullOrWhiteSpace(checkoutBilling.PayPalSubscriptionId))
+                {
+                    string paypalStatus;
+                    try
+                    {
+                        (paypalStatus, _) = await GetPayPalSubscriptionSnapshotAsync(checkoutBilling.PayPalSubscriptionId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "Stale-checkout sweep: could not ask PayPal about subscription {SubscriptionId}; leaving change {ChangeId} for the next pass.",
+                            checkoutBilling.PayPalSubscriptionId, stale.Id);
+                        continue;
+                    }
+                    if (string.IsNullOrWhiteSpace(paypalStatus))
+                    {
+                        _logger.LogWarning(
+                            "Stale-checkout sweep: PayPal gave no status for subscription {SubscriptionId}; leaving change {ChangeId} for the next pass.",
+                            checkoutBilling.PayPalSubscriptionId, stale.Id);
+                        continue;
+                    }
+                    if (paypalStatus.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ||
+                        paypalStatus.Equals("APPROVED", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogError(
+                            "Stale-checkout sweep: PayPal reports subscription {SubscriptionId} is {Status} but billing {BillingId} is still locally Pending -- an activation was lost. NOT sweeping; investigate/replay the activation.",
+                            checkoutBilling.PayPalSubscriptionId, paypalStatus, checkoutBilling.Id);
+                        continue;
+                    }
+                    if (paypalStatus.Equals("APPROVAL_PENDING", StringComparison.OrdinalIgnoreCase) &&
+                        !await CancelPayPalSubscriptionAsync(checkoutBilling.PayPalSubscriptionId,
+                            "Stale IPRO checkout swept after 48 hours."))
+                    {
+                        _logger.LogWarning(
+                            "Stale-checkout sweep: could not cancel approval-pending subscription {SubscriptionId} at PayPal; sweeping locally anyway -- a late approval is caught by the stale-approval guard and the refund-queue net.",
+                            checkoutBilling.PayPalSubscriptionId);
+                    }
+                }
 
                 var sweepNow = DateTime.UtcNow;
                 stale.Status = SubscriptionChangeStatus.Cancelled;
@@ -915,16 +1041,29 @@ public class PayPalBillingService : IBillingService
                 _uow.Billings.Update(checkoutBilling);
                 if (stale.PromotionCodeId.HasValue)
                 {
-                    await _db.PromotionCodes
-                        .Where(p => p.Id == stale.PromotionCodeId.Value && p.MaxRedemptions != null && p.RedemptionCount > 0)
-                        .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+                    slotsToRelease.Add(stale.PromotionCodeId.Value);
                 }
                 sweptAny = true;
                 _logger.LogInformation(
                     "Swept stale checkout: change {ChangeId} (agent {AgentUserId}, {ChangeType}) sat Pending since {CreatedAt:yyyy-MM-dd HH:mm}Z with billing {BillingId} never completed; cancelled and promo slot (if any) released.",
                     stale.Id, stale.AgentUserId, stale.ChangeType, stale.CreatedAt, checkoutBilling.Id);
             }
-            if (sweptAny) await _uow.SaveChangesAsync();
+            if (sweptAny)
+            {
+                await _uow.SaveChangesAsync();
+                // Wave-2 SLOT: the release happens ONLY after the void has committed. The old
+                // order released first (ExecuteUpdate commits immediately) and a failing save
+                // then left the row Pending -- re-swept and re-released every hour, letting a
+                // capped code over-admit. A crash between the save and this loop leaks the slot
+                // instead (fail-closed, billing's stated preference), and the leak is visible in
+                // the log line above.
+                foreach (var promoId in slotsToRelease)
+                {
+                    await _db.PromotionCodes
+                        .Where(p => p.Id == promoId && p.MaxRedemptions != null && p.RedemptionCount > 0)
+                        .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -1675,6 +1814,40 @@ public class PayPalBillingService : IBillingService
                 "{SubscriptionId}. Recording the invoice but NOT reactivating -- verify at PayPal whether " +
                 "this subscription is genuinely still billing.",
                 transactionId, billing.AgentUserId, billing.Status, billing.PayPalSubscriptionId);
+
+            // Wave-2 B (audit 2026-08-25): money captured against a subscription we consider ended
+            // must land in the REFUND QUEUE, not just an error log -- a swept checkout whose
+            // approval link was completed late, a lost-cancel row PayPal keeps billing, the
+            // resurrect-guard cases: in every one of them a real charge existed only as a log line
+            // nobody works. One row per settled transaction (the txn-id replay guard upstream
+            // makes this idempotent); AppliedAt stays NULL on purpose -- this is a money-recovery
+            // marker, not an agent action, and both the H6 waiver consumption and the M16 dunning
+            // suppression key on AppliedAt.
+            if (amount > 0m && !string.IsNullOrWhiteSpace(transactionId))
+            {
+                await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
+                {
+                    AgentUserId = billing.AgentUserId,
+                    CurrentBillingRuleId = billing.BillingRuleId,
+                    RequestedBillingRuleId = billing.BillingRuleId,
+                    BillingId = billing.Id,
+                    ChangeType = SubscriptionChangeType.Cancel,
+                    Status = SubscriptionChangeStatus.Applied,
+                    Period = billing.Period,
+                    EffectiveDate = DateTime.UtcNow,
+                    AppliedAt = null,
+                    AmountDue = 0m,
+                    Currency = billing.Currency,
+                    RefundNetAmount = pendingInvoice?.SubTotal ?? amount,
+                    RefundTaxAmount = pendingInvoice?.TaxAmount ?? 0m,
+                    RefundGrossAmount = pendingInvoice?.Total ?? amount,
+                    RefundStatus = RefundStatus.Pending,
+                    RefundPayPalTransactionId = SettlingTransactionRef(transactionId),
+                    RefundWindowEndsAt = PrepaidValue.RefundWindowEndsAt(DateTime.UtcNow),
+                    RefundResolutionNote =
+                        $"PayPal captured {amount:0.00} {billing.Currency} (txn {transactionId}) against {billing.Status} subscription {billing.PayPalSubscriptionId} -- the agent received nothing for it. Refund at PayPal, then verify the subscription is stopped there. [captured-after-end net]"
+                });
+            }
         }
         else
         {
@@ -2114,20 +2287,15 @@ public class PayPalBillingService : IBillingService
         var pendingChanges = await _uow.SubscriptionChanges.FindAsync(c =>
             c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
 
+        var releasablePromoIds = new List<int>();
         foreach (var change in pendingChanges)
         {
             change.Status = SubscriptionChangeStatus.Cancelled;
             change.CancelledAt = DateTime.UtcNow;
             _uow.SubscriptionChanges.Update(change);
-
-            // M-8: a dead checkout gives its claimed promo slot back (floor 0 -- a release can
-            // never invent capacity). Runs exactly once per change because only a Pending row can
-            // enter this loop, and it leaves as Cancelled.
             if (change.PromotionCodeId.HasValue)
             {
-                await _db.PromotionCodes
-                    .Where(p => p.Id == change.PromotionCodeId.Value && p.MaxRedemptions != null && p.RedemptionCount > 0)
-                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+                releasablePromoIds.Add(change.PromotionCodeId.Value);
             }
         }
 
@@ -2141,6 +2309,18 @@ public class PayPalBillingService : IBillingService
         }
 
         await _uow.SaveChangesAsync();
+
+        // M-8: a dead checkout gives its claimed promo slot back (floor 0 -- a release can never
+        // invent capacity). Runs exactly once per change because only a Pending row can enter the
+        // loop above, and it leaves as Cancelled. Wave-2 SLOT: released only AFTER the void
+        // committed -- releasing first meant a failed save left the rows Pending and the retry
+        // released the same claims twice, letting a capped code over-admit.
+        foreach (var promoId in releasablePromoIds)
+        {
+            await _db.PromotionCodes
+                .Where(p => p.Id == promoId && p.MaxRedemptions != null && p.RedemptionCount > 0)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+        }
     }
 
     // How early a due downgrade may fire. The apply predicate used to be EffectiveDate <= now with
@@ -3366,6 +3546,14 @@ public class PayPalBillingService : IBillingService
 
             if (string.IsNullOrWhiteSpace(status)) continue;
 
+            // Wave-2 ISO (audit 2026-08-25): the snapshot guard above only isolated the PayPal
+            // read -- an exception in the OUTCOME leg (a poisoned tracker, a column overflow)
+            // aborted the whole hourly sweep and every remaining drifted subscription kept full
+            // access for another hour, indefinitely while the same row kept failing first. Each
+            // row now fails alone, M7-style: clear the tracker, move on, retry next run.
+            try
+            {
+
             var endedAtPayPal =
                 status.Equals("CANCELLED", StringComparison.OrdinalIgnoreCase) ||
                 status.Equals("EXPIRED", StringComparison.OrdinalIgnoreCase) ||
@@ -3429,6 +3617,15 @@ public class PayPalBillingService : IBillingService
                 "Reconciliation: PayPal reports subscription {SubscriptionId} for agent {AgentUserId} is {Status}, " +
                 "but IPRO still had it Active -- a cancellation webhook was almost certainly lost. Local row corrected to {NewStatus}.",
                 billing.PayPalSubscriptionId, billing.AgentUserId, status, billing.Status);
+
+            }
+            catch (Exception ex)
+            {
+                _db.ChangeTracker.Clear();
+                _logger.LogError(ex,
+                    "Reconciliation: applying the outcome for subscription {SubscriptionId} (agent {AgentUserId}) failed; tracker cleared, continuing with the remaining rows.",
+                    billing.PayPalSubscriptionId, billing.AgentUserId);
+            }
         }
 
         if (corrected > 0) await _uow.SaveChangesAsync();

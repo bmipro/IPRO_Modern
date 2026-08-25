@@ -501,7 +501,7 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
-## POST-SWEEP AUDIT 2026-08-20 — wave 1 SHIPPED 2026-08-24; BILLING WAVE SHIPPED 2026-08-25 (C2 + the PayPal cluster closed)
+## POST-SWEEP AUDIT 2026-08-20 — wave 1 SHIPPED 2026-08-24; BILLING WAVES 1+2 SHIPPED 2026-08-25 (PayPal cluster + the four-auditor follow-up)
 
 Six parallel auditors run against `94d36c3` after the day's five deploys. **Findings live in
 `DOCS/AUDIT_2026-08-20_POST_SWEEP.md`** — that file is the authority; fix entries THERE.
@@ -528,6 +528,17 @@ overlay hole; it needs a CSS allow-list, wave 2).
 
 **The QA day-4 block is LIFTED** -- cancel + delete BobyMot #35 is what exercises C1/H9/H10 against
 real data. Agent deletion and bulk content re-saves are both safe again.
+
+**BILLING WAVE 2 2026-08-25 evening (branch `fix/billing-wave-2`).** A four-auditor A-to-Z
+billing audit against the deployed `a827bda` confirmed all 13 billing-wave fixes HOLD, then found
+4 HIGHs the tests could not see (three created by the wave itself). Fixed the same evening,
+both-ways verified, 18 new tests: the drip tracker-clear duplicate-send regression, deferred-start
+phantom refunds, the refund double-mint race (new `BillingCancellationClaims` fence table via
+StartupSchemaRepair), the sweep-vs-PayPal blindness + the captured-after-end refund net, Expired
+paid-through honored by the gates, month-end refund drift, slot-release ordering, txn-ref
+truncation, reconcile isolation, and the refund screen's nonexistent-action copy. Remaining audit
+findings = the open billing set in `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Four-auditor billing
+audit"; one owner decision (post-upgrade annual cancel refund policy).
 
 **BILLING WAVE 2026-08-25 (branch `fix/billing-wave`).** The owner asked for the whole
 PayPal/billing cluster at once: C2 (renewed-annual clawback), M3/M4 (refund tax + amount from

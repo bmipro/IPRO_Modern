@@ -57,7 +57,7 @@ public class BillingController : Controller
         // time already paid for. The row is surfaced so the page can tell the truth.
         ViewBag.PaidThroughBilling = await _db.Billings.AsNoTracking()
             .Where(b => b.AgentUserId == AgentId
-                        && b.Status == BillingStatus.Cancelled
+                        && (b.Status == BillingStatus.Cancelled || b.Status == BillingStatus.Expired)
                         && b.PaidThroughAt != null
                         && b.PaidThroughAt > DateTime.UtcNow)
             .OrderByDescending(b => b.PaidThroughAt)

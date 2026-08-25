@@ -67,9 +67,12 @@ public class PackageEntitlementService : IPackageEntitlementService
 
         // Cancelled-but-paid-through (DOCS/22): billing has stopped, but the agent paid for this
         // period and keeps access until it ends. Rows cancelled before the design shipped have a
-        // null PaidThroughAt and gate immediately, as they always did.
+        // null PaidThroughAt and gate immediately, as they always did. Expired counts too (wave-2
+        // E): the webhook and reconcile doors write PaidThroughAt on Expired rows since the
+        // billing wave, and honoring it on Cancelled only locked a paid-up agent out instantly.
         var paidThrough = await _uow.Billings.FirstOrDefaultAsync(b =>
-            b.AgentUserId == agentId && b.Status == BillingStatus.Cancelled &&
+            b.AgentUserId == agentId &&
+            (b.Status == BillingStatus.Cancelled || b.Status == BillingStatus.Expired) &&
             b.PaidThroughAt != null && b.PaidThroughAt > DateTime.UtcNow);
         if (paidThrough != null) return false;
 
@@ -120,7 +123,8 @@ public class PackageEntitlementService : IPackageEntitlementService
         var activeBillings = await _db.Billings
             .Where(b => agentIds.Contains(b.AgentUserId) &&
                         (b.Status == BillingStatus.Active ||
-                         (b.Status == BillingStatus.Cancelled && b.PaidThroughAt != null && b.PaidThroughAt > now)))
+                         ((b.Status == BillingStatus.Cancelled || b.Status == BillingStatus.Expired) &&
+                          b.PaidThroughAt != null && b.PaidThroughAt > now)))
             .ToListAsync();
         var billingRuleIdByBilledAgent = activeBillings
             .GroupBy(b => b.AgentUserId)

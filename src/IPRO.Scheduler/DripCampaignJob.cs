@@ -149,10 +149,17 @@ public class DripCampaignJob
                 }
                 catch (Exception saveEx)
                 {
+                    // Wave-2 C (audit 2026-08-25): after this Clear the REST of the tracked batch
+                    // is detached — their emails would still send (the dispatcher inserts a fresh
+                    // row), but their NextStepIndex++ would be a silent no-op, re-sending the
+                    // identical step to every remaining client next tick. Continuing here was
+                    // WORSE than the pre-H13 abort it replaced. Break instead: the untouched
+                    // remainder is still due and simply runs on the next hourly tick.
                     _db.ChangeTracker.Clear();
                     _logger.LogError(saveEx,
-                        "Could not persist the failure bookkeeping for drip enrollment {EnrollmentId}; tracker cleared, continuing with the batch.",
+                        "Could not persist the failure bookkeeping for drip enrollment {EnrollmentId}; tracker cleared and the batch stopped — the remaining enrollments run next tick.",
                         enrollment.Id);
+                    break;
                 }
             }
         }
