@@ -501,7 +501,7 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
-## POST-SWEEP AUDIT 2026-08-20 — 2 CRITICAL, 15 HIGH still open
+## POST-SWEEP AUDIT 2026-08-20 — wave 1 SHIPPED 2026-08-24; C2 + 14 HIGH still open
 
 Six parallel auditors run against `94d36c3` after the day's five deploys. **Findings live in
 `DOCS/AUDIT_2026-08-20_POST_SWEEP.md`** — that file is the authority; fix entries THERE.
@@ -512,9 +512,25 @@ subscriber gets $0 refund and instant loss of access. Four findings are LIVE: sa
 `<form>`/`<button>` contents on save, the post-cancel double-charge state, the blob guard, and the
 erasure transaction's lock profile.
 
-**DO NOT run QA day-4 (cancel + delete) until wave 1 ships.** Corrections owed to this file: the
-medium sweep below was **18** fixes, not 16; `A5-M-RESEND`'s wording (the code flips anything not
-`Paid`, so a Void invoice resent becomes Sent).
+**WAVE 1 SHIPPED 2026-08-24 (`d21ef09`).** All five live-exposure findings closed -- H1 sanitizer
+(two passes: dangerous elements die with their bodies, form controls are unwrapped so the prose
+survives), C1 blob guard (ordering reversed to ROWS BEFORE FILES, so the guard's filtered list is
+what gets deleted), H9 (blob re-check moved after commit), H10 (retention shortfall is now a veto,
+not a footnote), H2 (post-cancel resubscribe starts at `PaidThroughAt`; the Billing page says
+"cancelled -- you keep X until <date>" instead of a stale past-dated trial banner).
+
+Every fix was verified BOTH ways -- new test run against the PRE-FIX code and observed to FAIL, then
+against the fix and observed to PASS. That two-way check is precisely what was absent on 2026-08-18,
+when A5-H12 shipped green while protecting nothing. New `AgentDeleteBlobOrderingTests` is
+controller-level, the only level at which C1 was ever visible. Suite: 216 passed / 0 failed / 1
+skipped, the skip being audit M1 (`[Fact(Skip=...)]`, reason inline -- a deny-list cannot close the
+overlay hole; it needs a CSS allow-list, wave 2).
+
+**The QA day-4 block is LIFTED** -- cancel + delete BobyMot #35 is what exercises C1/H9/H10 against
+real data. Agent deletion and bulk content re-saves are both safe again.
+
+Corrections owed to this file: the medium sweep below was **18** fixes, not 16; `A5-M-RESEND`'s
+wording (the code flips anything not `Paid`, so a Void invoice resent becomes Sent).
 
 ## Medium sweep — 2026-08-20 (branch `fix/medium-sweep`, all 22 register mediums addressed)
 
