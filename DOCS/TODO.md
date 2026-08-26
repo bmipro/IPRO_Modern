@@ -501,6 +501,14 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
+## SECURITY + DRIP WAVE SHIPPED 2026-08-26 (branch fix/security-drip-wave)
+
+H4 (SSRF rebinding -> connect-time address pinning), M17 (IPv6 transition prefixes), M18 (orphan
+report's two blind containers + a drift-proof source test), M11 (null dispatch no longer advances
+an enrollment), M12 (all drip-cancel paths stamp CancelledAt; the sweep is bounded). 7 new tests,
+red/green verified. Register carries the record; the remaining open set has no live
+money-or-data-loss defect.
+
 ## ERASURE WAVE SHIPPED 2026-08-26 (branch fix/erasure-wave)
 
 H11 (unbind after shred), M14 (caught + audited erase failures), M15 (unresolved-refund agents

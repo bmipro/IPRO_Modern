@@ -68,7 +68,7 @@ public interface IEmailConsentService
     // past the single-writer rule. Without it, a suppressed client's enrollment shows Active until
     // its next step comes due -- which can be weeks away for a campaign that will never mail.
     // Returns how many enrollments were cancelled.
-    Task<int> CancelSuppressedDripEnrollmentsAsync();
+    Task<int> CancelSuppressedDripEnrollmentsAsync(int batchLimit = 500);
 
     // Returns the client's preferences token, creating and persisting one if they don't have it yet.
     // Every outgoing email needs a List-Unsubscribe URL, and a client created before this feature
@@ -203,6 +203,7 @@ public class EmailConsentService : IEmailConsentService
         foreach (var enrollment in enrollments)
         {
             enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+            enrollment.CancelledAt = DateTime.UtcNow;   // M12: the CASL "when did we stop" answer
             enrollment.LastError = "Recipient unsubscribed from all email.";
         }
 
@@ -232,14 +233,19 @@ public class EmailConsentService : IEmailConsentService
         return new SuppressionResult(false, queued.Count, enrollments.Count);
     }
 
-    public async Task<int> CancelSuppressedDripEnrollmentsAsync()
+    public async Task<int> CancelSuppressedDripEnrollmentsAsync(int batchLimit = 500)
     {
         // SQL narrows (EmailOptOutAt is what suppression writes for every channel), IsSuppressed
         // DECIDES -- so if the drip channel's rule ever changes in the method above, this sweep
-        // follows it instead of freezing today's rule into a query.
+        // follows it instead of freezing today's rule into a query. M12: BOUNDED -- the sweep
+        // runs at the top of every hourly drip tick, and an unbounded ToListAsync over every
+        // suppressed enrollment ever created grows without limit; the remainder is simply next
+        // tick's work.
         var candidates = await _db.DripCampaignEnrollments
             .Include(e => e.Client)
             .Where(e => e.Status == DripCampaignEnrollmentStatus.Active && e.Client.EmailOptOutAt != null)
+            .OrderBy(e => e.Id)
+            .Take(batchLimit)
             .ToListAsync();
 
         var cancelled = 0;
@@ -247,6 +253,7 @@ public class EmailConsentService : IEmailConsentService
         {
             if (!IsSuppressed(enrollment.Client, EmailChannel.DripCampaign)) continue;
             enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+            enrollment.CancelledAt = DateTime.UtcNow;   // M12: the CASL "when did we stop" answer
             enrollment.LastError = "Client has unsubscribed; enrollment cancelled.";
             cancelled++;
         }

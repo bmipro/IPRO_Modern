@@ -22,7 +22,7 @@ Production agents:
   a **scheduled downgrade to Silver Daily (`billingRuleId` 7) effective Aug 26** — it fires up to
   6 hours EARLY (the lead window is 25% of a daily cycle; harness artifact, not a bug).
 
-Test suite: **281 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
+Test suite: **306 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
 allow-list, `[Fact(Skip=...)]` with the reason inline). The suite grew **216 → 281 today**; every
 defect fix in every wave was verified BOTH ways (test fails on pre-fix code, passes on the fix —
 or the fix stash-reverted and the greens observed to go red).

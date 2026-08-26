@@ -21,6 +21,9 @@
   <PackageReference Include="Hangfire.Core" />
   <!-- keep your other PackageReference + ProjectReference lines -->
 </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="IPRO.IntegrationTests" />
+  </ItemGroup>
 </Project>
 
 

@@ -13,7 +13,12 @@ public class DomainCheckService : IDomainCheckService
 
     private static HttpClient CreateNoRedirectClient()
     {
-        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+        // H4: the pinned handler validates the RESOLVED addresses at connect time, atomically --
+        // the pre-checks above/below stay for fast, friendly error messages, but the security
+        // boundary is here, where DNS rebinding between check and fetch can no longer win.
+        var handler = PublicHostGuard.CreatePinnedHandler();
+        handler.AllowAutoRedirect = false;
+        var client = new HttpClient(handler)
         {
             Timeout = TimeSpan.FromSeconds(10)
         };

@@ -67,7 +67,13 @@ public static class BlobReferences
         ("portal-documents", "Client portal documents and invoices"),
         ("article-media",    "Article images (copied by reference into newsletters)"),
         ("website-media",    "Website page media assets"),
-        ("website-gallery",  "Gallery block images")
+        ("website-gallery",  "Gallery block images"),
+        // M18 (audit): both existed and were uploaded to, but were missing from this enumeration
+        // -- so the orphan report silently never scanned them. The URL columns that reference
+        // them (ECardDesigns.ImageUrl, WebsiteStarterBlocks/Articles.ImageUrl) were registered
+        // all along; only the report's container list was blind.
+        ("ecard-art",        "E-card artwork designs (SuperAdmin-managed)"),
+        ("starter-content",  "Starter library images (SuperAdmin-managed)")
     };
 
     public static async Task<bool> IsReferencedAsync(IPRODbContext db, string? blobUrl, CancellationToken ct = default) =>
