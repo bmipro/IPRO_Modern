@@ -1,261 +1,142 @@
-# Handoff — 2026-08-25 (wave 1 + billing wave)
+# Handoff — 2026-08-25, end of day (five waves shipped; billing audit fully dispositioned)
 
-Written to survive a reboot. If the working directory was wiped, see **§8 Recovery** first.
+Written to survive a reboot. If the working directory was wiped, see **§7 Recovery** first.
 
-Companion docs: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` (the audit findings — **read this before
-touching billing, erasure or the sanitizer**), `DOCS/TODO.md` (durable backlog),
-`DOCS/INVARIANTS.md` (pre-flight rules for routing/hosts/auth/billing),
-`DOCS/AUDIT_RECONCILIATION_2026-08-17.md` (per-finding status, partly stale — see §5),
-`DOCS/22_PREPAID_VALUE.md` (the billing redesign, Stage C partly unshipped).
+Companion docs: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` (the defect register — the authority; every
+wave's record and every open item lives there), `DOCS/TODO.md` (durable backlog),
+`DOCS/INVARIANTS.md` (pre-flight rules — rule 6 now covers the deploy-eviction hazard),
+`DOCS/22_PREPAID_VALUE.md` (billing policy, incl. the post-upgrade refund addendum decided today).
 
 ---
 
 ## 1. Production right now
 
-**Both apps live on the head of `main`** — verify which SHA that is at `/health/version` on BOTH
-hosts (never `/health`, which answers before the new build is serving). Code merges so far:
-wave 1 (`d21ef09`), the billing wave (`a827bda`), and billing wave 2 (this branch, pending
-merge).
+**Both apps live on the head of `main`** — verify which SHA at `/health/version` on **BOTH** hosts
+(never `/health`; and never trust one host or the workflow list — INVARIANTS rule 6). Today's code
+merges, in order: wave 1 `d21ef09` → billing wave `a827bda` → wave 3 `d222826` → wave 4 `8624609`
+→ wave 5 `5debbe4`. Six deploys, every one verified on both hosts, zero run cancellations.
 
 Production agents:
 - **BahmanMotamed #12** — owner, Gold monthly.
-- **BobyMot #35** — QA daily harness, real PayPal sandbox subscription `I-VG1A3CKSK6DX`, charges
-  every day. Day 1 was 2026-08-20. Currently **Platinum Daily** (package 9).
+- **BobyMot #35** — QA daily harness, PayPal sandbox sub `I-VG1A3CKSK6DX`, **Platinum Daily** with
+  a **scheduled downgrade to Silver Daily (`billingRuleId` 7) effective Aug 26** — it fires up to
+  6 hours EARLY (the lead window is 25% of a daily cycle; harness artifact, not a bug).
 
-Test suite: **281 passed, 0 failed, 1 skipped** on the wave-5 branch (the skip is deliberate — audit M1, below).
+Test suite: **281 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
+allow-list, `[Fact(Skip=...)]` with the reason inline). The suite grew **216 → 281 today**; every
+defect fix in every wave was verified BOTH ways (test fails on pre-fix code, passes on the fix —
+or the fix stash-reverted and the greens observed to go red).
 
 ---
 
-## 2. What shipped today (wave 1) — the five live-exposure findings
+## 2. What shipped today — five waves
 
-Full detail in `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Wave 1". Summary:
-
-| | What was wrong | What it means now |
+| Wave | Branch | What it closed |
 |---|---|---|
-| **H1** | The sanitizer deleted a removed tag's *contents*, so a pasted `<button>Book a call</button>` became empty and `<form><p>real text</p></form>` lost the paragraph. Sanitisation runs on WRITE, so the loss was permanent and invisible. | Two passes — dangerous elements die with their bodies (`<script>` cannot leak as text); form controls are **unwrapped**, so the words survive. Bulk re-saving article/drip content is safe again. |
-| **C1** | The cross-agent shared-file guard **had never run in production** — Admin deleted the unfiltered preview list before `EraseAsync` (where the guard lives) was ever called. | Ordering reversed to ROWS BEFORE FILES. Only `report.Blobs` (the filtered list) is deleted. |
-| **H9** | The blob re-check ran *inside* the erasure transaction, holding write locks across ~66 tables while running ~30 queries per file. | Moved after commit — it needs the rows gone, not the locks. |
-| **H10** | A detected retention violation was committed anyway. | Now a veto: rollback, nothing deleted, agent left deactivated but whole (Admin → Activate restores). |
-| **H2** | Cancelling left a state where re-subscribing double-charged, and the Billing page showed a stale past-dated "Trial active" banner. | New subscription starts at `PaidThroughAt`; the page says "cancelled — you keep X until \<date\>". |
+| 1 | `fix/audit-wave-1` | The five live-exposure findings: H1 sanitizer content destruction, C1 blob guard never ran, H9 lock profile, H10 retention veto, H2 post-cancel double-charge. |
+| Billing | `fix/billing-wave` | The register's PayPal cluster, 13 findings: C2 renewed-annual clawback, M3/M4 refund tax+amount from what was paid, M5 PayPal-initiated cancels, H5 promo slots, H12 convert survives the sweeper, H6 waiver door, H15/New A truthful copy, M7/M16/M19 batch isolation, H13/H14 email retry bounds. |
+| 2 | `fix/billing-wave-2` | The four-auditor audit's 4 HIGHs (three wave-created): the drip tracker-clear duplicate-send regression, deferred-start phantom refunds, the refund double-mint race (new `BillingCancellationClaims` fence table), the sweep's PayPal blindness + the captured-after-end refund net; plus Expired paid-through honored, month-end drift, slot ordering, txn-ref truncation, reconcile isolation. |
+| 3 | `fix/billing-wave-3` | Audit F2 (renewals keep the sold-at tax rate; `Billing.Amount` survives a province move), F3 (Profile province dropdown + missing aliases — **"Yukon Territory" was never in the tax map**), F5 (plan sync clears frozen promo plans), and the **owner-decided refund policy**: full unused value capped at cycle-wide settled money (DOCS/22 addendum). |
+| 4 | `fix/billing-wave-4` | The audit's last four MEDIUMs: F6 terminal-state relabels, state-F5 Keep-My-Plan vs in-flight converts, F3c/jobs-4 superseded rows never mint a second outcome (+ H6/M16 protected from the race row), jobs-5 stage-3 isolation. |
+| 5 | `fix/billing-wave-5` | The LOW sweep, all ten in the owner-approved ranking — invariant-culture webhook parsing, the ClientInvoices Quebec-precision sibling, converts derive credit only from paid money, Resume keeps the convert flavor, webhook-cancelled checkouts void completely, dunning copy/ordering. |
 
-**Every fix was verified BOTH ways** — the new test run against the pre-fix code and observed to
-FAIL, then against the fix and observed to PASS. That two-way check is exactly what was missing on
-2026-08-18, when C1 shipped green while protecting nothing.
+**Between the billing wave and wave 2 sat a four-auditor A-to-Z billing audit** (money math, state
+machine, jobs, truth) against the deployed code. It confirmed all 13 billing-wave fixes HOLD at
+their production call sites — no C1-class green-but-useless test — and found the 4 HIGHs above
+that the tests could not see.
 
-Three wrong turns happened on H1 and all three were caught by tests rather than by review. One of
-them tempted me to weaken an existing security assertion to fit the fix; the right answer satisfied
-both rules and left that test **unmodified**. Recorded here because the discipline is the point.
-
-**Deliberately NOT fixed: audit M1 (CSS overlay).** Its test carries `[Fact(Skip=...)]` with the
-reason inline. A deny-list cannot close it — the real fix is a CSS *allow*-list, which needs care not
-to break existing newsletter formatting. Wave 2.
-
----
-
-## 3. The STOP list is lifted
-
-The three blocks from 2026-08-20 are gone: **QA day-4 (cancel + delete BobyMot) is now unblocked**,
-agent deletion is safe, and bulk content re-saves no longer destroy prose.
+**End state: the four-auditor billing audit is fully dispositioned — 0 HIGH / 0 MEDIUM / 0 LOW
+open** (one recorded hardening residue: the DYK counter's server-side increment, bounded by its
+cap either way). The register's "no known open defects" claim from mid-day was DISPROVED the same
+day by that audit and is kept in the register as a lesson.
 
 ---
 
-## 4. QA harness — next steps and one important limitation
+## 3. The QA harness — what happens next
 
-**2026-08-25: Platinum → Silver downgrade.** Console POST to `/Billing/Subscribe` with
-`billingRuleId=7` (Silver Daily) and `period=Monthly`.
+1. **Aug 26 (early, up to 6h before the boundary): BobyMot's downgrade APPLIES.** Expect: the
+   Platinum PayPal sub cancelled, billing row Cancelled, an "Action needed: complete your plan
+   change" email naming **Silver Daily (monthly billing)** (wave-5 #9 copy), and the account
+   pausing at the Billing page — exactly what the banner disclosed. This is the first live run of
+   the fence, the supersede guard, and the apply path post-waves.
+2. **Owner re-subscribes to Silver Daily** from the Billing page. The setup fee should be
+   **WAIVED** (H6's legitimate completion branch). An unexpected fee = a real finding; report it.
+3. **Day 4: cancel, then DELETE BobyMot #35** — exercises C1/H9/H10 erasure end-to-end.
+   ⚠ **Before running the delete, strongly consider fixing H11/M14 + M15 first** (see §5) — the
+   erasure ordering is only PARTLY fixed (Azure unbinds still precede the shred; `EraseAsync` has
+   no try/catch) and nothing guards deleting an agent owed an unresolved refund — an exposure the
+   waves WIDENED, since more refund rows are minted now.
 
-**Correction to an earlier note in this file: do NOT expect the Offer Both flow.** `downgradeMode
-="convert"` is refused for anything that is not `BillingPeriod.Annually`
-(`PayPalBillingService.cs:356`), and BobyMot's period is Monthly. Platinum→Silver therefore takes
-the plain scheduled path: `ScheduleDowngradeAsync`, `AmountDue = 0`, no PayPal redirect, and the
-message "Your downgrade to <package> is scheduled for <date>." Offer Both can only be exercised by
-an annual subscriber, which the daily harness cannot be.
+**Standing harness limitations (not defects):** upgrade proration amounts are ~30× understated on
+daily packages (frequency mismatch — proration proof lives in the unit tests), and the displayed
+"Next billing" can lag until the hourly reconcile corrects >26h drift.
 
-**Second harness artifact, same class as the proration one:** `DowngradeApplyLeadWindow` is 6 hours
-(`PayPalBillingService.cs:1971`) — a due downgrade fires up to 6h early so the PayPal cancel always
-beats the next charge. On a monthly plan that is 0.8% of the period; on the DAILY harness plan it is
-**25% of the whole billing period**, so BobyMot will visibly lose about a quarter of a paid day.
-That is the harness's compressed cycle, not a production defect.
-
-**Then: day 4 — cancel, then delete BobyMot #35.** That exercises C1/H9/H10 end to end against real
-data, which is the whole reason wave 1 had to land first.
-
-### The proration limitation — read before judging any upgrade amount
-
-The daily harness **cannot validate upgrade proration amounts**. `GetCurrentCycleStart` subtracts one
-*month* because `BillingPeriod` is Monthly, but the daily plan's synced `NextBillingDate` is tomorrow
-— so the denominator is roughly 30x too large and every prorated charge comes out roughly 30x too
-small. Observed live today: Silver→Gold billed **$0.27** (invoice IPRO-2026-000015, $0.31 with tax)
-and Gold→Platinum **$0.40** ($0.45, IPRO-2026-000016), where the correct monthly-equivalent figures
-are ~$8.33 and ~$12.
-
-**This is a harness artifact, not a production defect** — only packages 7/8/9 have the daily/Monthly
-frequency mismatch. But it cuts both ways: the 2026-08-11 note claiming "prorated $19.33 verified"
-was overstated for the same reason. Proration correctness has to be proven by unit test, not by the
-daily harness.
-
-Everything else in the harness *is* trustworthy: upgrades applied, invoices issued with both
-transaction ids, emails delivered, and every redirect landed back on `bobymot.247advisers.com`.
+**One-off data task:** existing agents' `Province` values deserve a check against the tax alias
+map — "Yukon Territory" (the register dropdown's own label!) was unmapped, so any Yukon signup has
+been zero-rated since launch; free-text profile entries ("PEI") may lurk too.
 
 ---
 
-## 5. Documents that are currently WRONG (corrections pending — wave 3)
+## 4. Owner decisions — resolved and open
 
-- `AUDIT_RECONCILIATION_2026-08-17.md` — `A5-H12` says FIXED; it was not, and wave 1 is what actually
-  fixed it (as C1). The `## Counts` block and the "OPEN — 54 distinct defects" heading are stale.
-  One heading cites `1fLB`, not a valid SHA (correct: `1f6cedd`). The Newtonsoft "nothing pins it"
-  bullet is wrong.
-- `DOCS/22_PREPAID_VALUE.md` — Stage C is PARTIAL (no ledger credit notes, `ConvertedToCredit`
-  unreachable); the ToS path is `Views/Shared/_LegalTerms.cshtml`; Stage D added 4 tests, not 6.
-- `DOCS/TODO.md` — the medium sweep was **18** fixes, not 16.
-
-Full correction table: `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Documentation corrections required".
+- **RESOLVED today: post-upgrade annual cancel refund policy** — full unused value at the row's
+  rate, capped at everything actually settled in the running cycle across the agent's rows; the
+  queue note splits amounts across transactions. DOCS/22 carries the addendum.
+- **OPEN: M6** — the credit-note mechanism (`RefundStatus.ConvertedToCredit` is enum-only; the
+  CRA tax-by-region figure over-reports after any refund). Feature work, not a defect fix.
+- **OPEN: staging environment** — the reminder fired Mon 2026-08-25 09:00; the question is data
+  (a real copy = PIPEDA exposure), not cost. Not yet decided.
 
 ---
 
-## 6. Branch state
+## 5. What is left (all pre-audit register items — the billing audit itself is closed)
 
-| Branch | State |
-|---|---|
-| `main` | wave 1 merged (`d21ef09`) plus docs. Clean. **Nothing is unmerged — `git branch -r --no-merged origin/main` returns empty.** |
-| `fix/audit-wave-1` | `37b0d91` — merged. Safe to delete. |
-| `docs/wave-1-handoff` | `e789ac3` — merged. Safe to delete. |
-| `docs/post-sweep-audit` | `092b49f` — superseded; its content reached `main` via the wave-1 merge. Safe to delete. |
+**Recommended next slice — BEFORE day-4's delete:** **H11/M14** (erasure ordering remainder:
+Azure hostname/cert unbinds still precede the shred, `EraseAsync` uncaught → a failure yields a
+raw 500 with no audit entry) + **M15** (no guard against deleting an agent owed an unresolved
+refund; `eraseFinancialRecords: true` destroys the row — WIDENED by M5 minting more refund rows).
 
----
-
-## 6b. Billing wave — MERGED + DEPLOYED 2026-08-25 (`a827bda`)
-
-The owner asked for the whole PayPal/billing cluster at once. **13 findings fixed, 3
-dispositioned, 24 new tests, every fix verified both ways** (test fails on pre-fix code, passes
-on the fix — or the fix reverted and the green observed to go red). Full record:
-`DOCS/AUDIT_2026-08-20_POST_SWEEP.md` § "Billing wave".
-
-Fixed: C2 (renewed-annual clawback — the money-critical one), M3/M4 (refund tax + amount derive
-from what was actually paid), M5 (a PayPal-side cancel now gets paid-through + a refund row), H5
-(promo slot leaks + 48h stale-checkout sweep), H12 (in-flight convert survives the hourly
-sweeper), H6 (setup-fee waiver door closed for converts and post-cancel re-entries), H15/New A
-(the cancel message and the downgrade banner tell the truth), M7/M16/M19 (batch isolation +
-convert-then-cancel dunning, confirmed empirically before fixing), H13/H14 (email-job retry
-bounds; new `SendAttempts` column via StartupSchemaRepair — INVARIANTS rule 4 respected).
-
-Dispositioned, deliberately not "fixed": New B (email links canonical BY DESIGN — PortalUrlHelper
-header), New C (display drift is self-healed hourly by the reconcile), M6 (Stage C credit notes =
-unshipped feature, owner-decision list).
-
-**Billing now has no known open defects.** The claim is the tests plus the live harness, not the
-label: the downgrade apply (2026-08-26), the re-subscribe, and day-4 cancel/delete are the final
-proof legs.
+**Then:** H3 resolver split · H4 SSRF pinning + `RootLastError` echo · H7 SendGrid 401/403
+classification + drip resume path · H8 webhook suppression swallow · M1 overlay CSS allow-list
+(the skipped test) · M2 `RebuildRequestMeeting` gate · M8 agent-portal `ValidatePrincipal` ·
+M9–M13 · M17 IPv6 prefixes · M18 blob registry containers · the 12 pre-audit LOWs · wave-3 doc
+corrections still owed to `AUDIT_RECONCILIATION_2026-08-17.md` and DOCS/22 Stage-C wording.
 
 ---
 
-## 6c. Four-auditor billing audit + wave 2 — 2026-08-25 evening
+## 6. Standing rules (each one was re-learned the hard way at least once)
 
-After the billing wave deployed, four parallel auditors (money math, state machine, jobs, truth)
-audited billing A-to-Z against `a827bda`. Verdict: all 13 billing-wave fixes HOLD — and the audit
-found 4 HIGHs the tests could not see, three of them created BY the wave. Wave 2 fixed them the
-same evening, both-ways verified, 18 new tests (register § "Four-auditor billing audit" has the
-full table):
-
-- **C** — my drip tracker-clear regression (duplicate step emails) — the live one, fixed first.
-- **A** — deferred-start rows minted phantom refunds and destroyed credit windows.
-- **D** — refund double-mint races closed by a claims-table fence (`BillingCancellationClaims`,
-  new table via StartupSchemaRepair, both apps).
-- **B** — the 48h sweep now consults PayPal before voiding, and money captured against an ended
-  subscription lands in the refund queue instead of an error log.
-- Plus: Expired rows honored by the gates, month-end refund drift, slot-release ordering, txn-ref
-  truncation, reconcile per-row isolation, the M5-reconcile-leg test, and the refund screen's
-  nonexistent-action instruction.
-
-The remaining audit findings (all MEDIUM/LOW) are recorded as the open billing set in the
-register — including one **owner decision**: the post-upgrade annual cancel refund policy
-(cross-row fairness is unspecified by DOCS/22; wave 2 caps the refund at what was captured).
+Branch before deploying; never push straight to `main` · tests run and pass BEFORE the commit ·
+verify at `/health/version` on **BOTH** hosts, never `/health`, never one host · don't push into
+an in-flight deploy — the shared concurrency group EVICTS the sibling's pending run (INVARIANTS
+rule 6) · schema changes go through `StartupSchemaRepair`, never dotnet-ef (rule 4) · a fix is
+done when the production CALLER is right, in BOTH apps, with a test exercising the customer's
+path · every fix verified both ways — a test that never failed proves nothing · assertions inside
+conditions that are never true pass against broken code (it happened twice today; both caught).
 
 ---
 
-## 6d. Wave 3 — 2026-08-25 late evening (branch `fix/billing-wave-3`)
+## 7. Recovery after a reboot
 
-Owner-selected: F2 (renewals keep the sold-at tax rate; Billing.Amount no longer poisoned by a
-province move), F3 (Profile province dropdown + the missing aliases — "Yukon Territory", the
-register's own label, was zero-rating Yukon signups from day one), F5 (package plan sync clears
-frozen promo plans), and the refund-policy DECISION implemented: full unused value capped at
-cycle-wide settled money, queue note splits across transactions. 6 new tests; wave-2's A2 revised
-to the decided policy with the decision cited in-test.
+If this working directory survived: `git status` clean on `main`; nothing else to do.
 
----
-
-## 6e. Wave 4 — 2026-08-25 night (branch `fix/billing-wave-4`)
-
-The last four billing MEDIUMs: F6 (terminal states never relabelled by late deliveries; a cancel
-after suspension earns the full outcome), state-F5 (Keep-My-Plan voids an in-flight convert
-completely — checkout, slot, and the PayPal approval), F3c/jobs-4 (superseded rows raw-flip
-instead of minting a second outcome; the downgrade's own Cancel row no longer consumes the H6
-waiver — the first predicate regressed wave-2's null-BillingId test and the suite caught it),
-jobs-5 (stage-3 per-pair isolation). 7 new tests. **The billing audit now has zero open
-HIGHs and zero open MEDIUMs — only the 10 recorded LOWs.**
-
----
-
-## 6f. Wave 5 — 2026-08-25 night (branch `fix/billing-wave-5`)
-
-The LOW sweep, all ten in the owner-approved ranking, red/green verified (reverse run: 10/10 fail
-pre-fix). Highlights: invariant-culture webhook parsing, the ClientInvoices Quebec-precision
-sibling, converts derive credit only from money actually paid, Resume keeps the convert flavor,
-webhook-cancelled checkouts void completely, and the dunning machinery's copy/ordering gaps.
-**The four-auditor billing audit is now fully dispositioned — 0 HIGH / 0 MEDIUM / 0 LOW open**
-(one recorded hardening residue: the DYK counter's server-side increment).
-
----
-
-## 7. What is left
-
-**Wave 2 — what remains after the billing wave.** M1 the CSS allow-list · H3 the resolver split ·
-H4 SSRF IP pinning + stop echoing `RootLastError` · H7 SendGrid 401/403 classification + a resume
-path for Failed enrollments · H8 suppression events must not be swallowed · M2 gate
-`RebuildRequestMeeting` · M8 agent-portal revalidation · M13 the public site never goes offline ·
-M9–M12, M17, M18.
-
-**Wave 3 — truth and prevention.** Apply every correction in §5. Add the tests these findings prove
-are missing: an annual-cancel-after-renewal fixture, a cancelled-but-paid-through Billing-page test,
-and a resolver-agreement test with a divergent `AgentUser.PackageId`. (The controller-level blob test
-that would have caught C1 on day one now exists — `AgentDeleteBlobOrderingTests`.)
-
-**Also open:** the 12 known low-severity items and the owner-decision list in the register; the
-**staging decision reminder fires Mon 2026-08-25 09:00** — the open question is data (a real copy
-means PIPEDA exposure), not cost.
-
----
-
-## 8. Recovery after a reboot
-
-If this working directory survived: nothing to do, `git status` should be clean on `main`.
-
-If it was wiped (this has happened before — only OneDrive-synced folders survived):
+If it was wiped (has happened; only OneDrive-synced folders survived):
 
 1. Everything is on GitHub: `https://github.com/bmipro/IPRO_Modern`. **Clone `main` — nothing of
-   value lives outside it.** (Wave-1 code = `d21ef09`; later commits on `main` are docs.)
-2. Backup zips — `IPRO_Modern_2026-08-24_wave1_d21ef09.zip`, 4.1 MB, 887 files, tree-identical to
-   `main` (verified, not assumed):
+   value lives outside it**; `git branch -r --no-merged origin/main` is empty.
+2. Backup zips (`git archive` of `main`, ~4 MB, contents verified at write time):
    - **OneDrive** `C:\Users\admin\OneDrive\Codex_Code_Bkup\` — the copy proven to survive resets
    - Local `C:\Users\admin\IPRO_Local_Backups\`
-   - Older sets also exist under `C:\Users\admin\Documents\IPRO_Backups\`
+   - Older sets under `C:\Users\admin\Documents\IPRO_Backups\`
+   Newest: `IPRO_Modern_2026-08-25_wave5_5debbe4.zip`.
 3. `.claude` memory files have been lost to a reboot before — re-read `DOCS/` rather than trusting
-   recalled context. This file plus `DOCS/AUDIT_2026-08-20_POST_SWEEP.md` are the two that matter.
+   recalled context. This file plus the register are the two that matter.
 
-**Local dev environment:** `ops\Start-LocalEnv.ps1` starts MySQL + Azurite; apps run at
-`localhost:5100` (Web) and `localhost:5200` (Admin). **MySQL does not survive a reboot** — after
-restarting, run that script before the test suite, or you will read connection errors as test
-failures. Local-only test data: agent 11 (drip tester), `supporttest` admin.
+**Local dev environment:** `ops\Start-LocalEnv.ps1` starts MySQL + Azurite (apps:
+`localhost:5100` Web, `localhost:5200` Admin). **MySQL does not survive a reboot** — run the
+script before the test suite or connection errors read as test failures (that misread happened
+once already). Local-only data: agent 11 (drip tester), `supporttest` admin.
 
-**Deploy hazard found 2026-08-24 (now `DOCS/INVARIANTS.md` rule 6):** admin and web share one
-Actions concurrency group, which holds only ONE pending run — so pushing to `main` while a deploy is
-in flight **cancels one of the two apps' runs before it starts**, leaving the hosts on different
-SHAs with nothing reporting a failure. Always check `/health/version` on **both** hosts after a push;
-if they disagree, `gh run list` and `gh run rerun <id>`. Don't push into an in-flight deploy.
-
-**Standing rules that keep being re-learned:** branch before deploying, never push straight to `main`
-without asking · tests must run and pass BEFORE the commit · verify a deploy at `/health/version` for
-the pushed SHA, never `/health` · a fix is not done when the library is right, it is done when the
-production **caller** is right, in **both** apps, with a test that exercises the path a customer takes.
-
-**Nothing is mid-flight.** Safe to reboot.
+**Nothing is mid-flight.** All five waves merged and deployed; the harness's next event (the
+downgrade apply) runs on PayPal's clock and our production Hangfire — this machine is not needed
+for it. Safe to reboot.
