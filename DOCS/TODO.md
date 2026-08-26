@@ -501,6 +501,26 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
+## QA HARNESS COMPLETE — 2026-08-26: the full WEB-H-1 lifecycle passed end-to-end
+
+BobyMot #35, signup (Aug 20) through deletion (Aug 26 19:04), every leg on the agent's own host:
+signup -> 4 daily Silver charges -> upgrade to Gold ($0.31) -> upgrade to Platinum ($0.45) ->
+full Platinum cycle ($101.70) -> scheduled downgrade (banner + email disclosed the pause and the
+period) -> apply fired EARLY and beat PayPal's charge (no Aug 26 Platinum charge) -> completion
+re-subscribe with the setup fee WAIVED (invoice 000018 = $45.20 exactly; H6's live pass) ->
+cancel ("access until August 29" = PayPal-resolved Aug 27 + 2d grace; NO refund promise; exactly
+ONE Cancel row — the BillingCancellationClaims fence's first live run) -> delete (91 rows / 11
+tables / 0 files, matching the preview to the row; financials retained: 9 invoices / 38 rows).
+Post-delete: bobymot.247advisers.com serves the designed "Website Not Published" 404; the other
+agent's site unaffected; both hosts healthy.
+
+Notes: (1) financial records were RETAINED (the Details-page delete has no erase-financials
+checkbox) — ~$500 of sandbox invoices now sit in the Revenue Report; owner may purge later or
+leave (small decision, register). (2) With 0 uploaded files and no custom domain, this delete was
+a WEAK live test of the C1 shared-file guard and the H11/M14 erasure-ordering remainder — those
+fixes stay queued for real customers. (3) Aug 27 negative check outstanding: PayPal must show NO
+$45.20 charge.
+
 ## POST-SWEEP AUDIT 2026-08-20 — wave 1 SHIPPED 2026-08-24; BILLING WAVES 1+2 SHIPPED 2026-08-25 (PayPal cluster + the four-auditor follow-up)
 
 Six parallel auditors run against `94d36c3` after the day's five deploys. **Findings live in
