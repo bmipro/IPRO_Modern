@@ -98,10 +98,9 @@ been zero-rated since launch; free-text profile entries ("PEI") may lurk too.
 
 ## 5. What is left (all pre-audit register items — the billing audit itself is closed)
 
-**Recommended next slice — BEFORE day-4's delete:** **H11/M14** (erasure ordering remainder:
-Azure hostname/cert unbinds still precede the shred, `EraseAsync` uncaught → a failure yields a
-raw 500 with no audit entry) + **M15** (no guard against deleting an agent owed an unresolved
-refund; `eraseFinancialRecords: true` destroys the row — WIDENED by M5 minting more refund rows).
+**DONE 2026-08-26 (erasure wave, `fix/erasure-wave`):** H11 (Azure unbinds now AFTER the shred
+commits), M14 (erase failures audited + reported, locked-out-but-intact), M15 (unresolved-refund
+agents refuse deletion). Real-customer deletions are no longer gated.
 
 **Then:** H3 resolver split · H4 SSRF pinning + `RootLastError` echo · H7 SendGrid 401/403
 classification + drip resume path · H8 webhook suppression swallow · M1 overlay CSS allow-list

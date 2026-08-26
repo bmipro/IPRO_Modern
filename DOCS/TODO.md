@@ -501,6 +501,12 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
+## ERASURE WAVE SHIPPED 2026-08-26 (branch fix/erasure-wave)
+
+H11 (unbind after shred), M14 (caught + audited erase failures), M15 (unresolved-refund agents
+refuse deletion). Register carries the record. The erasure path's audit items are now all closed
+(C1/H9/H10 from wave 1 + these three); real-customer deletions are un-gated.
+
 ## QA HARNESS COMPLETE — 2026-08-26: the full WEB-H-1 lifecycle passed end-to-end
 
 BobyMot #35, signup (Aug 20) through deletion (Aug 26 19:04), every leg on the agent's own host:
