@@ -442,6 +442,10 @@ Reverse run: 3 of 5 red on the pre-fix code, with both regression pins green.
 
 **Register HIGH count: 1 open -- H7 only.**
 
+Merged and **verified live on both hosts at `f9361e5`** (2026-08-27). Suite at the gate:
+336 passed / 0 failed / 1 skipped. Rule-6 check clean -- all four workflow runs completed, none
+cancelled.
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**

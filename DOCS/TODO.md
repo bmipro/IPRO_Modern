@@ -501,6 +501,32 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
+## LAUNCH RUNWAY -- Sept 21 target, Phase 1 in progress (2026-08-27)
+
+A five-phase plan to a Sept 21 go-live, tracked on a private board the owner ticks:
+https://claude.ai/code/artifact/fa86d4ad-b0f6-4b2a-9989-59c2c1455a41
+
+- **Phase 1 (Aug 27 - Sep 2) -- close every open HIGH.** H8 + M8 SHIPPED, H3 SHIPPED. Remaining:
+  **H7** (SendGrid 401/403 kills drip enrollments permanently, no resume path) and the **staging
+  decision**.
+- **Phase 2 (Sep 3 - 8)** -- customer-facing MEDIUMs: M13, M2, M1, M9, M10, M20.
+- **Phase 3 (Sep 9 - 12)** -- the front door tells the truth. The navy homepage has been LIVE and
+  data-driven since 2026-08-18 (roadmap #416); what is open is the TRUTH SWEEP of /Preview,
+  Register and the help docs (only the homepage was ever audited against the business brief -- that
+  audit is where the SMS-reminder and managed-blog-post false claims were caught), real screenshots
+  replacing the HTML reconstructions, and confirming the Azure region before any data-location
+  claim ships. Roadmap #412's remaining 14 pages are explicitly AFTER LAUNCH.
+- **Phase 4 (Sep 13 - 17) -- CRITICAL PATH: the PayPal sandbox -> LIVE cutover.** Production has
+  run PayPal in sandbox since day one; no money in this system has ever been real. Live
+  credentials, every plan re-created (plan ids are per-environment), the live webhook + signature
+  id, a real-money verification pass, the test-ledger purge, SSL renewal (certs expire Oct 19),
+  and the Province data audit.
+- **Phase 5 (Sep 18 - 21)** -- LOW sweep (the designated cut line), final multi-auditor pass, code
+  freeze, soak day, launch.
+
+**The biggest launch risk is Phase 4 and it is not an audit item.** The LOWs are the cut line: if
+Phase 4 runs long they ship after launch and nothing is lost.
+
 ## OPEN DECISION -- QA sandbox invoices: purge the rows? (revisit 2026-08-27)
 
 The BobyMot lifecycle run left 9 retained invoices (IPRO-2026-000010..000018, ~$500) recording
@@ -522,6 +548,30 @@ PayPal SANDBOX charges -- real rows, money that never moved. Two paths:
 **Recommendation on record: don't run B.** A already removes them from the books, and the rows are
 the only remaining record of what the harness did if a discrepancy ever surfaces. Deletion is
 irreversible and buys nothing beyond A.
+
+## PHASE 1 SHIPPED SO FAR -- 2026-08-27 (branches `fix/consent-and-session`, `fix/resolver-split`)
+
+Three register items closed and **verified live on both hosts**, each with its test observed RED on
+the pre-fix code first:
+
+- **H8** -- the SendGrid webhook's per-event catch swallowed unsubscribes, group-unsubscribes and
+  spam reports: a DB hiccup was caught, logged, answered 200, and SendGrid never retried. The one
+  event class with legal weight, lost silently. Now a failed CONSENT event withholds the 200 and
+  returns 503 so SendGrid retries; stats events still fail soft. Two of the tests drive the real
+  action end-to-end with a genuine signed payload -- pinning only the classifier was the C1 mistake
+  and was caught before shipping.
+- **M8** -- the agent portal had no `ValidatePrincipal`, so a deactivated agent or removed team
+  member kept a working cookie until it expired. `AgentCookieRevalidator` now mirrors the admin
+  one, and a source-walk test pins that it is actually WIRED, not merely present.
+- **H3** -- `ResolveBillingRuleIdAsync`, the singular resolver behind `GetAccessAsync` that nearly
+  every controller calls, never learned `PaidThroughAt` and fell through to the stale
+  `AgentUser.PackageId`. A cancelled-but-paid-through agent was refused features they had paid for.
+  Five tests now enforce the agreement the two resolvers' comments only ever asked for politely.
+
+Suite: **336 passed / 0 failed / 1 skipped** (the skip is M1's overlay allow-list, still open).
+Live SHAs: `f67a726` then `f9361e5`.
+
+**Phase 1 remaining: H7 + the staging decision.**
 
 ## SECURITY + DRIP WAVE SHIPPED 2026-08-26 (branch fix/security-drip-wave)
 
