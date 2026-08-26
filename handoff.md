@@ -128,7 +128,7 @@ If it was wiped (has happened; only OneDrive-synced folders survived):
    - **OneDrive** `C:\Users\admin\OneDrive\Codex_Code_Bkup\` — the copy proven to survive resets
    - Local `C:\Users\admin\IPRO_Local_Backups\`
    - Older sets under `C:\Users\admin\Documents\IPRO_Backups\`
-   Newest: `IPRO_Modern_2026-08-25_wave5_5debbe4.zip`.
+   Newest: `IPRO_Modern_2026-08-25_eod_d418a91.zip`.
 3. `.claude` memory files have been lost to a reboot before — re-read `DOCS/` rather than trusting
    recalled context. This file plus the register are the two that matter.
 
