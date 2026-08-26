@@ -54,6 +54,13 @@ day by that audit and is kept in the register as a lesson.
 
 ## 3. The QA harness — what happens next
 
+**ALL THREE EVENTS BELOW COMPLETED 2026-08-26 — the harness is DONE.** The downgrade applied at
+midnight and beat PayPal's charge; the completion re-subscribe waived the fee (invoice 000018 =
+$45.20); the cancel honored paid-through to Aug 29 with exactly one Cancel row (the fence's first
+live run); the delete removed 91 rows / 0 files matching the preview, financials retained. The
+one outstanding check: PayPal must show NO $45.20 charge on Aug 27. Original plan kept below for
+the record.
+
 1. **Aug 26 (early, up to 6h before the boundary): BobyMot's downgrade APPLIES.** Expect: the
    Platinum PayPal sub cancelled, billing row Cancelled, an "Action needed: complete your plan
    change" email naming **Silver Daily (monthly billing)** (wave-5 #9 copy), and the account
@@ -91,10 +98,9 @@ been zero-rated since launch; free-text profile entries ("PEI") may lurk too.
 
 ## 5. What is left (all pre-audit register items — the billing audit itself is closed)
 
-**Recommended next slice — BEFORE day-4's delete:** **H11/M14** (erasure ordering remainder:
-Azure hostname/cert unbinds still precede the shred, `EraseAsync` uncaught → a failure yields a
-raw 500 with no audit entry) + **M15** (no guard against deleting an agent owed an unresolved
-refund; `eraseFinancialRecords: true` destroys the row — WIDENED by M5 minting more refund rows).
+**DONE 2026-08-26 (erasure wave, `fix/erasure-wave`):** H11 (Azure unbinds now AFTER the shred
+commits), M14 (erase failures audited + reported, locked-out-but-intact), M15 (unresolved-refund
+agents refuse deletion). Real-customer deletions are no longer gated.
 
 **Then:** H3 resolver split · H4 SSRF pinning + `RootLastError` echo · H7 SendGrid 401/403
 classification + drip resume path · H8 webhook suppression swallow · M1 overlay CSS allow-list

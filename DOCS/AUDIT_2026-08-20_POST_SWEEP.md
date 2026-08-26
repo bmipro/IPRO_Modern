@@ -355,6 +355,28 @@ except one deliberate residue: the DYK counter hardening (jobs 7 -- server-side 
 SentAtUtc retire predicates) rode along conceptually with H14 but was never separately fixed;
 it stays the audit's single recorded LOW-hardening remainder, bounded either way by the cap.
 
+## Erasure wave -- FIXED 2026-08-26 (branch fix/erasure-wave): H11 remainder, M14, M15
+
+The gate the owner asked for before any real-customer deletion (BobyMot's delete never exercised
+these: 0 files, no custom domain, no refund owed). Controller-level tests, red/green verified
+(reverse run: 3 of 4 fail pre-fix; the 4th is ADMIN-6's regression pin, green both sides).
+
+| Item | Fix |
+|---|---|
+| **M15** | An agent owed an UNRESOLVED refund (any SubscriptionChange with RefundStatus Pending) cannot be deleted -- refused before anything is attempted, with the owed total in the audit entry and on screen, pointing at the Refunds queue. The billing waves had WIDENED this exposure by minting refund rows from more doors. |
+| **H11** | The Azure hostname/cert unbind now runs AFTER the shred commits (the domain list is still read before -- it dies with the rows). Pre-fix a failed shred rolled back the rows while the customer's live domain was already unbound: site dark, account "intact", recovery a manual DNS-and-cert crawl. The reversed trade -- a post-shred unbind failure leaves only a dangling binding on an already-404 site -- is the same reasoning as ROWS BEFORE FILES. Proven with the retention-veto shape: a vetoed delete now leaves the domain BOUND. |
+| **M14** | EraseAsync is caught: a mid-shred database failure (proven with a SIGNAL trigger) now produces an AgentDeleteFailed audit entry and a precise on-screen message -- "locked out but intact, Activate restores, nothing external touched" -- instead of a raw 500 with no trail. |
+
+4 new tests in AgentDeleteSafetyTests. Test-craft note: the first failure trigger (renaming a
+shredded table) silently did nothing -- the eraser discovers its tables DYNAMICALLY, so a missing
+table just drops out of the list; and the first RED run was voided by MySQL being down
+(connection errors masquerading as failures -- the handoff's own documented trap, nearly walked
+into again). Both reruns are genuine.
+
+With this wave the erasure path's register items are closed: C1/H9/H10 (wave 1), H11/M14/M15
+(here). A STRONG live rehearsal still wants a QA agent WITH uploaded files and a bound custom
+domain -- noted in memory.
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**

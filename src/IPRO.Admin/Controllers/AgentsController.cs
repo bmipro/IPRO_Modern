@@ -386,6 +386,25 @@ public class AgentsController : Controller
         if (agent == null) return NotFound();
         var userName = agent.UserName;
 
+        // M15 (erasure wave 2026-08-26): a person the business OWES money cannot be deleted.
+        // The refund queue is worked manually; deleting the agent either buried the Pending row
+        // among retained records nobody revisits, or (eraseFinancialRecords) destroyed it
+        // outright -- and the billing waves WIDENED this by minting refund rows from more doors.
+        // Refused before anything is attempted: no lockout, no PayPal call, nothing.
+        var unresolvedRefunds = (await _uow.SubscriptionChanges.FindAsync(c =>
+            c.AgentUserId == id && c.RefundStatus == RefundStatus.Pending)).ToList();
+        if (unresolvedRefunds.Count > 0)
+        {
+            var owedGross = unresolvedRefunds.Sum(c => c.RefundGrossAmount);
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeleteRefused",
+                $"Agent '{userName}' (id {id}) NOT deleted: {unresolvedRefunds.Count} unresolved refund(s) " +
+                $"totalling {owedGross:0.00} sit in the Refunds queue. Resolve them (Refunded or Waived) first.");
+            TempData["Error"] = $"{userName} is owed {owedGross:0.00} across {unresolvedRefunds.Count} unresolved " +
+                                "refund(s). Resolve them in the Refunds queue (mark Refunded or Waived) before " +
+                                "deleting — deleting now would bury money the business owes.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         // Blob storage is resolved up front and treated as required, for the same reason billing is:
         // once the rows are deleted, the URLs of the agent's uploaded files are gone with them, so
         // proceeding without working storage would strand every file permanently and unrecoverably.
@@ -459,35 +478,40 @@ public class AgentsController : Controller
                 id, userName, string.Join(" | ", plan.Blobs));
         }
 
-        // ADMIN-6 (fixed 2026-08-20): deleting an agent used to leave their custom-domain
-        // hostname bindings and managed certificates attached to the Azure app with no owner --
-        // invisible cost and a dangling hostname someone else's DNS could later point at. Unbind
-        // BEFORE the rows are shredded (the domain list dies with them); a failed unbind never
-        // blocks the deletion, it just stays visible in the log for manual cleanup.
+        // ADMIN-6, reordered by the erasure wave (H11, 2026-08-26): the domain LIST is read here
+        // -- it dies with the rows -- but the Azure unbind itself now runs AFTER the shred
+        // commits. The old order unbound first, so a shred failure rolled back the rows while the
+        // customer's live domain and certificate were already gone: their site dark, their
+        // account "intact", and rebinding a manual DNS-and-cert crawl. The reversed trade: a
+        // post-shred unbind failure leaves only a dangling binding on the Azure app (the site
+        // already serves the not-published page), logged for manual cleanup -- annoying,
+        // recoverable, and invisible to the customer. Same reasoning as ROWS BEFORE FILES.
         var domainsToUnbind = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
             .ToListAsync(_db.AgentDomains.Where(d => d.AgentUserId == id));
         // Lazily resolved for the same reason the blob service is (see the _services comment above).
         var _azureDomains = _services.GetService<IPRO.Utility.IAzureDomainAutomationService>();
-        foreach (var domain in _azureDomains == null ? new List<IPRO.Entities.AgentDomain>() : domainsToUnbind)
-        {
-            foreach (var host in new[] { domain.DomainName, domain.WwwDomain }.Where(h => !string.IsNullOrWhiteSpace(h)).Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var unbind = await _azureDomains.RemoveDomainAsync(host);
-                    if (!unbind.Success)
-                    {
-                        _logger.LogError("Azure unbind failed for {Host} while deleting agent {AgentId}: {Message}", host, id, unbind.Message);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Azure unbind threw for {Host} while deleting agent {AgentId}", host, id);
-                }
-            }
-        }
 
-        var report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id, eraseFinancialRecords);
+        // M14 (erasure wave): an erase failure must never surface as a raw 500 with no audit
+        // trail. The lockout inside EraseAsync precedes its transaction, so a failure here leaves
+        // exactly the promised state -- locked out but intact, Activate restores -- and the admin
+        // is told so, in the audit log and on screen.
+        IPRO.DataAccess.AgentErasureReport report;
+        try
+        {
+            report = await IPRO.DataAccess.AgentDataEraser.EraseAsync(_db, id, eraseFinancialRecords);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "EraseAsync failed for agent {AgentId}; rows rolled back, nothing external touched", id);
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeleteFailed",
+                $"Agent '{userName}' (id {id}) NOT deleted: the erasure failed ({ex.Message}). The transaction " +
+                "rolled back — rows intact, no files deleted, domains still bound. The account is deactivated " +
+                "only; use Activate to restore it, and investigate before retrying.");
+            TempData["Error"] = $"Deletion FAILED for {userName}: {ex.Message}. Nothing was deleted — the account " +
+                                "is deactivated only (Activate restores it). Their files and domains are untouched. " +
+                                "Investigate before retrying.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
         // H10: the eraser VETOES a shred that would lose retained financial rows -- it rolls back
         // and returns nothing to delete. Stop here: the agent is locked out but otherwise intact
@@ -506,6 +530,27 @@ public class AgentsController : Controller
                                 "The account has been deactivated only; use Activate to restore it. " +
                                 "This needs investigation before any further deletions.";
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // H11: the shred has committed -- NOW the Azure bindings may go. Per-host failures are
+        // logged and never block the rest; the dangling-binding cleanup is manual by design.
+        foreach (var domain in _azureDomains == null ? new List<IPRO.Entities.AgentDomain>() : domainsToUnbind)
+        {
+            foreach (var host in new[] { domain.DomainName, domain.WwwDomain }.Where(h => !string.IsNullOrWhiteSpace(h)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var unbind = await _azureDomains.RemoveDomainAsync(host);
+                    if (!unbind.Success)
+                    {
+                        _logger.LogError("Azure unbind failed for {Host} while deleting agent {AgentId}: {Message}", host, id, unbind.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Azure unbind threw for {Host} while deleting agent {AgentId}", host, id);
+                }
+            }
         }
 
         // ONLY the eraser's filtered list may be deleted -- report.Blobs excludes files another
