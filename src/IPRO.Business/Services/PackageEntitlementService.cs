@@ -199,6 +199,27 @@ public class PackageEntitlementService : IPackageEntitlementService
             return activeBilling.BillingRuleId;
         }
 
+        // H3 (2026-08-27): a cancelled-but-paid-through row carries the agent's package until it
+        // expires -- DOCS/22 -- and the bulk resolver and IsAccessGatedAsync both learned that
+        // when the design shipped. This path did not. It fell straight through to
+        // AgentUser.PackageId, a column nothing rewrites on a plan change, so a paid-through
+        // agent was resolved against whatever package they held BEFORE their last change: the
+        // same agent, two different answers, depending on which resolver the caller happened to
+        // use. GetAccessAsync is the singular one, and nearly every controller calls it.
+        //
+        // Expired is included for the same reason the gates include it (wave-2 E): the doors that
+        // grant access and the resolver that decides WHAT they get must read the same set, or an
+        // agent is let in and then handed nothing.
+        var now = DateTime.UtcNow;
+        var paidThroughBilling = await _uow.Billings.FirstOrDefaultAsync(b =>
+            b.AgentUserId == agentId &&
+            (b.Status == BillingStatus.Cancelled || b.Status == BillingStatus.Expired) &&
+            b.PaidThroughAt != null && b.PaidThroughAt > now);
+        if (paidThroughBilling != null)
+        {
+            return paidThroughBilling.BillingRuleId;
+        }
+
         if (await IsAccessGatedAsync(agentId))
         {
             return null;
