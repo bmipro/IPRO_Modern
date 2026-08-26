@@ -471,7 +471,7 @@ public static class StartupSchemaRepair
         `Currency` varchar(10) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'CAD',
         `SubTotal` decimal(10,2) NOT NULL DEFAULT 0,
         `TaxRegion` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-        `TaxRate` decimal(6,4) NOT NULL DEFAULT 0,
+        `TaxRate` decimal(7,5) NOT NULL DEFAULT 0,
         `TaxAmount` decimal(10,2) NOT NULL DEFAULT 0,
         `Total` decimal(10,2) NOT NULL DEFAULT 0,
         `Notes` varchar(2000) CHARACTER SET utf8mb4 NULL,
@@ -484,6 +484,30 @@ public static class StartupSchemaRepair
         PRIMARY KEY (`Id`),
         UNIQUE KEY `IX_ClientInvoices_ViewToken` (`ViewToken`)
     ) CHARACTER SET=utf8mb4;");
+
+        // LOW-3 (wave 5): the Quebec precision fix (2026-08-10) covered `Invoices` only --
+        // decimal(6,4) rounds 0.14975 to 0.1498 and the CLIENT-facing invoice printed
+        // "14.980 %". Same MODIFY-is-idempotent reasoning as EnsureTaxRateScaleAsync.
+        await using (var scaleCheck = db.Database.GetDbConnection().CreateCommand())
+        {
+            scaleCheck.CommandText =
+                "SELECT COALESCE(MAX(NUMERIC_SCALE), -1) FROM INFORMATION_SCHEMA.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ClientInvoices' AND COLUMN_NAME = 'TaxRate';";
+            await db.Database.OpenConnectionAsync();
+            try
+            {
+                var scale = Convert.ToInt32(await scaleCheck.ExecuteScalarAsync());
+                if (scale >= 0 && scale < 5)
+                {
+                    await db.Database.ExecuteSqlRawAsync(
+                        "ALTER TABLE `ClientInvoices` MODIFY COLUMN `TaxRate` decimal(7,5) NOT NULL DEFAULT 0");
+                }
+            }
+            finally
+            {
+                await db.Database.CloseConnectionAsync();
+            }
+        }
 
         await db.Database.ExecuteSqlRawAsync(@"
     CREATE TABLE IF NOT EXISTS `ClientInvoiceLineItems` (

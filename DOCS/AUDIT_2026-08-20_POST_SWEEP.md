@@ -319,18 +319,41 @@ widened private->internal for the pure alias test.
 fail on pre-fix code. With this wave the four-auditor billing audit has **zero open MEDIUMs; only
 the 10 recorded LOWs remain** in the billing set.
 
+### Wave 5 -- FIXED 2026-08-25 night (branch fix/billing-wave-5): the LOW sweep, all 10
+
+Owner-approved ranking: #2/#3 first, #1/#4/#5 next, #6-#10 last. All ten fixed the same evening;
+every defect test observed RED on pre-fix code (aggregate reverse run: 10 of 10 fail).
+
+| # | Fix |
+|---|---|
+| **2** | PayPal webhook amounts parse through one seam with InvariantCulture -- the host-culture parse read "678.00" as 67,800 on any comma-decimal culture. |
+| **3** | ClientInvoices.TaxRate repaired to decimal(7,5) (the Quebec fix's sibling table), with the EF model aligned (incl. DocumentNumber/ViewToken lengths the raw DDL indexes). |
+| **1** | A convert derives credit from money ACTUALLY PAID: zeroed-Amount rows fall back to settled invoices, and zero paid is refused BEFORE any checkout row exists (the pre-fix fallback priced the credit at full list). |
+| **4** | Resume on an abandoned convert re-applies downgradeMode="convert" (the shape is read before the void erases it) -- the agent no longer silently gets a scheduled downgrade they never asked for. |
+| **5** | A CANCELLED/EXPIRED webhook for a Pending checkout voids the whole checkout -- change row cancelled, promo slot released after the save. |
+| **6** | A Failed-to-Active recovery clears the suspension-era CancelledAt (every later door writes with ??=). |
+| **7** | The suspension dunning email stops instructing a retry that does not exist; it now says the subscription is suspended and to subscribe again or contact support. |
+| **8** | The day-3 dunning touch is never skipped: an overdue first run sends Day:3, the next run sends Day:7 -- the two-touch design no longer silently degrades to one. |
+| **9** | Completion reminders name the billing period the agent chose ("Gold (annual billing)"), closing the term-switch complete-on-the-old-term gap. |
+| **10** | Reconciling an ended row with NO billing date anywhere flips raw with an error log instead of inventing a year of paid-through from a computed fallback. |
+
+10 new tests in BillingWave5Tests. One test-design lesson recorded: LOW-1's first assertion ("no
+Pending rows") was satisfiable by the broken code because the failure exit voids its own rows --
+tightened to "no convert row was EVER created". TryParsePayPalAmount and the IPRO.Web
+InternalsVisibleTo grant were added for the seam test.
+
+**With this wave the four-auditor billing audit is fully dispositioned: 0 HIGH, 0 MEDIUM, 0 LOW
+open.** What remains billing-adjacent lives outside that audit: the pre-audit register items
+(H3/H4/H7/H8, H11/M14, M15, M2/M8/M9-M13/M17/M18, the 12 pre-audit lows), M6 (credit-note
+feature, owner decision), and the one-off agent-Province data check.
+
 ### Audit findings deliberately NOT fixed in wave 2 (now the open billing set)
 
 From the four reports, deduped -- F2/F3/F5 + the refund policy went to wave 3; F6, state-F5,
-F3c/jobs-4 and jobs-5 went to wave 4. Still open (all LOW): convert credit fallback prices
-never-paid value at list (money F7) · culture-sensitive webhook amount parsing (money F8 / state
-F10c) · ClientInvoices.TaxRate still decimal(6,4) -- the Quebec fix's sibling table (money F9) ·
-Resume on an abandoned convert silently drops downgradeMode (money F10a) · a CANCELLED webhook
-for a Pending Subscribe checkout orphans the change row and its promo slot (state F8) · stale
-CancelledAt after a Failed->Active recovery · Failed is absorbing for suspensions (dunning
-promises a retry path that does not exist) · dunning day-3 bucket skip + term-switch emails omit
-the period (jobs 6) · DYK counter server-side increment + retire predicates (jobs 7) · reconcile
-null-NextBillingDate fallback guard.
+F3c/jobs-4 and jobs-5 went to wave 4; the ten LOWs went to wave 5. **This section is now empty**
+except one deliberate residue: the DYK counter hardening (jobs 7 -- server-side increment +
+SentAtUtc retire predicates) rode along conceptually with H14 but was never separately fixed;
+it stays the audit's single recorded LOW-hardening remainder, bounded either way by the cap.
 
 ## Remediation plan
 

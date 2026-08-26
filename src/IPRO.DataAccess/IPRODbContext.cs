@@ -368,12 +368,30 @@ public class IPRODbContext : DbContext
             // (7,5), not (7,4): Quebec's combined GST+QST is 14.975% and a 4-decimal column rounds
             // 0.14975 to 0.1498, which is how invoices came to display "14.980 %" (2026-08-10).
             e.Property(i => i.TaxRate).HasPrecision(7, 5);
+        });
+
+        // The tail of the ORIGINAL Invoice configuration (the splice above closed its block).
+        modelBuilder.Entity<Invoice>(e =>
+        {
             e.Property(i => i.TaxRegion).HasMaxLength(80);
             e.Property(i => i.Total).HasPrecision(10, 2);
             e.Property(i => i.BillToName).HasMaxLength(200);
             e.Property(i => i.BillToCompany).HasMaxLength(200);
             e.Property(i => i.BillToEmail).HasMaxLength(255);
             e.Property(i => i.BillToAddress).HasMaxLength(500);
+        });
+
+        // LOW-3 (wave 5): the client-invoice sibling gets the same precision as the platform
+        // invoice -- 0.14975 must survive both tables.
+        modelBuilder.Entity<ClientInvoice>(e =>
+        {
+            e.Property(i => i.TaxRate).HasPrecision(7, 5);
+            // Model/DDL alignment: the raw table types these varchar(40)/varchar(80) and indexes
+            // them (UX_ClientInvoices_Agent_DocumentNumber, IX_ClientInvoices_ViewToken); an
+            // unbounded model column becomes longtext on a model-built database and MySQL
+            // refuses to index it (error 1170).
+            e.Property(i => i.DocumentNumber).HasMaxLength(40);
+            e.Property(i => i.ViewToken).HasMaxLength(80);
         });
 
         modelBuilder.Entity<InvoiceLineItem>(e =>

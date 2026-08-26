@@ -22,7 +22,7 @@ Production agents:
 - **BobyMot #35** — QA daily harness, real PayPal sandbox subscription `I-VG1A3CKSK6DX`, charges
   every day. Day 1 was 2026-08-20. Currently **Platinum Daily** (package 9).
 
-Test suite: **271 passed, 0 failed, 1 skipped** on the wave-4 branch (the skip is deliberate — audit M1, below).
+Test suite: **281 passed, 0 failed, 1 skipped** on the wave-5 branch (the skip is deliberate — audit M1, below).
 
 ---
 
@@ -193,6 +193,17 @@ instead of minting a second outcome; the downgrade's own Cancel row no longer co
 waiver — the first predicate regressed wave-2's null-BillingId test and the suite caught it),
 jobs-5 (stage-3 per-pair isolation). 7 new tests. **The billing audit now has zero open
 HIGHs and zero open MEDIUMs — only the 10 recorded LOWs.**
+
+---
+
+## 6f. Wave 5 — 2026-08-25 night (branch `fix/billing-wave-5`)
+
+The LOW sweep, all ten in the owner-approved ranking, red/green verified (reverse run: 10/10 fail
+pre-fix). Highlights: invariant-culture webhook parsing, the ClientInvoices Quebec-precision
+sibling, converts derive credit only from money actually paid, Resume keeps the convert flavor,
+webhook-cancelled checkouts void completely, and the dunning machinery's copy/ordering gaps.
+**The four-auditor billing audit is now fully dispositioned — 0 HIGH / 0 MEDIUM / 0 LOW open**
+(one recorded hardening residue: the DYK counter's server-side increment).
 
 ---
 

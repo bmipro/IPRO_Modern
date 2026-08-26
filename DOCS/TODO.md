@@ -529,6 +529,12 @@ overlay hole; it needs a CSS allow-list, wave 2).
 **The QA day-4 block is LIFTED** -- cancel + delete BobyMot #35 is what exercises C1/H9/H10 against
 real data. Agent deletion and bulk content re-saves are both safe again.
 
+**BILLING WAVE 5 2026-08-25 night (branch `fix/billing-wave-5`).** The LOW sweep -- all ten, in
+the owner-approved ranking, red/green verified. The four-auditor billing audit is now FULLY
+dispositioned (0 HIGH / 0 MEDIUM / 0 LOW open; one recorded DYK-counter hardening residue).
+Remaining billing-adjacent work is the PRE-audit register set (H3/H4/H7/H8, H11/M14, M15, the
+M-series, 12 lows), M6 (owner decision), and the one-off agent-Province data check.
+
 **BILLING WAVE 4 2026-08-25 night (branch `fix/billing-wave-4`).** The last four billing MEDIUMs
 from the four-auditor audit: F6 terminal-state relabels, state-F5 convert undo, F3c/jobs-4
 superseded-row outcomes + waiver protection, jobs-5 stage-3 isolation. 7 new tests, both-ways
