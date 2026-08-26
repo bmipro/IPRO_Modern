@@ -306,20 +306,31 @@ both-sides pin).
 6 new tests in BillingWave3Tests; wave-2's A2 revised to the decided policy. NormalizeProvince
 widened private->internal for the pure alias test.
 
+### Wave 4 -- FIXED 2026-08-25 night (branch fix/billing-wave-4): the last four billing MEDIUMs
+
+| Item | Fix |
+|---|---|
+| **State F6** | Terminal states are never relabelled: a late SUSPENDED/EXPIRED delivery for an already-Cancelled/Expired row is logged and ignored (it used to flip Cancelled -> Failed, silently voiding paid-through honor with no repair path). And a CANCELLED/EXPIRED arriving for a SUSPENDED (Failed) row now takes the M5 outcome door -- suspension no longer forfeits the DOCS/22 outcome for a paid year. |
+| **State F5** | "Keep My Current Plan" is convert-aware: a Downgrade row whose billing is Pending is an in-flight convert checkout, so the undo now voids the whole checkout -- change + billing + promo slot (released after the save, per SLOT) + a best-effort PayPal cancel of the approval. Pre-fix only the change row died and the live approval link could later execute the very change the agent had undone. |
+| **F3c / jobs-4** | A row with ANOTHER Active billing alongside it was SUPERSEDED -- its value already moved as proration credit -- so the outcome door now raw-flips it instead of minting a clawback refund (value was being handed out twice). And a Cancel row referencing the applied downgrade's OWN billing no longer consumes the H6 waiver or suppresses M16 dunning (null-safe: only a concrete same-billing match is excluded -- the first predicate regressed the wave-2 null-BillingId test and was caught by it). |
+| **Jobs-5** | Stage 3 (duplicate-subscription convergence) fails per pair with an immediate save and a tracker clear on error -- the batched save used to discard every convergence on one poison and hand stage 4 a dirty tracker. |
+
+7 new tests in BillingWave4Tests (6 defect-pinned, 1 designed pin); aggregate reverse run: 6 of 7
+fail on pre-fix code. With this wave the four-auditor billing audit has **zero open MEDIUMs; only
+the 10 recorded LOWs remain** in the billing set.
+
 ### Audit findings deliberately NOT fixed in wave 2 (now the open billing set)
 
-From the four reports, deduped -- F2, F3, F5 and the refund policy moved to wave 3 above; still
-open: convert credit fallback prices never-paid value at list (money F7) · culture-sensitive
-webhook amount parsing (money F8 / state F10c) · ClientInvoices.TaxRate still decimal(6,4) --
-the Quebec fix's sibling table (money F9) · "Keep My Current Plan" eats an in-flight convert
-leaving a live approval link (state F5 / money F10b) · Resume on an abandoned convert silently
-drops downgradeMode (money F10a) · the raw webhook path can relabel Cancelled rows on late
-SUSPENDED/EXPIRED deliveries, voiding paid-through honor (state F6) · supersede-vs-webhook race
-can still mint an outcome for a superseded subscription (state F3c / jobs 4 -- narrowed by the
-fence to same-instant races; the refund row it mints is now at least visible in the queue) ·
-stages 3-4 tracker discipline beyond the per-row guards (jobs 5) · dunning bucket skip + term
-switch emails omit the period (jobs 6) · DYK counter server-side increment + retire predicates
-(jobs 7). The post-upgrade refund policy is DECIDED and implemented (wave 3 above).
+From the four reports, deduped -- F2/F3/F5 + the refund policy went to wave 3; F6, state-F5,
+F3c/jobs-4 and jobs-5 went to wave 4. Still open (all LOW): convert credit fallback prices
+never-paid value at list (money F7) · culture-sensitive webhook amount parsing (money F8 / state
+F10c) · ClientInvoices.TaxRate still decimal(6,4) -- the Quebec fix's sibling table (money F9) ·
+Resume on an abandoned convert silently drops downgradeMode (money F10a) · a CANCELLED webhook
+for a Pending Subscribe checkout orphans the change row and its promo slot (state F8) · stale
+CancelledAt after a Failed->Active recovery · Failed is absorbing for suspensions (dunning
+promises a retry path that does not exist) · dunning day-3 bucket skip + term-switch emails omit
+the period (jobs 6) · DYK counter server-side increment + retire predicates (jobs 7) · reconcile
+null-NextBillingDate fallback guard.
 
 ## Remediation plan
 

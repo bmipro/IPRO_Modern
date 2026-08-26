@@ -529,6 +529,12 @@ overlay hole; it needs a CSS allow-list, wave 2).
 **The QA day-4 block is LIFTED** -- cancel + delete BobyMot #35 is what exercises C1/H9/H10 against
 real data. Agent deletion and bulk content re-saves are both safe again.
 
+**BILLING WAVE 4 2026-08-25 night (branch `fix/billing-wave-4`).** The last four billing MEDIUMs
+from the four-auditor audit: F6 terminal-state relabels, state-F5 convert undo, F3c/jobs-4
+superseded-row outcomes + waiver protection, jobs-5 stage-3 isolation. 7 new tests, both-ways
+verified. The billing audit set is now ZERO HIGHs / ZERO MEDIUMs; 10 LOWs recorded in the
+register.
+
 **BILLING WAVE 3 2026-08-25 late evening (branch `fix/billing-wave-3`).** Owner-selected F2/F3/F5
 plus the post-upgrade refund policy decision (full unused value, capped at cycle-wide settled
 money -- DOCS/22 has the addendum). 6 new tests, both-ways verified; wave-2's A2 revised to the
