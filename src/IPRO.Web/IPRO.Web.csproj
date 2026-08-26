@@ -12,6 +12,7 @@
   <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" />
   <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
   <ProjectReference Include="..\IPRO.Email\IPRO.Email.csproj" />
+  <InternalsVisibleTo Include="IPRO.IntegrationTests" />
 </ItemGroup>
 <ItemGroup>
   <EmbeddedResource Include="..\..\DOCS\01_AGENT_ACCOUNT_AND_DASHBOARD.md" LogicalName="HelpDocs.01_AGENT_ACCOUNT_AND_DASHBOARD.md" />

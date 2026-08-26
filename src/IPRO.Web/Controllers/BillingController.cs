@@ -259,6 +259,15 @@ public class BillingController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // The single seam PayPal money strings enter through (LOW-2, wave 5). PayPal always sends
+    // invariant "678.00"; parsing with the HOST culture read that as 67800 on any comma-decimal
+    // culture ("." = thousands separator) -- a $60,000-class invoice plus a poisoned
+    // Billing.Amount the day the hosting culture ever changes. Invariant, like every other money
+    // parse in the service layer.
+    internal static bool TryParsePayPalAmount(string? raw, out decimal amount)
+        => decimal.TryParse(raw, System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture, out amount);
+
     [AllowAnonymous, HttpPost("/billing/webhook")]
     public async Task<IActionResult> Webhook()
     {
@@ -282,14 +291,14 @@ public class BillingController : Controller
             amountElement.ValueKind == JsonValueKind.Object &&
             amountElement.TryGetProperty("total", out var totalElement))
         {
-            decimal.TryParse(totalElement.GetString(), out amount);
+            TryParsePayPalAmount(totalElement.GetString(), out amount);
         }
         else if (resource.ValueKind == JsonValueKind.Object &&
             resource.TryGetProperty("amount", out amountElement) &&
             amountElement.ValueKind == JsonValueKind.Object &&
             amountElement.TryGetProperty("value", out var valueElement))
         {
-            decimal.TryParse(valueElement.GetString(), out amount);
+            TryParsePayPalAmount(valueElement.GetString(), out amount);
         }
 
         var headers = new PayPalWebhookHeaders
