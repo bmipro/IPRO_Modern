@@ -529,6 +529,13 @@ overlay hole; it needs a CSS allow-list, wave 2).
 **The QA day-4 block is LIFTED** -- cancel + delete BobyMot #35 is what exercises C1/H9/H10 against
 real data. Agent deletion and bulk content re-saves are both safe again.
 
+**BILLING WAVE 3 2026-08-25 late evening (branch `fix/billing-wave-3`).** Owner-selected F2/F3/F5
+plus the post-upgrade refund policy decision (full unused value, capped at cycle-wide settled
+money -- DOCS/22 has the addendum). 6 new tests, both-ways verified; wave-2's A2 revised to the
+decided policy. Note for the record: "Yukon Territory" -- the register dropdown's own label --
+was missing from the tax alias map, so any Yukon signup has been zero-rated since launch; worth a
+one-off data check of existing agents' Province values against the alias map.
+
 **BILLING WAVE 2 2026-08-25 evening (branch `fix/billing-wave-2`).** A four-auditor A-to-Z
 billing audit against the deployed `a827bda` confirmed all 13 billing-wave fixes HOLD, then found
 4 HIGHs the tests could not see (three created by the wave itself). Fixed the same evening,

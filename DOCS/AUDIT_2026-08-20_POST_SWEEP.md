@@ -289,12 +289,27 @@ verified in aggregate by a combined reverse run: pre-fix code fails 16 of 18. Ne
 test double (deterministic token/subscription/cancel HTTP) unlocks reconcile- and sweep-leg
 coverage that the offline HTTP factory could not reach.
 
+### Wave 3 -- FIXED 2026-08-25 late evening (branch fix/billing-wave-3): F2, F3, F5 + the owner's refund-policy decision
+
+The owner picked F2-F5 off the open set plus the parked policy decision ("least complicated; worst
+case I lose ~2 months"). F4 (month-end drift) was already closed in wave 2. Every fix verified both
+ways (aggregate reverse run: 5 of 6 wave-3 tests fail on pre-fix code; the 6th is a designed
+both-sides pin).
+
+| Item | Fix |
+|---|---|
+| **F2** | Renewals de-tax at the rate the subscription was SOLD at (the last paid invoice's rate), never the agent's current province, and the renewal invoice carries that rate via an explicit override -- an Ontario-built $678.00 gross stays $600 + 13% after a move to Alberta, and Billing.Amount stays 600 instead of becoming 645.71 and poisoning every later proration. The legitimate promo-lapse Amount-sync (2026-08-16) is regression-pinned and survives. |
+| **F3** | Profile's free-text Province box is now the same dropdown Register uses (legacy/US values preserved as a selectable option, never silently rewritten). The alias map gained the entries whose absence already zero-rated real signups: "Yukon Territory" -- the register dropdown's own label -- plus PEI, P.E.I., NWT. |
+| **F5** | Every package plan sync clears the frozen promo plan ids for promos restricted to that package, BEFORE any PayPal call -- they lazily recreate against the current price at the next checkout. Closes the ADMIN-2 defect class for the promo sibling. |
+| **POLICY** | Post-upgrade annual cancel (owner decision, this date): refund = full unused value at the row's rate (Amount - used x Amount/10), capped at everything actually settled in the running cycle across the agent's rows. The queue note tells the operator how much to take from which prior transaction when the refund exceeds this row's own capture. Wave-2's interim row-scoped cap is superseded (its A2 test revised with the decision cited); the impossible-refund guarantee stands -- the queue never instructs more than the cycle collected. |
+
+6 new tests in BillingWave3Tests; wave-2's A2 revised to the decided policy. NormalizeProvince
+widened private->internal for the pure alias test.
+
 ### Audit findings deliberately NOT fixed in wave 2 (now the open billing set)
 
-From the four reports, deduped: the renewal webhook re-taxes at the agent's CURRENT province and
-rewrites Billing.Amount (money F2) · free-text profile Province silently zero-rates tax (money
-F3) · promo plan price frozen with no divergence guard against later package-price edits (money
-F5) · convert credit fallback prices never-paid value at list (money F7) · culture-sensitive
+From the four reports, deduped -- F2, F3, F5 and the refund policy moved to wave 3 above; still
+open: convert credit fallback prices never-paid value at list (money F7) · culture-sensitive
 webhook amount parsing (money F8 / state F10c) · ClientInvoices.TaxRate still decimal(6,4) --
 the Quebec fix's sibling table (money F9) · "Keep My Current Plan" eats an in-flight convert
 leaving a live approval link (state F5 / money F10b) · Resume on an abandoned convert silently
@@ -304,9 +319,7 @@ can still mint an outcome for a superseded subscription (state F3c / jobs 4 -- n
 fence to same-instant races; the refund row it mints is now at least visible in the queue) ·
 stages 3-4 tracker discipline beyond the per-row guards (jobs 5) · dunning bucket skip + term
 switch emails omit the period (jobs 6) · DYK counter server-side increment + retire predicates
-(jobs 7) · post-upgrade annual cancel refund policy needs an OWNER DECISION (the wave-2 cap stops
-impossible refunds; cross-row fairness -- old-row remainder vs new-row clawback -- is not
-specified by DOCS/22).
+(jobs 7). The post-upgrade refund policy is DECIDED and implemented (wave 3 above).
 
 ## Remediation plan
 

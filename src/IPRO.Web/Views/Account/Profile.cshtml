@@ -135,7 +135,26 @@
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Province/State <span class="text-danger">*</span></label>
-              <input asp-for="Province" class="form-control" maxlength="80" required />
+              @* F3 (billing wave 3, 2026-08-25): a free-text box here silently zero-rated all
+                 future tax for anything the normalizer didn't recognize ("PEI" cost 15% HST on
+                 every charge, with no log). Same dropdown as Register; a legacy/US value the
+                 list doesn't contain is preserved as a selectable option so saving the profile
+                 never silently rewrites it. *@
+              @{
+                var provinceOptions = new[] { "Alberta", "British Columbia", "Manitoba", "New Brunswick",
+                  "Newfoundland", "Northwest Territories", "Nova Scotia", "Nunavut", "Ontario",
+                  "Prince Edward Island", "Quebec", "Saskatchewan", "Yukon Territory" };
+              }
+              <select asp-for="Province" class="form-select" required>
+                @if (!string.IsNullOrWhiteSpace(Model.Province) && !provinceOptions.Contains(Model.Province, StringComparer.OrdinalIgnoreCase))
+                {
+                  <option value="@Model.Province" selected>@Model.Province</option>
+                }
+                @foreach (var prov in provinceOptions)
+                {
+                  <option>@prov</option>
+                }
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Postal Code <span class="text-danger">*</span></label>

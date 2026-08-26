@@ -154,11 +154,14 @@ public class BillingWave2Tests
         var change = await db.SubscriptionChanges.AsNoTracking()
             .SingleAsync(c => c.AgentUserId == seed.AgentId && c.ChangeType == SubscriptionChangeType.Cancel);
 
-        // Base = min(Amount, settled-this-cycle) = $500; 4 months used at $120 → $20.00 + $2.60.
-        // Pre-fix: base was Amount → $720 net / $813.60 gross against a $565 capture — a refund
-        // instruction PayPal cannot execute (it caps refunds at the original transaction).
-        Assert.Equal(20.00m, change.RefundNetAmount);
-        Assert.Equal(2.60m, change.RefundTaxAmount);
+        // POLICY REVISION (owner decision 2026-08-25, wave 3): unused value $1,200 - 4 x $120 =
+        // $720, capped at everything settled this cycle across the agent's rows -- here only this
+        // row's $500 exists, so $500 + $65 HST. The wave-2 interim assertion here was $20 (months
+        // clawed against the capture); the owner chose the agent-favouring rule instead. The
+        // original defect stays pinned by the cap: pre-wave-2 code instructed $813.60 gross
+        // against a $565.00 capture, which PayPal cannot execute.
+        Assert.Equal(500.00m, change.RefundNetAmount);
+        Assert.Equal(65.00m, change.RefundTaxAmount);
         Assert.True(change.RefundGrossAmount <= 565m,
             $"refund {change.RefundGrossAmount} must never exceed the referenced capture");
         Assert.Equal("TXN-PRORATION", change.RefundPayPalTransactionId);
