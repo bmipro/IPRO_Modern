@@ -22,7 +22,7 @@ Production agents:
 - **BobyMot #35** — QA daily harness, real PayPal sandbox subscription `I-VG1A3CKSK6DX`, charges
   every day. Day 1 was 2026-08-20. Currently **Platinum Daily** (package 9).
 
-Test suite: **264 passed, 0 failed, 1 skipped** on the wave-3 branch (the skip is deliberate — audit M1, below).
+Test suite: **271 passed, 0 failed, 1 skipped** on the wave-4 branch (the skip is deliberate — audit M1, below).
 
 ---
 
@@ -181,6 +181,18 @@ register's own label, was zero-rating Yukon signups from day one), F5 (package p
 frozen promo plans), and the refund-policy DECISION implemented: full unused value capped at
 cycle-wide settled money, queue note splits across transactions. 6 new tests; wave-2's A2 revised
 to the decided policy with the decision cited in-test.
+
+---
+
+## 6e. Wave 4 — 2026-08-25 night (branch `fix/billing-wave-4`)
+
+The last four billing MEDIUMs: F6 (terminal states never relabelled by late deliveries; a cancel
+after suspension earns the full outcome), state-F5 (Keep-My-Plan voids an in-flight convert
+completely — checkout, slot, and the PayPal approval), F3c/jobs-4 (superseded rows raw-flip
+instead of minting a second outcome; the downgrade's own Cancel row no longer consumes the H6
+waiver — the first predicate regressed wave-2's null-BillingId test and the suite caught it),
+jobs-5 (stage-3 per-pair isolation). 7 new tests. **The billing audit now has zero open
+HIGHs and zero open MEDIUMs — only the 10 recorded LOWs.**
 
 ---
 

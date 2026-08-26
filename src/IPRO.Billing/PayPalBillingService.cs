@@ -248,12 +248,17 @@ public class PayPalBillingService : IBillingService
             {
                 // Consumption: once any later subscription actually activated, OR the agent
                 // answered the downgrade by cancelling outright (H6 -- a Cancel row is an answer,
-                // and re-entry after it is voluntary), the waiver is spent.
+                // and re-entry after it is voluntary), the waiver is spent. F3c (wave 4): a
+                // Cancel row referencing the SAME billing as the applied downgrade is the
+                // downgrade's OWN cancellation -- the old subscription's death recorded by a
+                // racing door -- not the agent answering; it must not spend the waiver.
                 var alreadyCompleted = (await _uow.SubscriptionChanges.FindAsync(c =>
                         c.AgentUserId == userId &&
                         (c.ChangeType == SubscriptionChangeType.Subscribe || c.ChangeType == SubscriptionChangeType.Cancel) &&
                         c.Status == SubscriptionChangeStatus.Applied))
-                    .Any(c => c.AppliedAt.HasValue && c.AppliedAt.Value > latestAppliedDowngrade.AppliedAt!.Value);
+                    .Any(c => c.AppliedAt.HasValue && c.AppliedAt.Value > latestAppliedDowngrade.AppliedAt!.Value &&
+                              (c.ChangeType == SubscriptionChangeType.Subscribe ||
+                               !(c.BillingId.HasValue && latestAppliedDowngrade.BillingId.HasValue && c.BillingId == latestAppliedDowngrade.BillingId)));
                 completesScheduledChange = !alreadyCompleted;
             }
 
@@ -825,6 +830,29 @@ public class PayPalBillingService : IBillingService
     {
         var now = DateTime.UtcNow;
 
+        // F3c / jobs-4 (wave 4): a row with ANOTHER Active billing alongside it was SUPERSEDED --
+        // its unused value already moved into the replacement as upgrade/convert proration
+        // credit, and the system converges to one Active subscription per agent, so a second
+        // Active row is only ever the replacement. Minting the DOCS/22 outcome here would hand
+        // that value out twice (a full clawback refund on top of the credit), and the Applied
+        // Cancel row would consume the H6 completion waiver. Raw flip instead: the subscription
+        // ended because it was replaced, not because the agent walked away.
+        var replacement = await _uow.Billings.FirstOrDefaultAsync(b =>
+            b.AgentUserId == subscription.AgentUserId &&
+            b.Id != subscription.Id &&
+            b.Status == BillingStatus.Active);
+        if (replacement != null)
+        {
+            subscription.Status = targetStatus;
+            subscription.CancelledAt ??= now;
+            _uow.Billings.Update(subscription);
+            await _uow.SaveChangesAsync();
+            _logger.LogInformation(
+                "Billing {BillingId} (agent {AgentUserId}) was superseded by Active billing {ReplacementId}; flipped to {Status} with no cancellation outcome -- its value lives in the replacement. [{Trigger}]",
+                subscription.Id, subscription.AgentUserId, replacement.Id, targetStatus, trigger);
+            return;
+        }
+
         // Wave-2 D (audit 2026-08-25): the outcome is minted EXACTLY ONCE, and the DATABASE --
         // not this caller's possibly-stale tracked entity -- decides who mints it. Three doors
         // (self-cancel, webhook, reconcile) can race: the webhook fires the instant our own
@@ -1245,10 +1273,14 @@ public class PayPalBillingService : IBillingService
                 (b.Status == BillingStatus.Active || b.Status == BillingStatus.Pending || b.CreatedAt > appliedAt))).Any();
             if (!actedOn)
             {
+                // F3c (wave 4): a Cancel row on the downgrade's OWN billing is the old
+                // subscription's death recorded by a racing door -- not the agent answering.
                 actedOn = (await _uow.SubscriptionChanges.FindAsync(c =>
                     c.AgentUserId == change.AgentUserId &&
                     c.ChangeType == SubscriptionChangeType.Cancel &&
-                    c.Status == SubscriptionChangeStatus.Applied)).Any(c => c.AppliedAt.HasValue && c.AppliedAt.Value > appliedAt);
+                    c.Status == SubscriptionChangeStatus.Applied)).Any(c =>
+                        c.AppliedAt.HasValue && c.AppliedAt.Value > appliedAt &&
+                        !(c.BillingId.HasValue && change.BillingId.HasValue && c.BillingId == change.BillingId));
             }
             if (actedOn) continue;
 
@@ -1636,17 +1668,31 @@ public class PayPalBillingService : IBillingService
         // owns what they paid for, and an annual cancel before the crossover is owed a refund.
         // This used to set Status/CancelledAt raw: PaidThroughAt stayed null (= old-style
         // IMMEDIATE gate) and no refund row was ever written, so cancelling "through PayPal" --
-        // which our shipped ToS explicitly invites -- silently forfeited both. Only a row that is
-        // Active RIGHT NOW takes this path: a supersede, a replayed delivery, or a self-cancel
-        // racing its own webhook arrives with the row already Cancelled and must not mint a
-        // second refund. Suspension (-> Failed) is a payment problem, not a cancel: it keeps the
-        // raw path and the immediate gate on purpose.
-        if (billing.Status == BillingStatus.Active &&
+        // which our shipped ToS explicitly invites -- silently forfeited both. F6 (wave 4): a
+        // SUSPENDED (Failed) row takes this door too -- the suspension gated the agent as a
+        // payment problem, but a cancel that follows it still ends a subscription with unconsumed
+        // paid time, and the raw path made Failed an antechamber that forfeited the whole
+        // outcome. Suspension itself (-> Failed) keeps the raw path and the immediate gate on
+        // purpose; the double-mint fence makes a replayed CANCELLED after this idempotent.
+        if ((billing.Status == BillingStatus.Active || billing.Status == BillingStatus.Failed) &&
             (status == BillingStatus.Cancelled || status == BillingStatus.Expired))
         {
             var paidThroughEnd = await ResolvePaidThroughEndAsync(billing);
             await ApplyCancellationOutcomeAsync(billing, status, paidThroughEnd,
                 status == BillingStatus.Expired ? "PayPal reported the subscription expired" : "Cancelled at PayPal (webhook)");
+            return true;
+        }
+
+        // F6 (wave 4): a TERMINAL state is never relabelled by a late delivery. PayPal retries
+        // failed deliveries for days, so a SUSPENDED (or stale EXPIRED) event from BEFORE a
+        // cancellation can land after it -- and relabelling Cancelled -> Failed silently voided
+        // the paid-through honor (every gate reads Cancelled/Expired only) with no repair path,
+        // because the reconcile inspects Active rows exclusively.
+        if (billing.Status is BillingStatus.Cancelled or BillingStatus.Expired)
+        {
+            _logger.LogWarning(
+                "Ignoring late {Incoming} delivery for subscription {SubscriptionId}: billing {BillingId} is already terminally {Current} and keeps its paid-through honor.",
+                status, subscriptionId, billing.Id, billing.Status);
             return true;
         }
 
@@ -2344,14 +2390,51 @@ public class PayPalBillingService : IBillingService
             return BillingChangeResult.Failed("There is no scheduled plan change to cancel.");
         }
 
+        var undoPromoIds = new List<int>();
         foreach (var change in pendingDowngrades)
         {
             change.Status = SubscriptionChangeStatus.Cancelled;
             change.CancelledAt = DateTime.UtcNow;
             _uow.SubscriptionChanges.Update(change);
+
+            // F5 (wave 4): a Downgrade row whose billing is PENDING is an in-flight CONVERT
+            // checkout, not a scheduled change (the H12 lesson) -- cancelling only the change row
+            // stranded the Pending billing forever (no sweeper matches change-Cancelled +
+            // billing-Pending), kept the promo slot claimed, and left the PayPal approval link
+            // LIVE: approving it later executed the very change the agent had just undone. Undo
+            // the whole checkout: void the billing, release the slot (after the save, per SLOT),
+            // and best-effort cancel the approval at PayPal -- a capture that slips through
+            // anyway is caught by the captured-after-end refund net.
+            var checkoutBilling = change.BillingId.HasValue
+                ? await _uow.Billings.GetByIdAsync(change.BillingId.Value)
+                : null;
+            if (checkoutBilling != null && checkoutBilling.Status == BillingStatus.Pending)
+            {
+                if (!string.IsNullOrWhiteSpace(checkoutBilling.PayPalSubscriptionId) &&
+                    !await CancelPayPalSubscriptionAsync(checkoutBilling.PayPalSubscriptionId,
+                        "Agent kept their current plan; convert checkout undone."))
+                {
+                    _logger.LogWarning(
+                        "Keep-My-Current-Plan: could not cancel approval-pending subscription {SubscriptionId} at PayPal; voiding locally anyway -- a late capture lands in the refund queue.",
+                        checkoutBilling.PayPalSubscriptionId);
+                }
+                checkoutBilling.Status = BillingStatus.Cancelled;
+                checkoutBilling.CancelledAt = DateTime.UtcNow;
+                _uow.Billings.Update(checkoutBilling);
+                if (change.PromotionCodeId.HasValue)
+                {
+                    undoPromoIds.Add(change.PromotionCodeId.Value);
+                }
+            }
         }
 
         await _uow.SaveChangesAsync();
+        foreach (var promoId in undoPromoIds)
+        {
+            await _db.PromotionCodes
+                .Where(p => p.Id == promoId && p.MaxRedemptions != null && p.RedemptionCount > 0)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.RedemptionCount, p => p.RedemptionCount - 1));
+        }
         return new BillingChangeResult
         {
             Success = true,
@@ -3735,25 +3818,35 @@ public class PayPalBillingService : IBillingService
             var keep = group.OrderByDescending(b => b.Id).First();
             foreach (var stale in group.Where(b => b.Id != keep.Id))
             {
-                if (!await CancelPayPalSubscriptionAsync(stale.PayPalSubscriptionId,
-                        "Superseded IPRO subscription reconciled after an earlier failed cancellation."))
+                // JOBS-5 (wave 4): each pair fails ALONE, and its convergence commits
+                // immediately. The old shape mutated every pair and saved ONCE at the end -- a
+                // poisoned save discarded every convergence in the batch and handed stage 4 a
+                // dirty tracker (the exact M7 lesson, unapplied to this stage).
+                try
                 {
-                    _logger.LogError(
-                        "Reconciliation: billing {BillingId} (PayPal {SubscriptionId}) for agent {AgentUserId} may still be billing alongside newer billing {KeepId}; retrying next run.",
-                        stale.Id, stale.PayPalSubscriptionId, stale.AgentUserId, keep.Id);
-                    continue;
+                    if (!await CancelPayPalSubscriptionAsync(stale.PayPalSubscriptionId,
+                            "Superseded IPRO subscription reconciled after an earlier failed cancellation."))
+                    {
+                        _logger.LogError(
+                            "Reconciliation: billing {BillingId} (PayPal {SubscriptionId}) for agent {AgentUserId} may still be billing alongside newer billing {KeepId}; retrying next run.",
+                            stale.Id, stale.PayPalSubscriptionId, stale.AgentUserId, keep.Id);
+                        continue;
+                    }
+
+                    stale.Status = BillingStatus.Cancelled;
+                    stale.CancelledAt = DateTime.UtcNow;
+                    _uow.Billings.Update(stale);
+                    await _uow.SaveChangesAsync();
+                    converged++;
                 }
-
-                stale.Status = BillingStatus.Cancelled;
-                stale.CancelledAt = DateTime.UtcNow;
-                _uow.Billings.Update(stale);
-                converged++;
+                catch (Exception ex)
+                {
+                    _db.ChangeTracker.Clear();
+                    _logger.LogError(ex,
+                        "Reconciliation: converging duplicate billing {BillingId} (agent {AgentUserId}) failed; tracker cleared, continuing with the remaining duplicates.",
+                        stale.Id, stale.AgentUserId);
+                }
             }
-        }
-
-        if (converged > 0)
-        {
-            await _uow.SaveChangesAsync();
         }
 
         return converged;
