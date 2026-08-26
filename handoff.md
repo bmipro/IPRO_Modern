@@ -22,7 +22,7 @@ Production agents:
 - **BobyMot #35** — QA daily harness, real PayPal sandbox subscription `I-VG1A3CKSK6DX`, charges
   every day. Day 1 was 2026-08-20. Currently **Platinum Daily** (package 9).
 
-Test suite: **258 passed, 0 failed, 1 skipped** on the wave-2 branch (the skip is deliberate — audit M1, below).
+Test suite: **264 passed, 0 failed, 1 skipped** on the wave-3 branch (the skip is deliberate — audit M1, below).
 
 ---
 
@@ -170,6 +170,17 @@ full table):
 The remaining audit findings (all MEDIUM/LOW) are recorded as the open billing set in the
 register — including one **owner decision**: the post-upgrade annual cancel refund policy
 (cross-row fairness is unspecified by DOCS/22; wave 2 caps the refund at what was captured).
+
+---
+
+## 6d. Wave 3 — 2026-08-25 late evening (branch `fix/billing-wave-3`)
+
+Owner-selected: F2 (renewals keep the sold-at tax rate; Billing.Amount no longer poisoned by a
+province move), F3 (Profile province dropdown + the missing aliases — "Yukon Territory", the
+register's own label, was zero-rating Yukon signups from day one), F5 (package plan sync clears
+frozen promo plans), and the refund-policy DECISION implemented: full unused value capped at
+cycle-wide settled money, queue note splits across transactions. 6 new tests; wave-2's A2 revised
+to the decided policy with the decision cited in-test.
 
 ---
 

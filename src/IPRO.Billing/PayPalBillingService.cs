@@ -883,9 +883,42 @@ public class PayPalBillingService : IBillingService
         var monthlyNetAtPurchase = subscription.Amount / 10m;
 
         var neverBilledThisCycle = now < cycleStart || refundBase <= 0m;
+
+        // POLICY (owner decision 2026-08-25, wave 3): the refund is the FULL unused value at the
+        // row's rate (Amount - used x Amount/10), capped at everything actually settled in the
+        // running cycle across ALL the agent's rows. The wave-2 interim capped at this row's own
+        // captures, which short-changed a mid-year upgrader by the old row's remainder (~$700 on
+        // the worked example); the owner chose the simple agent-favouring rule -- "worst case I
+        // lose ~2 months" -- and the cap guarantees the queue never instructs refunding more than
+        // the cycle collected. When the refund exceeds this row's own capture, the note tells the
+        // operator how much to take from which prior transaction.
         var outcome = subscription.Period == BillingPeriod.Annually && !neverBilledThisCycle
-            ? PrepaidValue.AnnualCancel(refundBase, monthlyNetAtPurchase, taxRate, cycleStart, now)
+            ? PrepaidValue.AnnualCancel(subscription.Amount, monthlyNetAtPurchase, taxRate, cycleStart, now)
             : PrepaidValue.MonthlyCancel(paidThroughEnd, now);
+
+        var crossRowNote = string.Empty;
+        if (subscription.Period == BillingPeriod.Annually && !neverBilledThisCycle && outcome.RefundNet > 0m)
+        {
+            var otherRowPayments = (await _uow.Invoices.FindAsync(i =>
+                    i.AgentUserId == subscription.AgentUserId && i.IsPaid && i.BillingId != subscription.Id))
+                .Where(i => i.SubTotal > 0m && i.IssuedAt >= cycleStart.AddDays(-3))
+                .OrderByDescending(i => i.IssuedAt)
+                .ToList();
+            var settledAcrossCycle = settledThisCycle + otherRowPayments.Sum(i => i.SubTotal);
+            if (outcome.RefundNet > settledAcrossCycle)
+            {
+                var cappedNet = Math.Round(settledAcrossCycle, 2);
+                var cappedTax = Math.Round(cappedNet * taxRate, 2);
+                outcome = outcome with { RefundNet = cappedNet, RefundTax = cappedTax, RefundGross = cappedNet + cappedTax };
+                crossRowNote += $" Refund capped at {cappedNet:0.00} -- the total settled this cycle across the agent's rows.";
+            }
+            if (otherRowPayments.Count > 0 && outcome.RefundNet > settledThisCycle)
+            {
+                var fromOthers = outcome.RefundNet - settledThisCycle;
+                var otherTxns = string.Join(", ", otherRowPayments.Select(i => SettlingTransactionRef(i.PayPalTransactionId)).Where(t => t.Length > 0));
+                crossRowNote += $" This row's capture covers {settledThisCycle:0.00} net; take the remaining {fromOthers:0.00} net against the prior transaction(s): {otherTxns}.";
+            }
+        }
 
         subscription.Status = targetStatus;
         subscription.CancelledAt ??= now;
@@ -917,7 +950,7 @@ public class PayPalBillingService : IBillingService
             RefundPayPalTransactionId = SettlingTransactionRef(payingInvoice?.PayPalTransactionId),
             RefundWindowEndsAt = payingInvoice != null ? PrepaidValue.RefundWindowEndsAt(payingInvoice.IssuedAt) : null,
             RefundResolutionNote = (outcome.RefundGross > 0m
-                ? $"Annual clawback: {outcome.MonthsUsed} month(s) of the cycle starting {cycleStart:yyyy-MM-dd} used at {monthlyNetAtPurchase:0.00}/mo (= priced {subscription.Amount:0.00}/10) net of {refundBase:0.00} actually settled this cycle; refund {outcome.RefundNet:0.00} + tax {outcome.RefundTax:0.00} (rate {taxRate:0.###} as invoiced)."
+                ? $"Annual clawback: {outcome.MonthsUsed} month(s) of the cycle starting {cycleStart:yyyy-MM-dd} used at {monthlyNetAtPurchase:0.00}/mo (= priced {subscription.Amount:0.00}/10); refund {outcome.RefundNet:0.00} + tax {outcome.RefundTax:0.00} (rate {taxRate:0.###} as invoiced).{crossRowNote}"
                 : subscription.Period == BillingPeriod.Annually && neverBilledThisCycle
                     ? $"No refund due (nothing has settled on this subscription for the running period -- deferred start or credit window); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}."
                     : $"No refund due ({(subscription.Period == BillingPeriod.Annually ? $"month {outcome.MonthsUsed} is at/past the crossover" : "monthly plan")}); access honored to {outcome.PaidThroughAt:yyyy-MM-dd}.")
@@ -1349,6 +1382,33 @@ public class PayPalBillingService : IBillingService
             return PayPalPlanSyncResult.Failed("PayPal plans were not created because this package has no monthly or annual recurring price.");
         }
 
+        // F5 (wave 3, 2026-08-25): promo plans price AGAINST this package and were frozen at
+        // creation with no divergence guard of their own -- after a price edit + re-sync, a promo
+        // checkout invoiced the NEW price while PayPal charged the OLD frozen one, forever (the
+        // exact defect class ADMIN-2 closed for the package's own plans). Every sync clears the
+        // cached promo plan ids for promos restricted to this package, BEFORE any PayPal call:
+        // they lazily recreate at the next checkout against the CURRENT price, and a sync that
+        // fails midway has still only forced a re-price, never a wrong one. The old promo plans
+        // are left to age out at PayPal like any replaced plan (deactivation is best-effort
+        // there too); nothing subscribes to them once the cache is gone.
+        var frozenPromos = (await _uow.PromotionCodes.FindAsync(p =>
+                p.RestrictedBillingRuleId == billingRuleId &&
+                (p.PayPalPromoPlanIdMonthly != null && p.PayPalPromoPlanIdMonthly != "" ||
+                 p.PayPalPromoPlanIdAnnual != null && p.PayPalPromoPlanIdAnnual != ""))).ToList();
+        if (frozenPromos.Count > 0)
+        {
+            foreach (var frozen in frozenPromos)
+            {
+                _logger.LogInformation(
+                    "Package {PackageId} plan sync: clearing frozen promo plan(s) for code {Code} (monthly '{M}', annual '{A}') so they re-price against the current package on next use.",
+                    billingRuleId, frozen.Code, frozen.PayPalPromoPlanIdMonthly, frozen.PayPalPromoPlanIdAnnual);
+                frozen.PayPalPromoPlanIdMonthly = string.Empty;
+                frozen.PayPalPromoPlanIdAnnual = string.Empty;
+                _uow.PromotionCodes.Update(frozen);
+            }
+            await _uow.SaveChangesAsync();
+        }
+
         // ADMIN-9 shape, both halves fixed here. (1) Each plan id is PERSISTED the moment it is
         // created: the old code created monthly, then annual, then saved both -- so an exception on
         // the annual creation discarded a real, just-created monthly plan, leaving it live at
@@ -1757,12 +1817,25 @@ public class PayPalBillingService : IBillingService
             // recompute the tax, which guarantees the invoice total equals what PayPal charged.
             // billing.Amount (the fallback when the event carries no amount) is already stored net
             // and must NOT be de-taxed.
+            // F2 (wave 3, 2026-08-25): de-tax at the rate this subscription was actually SOLD at
+            // -- the rate on its last paid invoice -- never the agent's CURRENT province. The
+            // PayPal plan's gross was built tax-inclusive at creation time and does not change
+            // when the agent moves; splitting $678.00 (built as $600 + 13% ON) at Alberta's 5%
+            // recorded $645.71 + $32.29 GST, corrupted the CRA remittance on both provinces, and
+            // the Amount-sync below then poisoned every later proration and clawback with 645.71.
+            var soldAtInvoice = (await _uow.Invoices.FindAsync(i =>
+                    i.BillingId == billing.Id && i.IsPaid))
+                .Where(i => i.SubTotal > 0m)
+                .OrderByDescending(i => i.IssuedAt)
+                .FirstOrDefault();
+
             decimal recurringAmount;
             if (amount > 0)
             {
-                var taxProbe = await CalculateTaxAsync(billing.AgentUserId, amount);
-                recurringAmount = taxProbe.Rate > 0
-                    ? Math.Round(amount / (1 + taxProbe.Rate), 2)
+                var soldAtRate = soldAtInvoice?.TaxRate
+                    ?? (await CalculateTaxAsync(billing.AgentUserId, amount)).Rate;
+                recurringAmount = soldAtRate > 0
+                    ? Math.Round(amount / (1 + soldAtRate), 2)
                     : amount;
 
                 // Dividing a rounded gross can land a cent away from the advertised price (PayPal
@@ -1792,9 +1865,13 @@ public class PayPalBillingService : IBillingService
                 recurringAmount = billing.Amount;
             }
 
+            // F2: the invoice carries the sold-at rate too -- computing it fresh inside
+            // CreateInvoiceAsync would re-apply the CURRENT province and reintroduce the split
+            // this block just avoided.
             var invoice = package == null
                 ? await CreateInvoiceAsync(billing.Id, billing.AgentUserId, recurringAmount, true)
-                : await CreateInvoiceAsync(billing.Id, billing.AgentUserId, package, billing.Period, recurringAmount, 0, true);
+                : await CreateInvoiceAsync(billing.Id, billing.AgentUserId, package, billing.Period, recurringAmount, 0, true,
+                    taxRateOverride: soldAtInvoice?.TaxRate, taxRegionOverride: soldAtInvoice?.TaxRegion);
             invoice.PayPalTransactionId = transactionId;
             _uow.Invoices.Update(invoice);
             pendingInvoice = invoice;
@@ -2557,7 +2634,8 @@ public class PayPalBillingService : IBillingService
         return await CreateInvoiceAsync(billingId, userId, package, billing.Period, amount, 0, isPaid);
     }
 
-    private async Task<IPRO.Entities.Invoice> CreateInvoiceAsync(int billingId, int userId, BillingRule package, BillingPeriod period, decimal recurringAmount, decimal setupFee, bool isPaid)
+    private async Task<IPRO.Entities.Invoice> CreateInvoiceAsync(int billingId, int userId, BillingRule package, BillingPeriod period, decimal recurringAmount, decimal setupFee, bool isPaid,
+        decimal? taxRateOverride = null, string? taxRegionOverride = null)
     {
         var lineItems = new List<InvoiceLineDraft>();
         if (recurringAmount > 0)
@@ -2576,6 +2654,15 @@ public class PayPalBillingService : IBillingService
         }
 
         var subtotal = lineItems.Sum(i => i.Amount);
+        // F2 (wave 3): a renewal invoice keeps the rate the subscription was SOLD at (the caller
+        // passes it from the prior paid invoice). Everything else keeps pricing at the agent's
+        // current province, which is correct for NEW money.
+        if (taxRateOverride.HasValue)
+        {
+            var overrideAmount = Math.Round(subtotal * taxRateOverride.Value, 2);
+            return await CreateInvoiceWithLinesAsync(billingId, userId, subtotal, overrideAmount,
+                taxRateOverride.Value, taxRegionOverride ?? string.Empty, isPaid, lineItems);
+        }
         var tax = await CalculateTaxAsync(userId, subtotal);
         return await CreateInvoiceWithLinesAsync(billingId, userId, subtotal, tax.Amount, tax.Rate, tax.Region, isPaid, lineItems);
     }
@@ -2738,7 +2825,7 @@ public class PayPalBillingService : IBillingService
         _ => "monthly"
     };
 
-    private static string NormalizeProvince(string? province)
+    internal static string NormalizeProvince(string? province)
     {
         var value = (province ?? string.Empty).Trim().ToUpperInvariant();
         return ProvinceAliases.TryGetValue(value, out var alias) ? alias : value;
@@ -2757,10 +2844,17 @@ public class PayPalBillingService : IBillingService
         ["NUNAVUT"] = "NU",
         ["ONTARIO"] = "ON",
         ["PRINCE EDWARD ISLAND"] = "PE",
+        // F3 (wave 3): the universal abbreviation; missing it zero-rated PEI's 15% HST silently.
+        ["PEI"] = "PE",
+        ["P.E.I."] = "PE",
         ["QUEBEC"] = "QC",
         ["QUÉBEC"] = "QC",
         ["SASKATCHEWAN"] = "SK",
-        ["YUKON"] = "YT"
+        ["YUKON"] = "YT",
+        // F3 (wave 3): the register's own dropdown emits THIS label -- every Yukon signup
+        // zero-rated from day one because only bare "YUKON" was mapped.
+        ["YUKON TERRITORY"] = "YT",
+        ["NWT"] = "NT"
     };
 
     private async Task<BillingIssue> BuildBillingIssueAsync(IPRO.Entities.Invoice invoice, string status, string message)

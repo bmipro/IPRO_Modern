@@ -47,6 +47,19 @@ payment at month 10 exactly. From month 10 on, the refund is $0 — so instead t
 access **until the anniversary**. The system always auto-picks whichever outcome favours the
 agent; there is no configuration and no judgement call.
 
+### Annual cancel AFTER a mid-year upgrade (owner-decided 2026-08-25)
+
+An annual-to-annual upgrade's new billing only ever captured the prorated difference, and the old
+row's payment bought the same year. On cancel: refund = the full unused value at the NEW row's
+rate (Amount - monthsUsed x Amount/10), **capped at everything actually settled in the running
+cycle across the agent's rows**. The cap keeps every queue instruction executable (never more
+than the cycle collected); the queue note splits the amount across the involved transactions when
+it exceeds the new row's own capture. Chosen as the least-complicated agent-favouring rule; on
+the worked example (Gold $600 renewed, upgraded to Platinum mid-year for $500, cancelled month 4)
+it refunds $720 net where perfect cross-row fairness would be $740. A row with NO positive capture
+in the running cycle (a convert mid-credit, a deferred start) refunds nothing and keeps its
+access to the paid-through date -- money never collected is not refundable.
+
 ### Refunds are MANUAL, driven by a SuperAdmin queue
 
 No code moves money. The queue (SuperAdmin → Refunds) lists every cancellation with a refund
