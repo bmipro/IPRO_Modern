@@ -567,12 +567,30 @@ public class NewsletterController : Controller
                 return BadRequest();
             }
 
+            var consentEventFailed = false;
+
             foreach (var item in events.EnumerateArray())
             {
+                // Read the event name OUTSIDE the guard: the catch has to know whether what just
+                // failed was a consent instruction, and it cannot ask afterwards (H8).
+                string eventNameForClassification;
+                try { eventNameForClassification = ReadString(item, "event"); }
+                catch { eventNameForClassification = string.Empty; }
+
                 // JOBS-6 (fixed 2026-08-20): one malformed event used to throw and fail the WHOLE
                 // request -- SendGrid then retried the entire batch (duplicating everything before
                 // the bad event) or eventually gave up (losing everything after it). Each event
-                // now sinks or swims alone; the batch always answers 200.
+                // now sinks or swims alone.
+                //
+                // H8 (fixed 2026-08-27): "sinks alone" was applied to EVERY event, including the
+                // three that carry a legal instruction. Every path that suppresses a client runs
+                // inside this try, so a database hiccup while recording an unsubscribe or a spam
+                // complaint was caught, logged, and answered 200 -- and 200 tells SendGrid the
+                // event is recorded and must never be sent again. The opt-out was gone with no
+                // way to recover it. Now a failed CONSENT event withholds the acknowledgement so
+                // SendGrid redelivers; ordinary delivery events still sink alone exactly as
+                // before. The cost is duplicated statistics on the redelivered batch, which is
+                // recoverable -- a lost opt-out is not.
                 try
                 {
                 var eventName = ReadString(item, "event");
@@ -613,13 +631,45 @@ public class NewsletterController : Controller
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "SendGrid webhook: one event in the batch could not be processed and was skipped.");
+                    if (IsConsentEvent(eventNameForClassification))
+                    {
+                        consentEventFailed = true;
+                        _logger.LogError(ex,
+                            "SendGrid webhook: a CONSENT event ({Event}) could not be processed. Withholding the " +
+                            "acknowledgement so SendGrid redelivers -- this batch will arrive again and its " +
+                            "delivery statistics may duplicate. That is the deliberate trade: a lost opt-out " +
+                            "cannot be recovered.", eventNameForClassification);
+                    }
+                    else
+                    {
+                        _logger.LogError(ex, "SendGrid webhook: one event in the batch could not be processed and was skipped.");
+                    }
                 }
+            }
+
+            if (!ShouldAcknowledge(consentEventFailed))
+            {
+                // 503, not 500: this is "try me again", not "this request was malformed".
+                return StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
         }
 
         return Ok();
     }
+
+    // The three SendGrid events that carry an instruction in law -- stop mailing this person --
+    // rather than a delivery statistic. A spam complaint and an unsubscribe are the same
+    // instruction; group_unsubscribe is the one-click header carried by every card, letter and
+    // newsletter. Kept beside the webhook that branches on it so the pair cannot drift.
+    internal static bool IsConsentEvent(string? eventName) =>
+        eventName is not null &&
+        (eventName.Equals("unsubscribe", StringComparison.OrdinalIgnoreCase) ||
+         eventName.Equals("group_unsubscribe", StringComparison.OrdinalIgnoreCase) ||
+         eventName.Equals("spamreport", StringComparison.OrdinalIgnoreCase));
+
+    // The webhook's whole contract with SendGrid: 200 means "recorded -- never send it again".
+    // Only an unprocessed CONSENT event may withhold it.
+    internal static bool ShouldAcknowledge(bool consentEventFailed) => !consentEventFailed;
 
     private string GetRequestBaseUrl() => $"{Request.Scheme}://{Request.Host}";
 

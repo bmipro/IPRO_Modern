@@ -400,6 +400,27 @@ M2, M8, M13 (public site never offline), M9/M10 (quota display), the 12 pre-audi
 counter hardening residue, M6 (owner decision), and the wave-3 doc corrections. Nothing left in
 the open set is a live money-or-data-loss defect.
 
+## Launch runway Phase 1 -- H8 + M8 FIXED 2026-08-27 (branch `fix/consent-session-wave`)
+
+First slice of the Sept 21 launch plan. Both verified both ways; the reverse run turns exactly the
+two WIRING tests red and leaves the contract pins green.
+
+| Item | Fix |
+|---|---|
+| **H8** | The SendGrid webhook's per-event catch swallowed the three events that carry a legal instruction. Every suppression path runs inside that try, so a database hiccup while recording an unsubscribe or spam complaint was caught, logged, and answered **200** -- which tells SendGrid the event is recorded and must never be resent. The opt-out was unrecoverable. Now a failed CONSENT event (`unsubscribe`, `group_unsubscribe`, `spamreport`) withholds the acknowledgement and returns 503 so SendGrid redelivers; ordinary delivery events still sink alone exactly as JOBS-6 intended. The trade is explicit: duplicated statistics on a redelivered batch are recoverable, a lost opt-out is not. |
+| **M8** | ADMIN-7's revalidation shipped in Admin only, so an agent's 8-hour SLIDING cookie kept full portal access after deactivation -- and after DELETION, walking around against rows that no longer exist. `AgentCookieRevalidator` mirrors the Admin pattern. It turned out **larger than the register described**: team members sign in as themselves and act AS the agent (NameIdentifier = the agent's id + a `TeamMemberId` marker claim), so checking only the agent would leave a revoked assistant with a live session on a healthy account. Both ends are checked, and a marker claim belonging to a different agent is refused. |
+
+**Test-craft note worth keeping.** The first version of the H8 tests pinned only the classifier --
+"is `unsubscribe` a consent event?" -- which would have passed green while the webhook ignored the
+answer entirely: the exact C1 shape, caught before it shipped this time. Two tests now drive the
+REAL `SendGridEvents` action (generated ECDSA P-256 keypair, genuine signature over
+timestamp+payload, a renamed `Clients` table underneath) and assert the status code the action
+actually returns. M8 had the same exposure -- `EvaluateAsync` could be perfect while nothing
+called it -- so a source-walk test fails if the agent cookie stops pointing at the revalidator or
+the revalidator stops being registered.
+
+22 new tests. Register HIGH count: **3 open -> 1 open (H7 only; H3 next).**
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**
