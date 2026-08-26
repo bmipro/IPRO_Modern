@@ -421,6 +421,27 @@ the revalidator stops being registered.
 
 22 new tests. Register HIGH count: **3 open -> 1 open (H7 only; H3 next).**
 
+## Launch runway Phase 1 -- H3 FIXED 2026-08-27 (branch `fix/resolver-split`)
+
+`ResolveBillingRuleIdAsync` -- the SINGULAR path behind `GetAccessAsync`, which nearly every
+controller calls -- matched `Status == Active` only. Finding nothing, it fell through to
+`AgentUser.PackageId`, a column nothing rewrites when a plan changes. So a cancelled-but-
+paid-through agent was resolved against whatever package they held BEFORE their last change, and
+was refused features they had paid for and were still inside the paid period of. The bulk resolver
+and `IsAccessGatedAsync` both learned `PaidThroughAt` when DOCS/22 shipped; this one never did.
+
+Fixed by giving it the same predicate the other two use: an Active row wins, else a Cancelled OR
+Expired row whose `PaidThroughAt` is still in the future (Expired included for the same reason
+wave-2 E added it to the gates -- the door that grants access and the resolver that decides WHAT
+they get must read the same set, or an agent is let in and handed nothing).
+
+**Both resolvers carried comments demanding they "stay logically identical". Nothing enforced it,
+which is exactly how they drifted.** Five tests now do, including the reverse direction: when the
+paid period really has ended BOTH must withdraw access, so a fix that erred permissive fails too.
+Reverse run: 3 of 5 red on the pre-fix code, with both regression pins green.
+
+**Register HIGH count: 1 open -- H7 only.**
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**
