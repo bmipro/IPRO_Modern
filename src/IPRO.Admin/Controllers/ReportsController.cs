@@ -145,6 +145,32 @@ public class ReportsController : Controller
             .OrderByDescending(i => i.IssuedAt)
             .ToList();
 
+        // 2026-08-26: QA harness charges are not revenue. The daily test packages
+        // (IsHiddenTestPackage: 7/8/9) bill through PayPal's SANDBOX, so their invoices are real
+        // rows recording money that never moved -- ~$500 of them from the BobyMot lifecycle run
+        // alone. The rows themselves are correctly RETAINED when a QA agent is deleted (CRA
+        // retention, and this report is what reads them), so the exclusion belongs here, at the
+        // one loader both the ledger and the CSV export read.
+        //
+        // Fails OPEN, deliberately: only a POSITIVE match on IsHiddenTestPackage excludes an
+        // invoice. One whose billing or package row is missing -- an older
+        // eraseFinancialRecords delete, a data gap -- still COUNTS. The opposite default would
+        // silently erase real income from the books, which is the same shape as bob3test3's $335
+        // vanishing in 2026-08-12.
+        var testPackageIds = (await _uow.BillingRules.FindAsync(p => p.IsHiddenTestPackage))
+            .Select(p => p.Id)
+            .ToHashSet();
+        if (testPackageIds.Count > 0)
+        {
+            var testBillingIds = (await _uow.Billings.FindAsync(b => testPackageIds.Contains(b.BillingRuleId)))
+                .Select(b => b.Id)
+                .ToHashSet();
+            if (testBillingIds.Count > 0)
+            {
+                invoices = invoices.Where(i => !testBillingIds.Contains(i.BillingId)).ToList();
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(q))
         {
             var needle = q.Trim();
