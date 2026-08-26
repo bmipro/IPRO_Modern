@@ -377,6 +377,29 @@ With this wave the erasure path's register items are closed: C1/H9/H10 (wave 1),
 (here). A STRONG live rehearsal still wants a QA agent WITH uploaded files and a bound custom
 domain -- noted in memory.
 
+## Security + drip wave -- FIXED 2026-08-26 (branch fix/security-drip-wave): H4, M17, M18, M11, M12
+
+The owner's recommended slice: the security pair + the two-line registry + the drip pair. Every
+defect test red on pre-fix code (surgical reverse run: 14 of 21 fail with the four behaviours
+reverted; the 7 that stay green are the pinned-handler/registry contract pins).
+
+| Item | Fix |
+|---|---|
+| **H4** | SSRF via DNS REBINDING closed structurally. `PublicHostGuard.CreatePinnedHandler()` is a SocketsHttpHandler whose ConnectCallback resolves, validates (`FilterForConnect` -- any blocked address in the answer refuses the whole connection), and dials only approved addresses -- atomically, so there is no second internal resolve for an attacker's alternating nameserver to win. DomainCheckService now fetches through it; the friendly pre-checks stay for good error copy, but the security boundary is the connection. (`RootLastError` still surfaces the redirect target verbatim -- reviewed as acceptable: it is the agent's OWN public domain, not an internal probe result, now that the fetch can only reach public addresses.) |
+| **M17** | Every IPv4-embedding IPv6 transition prefix is unwrapped and re-checked: IPv4-compatible `::a.b.c.d`, NAT64 `64:ff9b::/96` + local-use, 6to4 `2002::/16`, Teredo (server AND client v4, client bytes XOR 0xFF). Pre-fix only `::ffff:` was -- so `64:ff9b::a9fe:a9fe` (the metadata endpoint via NAT64) walked straight through. 10 blocked + 4 still-public cases pinned. |
+| **M18** | `ecard-art` and `starter-content` added to `BlobReferences.Containers`. Both were uploaded to and their URL columns registered; only the report's container enumeration was blind, so orphans there were invisible. A source-walking test now fails if any `Container = "..."` constant in src/ is missing from the registry -- it can't drift again. |
+| **M11** | A null `DispatchDripStepAsync` (campaign/step vanished mid-run) is a bounded transient failure, not success: no `LastSentAt`, no index advance. Pre-fix it stamped LastSentAt and advanced past a step that never sent. A past-the-end index now completes the enrollment before dispatch. |
+| **M12** | All three drip-cancel paths (per-send, the sweep, SuppressAll) stamp `CancelledAt` -- the CASL "when did we stop mailing this person" answer, previously null on every path. The sweep is now bounded (`Take(batchLimit)`, default 500) so an hourly unbounded ToListAsync over every suppressed enrollment cannot grow without limit. |
+
+7 new tests in SecurityDripWaveTests (14 InlineData cases). IPRO.Utility gained InternalsVisibleTo
+for the connect-time seam (ResolveHook / FilterForConnect).
+
+**After this wave the register's open set is:** H3 (resolver split), H7 (SendGrid classification +
+drip resume), H8 (webhook suppression swallow), M1 (overlay CSS allow-list -- the skipped test),
+M2, M8, M13 (public site never offline), M9/M10 (quota display), the 12 pre-audit LOWs, the DYK
+counter hardening residue, M6 (owner decision), and the wave-3 doc corrections. Nothing left in
+the open set is a live money-or-data-loss defect.
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**

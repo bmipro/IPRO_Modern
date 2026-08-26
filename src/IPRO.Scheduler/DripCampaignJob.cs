@@ -75,6 +75,7 @@ public class DripCampaignJob
                 if (_consent.IsSuppressed(enrollment.Client, EmailChannel.DripCampaign))
                 {
                     enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+                    enrollment.CancelledAt = DateTime.UtcNow;   // M12: the CASL "when did we stop" answer
                     enrollment.LastError = "Client has unsubscribed; enrollment cancelled.";
                     await _db.SaveChangesAsync();
                     _logger.LogInformation(
@@ -101,7 +102,18 @@ public class DripCampaignJob
                 // client silently skipped the step while the error was blanked. JOBS-8: a
                 // transient failure retries on later ticks instead of killing the campaign; the
                 // attempt counter stops a permanent problem from retrying forever.
-                if (sendResult != null && !sendResult.Success)
+                if (sendResult == null)
+                {
+                    // M11: the dispatcher had nothing to send (campaign deactivated in the race
+                    // between our query and its own re-read). NOT a success -- no advance, no
+                    // LastSentAt -- and NOT a hot loop either: the transient backoff pushes the
+                    // row behind healthy ones and the cap bounds it.
+                    HandleSendFailure(enrollment, transient: true, "Dispatcher had nothing to send for this step.");
+                    await _db.SaveChangesAsync();
+                    continue;
+                }
+
+                if (!sendResult.Success)
                 {
                     HandleSendFailure(enrollment, sendResult.IsTransient, sendResult.Message);
                     await _db.SaveChangesAsync();

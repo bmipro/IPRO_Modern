@@ -361,7 +361,10 @@ public class NewsLetterDispatcher
     // the step-send row and the method returned as if nothing happened, so the job blanked the
     // enrollment's error and advanced past the step the client never received. The caller now
     // gets the real outcome; a null return means the step was skipped (campaign gone/inactive).
-    public async Task<EmailSendResult?> DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null, int enrollmentId = 0)
+    // Virtual for the M11 test double: the null return models the mid-run race (campaign or
+    // step vanishing between the job's read and this method's own re-read), which no in-test
+    // interleaving can produce deterministically against a real database.
+    public virtual async Task<EmailSendResult?> DispatchDripStepAsync(int campaignId, int stepIndex, string toEmail, string toName, string? unsubscribeToken = null, int enrollmentId = 0)
     {
         var campaign = await _uow.DripCampaigns.GetByIdAsync(campaignId);
         if (campaign == null || !campaign.IsActive) return null;
