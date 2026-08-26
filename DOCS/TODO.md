@@ -501,6 +501,28 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
+## OPEN DECISION -- QA sandbox invoices: purge the rows? (revisit 2026-08-27)
+
+The BobyMot lifecycle run left 9 retained invoices (IPRO-2026-000010..000018, ~$500) recording
+PayPal SANDBOX charges -- real rows, money that never moved. Two paths:
+
+- **DONE 2026-08-26 (option A):** the Revenue report and its CSV export now EXCLUDE invoices whose
+  billing points at an `IsHiddenTestPackage` package. Non-destructive, and every future QA harness
+  run is excluded automatically. Fails OPEN by design: only a positive IsHiddenTestPackage match
+  excludes, so an invoice whose billing/package row is missing still counts as revenue (the
+  bob3test3 $335 lesson).
+- **DEFERRED to 2026-08-27 (option B):** physically DELETE those rows. Owner decided to wait a day
+  and confirm the report reads correctly first. The SELECT-then-DELETE statements (FK-safe order
+  mirroring AgentDataEraser.FinancialMap, scoped to AgentUserId = 35, wrapped in a transaction
+  with a zero-check before COMMIT) were provided in-session; they are the owner's to run --
+  no production DB access from this side. If B goes ahead, the same session's queries also
+  enumerate hidden-test-package invoices for OTHER (earlier QA) agents and orphaned invoices whose
+  agent no longer exists -- check those before widening the scope beyond agent 35.
+
+**Recommendation on record: don't run B.** A already removes them from the books, and the rows are
+the only remaining record of what the harness did if a discrepancy ever surfaces. Deletion is
+irreversible and buys nothing beyond A.
+
 ## SECURITY + DRIP WAVE SHIPPED 2026-08-26 (branch fix/security-drip-wave)
 
 H4 (SSRF rebinding -> connect-time address pinning), M17 (IPv6 transition prefixes), M18 (orphan

@@ -22,7 +22,7 @@ Production agents:
   a **scheduled downgrade to Silver Daily (`billingRuleId` 7) effective Aug 26** — it fires up to
   6 hours EARLY (the lead window is 25% of a daily cycle; harness artifact, not a bug).
 
-Test suite: **306 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
+Test suite: **309 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
 allow-list, `[Fact(Skip=...)]` with the reason inline). The suite grew **216 → 281 today**; every
 defect fix in every wave was verified BOTH ways (test fails on pre-fix code, passes on the fix —
 or the fix stash-reverted and the greens observed to go red).
@@ -91,6 +91,11 @@ been zero-rated since launch; free-text profile entries ("PEI") may lurk too.
   queue note splits amounts across transactions. DOCS/22 carries the addendum.
 - **OPEN: M6** — the credit-note mechanism (`RefundStatus.ConvertedToCredit` is enum-only; the
   CRA tax-by-region figure over-reports after any refund). Feature work, not a defect fix.
+- **OPEN (revisit 2026-08-27): purge the QA sandbox invoices?** Option A shipped 2026-08-26 --
+  Revenue + CSV now exclude hidden-test-package invoices, so the ~$500 is off the books and every
+  future harness run is auto-excluded. Option B (physically deleting the 9 rows) is deferred by
+  owner decision; statements are in `DOCS/TODO.md`. Recommendation on record: don't -- A suffices
+  and deletion is irreversible.
 - **OPEN: staging environment** — the reminder fired Mon 2026-08-25 09:00; the question is data
   (a real copy = PIPEDA exposure), not cost. Not yet decided.
 
