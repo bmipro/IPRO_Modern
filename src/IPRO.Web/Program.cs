@@ -109,6 +109,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         o.Cookie.HttpOnly = true;
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         o.Cookie.SameSite = SameSiteMode.Lax;
+        // M8 (2026-08-27): re-check the database on every authenticated request, the way Admin
+        // has since ADMIN-7. Without this the 8-hour SLIDING cookie above outlives deactivation
+        // and even deletion -- see AgentCookieRevalidator.
+        o.EventsType = typeof(IPRO.Web.Infrastructure.AgentCookieRevalidator);
     })
    .AddCookie("ClientPortal", o =>
     {
@@ -122,6 +126,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         o.Cookie.SameSite = SameSiteMode.Lax;
     });
+builder.Services.AddScoped<IPRO.Web.Infrastructure.AgentCookieRevalidator>();
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
