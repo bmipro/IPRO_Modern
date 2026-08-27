@@ -86,9 +86,11 @@ live run); the delete removed 91 rows / 0 files matching the preview, with finan
 Signup, upgrade, downgrade, cancel and row-exact delete are all now proven in production from
 `bobymot.247advisers.com`. Detail is in `DOCS/TODO.md` under "QA HARNESS COMPLETE".
 
-**Follow-up 1 — due today (Aug 27): confirm PayPal shows NO $45.20 charge.** The cancel was
-supposed to stop the daily sub; a charge appearing would mean the cancel did not reach PayPal. The
-owner checks this in the PayPal dashboard — it is not something this side can see.
+**Follow-up 1 — CLOSED 2026-08-27. PayPal did not charge.** The owner's dashboard shows its
+newest entry on Aug 26 (-$45.20, the completion re-subscribe with the setup fee correctly waived)
+and nothing on Aug 27. The cancel reached PayPal and paid-through-to-Aug-29 held. The surrounding
+history matches the harness record: Aug 25 -$101.70 Platinum daily, Aug 24 -$0.45/-$0.31 upgrade
+proration, Aug 24 and Aug 23 -$45.20.
 
 **Follow-up 2 — a STRONG erasure test still has no coverage.** Every delete so far was of an agent
 with **0 files and no custom domain**, so the blob-shred and hostname-unbind legs have never run
@@ -112,11 +114,14 @@ been zero-rated since launch; free-text profile entries ("PEI") may lurk too.
   queue note splits amounts across transactions. DOCS/22 carries the addendum.
 - **OPEN: M6** — the credit-note mechanism (`RefundStatus.ConvertedToCredit` is enum-only; the
   CRA tax-by-region figure over-reports after any refund). Feature work, not a defect fix.
-- **OPEN (revisit 2026-08-27): purge the QA sandbox invoices?** Option A shipped 2026-08-26 --
-  Revenue + CSV now exclude hidden-test-package invoices, so the ~$500 is off the books and every
-  future harness run is auto-excluded. Option B (physically deleting the 9 rows) is deferred by
-  owner decision; statements are in `DOCS/TODO.md`. Recommendation on record: don't -- A suffices
-  and deletion is irreversible.
+- **RESOLVED 2026-08-27: do NOT delete the QA sandbox invoices.** Option A (shipped 08-26)
+  already excludes hidden-test-package invoices from Revenue + CSV, and every future harness run
+  is auto-excluded. Option B rejected: deletion is irreversible, and since production PayPal has
+  run in SANDBOX since day one this was never a 9-row problem — nearly the whole ledger is test
+  data, so deleting one agent's rows would leave the rest and fake a clean ledger. **The cleanup
+  belongs to the Phase 4 test-ledger purge** at the live cutover, where the whole sandbox ledger
+  goes at once immediately before real money exists. The FK-safe statements are in `DOCS/TODO.md`
+  as that step's starting point.
 - **OPEN: staging environment** — the reminder fired Mon 2026-08-25 09:00; the question is data
   (a real copy = PIPEDA exposure), not cost. Not yet decided.
 

@@ -527,27 +527,44 @@ https://claude.ai/code/artifact/fa86d4ad-b0f6-4b2a-9989-59c2c1455a41
 **The biggest launch risk is Phase 4 and it is not an audit item.** The LOWs are the cut line: if
 Phase 4 runs long they ship after launch and nothing is lost.
 
-## OPEN DECISION -- QA sandbox invoices: purge the rows? (revisit 2026-08-27)
+## DECIDED 2026-08-27 -- QA sandbox invoices: do NOT delete the rows (option B rejected)
 
 The BobyMot lifecycle run left 9 retained invoices (IPRO-2026-000010..000018, ~$500) recording
-PayPal SANDBOX charges -- real rows, money that never moved. Two paths:
+PayPal SANDBOX charges -- real rows, money that never moved.
 
-- **DONE 2026-08-26 (option A):** the Revenue report and its CSV export now EXCLUDE invoices whose
+- **SHIPPED 2026-08-26 (option A):** the Revenue report and its CSV export EXCLUDE invoices whose
   billing points at an `IsHiddenTestPackage` package. Non-destructive, and every future QA harness
   run is excluded automatically. Fails OPEN by design: only a positive IsHiddenTestPackage match
   excludes, so an invoice whose billing/package row is missing still counts as revenue (the
   bob3test3 $335 lesson).
-- **DEFERRED to 2026-08-27 (option B):** physically DELETE those rows. Owner decided to wait a day
-  and confirm the report reads correctly first. The SELECT-then-DELETE statements (FK-safe order
-  mirroring AgentDataEraser.FinancialMap, scoped to AgentUserId = 35, wrapped in a transaction
-  with a zero-check before COMMIT) were provided in-session; they are the owner's to run --
-  no production DB access from this side. If B goes ahead, the same session's queries also
-  enumerate hidden-test-package invoices for OTHER (earlier QA) agents and orphaned invoices whose
-  agent no longer exists -- check those before widening the scope beyond agent 35.
+- **REJECTED 2026-08-27 (option B):** physically deleting the 9 rows. Owner reviewed the report
+  after a day and went with the recommendation not to. Deletion is irreversible, option A already
+  takes them off the books, and -- the deciding point -- **production PayPal has run in SANDBOX
+  since day one, so those 9 rows are not a 9-row problem.** Nearly the whole ledger is test data.
+  Deleting one agent's rows would leave the rest and create a false impression of a clean ledger.
 
-**Recommendation on record: don't run B.** A already removes them from the books, and the rows are
-the only remaining record of what the harness did if a discrepancy ever surfaces. Deletion is
-irreversible and buys nothing beyond A.
+**This is not "keep them forever."** The correct home for the cleanup is the **Phase 4 test-ledger
+purge** at the PayPal live cutover (board item `purge`), where the entire sandbox ledger goes at
+once, immediately before the first real money exists. One operation, one verification, no
+half-clean intermediate state. The FK-safe SELECT/DELETE statements produced in-session
+(mirroring `AgentDataEraser.FinancialMap`, transaction-wrapped with a zero-check before COMMIT)
+are the starting point for that step; they remain the owner's to run -- no production DB access
+from this side.
+
+## QA HARNESS FOLLOW-UP CLOSED 2026-08-27 -- PayPal did not charge
+
+The negative check passed: BobyMot's PayPal activity shows its newest entry on **Aug 26**
+(-$45.20, the completion re-subscribe with the setup fee correctly waived) and **nothing on Aug
+27**. The cancel really did reach PayPal, and paid-through-to-Aug-29 held without minting a new
+daily charge. Confirmed from the owner's PayPal dashboard.
+
+The surrounding history matches the harness record too: Aug 25 -$101.70 (Platinum daily), Aug 24
+-$0.45 and -$0.31 (the upgrade proration charges -- the amounts the harness itself cannot
+validate on daily packages), Aug 24 and Aug 23 -$45.20.
+
+**The only erasure coverage still missing** is a STRONG delete: every agent deleted so far had 0
+files and no custom domain, so the blob-shred and Azure hostname-unbind legs have never run for
+real.
 
 ## PHASE 1 SHIPPED SO FAR -- 2026-08-27 (branches `fix/consent-and-session`, `fix/resolver-split`)
 
