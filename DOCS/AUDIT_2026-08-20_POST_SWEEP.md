@@ -556,6 +556,9 @@ pin).
 
 **Register MEDIUM count: 5 -> 2 open** (M1 next -- Wave C -- and M6, an owner decision).
 
+Merged and **verified live on both hosts at `df79ce5`** (2026-08-27). Suite at the gate: 360
+passed / 0 failed / 1 skipped. Rule-6 clean.
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**
