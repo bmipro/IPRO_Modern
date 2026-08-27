@@ -352,7 +352,23 @@
 
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-0 p-4 pb-0">
-        <h5 class="fw-bold mb-1"><i class="fas fa-users me-2 text-info"></i>Recent Enrollments</h5>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <h5 class="fw-bold mb-1"><i class="fas fa-users me-2 text-info"></i>Recent Enrollments</h5>
+          @if (Model.FailedEnrollmentCount > 0)
+          {
+            @* H7: failed enrollments (a rotated SendGrid key, an outage outrunning the retry
+               cap) resume from the step that never went out -- no already-delivered step is
+               repeated. Without this button the only recovery was re-enrolling, which replays
+               the whole campaign into the client's inbox. *@
+            <form asp-action="ResumeFailedEnrollments" asp-route-id="@Model.Campaign.Id" method="post"
+                  onsubmit="return confirm('Resume all failed enrollments? Sending restarts from each client's next unsent step; nothing already delivered is repeated.');">
+              @Html.AntiForgeryToken()
+              <button class="btn btn-sm btn-outline-warning" type="submit">
+                <i class="fas fa-rotate-right me-1"></i>Resume failed (@Model.FailedEnrollmentCount)
+              </button>
+            </form>
+          }
+        </div>
       </div>
       <div class="card-body p-4">
         @if (!Model.Enrollments.Any())
@@ -373,7 +389,16 @@
                     <div class="small text-muted">@enrollment.Client.Email</div>
                   </td>
                   <td>Step @(enrollment.NextStepIndex + 1)</td>
-                  <td><span class="badge @(enrollment.Status == IPRO.Entities.DripCampaignEnrollmentStatus.Active ? "bg-success" : "bg-secondary")">@enrollment.Status</span></td>
+                  <td>
+                    <span class="badge @(enrollment.Status switch {
+                      IPRO.Entities.DripCampaignEnrollmentStatus.Active => "bg-success",
+                      IPRO.Entities.DripCampaignEnrollmentStatus.Failed => "bg-danger",
+                      _ => "bg-secondary" })">@enrollment.Status</span>
+                    @if (enrollment.Status == IPRO.Entities.DripCampaignEnrollmentStatus.Failed && !string.IsNullOrWhiteSpace(enrollment.LastError))
+                    {
+                      <i class="fas fa-circle-info text-muted ms-1" title="@enrollment.LastError"></i>
+                    }
+                  </td>
                   <td class="text-end">
                     @if (enrollment.Status == IPRO.Entities.DripCampaignEnrollmentStatus.Active)
                     {

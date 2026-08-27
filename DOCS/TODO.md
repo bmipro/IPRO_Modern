@@ -501,27 +501,134 @@ subscription at PayPal, correct HST, and the return landing on the agent's own h
 closed **WEB-H-1's upgrade leg**: signup, upgrade and return host are now all proven in production
 from `bobymot.247advisers.com`.
 
-## OPEN DECISION -- QA sandbox invoices: purge the rows? (revisit 2026-08-27)
+## LAUNCH RUNWAY -- Sept 21 target, Phase 1 in progress (2026-08-27)
+
+A five-phase plan to a Sept 21 go-live, tracked on a private board the owner ticks:
+https://claude.ai/code/artifact/fa86d4ad-b0f6-4b2a-9989-59c2c1455a41
+
+- **Phase 1 (Aug 27 - Sep 2) -- close every open HIGH.** H8 + M8 SHIPPED, H3 SHIPPED. Remaining:
+  **H7** (SendGrid 401/403 kills drip enrollments permanently, no resume path) and the **staging
+  decision**.
+- **Phase 2 (Sep 3 - 8)** -- customer-facing MEDIUMs: M13, M2, M1, M9, M10, M20.
+- **Phase 3 (Sep 9 - 12)** -- the front door tells the truth. The navy homepage has been LIVE and
+  data-driven since 2026-08-18 (roadmap #416); what is open is the TRUTH SWEEP of /Preview,
+  Register and the help docs (only the homepage was ever audited against the business brief -- that
+  audit is where the SMS-reminder and managed-blog-post false claims were caught), real screenshots
+  replacing the HTML reconstructions, and confirming the Azure region before any data-location
+  claim ships. Roadmap #412's remaining 14 pages are explicitly AFTER LAUNCH.
+- **Phase 4 (Sep 13 - 17) -- CRITICAL PATH: the PayPal sandbox -> LIVE cutover.** Production has
+  run PayPal in sandbox since day one; no money in this system has ever been real. Live
+  credentials, every plan re-created (plan ids are per-environment), the live webhook + signature
+  id, a real-money verification pass, the test-ledger purge, SSL renewal (certs expire Oct 19),
+  and the Province data audit.
+- **Phase 5 (Sep 18 - 21)** -- LOW sweep (the designated cut line), final multi-auditor pass, code
+  freeze, soak day, launch.
+
+**The biggest launch risk is Phase 4 and it is not an audit item.** The LOWs are the cut line: if
+Phase 4 runs long they ship after launch and nothing is lost.
+
+## STAGING: second-opinion round 2026-08-27 -- direction settled, decision recorded
+
+Three independent reviews (one blind, one designated contrarian for a real-data copy, one pure
+opportunity-cost) plus a volume audit. Convergence, each for different reasons:
+
+- **No standing staging environment before launch.** The chronic failure mode here is WIRING
+  (fixed the library not the caller; one app not both) and staging is green on wiring bugs too.
+- **Never a standing copy of real production data** once real customers exist.
+- **The window argument (contrarian, adopted):** every safety net is synthetic INCLUDING the test
+  schema (`TestDatabase` uses `EnsureCreated`; production is migrations + repairs -- the register
+  says so at H9). Production today contains ONLY test users -- **owner confirmed 2026-08-27: no
+  real people's data anywhere** -- so a snapshot taken BEFORE launch is a faithful-schema,
+  near-zero-privacy copy that can never be taken again after Sept 21.
+- **The same half-day buys three things** (ROI reviewer): restore a throwaway MySQL server from
+  point-in-time backup (the restore procedure has NEVER been tested -- DOCS/14:79), rehearse the
+  Phase 4 ledger-purge SQL against it, and keep the frozen snapshot. Then delete the server.
+
+**PLANNED: pre-launch snapshot + restore rehearsal, half a day, before or inside Phase 4.**
+Standing staging deferred past launch entirely; revisit with real usage data.
+
+**Two live config hazards found during the round (fix BEFORE any second environment ever boots,
+and worth fixing regardless):**
+1. `Program.cs` registers all 16 recurring jobs unconditionally -- no environment/role gate. Any
+   second boot of the codebase against a copied DB starts mailing and hitting PayPal/Azure within
+   60 seconds (four dispatchers are minutely).
+2. Both apps' committed appsettings.json carry `"WebAppName": "ipro-prod-web"` -- the value
+   `AzureDomainAutomationService` uses to issue HTTP DELETE against production hostname bindings
+   and certificates. A misconfigured second environment points that gun at PRODUCTION.
+
+A 15-finding volume audit (unpaginated client list, global-500 reminder rotation that silently
+stops birthday reminders at ~3,500 platform-wide clients, per-recipient newsletter sends, no
+CommandTimeout/EnableRetryOnFailure, ~30 unindexed repair-created tables) came out of the same
+round. **Verified so far:** ClientsController:42-89 bare ToListAsync, the two global Take(500)s
+in ClientLifeEventReminderJob, zero AsSplitQuery/CommandTimeout/EnableRetryOnFailure/[Queue]/
+DisableConcurrentExecution anywhere in src, no index on Clients.Email. Triage owed: verify the
+rest, rank by when-it-bites (the unit of scale is ONE adviser's book of business -- 1,000-3,000
+clients -- not the adviser count), fold the early ones into Phase 2.
+
+## DECIDED 2026-08-27 -- QA sandbox invoices: do NOT delete the rows (option B rejected)
 
 The BobyMot lifecycle run left 9 retained invoices (IPRO-2026-000010..000018, ~$500) recording
-PayPal SANDBOX charges -- real rows, money that never moved. Two paths:
+PayPal SANDBOX charges -- real rows, money that never moved.
 
-- **DONE 2026-08-26 (option A):** the Revenue report and its CSV export now EXCLUDE invoices whose
+- **SHIPPED 2026-08-26 (option A):** the Revenue report and its CSV export EXCLUDE invoices whose
   billing points at an `IsHiddenTestPackage` package. Non-destructive, and every future QA harness
   run is excluded automatically. Fails OPEN by design: only a positive IsHiddenTestPackage match
   excludes, so an invoice whose billing/package row is missing still counts as revenue (the
   bob3test3 $335 lesson).
-- **DEFERRED to 2026-08-27 (option B):** physically DELETE those rows. Owner decided to wait a day
-  and confirm the report reads correctly first. The SELECT-then-DELETE statements (FK-safe order
-  mirroring AgentDataEraser.FinancialMap, scoped to AgentUserId = 35, wrapped in a transaction
-  with a zero-check before COMMIT) were provided in-session; they are the owner's to run --
-  no production DB access from this side. If B goes ahead, the same session's queries also
-  enumerate hidden-test-package invoices for OTHER (earlier QA) agents and orphaned invoices whose
-  agent no longer exists -- check those before widening the scope beyond agent 35.
+- **REJECTED 2026-08-27 (option B):** physically deleting the 9 rows. Owner reviewed the report
+  after a day and went with the recommendation not to. Deletion is irreversible, option A already
+  takes them off the books, and -- the deciding point -- **production PayPal has run in SANDBOX
+  since day one, so those 9 rows are not a 9-row problem.** Nearly the whole ledger is test data.
+  Deleting one agent's rows would leave the rest and create a false impression of a clean ledger.
 
-**Recommendation on record: don't run B.** A already removes them from the books, and the rows are
-the only remaining record of what the harness did if a discrepancy ever surfaces. Deletion is
-irreversible and buys nothing beyond A.
+**This is not "keep them forever."** The correct home for the cleanup is the **Phase 4 test-ledger
+purge** at the PayPal live cutover (board item `purge`), where the entire sandbox ledger goes at
+once, immediately before the first real money exists. One operation, one verification, no
+half-clean intermediate state. The FK-safe SELECT/DELETE statements produced in-session
+(mirroring `AgentDataEraser.FinancialMap`, transaction-wrapped with a zero-check before COMMIT)
+are the starting point for that step; they remain the owner's to run -- no production DB access
+from this side.
+
+## QA HARNESS FOLLOW-UP CLOSED 2026-08-27 -- PayPal did not charge
+
+The negative check passed: BobyMot's PayPal activity shows its newest entry on **Aug 26**
+(-$45.20, the completion re-subscribe with the setup fee correctly waived) and **nothing on Aug
+27**. The cancel really did reach PayPal, and paid-through-to-Aug-29 held without minting a new
+daily charge. Confirmed from the owner's PayPal dashboard.
+
+The surrounding history matches the harness record too: Aug 25 -$101.70 (Platinum daily), Aug 24
+-$0.45 and -$0.31 (the upgrade proration charges -- the amounts the harness itself cannot
+validate on daily packages), Aug 24 and Aug 23 -$45.20.
+
+**The only erasure coverage still missing** is a STRONG delete: every agent deleted so far had 0
+files and no custom domain, so the blob-shred and Azure hostname-unbind legs have never run for
+real.
+
+## PHASE 1 SHIPPED SO FAR -- 2026-08-27 (branches `fix/consent-and-session`, `fix/resolver-split`)
+
+Three register items closed and **verified live on both hosts**, each with its test observed RED on
+the pre-fix code first:
+
+- **H8** -- the SendGrid webhook's per-event catch swallowed unsubscribes, group-unsubscribes and
+  spam reports: a DB hiccup was caught, logged, answered 200, and SendGrid never retried. The one
+  event class with legal weight, lost silently. Now a failed CONSENT event withholds the 200 and
+  returns 503 so SendGrid retries; stats events still fail soft. Two of the tests drive the real
+  action end-to-end with a genuine signed payload -- pinning only the classifier was the C1 mistake
+  and was caught before shipping.
+- **M8** -- the agent portal had no `ValidatePrincipal`, so a deactivated agent or removed team
+  member kept a working cookie until it expired. `AgentCookieRevalidator` now mirrors the admin
+  one, and a source-walk test pins that it is actually WIRED, not merely present.
+- **H3** -- `ResolveBillingRuleIdAsync`, the singular resolver behind `GetAccessAsync` that nearly
+  every controller calls, never learned `PaidThroughAt` and fell through to the stale
+  `AgentUser.PackageId`. A cancelled-but-paid-through agent was refused features they had paid for.
+  Five tests now enforce the agreement the two resolvers' comments only ever asked for politely.
+
+Suite: **336 passed / 0 failed / 1 skipped** (the skip is M1's overlay allow-list, still open).
+Live SHAs: `f67a726` then `f9361e5`.
+
+**Phase 1 remaining: the staging decision only.** H7 shipped 2026-08-27 (branch
+`fix/drip-recovery`, 10 tests, 5-red/5-green reverse proof) -- see the register. **Register HIGH
+count: 0. Every HIGH from every audit is closed.**
 
 ## SECURITY + DRIP WAVE SHIPPED 2026-08-26 (branch fix/security-drip-wave)
 

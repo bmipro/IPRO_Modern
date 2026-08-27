@@ -15,6 +15,11 @@
   <ItemGroup>
     <PackageReference Include="SendGrid" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- H7: the tests drive the REAL SendGridEmailService through its internal ClientFactory
+         seam (same pattern as IPRO.Utility / PublicHostGuard.ResolveHook). -->
+    <InternalsVisibleTo Include="IPRO.IntegrationTests" />
+  </ItemGroup>
 </Project>
 
 

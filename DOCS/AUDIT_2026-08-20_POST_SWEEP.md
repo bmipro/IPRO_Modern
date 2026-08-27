@@ -442,6 +442,48 @@ Reverse run: 3 of 5 red on the pre-fix code, with both regression pins green.
 
 **Register HIGH count: 1 open -- H7 only.**
 
+Merged and **verified live on both hosts at `f9361e5`** (2026-08-27). Suite at the gate:
+336 passed / 0 failed / 1 skipped. Rule-6 check clean -- all four workflow runs completed, none
+cancelled.
+
+## Launch runway Phase 1 -- H7 FIXED 2026-08-27 (branch `fix/drip-recovery`)
+
+Two halves, matching the finding.
+
+**Classification** (`SendGridEmailService`): 401 and 403 join 429/5xx as TRANSIENT -- they mean
+the ACCOUNT is broken (rotated/revoked key, exhausted credits, unverified sender); the recipient
+was never the problem, and the account being fixed is exactly the outcome worth waiting for. The
+not-configured and missing-sender results are transient for the same reason: config is fixed in
+config, not by discarding queued work. What stays permanent: payload/recipient 4xxs (400, 413),
+where retrying the same send IS spam. Only two callers branch on `IsTransient` (drip, DYK) and
+both retry under caps, so the reclassification converts instant-permanent-death into bounded
+retries and changes nothing else.
+
+**Resume** (`CampaignsController.ResumeFailedEnrollments` + a button on the campaign page):
+Failed -> Active, attempts reset, due now -- and `NextStepIndex` deliberately untouched: a failed
+send never advanced it (JOBS-7), so it still points at the exact step that never went out and the
+campaign continues with NO replays. Re-enrolling -- the only recovery that existed before -- would
+re-send every prior step into the client's inbox. Resuming a client who unsubscribed meanwhile is
+safe: the job's consent sweep and pre-send `IsSuppressed` check cancel the row before anything is
+dispatched. The button's count is computed campaign-wide, not from the page's Take(50) slice, so
+the label matches what the action does.
+
+**Proof.** 10 new tests (`DripRecoveryTests`), reverse-run **5 red / 5 green** on pre-fix
+classification -- the five reds are exactly the defect (401, 403, not-configured, the end-to-end
+key-rotation kill through REAL service -> REAL dispatcher -> REAL job, and the cap's give-up
+message); the five greens are the resume feature and the both-directions pins (400 stays
+permanent; the transient cap still bounds a long outage). The service is driven through an
+internal `ClientFactory` seam (the `PublicHostGuard.ResolveHook` pattern) so the classification
+exercised is the production line, not a copy in the test -- the C1 lesson, applied not recited.
+
+Two test-harness defects were caught and fixed DURING the red/green cycle, both worth recording:
+the job's due-predicate translates `DateTime.UtcNow` to MySQL `UTC_TIMESTAMP()`, which truncates
+to whole seconds -- a row resumed at hh:mm:ss.4 is not "due" until the next second (irrelevant at
+hourly cadence, a coin-flip in a test); and the stub's null response-headers turned a healthy 202
+into an NRE that the catch-all classified transient -- a green-looking stub bug.
+
+**Register HIGH count: 0 open.** Every HIGH from every audit is now closed.
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**

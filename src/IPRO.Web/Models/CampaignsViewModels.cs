@@ -28,6 +28,9 @@ public class CampaignDetailsViewModel
     public List<WebsiteForm> Forms { get; set; } = new();
     public List<Article> Articles { get; set; } = new();
     public Dictionary<int, CampaignStepPerformance> StepPerformance { get; set; } = new();
+    // H7: counted across the WHOLE campaign, not the Take(50) recent slice above -- the resume
+    // button's label must match what the action will actually resume.
+    public int FailedEnrollmentCount { get; set; }
 }
 
 public class CampaignStepPerformance
