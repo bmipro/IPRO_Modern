@@ -788,6 +788,45 @@ public class PublicWebsiteController : Controller
 
     private async Task<IPRO.Entities.AgentWebsite?> FindWebsiteForHostAsync(string host, bool requirePublished = true)
     {
+        var website = await FindWebsiteForHostRawAsync(host, requirePublished);
+        if (website == null) return null;
+
+        // M13 (launch runway Phase 2, 2026-08-27): the cancel dialog has always promised "your
+        // site will go offline at the end of the billing period" (DOCS/22), and until this line
+        // it never did -- IsAccessGatedAsync's call sites were the portal, the Billing page and
+        // the layout; the public website was not one of them, so a lapsed agent's site stayed up
+        // forever and there was no billing reason to come back.
+        //
+        // Gated resolves to NULL: to every caller of this method -- page render, robots, sitemap,
+        // lead submission, custom forms, testimonials -- the site is then indistinguishable from
+        // one that does not exist. The render path already turns that into a 404, which the
+        // comment there prefers over 200 so a dead site is deindexed rather than cached; a gated
+        // site should not keep collecting leads either, and this closes all seven doors at once.
+        //
+        // IsAccessGatedAsync honours PaidThroughAt (wave-2 E / H3), so a cancelled-but-paid-
+        // through site correctly stays ONLINE until the promised end of the paid period plus
+        // grace. Client-portal routes (/portal) authenticate separately and are deliberately not
+        // touched here: a client's access to their own documents is not this fix's to revoke.
+        if (await IsPublicSiteGatedAsync(website.AgentUserId)) return null;
+        return website;
+    }
+
+    // The gate verdict is cached briefly because host resolution runs on EVERY public page view
+    // -- the hottest path in the product -- and IsAccessGatedAsync costs up to three queries. Two
+    // minutes of staleness is invisible next to PaidThroughAt's day-scale granularity; the price
+    // is that a just-reactivated site can take up to two minutes to come back, which the Billing
+    // page's own copy already softens ("changes take effect shortly").
+    private async Task<bool> IsPublicSiteGatedAsync(int agentUserId)
+    {
+        var cacheKey = $"public-site-gated:{agentUserId}";
+        if (_cache.TryGetValue(cacheKey, out bool gated)) return gated;
+        gated = await _entitlements.IsAccessGatedAsync(agentUserId);
+        _cache.Set(cacheKey, gated, TimeSpan.FromMinutes(2));
+        return gated;
+    }
+
+    private async Task<IPRO.Entities.AgentWebsite?> FindWebsiteForHostRawAsync(string host, bool requirePublished = true)
+    {
         // A5-M-EMPTYHOST (fixed 2026-08-20): an empty Host header must resolve to NOTHING. Many
         // AgentDomains rows legitimately hold an empty RootDomain, and the match below compares
         // by value -- so an empty host used to match the first such row and hand a form

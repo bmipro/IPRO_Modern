@@ -488,6 +488,32 @@ Merged and **verified live on both hosts at `21da3e6`** (2026-08-27). Suite at t
 passed / 0 failed / 1 skipped. Rule-6 check clean -- all four runs completed, none cancelled.
 Smoke: app 200, login 200, admin 302, agent site 200.
 
+## Launch runway Phase 2, Wave A -- M13 + M2 FIXED 2026-08-27 (branch `fix/medium-gating-pair`)
+
+**M13 -- the public site now goes offline, as the cancel dialog has always promised.** The gate
+lives in `FindWebsiteForHostAsync`, the single funnel behind page render, robots, sitemap, lead
+submission, custom forms and testimonials -- a gated agent's site resolves to null and is
+indistinguishable from one that does not exist (the render path's existing 404, so dead sites
+deindex; and no leads are harvested into an account nobody pays for). `IsAccessGatedAsync`
+honours `PaidThroughAt`, so a cancelled-but-paid-through site stays ONLINE until the promised end
+of the paid period. The verdict is cached 2 minutes per agent because host resolution runs on
+every public page view -- the price is a just-reactivated site can lag up to two minutes.
+**Deliberate boundary:** client-portal routes (`/portal`) authenticate separately and are NOT
+gated here -- a client's access to their own documents is not this fix's to revoke.
+
+**M2 -- `RebuildRequestMeeting` takes the same SuperAdmin gate as its sibling.** Same
+`RemoveRange` destruction as `RebuildResources`, sixty lines apart; now the same
+`[Authorize(Policy = "SuperAdmin")]`, an honest confirm (the old one said "edits intact" while
+the action deletes every block on the page -- only the FORM is reused), and a DISABLED button for
+support admins -- disabled, not hidden, per the owner's standing rule.
+
+**Proof.** 7 tests (`PublicSiteGatingTests`), reverse-run **6 red / 1 green** on pre-fix code --
+the green is the active-agent pin (the gate must not take paying customers offline). The M2
+reflection pin covers BOTH siblings so neither silently loses its gate again; the cache test
+proves the entitlement query runs once, not per page view.
+
+**Register MEDIUM count: 7 -> 5 open** (M1, M9, M10, M20, M6-decision).
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**

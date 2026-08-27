@@ -626,6 +626,12 @@ the pre-fix code first:
 Suite: **336 passed / 0 failed / 1 skipped** (the skip is M1's overlay allow-list, still open).
 Live SHAs: `f67a726` then `f9361e5`.
 
+**PHASE 2 Wave A SHIPPED 2026-08-27 (branch `fix/medium-gating-pair`): M13 + M2** -- the public
+site finally honours "your site will go offline" (gated in the one funnel all seven public doors
+share, paid-through respected, verdict cached 2 min), and `RebuildRequestMeeting` is
+SuperAdmin-only with a confirm that names the loss. 7 tests, 6-red/1-green reverse proof.
+Remaining Phase 2: Wave B (M9 + M10 + M20), Wave C (M1).
+
 **Phase 1 remaining: the staging decision only.** H7 shipped 2026-08-27 (branch
 `fix/drip-recovery`, 10 tests, 5-red/5-green reverse proof) -- see the register. **Register HIGH
 count: 0. Every HIGH from every audit is closed.**
