@@ -62,6 +62,18 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 | ~~394~~ | ~~Tick the greeting exemption on 4 e-card designs~~ | DONE -- the owner had already ticked these during the Aug 9-10 unsubscribe work; the item sat stale until 2026-08-12, when a screenshot of simple-birthday confirmed the flag (owner vouches for the other three). Lesson: UI-side owner actions leave no trail I can see; mark items done when the owner says so, or ask for one screenshot. |
 | ~~395~~ | ~~Send one e-card to a GMAIL address~~ | **PASSED 2026-08-12, and doubled as a live proof of the whole consent system.** Owner sent two cards from BoBMot1 to bahman.motamed@gmail.com (an address that had unsubscribed during earlier testing): the Halloween card was REFUSED by the dispatcher ('Recipient has unsubscribed') because it is promotional; the simple-birthday card DELIVERED because it carries the greeting exemption + the owner's opt-back-in -- exactly the day-one design. Gmail placement: **Promotions tab, not Spam** (normal for a new sender; the win is no spam folder). Tracking recorded Sent 11:49 -> Delivered 11:49 -> Opened 11:52 on a real mainstream inbox, which also closes email-tracking item F (#386): the /portal/EmailActivity surface verified live, signed in, with a real send. |
 
+## NEXT SESSION (owner-queued 2026-08-27 night)
+
+1. **Homepage social links** -- add to the app.iproadvisers.com main page (footer, most likely):
+   - Facebook: https://www.facebook.com/p/iPRO-100071151034796/
+   - YouTube: https://www.youtube.com/@AllAdvisers
+   (The owner's message had a trailing period after the YouTube handle -- treated as punctuation,
+   confirm if the handle really ends in ".")
+2. **Marketing source-of-truth pack** -- generate the product-truth document (what the product
+   actually does, packages/pricing from BillingRules, homepage copy, brand voice) for the owner's
+   separate go-live marketing project, so marketing copy can never claim features that do not
+   exist (the SMS-reminders lesson). See handoff for the project-separation recommendation.
+
 ## Owner-driven — waiting on Bahman, not on code
 
 | # | Item | Notes |
