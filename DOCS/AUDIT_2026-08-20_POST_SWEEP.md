@@ -514,6 +514,10 @@ proves the entitlement query runs once, not per page view.
 
 **Register MEDIUM count: 7 -> 5 open** (M1, M9, M10, M20, M6-decision).
 
+Merged and **verified live on both hosts at `7458287`** (2026-08-27). Suite at the gate: 353
+passed / 0 failed / 1 skipped. Rule-6 clean. The smoke set doubles as a live M13 check: the
+owner's own active-billing agent site still serves 200 with the gate in force.
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**
