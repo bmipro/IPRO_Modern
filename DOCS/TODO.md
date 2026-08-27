@@ -67,8 +67,7 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 1. **Homepage social links** -- add to the app.iproadvisers.com main page (footer, most likely):
    - Facebook: https://www.facebook.com/p/iPRO-100071151034796/
    - YouTube: https://www.youtube.com/@AllAdvisers
-   (The owner's message had a trailing period after the YouTube handle -- treated as punctuation,
-   confirm if the handle really ends in ".")
+   (Handle confirmed by owner 2026-08-27: @AllAdvisers, no trailing period.)
 2. **Marketing source-of-truth pack** -- generate the product-truth document (what the product
    actually does, packages/pricing from BillingRules, homepage copy, brand voice) for the owner's
    separate go-live marketing project, so marketing copy can never claim features that do not
