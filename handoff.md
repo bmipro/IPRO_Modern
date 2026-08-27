@@ -1,4 +1,4 @@
-# Handoff — 2026-08-27 EOD (Phase 1 COMPLETE — zero open HIGHs; 25 days to Sept 21)
+# Handoff — 2026-08-27 EOD (Phases 1 AND 2 COMPLETE — zero HIGHs, zero in-scope MEDIUMs, zero skipped tests; 25 days to Sept 21)
 
 Written to survive a reboot. If the working directory was wiped, see **§7 Recovery** first.
 
@@ -11,9 +11,10 @@ wave's record and every open item lives there), `DOCS/TODO.md` (durable backlog)
 
 ## 1. Production right now
 
-**Both apps live on `21da3e6`** — the H7 merge, verified at `/health/version` on **BOTH** hosts
+**Both apps live on `ccb34db`** — the M1 merge, verified at `/health/version` on **BOTH** hosts
 (never `/health`; and never trust one host or the workflow list — INVARIANTS rule 6). Today's
-merges, in order: `f67a726` (H8 + M8) → `f9361e5` (H3) → `21da3e6` (H7 + session docs). All
+merges, in order: `f67a726` (H8+M8) → `f9361e5` (H3) → `21da3e6` (H7) → `7458287` (M13+M2) →
+`df79ce5` (M9+M10+M20+print) → `ccb34db` (M1). Six code deploys plus docs follow-ups, every one
 verified on both hosts, zero run cancellations.
 
 Smoke after the last deploy: `app.iproadvisers.com/` 200 · `/Account/Login` 200 ·
@@ -27,13 +28,24 @@ Production agents:
 **PayPal in production is still SANDBOX** (`PayPal__IsSandbox=true`). No money in this system has
 ever been real. That is Phase 4's job and it is the single biggest launch risk — see §2b.
 
-Test suite: **346 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
-allow-list, `[Fact(Skip=...)]` with the reason inline). Every defect fix was verified BOTH ways:
-the test observed RED on the pre-fix code first, then green on the fix.
+Test suite: **375 passed / 0 failed / 0 skipped** — zero skipped for the first time (M1's
+skip is closed; the suite grew 336 → 375 today). Every defect fix was verified BOTH ways: the
+test observed RED on the pre-fix code first, then green on the fix.
 
 ---
 
-## 2. What shipped today — launch runway Phase 1, COMPLETE (four items + the staging decision)
+## 2. What shipped today — Phases 1 AND 2, both COMPLETE
+
+Phase 1: H8, M8, H3, H7 + the staging decision (below). Phase 2, all six customer-facing
+MEDIUMs in three waves, each red/green-proven and verified live on both hosts:
+
+| Wave | Branch | What it closed |
+|---|---|---|
+| A | `fix/medium-gating-pair` | **M13** — a lapsed agent's public site finally goes offline, as the cancel dialog has always promised (gated in the ONE funnel behind all seven public doors — pages, robots, sitemap, leads, forms, testimonials; paid-through honoured; verdict cached 2 min for the hot path). **M2** — `RebuildRequestMeeting` is SuperAdmin-only with a confirm that names the loss and a disabled (not hidden) button for support admins. |
+| B | `fix/medium-storage-trio` | **M9** — article images consult the shared quota (net-change on replace; the "never resets" clause was VOID — no remove path exists). **M10** — all six storage displays use `DisplayLimitMb`, so a blank limit shows the enforced 1024 default instead of "of 0 MB"; a drift-pin greps the six files. **M20** — the reconciliation doc's false "ResumePayment deliberately not guarded" sentence stricken. **Plus the owner-requested Print / Save-PDF button** on Admin invoices (chrome stripped in print; every invoice old or new). |
+| C | `fix/overlay-allowlist` | **M1** — the sanitizer's CSS is an ALLOW-list (~120 formatting properties, zero escape mechanisms) with surgical value guards for negative margins/text-indent and viewport units. Ten exploit flavours dead including the register's original reproduction; a pasted-newsletter corpus keeps every declaration. Closed the suite's one skipped test. |
+
+### Phase 1 detail (morning)
 
 | Item | Branch | What it closed |
 |---|---|---|
@@ -138,9 +150,8 @@ agents refuse deletion). Real-customer deletions are no longer gated.
 **Open now (everything else from the audits is closed):**
 
 - **HIGH — 0 left.** Every HIGH from every audit is closed as of `21da3e6`.
-- **MEDIUM — 7 left:** M1 overlay CSS allow-list (the one skipped test) · M2
-  `RebuildRequestMeeting` gate · M9/M10 storage quota check + display · M13 the public site never
-  goes offline · M20 a comment that is false and backwards · M6 credit notes (owner decision).
+- **MEDIUM — 1 left:** M6 credit notes only — feature work and an owner decision, parked by
+  choice. M1, M2, M9, M10, M13 and M20 all shipped today.
 - **LOW — 11 left**, including L12: content authored before 2026-08-20 still holds live `<form>`
   blocks and overlay CSS until re-saved (a data question, not a code fix).
 - **Structural, parked:** A5-H11/H12/H14 blob ownership (design rejected — needs a new one) · the
@@ -165,20 +176,19 @@ conditions that are never true pass against broken code (it happened twice today
 ## 7. Recovery after a reboot
 
 If this working directory survived: you are on `main`, clean. Production serves the head of
-`main` (`21da3e6`). Both feature branches (`fix/drip-recovery`,
-`docs/session-close-2026-08-27`) are fully merged into `main`.
+`main` (`ccb34db` + the session-close docs commit). Every feature branch from today is merged
+and deleted.
 
 If it was wiped (has happened; only OneDrive-synced folders survived):
 
 1. Everything is on GitHub: `https://github.com/bmipro/IPRO_Modern`. Clone `main` — production
-   is its head (`21da3e6` plus the session-close docs commit). **Nothing of value lives outside
-   `main`**; every branch is merged.
+   is its head. **Nothing of value lives outside `main`**; every branch is merged and deleted.
 2. Backup zips (`git archive` of the branch HEAD, contents verified by listing inside the zip):
    - **OneDrive** `C:\Users\admin\OneDrive\Codex_Code_Bkup\` — the copy proven to survive resets
    - Local `C:\Users\admin\IPRO_Local_Backups\`
    - Older sets under `C:\Users\admin\Documents\IPRO_Backups\`
-   Newest: **`IPRO_Modern_2026-08-27_eod_h7.zip`** (main HEAD, contents verified by reading the
-   H7 docs back out of the zip).
+   Newest: **`IPRO_Modern_2026-08-27_eod_phase2.zip`** (main HEAD incl. all of Phase 2,
+   contents verified by reading the M1 docs and tests back out of the zip).
 3. `.claude` memory files have been lost to a reboot before — re-read `DOCS/` rather than trusting
    recalled context. This file and the register are the two that matter.
 

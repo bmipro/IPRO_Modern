@@ -585,6 +585,10 @@ it allowed; the greens the two-sided pins.
 **Register MEDIUM count: 2 -> 1 open** (M6 only -- an owner decision, parked). **Phase 2 of the
 launch runway is COMPLETE: zero open HIGHs, zero open MEDIUMs-in-scope, zero skipped tests.**
 
+Merged and **verified live on both hosts at `ccb34db`** (2026-08-27). Suite at the gate: 375
+passed / 0 failed / 0 skipped. Rule-6 clean (re-checked after one run showed in-progress at first
+snapshot -- both completed success).
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**
