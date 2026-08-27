@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Ganss.Xss;
 
 namespace IPRO.Business.Services;
@@ -26,10 +28,18 @@ namespace IPRO.Business.Services;
 // styled with inline CSS (colors, fonts, spacing, tables), and stripping the style attribute
 // wholesale would visibly break existing content.
 //
-// KNOWN GAP (audit M1, wave 2): the CSS removals below are a deny-list and do not actually prevent
-// overlays -- transform + negative margin + viewport sizing rebuilds the same primitive. Closing it
-// properly needs an ALLOW-list of CSS properties, chosen carefully so existing newsletter
-// formatting does not break. Tracked in DOCS/AUDIT_2026-08-20_POST_SWEEP.md.
+// CSS: ALLOW-list, not deny-list (M1, fixed 2026-08-27). The old approach removed eight named
+// properties and the register's own test proved it useless -- transform + negative margin +
+// viewport sizing rebuilt the same full-viewport phishing cover from properties still allowed.
+// Now only the properties in FormattingCssProperties survive at all. The list is grounded in
+// what this product's content actually is: the seeded templates are plain semantic HTML, the
+// in-house editor emits little beyond text-align, and the rich sources are agents pasting
+// marketing HTML through the editor's source toggle -- so typography, color, background, box,
+// sizing and in-flow layout are allowed generously, and every mechanism that lets a block ESCAPE
+// its place in the flow (position/inset, z-index, transform and friends, clip/filter, animation)
+// is simply absent. Two value-level guards close the in-list residue: negative margins and
+// text-indent (the drag-a-block-over-earlier-content primitive) and viewport units anywhere
+// (width:100% is the legitimate spelling; 100vw is only ever the exploit's).
 public static class HtmlContentSanitizer
 {
     // Form controls: nothing we render agent HTML into ever needs them. Real IPRO forms are built
@@ -50,9 +60,48 @@ public static class HtmlContentSanitizer
     // Attributes that make a control act, stripped from whatever survives.
     private static readonly string[] ActionAttributes = { "formaction", "formmethod", "formtarget", "action", "method" };
 
-    // Overlay positioning: a block escaping its own box to sit on top of the surrounding page.
-    // Incomplete on purpose -- see the KNOWN GAP note above.
-    private static readonly string[] OverlayCssProperties = { "position", "z-index", "top", "right", "bottom", "left", "inset", "pointer-events" };
+    // Everything a newsletter, article, e-card or e-letter legitimately formats with -- and
+    // nothing that moves a box out of normal flow. Absence IS the security property here: a
+    // property not in this list does not render, whatever its value.
+    private static readonly string[] FormattingCssProperties =
+    {
+        // typography
+        "color", "direction", "font", "font-family", "font-size", "font-style", "font-variant",
+        "font-weight", "letter-spacing", "line-height", "quotes", "tab-size", "text-align",
+        "text-align-last", "text-decoration", "text-decoration-color", "text-decoration-line",
+        "text-decoration-style", "text-decoration-thickness", "text-indent", "text-overflow",
+        "text-shadow", "text-transform", "unicode-bidi", "vertical-align", "white-space",
+        "word-break", "word-spacing", "word-wrap", "overflow-wrap", "hyphens",
+        // background & paint
+        "background", "background-color", "background-image", "background-position",
+        "background-repeat", "background-size", "background-clip", "background-origin", "opacity",
+        // box: margin / padding / border
+        "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+        "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+        "border", "border-width", "border-style", "border-color",
+        "border-top", "border-top-width", "border-top-style", "border-top-color",
+        "border-right", "border-right-width", "border-right-style", "border-right-color",
+        "border-bottom", "border-bottom-width", "border-bottom-style", "border-bottom-color",
+        "border-left", "border-left-width", "border-left-style", "border-left-color",
+        "border-radius", "border-top-left-radius", "border-top-right-radius",
+        "border-bottom-left-radius", "border-bottom-right-radius",
+        "border-collapse", "border-spacing", "box-shadow", "box-sizing",
+        // sizing
+        "width", "min-width", "max-width", "height", "min-height", "max-height",
+        "object-fit", "object-position", "aspect-ratio",
+        // in-flow layout only
+        "display", "float", "clear", "overflow", "overflow-x", "overflow-y",
+        "gap", "column-gap", "row-gap", "align-items", "align-content", "align-self",
+        "justify-content", "justify-items", "justify-self",
+        "flex", "flex-basis", "flex-direction", "flex-grow", "flex-shrink", "flex-wrap", "order",
+        "list-style", "list-style-type", "list-style-position", "list-style-image",
+        "table-layout", "caption-side", "empty-cells"
+    };
+
+    // Viewport-relative units: no email or article has ever needed one; the overlay always does.
+    private static readonly System.Text.RegularExpressions.Regex ViewportUnit = new(
+        @"(^|[\s,(])[-+]?\d*\.?\d+(vw|vh|vmin|vmax|svw|svh|lvw|lvh|dvw|dvh)($|[\s,;)])",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
     // Declared AFTER the arrays on purpose: C# initialises static fields in declaration order, so
     // building the sanitizers first left every array above null and threw in the type initializer.
@@ -84,10 +133,59 @@ public static class HtmlContentSanitizer
         {
             s.AllowedAttributes.Remove(attr);
         }
-        foreach (var prop in OverlayCssProperties)
+
+        // The allow-list: whatever the library's defaults were, only these render.
+        s.AllowedCssProperties.Clear();
+        foreach (var prop in FormattingCssProperties)
         {
-            s.AllowedCssProperties.Remove(prop);
+            s.AllowedCssProperties.Add(prop);
         }
+
+        // Value-level residue, after the property filter has run: a negative margin or
+        // text-indent drags a block over content that came before it, and a viewport unit sizes
+        // it to the screen instead of its place in the layout. Both are dropped declaration-by-
+        // declaration so the rest of the style survives.
+        s.PostProcessNode += static (_, e) =>
+        {
+            if (e.Node is not AngleSharp.Dom.IElement el) return;
+            var style = el.GetAttribute("style");
+            if (string.IsNullOrWhiteSpace(style)) return;
+
+            var kept = new List<string>();
+            foreach (var declaration in style.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+                var colon = declaration.IndexOf(':');
+                if (colon <= 0) continue;
+                var property = declaration[..colon].Trim().ToLowerInvariant();
+                var value = declaration[(colon + 1)..].Trim();
+
+                if (property.StartsWith("margin", StringComparison.Ordinal) || property == "text-indent")
+                {
+                    // Any negative component kills the declaration: "margin: 10px -900px" is the
+                    // exploit exactly as much as "margin-top: -900px".
+                    if (HasNegativeComponent(value)) continue;
+                }
+                if (ViewportUnit.IsMatch(value)) continue;
+
+                kept.Add(property + ": " + value);
+            }
+
+            if (kept.Count == 0) el.RemoveAttribute("style");
+            else el.SetAttribute("style", string.Join("; ", kept));
+        };
+    }
+
+    private static bool HasNegativeComponent(string value)
+    {
+        for (var i = 0; i < value.Length - 1; i++)
+        {
+            if (value[i] != '-') continue;
+            var next = value[i + 1];
+            var isNumberStart = char.IsDigit(next) || next == '.';
+            var atTokenStart = i == 0 || value[i - 1] is ' ' or ',' or '(' or ':';
+            if (isNumberStart && atTokenStart) return true;
+        }
+        return false;
     }
 
     public static string Sanitize(string? html) =>

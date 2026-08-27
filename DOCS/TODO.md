@@ -636,7 +636,11 @@ resets" clause was VOID -- no remove path exists); all six storage displays use
 DisplayLimitMb so a blank limit shows the enforced 1024 default; the reconciliation doc's false
 ResumePayment sentence is stricken with the correction quoting it; Admin invoices print/save-PDF
 with the chrome stripped. 7 tests, 4-red/3-green reverse proof.
-Remaining Phase 2: Wave C (M1, the overlay allow-list + the suite's one skipped test).
+**Wave C SHIPPED 2026-08-27 (branch `fix/overlay-allowlist`): M1.** The sanitizer's CSS is an
+allow-list (~120 formatting properties, zero escape mechanisms) with surgical value guards for
+negative margins/text-indent and viewport units. The suite's one skipped test is un-skipped and
+green. 14 new tests, 8-red/7-green reverse proof. **PHASE 2 COMPLETE -- zero open HIGHs, zero
+in-scope MEDIUMs, zero skipped tests.** Next: Phase 3 (the front door tells the truth).
 
 **Phase 1 remaining: the staging decision only.** H7 shipped 2026-08-27 (branch
 `fix/drip-recovery`, 10 tests, 5-red/5-green reverse proof) -- see the register. **Register HIGH

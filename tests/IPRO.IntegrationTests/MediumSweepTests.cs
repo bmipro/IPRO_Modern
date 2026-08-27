@@ -28,10 +28,7 @@ public class MediumSweepTests
         Assert.Contains("CTA TEXT", outp);
     }
 
-    [Fact(Skip = "AUDIT M1, wave 2: the deny-list approach cannot close this -- transform + negative " +
-                 "margin + viewport sizing rebuilds the overlay. The real fix is an ALLOW-list of CSS " +
-                 "properties, which needs care not to break existing newsletter formatting. Tracked in " +
-                 "DOCS/AUDIT_2026-08-20_POST_SWEEP.md as M1.")]
+    [Fact] // Un-skipped 2026-08-27: M1 fixed -- the sanitizer is an ALLOW-list now (OverlayAllowListTests).
     public void Overlay_cannot_be_rebuilt_from_the_properties_left_allowed()
     {
         // The overlay control removes position/z-index/inset/pointer-events, but transform +
