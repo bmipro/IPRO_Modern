@@ -51,6 +51,12 @@ public static class AgentStorageUsage
     public static long LimitBytes(int? limitValueMb) =>
         (long)(limitValueMb ?? DefaultLimitMb) * 1024 * 1024;
 
+    // M10: the DISPLAY companion of LimitBytes. Every user-facing surface used `LimitValue ?? 0`,
+    // so a blank limit -- a deliberately supported configuration -- rendered as "1150.3 MB of
+    // 0 MB used" while the 1024 MB default was quietly enforced. Display and enforcement must
+    // read the same fallback or the page tells the agent a falsehood.
+    public static int DisplayLimitMb(int? limitValueMb) => limitValueMb ?? DefaultLimitMb;
+
     // Gallery photos record their size inside the block's settings JSON rather than in a column, so this
     // cannot be summed in SQL the way documents can.
     public static async Task<long> GalleryBytesAsync(IPRODbContext db, int agentId)

@@ -17,6 +17,11 @@
     {
       <span class="badge bg-secondary me-2" title="The account was deleted; this invoice is the retained financial record.">agent deleted</span>
     }
+    @* Print / save-as-PDF (owner request 2026-08-27): the browser's print dialog covers both a
+       paper copy and a PDF to attach to an email, for EVERY invoice this view serves -- old or
+       new, retained-after-deletion included -- with no PDF library to maintain. The @media print
+       rules below strip the admin chrome so only the invoice card prints. *@
+    <button type="button" id="print-invoice" class="btn btn-sm btn-outline-primary me-2"><i class="fas fa-print me-1"></i>Print / Save PDF</button>
     <a href="/Reports/Revenue" class="btn btn-sm btn-outline-secondary">Back to revenue</a>
   </div>
 </div>
@@ -76,3 +81,16 @@
     </div>
   </div>
 </div>
+
+<style>
+  @@media print {
+    /* Only the invoice card: no sidebar, no topbar, no buttons, white ground, full width. */
+    .admin-sidebar, .admin-topbar, .d-print-none { display: none !important; }
+    .admin-content { margin: 0 !important; padding: 0 !important; }
+    body { background: #fff !important; }
+    .card { border: none !important; box-shadow: none !important; max-width: 100% !important; }
+  }
+</style>
+<script nonce="@Context.GetCspNonce()">
+  document.getElementById("print-invoice").addEventListener("click", function () { window.print(); });
+</script>

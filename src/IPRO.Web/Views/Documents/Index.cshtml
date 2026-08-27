@@ -6,7 +6,7 @@
     var categories = (ViewBag.Categories as IEnumerable<string>) ?? Enumerable.Empty<string>();
     var access = ViewBag.UsageAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
     var usedMb = (double)(ViewBag.UsedMb ?? 0.0);
-    var limitMb = access?.LimitValue ?? 0;
+    var limitMb = IPRO.Web.Infrastructure.AgentStorageUsage.DisplayLimitMb(access?.LimitValue);   @* M10 *@
     var usedPct = limitMb > 0 ? Math.Min(100.0, usedMb / limitMb * 100.0) : 0;
     var barClass = usedPct >= 90 ? "bg-danger" : usedPct >= 70 ? "bg-warning" : "bg-primary";
 
