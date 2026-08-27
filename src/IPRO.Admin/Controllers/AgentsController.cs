@@ -193,6 +193,11 @@ public class AgentsController : Controller
     // form into a real form the agent owns, then point the page's block at it. If the agent already
     // owns a form with that title (a prior rebuild, or self-adopted from the template gallery), it is
     // REUSED so their edits survive; only the page's blocks are replaced.
+    // M2 (launch runway Phase 2, 2026-08-27): same RemoveRange destruction as RebuildResources
+    // sixty lines up -- every block the agent customised on that page is deleted -- so it takes
+    // the same SuperAdmin gate. A support-role admin could destroy an agent's page content with a
+    // confirm that (until the same fix) claimed their edits survived.
+    [Authorize(Policy = "SuperAdmin")]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RebuildRequestMeeting(int id)
     {
