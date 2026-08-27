@@ -559,6 +559,32 @@ pin).
 Merged and **verified live on both hosts at `df79ce5`** (2026-08-27). Suite at the gate: 360
 passed / 0 failed / 1 skipped. Rule-6 clean.
 
+## Launch runway Phase 2, Wave C -- M1 FIXED 2026-08-27 (branch `fix/overlay-allowlist`)
+
+**The sanitizer's CSS is an ALLOW-list now.** The deny-list removed eight properties and the
+register's own reproduction proved that useless -- transform + negative margin + viewport sizing
+rebuilt the same full-viewport phishing cover from properties still allowed. Inverted: only the
+~120 formatting properties in `FormattingCssProperties` survive at all (typography, color,
+background, box, sizing, in-flow layout -- grounded in the product's real content: seeded
+templates are plain semantic HTML, the in-house editor emits little beyond text-align, and the
+rich source is agents pasting marketing HTML through the source toggle). Every escape mechanism
+-- position/inset, z-index, transform and friends, clip/clip-path, filter, animation -- is absent
+by construction. Two value-level guards close the in-list residue: negative margins/text-indent
+(the drag-over-earlier-content primitive) and viewport units anywhere (width:100% is the
+legitimate spelling; 100vw only ever the exploit's). Guards are surgical -- the poisoned
+declaration dies, its honest neighbours survive.
+
+**Proof.** The suite's one skipped test is UN-SKIPPED and green. 14 new tests
+(`OverlayAllowListTests`): ten exploit flavours dead (the register's original reproduction
+included), a representative pasted-newsletter corpus keeping every declaration (the sanitizer
+normalizes colors to rgba -- survival asserted, not serialization), and both-direction pins
+(positive margins/percent widths untouched; hyphenated font names never mistaken for negative
+numbers). Reverse-run **8 red / 7 green** on the deny-list -- the reds are exactly the exploits
+it allowed; the greens the two-sided pins.
+
+**Register MEDIUM count: 2 -> 1 open** (M6 only -- an owner decision, parked). **Phase 2 of the
+launch runway is COMPLETE: zero open HIGHs, zero open MEDIUMs-in-scope, zero skipped tests.**
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**
