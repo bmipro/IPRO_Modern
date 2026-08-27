@@ -443,7 +443,7 @@ public class WebsitePagesController : Controller
         if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
         {
             TempData["Error"] = $"That upload would exceed your storage limit " +
-                $"({IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes)} MB of {capacity.LimitValue ?? 0} MB used, counting documents, " +
+                $"({IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes)} MB of {IPRO.Web.Infrastructure.AgentStorageUsage.DisplayLimitMb(capacity.LimitValue)} MB used, counting documents, " +
                 "website photos and client portal files). Delete something to free up space, or contact us to increase your storage.";
             return RedirectToAction(nameof(Edit), new { id = pageId });
         }
@@ -561,7 +561,7 @@ public class WebsitePagesController : Controller
         if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
         {
             var usedMb = IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes);
-            var limitMb = access.LimitValue ?? 0;
+            var limitMb = IPRO.Web.Infrastructure.AgentStorageUsage.DisplayLimitMb(access.LimitValue);   // M10
             TempData["Error"] = $"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used). Delete unused documents or gallery photos to free up space, or contact us to increase your storage.";
             return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
         }

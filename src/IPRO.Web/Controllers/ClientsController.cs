@@ -194,7 +194,7 @@ public class ClientsController : Controller
         if (limitBytes > 0 && usedBytes + file.Length > limitBytes)
         {
             TempData["Error"] = $"That upload would exceed your storage limit " +
-                $"({AgentStorageUsage.ToMb(usedBytes)} MB of {capacity.LimitValue ?? 0} MB used, counting documents, " +
+                $"({AgentStorageUsage.ToMb(usedBytes)} MB of {AgentStorageUsage.DisplayLimitMb(capacity.LimitValue)} MB used, counting documents, " +
                 "website photos and client portal files). Delete something to free up space, or contact us to increase your storage.";
             return RedirectToAction(nameof(Details), new { id = clientId });
         }

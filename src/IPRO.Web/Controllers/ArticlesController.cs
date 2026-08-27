@@ -64,6 +64,17 @@ public class ArticlesController : Controller
         var imageUrl = string.Empty;
         if (image != null && image.Length > 0)
         {
+            // M9: articles were the ONE upload path that never consulted the shared
+            // FileUploadCapacity pool -- documents, gallery photos and portal uploads all check;
+            // article images counted AGAINST the pool (AgentStorageUsage sums ImageSizeBytes) but
+            // were accepted unconditionally, so an agent at their limit could keep uploading
+            // through this door while every other door refused them.
+            var quotaError = await CheckStorageQuotaAsync(image.Length, replacedBytes: 0);
+            if (quotaError != null)
+            {
+                TempData["Error"] = quotaError;
+                return View(model);
+            }
             var uploadResult = await ValidateAndUploadImageAsync(image);
             if (uploadResult.Error != null)
             {
@@ -125,6 +136,15 @@ public class ArticlesController : Controller
         string? replacedImageUrl = null;
         if (image != null && image.Length > 0)
         {
+            // M9, replacement flavour: the outgoing image's bytes leave the pool as the new ones
+            // arrive, so the check is against the NET change -- replacing a 5 MB image with a
+            // 2 MB one must succeed even at the limit.
+            var quotaError = await CheckStorageQuotaAsync(image.Length, replacedBytes: existing.ImageSizeBytes);
+            if (quotaError != null)
+            {
+                TempData["Error"] = quotaError;
+                return View(model);
+            }
             var uploadResult = await ValidateAndUploadImageAsync(image);
             if (uploadResult.Error != null)
             {
@@ -188,6 +208,21 @@ public class ArticlesController : Controller
         // Best effort, same as the agent-photo replacement in AccountController: the article change the
         // agent asked for has already been saved, so a storage hiccup must not fail their request.
         try { await _blob.DeleteAsync(imageUrl); } catch { }
+    }
+
+    // Mirrors DocumentsController's check against the same shared pool; a null return means the
+    // upload fits. limitBytes <= 0 (an explicit 0 limit) keeps its pre-existing "no quota" meaning.
+    private async Task<string?> CheckStorageQuotaAsync(long incomingBytes, long replacedBytes)
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, IPRO.Entities.PackageFeatureCodes.FileUploadCapacity);
+        var limitBytes = IPRO.Web.Infrastructure.AgentStorageUsage.LimitBytes(access.LimitValue);
+        if (limitBytes <= 0) return null;
+        var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
+        if (usedBytes - replacedBytes + incomingBytes <= limitBytes) return null;
+        return $"That image would exceed your storage limit " +
+               $"({IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes)} MB of " +
+               $"{IPRO.Web.Infrastructure.AgentStorageUsage.DisplayLimitMb(access.LimitValue)} MB used, counting documents and website photos). " +
+               "Delete unused documents or gallery photos to free up space, or contact us to increase your storage.";
     }
 
     private async Task<(string? Url, string? Error)> ValidateAndUploadImageAsync(IFormFile image)

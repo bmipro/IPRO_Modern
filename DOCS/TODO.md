@@ -630,7 +630,13 @@ Live SHAs: `f67a726` then `f9361e5`.
 site finally honours "your site will go offline" (gated in the one funnel all seven public doors
 share, paid-through respected, verdict cached 2 min), and `RebuildRequestMeeting` is
 SuperAdmin-only with a confirm that names the loss. 7 tests, 6-red/1-green reverse proof.
-Remaining Phase 2: Wave B (M9 + M10 + M20), Wave C (M1).
+**Wave B SHIPPED 2026-08-27 (branch `fix/medium-storage-trio`): M9 + M10 + M20 + the invoice
+print button.** Article images consult the shared quota (net-change on replace; the "never
+resets" clause was VOID -- no remove path exists); all six storage displays use
+DisplayLimitMb so a blank limit shows the enforced 1024 default; the reconciliation doc's false
+ResumePayment sentence is stricken with the correction quoting it; Admin invoices print/save-PDF
+with the chrome stripped. 7 tests, 4-red/3-green reverse proof.
+Remaining Phase 2: Wave C (M1, the overlay allow-list + the suite's one skipped test).
 
 **Phase 1 remaining: the staging decision only.** H7 shipped 2026-08-27 (branch
 `fix/drip-recovery`, 10 tests, 5-red/5-green reverse proof) -- see the register. **Register HIGH

@@ -537,7 +537,7 @@
         var gallerySettings = IPRO.Entities.WebsiteGallerySettings.FromJson(block.SettingsJson);
         var storageAccess = ViewBag.StorageAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
         var storageUsedMb = (double)(ViewBag.StorageUsedMb ?? 0.0);
-        var storageLimitMb = storageAccess?.LimitValue ?? 0;
+        var storageLimitMb = IPRO.Web.Infrastructure.AgentStorageUsage.DisplayLimitMb(storageAccess?.LimitValue);   @* M10 *@
         var storageUsedPct = storageLimitMb > 0 ? Math.Min(100.0, storageUsedMb / storageLimitMb * 100.0) : 0;
         var storageBarClass = storageUsedPct >= 90 ? "bg-danger" : storageUsedPct >= 70 ? "bg-warning" : "bg-primary";
         <div class="px-4 pb-4">

@@ -78,7 +78,7 @@ public class DocumentsController : Controller
         if (limitBytes > 0 && usedBytes + file.Length > limitBytes)
         {
             var usedMb = IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes);
-            var limitMb = access.LimitValue ?? 0;
+            var limitMb = IPRO.Web.Infrastructure.AgentStorageUsage.DisplayLimitMb(access.LimitValue);   // M10
             TempData["Error"] = $"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used, counting documents and website photos). Delete unused documents or gallery photos to free up space, or contact us to increase your storage.";
             return RedirectToAction(nameof(Index));
         }

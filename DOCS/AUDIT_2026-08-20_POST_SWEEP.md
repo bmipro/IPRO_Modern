@@ -518,6 +518,44 @@ Merged and **verified live on both hosts at `7458287`** (2026-08-27). Suite at t
 passed / 0 failed / 1 skipped. Rule-6 clean. The smoke set doubles as a live M13 check: the
 owner's own active-billing agent site still serves 200 with the gate in force.
 
+## Launch runway Phase 2, Wave B -- M9 + M10 + M20 FIXED 2026-08-27 (branch `fix/medium-storage-trio`)
+
+**M9 -- article images now consult the shared quota.** They were the ONE upload path that never
+checked `FileUploadCapacity` while counting against it: documents, gallery photos and portal
+uploads all refused an over-limit agent; this door stayed open. Create and Edit both check now,
+and a replacement is judged on the NET change -- an agent at their limit replacing a large image
+with a smaller one succeeds. **The register's second clause ("ImageSizeBytes never resets when an
+image is removed") is VOID:** no remove-image path exists anywhere -- an image can only be
+replaced (size overwritten) or the article deleted (row gone with its size). Verified by grep and
+code walk; recorded here so nobody re-raises it as unfinished work.
+
+**M10 -- the display finally matches the enforcement.** `AgentStorageUsage.DisplayLimitMb` is the
+display companion of `LimitBytes` (`?? DefaultLimitMb`, same fallback), applied at all six
+storage surfaces that hand-rolled `LimitValue ?? 0`. A drift-pin test greps those six files so a
+seventh hand-rolled fallback turns the suite red. TeamController's `?? 0` is team SEATS -- a
+different quantity, deliberately exempt. Explicit-0 limits keep their pre-existing "no quota"
+meaning at every site; that semantic predates this fix and no package uses it.
+
+**M20 -- the reconciliation doc now tells the truth about ResumePayment.** The false sentence
+("deliberately not guarded") is stricken and the correction QUOTES it for the record: resume
+voids the stale attempt and then goes through `CreateSubscriptionAsync`, which IS the divergence
+guard -- so on a price divergence the agent loses their resumable checkout AND is refused. The
+void-first ordering stays (review L-1: the reverse risks two live approval links and a double
+charge). This closes the last correction owed to `AUDIT_RECONCILIATION_2026-08-17.md`.
+
+**Also in this wave (owner request):** a Print / Save-as-PDF button on the Admin invoice view --
+the browser's print dialog covers both paper and a PDF to email, for every invoice old or new,
+with `@media print` rules stripping the admin chrome so only the invoice card prints. No PDF
+library added.
+
+**Proof.** 7 tests (`StorageAndTruthTests`), reverse-run **4 red / 3 green** -- the reds are the
+four changes (over-quota refused, the six-site drift pin, the doc claim, the print button); the
+greens are the fits-still-uploads and net-change pins plus the M10 unit test, whose helper was
+deliberately kept during the reverse run so the suite compiled (its meaningful red is the drift
+pin).
+
+**Register MEDIUM count: 5 -> 2 open** (M1 next -- Wave C -- and M6, an owner decision).
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**
