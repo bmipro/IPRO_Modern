@@ -484,6 +484,10 @@ into an NRE that the catch-all classified transient -- a green-looking stub bug.
 
 **Register HIGH count: 0 open.** Every HIGH from every audit is now closed.
 
+Merged and **verified live on both hosts at `21da3e6`** (2026-08-27). Suite at the gate: 346
+passed / 0 failed / 1 skipped. Rule-6 check clean -- all four runs completed, none cancelled.
+Smoke: app 200, login 200, admin 302, agent site 200.
+
 ## Remediation plan
 
 **Wave 1 — stop the bleeding (live exposure).**

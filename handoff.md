@@ -1,4 +1,4 @@
-# Handoff — 2026-08-27 (launch runway underway; 25 days to Sept 21)
+# Handoff — 2026-08-27 EOD (Phase 1 COMPLETE — zero open HIGHs; 25 days to Sept 21)
 
 Written to survive a reboot. If the working directory was wiped, see **§7 Recovery** first.
 
@@ -11,10 +11,10 @@ wave's record and every open item lives there), `DOCS/TODO.md` (durable backlog)
 
 ## 1. Production right now
 
-**Both apps live on `f9361e5`** — the H3 merge, verified at `/health/version` on **BOTH** hosts
+**Both apps live on `21da3e6`** — the H7 merge, verified at `/health/version` on **BOTH** hosts
 (never `/health`; and never trust one host or the workflow list — INVARIANTS rule 6). Today's
-merges, in order: `f67a726` (H8 + M8) → `f9361e5` (H3). Both verified on both hosts, zero run
-cancellations.
+merges, in order: `f67a726` (H8 + M8) → `f9361e5` (H3) → `21da3e6` (H7 + session docs). All
+verified on both hosts, zero run cancellations.
 
 Smoke after the last deploy: `app.iproadvisers.com/` 200 · `/Account/Login` 200 ·
 `admin.iproadvisers.com/` 302 to login · `bahmanmotamed.247advisers.com/` 200.
@@ -27,19 +27,21 @@ Production agents:
 **PayPal in production is still SANDBOX** (`PayPal__IsSandbox=true`). No money in this system has
 ever been real. That is Phase 4's job and it is the single biggest launch risk — see §2b.
 
-Test suite: **336 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
+Test suite: **346 passed / 0 failed / 1 skipped** (the skip is deliberate — audit M1's CSS
 allow-list, `[Fact(Skip=...)]` with the reason inline). Every defect fix was verified BOTH ways:
 the test observed RED on the pre-fix code first, then green on the fix.
 
 ---
 
-## 2. What shipped today — launch runway Phase 1, three items
+## 2. What shipped today — launch runway Phase 1, COMPLETE (four items + the staging decision)
 
 | Item | Branch | What it closed |
 |---|---|---|
 | **H8** | `fix/consent-and-session` | The SendGrid webhook's per-event catch swallowed unsubscribes, group-unsubscribes and spam reports — a DB hiccup was caught, logged, answered 200, and SendGrid never retried. The one event class with legal weight, lost silently. A failed CONSENT event now withholds the 200 and returns 503 so SendGrid retries; stats events still fail soft. |
 | **M8** | `fix/consent-and-session` | The agent portal had no `ValidatePrincipal` — a deactivated agent or removed team member kept a working cookie until expiry. `AgentCookieRevalidator` now mirrors the admin one. |
 | **H3** | `fix/resolver-split` | `ResolveBillingRuleIdAsync` — the singular resolver behind `GetAccessAsync`, called by nearly every controller — never learned `PaidThroughAt` and fell through to the stale `AgentUser.PackageId`. A cancelled-but-paid-through agent was refused features they had paid for. |
+| **H7** | `fix/drip-recovery` | The last open HIGH. SendGrid 401/403 and not-configured classified as PERMANENT, so one key rotation marked every due drip enrollment Failed on its first attempt, and no resume path existed — recovery meant re-enrolling, which re-sends every prior step. Now: account-level rejections are transient (bounded by the existing caps), and `ResumeFailedEnrollments` reactivates Failed rows from the exact step that never went out — no replays, consent still outranks recovery. 10 tests, reverse-run 5 red / 5 green. |
+| **Staging decision** | — | RESOLVED: no standing staging before launch; a pre-launch snapshot + restore rehearsal instead (half a day, in/before Phase 4) — the restore has never been tested, the snapshot window closes at launch (owner confirmed production holds only test users), and the rehearsal doubles as the Phase 4 purge dry-run. Three independent reviews + a volume audit are recorded in `DOCS/TODO.md` under "STAGING: second-opinion round". Two live config hazards found there (unguarded job registration; committed `WebAppName: ipro-prod-web`) are logged for fixing regardless. |
 
 **Two test-quality lessons were applied, not just noted.** H8's first tests only pinned the
 classifier — the exact C1 shape (a guard the caller never consults). Caught before shipping; two
@@ -135,9 +137,7 @@ agents refuse deletion). Real-customer deletions are no longer gated.
 
 **Open now (everything else from the audits is closed):**
 
-- **HIGH — 1 left:** **H7** (a rotated SendGrid key classifies 401/403 as permanent, kills every
-  drip enrollment, and no resume path exists — recovery today means re-enrolling, which re-sends
-  every prior step).
+- **HIGH — 0 left.** Every HIGH from every audit is closed as of `21da3e6`.
 - **MEDIUM — 7 left:** M1 overlay CSS allow-list (the one skipped test) · M2
   `RebuildRequestMeeting` gate · M9/M10 storage quota check + display · M13 the public site never
   goes offline · M20 a comment that is false and backwards · M6 credit notes (owner decision).
@@ -164,21 +164,21 @@ conditions that are never true pass against broken code (it happened twice today
 
 ## 7. Recovery after a reboot
 
-If this working directory survived: you are on branch **`docs/session-close-2026-08-27`**, one
-commit ahead of `main`, docs only. `main` itself is clean and is what production serves.
+If this working directory survived: you are on `main`, clean. Production serves the head of
+`main` (`21da3e6`). Both feature branches (`fix/drip-recovery`,
+`docs/session-close-2026-08-27`) are fully merged into `main`.
 
 If it was wiped (has happened; only OneDrive-synced folders survived):
 
-1. Everything is on GitHub: `https://github.com/bmipro/IPRO_Modern`. Clone `main` for the code —
-   production is `f9361e5`, the head of `main`. **One branch is unmerged and matters:**
-   `docs/session-close-2026-08-27` carries this file and today's `DOCS/` reconciliation. Nothing
-   else is outstanding; every code branch is merged.
+1. Everything is on GitHub: `https://github.com/bmipro/IPRO_Modern`. Clone `main` — production
+   is its head (`21da3e6` plus the session-close docs commit). **Nothing of value lives outside
+   `main`**; every branch is merged.
 2. Backup zips (`git archive` of the branch HEAD, contents verified by listing inside the zip):
    - **OneDrive** `C:\Users\admin\OneDrive\Codex_Code_Bkup\` — the copy proven to survive resets
    - Local `C:\Users\admin\IPRO_Local_Backups\`
    - Older sets under `C:\Users\admin\Documents\IPRO_Backups\`
-   Newest: **`IPRO_Modern_2026-08-27_session-close.zip`** (taken from the docs branch, so the zip
-   is a complete recovery source even if that branch were lost).
+   Newest: **`IPRO_Modern_2026-08-27_eod_h7.zip`** (main HEAD, contents verified by reading the
+   H7 docs back out of the zip).
 3. `.claude` memory files have been lost to a reboot before — re-read `DOCS/` rather than trusting
    recalled context. This file and the register are the two that matter.
 
@@ -188,6 +188,6 @@ script before the test suite, or connection errors read as test failures (that m
 once already, and produced a false RED). Local-only data: agent 11 (drip tester), `supporttest`
 admin.
 
-**Nothing is mid-flight.** Both apps are deployed and verified on `f9361e5`; no run is queued or
-in progress; the only work not on `main` is the docs branch above, which is also inside both
-backup zips. The QA harness needs nothing from this machine. **Safe to reboot.**
+**Nothing is mid-flight.** Both apps are deployed and verified; no run is queued or in progress;
+everything is on `main` and inside both backup zips. The QA harness is complete and needs nothing
+from this machine. **Safe to reboot.**
