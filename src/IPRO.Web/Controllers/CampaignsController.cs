@@ -100,6 +100,9 @@ public class CampaignsController : Controller
             Campaign = campaign,
             Steps = steps,
             StepPerformance = stepPerformance,
+            FailedEnrollmentCount = await _db.DripCampaignEnrollments
+                .CountAsync(e => e.DripCampaignId == id && e.AgentUserId == AgentId &&
+                                 e.Status == DripCampaignEnrollmentStatus.Failed),
             Enrollments = await _db.DripCampaignEnrollments
                 .Include(e => e.Client)
                 .Include(e => e.ClientCategory)
@@ -480,6 +483,46 @@ public class CampaignsController : Controller
             TempData["Success"] = "Client removed from campaign.";
         }
 
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResumeFailedEnrollments(int id)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+
+        var campaign = await _db.DripCampaigns.FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
+        if (campaign == null) return NotFound();
+
+        // H7: the resume path that never existed -- Active was only ever assigned at enrollment
+        // creation, so once a row went Failed (a rotated API key, or the transient cap running
+        // out during a longer outage) the only recovery was re-enrolling the client, which
+        // re-sends every step they already received. Resuming instead reuses the row:
+        // NextStepIndex is deliberately NOT touched -- a failed send never advanced it (JOBS-7),
+        // so it still points at the exact step that never went out, and the campaign picks up
+        // where it stopped with no replays.
+        //
+        // Resuming a client who unsubscribed in the meantime is safe: the job's consent sweep
+        // runs before any send and cancels suppressed enrollments, and the dispatcher re-checks
+        // suppression per send. A genuinely-bad recipient (SendGrid 400) re-fails on its first
+        // attempt without mailing anyone. Cancelled and Completed rows are not touched --
+        // Cancelled is a person's decision, not a failure.
+        var failed = await _db.DripCampaignEnrollments
+            .Where(e => e.DripCampaignId == id && e.AgentUserId == AgentId &&
+                        e.Status == DripCampaignEnrollmentStatus.Failed)
+            .ToListAsync();
+        foreach (var enrollment in failed)
+        {
+            enrollment.Status = DripCampaignEnrollmentStatus.Active;
+            enrollment.SendAttempts = 0;
+            enrollment.NextSendAt = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = failed.Count == 0
+            ? "No failed enrollments to resume."
+            : $"{failed.Count} enrollment(s) resumed. Sends restart from the step that never went out; already-delivered steps are not repeated.";
         return RedirectToAction(nameof(Details), new { id });
     }
 

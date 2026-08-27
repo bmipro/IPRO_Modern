@@ -527,6 +527,44 @@ https://claude.ai/code/artifact/fa86d4ad-b0f6-4b2a-9989-59c2c1455a41
 **The biggest launch risk is Phase 4 and it is not an audit item.** The LOWs are the cut line: if
 Phase 4 runs long they ship after launch and nothing is lost.
 
+## STAGING: second-opinion round 2026-08-27 -- direction settled, decision recorded
+
+Three independent reviews (one blind, one designated contrarian for a real-data copy, one pure
+opportunity-cost) plus a volume audit. Convergence, each for different reasons:
+
+- **No standing staging environment before launch.** The chronic failure mode here is WIRING
+  (fixed the library not the caller; one app not both) and staging is green on wiring bugs too.
+- **Never a standing copy of real production data** once real customers exist.
+- **The window argument (contrarian, adopted):** every safety net is synthetic INCLUDING the test
+  schema (`TestDatabase` uses `EnsureCreated`; production is migrations + repairs -- the register
+  says so at H9). Production today contains ONLY test users -- **owner confirmed 2026-08-27: no
+  real people's data anywhere** -- so a snapshot taken BEFORE launch is a faithful-schema,
+  near-zero-privacy copy that can never be taken again after Sept 21.
+- **The same half-day buys three things** (ROI reviewer): restore a throwaway MySQL server from
+  point-in-time backup (the restore procedure has NEVER been tested -- DOCS/14:79), rehearse the
+  Phase 4 ledger-purge SQL against it, and keep the frozen snapshot. Then delete the server.
+
+**PLANNED: pre-launch snapshot + restore rehearsal, half a day, before or inside Phase 4.**
+Standing staging deferred past launch entirely; revisit with real usage data.
+
+**Two live config hazards found during the round (fix BEFORE any second environment ever boots,
+and worth fixing regardless):**
+1. `Program.cs` registers all 16 recurring jobs unconditionally -- no environment/role gate. Any
+   second boot of the codebase against a copied DB starts mailing and hitting PayPal/Azure within
+   60 seconds (four dispatchers are minutely).
+2. Both apps' committed appsettings.json carry `"WebAppName": "ipro-prod-web"` -- the value
+   `AzureDomainAutomationService` uses to issue HTTP DELETE against production hostname bindings
+   and certificates. A misconfigured second environment points that gun at PRODUCTION.
+
+A 15-finding volume audit (unpaginated client list, global-500 reminder rotation that silently
+stops birthday reminders at ~3,500 platform-wide clients, per-recipient newsletter sends, no
+CommandTimeout/EnableRetryOnFailure, ~30 unindexed repair-created tables) came out of the same
+round. **Verified so far:** ClientsController:42-89 bare ToListAsync, the two global Take(500)s
+in ClientLifeEventReminderJob, zero AsSplitQuery/CommandTimeout/EnableRetryOnFailure/[Queue]/
+DisableConcurrentExecution anywhere in src, no index on Clients.Email. Triage owed: verify the
+rest, rank by when-it-bites (the unit of scale is ONE adviser's book of business -- 1,000-3,000
+clients -- not the adviser count), fold the early ones into Phase 2.
+
 ## DECIDED 2026-08-27 -- QA sandbox invoices: do NOT delete the rows (option B rejected)
 
 The BobyMot lifecycle run left 9 retained invoices (IPRO-2026-000010..000018, ~$500) recording
@@ -588,7 +626,9 @@ the pre-fix code first:
 Suite: **336 passed / 0 failed / 1 skipped** (the skip is M1's overlay allow-list, still open).
 Live SHAs: `f67a726` then `f9361e5`.
 
-**Phase 1 remaining: H7 + the staging decision.**
+**Phase 1 remaining: the staging decision only.** H7 shipped 2026-08-27 (branch
+`fix/drip-recovery`, 10 tests, 5-red/5-green reverse proof) -- see the register. **Register HIGH
+count: 0. Every HIGH from every audit is closed.**
 
 ## SECURITY + DRIP WAVE SHIPPED 2026-08-26 (branch fix/security-drip-wave)
 

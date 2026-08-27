@@ -16,6 +16,11 @@ public class SendGridEmailService : IEmailService
         _logger = logger;
     }
 
+    // H7 test seam, mirroring PublicHostGuard.ResolveHook: production always builds the real
+    // client; tests substitute a stub HTTP conversation so the REAL classification below is what
+    // gets exercised, not a copy of it living in the test.
+    internal Func<string, ISendGridClient> ClientFactory = key => new SendGridClient(key);
+
     public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null, string? listUnsubscribeUrl = null) =>
         (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody, customArgs, replyToEmail, replyToName, listUnsubscribeUrl)).Success;
 
@@ -25,13 +30,19 @@ public class SendGridEmailService : IEmailService
         {
             if (!IsConfigured())
             {
+                // H7: configuration is an ACCOUNT-level condition, not a verdict on this email.
+                // An admin sets the key and every queued send should then proceed; classifying
+                // this as permanent turned "the key is missing right now" into "kill the work
+                // forever" — one bad deploy of app settings failed every due drip enrollment
+                // with no way back.
                 _logger.LogWarning("SendGrid email is not configured. Email to {Email} was not sent.", toEmail);
-                return EmailSendResult.Failed("SendGrid is not configured. Check Email__SendGridApiKey in Azure app settings.");
+                return EmailSendResult.FailedTransient("SendGrid is not configured. Check Email__SendGridApiKey in Azure app settings.");
             }
 
             if (string.IsNullOrWhiteSpace(_settings.FromEmail))
             {
-                return EmailSendResult.Failed("Sender email is missing. Check Email__FromEmail in Azure app settings.");
+                // H7: same reasoning — a missing sender is fixed in config, not by discarding work.
+                return EmailSendResult.FailedTransient("Sender email is missing. Check Email__FromEmail in Azure app settings.");
             }
 
             if (string.IsNullOrWhiteSpace(toEmail))
@@ -39,7 +50,7 @@ public class SendGridEmailService : IEmailService
                 return EmailSendResult.Failed("Recipient email is missing.");
             }
 
-            var client = new SendGridClient(_settings.SendGridApiKey);
+            var client = ClientFactory(_settings.SendGridApiKey);
             var msg = MailHelper.CreateSingleEmail(
                 new EmailAddress(_settings.FromEmail, _settings.FromName),
                 new EmailAddress(toEmail, toName),
@@ -74,8 +85,15 @@ public class SendGridEmailService : IEmailService
                 _logger.LogWarning("SendGrid rejected email to {Email}. Status: {StatusCode}. Body: {Body}", toEmail, response.StatusCode, body);
                 var failureMessage = $"SendGrid rejected the email. Status: {(int)response.StatusCode} {response.StatusCode}. {SummarizeBody(body)}";
                 // JOBS-5/8: 429 and 5xx are "not right now", not "never" -- transient, retryable.
+                // H7: 401 and 403 join them. They mean the ACCOUNT is broken (rotated/revoked
+                // key, exhausted credits, unverified sender) — the recipient was never the
+                // problem, and the account being fixed is exactly the outcome to wait for.
+                // Classifying them permanent meant one key rotation marked every due drip
+                // enrollment Failed on its first attempt, and recovery was re-enrolling — which
+                // re-sends every prior step. What stays permanent: the recipient/payload 4xxs
+                // (400 bad payload, 413 too large...), where retrying the same send IS spam.
                 var statusCode = (int)response.StatusCode;
-                return statusCode == 429 || statusCode >= 500
+                return statusCode is 429 or 401 or 403 || statusCode >= 500
                     ? EmailSendResult.FailedTransient(failureMessage)
                     : EmailSendResult.Failed(failureMessage);
             }
@@ -103,7 +121,7 @@ public class SendGridEmailService : IEmailService
                 return false;
             }
 
-            var client = new SendGridClient(_settings.SendGridApiKey);
+            var client = ClientFactory(_settings.SendGridApiKey);
             var from = new EmailAddress(_settings.FromEmail, _settings.FromName);
             var tos = recipients.Select(r => new EmailAddress(r.Email, r.Name)).ToList();
             var msg = MailHelper.CreateSingleEmailToMultipleRecipients(
@@ -134,7 +152,7 @@ public class SendGridEmailService : IEmailService
                 return false;
             }
 
-            var client = new SendGridClient(_settings.SendGridApiKey);
+            var client = ClientFactory(_settings.SendGridApiKey);
             var msg = new SendGridMessage
             {
                 From = new EmailAddress(_settings.FromEmail, _settings.FromName),
