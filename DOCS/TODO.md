@@ -62,6 +62,35 @@ fixed weeks earlier and got re-raised as work because the doc still said it was 
 | ~~394~~ | ~~Tick the greeting exemption on 4 e-card designs~~ | DONE -- the owner had already ticked these during the Aug 9-10 unsubscribe work; the item sat stale until 2026-08-12, when a screenshot of simple-birthday confirmed the flag (owner vouches for the other three). Lesson: UI-side owner actions leave no trail I can see; mark items done when the owner says so, or ask for one screenshot. |
 | ~~395~~ | ~~Send one e-card to a GMAIL address~~ | **PASSED 2026-08-12, and doubled as a live proof of the whole consent system.** Owner sent two cards from BoBMot1 to bahman.motamed@gmail.com (an address that had unsubscribed during earlier testing): the Halloween card was REFUSED by the dispatcher ('Recipient has unsubscribed') because it is promotional; the simple-birthday card DELIVERED because it carries the greeting exemption + the owner's opt-back-in -- exactly the day-one design. Gmail placement: **Promotions tab, not Spam** (normal for a new sender; the win is no spam folder). Tracking recorded Sent 11:49 -> Delivered 11:49 -> Opened 11:52 on a real mainstream inbox, which also closes email-tracking item F (#386): the /portal/EmailActivity surface verified live, signed in, with a real send. |
 
+## OPEN DECISION -- package features sold with no implementation found (raised 2026-08-28)
+
+While building the marketing truth pack I cross-referenced all 48 feature codes against the
+source. The homepage pricing table renders EVERY PackageFeature marked included, so each of these
+is a live promise to customers. Full detail, method and caveats: `DOCS/PRODUCT_TRUTH_2026-08-28.md`.
+
+**Owner decision needed per item: deliver it / rename it to what exists / remove it from the
+packages.**
+
+- **Plausibly human services** (no code needed IF the business commits to delivering them):
+  `ManagedBlog` "One unique blog per month written and managed" (Gold+Platinum) --
+  **this is the exact claim the homepage audit already caught as non-existent; the COPY was fixed
+  but the PACKAGE DATA still sells it** -- plus `ManagedSeo` (Gold+Platinum) and
+  `DesignatedSupport` (Platinum).
+- **Software, no implementation and no alias found:** `MailMerge`, `PrintableLabelCreator`,
+  `MultilingualEditor`, `FramedLinkManager`.
+- **Possible aliases, confirm first:** `RotatingBanner` (the Hero block?), `CustomHomeButtons`
+  (the CallToAction block?), `Newsboard` (the DidYouKnow mailer?).
+
+**Method caveat:** absence of a name in the source is NOT proof a feature is missing -- it can
+ship under another name. That produced one false alarm already: "Need analysis calculator" IS
+real, as the `Calculator` block. Treat the list as questions, not findings.
+
+**The honest pattern already in the data:** `SmsReminder` is labelled "(not yet available)" and is
+included in ZERO packages. Anything not shipping should look like that.
+
+Removing a claim is a SuperAdmin data change PLUS a seeder fix -- both, or a fresh database
+reintroduces it.
+
 ## NEXT SESSION (owner-queued 2026-08-27 night)
 
 1. **Homepage social links** -- add to the app.iproadvisers.com main page (footer, most likely):
