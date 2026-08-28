@@ -1,4 +1,21 @@
-# Handoff — 2026-08-27 EOD (Phases 1 AND 2 COMPLETE — zero HIGHs, zero in-scope MEDIUMs, zero skipped tests; 25 days to Sept 21)
+# Handoff — 2026-08-28 EOD (truth-pack round COMPLETE; the Blog is real; 24 days to Sept 21)
+
+**2026-08-28 in one paragraph.** Homepage: Facebook/YouTube footer links and the pricing
+comparison collapsed behind a toggle (48 rows was boring visitors away). Then the truth-pack
+round: all 48 feature codes cross-referenced against the source, 11 questioned, **all 11
+dispositioned the same day** — 7 withdrawn (rotating banner, newsboard, mail merge, printable
+labels, framed link, managed SEO, designated support: startup repair DELETES the rows from
+production, both halves pinned), 2 renamed to the truth (multilingual paste-from-any-editor;
+CallToAction), 1 became REAL: **the Blog block** (lists the agent's published articles,
+inline ?post= view, Platinum+Broker) plus **Draft-with-AI on articles** (AiDailyAssistant-gated,
+fills the form, never saves — the adviser stays the author of record). The pricing table went
+42 → 35 hidden rows and now sells only what exists. Suite 378 → 388, zero skipped. Five deploys,
+every one verified on both hosts, rule 6 clean throughout. `DOCS/PRODUCT_TRUTH_2026-08-28.md` is
+the marketing project's knowledge base and records every disposition.
+
+---
+
+# Previous handoff — 2026-08-27 EOD (Phases 1 AND 2 COMPLETE; kept for the record)
 
 Written to survive a reboot. If the working directory was wiped, see **§7 Recovery** first.
 
