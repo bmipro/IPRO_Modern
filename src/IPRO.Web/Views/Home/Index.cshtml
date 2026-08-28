@@ -279,6 +279,12 @@ body { background: light-dark(#f2f6f8, #10171d); }
 #ipro-concept-two .i2-fee-now { color: var(--ipro2-navy); font-weight: 500; }
 #ipro-concept-two .i2-fee-note { display: block; margin-top: 3px; color: var(--ipro2-aqua); font-size: .62rem; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; }
 #ipro-concept-two .i2-plan-note { margin: 16px 0 0; color: var(--ipro2-muted); font-size: .75rem; }
+@* Collapsible pricing (owner request 2026-08-28): the comparison table is the longest thing
+   on the page. Collapsed, it shows the package headers (names, prices, setup fee -- the actual
+   pricing), the first six feature rows, and the CTA row; the toggle reveals the rest. The
+   :not(:last-child) exemption is the CTA row -- Get started must never be hidden. *@
+#ipro-concept-two .i2-plan-table.i2-collapsed tbody tr:nth-child(n+7):not(:last-child) { display: none; }
+#ipro-concept-two .i2-pricing-toggle { display: block; margin: 18px auto 0; cursor: pointer; background: none; }
 #ipro-concept-two .i2-pricing-footer { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 18px; color: var(--ipro2-muted); font-size: .8rem; }
 
 #ipro-concept-two .i2-trust { background: var(--ipro2-paper-soft); }
@@ -316,6 +322,10 @@ body { background: light-dark(#f2f6f8, #10171d); }
 #ipro-concept-two .i2-footer-grid { display: grid; grid-template-columns: 1.5fr repeat(3, 1fr); gap: 32px; }
 #ipro-concept-two .i2-footer-logo { display: block; width: 150px; height: auto; margin-bottom: 14px; filter: brightness(0) invert(1); }
 #ipro-concept-two .i2-footer-brand p { max-width: 32ch; font-size: .75rem; line-height: 1.6; margin: 0; }
+#ipro-concept-two .i2-footer-social { display: flex; gap: 14px; margin-top: 16px; }
+#ipro-concept-two .i2-footer-social a { color: #c6d5df; display: inline-flex; transition: color .15s; }
+#ipro-concept-two .i2-footer-social a:hover { color: #ffffff; }
+#ipro-concept-two .i2-footer-social svg { width: 20px; height: 20px; }
 #ipro-concept-two .i2-footer h3 { margin: 0 0 12px; color: #ffffff; font-size: .72rem; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; }
 #ipro-concept-two .i2-footer-links { display: grid; gap: 8px; }
 #ipro-concept-two .i2-footer-links a { font-size: .74rem; text-decoration: none; }
@@ -581,7 +591,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
             .OrderBy(f => f.SortOrder)
             .ToList();
           <div class="i2-plan-table-wrap">
-            <table class="i2-plan-table" aria-label="IPRO package comparison">
+            <table id="i2-plan-table" class="i2-plan-table @(allFeatures.Count > 6 ? "i2-collapsed" : "")" aria-label="IPRO package comparison">
               <thead>
                 <tr>
                   <th>Included</th>
@@ -657,6 +667,12 @@ body { background: light-dark(#f2f6f8, #10171d); }
               </tbody>
             </table>
           </div>
+          @if (allFeatures.Count > 6)
+          {
+            <button type="button" id="i2-pricing-toggle" class="i2-action-outline i2-pricing-toggle"
+                    aria-expanded="false" aria-controls="i2-plan-table"
+                    data-more="Show the full comparison (@(allFeatures.Count - 6) more rows)">Show the full comparison (@(allFeatures.Count - 6) more rows)</button>
+          }
         }
         else
         {
@@ -673,7 +689,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
           </div></div></section>
     </main>
 
-    <footer class="i2-footer"><div class="i2-wrap"><div class="i2-footer-grid"><div class="i2-footer-brand"><img class="i2-footer-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"><p>Website, CRM, marketing and client engagement tools for adviser niches and growing businesses.</p></div><div><h3>Product</h3><div class="i2-footer-links"><a href="#i2-platform">Platform</a><a href="#i2-pricing">Pricing</a><a href="/Preview">Website preview</a><a href="/Account/Login">Sign in</a></div></div><div><h3>Markets</h3><div class="i2-footer-links"><a href="#i2-start">Insurance / Financial</a><a href="#i2-start">Accountants</a><a href="#i2-start">Mortgage</a><a href="#i2-start">Generic</a></div></div><div><h3>Company</h3><div class="i2-footer-links"><a href="#i2-trust">About IPRO</a><a href="#i2-contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div></div><div class="i2-footer-bottom"><span>&copy; 2026 IPRO Advisers. Canadian dollars before applicable tax.</span><span>Built and supported in Canada.</span></div></div></footer>
+    <footer class="i2-footer"><div class="i2-wrap"><div class="i2-footer-grid"><div class="i2-footer-brand"><img class="i2-footer-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"><p>Website, CRM, marketing and client engagement tools for adviser niches and growing businesses.</p><div class="i2-footer-social"><a href="https://www.facebook.com/p/iPRO-100071151034796/" target="_blank" rel="noopener" aria-label="IPRO Advisers on Facebook" title="Facebook"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a><a href="https://www.youtube.com/@@AllAdvisers" target="_blank" rel="noopener" aria-label="IPRO Advisers on YouTube" title="YouTube"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></a></div></div><div><h3>Product</h3><div class="i2-footer-links"><a href="#i2-platform">Platform</a><a href="#i2-pricing">Pricing</a><a href="/Preview">Website preview</a><a href="/Account/Login">Sign in</a></div></div><div><h3>Markets</h3><div class="i2-footer-links"><a href="#i2-start">Insurance / Financial</a><a href="#i2-start">Accountants</a><a href="#i2-start">Mortgage</a><a href="#i2-start">Generic</a></div></div><div><h3>Company</h3><div class="i2-footer-links"><a href="#i2-trust">About IPRO</a><a href="#i2-contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div></div><div class="i2-footer-bottom"><span>&copy; 2026 IPRO Advisers. Canadian dollars before applicable tax.</span><span>Built and supported in Canada.</span></div></div></footer>
   </div>
 </div>
 
@@ -708,6 +724,18 @@ body { background: light-dark(#f2f6f8, #10171d); }
     root.querySelector('#i2-service-two').textContent = item.services[1];
     root.querySelector('#i2-service-three').textContent = item.services[2];
   }
+  /* ---- Collapsible pricing: reveal the hidden feature rows, flip the label. ---- */
+  var planTable = root.querySelector('#i2-plan-table');
+  var planToggle = root.querySelector('#i2-pricing-toggle');
+  if (planTable && planToggle) {
+    planToggle.addEventListener('click', function () {
+      var collapsed = planTable.classList.toggle('i2-collapsed');
+      planToggle.setAttribute('aria-expanded', String(!collapsed));
+      planToggle.textContent = collapsed ? planToggle.getAttribute('data-more') : 'Show less';
+      if (collapsed) { planTable.scrollIntoView({ block: 'nearest' }); }
+    });
+  }
+
   root.querySelectorAll('.i2-start-tab').forEach(function (button) {
     button.addEventListener('click', function () {
       root.querySelectorAll('.i2-start-tab').forEach(function (peer) { peer.setAttribute('aria-pressed', 'false'); });
