@@ -71,11 +71,13 @@ is a live promise to customers. Full detail, method and caveats: `DOCS/PRODUCT_T
 **Owner decision needed per item: deliver it / rename it to what exists / remove it from the
 packages.**
 
-- **Plausibly human services** (no code needed IF the business commits to delivering them):
-  `ManagedBlog` "One unique blog per month written and managed" (Gold+Platinum) --
-  **this is the exact claim the homepage audit already caught as non-existent; the COPY was fixed
-  but the PACKAGE DATA still sells it** -- plus `ManagedSeo` (Gold+Platinum) and
-  `DesignatedSupport` (Platinum).
+- **RESOLVED 2026-08-28 -- the whole round.** Withdrawn: rotating_banner, newsboard, mail_merge,
+  printable_label_creator, framed_link_manager. Renamed: multilingual (paste-from-any-editor),
+  custom_home_buttons (CallToAction truth). **ManagedBlog became a real feature** -- the Blog
+  block + AI-assisted drafting on articles (owner decision; see the truth pack).
+  ManagedSeo and DesignatedSupport WITHDRAWN same day (owner decision) -- **the truth-pack round
+  is COMPLETE: all 11 questioned features dispositioned. The package table now sells only what
+  exists.**
 - **Software, no implementation and no alias found:** `MailMerge`, `PrintableLabelCreator`,
   `MultilingualEditor`, `FramedLinkManager`.
 - **Possible aliases, confirm first:** `RotatingBanner` (the Hero block?), `CustomHomeButtons`

@@ -18,11 +18,47 @@ public class ArticlesController : Controller
     private readonly IBlobStorageService _blob;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ArticlesController(IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob)
+    private readonly IPRO.Business.Interfaces.IAiSuggestionService _aiSuggestions;
+
+    public ArticlesController(IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, IPRO.Business.Interfaces.IAiSuggestionService aiSuggestions)
     {
         _db = db;
         _entitlements = entitlements;
         _blob = blob;
+        _aiSuggestions = aiSuggestions;
+    }
+
+    // "Draft with AI" on the article editor. Deliberately mirrors NewsletterController.DraftWithAi:
+    // gated by AiDailyAssistant (the ONE shared AI flag -- never per-feature), usage recorded the
+    // same way, and the result FILLS THE FORM for the agent to review and edit. It never saves and
+    // never publishes: the authors are regulated advisers, so the author of record stays human.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DraftWithAi(string topic)
+    {
+        var access = await _entitlements.GetAccessAsync(AgentId, IPRO.Entities.PackageFeatureCodes.AiDailyAssistant);
+        if (!access.IsIncluded)
+        {
+            return Json(new { success = false, error = access.UpgradeMessage });
+        }
+
+        if (string.IsNullOrWhiteSpace(topic))
+        {
+            return Json(new { success = false, error = "Enter a topic first, then draft with AI." });
+        }
+
+        var result = await _aiSuggestions.DraftBlogPostAsync(topic.Trim());
+        if (result.InputTokens > 0 || result.OutputTokens > 0)
+        {
+            await IPRO.Business.Services.AiUsageRecorder.RecordAsync(_db, 1, result.InputTokens, result.OutputTokens);
+            await _db.SaveChangesAsync();
+        }
+
+        if (string.IsNullOrWhiteSpace(result.BodyHtml))
+        {
+            return Json(new { success = false, error = "AI drafting isn't available right now — try again in a moment, or write the article yourself." });
+        }
+
+        return Json(new { success = true, title = result.Title ?? "", summary = result.Summary ?? "", body = result.BodyHtml });
     }
 
     public async Task<IActionResult> Index()
@@ -42,6 +78,7 @@ public class ArticlesController : Controller
         var gate = await RequireArticlesAccessAsync();
         if (gate != null) return gate;
 
+        ViewBag.AiAccess = await _entitlements.GetAccessAsync(AgentId, IPRO.Entities.PackageFeatureCodes.AiDailyAssistant);
         return View(new Article());
     }
 

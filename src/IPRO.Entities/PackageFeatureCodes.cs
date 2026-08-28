@@ -3,7 +3,7 @@ namespace IPRO.Entities;
 public static class PackageFeatureCodes
 {
     // Withdrawn 2026-08-28 (owner decision): rotating_banner, newsboard, mail_merge and
-    // printable_label_creator and framed_link_manager were sold in the package comparison table
+    // printable_label_creator framed_link_manager, managed_seo and designated_support were sold in the package comparison table
     // with no implementation.
     // Their constants are gone and PackageEntitlementSeeder.RetireWithdrawnFeaturesAsync deletes
     // the rows from existing databases. Do not re-add a constant without building the feature.
@@ -39,9 +39,7 @@ public static class PackageFeatureCodes
     public const string MultilingualEditor = "multilingual_editor";
     public const string ProspectManager = "prospect_manager";
     public const string ManagedBlog = "managed_blog";
-    public const string ManagedSeo = "managed_seo";
     public const string PayPalIntegration = "paypal_integration";
-    public const string DesignatedSupport = "designated_support";
     public const string ClientInvoicing = "client_invoicing";
     public const string ClientPortal = "client_portal";
     public const string GoogleCalendarSync = "google_calendar_sync";

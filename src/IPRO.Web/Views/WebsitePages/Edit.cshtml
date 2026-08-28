@@ -421,6 +421,22 @@
               </select>
             </div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Blog)
+          {
+            var blogSettings = IPRO.Entities.WebsiteBlogSettings.FromJson(block.SettingsJson);
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Posts to show</label>
+              <input type="number" name="blogPostCount" class="form-control" min="@IPRO.Entities.WebsiteBlogSettings.MinPostCount" max="@IPRO.Entities.WebsiteBlogSettings.MaxPostCount" value="@blogSettings.EffectivePostCount" />
+              <div class="form-text">Your newest published articles appear automatically &mdash; write them under <a href="/portal/Articles">Articles</a>. Visitors click a post to read it in full on this page.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Cover images</label>
+              <select name="blogShowImages" class="form-select">
+                <option value="true" selected="@(blogSettings.ShowImages ? "selected" : null)">Show images in the list</option>
+                <option value="false" selected="@(!blogSettings.ShowImages ? "selected" : null)">Titles and summaries only</option>
+              </select>
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ArticleContent)
           {
             var articleContentSettings = IPRO.Entities.WebsiteArticleContentSettings.FromJson(block.SettingsJson);

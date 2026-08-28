@@ -16,6 +16,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="IPRO.IntegrationTests" />
+  </ItemGroup>
 </Project>
 
 

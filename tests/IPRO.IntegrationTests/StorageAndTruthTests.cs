@@ -218,7 +218,8 @@ public class StorageAndTruthTests
         var controller = new ArticlesController(
             db,
             new PackageEntitlementService(new UnitOfWork(db), db),
-            new NullBlob());
+            new NullBlob(),
+            new NullAi());
         var context = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
@@ -250,6 +251,18 @@ public class StorageAndTruthTests
             dir = Path.GetDirectoryName(dir);
         Assert.NotNull(dir);
         return Path.Combine(dir!, relative);
+    }
+
+    private sealed class NullAi : IPRO.Business.Interfaces.IAiSuggestionService
+    {
+        public Task<IPRO.Business.Interfaces.AiActionReasonResult> GenerateActionReasonAsync(string situation, System.Threading.CancellationToken cancellationToken = default)
+            => Task.FromResult(IPRO.Business.Interfaces.AiActionReasonResult.Empty);
+        public Task<IPRO.Business.Interfaces.AiActionReasonResult> DraftSocialPostAsync(string topic, System.Threading.CancellationToken cancellationToken = default)
+            => Task.FromResult(IPRO.Business.Interfaces.AiActionReasonResult.Empty);
+        public Task<IPRO.Business.Interfaces.AiNewsletterDraftResult> DraftNewsletterAsync(string topic, System.Threading.CancellationToken cancellationToken = default)
+            => Task.FromResult(IPRO.Business.Interfaces.AiNewsletterDraftResult.Empty);
+        public Task<IPRO.Business.Interfaces.AiBlogPostDraftResult> DraftBlogPostAsync(string topic, System.Threading.CancellationToken cancellationToken = default)
+            => Task.FromResult(IPRO.Business.Interfaces.AiBlogPostDraftResult.Empty);
     }
 
     private sealed class NullBlob : IPRO.Utility.IBlobStorageService

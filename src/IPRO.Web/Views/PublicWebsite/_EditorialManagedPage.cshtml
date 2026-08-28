@@ -218,6 +218,48 @@
       </div></section>
     }
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Blog)
+  {
+    var blog = Model.BlogByBlockId.GetValueOrDefault(block.Id);
+    if (blog != null)
+    {
+      <section class="ep-section"><div class="ep-inner">
+        @if(!string.IsNullOrWhiteSpace(block.Subheading)){<div class="ep-kicker">@block.Subheading</div>}
+        @if(!string.IsNullOrWhiteSpace(block.Heading)){<h2>@block.Heading</h2>}
+        @if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-lead">@block.Body</p>}
+        @if (blog.SelectedPost != null)
+        {
+          var post = blog.SelectedPost;
+          <article style="margin-top:24px">
+            @if(!string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="" style="width:100%;max-height:420px;object-fit:cover;margin-bottom:20px" />}
+            <h3 style="margin-bottom:6px">@post.Title</h3>
+            @if(post.PublishedAt.HasValue){<div class="ep-kicker">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
+            <div style="margin-top:18px">@Html.Raw(post.Content)</div>
+          </article>
+          <p style="margin-top:28px"><a href="@Context.Request.Path">&larr; All posts</a></p>
+        }
+        else if (blog.IsEmpty)
+        {
+          <p class="ep-lead" style="margin-top:16px">No posts yet &mdash; check back soon.</p>
+        }
+        else
+        {
+          <div style="display:grid;gap:30px;margin-top:24px">
+            @foreach (var post in blog.Posts)
+            {
+              <article>
+                @if(blog.ShowImages && !string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="" style="width:100%;max-height:260px;object-fit:cover;margin-bottom:14px" loading="lazy" />}
+                <h3 style="margin:0 0 4px">@post.Title</h3>
+                @if(post.PublishedAt.HasValue){<div class="ep-kicker">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
+                @if(!string.IsNullOrWhiteSpace(post.Summary)){<p style="margin:10px 0 0">@post.Summary</p>}
+                <p style="margin:12px 0 0"><a href="@(Context.Request.Path)?post=@post.Id">Read more &rarr;</a></p>
+              </article>
+            }
+          </div>
+        }
+      </div></section>
+    }
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.SectionIndex)
   {
     if (sectionChildren.Count > 0)

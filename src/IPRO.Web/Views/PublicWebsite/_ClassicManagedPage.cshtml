@@ -206,6 +206,48 @@
       </section>
     }
   }
+  else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Blog)
+  {
+    var blog = Model.BlogByBlockId.GetValueOrDefault(block.Id);
+    if (blog != null)
+    {
+      <section class="cp-section">
+        @if(!string.IsNullOrWhiteSpace(block.Subheading)){<div class="cp-kicker">@block.Subheading</div>}
+        @if(!string.IsNullOrWhiteSpace(block.Heading)){<h2 class="h2 fw-bold">@block.Heading</h2>}
+        @if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}
+        @if (blog.SelectedPost != null)
+        {
+          var post = blog.SelectedPost;
+          <article class="mt-4">
+            @if(!string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="" style="width:100%;max-height:420px;object-fit:cover;margin-bottom:20px" />}
+            <h3 class="h3 fw-bold mb-1">@post.Title</h3>
+            @if(post.PublishedAt.HasValue){<div class="cp-kicker">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
+            <div class="cp-copy mt-3">@Html.Raw(post.Content)</div>
+          </article>
+          <p class="mt-4"><a href="@Context.Request.Path">&larr; All posts</a></p>
+        }
+        else if (blog.IsEmpty)
+        {
+          <p class="cp-copy mt-3">No posts yet &mdash; check back soon.</p>
+        }
+        else
+        {
+          <div class="mt-4">
+            @foreach (var post in blog.Posts)
+            {
+              <article class="mb-4 pb-4" style="border-bottom:1px solid var(--line)">
+                @if(blog.ShowImages && !string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="" style="width:100%;max-height:240px;object-fit:cover;margin-bottom:14px" loading="lazy" />}
+                <h3 class="h4 fw-bold mb-1">@post.Title</h3>
+                @if(post.PublishedAt.HasValue){<div class="cp-kicker">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
+                @if(!string.IsNullOrWhiteSpace(post.Summary)){<p class="cp-copy mt-2 mb-2">@post.Summary</p>}
+                <a href="@(Context.Request.Path)?post=@post.Id">Read more &rarr;</a>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
+  }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.SectionIndex)
   {
     if (sectionChildren.Count > 0)
