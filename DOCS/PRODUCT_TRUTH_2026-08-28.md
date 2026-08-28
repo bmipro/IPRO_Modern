@@ -63,12 +63,13 @@ line below is a **question for the owner**, not a finding.
 
 | Feature | Label sold | Packages |
 |---|---|---|
-| `ManagedBlog` | "One unique blog per month written and managed" | **Platinum, Broker** |
-| `ManagedSeo` | "Managed SEO for all pages" | **Platinum, Broker** |
-| `DesignatedSupport` | "Designated support" | Platinum |
+| `ManagedBlog` | RESOLVED 2026-08-28 -- **became a real product feature.** The Blog block lists the agent's own published articles on their site (inline `?post=` full view, no new route), and the article editor gained a Draft-with-AI button (gated by `AiDailyAssistant`, review-before-publish -- the author of record stays the human adviser). Label now "Blog on your website - publish your own articles". Same tiers. |
+| `ManagedSeo` | RESOLVED 2026-08-28 -- **WITHDRAWN** (owner decision). Promised ongoing human work; the SEO TOOLING that exists stays sold as the built-in SEO tool row. |
+| `DesignatedSupport` | RESOLVED 2026-08-28 -- **WITHDRAWN** (owner decision). (Was Broker-only, not Platinum as first drafted here -- the row was `no, no, no, all`.) Can return as package data if the commitment is ever made for real. |
 
-These need no code if IPRO delivers them by hand — but the business must actually be committed to
-delivering them from day one. **`ManagedBlog` is the exact claim the homepage audit flagged as a
+ALL THREE RESOLVED 2026-08-28: ManagedBlog became a real product feature; ManagedSeo and
+DesignatedSupport withdrawn. Section 3 is now fully dispositioned -- every feature the package
+table sells either exists or is gone. **`ManagedBlog` is the exact claim the homepage audit flagged as a
 service that did not exist.** (An earlier draft of this file said Gold+Platinum for these two; the Feature() signature is (silver, gold, platinum, broker), so `no, no, all, all` is Platinum+Broker. Corrected 2026-08-28.) If it is not being delivered, it must come out of the package data,
 not just out of the homepage copy — the table renders from the database.
 

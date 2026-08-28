@@ -935,6 +935,11 @@ public class PublicWebsiteController : Controller
         var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
         var didYouKnowByBlockId = await IPRO.Web.Infrastructure.DidYouKnowBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
         var articleContentByBlockId = await IPRO.Web.Infrastructure.ArticleContentBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
+        // ?post=<id> is how a Blog block shows one post in full without needing its own route
+        // (see WebsiteBlogSettings for why). A bad or foreign id simply resolves to nothing and
+        // the block renders its list instead.
+        _ = int.TryParse(Request.Query["post"], out var selectedPostId);
+        var blogByBlockId = await IPRO.Web.Infrastructure.BlogBuilder.BuildAsync(_db, website.AgentUserId, currentPage, selectedPostId);
 
         return View("Index", new PublicWebsiteViewModel
         {
@@ -946,7 +951,8 @@ public class PublicWebsiteController : Controller
             PollResultsByBlockId = pollResultsByBlockId,
             FormsByBlockId = formsByBlockId,
             DidYouKnowByBlockId = didYouKnowByBlockId,
-            ArticleContentByBlockId = articleContentByBlockId
+            ArticleContentByBlockId = articleContentByBlockId,
+            BlogByBlockId = blogByBlockId
         });
     }
 

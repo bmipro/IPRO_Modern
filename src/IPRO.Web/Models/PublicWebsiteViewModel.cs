@@ -23,4 +23,5 @@ public class PublicWebsiteViewModel
     public Dictionary<int, PublicFormBlockData> FormsByBlockId { get; set; } = new();
     public Dictionary<int, DidYouKnowBlockData> DidYouKnowByBlockId { get; set; } = new();
     public Dictionary<int, Article> ArticleContentByBlockId { get; set; } = new();
+    public Dictionary<int, BlogBlockData> BlogByBlockId { get; set; } = new();
 }

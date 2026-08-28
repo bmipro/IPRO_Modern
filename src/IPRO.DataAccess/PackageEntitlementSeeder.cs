@@ -217,7 +217,12 @@ public static class PackageEntitlementSeeder
         // judged not worth building: most sites send X-Frame-Options/CSP that refuse framing, so
         // it would silently render blank for many URLs, and framing arbitrary sites is a phishing
         // surface. The embeds that matter -- Video and Maps -- already exist as their own blocks.
-        "framed_link_manager"
+        "framed_link_manager",
+        // Withdrawn 2026-08-28, same round: both promised ongoing HUMAN work ("Managed SEO for all
+        // pages"; "Designated support") that the business is not committing to at launch. The SEO
+        // TOOLING that exists (meta descriptions, sitemap, robots) stays sold as the built-in SEO
+        // tool row; a support commitment can return as package data if it is ever made for real.
+        "managed_seo", "designated_support"
     };
 
     internal const string MultilingualFeatureName = "Supports multilingual content (paste from any editor)";
@@ -230,7 +235,14 @@ public static class PackageEntitlementSeeder
     internal static readonly (string Code, string Name)[] RenamedFeatures =
     {
         (PackageFeatureCodes.MultilingualEditor, MultilingualFeatureName),
-        (PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link")
+        (PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link"),
+        //   managed_blog -- the code name is historical. The feature USED to promise "one unique blog
+        //     per month written and managed", a service that was never delivered and which the
+        //     homepage audit flagged. As of 2026-08-28 it is a real product feature instead: the Blog
+        //     block, which lists the agent's own published articles on their site. AI drafting help
+        //     is NOT part of this row -- that is gated by AiDailyAssistant, so the two can be
+        //     unbundled later.
+        (PackageFeatureCodes.ManagedBlog, "Blog on your website - publish your own articles")
     };
 
     private static async Task RetireWithdrawnFeaturesAsync(IPRODbContext db)
@@ -338,10 +350,8 @@ public static class PackageEntitlementSeeder
             Feature(330, PackageFeatureCodes.TestimonialManager, "Testimonial manager", all, all, all, all),
             Feature(340, PackageFeatureCodes.MultilingualEditor, "Supports multilingual content (paste from any editor)", all, all, all, all),
             Feature(350, PackageFeatureCodes.ProspectManager, "Prospect manager", all, all, all, all),
-            Feature(360, PackageFeatureCodes.ManagedBlog, "One unique blog per month written and managed", no, no, all, all),
-            Feature(370, PackageFeatureCodes.ManagedSeo, "Managed SEO for all pages", no, no, all, all),
+            Feature(360, PackageFeatureCodes.ManagedBlog, "Blog on your website - publish your own articles", no, no, all, all),
             Feature(380, PackageFeatureCodes.PayPalIntegration, "PayPal integration", no, no, all, all),
-            Feature(390, PackageFeatureCodes.DesignatedSupport, "Designated support", no, no, no, all),
             Feature(400, PackageFeatureCodes.ClientInvoicing, "Client invoicing and estimates", no, no, all, all),
             Feature(410, PackageFeatureCodes.ClientPortal, "Client portal (login, messages, documents, appointments)", no, no, all, all),
             Feature(420, PackageFeatureCodes.GoogleCalendarSync, "Google Calendar two-way sync", no, no, all, all),

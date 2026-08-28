@@ -23,7 +23,8 @@ namespace IPRO.IntegrationTests;
 public class WithdrawnFeatureTests
 {
     private static readonly string[] Withdrawn =
-        { "rotating_banner", "newsboard", "mail_merge", "printable_label_creator", "framed_link_manager" };
+        { "rotating_banner", "newsboard", "mail_merge", "printable_label_creator", "framed_link_manager",
+          "managed_seo", "designated_support" };
 
     [Fact]
     public async Task Withdrawn_features_are_deleted_from_a_database_that_already_sells_them()
@@ -120,7 +121,7 @@ public class WithdrawnFeatureTests
         var seeder = File.ReadAllText(FindRepoFile(@"src\IPRO.DataAccess\PackageEntitlementSeeder.cs"));
         var definitions = seeder[..seeder.IndexOf("RetiredFeatureCodes", StringComparison.Ordinal)];
 
-        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator", "FramedLinkManager" })
+        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator", "FramedLinkManager", "ManagedSeo", "DesignatedSupport" })
         {
             Assert.DoesNotContain($"PackageFeatureCodes.{name}", definitions);
         }
@@ -128,7 +129,7 @@ public class WithdrawnFeatureTests
         // And the constants themselves are retired, so a future edit cannot casually re-add a
         // Feature() line for one of them.
         var codes = File.ReadAllText(FindRepoFile(@"src\IPRO.Entities\PackageFeatureCodes.cs"));
-        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator", "FramedLinkManager" })
+        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator", "FramedLinkManager", "ManagedSeo", "DesignatedSupport" })
         {
             Assert.DoesNotContain($"public const string {name} ", codes);
         }

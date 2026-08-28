@@ -1,6 +1,8 @@
 @model IPRO.Entities.Article
 @{
     ViewData["Title"] = "New Article";
+    var aiAccess = ViewBag.AiAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+    var aiLocked = aiAccess?.IsIncluded != true;
 }
 
 <h2 class="fw-bold mb-4"><i class="fas fa-file-lines me-2 text-success"></i>New Article</h2>
@@ -10,6 +12,22 @@
   <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
       <div class="row g-3">
+        <div class="col-12">
+          @* Mirrors Newsletter/Create's Draft-with-AI panel: same gate (AiDailyAssistant), same
+             upgrade-lock attributes, same review-first contract -- the draft fills the form and
+             the agent edits and publishes; it is never saved automatically. *@
+          <label class="form-label fw-semibold">Draft with AI <span class="text-muted fw-normal">(optional)</span></label>
+          <div class="d-flex gap-2">
+            <input type="text" id="articleTopic" class="form-control" maxlength="200" placeholder="e.g. Why life insurance needs change after a home purchase"/>
+            <button type="button" id="draftAiBtn" class="btn btn-outline-primary text-nowrap"
+                    data-upgrade-lock="@(aiLocked ? "true" : "false")"
+                    data-upgrade-title="@(aiAccess?.FeatureName ?? "AI Assistant")"
+                    data-upgrade-message="@(aiAccess?.UpgradeMessage ?? "AI drafting requires a package upgrade.")">
+              <i class="fas fa-wand-magic-sparkles me-1"></i>Draft with AI
+            </button>
+          </div>
+          <div class="form-text mb-3">Enter a topic and AI drafts the title, summary and content below for you to review and edit before publishing.</div>
+        </div>
         <div class="col-12">
           <label class="form-label fw-semibold">Title</label>
           <input type="text" name="Title" class="form-control" value="@Model.Title" required />
@@ -41,3 +59,42 @@
     </div>
   </div>
 </form>
+
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  const draftBtn = document.getElementById('draftAiBtn');
+  if (!draftBtn || draftBtn.dataset.upgradeLock === 'true') return;
+
+  draftBtn.addEventListener('click', async function () {
+    const topic = document.getElementById('articleTopic').value.trim();
+    if (!topic) { alert('Enter a topic first, then draft with AI.'); return; }
+    const original = draftBtn.innerHTML;
+    draftBtn.disabled = true;
+    draftBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Drafting...';
+    try {
+      const formData = new FormData();
+      formData.append('topic', topic);
+      formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+      const res = await fetch('/portal/Articles/DraftWithAi', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        document.querySelector('input[name="Title"]').value = data.title;
+        document.querySelector('input[name="Summary"]').value = data.summary;
+        const hidden = document.getElementById('articleContent');
+        const visual = document.getElementById('articleContent-visual');
+        const source = document.getElementById('articleContent-source');
+        if (hidden) hidden.value = data.body;
+        if (visual) visual.innerHTML = data.body;
+        if (source) source.value = data.body;
+      } else {
+        alert(data.error || 'Could not draft an article right now.');
+      }
+    } catch (e) {
+      alert('Could not draft an article right now.');
+    } finally {
+      draftBtn.disabled = false;
+      draftBtn.innerHTML = original;
+    }
+  });
+})();
+</script>

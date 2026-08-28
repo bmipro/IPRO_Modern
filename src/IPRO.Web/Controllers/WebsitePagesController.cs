@@ -347,6 +347,7 @@ public class WebsitePagesController : Controller
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
         bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
+        int blogPostCount = 6, bool blogShowImages = true,
         string videoUrl = "", string calculatorKind = "")
     {
         var ownedPageId = await _db.WebsiteContentBlocks
@@ -370,7 +371,8 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl, calculatorKind);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId,
+            blogPostCount, blogShowImages, videoUrl, calculatorKind);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -774,6 +776,18 @@ public class WebsitePagesController : Controller
                 return RedirectToAction(nameof(Edit), new { id = pageId });
             }
         }
+        // The Blog block is a paid feature (Platinum/Broker today). Gated HERE, not only in the
+        // picker, because a crafted POST reaches this action directly -- the same hole M2 closed on
+        // RebuildRequestMeeting.
+        if (blockType == WebsiteBlockTypes.Blog)
+        {
+            var blogAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ManagedBlog);
+            if (!blogAccess.IsIncluded)
+            {
+                TempData["Error"] = blogAccess.UpgradeMessage;
+                return RedirectToAction(nameof(Edit), new { id = pageId });
+            }
+        }
         if (blockType == WebsiteBlockTypes.PollResults)
         {
             var pollAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.PollSurveys);
@@ -826,6 +840,7 @@ public class WebsitePagesController : Controller
         string reviewPlatform = "Google", string reviewUrl = "", decimal reviewRating = 5.0m, int reviewCount = 0,
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
         bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
+        int blogPostCount = 6, bool blogShowImages = true,
         string videoUrl = "", string calculatorKind = "")
     {
         var block = await _db.WebsiteContentBlocks
@@ -837,7 +852,8 @@ public class WebsitePagesController : Controller
             heroLayout, imagePosition, textAlignment, bannerHeight, overlayStrength, layoutVariant,
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
-            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId, videoUrl, calculatorKind);
+            mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId,
+            blogPostCount, blogShowImages, videoUrl, calculatorKind);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -854,6 +870,7 @@ public class WebsitePagesController : Controller
         string reviewPlatform, string reviewUrl, decimal reviewRating, int reviewCount,
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
         bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int[]? articleIds, string layoutStyle = "auto", int articleId = 0,
+        int blogPostCount = 6, bool blogShowImages = true,
         string videoUrl = "", string calculatorKind = "")
     {
         block.Heading = heading?.Trim() ?? string.Empty;
@@ -881,6 +898,16 @@ public class WebsitePagesController : Controller
             block.SettingsJson = new WebsitePollResultsSettings
             {
                 PollSurveyId = pollBelongsToAgent ? pollSurveyId : 0
+            }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.Blog)
+        {
+            // Count is clamped by EffectivePostCount on READ as well, so even a hand-crafted POST
+            // cannot make a public page ask for thousands of rows.
+            block.SettingsJson = new WebsiteBlogSettings
+            {
+                PostCount = blogPostCount,
+                ShowImages = blogShowImages
             }.ToJson();
         }
         else if (block.BlockType == WebsiteBlockTypes.LeadMagnet)

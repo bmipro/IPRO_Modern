@@ -23,10 +23,14 @@ public static class WebsiteBlockTypes
     // Lists the current page's own child pages. Needs no settings -- it reads the page tree, so a
     // section landing page stays correct as pages are added or renamed under it.
     public const string SectionIndex = "SectionIndex";
+    // 2026-08-28: the LISTING the product was missing. Articles already carried everything a
+    // post needs; only an index of them did not exist, so showing ten posts meant ten pages
+    // linked by hand.
+    public const string Blog = "Blog";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex, Blog
     };
 
     public static string DisplayName(string type) => type switch
@@ -43,6 +47,7 @@ public static class WebsiteBlockTypes
         Gallery => "Photo Gallery",
         Calculator => "Calculator",
         SectionIndex => "Sub-Page Links",
+        Blog => "Blog",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }
