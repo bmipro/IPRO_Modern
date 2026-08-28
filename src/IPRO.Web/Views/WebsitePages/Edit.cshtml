@@ -102,7 +102,7 @@
   <section class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-        <div><h4 class="fw-bold mb-1"><i class="fas fa-images me-2 text-primary"></i>Image Library</h4><div class="text-muted small">Upload an image once, then select it in any content block.</div></div>
+        <div><h4 class="fw-bold mb-1"><i class="fas fa-images me-2 text-primary"></i>Image Library</h4><div class="text-muted small">Upload an image once, then select it in a Hero or Text block on this page. Blog and Article blocks use each article's own cover image (set under <a href="/portal/Articles">Articles</a>) &mdash; this library does not affect them.</div></div>
         <form method="post" action="/portal/WebsitePages/UploadImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
           @Html.AntiForgeryToken()
           <input type="hidden" name="pageId" value="@sitePage.Id" />
@@ -137,7 +137,7 @@
       }
       else
       {
-        <div class="small text-muted mb-3">Add a Hero or Text block to this page to apply an uploaded image to it.</div>
+        <div class="small text-muted mb-3"><strong>Nothing on this page uses library images yet</strong> &mdash; add a Hero or Text block to apply one. Images shown by a Blog or Article block come from the article itself, not from here.</div>
       }
       @if (Model.MediaAssets.Any())
       {
@@ -427,7 +427,7 @@
             <div class="col-md-6">
               <label class="form-label fw-semibold">Posts to show</label>
               <input type="number" name="blogPostCount" class="form-control" min="@IPRO.Entities.WebsiteBlogSettings.MinPostCount" max="@IPRO.Entities.WebsiteBlogSettings.MaxPostCount" value="@blogSettings.EffectivePostCount" />
-              <div class="form-text">Your newest published articles appear automatically &mdash; write them under <a href="/portal/Articles">Articles</a>. Visitors click a post to read it in full on this page.</div>
+              <div class="form-text">Your newest published articles appear automatically &mdash; write them under <a href="/portal/Articles">Articles</a>. Visitors click a post to read it in full on this page. Post images come from each article's own cover image (set when editing the article) &mdash; the page Image Library above does not affect this block.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Cover images</label>

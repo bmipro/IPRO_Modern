@@ -94,12 +94,71 @@ public class StorageAndTruthTests
 
         var controller = NewController(db, seed.AgentId);
         var result = await controller.Edit(
-            new Article { Id = article.Id, Title = "Existing" }, PngFormFile(300 * 1024));
+            new Article { Id = article.Id, Title = "Existing" }, PngFormFile(300 * 1024), removeImage: false);
 
         Assert.IsType<RedirectToActionResult>(result);
         db.ChangeTracker.Clear();
         var after = await db.Articles.SingleAsync(a => a.Id == article.Id);
         Assert.Equal(300 * 1024, after.ImageSizeBytes);
+    }
+
+    [Fact]
+    public async Task Removing_an_article_image_clears_the_pointer_and_frees_the_quota_bytes()
+    {
+        // Owner-found 2026-08-28: no remove path existed -- the M9 wave recorded its absence as
+        // making the "bytes never reset" clause void, and the owner promptly proved the absence
+        // was itself the defect. Removal must clear BOTH the pointer and the pool accounting.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedAgentAsync(db, limitMb: 10, usedDocumentBytes: 0);
+        var article = new Article
+        {
+            AgentUserId = seed.AgentId, Title = "Covered",
+            ImageUrl = "https://blob.example.test/article-media/cover.png",
+            ImageSizeBytes = 500 * 1024,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        db.Add(article);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var controller = NewController(db, seed.AgentId);
+        var result = await controller.Edit(new Article { Id = article.Id, Title = "Covered" }, null, removeImage: true);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        db.ChangeTracker.Clear();
+        var after = await db.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
+        Assert.Equal(string.Empty, after.ImageUrl);
+        Assert.Equal(0, after.ImageSizeBytes);
+        Assert.Equal(0, await AgentStorageUsage.TotalBytesAsync(db, seed.AgentId));
+    }
+
+    [Fact]
+    public async Task A_new_upload_in_the_same_save_wins_over_the_remove_tick()
+    {
+        // Replacing IS removing plus adding -- a stale checkbox must not strip the image the
+        // agent is uploading right now.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedAgentAsync(db, limitMb: 10, usedDocumentBytes: 0);
+        var article = new Article
+        {
+            AgentUserId = seed.AgentId, Title = "Covered",
+            ImageUrl = "https://blob.example.test/article-media/old.png",
+            ImageSizeBytes = 500 * 1024,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        db.Add(article);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var controller = NewController(db, seed.AgentId);
+        await controller.Edit(new Article { Id = article.Id, Title = "Covered" }, PngFormFile(200 * 1024), removeImage: true);
+        db.ChangeTracker.Clear();
+
+        var after = await db.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
+        Assert.NotEqual(string.Empty, after.ImageUrl);
+        Assert.Equal(200 * 1024, after.ImageSizeBytes);
     }
 
     // ---------------------------------------------------------------- M10: display honesty --

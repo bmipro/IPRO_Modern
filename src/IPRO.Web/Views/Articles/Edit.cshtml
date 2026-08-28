@@ -34,6 +34,13 @@
           }
           <input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
           <div class="form-text">Uploading a new image replaces the current one.</div>
+          @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+          {
+            <div class="form-check mt-2">
+              <input type="checkbox" name="removeImage" value="true" class="form-check-input" id="removeImage" />
+              <label class="form-check-label" for="removeImage">Remove this image &mdash; the article (and any blog listing showing it) will have no cover</label>
+            </div>
+          }
         </div>
         <div class="col-12 form-check">
           <input type="checkbox" name="IsPublished" value="true" class="form-check-input" id="isPublished" checked="@(Model.IsPublished ? "checked" : null)" />

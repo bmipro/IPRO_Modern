@@ -2188,7 +2188,8 @@ public class PayPalBillingService : IBillingService
         // so an agent who closed the PayPal tab was silently stuck (review pass). Unpaid until the
         // checkout completes, settled the moment it does; the webhook's oldest-unpaid fallback
         // skips $0 rows either way.
-        var invoice = await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, amountDue, setupFee, false);
+        var invoice = await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, amountDue, setupFee, false,
+            recurringLineLabel: ChangeInvoiceRecurringLabel(changeType, requestedPackage.PackageName, period, billing.NextBillingDate));
 
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
         {
@@ -2789,13 +2790,23 @@ public class PayPalBillingService : IBillingService
         return await CreateInvoiceAsync(billingId, userId, package, billing.Period, amount, 0, isPaid);
     }
 
+    // The truthful description for the money line on a plan-change invoice. An UPGRADE's amount is
+    // a one-time prorated top-up for the stretch the agent has already paid through -- calling it a
+    // "monthly recurring subscription" (which it did until 2026-08-28) told the customer their
+    // recurring price was the prorated figure. The owner's own live upgrade read as a billing bug
+    // for exactly that reason; a paying customer would have been on the phone.
+    internal static string ChangeInvoiceRecurringLabel(SubscriptionChangeType changeType, string packageName, BillingPeriod period, DateTime? paidThrough) =>
+        changeType == SubscriptionChangeType.Upgrade && paidThrough.HasValue
+            ? $"Upgrade to {packageName} - one-time prorated difference through {paidThrough.Value:MMMM d, yyyy}"
+            : $"{packageName} {FormatPeriod(period)} recurring subscription";
+
     private async Task<IPRO.Entities.Invoice> CreateInvoiceAsync(int billingId, int userId, BillingRule package, BillingPeriod period, decimal recurringAmount, decimal setupFee, bool isPaid,
-        decimal? taxRateOverride = null, string? taxRegionOverride = null)
+        decimal? taxRateOverride = null, string? taxRegionOverride = null, string? recurringLineLabel = null)
     {
         var lineItems = new List<InvoiceLineDraft>();
         if (recurringAmount > 0)
         {
-            lineItems.Add(new InvoiceLineDraft($"{package.PackageName} {FormatPeriod(period)} recurring subscription", recurringAmount));
+            lineItems.Add(new InvoiceLineDraft(recurringLineLabel ?? $"{package.PackageName} {FormatPeriod(period)} recurring subscription", recurringAmount));
         }
 
         if (setupFee > 0)

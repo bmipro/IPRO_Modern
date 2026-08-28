@@ -153,7 +153,7 @@ public class ArticlesController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     [RequestSizeLimit(8 * 1024 * 1024)]
-    public async Task<IActionResult> Edit(Article model, IFormFile? image)
+    public async Task<IActionResult> Edit(Article model, IFormFile? image, bool removeImage = false)
     {
         var gate = await RequireArticlesAccessAsync();
         if (gate != null) return gate;
@@ -171,6 +171,17 @@ public class ArticlesController : Controller
         }
 
         string? replacedImageUrl = null;
+        // Owner-found 2026-08-28: there was no way to take a cover OFF an article -- only replace
+        // it or delete the whole article. Removal clears the pointer and the quota bytes; the
+        // blob itself goes through the same shared-reference guard as a replacement, so starter
+        // artwork other agents still point at is never destroyed. A new upload in the same save
+        // wins over the tick -- replacing IS removing plus adding.
+        if (removeImage && (image == null || image.Length == 0) && !string.IsNullOrWhiteSpace(existing.ImageUrl))
+        {
+            replacedImageUrl = existing.ImageUrl;
+            existing.ImageUrl = string.Empty;
+            existing.ImageSizeBytes = 0;
+        }
         if (image != null && image.Length > 0)
         {
             // M9, replacement flavour: the outgoing image's bytes leave the pool as the new ones
