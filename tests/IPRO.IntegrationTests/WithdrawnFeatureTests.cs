@@ -23,7 +23,7 @@ namespace IPRO.IntegrationTests;
 public class WithdrawnFeatureTests
 {
     private static readonly string[] Withdrawn =
-        { "rotating_banner", "newsboard", "mail_merge", "printable_label_creator" };
+        { "rotating_banner", "newsboard", "mail_merge", "printable_label_creator", "framed_link_manager" };
 
     [Fact]
     public async Task Withdrawn_features_are_deleted_from_a_database_that_already_sells_them()
@@ -48,6 +48,11 @@ public class WithdrawnFeatureTests
             BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.MultilingualEditor,
             FeatureName = "Multilingual editor support", IsIncluded = true, SortOrder = 340
         });
+        db.Add(new PackageFeature
+        {
+            BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.CustomHomeButtons,
+            FeatureName = "Create custom buttons on home page", IsIncluded = true, SortOrder = 200
+        });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
@@ -68,6 +73,14 @@ public class WithdrawnFeatureTests
         Assert.NotEmpty(multilingual);
         Assert.All(multilingual, f => Assert.Equal(
             "Supports multilingual content (paste from any editor)", f.FeatureName));
+
+        // Same treatment for the other real-but-misnamed one: the CallToAction block carries the
+        // agent's own button text and link, on any page -- not just the home page.
+        var cta = await db.PackageFeatures.AsNoTracking()
+            .Where(f => f.FeatureCode == PackageFeatureCodes.CustomHomeButtons).ToListAsync();
+        Assert.NotEmpty(cta);
+        Assert.All(cta, f => Assert.Equal(
+            "Call-to-action sections with your own button text and link", f.FeatureName));
     }
 
     [Fact]
@@ -107,7 +120,7 @@ public class WithdrawnFeatureTests
         var seeder = File.ReadAllText(FindRepoFile(@"src\IPRO.DataAccess\PackageEntitlementSeeder.cs"));
         var definitions = seeder[..seeder.IndexOf("RetiredFeatureCodes", StringComparison.Ordinal)];
 
-        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator" })
+        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator", "FramedLinkManager" })
         {
             Assert.DoesNotContain($"PackageFeatureCodes.{name}", definitions);
         }
@@ -115,7 +128,7 @@ public class WithdrawnFeatureTests
         // And the constants themselves are retired, so a future edit cannot casually re-add a
         // Feature() line for one of them.
         var codes = File.ReadAllText(FindRepoFile(@"src\IPRO.Entities\PackageFeatureCodes.cs"));
-        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator" })
+        foreach (var name in new[] { "RotatingBanner", "Newsboard", "MailMerge", "PrintableLabelCreator", "FramedLinkManager" })
         {
             Assert.DoesNotContain($"public const string {name} ", codes);
         }
