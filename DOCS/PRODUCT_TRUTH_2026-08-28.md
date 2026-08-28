@@ -63,13 +63,13 @@ line below is a **question for the owner**, not a finding.
 
 | Feature | Label sold | Packages |
 |---|---|---|
-| `ManagedBlog` | "One unique blog per month written and managed" | Gold, Platinum |
-| `ManagedSeo` | "Managed SEO for all pages" | Gold, Platinum |
+| `ManagedBlog` | "One unique blog per month written and managed" | **Platinum, Broker** |
+| `ManagedSeo` | "Managed SEO for all pages" | **Platinum, Broker** |
 | `DesignatedSupport` | "Designated support" | Platinum |
 
 These need no code if IPRO delivers them by hand — but the business must actually be committed to
 delivering them from day one. **`ManagedBlog` is the exact claim the homepage audit flagged as a
-service that did not exist.** If it is not being delivered, it must come out of the package data,
+service that did not exist.** (An earlier draft of this file said Gold+Platinum for these two; the Feature() signature is (silver, gold, platinum, broker), so `no, no, all, all` is Platinum+Broker. Corrected 2026-08-28.) If it is not being delivered, it must come out of the package data,
 not just out of the homepage copy — the table renders from the database.
 
 ### 3b. RESOLVED 2026-08-28 (owner decision) -- four withdrawn, one renamed
@@ -81,7 +81,7 @@ not just out of the homepage copy — the table renders from the database.
 | `Newsboard` | **WITHDRAWN** -- same |
 | `RotatingBanner` | **WITHDRAWN** -- same |
 | `MultilingualEditor` | **KEPT, RENAMED** to "Supports multilingual content (paste from any editor)". The capability is real -- an agent writes in any editor and pastes it in; `bahmanmotamed.247advisers.com/article` is a live Farsi article created exactly that way. The old wording implied an editor we ship. |
-| `FramedLinkManager` | **STILL OPEN** -- see below |
+| `FramedLinkManager` | **WITHDRAWN 2026-08-28** (owner agreed) -- the embeds that matter, Video and Maps, already exist as their own blocks |
 
 Withdrawn means the row is DELETED, not un-ticked: the comparison table renders one row per
 PackageFeature that exists, so an un-ticked row would still advertise the name with a dash against
@@ -100,7 +100,7 @@ surface. Recommendation: retire it like the other four unless there is a specifi
 | Feature | Label sold | Candidate existing feature |
 |---|---|---|
 | `RotatingBanner` | RESOLVED 2026-08-28 -- WITHDRAWN (see 3b). No rotating banner exists: the Gallery carousel and the static CallToAction "banner" variant are different things. |
-| `CustomHomeButtons` | STILL OPEN. The `CallToAction` block (banner/card/split variants) is a fair match -- rename it, or withdraw it. |
+| `CustomHomeButtons` | RESOLVED 2026-08-28 -- **RENAMED** to "Call-to-action sections with your own button text and link". The block carries the agent's own ButtonText/ButtonUrl in three layouts and works on any page, not just home. |
 | `Newsboard` | RESOLVED 2026-08-28 -- WITHDRAWN (see 3b). |
 
 ### 3d. Already honest — no action

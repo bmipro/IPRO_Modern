@@ -212,10 +212,26 @@ public static class PackageEntitlementSeeder
     // every startup.
     private static readonly string[] RetiredFeatureCodes =
     {
-        "rotating_banner", "newsboard", "mail_merge", "printable_label_creator"
+        "rotating_banner", "newsboard", "mail_merge", "printable_label_creator",
+        // Retired 2026-08-28 in the same decision round. A general "frame any URL" block was
+        // judged not worth building: most sites send X-Frame-Options/CSP that refuse framing, so
+        // it would silently render blank for many URLs, and framing arbitrary sites is a phishing
+        // surface. The embeds that matter -- Video and Maps -- already exist as their own blocks.
+        "framed_link_manager"
     };
 
     internal const string MultilingualFeatureName = "Supports multilingual content (paste from any editor)";
+
+    // Features that are REAL but were sold under a name that overstated or misdescribed them.
+    // Renamed rather than withdrawn: the capability exists, only the wording was wrong.
+    //   custom_home_buttons -- the CallToAction block. It carries the agent's own ButtonText and
+    //     ButtonUrl in three layouts (banner/card/split), so "custom buttons" is fair -- but it is
+    //     a call-to-action SECTION and works on any page, not just the home page.
+    internal static readonly (string Code, string Name)[] RenamedFeatures =
+    {
+        (PackageFeatureCodes.MultilingualEditor, MultilingualFeatureName),
+        (PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link")
+    };
 
     private static async Task RetireWithdrawnFeaturesAsync(IPRODbContext db)
     {
@@ -230,15 +246,16 @@ public static class PackageEntitlementSeeder
             changed = true;
         }
 
-        var multilingual = await db.PackageFeatures
-            .Where(f => f.FeatureCode == PackageFeatureCodes.MultilingualEditor)
-            .ToListAsync();
-        foreach (var feature in multilingual)
+        foreach (var (code, name) in RenamedFeatures)
         {
-            if (feature.FeatureName != MultilingualFeatureName)
+            var rows = await db.PackageFeatures.Where(f => f.FeatureCode == code).ToListAsync();
+            foreach (var feature in rows)
             {
-                feature.FeatureName = MultilingualFeatureName;
-                changed = true;
+                if (feature.FeatureName != name)
+                {
+                    feature.FeatureName = name;
+                    changed = true;
+                }
             }
         }
 
@@ -306,7 +323,7 @@ public static class PackageEntitlementSeeder
             Feature(150, PackageFeatureCodes.FileUploadCapacity, "File upload capacity", new FeatureValue(true, 50, "50 MB"), new FeatureValue(true, 500, "500 MB"), new FeatureValue(true, 1000, "1000 MB"), new FeatureValue(true, 1000, "1000 MB/per user")),
             Feature(160, PackageFeatureCodes.CouponManager, "Coupon manager", no, all, all, all),
             Feature(170, PackageFeatureCodes.MultiDomainSupport, "Multi domain support", new FeatureValue(true, 2, "2"), unlimited, unlimited, unlimited),
-            Feature(200, PackageFeatureCodes.CustomHomeButtons, "Create custom buttons on home page", all, all, all, all),
+            Feature(200, PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link", all, all, all, all),
             Feature(210, PackageFeatureCodes.NeedsAnalysisCalculator, "Need analysis calculator", all, all, all, all),
             Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO tool", all, all, all, all),
             Feature(230, PackageFeatureCodes.DidYouKnowManager, "Did you know manager", all, all, all, all),
@@ -317,7 +334,6 @@ public static class PackageEntitlementSeeder
             Feature(280, PackageFeatureCodes.VisitorTracking, "Detailed visitor/hits tracking system", all, all, all, all),
             Feature(290, PackageFeatureCodes.CustomWebPages, "Custom web pages", all, all, all, all),
             Feature(300, PackageFeatureCodes.SocialMediaIntegration, "Social media integration", all, all, all, all),
-            Feature(310, PackageFeatureCodes.FramedLinkManager, "Framed link manager", all, all, all, all),
             Feature(320, PackageFeatureCodes.MenuCreator, "Menu and sub-menu creator", all, all, all, all),
             Feature(330, PackageFeatureCodes.TestimonialManager, "Testimonial manager", all, all, all, all),
             Feature(340, PackageFeatureCodes.MultilingualEditor, "Supports multilingual content (paste from any editor)", all, all, all, all),
