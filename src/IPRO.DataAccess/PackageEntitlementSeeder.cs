@@ -30,6 +30,7 @@ public static class PackageEntitlementSeeder
             await EnsureFeaturesAsync(db, packages);
             await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
             await RepairSmsReminderEntitlementAsync(db);
+            await RetireWithdrawnFeaturesAsync(db);
         });
     }
 
@@ -187,6 +188,66 @@ public static class PackageEntitlementSeeder
     //
     // If SMS is ever built: flip the definition in BuildFeatureDefinitions, and DELETE this method
     // rather than leaving it to switch the feature back off on every startup.
+    // Owner decision 2026-08-28: four features were sold in every package's comparison table with
+    // no implementation anywhere in the codebase -- rotating banner, newsboard, mail merge and
+    // printable label creator. They are WITHDRAWN, not deferred: their definitions are gone from
+    // BuildFeatureDefinitions above, and this deletes the rows an existing database already has.
+    //
+    // Deleting rather than un-ticking is deliberate. The homepage comparison table renders one row
+    // per PackageFeature that exists, so an un-ticked row would still show the feature name with a
+    // dash against every plan -- advertising something we do not build. The row has to go.
+    //
+    // The fifth, MultilingualEditor, is KEPT and RENAMED. The capability is real but it is not an
+    // editor we ship: an agent writes in whatever editor they like and pastes the content in, and
+    // it renders correctly -- bahmanmotamed.247advisers.com/article is a live Farsi article created
+    // exactly that way. "Multilingual editor support" implied a product feature; the new wording
+    // describes what actually happens.
+    //
+    // Same reasoning as RepairSmsReminderEntitlementAsync below: EnsureFeaturesAsync only ever ADDS
+    // missing rows and never re-syncs an existing row's name or IsIncluded, so changing the
+    // definitions alone would fix fresh installs and leave production selling all five forever.
+    //
+    // A permanent no-op once it has run. If any of the four is ever built, re-add its definition
+    // and DELETE its code from RetiredFeatureCodes rather than leaving this to delete the rows on
+    // every startup.
+    private static readonly string[] RetiredFeatureCodes =
+    {
+        "rotating_banner", "newsboard", "mail_merge", "printable_label_creator"
+    };
+
+    internal const string MultilingualFeatureName = "Supports multilingual content (paste from any editor)";
+
+    private static async Task RetireWithdrawnFeaturesAsync(IPRODbContext db)
+    {
+        var withdrawn = await db.PackageFeatures
+            .Where(f => RetiredFeatureCodes.Contains(f.FeatureCode))
+            .ToListAsync();
+
+        var changed = false;
+        if (withdrawn.Count > 0)
+        {
+            db.PackageFeatures.RemoveRange(withdrawn);
+            changed = true;
+        }
+
+        var multilingual = await db.PackageFeatures
+            .Where(f => f.FeatureCode == PackageFeatureCodes.MultilingualEditor)
+            .ToListAsync();
+        foreach (var feature in multilingual)
+        {
+            if (feature.FeatureName != MultilingualFeatureName)
+            {
+                feature.FeatureName = MultilingualFeatureName;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
     private static async Task RepairSmsReminderEntitlementAsync(IPRODbContext db)
     {
         var rows = await db.PackageFeatures
@@ -242,13 +303,9 @@ public static class PackageEntitlementSeeder
             Feature(100, PackageFeatureCodes.WebsiteDesign, "Pre-formatted website design", all, all, all, all),
             Feature(110, PackageFeatureCodes.Newsletters, "Create and send newsletters", all, all, all, all),
             Feature(120, PackageFeatureCodes.SupportTraining, "Support and training", limited, unlimited, unlimited, unlimited),
-            Feature(130, PackageFeatureCodes.RotatingBanner, "Rotating banner", no, all, all, all),
-            Feature(140, PackageFeatureCodes.Newsboard, "Newsboard", all, all, all, all),
             Feature(150, PackageFeatureCodes.FileUploadCapacity, "File upload capacity", new FeatureValue(true, 50, "50 MB"), new FeatureValue(true, 500, "500 MB"), new FeatureValue(true, 1000, "1000 MB"), new FeatureValue(true, 1000, "1000 MB/per user")),
             Feature(160, PackageFeatureCodes.CouponManager, "Coupon manager", no, all, all, all),
             Feature(170, PackageFeatureCodes.MultiDomainSupport, "Multi domain support", new FeatureValue(true, 2, "2"), unlimited, unlimited, unlimited),
-            Feature(180, PackageFeatureCodes.MailMerge, "Mail merge function", no, all, all, all),
-            Feature(190, PackageFeatureCodes.PrintableLabelCreator, "Printable label creator", no, all, all, all),
             Feature(200, PackageFeatureCodes.CustomHomeButtons, "Create custom buttons on home page", all, all, all, all),
             Feature(210, PackageFeatureCodes.NeedsAnalysisCalculator, "Need analysis calculator", all, all, all, all),
             Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO tool", all, all, all, all),
@@ -263,7 +320,7 @@ public static class PackageEntitlementSeeder
             Feature(310, PackageFeatureCodes.FramedLinkManager, "Framed link manager", all, all, all, all),
             Feature(320, PackageFeatureCodes.MenuCreator, "Menu and sub-menu creator", all, all, all, all),
             Feature(330, PackageFeatureCodes.TestimonialManager, "Testimonial manager", all, all, all, all),
-            Feature(340, PackageFeatureCodes.MultilingualEditor, "Multilingual editor support", all, all, all, all),
+            Feature(340, PackageFeatureCodes.MultilingualEditor, "Supports multilingual content (paste from any editor)", all, all, all, all),
             Feature(350, PackageFeatureCodes.ProspectManager, "Prospect manager", all, all, all, all),
             Feature(360, PackageFeatureCodes.ManagedBlog, "One unique blog per month written and managed", no, no, all, all),
             Feature(370, PackageFeatureCodes.ManagedSeo, "Managed SEO for all pages", no, no, all, all),

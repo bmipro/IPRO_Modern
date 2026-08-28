@@ -72,22 +72,36 @@ delivering them from day one. **`ManagedBlog` is the exact claim the homepage au
 service that did not exist.** If it is not being delivered, it must come out of the package data,
 not just out of the homepage copy — the table renders from the database.
 
-### 3b. Software features with no implementation found and no obvious alias
+### 3b. RESOLVED 2026-08-28 (owner decision) -- four withdrawn, one renamed
 
-| Feature | Label sold | Packages |
-|---|---|---|
-| `MailMerge` | "Mail merge function" | 3 of 4 |
-| `PrintableLabelCreator` | "Printable label creator" | 3 of 4 |
-| `MultilingualEditor` | "Multilingual editor support" | all 4 |
-| `FramedLinkManager` | "Framed link manager" | all 4 |
+| Feature | Outcome |
+|---|---|
+| `MailMerge` | **WITHDRAWN** -- definition and constant removed; rows deleted from existing databases |
+| `PrintableLabelCreator` | **WITHDRAWN** -- same |
+| `Newsboard` | **WITHDRAWN** -- same |
+| `RotatingBanner` | **WITHDRAWN** -- same |
+| `MultilingualEditor` | **KEPT, RENAMED** to "Supports multilingual content (paste from any editor)". The capability is real -- an agent writes in any editor and pastes it in; `bahmanmotamed.247advisers.com/article` is a live Farsi article created exactly that way. The old wording implied an editor we ship. |
+| `FramedLinkManager` | **STILL OPEN** -- see below |
+
+Withdrawn means the row is DELETED, not un-ticked: the comparison table renders one row per
+PackageFeature that exists, so an un-ticked row would still advertise the name with a dash against
+every plan. Both halves shipped together (definitions + a startup repair for existing databases),
+because `EnsureFeaturesAsync` only ever ADDS rows and never re-syncs an existing one -- which is
+exactly how the SMS claim survived its first fix.
+
+**`FramedLinkManager` -- open, with a recommendation.** A legacy concept: embed an external page in
+a frame. Video and Maps embeds already exist. A general "frame any URL" block is buildable but
+carries real baggage -- most modern sites send `X-Frame-Options`/CSP that refuse framing, so it
+would silently render blank for many URLs, and letting agents frame arbitrary sites is a phishing
+surface. Recommendation: retire it like the other four unless there is a specific thing to embed.
 
 ### 3c. Possible aliases — confirm before acting
 
 | Feature | Label sold | Candidate existing feature |
 |---|---|---|
-| `RotatingBanner` | "Rotating banner" | the `Hero` block — but "rotating" implies a carousel |
-| `CustomHomeButtons` | "Create custom buttons on home page" | the `CallToAction` block |
-| `Newsboard` | "Newsboard" | possibly the `DidYouKnow` mailer, possibly nothing |
+| `RotatingBanner` | RESOLVED 2026-08-28 -- WITHDRAWN (see 3b). No rotating banner exists: the Gallery carousel and the static CallToAction "banner" variant are different things. |
+| `CustomHomeButtons` | STILL OPEN. The `CallToAction` block (banner/card/split variants) is a fair match -- rename it, or withdraw it. |
+| `Newsboard` | RESOLVED 2026-08-28 -- WITHDRAWN (see 3b). |
 
 ### 3d. Already honest — no action
 
@@ -116,5 +130,5 @@ packages. That is the pattern the others should follow if they are not shipping.
 ---
 
 **Status of the product itself as of 2026-08-28:** zero open CRITICAL, zero open HIGH, zero
-in-scope MEDIUM defects; 378 automated tests green, none skipped. The launch blocker is not
+in-scope MEDIUM defects; 381 automated tests green, none skipped. The launch blocker is not
 software quality — it is §3 above, plus the PayPal sandbox→live cutover (Phase 4).
