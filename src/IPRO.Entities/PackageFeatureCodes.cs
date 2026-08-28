@@ -2,6 +2,11 @@ namespace IPRO.Entities;
 
 public static class PackageFeatureCodes
 {
+    // Withdrawn 2026-08-28 (owner decision): rotating_banner, newsboard, mail_merge and
+    // printable_label_creator were sold in the package comparison table with no implementation.
+    // Their constants are gone and PackageEntitlementSeeder.RetireWithdrawnFeaturesAsync deletes
+    // the rows from existing databases. Do not re-add a constant without building the feature.
+
     public const string InstantWebsite = "instant_website";
     public const string LeadGenerator = "lead_generator";
     public const string CalendarScheduler = "calendar_scheduler";
@@ -14,13 +19,9 @@ public static class PackageFeatureCodes
     public const string WebsiteDesign = "website_design";
     public const string Newsletters = "newsletters";
     public const string SupportTraining = "support_training";
-    public const string RotatingBanner = "rotating_banner";
-    public const string Newsboard = "newsboard";
     public const string FileUploadCapacity = "file_upload_capacity";
     public const string CouponManager = "coupon_manager";
     public const string MultiDomainSupport = "multi_domain_support";
-    public const string MailMerge = "mail_merge";
-    public const string PrintableLabelCreator = "printable_label_creator";
     public const string CustomHomeButtons = "custom_home_buttons";
     public const string NeedsAnalysisCalculator = "needs_analysis_calculator";
     public const string SeoTool = "seo_tool";
