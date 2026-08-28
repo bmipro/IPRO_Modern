@@ -113,6 +113,18 @@ else if (subscription == null && trialEndsAt.HasValue && trialEndsAt.Value > Dat
          resolve the agent's province on every page render, and avoids the surprise of a banner
          promising $90.00 while PayPal takes $101.70. *@
       <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@subscription.Amount.ToString("N2") @subscription.Currency plus applicable taxes</small>
+      @{
+          // A deferred start (an upgrade mid-way through a prepaid period): the next charge sits
+          // far beyond one billing cycle because the agent already paid this far. Without this
+          // sentence the screen reads as a billing bug -- the owner's own live upgrade proved it.
+          var cycleDays = subscription.Period == IPRO.Entities.BillingPeriod.Annually ? 366 : subscription.Period == IPRO.Entities.BillingPeriod.Quarterly ? 92 : 31;
+          var isDeferredStart = subscription.NextBillingDate.HasValue &&
+              subscription.NextBillingDate.Value > DateTime.UtcNow.AddDays(cycleDays * 1.5);
+      }
+      @if (isDeferredStart)
+      {
+        <small class="d-block mt-1 text-success-emphasis"><i class="fas fa-circle-check me-1"></i>You're already paid through @subscription.NextBillingDate!.Value.ToString("MMMM d, yyyy") from your earlier plan &mdash; your upgrade covered the difference, and @(subscription.Period == IPRO.Entities.BillingPeriod.Annually ? "annual" : "monthly") billing only starts on that date.</small>
+      }
     </div>
     <form asp-action="CancelSubscription" method="post">
       @Html.AntiForgeryToken()
