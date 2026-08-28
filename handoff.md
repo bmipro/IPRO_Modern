@@ -1,5 +1,18 @@
 # Handoff — 2026-08-28 EOD (truth-pack round COMPLETE; the Blog is real; 24 days to Sept 21)
 
+**Evening addendum (owner live-testing round).** The owner ran two live tests and found four
+defects -- in every case the SYSTEM was correct and its self-description was not. (1) The
+$347.07 upgrade charge was verified right at every layer (the deferred-start design: prorated
+top-up now, $90/mo from Jul 6 2027 -- PayPal's own engine confirmed) but the invoice called it a
+"monthly recurring subscription" and nothing explained the deferral. (2) The page Image Library
+and article covers are unrelated stores with no boundary text. (3) There was NO way to remove an
+article's cover -- the M9 wave had recorded that absence as harmless; the owner proved it was the
+defect. (4) All fixed, red-first, shipped at `c315900`, suite 396/0/0. Two process lessons
+recorded: gates capture FULL output (a tail-3 pipe cost us a flaky test's name -- debt logged in
+TODO), and mid-gate scope additions cost a full re-gate. Residue noted: the Aug 16 Silver->Gold
+hop charged $0 where ~$106.50 was right, on pre-billing-wave code that no longer exists, in the
+customer's favour, owner's own account only.
+
 **2026-08-28 in one paragraph.** Homepage: Facebook/YouTube footer links and the pricing
 comparison collapsed behind a toggle (48 rows was boring visitors away). Then the truth-pack
 round: all 48 feature codes cross-referenced against the source, 11 questioned, **all 11
