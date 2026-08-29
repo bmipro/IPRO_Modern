@@ -26,6 +26,36 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
 
     public bool IsConfigured => _options.HasRequiredBindingSettings;
 
+    // Config-hazard fix (2026-08-29, from the staging review round): both apps SHIP
+    // "WebAppName": "ipro-prod-web" in committed appsettings, and this service issues HTTP DELETE
+    // against that app's hostname bindings and certificates. Any second boot of this codebase
+    // with a copied config -- a staging box, a local run with prod settings pasted in, the
+    // snapshot-rehearsal server -- would therefore point a loaded gun at PRODUCTION's customer
+    // domains. Azure App Service stamps every instance with WEBSITE_SITE_NAME; requiring it to
+    // MATCH the configured target means this service can only ever mutate the app it is actually
+    // running as. Production matches itself and is unaffected; everything else goes inert with a
+    // loud log line instead of a cross-environment delete.
+    //
+    // Test seam, same pattern as PublicHostGuard.ResolveHook / SendGridEmailService.ClientFactory.
+    internal static Func<string?> SiteNameProvider = () => Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
+
+    internal bool RunningAsConfiguredApp(out string reason)
+    {
+        var siteName = SiteNameProvider();
+        if (string.IsNullOrWhiteSpace(siteName))
+        {
+            reason = $"this process is not running in Azure App Service (WEBSITE_SITE_NAME is unset), so it may not manage '{_options.WebAppName}'";
+            return false;
+        }
+        if (!string.Equals(siteName.Trim(), _options.WebAppName?.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            reason = $"this process is running as '{siteName}' but is configured to manage '{_options.WebAppName}' -- refusing to touch another app's domains";
+            return false;
+        }
+        reason = string.Empty;
+        return true;
+    }
+
     public async Task<AzureDomainAutomationResult> EnsureDomainAsync(string hostName, CancellationToken cancellationToken = default)
     {
         hostName = (hostName ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
@@ -42,6 +72,12 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         if (!_options.HasRequiredBindingSettings)
         {
             return AzureDomainAutomationResult.Skipped($"Azure domain automation settings are incomplete. Missing: {_options.MissingBindingSettingsSummary()}.");
+        }
+
+        if (!RunningAsConfiguredApp(out var identityReason))
+        {
+            _logger.LogError("Azure domain automation refused: {Reason}", identityReason);
+            return AzureDomainAutomationResult.Skipped($"Azure domain automation refused: {identityReason}.");
         }
 
         try
@@ -116,6 +152,12 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         if (!_options.HasRequiredBindingSettings)
         {
             return AzureDomainAutomationResult.Skipped($"Azure domain automation settings are incomplete. Missing: {_options.MissingBindingSettingsSummary()}.");
+        }
+
+        if (!RunningAsConfiguredApp(out var identityReason))
+        {
+            _logger.LogError("Azure domain automation refused: {Reason}", identityReason);
+            return AzureDomainAutomationResult.Skipped($"Azure domain automation refused: {identityReason}.");
         }
 
         try
