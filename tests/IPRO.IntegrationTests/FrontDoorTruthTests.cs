@@ -40,6 +40,17 @@ public class FrontDoorTruthTests
         Assert.Contains("PackageFeatureCodes.AiDailyAssistant", controller);
         Assert.Contains("ViewBag.AiTierNames", controller);
 
+        // ...and only PUBLIC tiers. The first deploy of this fix listed "Platinum Trial" and
+        // "QA Platinum (Daily)" to prospects, because the join took every billing rule with the
+        // feature. Caught on the live page 2026-08-29. The query must apply the same three-flag
+        // filter as the homepage pricing grid (IsActive, !IsTrialPackage, !IsHiddenTestPackage --
+        // BillingRule.cs: a real visitor must never be able to browse to a hidden test package).
+        var tierQuery = controller[controller.IndexOf("ViewBag.AiTierNames")..];
+        tierQuery = tierQuery[..tierQuery.IndexOf("ToListAsync")];
+        Assert.Contains("IsActive", tierQuery);
+        Assert.Contains("IsTrialPackage", tierQuery);
+        Assert.Contains("IsHiddenTestPackage", tierQuery);
+
         var card = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Preview\_MockAiAssistantCard.cshtml"));
         Assert.DoesNotContain("Included in Platinum &amp; Broker plans", card);
         Assert.Contains("ViewBag.AiTierNames", card);
