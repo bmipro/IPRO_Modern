@@ -46,11 +46,24 @@ builder.Services.AddHangfire(config => config
         TablesPrefix = "Hangfire_"
     })));
 
-builder.Services.AddHangfireServer(o =>
+// Config-hazard fix (2026-08-29, from the staging review round): every recurring job used to be
+// registered unconditionally, and the Hangfire SERVER started unconditionally -- so any second
+// boot of this codebase against a copied database (a staging box, a snapshot-rehearsal server, a
+// local run with pasted prod settings) began mailing real addresses and hitting PayPal/Azure
+// within sixty seconds. Jobs__RecurringDisabled=true makes an instance a bystander: no Hangfire
+// server (a server on SHARED storage processes jobs even with no registrations of its own), no
+// schedule registrations, and a loud log line saying so. The default (absent/false) leaves
+// production exactly as it was -- no Azure config change is needed to deploy this. The
+// snapshot-rehearsal runbook and any future second environment MUST set it before first boot.
+var recurringJobsDisabled = builder.Configuration.GetValue<bool>("Jobs:RecurringDisabled");
+if (!recurringJobsDisabled)
 {
-    o.WorkerCount = 5;
-    o.Queues = new[] { "newsletters", "drip", "reminders", "default" };
-});
+    builder.Services.AddHangfireServer(o =>
+    {
+        o.WorkerCount = 5;
+        o.Queues = new[] { "newsletters", "drip", "reminders", "default" };
+    });
+}
 
 // Liveness only -- no database or storage checks, deliberately. Azure's health check restarts an
 // instance that reports unhealthy; a restart fixes a wedged worker process (the 2026-08-07 outage
@@ -382,6 +395,13 @@ app.MapHangfireDashboard("/hangfire", new DashboardOptions
     Authorization = new[] { new WebDashboardAuthorizationFilter(app.Environment.IsDevelopment()) }
 });
 
+if (recurringJobsDisabled)
+{
+    app.Logger.LogWarning("Jobs__RecurringDisabled=true: this instance runs NO Hangfire server and registers NO recurring jobs. It is a bystander to the schedule.");
+}
+else
+{
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 16);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -400,6 +420,7 @@ RecurringJob.AddOrUpdate<ELetterDispatchJob>("dispatch-eletters", job => job.Run
 // 07:00 UTC so a due certificate is a red row on the Job Scheduler dashboard at the start of the
 // day rather than overnight. Deliberately fails when renewal is due -- see CertificateExpiryJob.
 RecurringJob.AddOrUpdate<CertificateExpiryJob>("certificate-expiry", job => job.RunAsync(), "0 7 * * *");
+}
 
 using (var scope = app.Services.CreateScope())
 {

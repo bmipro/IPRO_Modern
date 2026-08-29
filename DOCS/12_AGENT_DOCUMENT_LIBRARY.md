@@ -22,7 +22,9 @@ Use the search box to filter by file name, or the category dropdown to filter by
 
 ## Storage Limit
 
-Every package includes this feature, but each package has its own total storage limit:
+Every package includes this feature, but each package has its own total storage limit. The
+numbers below are the standard defaults -- your own limit is whatever your package currently
+grants, and the Documents page always shows your real usage and limit:
 
 | Package | Storage limit |
 |---|---|
