@@ -350,3 +350,23 @@ Hero blocks include additional controls:
 - Overlay strength
 
 Save the block after changing presentation controls.
+
+## Add a Blog to Your Site
+
+The **Blog** block (Platinum and Broker packages) turns any page into a blog. Add it from the
+block picker like any other block.
+
+1. Your newest **published** articles appear in it automatically, newest first -- write and
+   publish them under **Articles** in the portal menu. There is nothing to attach or select.
+2. Visitors see each post's title, date, summary and cover image, and click **Read more** to read
+   the full post on the same page.
+3. Block settings: how many posts to show (1-50) and whether the list shows cover images.
+
+**Where post images come from:** each post shows its article's own cover image, set when editing
+that article under **Articles**. The page's Image Library does not affect the Blog block -- the
+library feeds Hero and Text blocks only.
+
+**Drafting posts with AI** (Platinum and Broker): on the article editor, enter a topic and click
+**Draft with AI**. It fills in a title, summary and body for you to review and edit -- it never
+publishes anything by itself. You are the author: read and adjust every draft before publishing,
+the same as the newsletter and social drafting tools.
