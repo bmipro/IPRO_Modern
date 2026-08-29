@@ -557,30 +557,12 @@ public class AccountController : Controller
         return Json(new { valid = true, message });
     }
 
-    [HttpGet]
-    public IActionResult RegisterSuccess()
-    {
-        var welcome = new RegistrationWelcomeModel
-        {
-            FullName = TempData["RegistrationFullName"] as string ?? string.Empty,
-            Email = TempData["RegistrationEmail"] as string ?? string.Empty,
-            UserName = TempData["RegistrationUserName"] as string ?? string.Empty,
-            TemporaryPassword = TempData["RegistrationPassword"] as string ?? string.Empty,
-            SetupDomain = TempData["RegistrationDomain"] as string ?? string.Empty
-        };
-
-        if (string.IsNullOrWhiteSpace(welcome.UserName))
-        {
-            welcome = RegistrationWelcomeTemplate.Sample();
-        }
-
-        var trialEndsAtRaw = TempData["RegistrationTrialEndsAt"] as string;
-        ViewBag.TrialEndsAt = !string.IsNullOrWhiteSpace(trialEndsAtRaw)
-            ? DateTime.Parse(trialEndsAtRaw, null, System.Globalization.DateTimeStyles.RoundtripKind)
-            : (DateTime?)null;
-
-        return View(welcome);
-    }
+    // RegisterSuccess (the v1 signup receipt) was DELETED 2026-08-29 by the front-door truth
+    // sweep. It was orphaned -- nothing redirected to it since signup v2 (2026-08-13) -- and on
+    // its only reachable path (a direct GET) it fabricated Sample() data, claimed a temporary-
+    // password ceremony v2 removed, and ALWAYS showed a false "confirmation email could not be
+    // sent" warning. The welcome model/template classes remain: they build the real welcome
+    // email for admin-created agents.
 
     [Authorize]
     [HttpGet]

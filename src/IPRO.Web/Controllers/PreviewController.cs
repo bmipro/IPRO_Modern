@@ -33,6 +33,14 @@ public class PreviewController : Controller
         // it can carry a real price/setup-fee alongside the fabricated live site instead of neither.
         ViewBag.SelectedPackage = await _db.BillingRules.AsNoTracking()
             .FirstOrDefaultAsync(p => p.PackageName == prospect.Package);
+        // Truth sweep 2026-08-29: the AI card used to hardcode "Included in Platinum & Broker
+        // plans" -- true today, silently wrong the day SuperAdmin regrades the feature. Render
+        // the tier list from the same rows that gate the real feature.
+        ViewBag.AiTierNames = await _db.PackageFeatures.AsNoTracking()
+            .Where(f => f.FeatureCode == IPRO.Entities.PackageFeatureCodes.AiDailyAssistant && f.IsIncluded)
+            .Join(_db.BillingRules.AsNoTracking(), f => f.BillingRuleId, r => r.Id, (f, r) => r.PackageName)
+            .OrderBy(n => n)
+            .ToListAsync();
         return View(prospect);
     }
 
