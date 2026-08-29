@@ -168,8 +168,12 @@ IPRO.TemplateBuilder/
 3. Preview renders the page pixel-equivalent to the editor.
 4. **Export** produces the contract JSON + assets folder; a round-trip test proves
    export → parse → identical model.
-5. Every rich-text body in the export passes the Ganss sanitizer configured with the host's
-   allow-list philosophy **unchanged** (a conformance test, not a manual check).
+5. The sanitizer conformance harness (builder repo CONTRACT.md §6: Ganss HtmlSanitizer with
+   the host's exact profile, canonical-output comparison) is built and green against the
+   canonical vectors. Contract v0.2 exports **plain text only** — the harness is preparation
+   for the first rich-text block type in a later contract revision.
+   *(This file is the historical seed; the authoritative, self-contained spec is CONTRACT.md
+   v0.2 in the builder repo — github.com/bmipro/IPRO.TemplateBuilder.)*
 6. Zero references to any `IPRO.*` assembly; zero cloud credentials anywhere in the repo.
 
 ---
