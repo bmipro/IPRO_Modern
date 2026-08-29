@@ -35,6 +35,30 @@ public sealed class TestDatabase : IAsyncDisposable
             .Options;
 
         var db = new TestDatabase(options);
+        // Flake hardening (2026-08-29): under full-suite parallelism dozens of contexts create
+        // databases and open connections against one local MySQL at once, and a transient
+        // failure (connection slot exhaustion, a creation timeout) fails whichever test is
+        // mid-create -- a different victim each run. Two full-suite runs each lost exactly one
+        // self-contained test that passed 3/3 solo; this retry absorbs INFRASTRUCTURE errors
+        // only. It wraps schema creation alone -- an assertion failure inside a test can never
+        // reach it, so nothing real is ever masked.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await CreateSchemaAsync(db, applyLedgerGuard);
+                break;
+            }
+            catch (MySqlConnector.MySqlException) when (attempt < 3)
+            {
+                await Task.Delay(1500 * attempt);
+            }
+        }
+        return db;
+    }
+
+    private static async Task CreateSchemaAsync(TestDatabase db, bool applyLedgerGuard)
+    {
         await using (var context = db.CreateContext())
         {
             // EnsureCreated, not MigrateAsync: production's real schema is migrations PLUS the
@@ -47,7 +71,6 @@ public sealed class TestDatabase : IAsyncDisposable
             await context.Database.EnsureCreatedAsync();
             if (applyLedgerGuard) await FinancialLedgerSchemaGuard.EnsureAsync(context);
         }
-        return db;
     }
 
     public IPRODbContext CreateContext() => new(_options);

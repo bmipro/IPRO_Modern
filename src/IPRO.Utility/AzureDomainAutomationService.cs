@@ -47,9 +47,10 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
             reason = $"this process is not running in Azure App Service (WEBSITE_SITE_NAME is unset), so it may not manage '{_options.WebAppName}'";
             return false;
         }
-        if (!string.Equals(siteName.Trim(), _options.WebAppName?.Trim(), StringComparison.OrdinalIgnoreCase))
+        var allowed = _options.EffectiveManagerSiteNames;
+        if (!allowed.Any(a => string.Equals(siteName.Trim(), a, StringComparison.OrdinalIgnoreCase)))
         {
-            reason = $"this process is running as '{siteName}' but is configured to manage '{_options.WebAppName}' -- refusing to touch another app's domains";
+            reason = $"this process is running as '{siteName}' but only [{string.Join(", ", allowed)}] may manage '{_options.WebAppName}' -- refusing to touch another app's domains";
             return false;
         }
         reason = string.Empty;

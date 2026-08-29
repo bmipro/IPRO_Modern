@@ -9,6 +9,18 @@ public class AzureDomainAutomationOptions
     public string SubscriptionId { get; set; } = string.Empty;
     public string ResourceGroup { get; set; } = string.Empty;
     public string WebAppName { get; set; } = string.Empty;
+
+    // Identity-guard fix (2026-08-29): WHICH processes may drive this service. The guard first
+    // shipped allowing only WebAppName itself -- and immediately broke the ADMIN app's legitimate
+    // calls (erasure hostname unbinds, the Domains screen), because ipro-prod-admin manages
+    // ipro-prod-web's bindings and their site names differ. Comma-separated; empty falls back to
+    // WebAppName alone. A clone with copied config still lists only the PRODUCTION names, and its
+    // own WEBSITE_SITE_NAME matches none of them -- the protection is unchanged.
+    public string AllowedManagerSiteNames { get; set; } = string.Empty;
+
+    public IReadOnlyList<string> EffectiveManagerSiteNames =>
+        (string.IsNullOrWhiteSpace(AllowedManagerSiteNames) ? WebAppName : AllowedManagerSiteNames)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     public string AppServicePlanResourceId { get; set; } = string.Empty;
     public string Location { get; set; } = "Canada East";
     public bool CreateManagedCertificate { get; set; } = true;

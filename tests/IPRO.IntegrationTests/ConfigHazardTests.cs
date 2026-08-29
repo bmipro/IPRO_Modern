@@ -29,14 +29,15 @@ public class ConfigHazardTests : IDisposable
     public void Dispose() => AzureDomainAutomationService.SiteNameProvider =
         () => Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
 
-    private static AzureDomainAutomationService NewService(string configuredApp) => new(
+    private static AzureDomainAutomationService NewService(string configuredApp, string allowedManagers = "") => new(
         new NullHttpFactory(),
         Options.Create(new AzureDomainAutomationOptions
         {
             Enabled = true,
             TenantId = "t", ClientId = "c", ClientSecret = "s",
             SubscriptionId = "sub", ResourceGroup = "rg",
-            WebAppName = configuredApp
+            WebAppName = configuredApp,
+            AllowedManagerSiteNames = allowedManagers
         }),
         NullLogger<AzureDomainAutomationService>.Instance);
 
@@ -73,6 +74,41 @@ public class ConfigHazardTests : IDisposable
         var service = NewService("ipro-prod-web");
 
         Assert.True(service.RunningAsConfiguredApp(out _));
+    }
+
+    [Fact]
+    public void The_admin_app_may_manage_the_web_apps_domains()
+    {
+        // The regression the first guard shipped with: ipro-prod-admin runs the erasure's
+        // hostname-unbind leg and the Domains screen, and its site name is NOT the target's.
+        // The committed appsettings list both production identities as allowed managers.
+        AzureDomainAutomationService.SiteNameProvider = () => "ipro-prod-admin";
+        var service = NewService("ipro-prod-web", "ipro-prod-web,ipro-prod-admin");
+
+        Assert.True(service.RunningAsConfiguredApp(out _));
+    }
+
+    [Fact]
+    public void A_clone_is_still_refused_even_with_the_copied_manager_list()
+    {
+        // The protection the list must not weaken: copied config carries the PRODUCTION names;
+        // the clone's own site name matches none of them.
+        AzureDomainAutomationService.SiteNameProvider = () => "ipro-staging-admin";
+        var service = NewService("ipro-prod-web", "ipro-prod-web,ipro-prod-admin");
+
+        Assert.False(service.RunningAsConfiguredApp(out var reason));
+        Assert.Contains("ipro-staging-admin", reason);
+    }
+
+    [Fact]
+    public void Committed_appsettings_list_both_production_identities()
+    {
+        // Without this, the fix exists but production Admin still refuses -- the C1 shape again.
+        foreach (var app in new[] { "IPRO.Web", "IPRO.Admin" })
+        {
+            var json = File.ReadAllText(FindRepoFile($@"src\{app}\appsettings.json"));
+            Assert.Contains("\"AllowedManagerSiteNames\": \"ipro-prod-web,ipro-prod-admin\"", json);
+        }
     }
 
     [Fact]
