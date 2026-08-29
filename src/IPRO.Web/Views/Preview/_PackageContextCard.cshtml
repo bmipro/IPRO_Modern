@@ -24,7 +24,17 @@
         </div>
         @if (Model.SetupFee > 0)
         {
-            <div class="text-muted small">+ $@Model.SetupFee.ToString("N0") one-time setup</div>
+            @* Truth sweep 2026-08-29: this card showed the fee flat while the homepage and the
+               CHECKOUT honour the waiver -- a prospect saw a charge signup would not make. Same
+               call as everywhere else: the ONE method that decides what PayPal charges. *@
+            if (Model.IsSetupFeeWaivedOn(DateTime.UtcNow))
+            {
+                <div class="text-muted small"><s>$@Model.SetupFee.ToString("N0")</s> setup fee waived@(Model.SetupFeeWaivedUntil.HasValue ? $" until {Model.SetupFeeWaivedUntil.Value:MMMM d}" : "")</div>
+            }
+            else
+            {
+                <div class="text-muted small">+ $@Model.SetupFee.ToString("N0") one-time setup</div>
+            }
         }
         @* Pre-tax, matching the pricing page and the signup picker. *@
         <div class="text-muted small">plus applicable taxes</div>
