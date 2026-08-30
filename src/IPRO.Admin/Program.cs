@@ -61,7 +61,17 @@ builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
 builder.Services.AddScoped<IEmailConsentService, EmailConsentService>();
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
-builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+// Email provider switch (2026-08-30, TODO 431): "Azure" = Azure Communication Services,
+// anything else = the historical SendGrid implementation. Both classes stay registered-able so
+// a provider incident is a config flip (Email__Provider), not a deploy.
+if (string.Equals(builder.Configuration["Email:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IEmailService, AzureEmailService>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+}
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();

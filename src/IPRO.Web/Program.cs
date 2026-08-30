@@ -92,7 +92,17 @@ builder.Services.AddScoped<IPRO.Business.Services.IUnsubscribeNotifier, IPRO.Ema
 builder.Services.AddScoped<IWebsiteService, WebsiteService>();
 builder.Services.AddScoped<IClientInvoiceService, ClientInvoiceService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
-builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+// Email provider switch (2026-08-30, TODO 431): "Azure" = Azure Communication Services,
+// anything else = the historical SendGrid implementation. Both classes stay registered-able so
+// a provider incident is a config flip (Email__Provider), not a deploy.
+if (string.Equals(builder.Configuration["Email:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IEmailService, AzureEmailService>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+}
 builder.Services.AddScoped<NewsLetterDispatcher>();
 builder.Services.AddScoped<ECardDispatcher>();
 builder.Services.AddScoped<ELetterDispatcher>();
