@@ -148,8 +148,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         o.Cookie.HttpOnly = true;
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         o.Cookie.SameSite = SameSiteMode.Lax;
+        // Pre-launch audit (2026-08-30): without this, "Revoke portal access" revoked nothing --
+        // the sliding cookie above outlived revocation, the agent's deactivation and erasure.
+        o.EventsType = typeof(IPRO.Web.Infrastructure.ClientPortalCookieRevalidator);
     });
 builder.Services.AddScoped<IPRO.Web.Infrastructure.AgentCookieRevalidator>();
+builder.Services.AddScoped<IPRO.Web.Infrastructure.ClientPortalCookieRevalidator>();
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));

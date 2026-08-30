@@ -122,13 +122,19 @@ public class AzureEmailProviderTests
     [Fact]
     public async Task Bulk_send_reaches_every_recipient()
     {
-        EmailMessage? captured = null;
-        var service = Build(m => { captured = m; return Task.FromResult("op-bulk"); });
+        // CORRECTED 2026-08-30 by the pre-launch audit. This test used to assert
+        // `captured.Recipients.To.Count == 2` -- i.e. it PINNED the disclosure bug: one message
+        // carrying both addresses in the To header. It proved reachability and called it coverage.
+        // The real requirement is one message per recipient; isolation is pinned in
+        // AuditFixTests.Bulk_send_never_discloses_one_recipient_to_another.
+        var sent = new List<EmailMessage>();
+        var service = Build(m => { sent.Add(m); return Task.FromResult("op-bulk"); });
         var ok = await service.SendBulkAsync(
             new[] { new EmailRecipient("a@example.com", "A"), new EmailRecipient("b@example.com", "B") },
             "s", "<p>x</p>");
         Assert.True(ok);
-        Assert.Equal(2, captured!.Recipients.To.Count);
+        Assert.Equal(2, sent.Count);
+        Assert.All(sent, m => Assert.Single(m.Recipients.To));
     }
 
     [Fact]

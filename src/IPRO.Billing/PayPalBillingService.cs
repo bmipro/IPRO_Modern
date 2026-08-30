@@ -2825,7 +2825,7 @@ public class PayPalBillingService : IBillingService
         // current province, which is correct for NEW money.
         if (taxRateOverride.HasValue)
         {
-            var overrideAmount = Math.Round(subtotal * taxRateOverride.Value, 2);
+            var overrideAmount = RoundTax(subtotal, taxRateOverride.Value);
             return await CreateInvoiceWithLinesAsync(billingId, userId, subtotal, overrideAmount,
                 taxRateOverride.Value, taxRegionOverride ?? string.Empty, isPaid, lineItems);
         }
@@ -2980,7 +2980,7 @@ public class PayPalBillingService : IBillingService
             return new TaxCalculation(0, 0, string.IsNullOrWhiteSpace(province) ? "Canada" : province);
         }
 
-        var amount = Math.Round(taxableAmount * taxRate.Rate, 2, MidpointRounding.AwayFromZero);
+        var amount = RoundTax(taxableAmount, taxRate.Rate);
         return new TaxCalculation(taxRate.Rate, amount, $"{taxRate.ProvinceCode} {taxRate.TaxLabel}".Trim());
     }
 
@@ -3424,8 +3424,15 @@ public class PayPalBillingService : IBillingService
     // Gross a net price up the same way CalculateTaxAsync builds an invoice (net + rounded tax),
     // NOT Math.Round(net * (1 + rate)) -- for a 2-decimal net the two are equivalent, but writing it
     // this way makes "the PayPal charge equals the invoice total" true by construction, not by proof.
+    // Tax rounding lives in ONE place. Pre-launch audit (2026-08-30): the renewal-override path
+    // used bare Math.Round (banker's) while CalculateTaxAsync and AddTax pinned AwayFromZero, so a
+    // Quebec subtotal landing exactly on a half-cent -- 14.975% of $60 -- was charged $68.99 by
+    // PayPal and invoiced $68.98 on every renewal, breaking "the invoice total equals what PayPal
+    // charged" and understating the QST remittance line for the life of the subscription.
+    public static decimal RoundTax(decimal net, decimal rate) => Math.Round(net * rate, 2, MidpointRounding.AwayFromZero);
+
     private static decimal AddTax(decimal net, decimal rate) =>
-        net + Math.Round(net * rate, 2, MidpointRounding.AwayFromZero);
+        net + RoundTax(net, rate);
 
     // Plans store NET prices and are shared by every province, so the tax-inclusive gross has to be
     // applied per subscription. PayPal's subscription create accepts a billing_cycles override keyed
@@ -4337,6 +4344,15 @@ public class PayPalBillingService : IBillingService
     private static string GetPayPalPlanId(BillingRule package, BillingPeriod period) => period switch
     {
         BillingPeriod.Annually => package.PayPalAnnualPlanId?.Trim() ?? string.Empty,
+        // Pre-launch audit (2026-08-30): Quarterly USED to fall through to the MONTHLY plan id.
+        // IsPeriodOfferable then passed -- the seeder ships QuarterlyPrice 120/180/270, so the
+        // "price > 0" half was satisfied too -- and a posted BillingPeriod=Quarterly invoiced the
+        // quarterly amount while PayPal was handed the monthly plan and charged the monthly price.
+        // The settlement match then marked the too-large invoice PAID, so the ledger and the HST
+        // remittance line permanently recorded money that never moved. Quarterly is not sold: it
+        // has no plan, so IsPeriodOfferable now refuses it by construction rather than by
+        // depending on every package having been re-synced.
+        BillingPeriod.Quarterly => string.Empty,
         _ => package.PayPalMonthlyPlanId?.Trim() ?? string.Empty
     };
 

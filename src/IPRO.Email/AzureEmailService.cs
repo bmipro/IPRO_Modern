@@ -114,10 +114,34 @@ public class AzureEmailService : IEmailService
                 return false;
             }
 
-            var message = BuildMessage(recipientList, subject, htmlBody, textBody);
+            // ONE MESSAGE PER RECIPIENT. Pre-launch audit 2026-08-30: this method originally
+            // handed the whole list to a single EmailMessage, whose EmailRecipients collection is
+            // the To header -- so every recipient would have seen every other recipient's name and
+            // address. SendGrid's CreateSingleEmailToMultipleRecipients defaults showAllRecipients
+            // to FALSE and quietly emitted one personalization each, so the provider swap turned a
+            // private notice into a disclosure of the customer list. ACS has no personalization
+            // concept; separate sends are the equivalent. (The one caller fans out across TENANTS
+            // -- SuperAdmin retiring a template mails every affected agent -- so the leak would
+            // have been cross-tenant and unrecallable.)
             var client = ClientFactory(_settings.AzureCommunicationConnectionString);
-            await client.SendAsync(WaitUntil.Started, message);
-            return true;
+            var allSent = true;
+            foreach (var recipient in recipientList)
+            {
+                try
+                {
+                    var message = BuildMessage(new[] { recipient }, subject, htmlBody, textBody);
+                    await client.SendAsync(WaitUntil.Started, message);
+                }
+                catch (Exception ex)
+                {
+                    // One bad address must not silently swallow the batch, nor abort the rest:
+                    // the remaining recipients still get their copy and the caller still learns
+                    // the batch was not fully delivered.
+                    _logger.LogError(ex, "Bulk email to {Email} failed; continuing with the rest of the batch.", recipient.Email);
+                    allSent = false;
+                }
+            }
+            return allSent;
         }
         catch (Exception ex)
         {
