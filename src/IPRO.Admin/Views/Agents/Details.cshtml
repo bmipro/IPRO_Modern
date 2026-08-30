@@ -16,19 +16,27 @@
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-outline-dark js-confirm-submit" data-confirm-message="Reset @Model.UserName password to their last name and force password change?"><i class="fas fa-key me-1"></i>Reset Password</button>
         </form>
-        @if (Model.IsActive)
+        @* Pre-launch audit (2026-08-30): this rendered unconditionally while the rebuild actions
+           below correctly gate on the SuperAdmin claim, so a Support admin saw a live button
+           that signs an agent AND their whole team out instantly. Gated to match, and the server
+           action carries [Authorize(Policy = "SuperAdmin")] so hiding the button is not the only
+           defence. *@
+        @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
         {
-            <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-warning js-confirm-submit" data-confirm-message="Deactivate this agent?"><i class="fas fa-ban me-1"></i>Deactivate</button>
-            </form>
-        }
-        else
-        {
-            <form asp-action="Activate" asp-route-id="@Model.Id" method="post">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i>Activate</button>
-            </form>
+            @if (Model.IsActive)
+            {
+                <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-warning js-confirm-submit" data-confirm-message="Deactivate this agent?"><i class="fas fa-ban me-1"></i>Deactivate</button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="Activate" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i>Activate</button>
+                </form>
+            }
         }
         <form asp-action="RebuildResources" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()

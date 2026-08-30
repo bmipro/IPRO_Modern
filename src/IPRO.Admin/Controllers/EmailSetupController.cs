@@ -21,6 +21,8 @@ public class EmailSetupController : Controller
 
     public async Task<IActionResult> Index()
     {
+        var provider = _configuration["Email:Provider"] ?? "SendGrid";
+        var azureConnectionString = _configuration["Email:AzureCommunicationConnectionString"] ?? string.Empty;
         var apiKey = _configuration["Email:SendGridApiKey"] ?? string.Empty;
         var fromEmail = _configuration["Email:FromEmail"] ?? string.Empty;
         var fromName = _configuration["Email:FromName"] ?? string.Empty;
@@ -35,6 +37,9 @@ public class EmailSetupController : Controller
 
         var model = new EmailSetupViewModel
         {
+            Provider = provider,
+            HasAzureConnectionString = IsAzureConnectionStringConfigured(azureConnectionString),
+            AzureConnectionStringPreview = MaskApiKey(azureConnectionString),
             HasSendGridApiKey = IsSendGridKeyConfigured(apiKey),
             SendGridApiKeyPreview = MaskApiKey(apiKey),
             FromEmail = fromEmail,
@@ -49,14 +54,26 @@ public class EmailSetupController : Controller
         return View(model);
     }
 
+    private static bool IsAzureConnectionStringConfigured(string value) =>
+        !string.IsNullOrWhiteSpace(value) && value.Contains("endpoint=", StringComparison.OrdinalIgnoreCase);
+
     private static List<EmailSettingStatusViewModel> BuildSettings(EmailSetupViewModel model) =>
     [
         new()
         {
-            Name = "Email__SendGridApiKey",
-            Value = model.SendGridApiKeyPreview,
-            IsConfigured = model.HasSendGridApiKey,
-            HelpText = "SendGrid API key. It should start with SG. and must exist on both ipro-prod-web and ipro-prod-admin."
+            Name = "Email__Provider",
+            Value = model.Provider,
+            IsConfigured = true,
+            HelpText = "Which service actually sends: \"Azure\" for Azure Communication Services, anything else for SendGrid. It must match on both ipro-prod-web and ipro-prod-admin -- a split leaves one app unable to send."
+        },
+        new()
+        {
+            Name = model.IsAzureProvider ? "Email__AzureCommunicationConnectionString" : "Email__SendGridApiKey",
+            Value = model.IsAzureProvider ? model.AzureConnectionStringPreview : model.SendGridApiKeyPreview,
+            IsConfigured = model.HasSendingCredential,
+            HelpText = model.IsAzureProvider
+                ? "Azure Communication Services connection string (starts with endpoint=). Required on both ipro-prod-web and ipro-prod-admin."
+                : "SendGrid API key. It should start with SG. and must exist on both ipro-prod-web and ipro-prod-admin."
         },
         new()
         {

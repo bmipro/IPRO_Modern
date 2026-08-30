@@ -246,19 +246,16 @@ public class PublicWebsiteController : Controller
             if (string.IsNullOrWhiteSpace(client.LastName)) client.LastName = model.LastName;
             if (submissionType == WebsiteLeadTypes.Newsletter)
             {
-                if (client.EmailOptOutAt.HasValue)
+                if (DecidePublicNewsletterConsent(client.EmailOptOutAt.HasValue) == PublicNewsletterConsent.LeaveOptOutInPlace)
                 {
-                    // Setting IsNewsletterSubscribed alone here produced a contact who LOOKS
-                    // subscribed on every screen and whom IsSuppressed will never let a dispatcher
-                    // mail -- an agent watching a signup arrive and no email ever go out.
-                    //
-                    // Filling in a signup form is fresh express consent, so the opt-out is lifted;
-                    // but because it reverses a recorded "stop", it is logged and written into the
-                    // contact's notes so there is a trail if the person later disputes it.
-                    await _consent.ResubscribeAsync(client);
-                    client.Notes = $"{client.Notes}\nRe-subscribed {DateTime.UtcNow:yyyy-MM-dd} via the newsletter form on {Request.Host.Host} (previously opted out).".TrimStart();
+                    // The opt-out STANDS. IsNewsletterSubscribed is deliberately left alone too:
+                    // setting it would produce a contact who looks subscribed on every screen and
+                    // whom IsSuppressed will never let a dispatcher mail. The attempt is recorded
+                    // so the agent can see the interest and seek consent through a channel that
+                    // proves the person owns the address.
+                    client.Notes = $"{client.Notes}\nNewsletter signup attempted {DateTime.UtcNow:yyyy-MM-dd} on {Request.Host.Host}, but this contact has opted out of email -- opt-out left in place; ask them to re-subscribe directly.".TrimStart();
                     _logger.LogInformation(
-                        "Client {ClientId} had opted out of all email and re-subscribed through the public newsletter form on {Host}.",
+                        "Client {ClientId} is opted out of all email; a public newsletter form post on {Host} did NOT lift it.",
                         client.Id, Request.Host.Host);
                 }
                 else
@@ -1139,10 +1136,35 @@ public class PublicWebsiteController : Controller
         }
     }
 
-    private static string NormalizeReturnPath(string? value)
+    public enum PublicNewsletterConsent { Subscribe, LeaveOptOutInPlace }
+
+    // Pre-launch audit (2026-08-30). SubmitLead matches an existing contact by EMAIL ALONE, and
+    // this branch used to call ResubscribeAsync for one who had opted out -- clearing the global
+    // opt-out and restoring newsletters, e-cards, e-letters, polls, DidYouKnow and drip. No token,
+    // no confirmation, no proof the submitter owns the address: any visitor who knew an adviser's
+    // site and one of their contacts' addresses could reverse that person's recorded "stop", and
+    // the system would write a fabricated express-consent record to justify it. The code below
+    // already names this exact hazard for the DidYouKnow queue ("no verification that they own
+    // it") and caps it there.
+    //
+    // A recorded stop now survives an anonymous post. The lead itself is still captured, so the
+    // agent sees the interest and can ask for consent through a channel that proves ownership.
+    public static PublicNewsletterConsent DecidePublicNewsletterConsent(bool hasRecordedOptOut)
+        => hasRecordedOptOut ? PublicNewsletterConsent.LeaveOptOutInPlace : PublicNewsletterConsent.Subscribe;
+
+    // Pre-launch audit (2026-08-30): this rejected a leading "//" but not "/\\", which
+    // Url.IsLocalUrl DOES reject -- so LocalRedirect threw AFTER the client row was written and
+    // the agent notification had gone out. The visitor got an error page instead of their
+    // confirmation, and a retry inside five minutes was swallowed by the duplicate guard. Not an
+    // open redirect (the framework guard held); it failed loudly instead of falling back to "/".
+    // Every other return-url site in the app guards with Url.IsLocalUrl first; this hand-rolled
+    // variant was the outlier, so it now rejects the same shapes the framework does.
+    internal static string NormalizeReturnPath(string? value)
     {
         var path = string.IsNullOrWhiteSpace(value) ? "/" : value.Trim();
-        return path.StartsWith('/') && !path.StartsWith("//", StringComparison.Ordinal) ? path.Split('?', '#')[0] : "/";
+        if (!path.StartsWith('/')) return "/";
+        if (path.Length > 1 && (path[1] == '/' || path[1] == '\\')) return "/";
+        return path.Split('?', '#')[0];
     }
 
     private static string AddResult(string path, string key, string value) => $"{path}?{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";

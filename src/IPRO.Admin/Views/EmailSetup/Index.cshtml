@@ -23,12 +23,12 @@
     <div class="col-md-3">
         <div class="card stat-card h-100">
             <div class="card-body d-flex align-items-center gap-3">
-                <div class="icon-box @(Model.HasSendGridApiKey ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">
+                <div class="icon-box @(Model.HasSendingCredential ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">
                     <i class="fas fa-key"></i>
                 </div>
                 <div>
-                    <div class="fw-bold">@(Model.HasSendGridApiKey ? "Configured" : "Missing")</div>
-                    <div class="text-muted small">SendGrid API key</div>
+                    <div class="fw-bold">@(Model.HasSendingCredential ? "Configured" : "Missing")</div>
+                    <div class="text-muted small">@Model.ProviderDisplayName credential</div>
                 </div>
             </div>
         </div>
@@ -74,13 +74,22 @@
     </div>
 </div>
 
-@if (!Model.HasSendGridApiKey || string.IsNullOrWhiteSpace(Model.FromEmail))
+@if (!Model.HasSendingCredential || string.IsNullOrWhiteSpace(Model.FromEmail))
 {
     <div class="alert alert-warning border-0 shadow-sm mb-4">
         <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-2"></i>Email setup needs attention</div>
         <div>
-            Add SendGrid settings to both <strong>ipro-prod-web</strong> and <strong>ipro-prod-admin</strong>,
-            then restart each App Service. The sender address must be verified in SendGrid.
+            This system is configured to send through <strong>@Model.ProviderDisplayName</strong>.
+            Add its settings to both <strong>ipro-prod-web</strong> and <strong>ipro-prod-admin</strong>,
+            then restart each App Service.
+            @if (Model.IsAzureProvider)
+            {
+                <text>The sender address must have a matching sender username on the verified domain in Azure.</text>
+            }
+            else
+            {
+                <text>The sender address must be verified in SendGrid.</text>
+            }
         </div>
     </div>
 }

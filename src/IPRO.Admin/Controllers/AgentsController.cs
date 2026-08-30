@@ -627,6 +627,12 @@ public class AgentsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    // Pre-launch audit (2026-08-30): these carried no policy while every sensitive sibling
+    // (Delete, ResetPassword, ErasurePreview, both Rebuilds) is SuperAdmin-only, and the
+    // class-level AdminAccess policy is literally "is signed in". A Support admin could sign an
+    // agent AND their whole team out instantly -- and Edit already blocks this same IsActive field
+    // for non-SuperAdmins, so the buttons contradicted the documented intent.
+    [Authorize(Policy = "SuperAdmin")]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(int id)
     {
@@ -640,6 +646,12 @@ public class AgentsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    // Pre-launch audit (2026-08-30): these carried no policy while every sensitive sibling
+    // (Delete, ResetPassword, ErasurePreview, both Rebuilds) is SuperAdmin-only, and the
+    // class-level AdminAccess policy is literally "is signed in". A Support admin could sign an
+    // agent AND their whole team out instantly -- and Edit already blocks this same IsActive field
+    // for non-SuperAdmins, so the buttons contradicted the documented intent.
+    [Authorize(Policy = "SuperAdmin")]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Deactivate(int id)
     {
