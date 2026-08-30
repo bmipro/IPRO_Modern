@@ -13,6 +13,7 @@
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Azure.Communication.Email" />
     <PackageReference Include="SendGrid" />
   </ItemGroup>
   <ItemGroup>
