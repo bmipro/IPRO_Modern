@@ -27,7 +27,7 @@
        waiver via IsSetupFeeWaivedOn -- the same call that decides the PayPal charge
      - the comparison rows render from package.Features, not a hand-written list
      - ?package= is carried into /Account/Register and /Preview
-     - the hero portal mock reads ViewBag.HeroInsight (shared with /Preview)
+     - the hero portal frame shows REAL screenshots of the live demo portal (mkt-shots 2026-08-30)
      - the demo address reads ViewBag.TemporaryRootDomain
      - /terms and /privacy exist now; the prototype's note that they 404 is stale
    --------------------------------------------------------------------------- *@
@@ -128,71 +128,13 @@ body { background: light-dark(#f2f6f8, #10171d); }
 #ipro-concept-two .i2-command-tab svg { flex: none; }
 #ipro-concept-two .i2-command-tab.i2-selected { background: #ffffff; color: var(--ipro2-navy-solid); }
 #ipro-concept-two .i2-command-tab:focus-visible { outline: 2px solid var(--ipro2-on-navy-accent); outline-offset: 1px; }
-#ipro-concept-two .i2-command-content { padding: 18px; min-width: 0; display: flex; flex-direction: column; }
+#ipro-concept-two .i2-command-content { padding: 0; min-width: 0; display: flex; flex-direction: column; }
+/* Screenshots fill the panel edge-to-edge; top-left anchored so the crop loses only the page bottom. */
+#ipro-concept-two .i2-shot { width: 100%; height: 100%; flex: 1 1 auto; min-height: 0; object-fit: cover; object-position: top left; display: block; background: #f6f8fb; }
 #ipro-concept-two .i2-panel { display: none; }
 #ipro-concept-two .i2-panel.i2-panel-active { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-/* Surfaces marked i2-fill stretch so every panel reads as a full app screen. */
-#ipro-concept-two .i2-panel.i2-panel-active > .i2-fill { flex: 1 1 auto; min-height: 0; }
-#ipro-concept-two .i2-command-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
-#ipro-concept-two .i2-command-heading b { display: block; font-size: 1rem; color: #173b55; }
-#ipro-concept-two .i2-command-heading small { color: #66757e; }
-#ipro-concept-two .i2-next { margin-top: 15px; background: #ffffff; border-left: 4px solid var(--ipro2-coral); padding: 15px; }
-#ipro-concept-two .i2-next-label { color: var(--ipro2-coral); font-size: .65rem; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; }
-#ipro-concept-two .i2-next h3 { margin: 8px 0 4px; color: #173b55; font-size: .9rem; font-weight: 500; }
-#ipro-concept-two .i2-next p { margin: 0; color: #66757e; font-size: .69rem; line-height: 1.5; }
-#ipro-concept-two .i2-command-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-#ipro-concept-two .i2-command-stat { background: #ffffff; padding: 11px; border-bottom: 2px solid #dae3e9; }
-#ipro-concept-two .i2-command-stat b { display: block; color: #173b55; font-size: 1.05rem; }
-#ipro-concept-two .i2-command-stat span { color: #66757e; font-size: .61rem; }
-#ipro-concept-two .i2-command-list { margin-top: 10px; background: #ffffff; }
-#ipro-concept-two .i2-command-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #e1e7ec; font-size: .65rem; }
-#ipro-concept-two .i2-command-item:last-child { border-bottom: 0; }
-#ipro-concept-two .i2-command-item b { color: #173b55; }
-#ipro-concept-two .i2-command-item em { color: var(--ipro2-coral); font-style: normal; }
 
 /* Shared pieces for the switchable portal panels. */
-#ipro-concept-two .i2-mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid #dae3e9; border-radius: 3px; background: #ffffff; color: #173b55; font-size: .6rem; font-weight: 500; white-space: nowrap; }
-#ipro-concept-two .i2-mini-btn svg { flex: none; }
-#ipro-concept-two .i2-mini-wrap { margin-top: 15px; background: #ffffff; overflow-x: auto; }
-#ipro-concept-two .i2-mini-table { width: 100%; border-collapse: collapse; font-size: .63rem; }
-#ipro-concept-two .i2-mini-table th { padding: 8px 12px; text-align: left; color: #66757e; font-size: .55rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid #e1e7ec; white-space: nowrap; }
-#ipro-concept-two .i2-mini-table td { padding: 9px 12px; color: #66757e; border-bottom: 1px solid #e1e7ec; white-space: nowrap; }
-#ipro-concept-two .i2-mini-table tbody tr:last-child td { border-bottom: 0; }
-#ipro-concept-two .i2-mini-table td:first-child { color: #173b55; font-weight: 500; }
-#ipro-concept-two .i2-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: .55rem; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
-#ipro-concept-two .i2-badge-overdue { background: #f8e3d7; color: #9d4715; }
-#ipro-concept-two .i2-badge-today { background: #dbeef0; color: #0a6367; }
-#ipro-concept-two .i2-badge-soon { background: #e4edf4; color: #2f5876; }
-#ipro-concept-two .i2-badge-later { background: #eef1f4; color: #5f6e78; }
-#ipro-concept-two .i2-badge-new { background: #087d83; color: #ffffff; }
-#ipro-concept-two .i2-week { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 15px; padding: 12px; background: #ffffff; }
-#ipro-concept-two .i2-day { display: grid; gap: 5px; align-content: start; min-width: 0; }
-#ipro-concept-two .i2-day-head { padding-bottom: 6px; text-align: center; border-bottom: 1px solid #e1e7ec; }
-#ipro-concept-two .i2-day-head span { display: block; color: #66757e; font-size: .52rem; letter-spacing: .06em; text-transform: uppercase; }
-#ipro-concept-two .i2-day-head b { display: block; margin-top: 2px; color: #173b55; font-size: .72rem; font-weight: 500; }
-#ipro-concept-two .i2-day-today .i2-day-head { border-bottom-color: var(--ipro2-coral); }
-#ipro-concept-two .i2-day-today .i2-day-head b { color: #d06a35; }
-#ipro-concept-two .i2-chip { padding: 5px 6px; background: #eef3f7; border-left: 2px solid #087d83; color: #66757e; font-size: .52rem; line-height: 1.35; overflow-wrap: anywhere; }
-#ipro-concept-two .i2-chip b { display: block; color: #173b55; font-weight: 500; }
-#ipro-concept-two .i2-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 15px; }
-#ipro-concept-two .i2-card { display: grid; gap: 6px; justify-items: start; align-content: start; padding: 13px; background: #ffffff; border-bottom: 2px solid #dae3e9; }
-#ipro-concept-two .i2-card svg { color: #d06a35; }
-#ipro-concept-two .i2-card b { color: #173b55; font-size: .72rem; font-weight: 500; }
-#ipro-concept-two .i2-status { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: .55rem; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; }
-#ipro-concept-two .i2-status-draft { background: #eef1f4; color: #5f6e78; }
-#ipro-concept-two .i2-status-scheduled { background: #dbeef0; color: #0a6367; }
-#ipro-concept-two .i2-siteblock { display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px; align-items: center; margin-top: 15px; padding: 14px; background: #ffffff; }
-#ipro-concept-two .i2-thumb { border: 1px solid #dae3e9; overflow: hidden; }
-#ipro-concept-two .i2-thumb-bar { height: 15px; display: flex; align-items: center; gap: 3px; padding: 0 5px; background: #f2f6f8; border-bottom: 1px solid #dae3e9; }
-#ipro-concept-two .i2-thumb-bar span { width: 4px; height: 4px; border-radius: 50%; background: #cfd8df; }
-#ipro-concept-two .i2-thumb-hero { height: 54px; background: var(--ipro2-navy-solid); }
-#ipro-concept-two .i2-thumb-lines { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 8px; }
-#ipro-concept-two .i2-thumb-lines span { height: 17px; background: #eef2f6; border-top: 2px solid #d06a35; }
-#ipro-concept-two .i2-siteblock-meta b { display: block; color: #173b55; font-size: .82rem; font-weight: 500; }
-#ipro-concept-two .i2-siteblock-facts { display: grid; gap: 6px; margin-top: 9px; }
-#ipro-concept-two .i2-siteblock-facts span { display: flex; align-items: center; gap: 6px; color: #66757e; font-size: .62rem; }
-#ipro-concept-two .i2-siteblock-facts svg { flex: none; color: #087d83; }
-#ipro-concept-two .i2-siteblock .i2-mini-btn { margin-top: 12px; }
 
 #ipro-concept-two .i2-proof { background: var(--ipro2-paper); border-bottom: 1px solid var(--ipro2-line); }
 #ipro-concept-two .i2-proof-row { display: grid; grid-template-columns: repeat(4, 1fr); }
@@ -361,11 +303,6 @@ body { background: light-dark(#f2f6f8, #10171d); }
   #ipro-concept-two .i2-command-nav strong { padding-left: 5px; }
   #ipro-concept-two .i2-command-tab { font-size: .56rem; padding: 7px 5px; }
   #ipro-concept-two .i2-command-content { padding: 12px; }
-  #ipro-concept-two .i2-command-stats { grid-template-columns: 1fr; }
-  #ipro-concept-two .i2-command-stat:nth-child(n+2) { display: none; }
-  #ipro-concept-two .i2-week { gap: 4px; padding: 9px; }
-  #ipro-concept-two .i2-chip { font-size: .48rem; padding: 4px; }
-  #ipro-concept-two .i2-siteblock { grid-template-columns: 1fr; }
   #ipro-concept-two .i2-proof-row { grid-template-columns: repeat(2, 1fr); }
   #ipro-concept-two .i2-proof-item { border-bottom: 1px solid var(--ipro2-line); }
   #ipro-concept-two .i2-section { padding: 58px 0; }
@@ -394,7 +331,6 @@ body { background: light-dark(#f2f6f8, #10171d); }
   #ipro-concept-two .i2-hero-actions .i2-action-outline { width: 100%; }
   #ipro-concept-two .i2-command-body { grid-template-columns: 1fr; }
   #ipro-concept-two .i2-command-nav { display: none; }
-  #ipro-concept-two .i2-cards { grid-template-columns: 1fr; }
   #ipro-concept-two .i2-proof-row { grid-template-columns: 1fr; }
   #ipro-concept-two .i2-proof-item { border-right: 0; }
 }
@@ -452,92 +388,29 @@ body { background: light-dark(#f2f6f8, #10171d); }
               </aside>
               <div class="i2-command-content">
 
+                @* Real screenshots of the live demo portal replaced the hand-built panel
+                   impressions (mkt-shots, 2026-08-30) -- the tabs still switch, but every pixel
+                   of product shown is product. Pinned by MarketingScreenshotTests. *@
                 <section class="i2-panel i2-panel-active" id="i2-panel-dashboard" role="tabpanel" aria-labelledby="i2-tab-dashboard" data-i2-panel="dashboard">
-                  <div class="i2-command-heading"><div><b>Good morning, Michael</b><small>Thursday, August 13</small></div><small>Tran Financial Group</small></div>
-                  <div class="i2-next"><span class="i2-next-label">Your next best action</span><h3>@ViewBag.HeroInsight.ActionText</h3><p>@ViewBag.HeroInsight.ActionReason</p></div>
-                  <div class="i2-command-stats"><div class="i2-command-stat"><b>@ViewBag.HeroInsight.NewLeadCount</b><span>new website leads</span></div><div class="i2-command-stat"><b>@ViewBag.HeroInsight.StaleLeadCount</b><span>more than 24h old</span></div><div class="i2-command-stat"><b>@ViewBag.HeroInsight.NoFollowUpClientCount</b><span>no follow-up set</span></div></div>
-                  <div class="i2-command-list"><div class="i2-command-item"><span><b>Jennifer Walsh</b><br>Annual policy review</span><em>Overdue</em></div><div class="i2-command-item"><span><b>Marcus Chen</b><br>Send quote comparison</span><em>Today</em></div><div class="i2-command-item"><span><b>David Henderson</b><br>Retirement review</span><em>Tomorrow</em></div></div>
+                  <img class="i2-shot" src="/images/portal-shots/01-dashboard.webp" alt="The live IPRO agent dashboard: the AI Daily Assistant digest suggesting the day's next action, client and follow-up counts, and new website leads" />
                 </section>
-
                 <section class="i2-panel" id="i2-panel-clients" role="tabpanel" aria-labelledby="i2-tab-clients" data-i2-panel="clients">
-                  <div class="i2-command-heading"><div><b>Clients</b><small>Showing 5 of 128</small></div><span class="i2-mini-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="user-plus" aria-hidden="true" class="lucide lucide-user-plus"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" x2="19" y1="8" y2="14"></line><line x1="22" x2="16" y1="11" y2="11"></line></svg>Add client</span></div>
-                  <div class="i2-mini-wrap i2-fill">
-                    <table class="i2-mini-table">
-                      <thead><tr><th>Name</th><th>Account type</th><th>City</th><th>Last contact</th></tr></thead>
-                      <tbody>
-                        <tr><td>Jennifer Walsh</td><td>Policy review</td><td>Toronto</td><td>12 days ago</td></tr>
-                        <tr><td>Marcus Chen</td><td>Prospect</td><td>Mississauga</td><td>2 days ago</td></tr>
-                        <tr><td>David Henderson</td><td>Retirement planning</td><td>Oakville</td><td>3 weeks ago</td></tr>
-                        <tr><td>Priya Raman</td><td>Group benefits</td><td>Burlington</td><td>1 week ago</td></tr>
-                        <tr><td>Daniel Okafor</td><td>Life insurance</td><td>Hamilton</td><td>Yesterday</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  <img class="i2-shot" src="/images/portal-shots/02-clients.webp" alt="The client list: searchable contacts with newsletter status, CSV import and export" loading="lazy" />
                 </section>
-
                 <section class="i2-panel" id="i2-panel-followups" role="tabpanel" aria-labelledby="i2-tab-followups" data-i2-panel="followups">
-                  <div class="i2-command-heading"><div><b>Follow-ups</b><small>Four open this week</small></div><small>Tran Financial Group</small></div>
-                  <div class="i2-command-list i2-fill">
-                    <div class="i2-command-item"><span><b>Jennifer Walsh</b><br>Annual policy review</span><span class="i2-badge i2-badge-overdue">Overdue</span></div>
-                    <div class="i2-command-item"><span><b>Marcus Chen</b><br>Send quote comparison</span><span class="i2-badge i2-badge-today">Today</span></div>
-                    <div class="i2-command-item"><span><b>David Henderson</b><br>Retirement review</span><span class="i2-badge i2-badge-soon">Tomorrow</span></div>
-                    <div class="i2-command-item"><span><b>Priya Raman</b><br>Group benefits renewal</span><span class="i2-badge i2-badge-later">Next week</span></div>
-                  </div>
+                  <img class="i2-shot" src="/images/portal-shots/03-followups.webp" alt="The follow-up queue: overdue, due-today and upcoming reminders per client" loading="lazy" />
                 </section>
-
                 <section class="i2-panel" id="i2-panel-calendar" role="tabpanel" aria-labelledby="i2-tab-calendar" data-i2-panel="calendar">
-                  <div class="i2-command-heading"><div><b>Calendar</b><small>Week of August 10</small></div><small>Three appointments</small></div>
-                  <div class="i2-week i2-fill">
-                    <div class="i2-day"><div class="i2-day-head"><span>Mon</span><b>10</b></div></div>
-                    <div class="i2-day"><div class="i2-day-head"><span>Tue</span><b>11</b></div><div class="i2-chip"><b>10:00</b>Marcus C.</div></div>
-                    <div class="i2-day"><div class="i2-day-head"><span>Wed</span><b>12</b></div></div>
-                    <div class="i2-day i2-day-today"><div class="i2-day-head"><span>Thu</span><b>13</b></div><div class="i2-chip"><b>09:30</b>Jennifer W.</div></div>
-                    <div class="i2-day"><div class="i2-day-head"><span>Fri</span><b>14</b></div><div class="i2-chip"><b>14:00</b>David H.</div></div>
-                  </div>
-                  <div class="i2-next"><span class="i2-next-label">Next appointment</span><h3>Jennifer Walsh, 9:30 this morning.</h3><p>Annual policy review, booked from her request in the client portal.</p></div>
+                  <img class="i2-shot" src="/images/portal-shots/04-calendar.webp" alt="The follow-up calendar: a month of client reminders at a glance" loading="lazy" />
                 </section>
-
                 <section class="i2-panel" id="i2-panel-marketing" role="tabpanel" aria-labelledby="i2-tab-marketing" data-i2-panel="marketing">
-                  <div class="i2-command-heading"><div><b>Marketing</b><small>Newsletters, e-cards and campaigns</small></div></div>
-                  <div class="i2-cards">
-                    <div class="i2-card"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="mail" aria-hidden="true" class="lucide lucide-mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"></path><rect x="2" y="4" width="20" height="16" rx="2"></rect></svg><b>August newsletter</b><span class="i2-status i2-status-draft">Draft</span></div>
-                    <div class="i2-card"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="gift" aria-hidden="true" class="lucide lucide-gift"><path d="M12 7v14"></path><path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"></path><path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5"></path><rect x="3" y="7" width="18" height="4" rx="1"></rect></svg><b>Birthday e-cards</b><span class="i2-status i2-status-scheduled">Scheduled</span></div>
-                  </div>
-                  <div class="i2-command-list"><div class="i2-command-item"><span><b>Fall campaign</b><br>Automated follow-up sequence</span><span class="i2-badge i2-badge-today">3 steps active</span></div></div>
+                  <img class="i2-shot" src="/images/portal-shots/05-marketing.webp" alt="Reusable newsletters ready to preview, edit and send" loading="lazy" />
                 </section>
-
                 <section class="i2-panel" id="i2-panel-website" role="tabpanel" aria-labelledby="i2-tab-website" data-i2-panel="website">
-                  <div class="i2-command-heading"><div><b>My website</b><small>Your public address and pages</small></div></div>
-                  <div class="i2-siteblock">
-                    <div class="i2-thumb">
-                      <div class="i2-thumb-bar"><span></span><span></span><span></span></div>
-                      <div class="i2-thumb-hero"></div>
-                      <div class="i2-thumb-lines"><span></span><span></span><span></span></div>
-                    </div>
-                    <div class="i2-siteblock-meta">
-                      <b>tranfinancial.ca</b>
-                      <div class="i2-siteblock-facts">
-                        <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="check-circle-2" aria-hidden="true" class="lucide lucide-check-circle-2"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>Live</span>
-                        <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="shield-check" aria-hidden="true" class="lucide lucide-shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg>SSL secured</span>
-                        <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="layers-3" aria-hidden="true" class="lucide lucide-layers-3"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"></path><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"></path><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"></path></svg>6 pages</span>
-                      </div>
-                      <span class="i2-mini-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="square-pen" aria-hidden="true" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>Edit pages</span>
-                    </div>
-                  </div>
+                  <img class="i2-shot" src="/images/portal-shots/06-website.webp" alt="Website settings: publish state, your address, themes and custom-domain setup" loading="lazy" />
                 </section>
-
                 <section class="i2-panel" id="i2-panel-leads" role="tabpanel" aria-labelledby="i2-tab-leads" data-i2-panel="leads">
-                  <div class="i2-command-heading"><div><b>Leads</b><small>From your website forms</small></div><small>One new</small></div>
-                  <div class="i2-mini-wrap i2-fill">
-                    <table class="i2-mini-table">
-                      <thead><tr><th>Name</th><th>Source</th><th>Received</th><th><span aria-hidden="true"></span></th></tr></thead>
-                      <tbody>
-                        <tr><td>Amanda Reyes</td><td>Website form</td><td>2h ago</td><td><span class="i2-badge i2-badge-new">New</span></td></tr>
-                        <tr><td>Grace Lam</td><td>Website form</td><td>Yesterday</td><td></td></tr>
-                        <tr><td>Kevin Doyle</td><td>Website form</td><td>3 days ago</td><td></td></tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  <img class="i2-shot" src="/images/portal-shots/07-leads.webp" alt="The website lead inbox: form submissions with one-click CRM and follow-up actions" loading="lazy" />
                 </section>
 
               </div>

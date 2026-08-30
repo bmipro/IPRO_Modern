@@ -102,21 +102,34 @@ included in ZERO packages. Anything not shipping should look like that.
 Removing a claim is a SuperAdmin data change PLUS a seeder fix -- both, or a fresh database
 reintroduces it.
 
-## NEXT SESSION (owner-queued 2026-08-27 night)
+## NEXT SESSION (queued 2026-08-29 night)
 
-1. **Homepage social links** -- add to the app.iproadvisers.com main page (footer, most likely):
-   - Facebook: https://www.facebook.com/p/iPRO-100071151034796/
-   - YouTube: https://www.youtube.com/@AllAdvisers
-   (Handle confirmed by owner 2026-08-27: @AllAdvisers, no trailing period.)
-2. **Marketing source-of-truth pack** -- generate the product-truth document (what the product
-   actually does, packages/pricing from BillingRules, homepage copy, brand voice) for the owner's
-   separate go-live marketing project, so marketing copy can never claim features that do not
-   exist (the SMS-reminders lesson). See handoff for the project-separation recommendation.
+1. **Dashboard + Leads screenshots** (owner, morning): AI digest populates overnight -> retake
+   01-dashboard; after the SendGrid fix (item 431) delete the 3 warning-flagged leads, redo the
+   3 form submissions (Claude fills, owner passes the security check), shoot 07-leads. Files go
+   to C:\Users\admin\Pictures\ipro-shots\ (5 of 7 already saved and verified there).
+2. **Homepage screenshot integration wave** (Claude, once all 7 exist): crop browser chrome,
+   swap the hero mock's 7 HTML panels for the real images, keep the tabbed interaction; normal
+   gated wave (tests -> branch -> merge -> both-host verify). Uncommitted tonight: TODO.md
+   updates (items 431/432, this block) ride this wave's commit.
+3. **SendGrid dashboard check** (owner): plan + credit reset window + upgrade decision - item 431;
+   also added to the runway board as Phase 4 item sg-credits.
+4. **Carried forward (2026-08-27):** Marketing source-of-truth pack for the separate go-live
+   marketing project (product truth: features, packages/pricing from BillingRules, homepage copy,
+   brand voice) - not yet generated. (The other Aug 27 item - homepage social links - SHIPPED:
+   both Facebook and YouTube are live in the footer, verified in production HTML 2026-08-29.)
+
+Demo agent (for the record): Michael Tran, michaeltran@alladvisers.com, Platinum monthly (sandbox
+sub, invoice 000021 paid), Insurance/Financial vertical, site published at
+michaeltran.247advisers.com. Staged: 18 clients, 13 open follow-ups (Aug 28 - Sep 25),
+3 newsletters, 3 leads. Owner holds the password; Claude never logs in itself.
 
 ## Owner-driven — waiting on Bahman, not on code
 
 | # | Item | Notes |
 |---|---|---|
+| **431** | **SendGrid out of credits — ALL production email failing (found 2026-08-29 evening)** | Lead notifications on the Michael Tran demo agent stored `401 Unauthorized — "Maximum credits exceeded"` (visible as the warning on all 3 leads in /portal/WebsiteLeads; verification emails still worked that afternoon, so the account ran dry during the day). Until credits reset or the plan is upgraded, signup verification codes, welcome emails, newsletters and lead notifications ALL fail — signups are effectively broken. ESCALATED 2026-08-30 midday: the SendGrid WEB LOGIN is blocked with ERR_USER_FORBIDDEN_ACCESS ("You are not authorized to access this account") - combined with the API 401 "Maximum credits exceeded" this is the signature of an ACCOUNT SUSPENSION by Twilio compliance, not a quota. Likely trigger: weeks of automated QA sends to nonexistent test mailboxes = near-100% bounce rate. Owner actions: (1) check the SendGrid account-owner inbox incl. spam for a compliance notice; (2) try app.sendgrid.com and the Twilio Console door; (3) file "cannot log in" ticket at support.sendgrid.com; (4) if not reinstated by ~Sep 3, switch provider - SendGridEmailService is a single-seam swap; recommend Azure Communication Services Email (Azure-native, CA residency) or a fresh PAID SendGrid with domain auth. STANDING LESSON for the QA harness: never let automated tests send email to mailboxes that cannot receive it. Previously noted: CONFIRMED STILL FAILING 2026-08-30 ~10am on a FRESH lead submission - so NOT a daily-reset cap: either a monthly quota (self-heals Sep 1) or an expired trial (needs paid plan now). New-signup verification codes cannot send until resolved. OWNER: open the SendGrid dashboard → confirm plan + when credits reset; decide the paid-tier upgrade. A paid plan is realistically a **Phase 4 launch prerequisite** (real newsletters will exceed any free cap). After email works again: delete the 3 warning-flagged demo leads and re-submit fresh ones before shooting the Leads screenshot. |
+| **432** | **Admin header clock shows UTC, portal shows agent-local** | Cosmetic: Admin's header timestamp read "8:42 PM" when local (Eastern) time was ~4:42 PM — it renders UTC. Portal lead timestamps are correct agent-local. Low priority; fix = format the Admin header with a configured admin timezone. |
 | ~~399~~ | ~~Aug 10 charge count~~ | **PASSED** — exactly one $45.20 on Aug 10. bobtest since deleted (see 400). |
 | **400** | **QA billing restart — day 0 DONE** | bobtest **deleted 2026-08-10 20:30**; deletion cancelled `I-UV5VSN5RM0AP` at PayPal, **verified via API**. The webhook (#397) and the double-tax fix are now live, so the rerun tests the whole pipeline for real. Old bobtest data (incl. the $51.08 invoices) is gone with the agent. |
 | ~~401~~ | ~~QA restart day 1~~ | **PASSED 2026-08-10, and productive.** `bob2test2` (Quebec — deliberately different tax rate, 14.975% GST+QST), sub `I-RYCAW2SJMH73`, ACTIVE, daily. Both activation sales ($172.47 setup + $45.99 first cycle) processed **organically** by the webhook — first real end-to-end run. Signup invoice 000008 correct: $190 + $28.45 QC = $218.45. **Found bug: the second activation sale got a duplicate invoice invented for it** ($172.47 setup reappeared as a spurious "$150.01 monthly recurring" invoice 000009) — fixed same hour (`f4424fd`): a sale within 6h of a settled invoice for less than its total is absorbed into it, transaction id appended. The spurious 000009 stays in the DB as test data; dies with the agent on day 4. |
