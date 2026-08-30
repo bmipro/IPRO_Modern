@@ -102,32 +102,54 @@ included in ZERO packages. Anything not shipping should look like that.
 Removing a claim is a SuperAdmin data change PLUS a seeder fix -- both, or a fresh database
 reintroduces it.
 
-## NEXT SESSION (queued 2026-08-29 night)
+## NEXT SESSION (queued 2026-08-30 night)
 
-1. **Dashboard + Leads screenshots** (owner, morning): AI digest populates overnight -> retake
-   01-dashboard; after the SendGrid fix (item 431) delete the 3 warning-flagged leads, redo the
-   3 form submissions (Claude fills, owner passes the security check), shoot 07-leads. Files go
-   to C:\Users\admin\Pictures\ipro-shots\ (5 of 7 already saved and verified there).
-2. **Homepage screenshot integration wave** (Claude, once all 7 exist): crop browser chrome,
-   swap the hero mock's 7 HTML panels for the real images, keep the tabbed interaction; normal
-   gated wave (tests -> branch -> merge -> both-host verify). Uncommitted tonight: TODO.md
-   updates (items 431/432, this block) ride this wave's commit.
-3. **SendGrid dashboard check** (owner): plan + credit reset window + upgrade decision - item 431;
-   also added to the runway board as Phase 4 item sg-credits.
-4. **Carried forward (2026-08-27):** Marketing source-of-truth pack for the separate go-live
-   marketing project (product truth: features, packages/pricing from BillingRules, homepage copy,
-   brand voice) - not yet generated. (The other Aug 27 item - homepage social links - SHIPPED:
-   both Facebook and YouTube are live in the footer, verified in production HTML 2026-08-29.)
+1. **Mobile fixes, items 1-5** (~3-4 hrs, Claude; owner eyeballs on a real phone as they land).
+   From the mobile-readiness sweep (4 agents, 2026-08-30). NOT a "mobile version" - the responsive
+   layer already exists and mostly works; these are bugs in it:
+   - **Drawer close is a one-way door.** `.agent-sidebar` z-index 1040 paints over the topbar's
+     1030 hamburger, so tapping "close" hits the brand logo's link -> navigates to Dashboard and
+     discards the page, unsaved form and all. No backdrop, no outside-click, no ESC; the whole
+     sidebar JS is a 5-line classList.toggle. For a gated agent every nav link is preventDefault'd
+     into the upgrade modal, so it becomes a real trap. `Views/Shared/_Layout.cshtml` ~1 hr.
+   - **Cannot log out on a phone.** `.agent-sidebar { height:100vh }` + fixed positioning puts
+     Logout ~70px and Change Password ~29px under mobile Safari's toolbar, unscrollable. Add
+     `height:100dvh` after the 100vh and a safe-area inset on the footer. 5 min.
+   - **Public inputs are 15px**, so iOS zooms on focus and stays zoomed - on the 11-field signup
+     form and every lead/testimonial/calculator form. Register.cshtml:36, ChangePassword,
+     ForgotPassword, ResetPassword, PublicWebsite/_WebsiteLeadForm:138, _WebsiteCustomForm:136,
+     _TestimonialForm:66, _CalculatorBlock:497. 20 min.
+   - **Hero widget is unreadable/unreachable on phones.** Below 421px `.i2-command-nav` is
+     display:none with no replacement, so 6 of 7 screenshots are unreachable; the one shown is a
+     1204x929 capture object-fit:cover'd into ~321x366 = 0.394 scale (14px text -> 5.5px) with a
+     third cropped. MEASURED LIVE, not inferred. Fix: scrolling tab rail below 421px +
+     object-fit:contain (or phone-specific crops). Home/Index.cshtml:333 and :133. 1-2 hrs.
+   - **No mobile nav in the marketing header**: `@media (max-width:920px)` hides every anchor that
+     is not `.i2-action`, so Sign in vanishes and a customer must scroll to the footer. Give it
+     `.i2-action-outline`. Home/Index.cshtml:277, :352-359. 10 min.
+2. **Cheap mobile ride-alongs (6-11)**, ~1.5 hrs total: overflow-wrap+clamp on the three managed
+   hero H1s (a long word puts a published agent site into horizontal scroll); flex-wrap +
+   drop fixed widths on Clients/FollowUps filters; `position:static` on `.public-site-header`
+   inside the mobile block; confirm dialog on CompleteFollowUp + gap-2 on the 4px-apart
+   complete/delete pairs; `order-*` so Follow-ups precedes the 1,500px left column on Client
+   Details; `100dvh` + flex-wrap in Admin (the ONLY Admin item worth taking).
+3. **TODO 433** - ACS Event Grid delivery/bounce pipeline + the sending-quota check before launch.
 
-Demo agent (for the record): Michael Tran, michaeltran@alladvisers.com, Platinum monthly (sandbox
-sub, invoice 000021 paid), Insurance/Financial vertical, site published at
-michaeltran.247advisers.com. Staged: 18 clients, 13 open follow-ups (Aug 28 - Sep 25),
-3 newsletters, 3 leads. Owner holds the password; Claude never logs in itself.
+DELIBERATELY NOT DOING before Sept 21 (decided 2026-08-30, do not re-litigate): an Admin mobile
+shell (zero media queries, content column computes to 77px at 375px - days of work for one user
+who owns a desktop); the pricing-table rebuild as stacked cards; the calendar mobile agenda view
+(FollowUps/FollowUpQueue cover the same task and are fine); sticky first column on Clients.
+
+Also open: the 8 lower-severity audit candidates that were dropped WITHOUT adversarial
+verification (email 3, jobs 3, guards 1, money 1) - dropped is not cleared, nobody attacked them.
+If more audit budget is spent, spend it there first; that is the newest code.
 
 ## Owner-driven — waiting on Bahman, not on code
 
 | # | Item | Notes |
 |---|---|---|
+| **435** | **Pre-launch adversarial audit 2026-08-30 -- 8 findings, ALL FIXED same day (9abae93)** | 19 agents, 6 dimensions, every serious candidate attacked by a verifier defaulting to refute. Verdict: launchable, nothing architectural. Fixed: (1) client-portal cookie never revalidated so "Revoke portal access" revoked nothing -- a signed-in client kept reading documents incl. ones uploaded AFTER revocation (3rd instance of the pattern Admin fixed 08-20, agent portal 08-27; new ClientPortalCookieRevalidator); (2) AzureEmailService.SendBulkAsync put every recipient in one To header = cross-tenant disclosure of the adviser list on the only caller (SuperAdmin retiring a template) -- MY regression from the same day's ACS wave, and the existing test PINNED the broken shape; (3) Activate/Deactivate had no SuperAdmin policy and the view showed the button to Support admins -- one click signs an agent AND their team out; (4) Quarterly was offerable (seeder ships QuarterlyPrice 120/180/270, GetPayPalPlanId fell through to the MONTHLY plan) so a posted BillingPeriod=Quarterly invoiced $429.40 while PayPal charged $293.80 and the settlement match marked it PAID; (5) a public newsletter post could clear another person's recorded opt-out with no proof of ownership + write a fabricated consent record; (6) Email Setup graded SendGrid only, so mid-outage it pointed at settings that no longer matter; (7) renewal tax used banker's rounding (QC $68.99 charged / $68.98 invoiced, every month); (8) NormalizeReturnPath missed the "/\" shape so a tampered field 500'd the visitor AFTER the lead was saved. 17 tests observed RED first; gate 448/448. **STANDING LESSON: a test can assert that code does what you wrote rather than what it should do -- a green suite is not evidence of parity when swapping a dependency.** |
+| **436** | **Mobile-readiness sweep 2026-08-30 -- verdict: do NOT build a mobile version** | 4 agents + live measurement at 375px. The responsive layer exists and mostly works (portal sidebar goes off-canvas at 991.98px with a working hamburger; 26 of 33 table views wrapped; client portal is the healthiest surface in the repo). What exists is ~8 bugs in it, most one-line. Full ranked list and the explicit do-not-do set are in NEXT SESSION above. Admin confirmed unusable on a phone (zero media queries, 77px content column at 375px) and deliberately NOT being fixed before launch. |
 | ~~431~~ | ~~SendGrid outage~~ **RESOLVED for sending 2026-08-30 evening: production email now runs on Azure Communication Services** — end-to-end verified (fresh lead -> warning-free card -> notification delivered to the agent inbox from support@iproadvisers.com). Cutover notes: ACS resources ipro-prod-comms/ipro-prod-email (Canada), domain verified (the ACS SPF checker rejects merged records AND ~all — the fix is the Microsoft-support-confirmed temporary exact-record swap, now documented in DNS_ZONE_RUNBOOK), sender usernames no-reply + support, Email__Provider=Azure on both apps (settings-change restarts can race a submission — force az webapp restart at any future flip). STILL OPEN (new item 433): the Event Grid delivery/bounce pipeline; sending works, delivery TRACKING does not yet. Cleanup after 433: remove include:sendgrid.net from SPF, delete the SendGrid keys from App Service, close the SendGrid account. Original record: **SendGrid out of credits — ALL production email failing (found 2026-08-29 evening)** | Lead notifications on the Michael Tran demo agent stored `401 Unauthorized — "Maximum credits exceeded"` (visible as the warning on all 3 leads in /portal/WebsiteLeads; verification emails still worked that afternoon, so the account ran dry during the day). Until credits reset or the plan is upgraded, signup verification codes, welcome emails, newsletters and lead notifications ALL fail — signups are effectively broken. ESCALATED 2026-08-30 midday: the SendGrid WEB LOGIN is blocked with ERR_USER_FORBIDDEN_ACCESS ("You are not authorized to access this account") - combined with the API 401 "Maximum credits exceeded" this is the signature of an ACCOUNT SUSPENSION by Twilio compliance, not a quota. Likely trigger: weeks of automated QA sends to nonexistent test mailboxes = near-100% bounce rate. Owner actions: (1) check the SendGrid account-owner inbox incl. spam for a compliance notice; (2) try app.sendgrid.com and the Twilio Console door; (3) file "cannot log in" ticket at support.sendgrid.com; (4) if not reinstated by ~Sep 3, switch provider - SendGridEmailService is a single-seam swap; recommend Azure Communication Services Email (Azure-native, CA residency) or a fresh PAID SendGrid with domain auth. STANDING LESSON for the QA harness: never let automated tests send email to mailboxes that cannot receive it. Previously noted: CONFIRMED STILL FAILING 2026-08-30 ~10am on a FRESH lead submission - so NOT a daily-reset cap: either a monthly quota (self-heals Sep 1) or an expired trial (needs paid plan now). New-signup verification codes cannot send until resolved. OWNER: open the SendGrid dashboard → confirm plan + when credits reset; decide the paid-tier upgrade. A paid plan is realistically a **Phase 4 launch prerequisite** (real newsletters will exceed any free cap). After email works again: delete the 3 warning-flagged demo leads and re-submit fresh ones before shooting the Leads screenshot. |
 | **433** | **ACS email piece 2: Event Grid delivery/bounce pipeline** | Replaces NewsletterController.SendGridEvents: subscribe the Email Communication Service to Event Grid (EmailDeliveryReportReceived + engagement events), correlate on the operation id already stored as ProviderMessageId, feed the SAME three consumers (newsletter recorder, EmailDeliveryTracker, EmailConsentService suppression). Until then bounces/complaints are not recorded (CASL suppression only via our own unsubscribe links, which are provider-independent and still work). ALSO before launch: check the new ACS resource's sending quota and request an increase if newsletters would exceed it. |
 | **432** | **Admin header clock shows UTC, portal shows agent-local** | Cosmetic: Admin's header timestamp read "8:42 PM" when local (Eastern) time was ~4:42 PM — it renders UTC. Portal lead timestamps are correct agent-local. Low priority; fix = format the Admin header with a configured admin timezone. |
