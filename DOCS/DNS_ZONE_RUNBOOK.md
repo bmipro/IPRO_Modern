@@ -36,6 +36,17 @@ is ever lost, this file rebuilds the app's DNS from scratch. Re-capture after an
 | `selector1-azurecomm-prod-net._domainkey` | CNAME | `selector1-azurecomm-prod-net._domainkey.azurecomm.net` | ACS DKIM 1 |
 | `selector2-azurecomm-prod-net._domainkey` | CNAME | `selector2-azurecomm-prod-net._domainkey.azurecomm.net` | ACS DKIM 2 |
 
+**ACS SPF verification quirk (cost us 3 failed attempts on 2026-08-30):** Azure's checker
+rejects merged multi-include SPF records AND the `~all` softfail form. The Microsoft-support-
+confirmed procedure: temporarily set the SPF record to exactly
+`v=spf1 include:spf.protection.outlook.com -all`, initiate verification (passes in seconds),
+then restore the full merged record. Verification is one-time and does not re-run. Keep the
+swap window short: the temporary record hard-fails every non-Azure sender.
+
+Sender usernames configured in ACS: `DoNotReply` (auto), `no-reply`, `support` — production
+`Email__FromEmail` is `support@iproadvisers.com`; any new FROM address needs its username
+created in ACS first (error otherwise: InvalidSenderUserName).
+
 A domain may carry only ONE SPF TXT record — always merge, never add a second. The pre-ACS value
 (for history / rollback): `v=spf1 +mx +a +ip4:66.102.128.65 +include:spf.websiteservername.com
 +include:relay.mailchannels.net +include:sendgrid.net ~all`. Old value may linger in resolver
