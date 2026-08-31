@@ -131,14 +131,14 @@
             }
           </td>
           <td>
-            <div class="d-flex gap-1 justify-content-end">
+            <div class="d-flex gap-2 justify-content-end">
               <a href="/portal/Clients/FollowUps/@followUp.ClientId" class="btn btn-sm btn-outline-primary" title="Client follow-ups"><i class="fas fa-list"></i></a>
               @if (!followUp.IsCompleted)
               {
                 <form asp-action="CompleteFollowUp" asp-route-id="@followUp.Id" method="post">
                   @Html.AntiForgeryToken()
                   <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
-                  <button type="submit" class="btn btn-sm btn-outline-success" title="Mark complete"><i class="fas fa-check"></i></button>
+                  <button type="submit" class="btn btn-sm btn-outline-success js-confirm-submit" data-confirm-message="Mark this follow-up complete?" title="Mark complete"><i class="fas fa-check"></i></button>
                 </form>
               }
               <form asp-action="DeleteFollowUp" asp-route-id="@followUp.Id" method="post">

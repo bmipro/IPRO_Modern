@@ -218,6 +218,30 @@ If more audit budget is spent, spend it there first; that is the newest code.
   differ per screen (the dashboard may deserve a crop, the calendar may not). Originals for
   cropping are in `C:\Users\admin\Pictures\ipro-shots\` and the OneDrive backup folder.
 
+- **438 - Signup funnel on a phone: no direct "sign up" above the fold (OWNER/MARKETING DECISION,
+  parked with 437).** Raised by the owner 2026-08-31 while testing on a Galaxy S10.
+
+  **What a phone visitor actually sees above the fold:** "See it before I sign up" (-> /Preview),
+  "Pick my market", and "Sign in". There is no direct signup call to action. Verified: the homepage
+  links to /Account/Register in exactly three places, all below the fold on a phone -- each pricing
+  package's button (/Account/Register?package=..., the intended primary path), an "Or create an
+  account now" link low in the contact section, and a fallback shown only when pricing fails to load.
+
+  **This is design, not a defect.** The strategy doc's position is preview-first: let a prospect see
+  their own site before asking them to register. Do not "fix" it as a bug.
+
+  **But it interacts badly with a deferred mobile issue.** A visitor who already knows they want to
+  buy has to reach pricing, and the comparison table carries a 720px min-width inside a horizontal
+  scroller, so two of three plans sit off-screen on a phone and the Subscribe button needs a sideways
+  scroll. That was deliberately deferred (rebuilding the comparison as stacked cards is hours, and
+  the hero CTA still works) -- but the two together make "ready to buy on a phone" the weakest route
+  through the page.
+
+  **Question for whoever owns marketing:** on phones specifically, should there be a direct signup
+  action above the fold, or does preview-first still win? If preview-first wins, the cheap mitigation
+  is the pricing table (drop min-width to ~560px plus a scroll hint, ~20 min) rather than a new CTA.
+  Decide alongside 437 -- both are "what should the hero do on a phone" questions.
+
 - **434 — Website Leads: no way to remove a lead + dismiss UX reads as broken.** Found 2026-08-30
   while cleaning demo data. Leads only cycle New/Contacted/Dismissed; the "Dismiss" button uses an
   archive glyph (reads as delete), and the All tab includes dismissed leads, so dismissing looks

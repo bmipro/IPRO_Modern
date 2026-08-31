@@ -48,7 +48,7 @@
   body.hero-style-clean .classic-managed .cp-hero-mark { color:rgba(23,34,58,.14); }
   body.hero-style-classic .classic-managed .cp-hero-visual { border:2px solid var(--site-theme); }
   .classic-managed .cp-alt { background:var(--site-theme-soft); }
-  .classic-managed .cp-hero h1 { font-size:52px; line-height:1.05; font-family:Georgia,serif; color:#17223a; }
+  .classic-managed .cp-hero h1 { font-size:52px; line-height:1.05; font-family:Georgia,serif; color:#17223a; overflow-wrap:break-word; }
   .classic-managed h2.fw-bold { font-size:var(--heading-font-size, 22px); }
   .classic-managed .cp-kicker { color:var(--site-theme); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
   .classic-managed .cp-copy { color:var(--muted); font-size:var(--body-font-size, 17px); line-height:1.7; max-width:720px; }
@@ -97,7 +97,7 @@
   .cp-lightbox img { max-width:92vw; max-height:92vh; object-fit:contain; box-shadow:0 24px 70px rgba(0,0,0,.5); }
   .cp-lightbox-close { position:absolute; top:22px; right:28px; width:44px; height:44px; border:0; border-radius:50%; background:rgba(255,255,255,.12); color:#fff; font-size:22px; line-height:1; cursor:pointer; }
   .cp-lightbox-close:hover { background:rgba(255,255,255,.22); }
-  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:40px}.classic-managed .cp-list,.classic-managed .cp-card-grid,.classic-managed .cp-icon-row,.classic-managed .cp-quote-grid,.classic-managed .cp-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid,.classic-managed .cp-cta-split-grid{grid-template-columns:1fr}}
+  @@media(max-width:800px){.classic-managed{width:100%;margin:0;border-left:0;border-right:0}.classic-managed .cp-section{padding:42px 24px}.classic-managed .cp-hero h1{font-size:clamp(28px,10.5vw,40px)}.classic-managed .cp-list,.classic-managed .cp-card-grid,.classic-managed .cp-icon-row,.classic-managed .cp-quote-grid,.classic-managed .cp-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.classic-managed .cp-contact-grid,.classic-managed .cp-text-grid,.classic-managed .cp-cta-split-grid{grid-template-columns:1fr}}
 </style>
 <main class="classic-managed">
 @foreach(var block in blocks)

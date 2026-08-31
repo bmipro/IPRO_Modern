@@ -126,6 +126,10 @@
     .header-sidebar .public-site-nav__mega-links { padding-left: 10px; }
   }
   @@media (max-width: 800px) {
+    /* The overlay header is position:absolute over the hero; stacked vertically at phone
+       width it grows tall enough to cover the hero H1 of a shipped default template. Back
+       into the flow here (2026-08-31 mobile sweep). */
+    .header-overlay .public-site-header { position: static; }
     .public-site-header__inner { position: relative; align-items: flex-start; flex-direction: column; padding: 14px 0; }
     .public-site-header.logo-center .public-site-header__inner { display: flex; }
     .public-site-actions { width: 100%; flex-wrap: wrap; }

@@ -38,7 +38,9 @@
 </div>
 
 <div class="row g-4">
-  <div class="col-md-4">
+  @* order-*: on a phone the Follow-ups panel (the page's primary action) renders FIRST
+     instead of under ~1,500px of contact/portal/documents column (2026-08-31 mobile sweep). *@
+  <div class="col-md-4 order-2 order-md-1">
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-4">
         <div class="text-center mb-3">
@@ -238,8 +240,8 @@
             @foreach (var doc in portalDocuments)
             {
               <li class="mb-2 d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-file me-1 text-muted"></i>@doc.FileName <span class="text-muted">(@(doc.UploadedByClient ? "Client" : "You"))</span></span>
-                <span class="d-flex gap-1">
+                <span class="text-break me-2"><i class="fas fa-file me-1 text-muted"></i>@doc.FileName <span class="text-muted">(@(doc.UploadedByClient ? "Client" : "You"))</span></span>
+                <span class="d-flex gap-2 flex-shrink-0">
                   <a class="btn btn-sm btn-outline-secondary" href="/portal/Clients/DownloadPortalDocument/@doc.Id">Download</a>
                   <form asp-action="DeletePortalDocument" asp-route-id="@doc.Id" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
@@ -263,7 +265,7 @@
     </div>
   </div>
 
-  <div class="col-md-8">
+  <div class="col-md-8 order-1 order-md-2">
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white border-0 pt-4 px-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -314,7 +316,7 @@
                 <div class="d-flex gap-1">
                   <form asp-action="CompleteFollowUp" asp-route-id="@followUp.Id" method="post">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-outline-success" title="Mark complete"><i class="fas fa-check"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-success js-confirm-submit" data-confirm-message="Mark this follow-up complete?" title="Mark complete"><i class="fas fa-check"></i></button>
                   </form>
                   <form asp-action="DeleteFollowUp" asp-route-id="@followUp.Id" method="post">
                     @Html.AntiForgeryToken()
