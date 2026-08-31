@@ -494,7 +494,7 @@
   .calc-block { width: 100%; }
   .calc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
   .calc-fields label { display: grid; gap: 6px; font: 700 13px/1.4 Arial, sans-serif; color: inherit; }
-  .calc-fields input, .calc-fields select { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #17223a; font: 400 15px/1.4 Arial, sans-serif; }
+  .calc-fields input, .calc-fields select { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #17223a; font: 400 16px/1.4 Arial, sans-serif; } /* 16px, not 15: mobile Safari zooms the page on focus for any control under 16px and does not zoom back out (2026-08-31 mobile sweep). */
   .calc-fields input:focus, .calc-fields select:focus { outline: 3px solid color-mix(in srgb, var(--site-theme, #1457d9) 20%, transparent); border-color: var(--site-theme, #1457d9); }
   .calc-run { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border: 0; border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: #fff; font: 800 14px Arial, sans-serif; cursor: pointer; }
   .calc-results { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e3eaf3; display: grid; gap: 10px; }
