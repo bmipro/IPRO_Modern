@@ -275,6 +275,11 @@ body { background: light-dark(#f2f6f8, #10171d); }
 
 @@media (max-width: 920px) {
   #ipro-concept-two .i2-nav a:not(.i2-action) { display: none; }
+  /* ...except Sign in. This rule used to hide it too, leaving an existing customer on a
+     phone to scroll the whole marketing page to the footer to find the way in. Exempted
+     explicitly rather than by adding .i2-action, so the intent is legible and the link
+     keeps its outline styling instead of becoming a second coral CTA next to the primary. */
+  #ipro-concept-two .i2-nav a.i2-nav-signin { display: inline-flex; }
   #ipro-concept-two .i2-hero-grid { grid-template-columns: 1fr; }
   #ipro-concept-two .i2-hero-copy { max-width: 650px; }
   #ipro-concept-two .i2-command { max-width: 720px; }
@@ -329,8 +334,25 @@ body { background: light-dark(#f2f6f8, #10171d); }
   #ipro-concept-two .i2-hero-actions { flex-direction: column; }
   #ipro-concept-two .i2-hero-actions .i2-action,
   #ipro-concept-two .i2-hero-actions .i2-action-outline { width: 100%; }
-  #ipro-concept-two .i2-command-body { grid-template-columns: 1fr; }
-  #ipro-concept-two .i2-command-nav { display: none; }
+  /* The widget stacks below 421px (S10 = 360px, iPhone SE/mini, most Androids). The tab rail
+     USED to be display:none here with nothing replacing it, so six of the seven product
+     screenshots were unreachable and the hero's only proof element was one cropped capture.
+     It becomes a horizontal scrolling rail above the screenshot instead. */
+  /* minmax(0,1fr), NOT 1fr: a bare 1fr carries an implicit auto minimum sized to its content, and
+     the scrolling tab rail below is ~4500px wide unwrapped. overflow-x:auto does not stop a grid
+     or flex item contributing that intrinsic width, so the single column resolved to 659px inside
+     a 360px viewport and the panel was clipped by .i2-command's overflow:hidden. Measured, not
+     guessed: gridTemplateColumns read back as "658.859px". */
+  #ipro-concept-two .i2-command-body { grid-template-columns: minmax(0, 1fr); }
+  #ipro-concept-two .i2-command-nav { padding: 8px; min-width: 0; }
+  #ipro-concept-two .i2-command-nav strong { display: none; }
+  #ipro-concept-two .i2-command-tabs { display: flex; overflow-x: auto; gap: 4px; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  #ipro-concept-two .i2-command-tabs::-webkit-scrollbar { display: none; }
+  #ipro-concept-two .i2-command-tab { flex: 0 0 auto; white-space: nowrap; font-size: .68rem; padding: 8px 10px; min-height: 36px; }
+  /* contain, not cover: a 1204x929 desktop capture squeezed into a phone-width box was having a
+     third of its width cropped away on top of being scaled to ~0.4. Show the whole frame. */
+  #ipro-concept-two .i2-shot { object-fit: contain; object-position: top center; }
+  #ipro-concept-two .i2-command-content { min-height: 260px; }
   #ipro-concept-two .i2-proof-row { grid-template-columns: 1fr; }
   #ipro-concept-two .i2-proof-item { border-right: 0; }
 }
@@ -353,7 +375,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
       <div class="i2-wrap i2-header-row">
         <a class="i2-logo" href="#i2-top" aria-label="IPRO Advisers home"><span class="i2-logo-chip"><img class="i2-logo-img" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"></span></a>
         <nav class="i2-nav" aria-label="Main navigation">
-          <a href="#i2-start">Solutions</a><a href="#i2-platform">Platform</a><a href="#i2-pricing">Pricing</a><a href="#i2-trust">About</a><a href="#i2-contact">Contact</a><a href="/Account/Login">Sign in</a>
+          <a href="#i2-start">Solutions</a><a href="#i2-platform">Platform</a><a href="#i2-pricing">Pricing</a><a href="#i2-trust">About</a><a href="#i2-contact">Contact</a><a class="i2-action-outline i2-nav-signin" href="/Account/Login">Sign in</a>
           <a class="i2-action" href="/Preview">Build my preview <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" class="lucide lucide-arrow-right"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a>
         </nav>
       </div>

@@ -104,7 +104,19 @@ reintroduces it.
 
 ## NEXT SESSION (queued 2026-08-30 night)
 
-1. **Mobile fixes, items 1-5** (~3-4 hrs, Claude; owner eyeballs on a real phone as they land).
+0. **DONE 2026-08-31 (2aa3fc2): mobile items 1 and 2** -- drawer close (X inside the drawer +
+   backdrop + ESC) and reachable Logout (100dvh + safe-area). Gate 455/455, verified live at
+   375px AND **confirmed by the owner on a Samsung S10 (360px CSS width)** -- the narrower of
+   his two devices and the better worst-case proxy. Screenshots show the X in the drawer, the
+   backdrop dimming content, and Logout clear of the gesture bar at four different nav scroll
+   positions (the footer stays pinned while the long nav scrolls). The pre-fix bug -- tapping
+   the hamburger area while open silently navigated to Dashboard -- was reproduced by the
+   owner on device first, so this fix is evidence-backed at both ends. Lesson recorded in the commit: raising the toggle z-index does NOT work because
+   .agent-topbar is position:sticky with a z-index and creates a stacking context.
+   Owner test device: **Samsung S10 (360px) is the better default** -- narrower than the S24
+   Ultra and inside the <421px range where the hero widget breaks.
+
+1. **Mobile fixes, items 3-5** (~2 hrs, Claude; owner eyeballs on the S10 as they land).
    From the mobile-readiness sweep (4 agents, 2026-08-30). NOT a "mobile version" - the responsive
    layer already exists and mostly works; these are bugs in it:
    - **Drawer close is a one-way door.** `.agent-sidebar` z-index 1040 paints over the topbar's
@@ -181,6 +193,30 @@ If more audit budget is spent, spend it there first; that is the newest code.
 - **In-portal payments** — blocked on there being a Stripe or equivalent merchant account at all.
 
 ## Backlog — designed or conceptual, none started
+
+- **437 — Hero screenshots on phones: legible detail vs. credible impression (OWNER DECISION,
+  parked for the marketing phase).** Deferred deliberately 2026-08-31; revisit when the marketing
+  agent/phase is defined for this project.
+
+  **State today (shipped, fine):** at 360px all 7 product screenshots are reachable via a
+  horizontal tab rail and each is shown whole (`object-fit:contain`). Measured on the live page at
+  360px: the image renders at **0.254 scale**, so the large elements read clearly — the 18 / 2 / 1
+  / 10 stat tiles and "Welcome back, Michael Tran!" — while 14px body text lands at **~3.6px** and
+  does not. This is not a CSS defect and no CSS fixes it: a 1204x929 desktop capture cannot be
+  legible in a ~306px-wide box. The previous behaviour was strictly worse (6 of 7 unreachable, the
+  one shown cropped by a third at 0.394 scale).
+
+  **The decision to make:** does the hero need to SELL detail on a phone, or convey credibility?
+  - *Impression* (current, recommended default): costs nothing, reads as "a real dashboard with
+    real numbers". Most marketing sites do exactly this.
+  - *Legible detail*: crop each capture to one meaningful region for narrow widths (e.g. just the
+    AI digest card, just the stat row) and serve those below 421px via <picture>/srcset. ~1 hour,
+    genuinely readable, but 7 more images to keep in sync with the product — and they go stale the
+    same way the old HTML mock did.
+
+  Whoever owns marketing should answer this alongside the phone-traffic question; the answer may
+  differ per screen (the dashboard may deserve a crop, the calendar may not). Originals for
+  cropping are in `C:\Users\admin\Pictures\ipro-shots\` and the OneDrive backup folder.
 
 - **434 — Website Leads: no way to remove a lead + dismiss UX reads as broken.** Found 2026-08-30
   while cleaning demo data. Leads only cycle New/Contacted/Dismissed; the "Dismiss" button uses an
