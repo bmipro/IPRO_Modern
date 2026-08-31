@@ -98,3 +98,42 @@ If that ever changes, add them first.
 - Storage: `iprostorageprod` (blob media)
 
 Related: `DOCS/18_AZURE_INFRASTRUCTURE.md`, `DOCS/14_BACKUP_AND_RELEASE_CHECKLIST.md`, TODO item 431.
+
+---
+
+## Google Postmaster Tools (TODO 439) -- NOT OPTIONAL
+
+Added 2026-08-31 after proving Gmail accepts our ACS mail (returns 250, ACS reports
+**Delivered**) and then silently discards it, while Yahoo delivers the identical message
+from the identical code path to the inbox. Message-side causes are eliminated by controlled
+test -- Reply-To domain, image-heavy content, and card-vs-letter format were each varied and
+each was still dropped. What is left is Gmail's opinion of the SENDER, and Postmaster Tools
+is the only instrument that reports it.
+
+Setup:
+
+1. postmaster.google.com -> Add domain -> `iproadvisers.com`
+2. It issues a TXT record. Add it to the **iproadvisers.com** zone (the same zone that holds
+   the SPF and `_dmarc` records above), host `@`, then Verify.
+3. Data takes roughly 48 hours to appear and needs meaningful Gmail volume to populate --
+   a handful of test sends will leave most panels empty.
+
+Read these panels, in this order:
+
+- **Domain Reputation** -- Bad/Low/Medium/High. This is the verdict on `iproadvisers.com`
+  itself and it follows the DOMAIN, not the ESP, so the SendGrid -> ACS migration reset
+  nothing. If this is Bad or Low, the cause is the sending history, and the remedy is a
+  dedicated marketing subdomain plus a warm-up ramp.
+- **IP Reputation** -- covers Microsoft's SHARED ACS outbound range (40.93.18.0/24). If the
+  domain reads fine but the IP does not, the problem is the shared pool and the remedy is
+  different. Confirm whether ACS Email offers dedicated IPs before any plan depends on it.
+- **Spam Rate** -- Google's threshold for bulk senders is 0.3%.
+- **Authentication** -- should be flat 100% SPF/DKIM/DMARC; if it is not, something in this
+  runbook has drifted.
+
+DIAGNOSE BEFORE TREATING. Do not stand up a marketing subdomain or start a warm-up ramp
+until this report says which of domain-vs-IP reputation is at fault. They need opposite work.
+
+Related: TODO items 431 (the SendGrid suspension whose bounce history is the leading suspect),
+439 (the Gmail drops), 440 (freemail Reply-To -- a real but SEPARATE defect that does not
+cure this).
