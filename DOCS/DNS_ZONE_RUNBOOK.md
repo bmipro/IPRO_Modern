@@ -32,7 +32,7 @@ is ever lost, this file rebuilds the app's DNS from scratch. Re-capture after an
 | Name | Type | Value | Purpose |
 |---|---|---|---|
 | `@` | TXT | `ms-domain-verification=0b709488-0d86-4c8e-9639-60abb536810e` | ACS domain ownership |
-| `@` | TXT (the ONE SPF record) | `v=spf1 +mx +a +ip4:66.102.128.65 +include:spf.websiteservername.com +include:relay.mailchannels.net +include:sendgrid.net +include:spf.protection.outlook.com ~all` | SPF — merged: legacy host + mailchannels + sendgrid (remove at cleanup) + ACS (`spf.protection.outlook.com`) |
+| `@` | TXT (the ONE SPF record) | `v=spf1 +mx +a +ip4:66.102.128.65 +include:spf.websiteservername.com +include:relay.mailchannels.net include:spf.protection.outlook.com ~all` | SPF — legacy host + mailchannels + ACS. **`include:sendgrid.net` REMOVED 2026-08-31** now that nothing sends through SendGrid; this also closes the SendGrid rollback path, which the account suspension had already closed in practice |
 | `selector1-azurecomm-prod-net._domainkey` | CNAME | `selector1-azurecomm-prod-net._domainkey.azurecomm.net` | ACS DKIM 1 |
 | `selector2-azurecomm-prod-net._domainkey` | CNAME | `selector2-azurecomm-prod-net._domainkey.azurecomm.net` | ACS DKIM 2 |
 
@@ -43,13 +43,18 @@ confirmed procedure: temporarily set the SPF record to exactly
 then restore the full merged record. Verification is one-time and does not re-run. Keep the
 swap window short: the temporary record hard-fails every non-Azure sender.
 
+**Engagement tracking was DISABLED by default** on the ACS domain and was enabled 2026-08-31 after a live
+test showed Delivered arriving but never Opened/Clicked. ACS ships `userEngagementTracking: Disabled`, so it
+emitted no engagement events at all -- the code was right, there was nothing to receive. Enabling it makes ACS
+inject a tracking pixel and rewrite links in outgoing mail. Already-sent mail does not backfill.
+
 Sender usernames configured in ACS: `DoNotReply` (auto), `no-reply`, `support` — production
 `Email__FromEmail` is `support@iproadvisers.com`; any new FROM address needs its username
 created in ACS first (error otherwise: InvalidSenderUserName).
 
 A domain may carry only ONE SPF TXT record — always merge, never add a second. The pre-ACS value
 (for history / rollback): `v=spf1 +mx +a +ip4:66.102.128.65 +include:spf.websiteservername.com
-+include:relay.mailchannels.net +include:sendgrid.net ~all`. Old value may linger in resolver
++include:relay.mailchannels.net +include:sendgrid.net ~all`. The sendgrid include was dropped 2026-08-31. Old value may linger in resolver
 caches up to the 14400s TTL after edits.
 
 ### The rest of the zone (legacy site + mailboxes — not the app's, but don't break them)
@@ -60,7 +65,7 @@ caches up to the 14400s TTL after edits.
 | `www` | CNAME | `iproadvisers.com` | Legacy site |
 | `mail` | CNAME | `iproadvisers.com` | Owner mailboxes at the legacy host |
 | `@` | MX 0 | `iproadvisers.com` | Mail delivery to the legacy host |
-| `_dmarc` | TXT | `v=DMARC1; p=none;` | DMARC (monitor-only). Consider `p=quarantine` after the ACS migration settles |
+| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:dmarc@iproadvisers.com` | DMARC. Reporting address added 2026-08-31 so aggregate reports start arriving — **the mailbox must exist or the reports are silently lost**. Enforcement deliberately left at `p=none`: this domain ALSO sends ordinary business mail through the legacy host (MX -> 66.102.128.65), and nobody has confirmed that mail is DKIM-aligned. Tightening to `p=quarantine` before checking would quarantine the owner's own email. Revisit after ~2 weeks of reports, once ACS deliverability is proven |
 
 ---
 
