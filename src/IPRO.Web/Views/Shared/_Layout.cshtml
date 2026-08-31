@@ -114,7 +114,12 @@
         .page-item.active .page-link { background-color:var(--portal-accent); border-color:var(--portal-accent); }
         .dropdown-item.active, .dropdown-item:active { background-color:var(--portal-accent) !important; }
 
-        .agent-sidebar { width:250px; height:100vh; background:linear-gradient(180deg,#0f172a 0%,#1e3a5f 100%); position:fixed; top:0; left:0; z-index:1040; display:flex; flex-direction:column; }
+        .agent-sidebar { width:250px; height:100vh; height:100dvh; background:linear-gradient(180deg,#0f172a 0%,#1e3a5f 100%); position:fixed; top:0; left:0; z-index:1040; display:flex; flex-direction:column; }
+        /* 100dvh after 100vh (2026-08-30 mobile sweep): on mobile Safari 100vh is the LARGE
+           viewport, so with the bottom toolbar showing the footer -- Logout, Change Password --
+           rendered below the visible edge, outside the only scrolling child, on a position:fixed
+           element nothing could scroll. An agent could not log out on a phone. 100vh stays first
+           as the fallback for browsers without dvh. */
         .agent-sidebar .brand { flex-shrink:0; padding:1.25rem 1.25rem 1rem; border-bottom:1px solid rgba(255,255,255,0.1); }
         .agent-sidebar .brand a { display:block; color:#fff; text-decoration:none; }
         .agent-sidebar .brand i { color:var(--portal-accent); }
@@ -129,7 +134,7 @@
         .agent-sidebar .nav-link.active { background:var(--portal-accent); color:#fff; }
         .agent-sidebar .nav-link i { width:20px; margin-right:.6rem; text-align:center; }
 
-        .agent-sidebar-footer { flex-shrink:0; border-top:1px solid rgba(255,255,255,0.1); padding:.75rem 0; }
+        .agent-sidebar-footer { flex-shrink:0; border-top:1px solid rgba(255,255,255,0.1); padding:.75rem 0; padding-bottom:calc(.75rem + env(safe-area-inset-bottom)); }
         .portal-color-row { display:flex; gap:.4rem; padding:.25rem 1.25rem .75rem; }
         .portal-color-swatch { width:20px; height:20px; border-radius:50%; border:2px solid transparent; padding:0; cursor:pointer; }
         .portal-color-swatch.is-active { border-color:#fff; box-shadow:0 0 0 2px var(--portal-accent); }
@@ -137,13 +142,30 @@
 
         .agent-topbar { margin-left:250px; background:#fff; border-bottom:1px solid #e5e7eb; padding:.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1030; }
         .agent-content { margin-left:250px; padding:1.25rem 1.5rem; }
-        .sidebar-toggle-btn { display:none; background:none; border:1px solid #d1d5db; border-radius:6px; padding:.3rem .6rem; }
+        .sidebar-toggle-btn { display:none; background:none; border:1px solid #d1d5db; border-radius:6px; padding:.5rem .75rem; min-width:44px; min-height:44px; }
+        /* The open drawer is z-index 1040 and the topbar 1030, so the panel painted OVER this
+           button: tapping "close" landed on the brand logo link underneath and navigated away,
+           discarding the page. Enlarged to a 44px touch target here; the CLOSE control lives
+           inside the drawer (.sidebar-close) because .agent-topbar is position:sticky with a
+           z-index, which creates a stacking context -- a child of it can never out-rank the
+           sidebar no matter what z-index it carries. Verified live at 375px: raising the button
+           alone left the brand logo on top. */
+        .sidebar-close { display:none; position:absolute; top:.5rem; right:.5rem; width:44px; height:44px;
+            align-items:center; justify-content:center; background:none; border:0; color:rgba(255,255,255,.75);
+            font-size:1.1rem; border-radius:8px; }
+        .sidebar-close:hover, .sidebar-close:focus-visible { color:#fff; background:rgba(255,255,255,.12); }
+        .sidebar-backdrop { display:none; position:fixed; inset:0; z-index:1035; background:rgba(15,23,42,.45); border:0; padding:0; width:100%; }
+        .sidebar-backdrop.show { display:block; }
 
         @@media (max-width: 991.98px) {
             .agent-sidebar { transform:translateX(-100%); transition:transform .2s ease; }
             .agent-sidebar.show { transform:translateX(0); }
             .agent-topbar, .agent-content { margin-left:0; }
-            .sidebar-toggle-btn { display:inline-block; }
+            .sidebar-toggle-btn { display:inline-flex; align-items:center; justify-content:center; }
+            .sidebar-close { display:flex; }
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            .agent-sidebar { transition:none; }
         }
     </style>
 </head>
@@ -151,7 +173,8 @@
 @if (User.Identity?.IsAuthenticated == true)
 {
 <aside class="agent-sidebar" id="agentSidebar">
-    <div class="brand">
+    <div class="brand" style="position:relative">
+        <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close menu"><i class="fas fa-xmark" aria-hidden="true"></i></button>
         <a href="/portal/Dashboard">
             <img class="brand-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers"/>
             <span class="portal-label">Agent Portal</span>
@@ -220,10 +243,13 @@
         <a class="nav-link text-danger" href="/portal/Account/Logout"><i class="fas fa-sign-out-alt"></i>Logout</a>
     </div>
 </aside>
+@* Tap-anywhere-outside to close. A <button> rather than a <div> so it is reachable by keyboard
+   and announced; aria-hidden because ESC and the toggle already serve non-pointer users. *@
+<button type="button" class="sidebar-backdrop" id="sidebarBackdrop" tabindex="-1" aria-hidden="true"></button>
 
 <div class="agent-topbar">
     <div class="d-flex align-items-center gap-2">
-        <button type="button" class="sidebar-toggle-btn" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+        <button type="button" class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Menu" aria-controls="agentSidebar" aria-expanded="false"><i class="fas fa-bars" aria-hidden="true"></i></button>
         <span class="fw-semibold text-muted">@ViewData["Title"]</span>
     </div>
 </div>
@@ -294,12 +320,41 @@ document.querySelectorAll('[data-owner-lock="true"]').forEach(link => {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('upgradeRequiredModal')).show();
     });
 });
+// The off-canvas drawer (2026-08-30 mobile sweep). This used to be a bare classList.toggle with
+// no way back: the open panel (z-index 1040) painted over the hamburger in the 1030 topbar, so
+// tapping "close" hit the brand logo underneath and navigated to the Dashboard, discarding the
+// page and any unsaved form. Worse for an access-gated agent, whose nav links are all
+// preventDefault'd into the upgrade modal -- even that accidental escape never fired.
+// Three ways out now, none of which depend on a page load: the toggle, the backdrop, and ESC.
 const sidebarToggle = document.getElementById('sidebarToggle');
+const agentSidebar = document.getElementById('agentSidebar');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+function setSidebar(open) {
+    if (!agentSidebar) return;
+    agentSidebar.classList.toggle('show', open);
+    sidebarBackdrop?.classList.toggle('show', open);
+    sidebarToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeSidebar() {
+    if (!agentSidebar) return;
+    agentSidebar.classList.remove('show');
+    sidebarBackdrop?.classList.remove('show');
+    sidebarToggle?.setAttribute('aria-expanded', 'false');
+}
+
 if (sidebarToggle) {
     sidebarToggle.addEventListener('click', () => {
-        document.getElementById('agentSidebar')?.classList.toggle('show');
+        setSidebar(!agentSidebar?.classList.contains('show'));
     });
 }
+if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener('click', closeSidebar);
+}
+document.getElementById('sidebarClose')?.addEventListener('click', closeSidebar);
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeSidebar();
+});
 // Shared confirm-before-submit for any button with class="js-confirm-submit" and a
 // data-confirm-message attribute - replaces inline onclick="return confirm(...)" handlers, which
 // CSP's script-src silently drops as of the M-6 nonce migration (nonces only cover <script>
