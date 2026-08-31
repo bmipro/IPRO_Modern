@@ -98,7 +98,7 @@
                   <form asp-action="CompleteFollowUp" asp-route-id="@item.Id" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
-                    <button type="submit" class="calendar-complete" title="Mark complete"><i class="fas fa-check"></i></button>
+                    <button type="submit" class="calendar-complete js-confirm-submit" data-confirm-message="Mark this follow-up complete?" title="Mark complete"><i class="fas fa-check"></i></button>
                   </form>
                 }
               </div>

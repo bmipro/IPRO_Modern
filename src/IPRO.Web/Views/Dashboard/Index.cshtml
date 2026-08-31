@@ -169,12 +169,12 @@
                   <div class="text-muted small mt-1">@item.Notes</div>
                 }
               </div>
-              <div class="d-flex gap-1">
+              <div class="d-flex gap-2">
                 <a href="/portal/Clients/FollowUps/@item.ClientId" class="btn btn-sm btn-outline-primary" title="View follow-ups"><i class="fas fa-list"></i></a>
                 <form asp-controller="Clients" asp-action="CompleteFollowUp" asp-route-id="@item.Id" method="post">
                   @Html.AntiForgeryToken()
                   <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
-                  <button type="submit" class="btn btn-sm btn-outline-success" title="Mark complete"><i class="fas fa-check"></i></button>
+                  <button type="submit" class="btn btn-sm btn-outline-success js-confirm-submit" data-confirm-message="Mark this follow-up complete?" title="Mark complete"><i class="fas fa-check"></i></button>
                 </form>
               </div>
             </div>

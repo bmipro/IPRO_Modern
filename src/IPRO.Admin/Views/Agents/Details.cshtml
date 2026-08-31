@@ -1,7 +1,7 @@
 @model IPRO.Entities.AgentUser
 @{ ViewData["Title"] = $"Agent: {Model.UserName}"; }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
     <div>
         <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1"><li class="breadcrumb-item"><a href="/Agents">Agents</a></li><li class="breadcrumb-item active">@Model.UserName</li></ol></nav>
         <h4 class="fw-bold mb-0">@Model.FirstName @Model.LastName
