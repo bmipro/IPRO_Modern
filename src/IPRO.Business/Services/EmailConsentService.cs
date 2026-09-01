@@ -176,30 +176,59 @@ public class EmailConsentService : IEmailConsentService
         }
 
         var now = DateTime.UtcNow;
-        client.EmailOptOutAt = now;
-        client.GreetingsOptInAt = null;
-        client.IsNewsletterSubscribed = false;
-        client.UpdatedAt = now;
+
+        // 443: Gmail ignores dots and +tags, so the same person can exist twice for this agent under
+        // variant spellings, and suppression is a per-ROW flag. An unsubscribe has to actually stop
+        // the mail (CASL), so it is applied to every row that is the same person FOR THIS AGENT --
+        // never to another adviser's row, whose consent is not ours to revoke. The rule is
+        // gmail-only (CanonicalEmail); for any other domain this finds exact case-insensitive
+        // duplicates only. The SQL narrows by domain so the in-memory canonical compare sees a
+        // handful of rows, not the agent's whole book.
+        var canonical = IPRO.Utility.CanonicalEmail.Canonical(client.Email);
+        var isGmail = canonical.EndsWith("@gmail.com", StringComparison.Ordinal);
+        var siblings = canonical.Length == 0
+            ? new List<Client>()
+            : (await _db.Clients
+                .Where(c => c.AgentUserId == client.AgentUserId && c.Id != client.Id && c.EmailOptOutAt == null
+                         && (isGmail
+                             ? (c.Email.EndsWith("@gmail.com") || c.Email.EndsWith("@googlemail.com"))
+                             : c.Email.ToLower() == canonical))
+                .ToListAsync())
+                .Where(c => IPRO.Utility.CanonicalEmail.Canonical(c.Email) == canonical)
+                .ToList();
+
+        var rows = new List<Client> { client };
+        rows.AddRange(siblings);
 
         // Queued Did You Know mail is already scheduled and would otherwise still go out after they
         // unsubscribed. The dispatcher re-checks consent, but retiring the rows here means the Email
         // Activity screen shows the truth instead of a queue that silently never sends.
-        var queued = await _db.DidYouKnowEmailQueueItems
-            .Where(q => q.ClientId == client.Id && q.SentAtUtc == null)
-            .ToListAsync();
+        var queued = new List<DidYouKnowEmailQueueItem>();
+        // Same reasoning for drip campaigns: an active enrollment is a standing instruction to keep
+        // mailing this client for weeks. Leaving it Active would show the agent a campaign that
+        // appears to be running and silently sends nothing.
+        var enrollments = new List<DripCampaignEnrollment>();
+
+        foreach (var row in rows)
+        {
+            row.EmailOptOutAt = now;
+            row.GreetingsOptInAt = null;
+            row.IsNewsletterSubscribed = false;
+            row.UpdatedAt = now;
+
+            queued.AddRange(await _db.DidYouKnowEmailQueueItems
+                .Where(q => q.ClientId == row.Id && q.SentAtUtc == null)
+                .ToListAsync());
+            enrollments.AddRange(await _db.DripCampaignEnrollments
+                .Where(e => e.ClientId == row.Id && e.Status == DripCampaignEnrollmentStatus.Active)
+                .ToListAsync());
+        }
         foreach (var item in queued)
         {
             item.SentAtUtc = now;
             item.Status = DidYouKnowQueueStatuses.Failed;
             item.FailureReason = "Recipient unsubscribed before this was sent.";
         }
-
-        // Same reasoning for drip campaigns: an active enrollment is a standing instruction to keep
-        // mailing this client for weeks. Leaving it Active would show the agent a campaign that
-        // appears to be running and silently sends nothing.
-        var enrollments = await _db.DripCampaignEnrollments
-            .Where(e => e.ClientId == client.Id && e.Status == DripCampaignEnrollmentStatus.Active)
-            .ToListAsync();
         foreach (var enrollment in enrollments)
         {
             enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
@@ -210,9 +239,9 @@ public class EmailConsentService : IEmailConsentService
         await _db.SaveChangesAsync();
 
         _logger.LogInformation(
-            "Client {ClientId} unsubscribed from all email via {Source}; {Queued} queued item(s) retired, " +
-            "{Enrollments} drip enrollment(s) cancelled.",
-            client.Id, source, queued.Count, enrollments.Count);
+            "Client {ClientId} unsubscribed from all email via {Source}; {Siblings} same-person row(s) " +
+            "suppressed with it, {Queued} queued item(s) retired, {Enrollments} drip enrollment(s) cancelled.",
+            client.Id, source, siblings.Count, queued.Count, enrollments.Count);
 
         // Best effort, and deliberately last: an agent notification that fails must never make the
         // suppression itself fail. Suppression is the part with legal weight.

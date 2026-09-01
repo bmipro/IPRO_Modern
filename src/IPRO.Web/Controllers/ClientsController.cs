@@ -782,11 +782,14 @@ public class ClientsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        // 443: de-duplicate on the canonical form so a Gmail dot/plus variant of an existing client
+        // is recognised as the same person (gmail-only rule; other domains compare exactly). The
+        // stored address is left as typed -- only the comparison is canonical.
         var existingEmails = await _db.Clients
             .Where(c => c.AgentUserId == AgentId)
-            .Select(c => c.Email.ToLower())
+            .Select(c => c.Email)
             .ToListAsync();
-        var seenEmails = existingEmails.ToHashSet();
+        var seenEmails = existingEmails.Select(IPRO.Utility.CanonicalEmail.Canonical).ToHashSet();
         var toImport = new List<Client>();
         var skipped = result.Skipped;
 
@@ -796,7 +799,7 @@ public class ClientsController : Controller
             if (string.IsNullOrWhiteSpace(client.FirstName) ||
                 string.IsNullOrWhiteSpace(client.LastName) ||
                 string.IsNullOrWhiteSpace(client.Email) ||
-                seenEmails.Contains(client.Email))
+                seenEmails.Contains(IPRO.Utility.CanonicalEmail.Canonical(client.Email)))
             {
                 skipped++;
                 continue;
@@ -811,7 +814,7 @@ public class ClientsController : Controller
             client.AgentUserId = AgentId;
             client.CreatedAt = DateTime.UtcNow;
             client.UpdatedAt = DateTime.UtcNow;
-            seenEmails.Add(client.Email);
+            seenEmails.Add(IPRO.Utility.CanonicalEmail.Canonical(client.Email));
             toImport.Add(client);
         }
 
@@ -925,10 +928,28 @@ public class ClientsController : Controller
     {
         if (string.IsNullOrWhiteSpace(email)) return;
 
-        var exists = await _db.Clients.AnyAsync(c =>
-            c.AgentUserId == AgentId &&
-            c.Email == email &&
-            (!currentClientId.HasValue || c.Id != currentClientId.Value));
+        // 443: Gmail ignores dots and +tags, so john.smith@ and johnsmith@gmail.com are one mailbox
+        // and would otherwise become two rows that each get every send. Compare on the canonical
+        // form (gmail-only rule; every other domain keeps the exact match it always had).
+        var canonical = IPRO.Utility.CanonicalEmail.Canonical(email);
+        bool exists;
+        if (canonical.EndsWith("@gmail.com", StringComparison.Ordinal))
+        {
+            var gmailRows = await _db.Clients
+                .Where(c => c.AgentUserId == AgentId &&
+                            (!currentClientId.HasValue || c.Id != currentClientId.Value) &&
+                            (c.Email.EndsWith("@gmail.com") || c.Email.EndsWith("@googlemail.com")))
+                .Select(c => c.Email)
+                .ToListAsync();
+            exists = gmailRows.Any(e => IPRO.Utility.CanonicalEmail.Canonical(e) == canonical);
+        }
+        else
+        {
+            exists = await _db.Clients.AnyAsync(c =>
+                c.AgentUserId == AgentId &&
+                c.Email == email &&
+                (!currentClientId.HasValue || c.Id != currentClientId.Value));
+        }
         if (exists)
         {
             ModelState.AddModelError(nameof(Client.Email), "A client with this email already exists.");
