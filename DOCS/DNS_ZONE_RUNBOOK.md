@@ -151,3 +151,19 @@ cure this).
 
 Opens and clicks populate for NEW sends only -- historical rows stay blank forever, and the screen
 now says so.
+
+---
+
+## Production paging (TODO 445, in place 2026-09-01)
+
+- **Action group** `ipro-prod-oncall` (rg `ipro-production`): owner email (Yahoo -- deliberately not
+  the cPanel mailbox, whose filter bounced Microsoft) + owner SMS. Test it from the group's **Test**
+  button, sample type *Metric alert -- static threshold*.
+- **Availability tests**: `app-health` on `ipro-prod-web-insights`, `admin-health` on
+  `ipro-prod-admin-insights`; GET `/health`, 5 regions, every 5 min, HTTP 200, retries on, SSL
+  check on with a 7-day proactive certificate-expiry warning.
+- **Alert rules** (auto-created by the tests, edited to attach the group): *Failed locations >= 2*,
+  Severity 1, action group `ipro-prod-oncall`. Attach the group under *Alert rule configuration >
+  Actions > Manage action groups* -- a freshly created test's rule has NO recipients until you do.
+- Querying results via `api.applicationinsights.io`: `availabilityResults.success` is a **string**
+  (`"1"`/`"0"`); compare with `tostring(success) == '1'`.

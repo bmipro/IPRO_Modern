@@ -31,9 +31,9 @@ only ever restarts once. **Zero exit-134s on any of the previous seven days.**
 
 ## Do this first tomorrow
 
-1. **445 (5), the paging alert** — the only 445 item still open, and it's portal-side: Azure Monitor
-   availability test on `https://app.iproadvisers.com/health`, action group that emails AND texts.
-   Until it exists, a 503 is still only a GitHub email.
+1. **Glance at Availability on both App Insights resources** — `app-health` and `admin-health`
+   should be solid green. (Querying `availabilityResults` via the REST API: `success` is a STRING
+   there -- compare `tostring(success) == '1'`, not `success == true`, or every run counts as failed.)
 2. **Watch ticket `2608310040012537`** (ACS quota → 500/min, 10,000/hour + engagement tracking).
    Reply sent 09-01 with volume figures; evaluation up to 72 h → expect Wed–Thu. Until granted:
    **no test sends to addresses that cannot receive** — `test@iproadvisers.com` only. The ticket's
@@ -58,8 +58,10 @@ only ever restarts once. **Zero exit-134s on any of the previous seven days.**
 - **(4) startup cannot take the site down — `StartupGuard`, in flight at close.** Red 5/6 →
   green 6/6 (incl. a real-MySQL advisory-lock test); 36 steps wrapped in Web, 35 in Admin;
   `MigrateAsync` deliberately unwrapped; timeouts armed after migrations. Full gate 579/579. **Shipped `1a7b29e`, verified both hosts (admin 18:01, app 18:04); both runs "no restart needed", verify confirmed on attempt 1 -- one clean StartupGuard boot per app.**
-- **(5) paging alert — OPEN, owner.** Azure Monitor availability test on `/health` with an action
-  group that emails AND texts. Nothing tells a human about a 503 today except a GitHub email.
+- **(5) paging alert — DONE, owner, portal.** Action group `ipro-prod-oncall` (Yahoo email + SMS,
+  both proven), Standard availability tests `app-health` / `admin-health` on `/health`, 5 regions,
+  every 5 min, alert on 2-of-5 at Severity 1, wired on both rules. First half-hour of probes all
+  green. A dead container now pages a human within ~10 minutes, traffic or not.
 - **(1) second-chance restart** — shipped `f58c320`; still useful, now rarely needed.
 
 ## TemplateBuilder review (developer repo, commit `5916022`)
