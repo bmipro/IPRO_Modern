@@ -137,3 +137,17 @@ until this report says which of domain-vs-IP reputation is at fault. They need o
 Related: TODO items 431 (the SendGrid suspension whose bounce history is the leading suspect),
 439 (the Gmail drops), 440 (freemail Reply-To -- a real but SEPARATE defect that does not
 cure this).
+
+### When Microsoft grants the quota (TODO 442 / 444)
+
+1. On the ACS domain Overview, confirm **User engagement tracking** now reads *Enabled* (it will
+   not until the default sending limits are lifted -- see 442).
+2. Set **`Email__EngagementTrackingEnabled=true`** on BOTH App Services (`ipro-prod-web`,
+   `ipro-prod-admin`) and restart both. Until this flag is on, Email Activity deliberately says
+   "not tracked" for Opened/Clicked rather than showing a dash that reads as "nobody opened it".
+3. Verify it took by sending one e-letter to `test@iproadvisers.com` and opening Show original: an
+   `href` rewritten to a Microsoft redirector means tracking is on; `app.iproadvisers.com` unchanged
+   means it is not, and the flag should stay off.
+
+Opens and clicks populate for NEW sends only -- historical rows stay blank forever, and the screen
+now says so.

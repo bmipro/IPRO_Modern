@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Email;
+using Microsoft.Extensions.Options;
 using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,9 +27,14 @@ namespace IPRO.Web.Controllers;
 public class EmailActivityController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly EmailSettings _email;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public EmailActivityController(IPRODbContext db) => _db = db;
+    public EmailActivityController(IPRODbContext db, IOptions<EmailSettings> email)
+    {
+        _db = db;
+        _email = email.Value;
+    }
 
     public async Task<IActionResult> Index(string type = "all")
     {
@@ -41,6 +48,9 @@ public class EmailActivityController : Controller
 
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();
         ViewBag.Filter = normalizedType;
+        // 444: lets the screen say "not tracked" instead of an ambiguous dash while the provider is
+        // not injecting open/click tracking (see EmailSettings.EngagementTrackingEnabled).
+        ViewBag.EngagementTracking = _email.EngagementTrackingEnabled;
         ViewBag.Counts = (await LoadSendsAsync())
             .GroupBy(r => r.TypeKey)
             .ToDictionary(g => g.Key, g => g.Count());
@@ -65,6 +75,7 @@ public class EmailActivityController : Controller
 
         ViewBag.Send = send;
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();
+        ViewBag.EngagementTracking = _email.EngagementTrackingEnabled;
         return View(await LoadRecipientsAsync(normalizedType, id));
     }
 

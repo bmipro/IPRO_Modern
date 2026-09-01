@@ -4,6 +4,7 @@
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     var filter = ViewBag.Filter as string ?? "all";
     var counts = ViewBag.Counts as IDictionary<string, int> ?? new Dictionary<string, int>();
+    var tracking = ViewBag.EngagementTracking as bool? ?? false;   // 444
 
     string StatusClass(string status) => status switch
     {
@@ -102,13 +103,15 @@ else
               <td class="text-end">@row.Recipients</td>
               <td class="text-end">@row.Sent</td>
               <td class="text-end">
-                @* Delivered/Opened only exist once SendGrid reports back, which is normally within a
+                @* Delivered/Opened only exist once the mail provider reports back, which is normally within a
                    minute of sending but is not instant. A dash reads more honestly than a zero for a
                    send that went out seconds ago. *@
                 @if (row.Sent == 0) { <span class="text-muted">&mdash;</span> } else { @row.Delivered }
               </td>
               <td class="text-end">
-                @if (row.Sent == 0) { <span class="text-muted">&mdash;</span> } else { @row.Opened }
+                @if (!tracking && row.Opened == 0) { <span class="text-muted small">not tracked</span> }
+                else if (row.Sent == 0) { <span class="text-muted">&mdash;</span> }
+                else { @row.Opened }
               </td>
               <td class="text-end">
                 @if (row.Failed > 0)

@@ -12,4 +12,12 @@ public class EmailSettings
     public string FromEmail { get; set; } = "no-reply@iproadvisers.com";
     public string FromName { get; set; } = "IPRO Advisers";
     public string ReplyToEmail { get; set; } = "support@iproadvisers.com";
+
+    // Whether the provider is injecting open/click tracking into what we send (TODO 444). ACS will
+    // not enable user engagement tracking on a custom domain with default sending limits (442), so
+    // until Microsoft lifts them there is no pixel and no rewritten link, and Opened/Clicked can
+    // never populate. There is no API that reports this state, so it is configuration: flip
+    // Email__EngagementTrackingEnabled=true on BOTH App Services once the domain Overview reads
+    // Enabled. Until then Email Activity says "not tracked" instead of a misleading dash or zero.
+    public bool EngagementTrackingEnabled { get; set; } = false;
 }
