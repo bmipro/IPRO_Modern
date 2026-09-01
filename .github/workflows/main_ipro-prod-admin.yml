@@ -97,15 +97,29 @@ jobs:
       - name: Verify the deployed build is actually serving
         run: |
           expected='${{ github.sha }}'
-          echo "waiting for $expected at https://admin.iproadvisers.com/health/version"
-          for attempt in $(seq 1 30); do
-            actual=$(curl -fsS --max-time 10 'https://admin.iproadvisers.com/health/version' 2>/dev/null || echo '')
-            if [ "$actual" = "$expected" ]; then
-              echo "confirmed live after $attempt attempt(s)"
-              exit 0
-            fi
-            echo "  attempt $attempt: serving '${actual:-<no response>}'"
-            sleep 10
-          done
-          echo "::error::ipro-prod-admin is still not serving $expected after 5 minutes."
+          url='https://admin.iproadvisers.com/health/version'
+          wait_for_build() {
+            echo "waiting for $expected at $url"
+            for attempt in $(seq 1 30); do
+              actual=$(curl -fsS --max-time 10 "$url" 2>/dev/null || echo '')
+              if [ "$actual" = "$expected" ]; then
+                echo "confirmed live after $attempt attempt(s)"
+                return 0
+              fi
+              echo "  attempt $attempt: serving '${actual:-<no response>}'"
+              sleep 10
+            done
+            return 1
+          }
+          if wait_for_build; then exit 0; fi
+
+          # second-chance restart (445): on 2026-09-01 the scripted restart above left the worker
+          # container STOPPED -- the front door returned 503 on every path for 24 minutes while this
+          # step failed correctly and nothing remediated it or paged anyone. One more restart was the
+          # whole fix. Try it once here, where the deploy credentials already are, before failing.
+          echo "::warning::ipro-prod-admin is not serving $expected after 5 minutes; restarting once more (445)."
+          az webapp restart --name 'ipro-prod-admin' --resource-group 'ipro-production' || echo "::warning::Could not restart ipro-prod-admin (no permission); the second poll below decides."
+          if wait_for_build; then exit 0; fi
+
+          echo "::error::ipro-prod-admin is still not serving $expected after a second restart and 10 minutes."
           exit 1
