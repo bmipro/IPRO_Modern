@@ -258,11 +258,22 @@ public class PollDispatcher
     {
         _logger.LogError("Poll send {SendId} was cancelled because {Reason}.", sendId, reason);
 
-        await _db.PollSends
+        var applied = await _db.PollSends
             .Where(s => s.Id == sendId && s.ClaimAttempts == heldAttempts)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(s => s.Status, PollSendStatus.Failed)
                 .SetProperty(s => s.ClaimedAt, (DateTime?)null));
+        if (applied != 1) return;
+
+        // See ECardDispatcher.FailAndReleaseAsync -- the same fan-out, same reason (441).
+        var failureReason = $"Not sent: {reason}";
+        var now = DateTime.UtcNow;
+        await _db.PollRecipients
+            .Where(r => r.PollSendId == sendId && r.Status == PollRecipientStatus.Queued)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.Status, PollRecipientStatus.Failed)
+                .SetProperty(r => r.FailureReason, failureReason)
+                .SetProperty(r => r.UpdatedAt, now));
     }
 
     private string BuildVoteUrl(string token)

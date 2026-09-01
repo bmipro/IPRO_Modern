@@ -265,12 +265,23 @@ public class NewsLetterDispatcher
     {
         _logger.LogError("Newsletter send {SendId} was cancelled because {Reason}.", sendId, reason);
 
-        await _db.NewsLetterSends
+        var applied = await _db.NewsLetterSends
             .Where(s => s.Id == sendId && s.ClaimAttempts == heldAttempts)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(s => s.Status, NewsLetterSendStatus.Failed)
                 .SetProperty(s => s.TotalSent, 0)
                 .SetProperty(s => s.ClaimedAt, (DateTime?)null));
+        if (applied != 1) return;
+
+        // See ECardDispatcher.FailAndReleaseAsync -- the same fan-out, same reason (441).
+        var failureReason = $"Not sent: {reason}";
+        var now = DateTime.UtcNow;
+        await _db.NewsLetterRecipients
+            .Where(r => r.NewsLetterSendId == sendId && r.Status == NewsLetterRecipientStatus.Queued)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.Status, NewsLetterRecipientStatus.Failed)
+                .SetProperty(r => r.FailureReason, failureReason)
+                .SetProperty(r => r.UpdatedAt, now));
     }
 
     private string GetBaseUrl() => IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);

@@ -172,11 +172,22 @@ public class ELetterDispatcher
     {
         _logger.LogError("E-letter {ELetterId} cannot be sent because {Reason}; marking Failed.", eletterId, reason);
 
-        await _db.ELetters
+        var applied = await _db.ELetters
             .Where(l => l.Id == eletterId && l.ClaimAttempts == heldAttempts)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(l => l.Status, ELetterStatuses.Failed)
                 .SetProperty(l => l.UpdatedAt, DateTime.UtcNow)
                 .SetProperty(l => l.ClaimedAt, (DateTime?)null));
+        if (applied != 1) return;
+
+        // See ECardDispatcher.FailAndReleaseAsync -- the same fan-out, same reason (441).
+        var failureReason = $"Not sent: {reason}";
+        var now = DateTime.UtcNow;
+        await _db.ELetterRecipients
+            .Where(r => r.ELetterId == eletterId && r.Status == ELetterRecipientStatuses.Queued)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.Status, ELetterRecipientStatuses.Failed)
+                .SetProperty(r => r.FailureReason, failureReason)
+                .SetProperty(r => r.UpdatedAt, now));
     }
 }

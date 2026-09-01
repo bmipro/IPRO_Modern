@@ -54,7 +54,11 @@ public class AzureEmailService : IEmailService
             }
 
             var message = BuildMessage(new[] { new EmailRecipient(toEmail, toName) }, subject, htmlBody, textBody);
-            if (!string.IsNullOrWhiteSpace(replyToEmail))
+            // A freemail Reply-To under our business-domain From is the header shape of
+            // business-email-compromise (SpamAssassin FREEMAIL_FORGED_REPLYTO, +2.5), so an agent on
+            // Gmail/Yahoo gets the support address here instead. Their own address is still in the
+            // signature as a mailto: link. Enforced at this seam so no caller can reintroduce it (440).
+            if (!string.IsNullOrWhiteSpace(replyToEmail) && !IPRO.Utility.FreemailDomains.IsFreemail(replyToEmail))
             {
                 message.ReplyTo.Add(new EmailAddress(replyToEmail, string.IsNullOrWhiteSpace(replyToName) ? null : replyToName));
             }

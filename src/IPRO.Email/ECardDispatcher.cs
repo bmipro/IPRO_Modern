@@ -215,11 +215,28 @@ public class ECardDispatcher
     {
         _logger.LogError("E-card {ECardId} cannot be sent because {Reason}; marking Failed.", ecardId, reason);
 
-        await _db.ECards
+        var applied = await _db.ECards
             .Where(c => c.Id == ecardId && c.ClaimAttempts == heldAttempts)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(c => c.Status, ECardStatuses.Failed)
                 .SetProperty(c => c.UpdatedAt, DateTime.UtcNow)
                 .SetProperty(c => c.ClaimedAt, (DateTime?)null));
+        if (applied != 1) return;
+
+        // Fan the reason out to every row that was still waiting (441). Before this, the reason went
+        // ONLY to the log: the parent read Failed, its recipients stayed Queued, the Issue column was
+        // blank and the Failed count was 0 -- four contradictory signals and nothing to act on. The
+        // per-recipient paths already set Status=Failed WITH a FailureReason; this makes the
+        // cannot-proceed path agree with them, so count, pill and Issue derive from the same rows.
+        // Guarded on the claim like the parent write: a run that was robbed mid-send must not stamp
+        // the live owner's recipients.
+        var failureReason = $"Not sent: {reason}";
+        var now = DateTime.UtcNow;
+        await _db.ECardRecipients
+            .Where(r => r.ECardId == ecardId && r.Status == ECardRecipientStatuses.Queued)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.Status, ECardRecipientStatuses.Failed)
+                .SetProperty(r => r.FailureReason, failureReason)
+                .SetProperty(r => r.UpdatedAt, now));
     }
 }
