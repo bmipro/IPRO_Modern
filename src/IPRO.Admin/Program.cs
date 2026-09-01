@@ -191,6 +191,7 @@ app.MapHangfireDashboard("/hangfire", new DashboardOptions
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IPRODbContext>();
+    await using var startupLease = await StartupGuard.EnterAsync(db, app.Logger);
 
     // Migrations FIRST, then the repair functions. This ordering was inverted until 2026-08-15, and
     // on an empty database that made the whole startup unrunnable: the repairs ALTER tables that only
@@ -220,15 +221,16 @@ using (var scope = app.Services.CreateScope())
     // constraints on the financial ledger, so the guard must run once they exist to strip them.
     // Running it earlier (as it did until 2026-08-14) is a no-op on a fresh/restored database and
     // leaves the first boot serving with the cascade live.
-    await IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db);
+    await StartupGuard.ArmRepairTimeoutsAsync(db, app.Logger);
+    await StartupGuard.RunStepAsync("FinancialLedgerSchemaGuard.EnsureAsync", () => IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db), db, app.Logger);
 
-    await StartupSchemaRepair.EnsureWebsiteTemplateSchemaAsync(db);
-    await WebsiteContentSchema.EnsureAsync(db);
-    await StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db);
-    await StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db);
-    await StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync(db);
-    await StartupSchemaRepair.EnsurePrepaidValueSchemaAsync(db);
-    await StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync(db);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteTemplateSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteTemplateSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("WebsiteContentSchema.EnsureAsync", () => WebsiteContentSchema.EnsureAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync", () => StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePrepaidValueSchemaAsync", () => StartupSchemaRepair.EnsurePrepaidValueSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync", () => StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync(db), db, app.Logger);
 
     // Starter content is optional: an agent can work without a card design or a letter template,
     // so a failure here must never stop the app from booting. This is the same isolation the
@@ -313,40 +315,40 @@ using (var scope = app.Services.CreateScope())
         db.ChangeTracker.Clear();
     }
 
-    await StartupSchemaRepair.EnsureDripCampaignStepSendSchemaAsync(db);
-    await StartupSchemaRepair.EnsureDidYouKnowEmailQueueSchemaAsync(db);
-    await StartupSchemaRepair.EnsureBillingCancellationClaimSchemaAsync(db);
-    await StartupSchemaRepair.EnsureNewsLetterClickTrackingSchemaAsync(db);
-    await EnsureAdminUserSchemaAsync(db, app.Configuration);
-    await StartupSchemaRepair.EnsureSupportTicketSchemaAsync(db);
-    await StartupSchemaRepair.EnsurePromotionCodeSchemaAsync(db);
-    await StartupSchemaRepair.EnsureClientInvoiceSchemaAsync(db);
-    await StartupSchemaRepair.EnsureClientPortalSchemaAsync(db);
-    await StartupSchemaRepair.EnsureClientLifeEventSchemaAsync(db);
-    await StartupSchemaRepair.EnsureAgentDocumentSchemaAsync(db);
-    await StartupSchemaRepair.EnsureSocialPostSchemaAsync(db);
-    await StartupSchemaRepair.EnsureTestimonialSubmissionSchemaAsync(db);
-    await StartupSchemaRepair.EnsurePollSchemaAsync(db);
-    await StartupSchemaRepair.EnsureWebsiteFormSchemaAsync(db);
-    await StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync(db);
-    await StartupSchemaRepair.EnsureAiUsageSchemaAsync(db);
-    await StartupSchemaRepair.EnsureTrialFeatureSchemaAsync(db);
-    await StartupSchemaRepair.EnsureECardSchemaAsync(db);
-    await StartupSchemaRepair.EnsureELetterSchemaAsync(db);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureDripCampaignStepSendSchemaAsync", () => StartupSchemaRepair.EnsureDripCampaignStepSendSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureDidYouKnowEmailQueueSchemaAsync", () => StartupSchemaRepair.EnsureDidYouKnowEmailQueueSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureBillingCancellationClaimSchemaAsync", () => StartupSchemaRepair.EnsureBillingCancellationClaimSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNewsLetterClickTrackingSchemaAsync", () => StartupSchemaRepair.EnsureNewsLetterClickTrackingSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("EnsureAdminUserSchemaAsync", () => EnsureAdminUserSchemaAsync(db, app.Configuration), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSupportTicketSchemaAsync", () => StartupSchemaRepair.EnsureSupportTicketSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePromotionCodeSchemaAsync", () => StartupSchemaRepair.EnsurePromotionCodeSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientInvoiceSchemaAsync", () => StartupSchemaRepair.EnsureClientInvoiceSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientPortalSchemaAsync", () => StartupSchemaRepair.EnsureClientPortalSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientLifeEventSchemaAsync", () => StartupSchemaRepair.EnsureClientLifeEventSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAgentDocumentSchemaAsync", () => StartupSchemaRepair.EnsureAgentDocumentSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSocialPostSchemaAsync", () => StartupSchemaRepair.EnsureSocialPostSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTestimonialSubmissionSchemaAsync", () => StartupSchemaRepair.EnsureTestimonialSubmissionSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePollSchemaAsync", () => StartupSchemaRepair.EnsurePollSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteFormSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteFormSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync", () => StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAiUsageSchemaAsync", () => StartupSchemaRepair.EnsureAiUsageSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTrialFeatureSchemaAsync", () => StartupSchemaRepair.EnsureTrialFeatureSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureECardSchemaAsync", () => StartupSchemaRepair.EnsureECardSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureELetterSchemaAsync", () => StartupSchemaRepair.EnsureELetterSchemaAsync(db), db, app.Logger);
     // Same shared call as IPRO.Web/Program.cs -- see the note there. Admin needs it too because
     // CardLetterActivity reads DeliveredAt, and because whichever app starts first must find the
     // schema complete (INVARIANTS.md rule 4).
-    await EmailDeliverySchema.EnsureAsync(db);
+    await StartupGuard.RunStepAsync("EmailDeliverySchema.EnsureAsync", () => EmailDeliverySchema.EnsureAsync(db), db, app.Logger);
     // MigrateAsync + FinancialLedgerSchemaGuard used to sit here. They moved to the TOP of this block
     // on 2026-08-15 so that migration-created tables exist before the repairs try to ALTER them --
     // see the comment there. The guard runs a second time below, after the repair CREATE TABLEs, in
     // case any of them recreated a cascade path into the ledger.
-    await IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db);
-    await PackageEntitlementSeeder.SeedAsync(db);
-    await TaxRateSeeder.SeedAsync(db);
-    await WebsiteTemplateSeeder.SeedAsync(db);
-    await WebsiteStarterContentSeeder.SeedAsync(db, seedLogger);
-    await WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db, seedLogger);
+    await StartupGuard.RunStepAsync("FinancialLedgerSchemaGuard.EnsureAsync", () => IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("PackageEntitlementSeeder.SeedAsync", () => PackageEntitlementSeeder.SeedAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("TaxRateSeeder.SeedAsync", () => TaxRateSeeder.SeedAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("WebsiteTemplateSeeder.SeedAsync", () => WebsiteTemplateSeeder.SeedAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedAsync", () => WebsiteStarterContentSeeder.SeedAsync(db, seedLogger), db, app.Logger);
+    await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync", () => WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db, seedLogger), db, app.Logger);
 
     // LAST, after every schema repair and seeder: report any model relationship whose foreign key
     // the database does not enforce and that is not in the known baseline (auditor 5, F14). Never
