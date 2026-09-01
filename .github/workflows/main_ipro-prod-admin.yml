@@ -87,10 +87,31 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F94B3760110944BDB097E394CD3F9702 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2102CCD4C4DB4B7590BD6CA997D6A93C }}
 
-      - name: Restart the app so the new package is mounted (best effort)
+      # WEBSITE_RUN_FROM_PACKAGE=1 means the worker serves an already-mounted package: the deploy
+      # above can succeed while production keeps running the PREVIOUS build. Observed on 2026-08-08,
+      # three deploys in a row. Basic tier has no deployment slots, so a swap (which would restart by
+      # definition) is not available -- an explicit restart is.
+      #
+      # CONDITIONAL since 2026-09-01 (445). The deploy's own restart is usually already under way by
+      # the time this step runs, and firing a second restart into it killed the app mid startup-DDL,
+      # left a metadata lock behind, and took production down for 24 minutes. So: give the deploy's
+      # restart 90 seconds to serve the new build, and restart ONLY if the OLD build is still
+      # answering. Never restart an app that is in the middle of starting.
+      - name: Restart only if the new package is not being served yet
         run: |
-          az webapp restart --name 'ipro-prod-admin' --resource-group 'ipro-production' \
-            || echo "::warning::Could not restart ipro-prod-admin (no permission). Relying on the deploy's own restart; the verify step below will catch it if that is not enough."
+          expected='${{ github.sha }}'
+          url='https://admin.iproadvisers.com/health/version'
+          for attempt in $(seq 1 9); do
+            actual=$(curl -fsS --max-time 10 "$url" 2>/dev/null || echo '')
+            if [ "$actual" = "$expected" ]; then
+              echo "new build already serving after $attempt check(s); no restart needed"
+              exit 0
+            fi
+            echo "  check $attempt: serving '${actual:-<no response>}'"
+            sleep 10
+          done
+          echo "old build still serving after 90s; restarting once so the new package is mounted (445)"
+          az webapp restart --name 'ipro-prod-admin' --resource-group 'ipro-prod-admin_group' || echo "::warning::Could not restart ipro-prod-admin; relying on the deploy's own restart. The verify step decides."
 
       # ...and do not report success until the commit we just pushed is the commit answering.
       # /health only proves the app is up, which it was throughout the incident this guards against.
@@ -118,7 +139,7 @@ jobs:
           # step failed correctly and nothing remediated it or paged anyone. One more restart was the
           # whole fix. Try it once here, where the deploy credentials already are, before failing.
           echo "::warning::ipro-prod-admin is not serving $expected after 5 minutes; restarting once more (445)."
-          az webapp restart --name 'ipro-prod-admin' --resource-group 'ipro-production' || echo "::warning::Could not restart ipro-prod-admin (no permission); the second poll below decides."
+          az webapp restart --name 'ipro-prod-admin' --resource-group 'ipro-prod-admin_group' || echo "::warning::Could not restart ipro-prod-admin; the second poll below decides."
           if wait_for_build; then exit 0; fi
 
           echo "::error::ipro-prod-admin is still not serving $expected after a second restart and 10 minutes."

@@ -66,8 +66,27 @@ jobs:
       # above can succeed while production keeps running the PREVIOUS build. Observed on 2026-08-08,
       # three deploys in a row. Basic tier has no deployment slots, so a swap (which would restart by
       # definition) is not available -- an explicit restart is.
-      - name: Restart the app so the new package is mounted
-        run: az webapp restart --name 'ipro-prod-web' --resource-group 'ipro-production'
+      #
+      # CONDITIONAL since 2026-09-01 (445). The deploy's own restart is usually already under way by
+      # the time this step runs, and firing a second restart into it killed the app mid startup-DDL,
+      # left a metadata lock behind, and took production down for 24 minutes. So: give the deploy's
+      # restart 90 seconds to serve the new build, and restart ONLY if the OLD build is still
+      # answering. Never restart an app that is in the middle of starting.
+      - name: Restart only if the new package is not being served yet
+        run: |
+          expected='${{ github.sha }}'
+          url='https://app.iproadvisers.com/health/version'
+          for attempt in $(seq 1 9); do
+            actual=$(curl -fsS --max-time 10 "$url" 2>/dev/null || echo '')
+            if [ "$actual" = "$expected" ]; then
+              echo "new build already serving after $attempt check(s); no restart needed"
+              exit 0
+            fi
+            echo "  check $attempt: serving '${actual:-<no response>}'"
+            sleep 10
+          done
+          echo "old build still serving after 90s; restarting once so the new package is mounted (445)"
+          az webapp restart --name 'ipro-prod-web' --resource-group 'ipro-production'
 
       # ...and do not report success until the commit we just pushed is the commit answering.
       # /health only proves the app is up, which it was throughout the incident this guards against.

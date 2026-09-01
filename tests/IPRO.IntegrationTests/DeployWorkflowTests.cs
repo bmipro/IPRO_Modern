@@ -5,18 +5,43 @@ using Xunit;
 
 namespace IPRO.IntegrationTests;
 
-// TODO 445 (2026-09-01). A docs-only push left the ipro-prod-web worker container STOPPED after the
-// workflow's scripted post-deploy restart. The front door returned 503 on every path for ~24 minutes.
-// The verify step did exactly what it was built for -- it refused to report success -- and then
-// nothing happened: no remediation, no page, a GitHub failure email. One more `az webapp restart`
-// was the entire fix.
+// TODO 445 (2026-09-01). A docs-only push took production down for 24 minutes. The container log
+// settled the cause: the workflow's explicit post-deploy restart fired into the deploy's OWN restart,
+// killed the app mid startup-DDL, and every later start blocked on the dead session's metadata lock
+// until the 30s command timeout threw -- exit 134, five times, until the lock was reaped. Admin runs
+// the same startup against the same database and has never crashed, because its explicit restart had
+// been failing silently (wrong resource group) and it only ever restarted once.
 //
-// So the verify step now gets a second chance: if the first 5-minute poll fails, it restarts the app
-// once more, right there where the deploy credentials already are, and polls again. It still fails
-// loudly if that does not take. These pins hold both workflows to that shape; they are the only
-// automated check a CI change gets short of a real deploy.
+// Two rules now, both pinned here because a CI change gets no other automated check short of a real
+// deploy:
+//   1. The explicit restart is CONDITIONAL: poll for the new build first and restart only if the
+//      old one is still serving. Never restart an app that is in the middle of starting.
+//   2. The verify step gets ONE second-chance restart before failing, in case the deploy's own
+//      restart wedged -- the manual remedy that worked, automated.
+// And admin is addressed in its real resource group, so both restarts can actually reach it.
 public class DeployWorkflowTests
 {
+    [Theory]
+    [InlineData(@".github\workflows\main_ipro-prod-web.yml",   "ipro-prod-web",   "ipro-production")]
+    [InlineData(@".github\workflows\main_ipro-prod-admin.yml", "ipro-prod-admin", "ipro-prod-admin_group")]
+    public void The_post_deploy_restart_is_conditional_on_the_old_build_still_serving(string file, string app, string rg)
+    {
+        var yml = File.ReadAllText(FindRepoFile(file));
+
+        Assert.Contains("Restart only if the new package is not being served yet", yml);
+        // Gives the deploy's own restart 90 seconds (9 x 10s) before deciding.
+        Assert.Contains("seq 1 9", yml);
+        Assert.Contains("no restart needed", yml);
+        // The unconditional step is gone.
+        Assert.DoesNotContain("name: Restart the app so the new package is mounted", yml);
+
+        // Every restart names the app's REAL resource group -- admin was silently unreachable.
+        var restarts = Regex.Matches(yml, @"az webapp restart --name '" + Regex.Escape(app) + @"' --resource-group '([^']+)'");
+        Assert.True(restarts.Count >= 2, $"{app}: expected the conditional restart AND the second-chance restart, found {restarts.Count}");
+        foreach (Match m in restarts)
+            Assert.Equal(rg, m.Groups[1].Value);
+    }
+
     [Theory]
     [InlineData(@".github\workflows\main_ipro-prod-web.yml",   "ipro-prod-web")]
     [InlineData(@".github\workflows\main_ipro-prod-admin.yml", "ipro-prod-admin")]
@@ -24,28 +49,26 @@ public class DeployWorkflowTests
     {
         var yml = File.ReadAllText(FindRepoFile(file));
 
-        // The second chance is present and says why.
         Assert.Contains("second-chance restart (445)", yml);
-
-        // One scripted restart after the deploy, one more inside the verify step.
-        var restarts = Regex.Matches(yml, @"az webapp restart --name '" + Regex.Escape(app) + "'").Count;
-        Assert.True(restarts >= 2, $"{app}: expected the post-deploy restart AND the second-chance restart, found {restarts}");
-
-        // The poll is a function called twice, not a copy-pasted loop that can drift.
         Assert.Contains("wait_for_build()", yml);
         Assert.True(Regex.Matches(yml, @"if wait_for_build; then exit 0; fi").Count == 2,
             "the poll must run before AND after the second-chance restart");
-
-        // And it still fails, loudly, if the second chance does not take.
         Assert.Contains("after a second restart", yml);
         Assert.Contains("::error::", yml);
+        Assert.Contains($"restarting once more (445)", yml);
+    }
+
+    [Fact]
+    public void Admin_is_never_addressed_in_the_wrong_resource_group()
+    {
+        // The exact string that failed silently on every deploy until 2026-09-01.
+        var yml = File.ReadAllText(FindRepoFile(@".github\workflows\main_ipro-prod-admin.yml"));
+        Assert.DoesNotContain("--name 'ipro-prod-admin' --resource-group 'ipro-production'", yml);
     }
 
     [Fact]
     public void Both_apps_share_one_deploy_queue_and_never_cancel_each_other()
     {
-        // Pinned because 2026-08-31 showed what a cancelled admin run looks like: the two hosts
-        // silently drift apart. Queueing is the intended behaviour; cancellation is not.
         foreach (var file in new[] { @".github\workflows\main_ipro-prod-web.yml", @".github\workflows\main_ipro-prod-admin.yml" })
         {
             var yml = File.ReadAllText(FindRepoFile(file));
