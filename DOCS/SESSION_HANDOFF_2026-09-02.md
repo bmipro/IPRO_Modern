@@ -20,6 +20,10 @@ at `/health/version` on both hosts before its TODO row was ticked.
 | `8c14f1e` | **460** appointment emails carry the client-portal sign-in link; 457's resolver now follows the owner's rule exactly (attached domain, else the platform host -- the free subdomain is not a tier) | whole tree |
 | `09c0c82` | **454** the portal invite, appointment and testimonial emails keep the provider's answer; invite outcome remembered on the client | whole tree |
 | `2f1415a` | **461** four unlisted guides indexed; today's features written into the guides; HelpDocsTests | pinned |
+| `2664b6b` | **461 (2)** eight guides written from the real screens (23-30), indexed and embedded; the index test lists all 24 | 687/687 |
+| `bae8929` | **447** parallelism capped at 4 (23m47s, zero failures vs 26-28 min and one failure at the default); the overdue test names its cause; full gate logs kept | measured |
+| _see log_ | **450** visitors vote in a poll on the website: PollVote block, anonymous Website recipients, cookie + hourly cap, results rule, website-vote count on Results | whole tree |
+| `2784987` | **458** verified already built (site-themed 404 live on the owner's domain); **462** six small findings from the guide research | docs |
 | `aa985a5` `d86ad05` `f286c00` `cd2729e` `b3c3004` `9ea67ac` | docs commits (ticks, TODO rows, this handoff) | docs |
 
 ## Findings worth keeping
