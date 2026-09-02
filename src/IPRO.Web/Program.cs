@@ -216,9 +216,17 @@ app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/error/500");
     app.UseHsts();
 }
+
+// 456 (2026-09-02): a branded page for any status that ends the pipeline with no body (a 404, the
+// antiforgery 400, a 403). Only for browsers on page paths -- webhooks, health probes and Hangfire
+// keep their bare status (StatusPagePolicy). Must sit before routing: the re-executed request has to
+// travel the rest of the pipeline to reach ErrorController.
+app.UseWhen(
+    ctx => IPRO.Utility.StatusPagePolicy.ShouldRender(ctx.Request.Path.Value, ctx.Request.Headers.Accept.ToString()),
+    branch => branch.UseStatusCodePagesWithReExecute("/error/{0}"));
 
 app.UseSecurityHeaders();
 app.UseIpRateLimiting();
@@ -652,6 +660,10 @@ app.Run();
 static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() switch
 {
     "account" or "billing" or "publicwebsite" or "media" or "hangfire" or "health" => true,
+
+    // 456: the branded status pages. On an agent host /error/404 must reach ErrorController, not
+    // the public site's slug lookup (which would answer with a second, bare 404).
+    "error" => true,
 
     // The CLIENT-facing surfaces. These are not agent-portal pages and must NOT move under /portal:
     // an agent's client reaches them on the AGENT'S domain, by following a link in an email we sent

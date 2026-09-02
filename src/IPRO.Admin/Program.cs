@@ -154,7 +154,12 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Admin/Error"); app.UseHsts(); }
+if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/error/500"); app.UseHsts(); }
+
+// 456 (2026-09-02): branded status pages for browsers; see IPRO.Web's Program.cs for the reasoning.
+app.UseWhen(
+    ctx => IPRO.Utility.StatusPagePolicy.ShouldRender(ctx.Request.Path.Value, ctx.Request.Headers.Accept.ToString()),
+    branch => branch.UseStatusCodePagesWithReExecute("/error/{0}"));
 
 app.UseSecurityHeaders();
 app.UseIpRateLimiting();

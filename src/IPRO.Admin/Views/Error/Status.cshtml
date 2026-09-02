@@ -1,0 +1,42 @@
+@model IPRO.Utility.StatusPageModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>@Model.Title</title>
+    <style>
+        :root { --ink: #17223a; --muted: #64748b; --line: #dce4ef; --accent: #0f7a52; --ground: #f4f6fb; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+               background: var(--ground); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; }
+        .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgba(23,34,58,.06);
+                max-width: 520px; width: 100%; padding: 36px 32px; text-align: center; }
+        .brand { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; }
+        .code { font-size: 56px; font-weight: 700; line-height: 1; color: var(--accent); margin: 0 0 10px; font-variant-numeric: tabular-nums; }
+        h1 { font-size: 22px; margin: 0 0 10px; }
+        p { margin: 0 0 22px; color: var(--muted); line-height: 1.5; }
+        a.btn { display: inline-block; padding: 11px 20px; background: var(--accent); color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600; }
+        a.btn:focus-visible { outline: 3px solid rgba(20,87,217,.35); outline-offset: 2px; }
+        .ref { margin-top: 22px; font-size: 12px; color: var(--muted); }
+        .ref code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    </style>
+</head>
+<body>
+    <main class="card" role="main">
+        <div class="brand">IPRO Admin</div>
+        <div class="code" aria-hidden="true">@Model.Code</div>
+        <h1>@Model.Title</h1>
+        <p>@Model.Message</p>
+        <a class="btn" href="@Model.BackHref">@Model.BackLabel</a>
+        @if (Model.Code >= 500 && !string.IsNullOrWhiteSpace(Model.RequestId))
+        {
+            <div class="ref">If you contact support, quote reference <code>@Model.RequestId</code>.</div>
+        }
+    </main>
+</body>
+</html>
