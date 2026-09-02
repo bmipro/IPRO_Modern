@@ -8,6 +8,7 @@ using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace IPRO.Web.Controllers;
 
@@ -19,11 +20,14 @@ public class PortalRequestsController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public PortalRequestsController(IPRODbContext db, IEmailService email, IPackageEntitlementService entitlements)
+    private readonly IConfiguration _configuration;
+
+    public PortalRequestsController(IPRODbContext db, IEmailService email, IPackageEntitlementService entitlements, IConfiguration configuration)
     {
         _db = db;
         _email = email;
         _entitlements = entitlements;
+        _configuration = configuration;
     }
 
     // Client Portal is Platinum/Broker only; this controller had no entitlement check at all, so a
@@ -98,11 +102,21 @@ public class PortalRequestsController : Controller
 
         if (!string.IsNullOrWhiteSpace(request.Client.Email))
         {
+            // 460: "from your client portal" now says where that is -- the agent's own domain when
+            // one is attached, otherwise the platform (ClientPortalUrls, the same rule as the invite).
+            var loginUrl = IPRO.Web.Infrastructure.ClientPortalUrls.LoginUrl(
+                await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration));
             var html = $"<p>Hi {WebUtility.HtmlEncode(request.Client.FirstName)},</p>" +
                        $"<p>Your appointment request has been scheduled for <strong>{scheduledAt:dddd, MMMM d, yyyy 'at' h:mm tt}</strong>.</p>" +
                        (string.IsNullOrWhiteSpace(request.Notes) ? "" : $"<p>Notes: {WebUtility.HtmlEncode(request.Notes)}</p>") +
-                       "<p>You can review this anytime from your client portal.</p>";
-            await _email.SendDetailedAsync(request.Client.Email, clientName, "Your appointment has been scheduled", html);
+                       $"<p>You can review this anytime from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a></p>";
+            // 454: the appointment is scheduled either way; a failed confirmation is said out loud.
+            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, "Your appointment has been scheduled", html);
+            if (!result.Success)
+            {
+                TempData["Error"] = $"Appointment scheduled, but the confirmation could not be emailed to {request.Client.Email}: {result.Message} Let {request.Client.FirstName} know another way.";
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         TempData["Success"] = "Appointment scheduled.";
@@ -125,9 +139,17 @@ public class PortalRequestsController : Controller
         var clientName = $"{request.Client.FirstName} {request.Client.LastName}".Trim();
         if (!string.IsNullOrWhiteSpace(request.Client.Email))
         {
+            var loginUrl = IPRO.Web.Infrastructure.ClientPortalUrls.LoginUrl(
+                await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration));
             var html = "<p>Hi " + WebUtility.HtmlEncode(request.Client.FirstName) + ",</p>" +
-                       "<p>Unfortunately your appointment request could not be scheduled at this time. Please reach out to your advisor directly or submit a new request with an alternate time.</p>";
-            await _email.SendDetailedAsync(request.Client.Email, clientName, "Your appointment request was declined", html);
+                       "<p>Unfortunately your appointment request could not be scheduled at this time. Please reach out to your advisor directly or submit a new request with an alternate time.</p>" +
+                       $"<p>You can submit a new request from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a></p>";
+            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, "Your appointment request was declined", html);
+            if (!result.Success)
+            {
+                TempData["Error"] = $"Request declined, but {request.Client.Email} could not be emailed: {result.Message} Let {request.Client.FirstName} know another way.";
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         TempData["Success"] = "Request declined.";
