@@ -700,6 +700,9 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "Clients", "PortalPasswordHash", "ALTER TABLE `Clients` ADD COLUMN `PortalPasswordHash` varchar(500) CHARACTER SET utf8mb4 NULL");
             await EnsureTableColumnAsync(db, "Clients", "PortalInviteToken", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteToken` varchar(80) CHARACTER SET utf8mb4 NULL");
             await EnsureTableColumnAsync(db, "Clients", "PortalInviteTokenExpiresAt", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteTokenExpiresAt` datetime(6) NULL");
+            // 454: did the invite email go out, and if not, why.
+            await EnsureTableColumnAsync(db, "Clients", "PortalInviteEmailedAt", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteEmailedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "Clients", "PortalInviteEmailError", "ALTER TABLE `Clients` ADD COLUMN `PortalInviteEmailError` varchar(500) CHARACTER SET utf8mb4 NULL");
             await EnsureTableColumnAsync(db, "Clients", "PortalActivatedAt", "ALTER TABLE `Clients` ADD COLUMN `PortalActivatedAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ScheduledAt", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ScheduledAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ClientFollowUpId", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ClientFollowUpId` int NULL");

@@ -76,6 +76,10 @@ public class Client
     // non-expiring so pre-existing outstanding invites keep working rather than being silently
     // invalidated by this fix. Every newly-issued invite always gets a real expiry.
     public DateTime? PortalInviteTokenExpiresAt { get; set; }
+    // 454: whether the invite EMAIL went out (the token above only says an invite was issued).
+    public DateTime? PortalInviteEmailedAt { get; set; }
+    [System.ComponentModel.DataAnnotations.MaxLength(500)]
+    public string? PortalInviteEmailError { get; set; }
     public DateTime? PortalActivatedAt { get; set; }
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<ClientCategory> Categories { get; set; } = new List<ClientCategory>();

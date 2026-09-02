@@ -193,7 +193,13 @@ public class TestimonialsController : Controller
         // JOBS-10: the request now carries the standard List-Unsubscribe header like every other
         // client-facing sender, so "this is spam" has a working alternative.
         var unsubscribeUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
-        await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, listUnsubscribeUrl: unsubscribeUrl);
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, listUnsubscribeUrl: unsubscribeUrl);
+        if (!result.Success)
+        {
+            // 454: no "sent" banner for a request that never left.
+            TempData["Error"] = $"The testimonial request could not be sent to {client.Email}: {result.Message} Check the address and try again.";
+            return RedirectToAction("Details", "Clients", new { id = clientId });
+        }
 
         TempData["Success"] = $"Testimonial request sent to {client.Email}.";
         return RedirectToAction("Details", "Clients", new { id = clientId });
