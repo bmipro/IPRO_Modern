@@ -144,7 +144,14 @@ public class ClientPortalAccountController : Controller
             && c.PortalInviteTokenExpiresAt > DateTime.UtcNow);
     }
 
+    // 455 (2026-09-02): the logout form renders on pages authorized with the ClientPortal scheme,
+    // so its antiforgery token is bound to the CLIENT identity. This controller is [AllowAnonymous];
+    // without an Authorize of its own the POST arrived with HttpContext.User = the default scheme's
+    // principal (the agent's cookie, or anonymous) and the antiforgery filter refused the token as
+    // meant for a different user -- 400 Bad Request on the owner's first click. Authenticating
+    // against ClientPortal here installs the client principal before the token is checked.
     [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(AuthenticationSchemes = "ClientPortal")]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync("ClientPortal");
