@@ -22,7 +22,7 @@ at `/health/version` on both hosts before its TODO row was ticked.
 | `2f1415a` | **461** four unlisted guides indexed; today's features written into the guides; HelpDocsTests | pinned |
 | `2664b6b` | **461 (2)** eight guides written from the real screens (23-30), indexed and embedded; the index test lists all 24 | 687/687 |
 | `bae8929` | **447** parallelism capped at 4 (23m47s, zero failures vs 26-28 min and one failure at the default); the overdue test names its cause; full gate logs kept | measured |
-| _see log_ | **450** visitors vote in a poll on the website: PollVote block, anonymous Website recipients, cookie + hourly cap, results rule, website-vote count on Results | whole tree |
+| `48d997a` | **450** visitors vote in a poll on the website: PollVote block, anonymous Website recipients, cookie + hourly cap, results rule, website-vote count on Results | whole tree |
 | `2784987` | **458** verified already built (site-themed 404 live on the owner's domain); **462** six small findings from the guide research | docs |
 | `aa985a5` `d86ad05` `f286c00` `cd2729e` `b3c3004` `9ea67ac` | docs commits (ticks, TODO rows, this handoff) | docs |
 
@@ -72,6 +72,13 @@ at `/health/version` on both hosts before its TODO row was ticked.
 Build `9ea67ac`, verified at `/health/version` on both hosts: 452, 453, 454, 455, 456, 457, 459, 460, 461.
 Everything was red-first, green, and gated over the whole tree (684/684 before the push; the
 help-index change got its own red/green run and build after the last gate).
+
+## Second push of the day
+
+Build `3948647`, verified at `/health/version` on both hosts: 461 (2), 447, 450, plus the 458/462 docs.
+Then the close-out the owner asked for: both snapshot zips (OneDrive + `Documents\IPRO_Backups`,
+`git archive HEAD`), local MySQL shut down cleanly, tree clean and pushed -- ready for a reboot.
+After the reboot, start MySQL first (`DOCS/16_LOCAL_DEV.md`) before any gate.
 
 ## Do this first tomorrow
 
