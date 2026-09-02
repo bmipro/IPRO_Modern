@@ -144,17 +144,20 @@
         <div class="row g-3">
           @foreach (var asset in Model.MediaAssets)
           {
-            <div class="col-6 col-md-4 col-xl-3">
-              <div class="border rounded p-2 h-100">
-                <img src="@asset.BlobUrl" alt="" class="w-100 rounded mb-2" style="aspect-ratio:16/10;object-fit:cover" />
-              <div class="small text-truncate mb-2" title="@asset.OriginalFileName">@asset.OriginalFileName</div>
-                @if (imageDestinationBlocks.Any())
-                {
-                  <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2 uploaded-image-choice" data-image-url="@asset.BlobUrl" data-image-name="@asset.OriginalFileName"><i class="fas fa-check me-1"></i>Use this image</button>
-                }
-                <form method="post" action="/portal/WebsitePages/DeleteImage/@asset.Id">
-                  @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" /><button class="js-confirm-submit btn btn-sm btn-outline-danger w-100" data-confirm-message="Remove this image from the library and any content blocks using it?"><i class="fas fa-trash me-1"></i>Remove</button>
-                </form>
+            @* 449: a picker, not a gallery -- six across on a desktop, 4:3 thumbnails, actions in one row. *@
+            <div class="col-4 col-md-3 col-lg-2">
+              <div class="border rounded p-2 h-100 d-flex flex-column">
+                <img src="@asset.BlobUrl" alt="" class="w-100 rounded mb-1" style="aspect-ratio:4/3;object-fit:cover" />
+                <div class="small text-truncate mb-1" title="@asset.OriginalFileName">@asset.OriginalFileName</div>
+                <div class="d-flex gap-1 mt-auto">
+                  @if (imageDestinationBlocks.Any())
+                  {
+                    <button type="button" class="btn btn-sm btn-outline-primary flex-fill uploaded-image-choice" data-image-url="@asset.BlobUrl" data-image-name="@asset.OriginalFileName" title="Use this image"><i class="fas fa-check me-1"></i>Use</button>
+                  }
+                  <form method="post" action="/portal/WebsitePages/DeleteImage/@asset.Id" class="d-inline">
+                    @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" /><button class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Remove this image from the library and any content blocks using it?" title="Remove from library"><i class="fas fa-trash"></i><span class="visually-hidden">Remove</span></button>
+                  </form>
+                </div>
               </div>
             </div>
           }
