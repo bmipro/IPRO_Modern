@@ -12,14 +12,15 @@ at `/health/version` on both hosts before its TODO row was ticked.
 | `a0e8e4e` | **449** page-editor Image Library is a picker not a gallery: 6-across, 4:3 thumbs, actions side by side; JS hooks and delete form pinned | 615/615 (combined) |
 | `73bb14d` | **451 (2)** Hangfire `ShutdownTimeout = 10s` (Web); Admin pinned server-less | 616/617 (the 1 = a second load-only failure, named under 447) |
 | `eda4efa` | **452** invoice emails tracked: a `ClientInvoiceEmails` row per send/resend/reminder with the provider id; Send mails first and only then marks Sent (a failure keeps the draft and says why); delivery events resolve to invoices (hard bounce suppresses); the public page stamps client views; history on the invoice, a Delivery column, an Invoices tab in Email Activity | 628/629 -- the 1 was the client-eraser coverage pin catching the new table (fixed, covered) |
-| _see log_ | **453** support tickets: dashboard panel (unanswered first), do-not-reply footer + ticket button on the reply email, existing inbox notification pinned | whole tree, see log |
-| _see log_ | **455** client-portal Logout 400: the logout form's antiforgery token was bound to the client identity but validated against the default (agent/anonymous) principal; Logout now authenticates against the ClientPortal scheme | whole tree |
-| _see log_ | **456** branded status pages (400/403/404/405/500...) in both apps, real status kept, browsers only (webhooks/health excluded), way back by area; `DOCS/ERROR_PAGES.md`; agent-level pages deferred as 458 | whole tree |
-| _see log_ | **457** one resolver for the client portal's address (healthy custom domain > free subdomain > platform); invite email and profile card use it; sign-in address shown while invited and once active | whole tree |
-| _see log_ | **459** the registrar setup cards collapse once the primary domain is fully connected (DomainSetupState) | whole tree |
-| _see log_ | **460** appointment emails carry the client-portal sign-in link; 457's resolver now follows the owner's rule exactly (attached domain, else the platform host -- the free subdomain is not a tier) | whole tree |
-| _see log_ | **454** the portal invite, appointment and testimonial emails keep the provider's answer; invite outcome remembered on the client | whole tree |
-| `aa985a5` `d86ad05` `f286c00` `cd2729e` | ticks for 446/448/449, TODO 450/451, this handoff | docs |
+| `cd46a25` | **453** support tickets: dashboard panel (unanswered first), do-not-reply footer + ticket button on the reply email, existing inbox notification pinned | whole tree, see log |
+| `f320512` | **455** client-portal Logout 400: the logout form's antiforgery token was bound to the client identity but validated against the default (agent/anonymous) principal; Logout now authenticates against the ClientPortal scheme | whole tree |
+| `69651fd` | **456** branded status pages (400/403/404/405/500...) in both apps, real status kept, browsers only (webhooks/health excluded), way back by area; `DOCS/ERROR_PAGES.md`; agent-level pages deferred as 458 | whole tree |
+| `de4d8b5` | **457** one resolver for the client portal's address (healthy custom domain > free subdomain > platform); invite email and profile card use it; sign-in address shown while invited and once active | whole tree |
+| `2b426c2` | **459** the registrar setup cards collapse once the primary domain is fully connected (DomainSetupState) | whole tree |
+| `8c14f1e` | **460** appointment emails carry the client-portal sign-in link; 457's resolver now follows the owner's rule exactly (attached domain, else the platform host -- the free subdomain is not a tier) | whole tree |
+| `09c0c82` | **454** the portal invite, appointment and testimonial emails keep the provider's answer; invite outcome remembered on the client | whole tree |
+| `2f1415a` | **461** four unlisted guides indexed; today's features written into the guides; HelpDocsTests | pinned |
+| `aa985a5` `d86ad05` `f286c00` `cd2729e` `b3c3004` `9ea67ac` | docs commits (ticks, TODO rows, this handoff) | docs |
 
 ## Findings worth keeping
 
@@ -62,6 +63,12 @@ at `/health/version` on both hosts before its TODO row was ticked.
   — fails under parallel load, green alone. Shared-state race; investigate the fixture, do not
   retry-loop it.
 
+## Deployed in one push at the end of the day
+
+Build `9ea67ac`, verified at `/health/version` on both hosts: 452, 453, 454, 455, 456, 457, 459, 460, 461.
+Everything was red-first, green, and gated over the whole tree (684/684 before the push; the
+help-index change got its own red/green run and build after the last gate).
+
 ## Do this first tomorrow
 
 1. **Watch ticket `2608310040012537`** (ACS quota → 500/min, 10,000/hour + engagement tracking).
@@ -78,7 +85,7 @@ at `/health/version` on both hosts before its TODO row was ticked.
 - **Delivered on drip steps** — was 0 seconds after the 12:00 send; correlation is wired both
   ways (send stores the provider id; the resolver reads it). If it is still 0 on the Campaigns tab
   after the 448 deploy, that is a real gap and worth an hour.
-- Local MySQL has orphaned `ipro_test_*` databases from aborted runs. Harmless; sweep when idle.
+- Local MySQL: checked at the end of the day, zero orphaned test databases remain (the harness drops them on dispose).
 - Post-launch: fold `StartupSchemaRepair` DDL into migrations; unify `SeedGuard`/`StartupGuard`
   lock primitives; consider a Standard-tier slot swap so deploys stop costing ~90 s of 503.
 
