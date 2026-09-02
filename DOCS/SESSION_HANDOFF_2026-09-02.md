@@ -10,7 +10,8 @@ at `/health/version` on both hosts before its TODO row was ticked.
 | `595d4a1` | **446** portal links built as strings now carry `/portal` — five writers (digest job, client timeline, marketing calendar ×3, leads return-URL), read-time repair on the dashboard for rows already stored bare, regression sweep across Controllers/Scheduler/Business | 599/600 (the 1 = the flake, now named) |
 | `92263ee` | **448** drip step 1 sends at enrolment (Hangfire one-off, `drip` queue) under a claim shared with the hourly run (`DripEnrollmentClaims`); drips appear in Email Activity (Campaigns tab + recipient detail); Performance panel provider-neutral, "nothing sent yet". Two new columns via the schema repair | 614/614 |
 | `a0e8e4e` | **449** page-editor Image Library is a picker not a gallery: 6-across, 4:3 thumbs, actions side by side; JS hooks and delete form pinned | 615/615 (combined) |
-| `aa985a5` (held) | 446 tick | docs |
+| _see log_ | **451 (2)** Hangfire `ShutdownTimeout = 10s` (Web); Admin pinned server-less | 616/617 (the 1 = a second load-only failure, named under 447) |
+| `aa985a5` `d86ad05` `f286c00` `cd2729e` | ticks for 446/448/449, TODO 450/451, this handoff | docs |
 
 ## Findings worth keeping
 
@@ -28,6 +29,14 @@ at `/health/version` on both hosts before its TODO row was ticked.
 - **Do not run a second `dotnet test`/build while a gate is running.** The test host holds
   `IPRO.Web.dll`; the second build fails on the lock and prints nothing that looks like a failure.
   Cost me one unobserved "red" today, caught before it was claimed.
+- **Container swaps kill MySQL sessions mid-work, and their locks outlive them (451).** The first
+  boot after 448 logged six Hangfire `MySqlJobQueue` command timeouts at once, a minute after a clean
+  start, then nothing; the DB showed no aborts. App Service's 5-second stop grace period was shorter
+  than Hangfire's 15-second shutdown wait, so a worker died mid-dequeue holding its row lock. Same
+  root as 445's outage (a metadata lock, then). Fixed both ways: `WEBSITES_CONTAINER_STOP_TIME_LIMIT=30`
+  on both apps (owner-authorised, 13:49) and Hangfire `ShutdownTimeout = 10s` in code (Admin runs no
+  server -- pinned). The general lesson: on this platform, anything that holds a MySQL lock must be
+  able to finish or roll back inside the stop window.
 - **The flaky test has a name (447):** `SendClaimsTests.Retiring_a_poll_send_that_mailed_nobody_returns_the_survey_to_draft`
   — fails under parallel load, green alone. Shared-state race; investigate the fixture, do not
   retry-loop it.
