@@ -285,6 +285,11 @@ public class WebsitePagesController : Controller
             .Where(s => s.AgentUserId == AgentId && s.Status != PollSurveyStatus.Draft)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
+        // 450: a visitor poll needs no email send at all, only a question -- drafts qualify.
+        var votePolls = await _db.PollSurveys
+            .Where(s => s.AgentUserId == AgentId && _db.PollQuestions.Any(q => q.PollSurveyId == s.Id))
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync();
         var agentDocuments = await _db.AgentDocuments
             .Where(d => d.AgentUserId == AgentId)
             .OrderByDescending(d => d.UploadedAt)
@@ -310,6 +315,7 @@ public class WebsitePagesController : Controller
             AvailableParents = await GetParentChoicesAsync(page.AgentWebsiteId, page.Id),
             MediaAssets = await GetMediaAssetsAsync(page.AgentWebsiteId),
             AvailableSentPolls = sentPolls,
+            AvailableVotePolls = votePolls,
             AvailableAgentDocuments = agentDocuments,
             AvailableForms = availableForms,
             AvailableArticles = articles
@@ -401,6 +407,7 @@ public class WebsitePagesController : Controller
             : new List<TestimonialSubmission>();
 
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, AgentId, page, isOwnerPreview: true);
+        var pollVoteByBlockId = await IPRO.Web.Infrastructure.PollVoteBuilder.BuildAsync(_db, AgentId, page, new HashSet<int>(), isOwnerPreview: true);
         var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, AgentId, page);
         var didYouKnowByBlockId = await IPRO.Web.Infrastructure.DidYouKnowBuilder.BuildAsync(_db, AgentId, page);
         var articleContentByBlockId = await IPRO.Web.Infrastructure.ArticleContentBuilder.BuildAsync(_db, AgentId, page);
@@ -412,6 +419,7 @@ public class WebsitePagesController : Controller
             CurrentPage = page,
             ApprovedTestimonials = approvedTestimonials,
             PollResultsByBlockId = pollResultsByBlockId,
+            PollVoteByBlockId = pollVoteByBlockId,
             FormsByBlockId = formsByBlockId,
             DidYouKnowByBlockId = didYouKnowByBlockId,
             ArticleContentByBlockId = articleContentByBlockId
@@ -788,7 +796,7 @@ public class WebsitePagesController : Controller
                 return RedirectToAction(nameof(Edit), new { id = pageId });
             }
         }
-        if (blockType == WebsiteBlockTypes.PollResults)
+        if (blockType == WebsiteBlockTypes.PollResults || blockType == WebsiteBlockTypes.PollVote)
         {
             var pollAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.PollSurveys);
             if (!pollAccess.IsIncluded)
@@ -892,7 +900,7 @@ public class WebsitePagesController : Controller
                 OverlayStrength = overlayStrength
             }.ToJson();
         }
-        else if (block.BlockType == WebsiteBlockTypes.PollResults)
+        else if (block.BlockType == WebsiteBlockTypes.PollResults || block.BlockType == WebsiteBlockTypes.PollVote)
         {
             var pollBelongsToAgent = pollSurveyId > 0 && await _db.PollSurveys.AnyAsync(s => s.Id == pollSurveyId && s.AgentUserId == AgentId);
             block.SettingsJson = new WebsitePollResultsSettings

@@ -929,6 +929,7 @@ public class PublicWebsiteController : Controller
             : new List<TestimonialSubmission>();
 
         var pollResultsByBlockId = await IPRO.Web.Infrastructure.PollResultsBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
+        var pollVoteByBlockId = await IPRO.Web.Infrastructure.PollVoteBuilder.BuildAsync(_db, website.AgentUserId, currentPage, IPRO.Web.Infrastructure.PollVoteCookies.Read(Request));
         var formsByBlockId = await IPRO.Web.Infrastructure.PublicFormBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
         var didYouKnowByBlockId = await IPRO.Web.Infrastructure.DidYouKnowBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
         var articleContentByBlockId = await IPRO.Web.Infrastructure.ArticleContentBuilder.BuildAsync(_db, website.AgentUserId, currentPage);
@@ -946,6 +947,7 @@ public class PublicWebsiteController : Controller
             CanonicalOrigin = await ResolveCanonicalOriginAsync(website),
             ApprovedTestimonials = approvedTestimonials,
             PollResultsByBlockId = pollResultsByBlockId,
+            PollVoteByBlockId = pollVoteByBlockId,
             FormsByBlockId = formsByBlockId,
             DidYouKnowByBlockId = didYouKnowByBlockId,
             ArticleContentByBlockId = articleContentByBlockId,

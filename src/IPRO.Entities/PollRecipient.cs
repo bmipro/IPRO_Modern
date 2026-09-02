@@ -2,6 +2,10 @@ namespace IPRO.Entities;
 
 public enum PollRecipientStatus { Queued, Sent, Failed, Responded }
 
+// 450: where a response came from. Email = a named client we mailed (identifiable, so the
+// ten-response anonymity floor applies); Website = an anonymous visitor voting on the page.
+public enum PollRecipientSource { Email = 0, Website = 1 }
+
 public class PollRecipient
 {
     public int Id { get; set; }
@@ -13,6 +17,7 @@ public class PollRecipient
     public PollRecipientStatus Status { get; set; } = PollRecipientStatus.Queued;
     public string SendGridMessageId { get; set; } = string.Empty;
     public string VoteToken { get; set; } = string.Empty;
+    public PollRecipientSource Source { get; set; } = PollRecipientSource.Email;
     public string FailureReason { get; set; } = string.Empty;
     // Delivery tracking -- see the note on ECardRecipient. Polls were worse off than cards: the
     // dispatcher sent no customArgs at all, so there was nothing for the webhook to match even if

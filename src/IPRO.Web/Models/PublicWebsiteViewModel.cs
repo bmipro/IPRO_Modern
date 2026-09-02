@@ -20,6 +20,7 @@ public class PublicWebsiteViewModel
     public string CanonicalOrigin { get; set; } = string.Empty;
     public List<TestimonialSubmission> ApprovedTestimonials { get; set; } = new();
     public Dictionary<int, PollResultsBlockData> PollResultsByBlockId { get; set; } = new();
+    public Dictionary<int, PollVoteBlockData> PollVoteByBlockId { get; set; } = new();
     public Dictionary<int, PublicFormBlockData> FormsByBlockId { get; set; } = new();
     public Dictionary<int, DidYouKnowBlockData> DidYouKnowByBlockId { get; set; } = new();
     public Dictionary<int, Article> ArticleContentByBlockId { get; set; } = new();

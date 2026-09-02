@@ -27,6 +27,7 @@ public class WebsitePageEditViewModel
     public List<WebsitePage> AvailableParents { get; set; } = new();
     public List<WebsiteMediaAsset> MediaAssets { get; set; } = new();
     public List<PollSurvey> AvailableSentPolls { get; set; } = new();
+    public List<PollSurvey> AvailableVotePolls { get; set; } = new();
     public List<AgentDocument> AvailableAgentDocuments { get; set; } = new();
     public List<WebsiteForm> AvailableForms { get; set; } = new();
     public List<Article> AvailableArticles { get; set; } = new();

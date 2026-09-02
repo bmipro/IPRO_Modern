@@ -10,6 +10,7 @@ public static class WebsiteBlockTypes
     public const string NewsletterSignup = "NewsletterSignup";
     public const string TestimonialForm = "TestimonialForm";
     public const string PollResults = "PollResults";
+    public const string PollVote = "PollVote";
     public const string LeadMagnet = "LeadMagnet";
     public const string Reviews = "Reviews";
     public const string AgentInfo = "AgentInfo";
@@ -30,13 +31,14 @@ public static class WebsiteBlockTypes
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex, Blog
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, PollVote, LeadMagnet, Reviews, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex, Blog
     };
 
     public static string DisplayName(string type) => type switch
     {
         TestimonialForm => "Testimonial Submission Form",
         PollResults => "Poll Results",
+        PollVote => "Poll (Visitors Vote)",
         LeadMagnet => "Lead Magnet Download",
         Reviews => "Review Badge",
         AgentInfo => "Agent Info Card",

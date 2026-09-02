@@ -326,6 +326,28 @@
               <div class="col-md-6"><label class="form-label fw-semibold">Text readability over image</label><select name="overlayStrength" class="form-select"><option value="0" selected="@(heroSettings.OverlayStrength <= 0)">None</option><option value="25" selected="@(heroSettings.OverlayStrength > 0 && heroSettings.OverlayStrength <= 35)">Light</option><option value="50" selected="@(heroSettings.OverlayStrength > 35 && heroSettings.OverlayStrength < 70)">Medium</option><option value="80" selected="@(heroSettings.OverlayStrength >= 70)">Strong</option></select><div class="form-text">Adds shading behind banner text so it stays readable on photos.</div></div>
             </div></div></div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PollVote)
+          {
+            var voteSettings = IPRO.Entities.WebsitePollResultsSettings.FromJson(block.SettingsJson);
+            <div class="col-12">
+              <label class="form-label fw-semibold">Which poll?</label>
+              @if (Model.AvailableVotePolls.Any())
+              {
+                <select name="pollSurveyId" class="form-select">
+                  <option value="0">Choose a poll...</option>
+                  @foreach (var poll in Model.AvailableVotePolls)
+                  {
+                    <option value="@poll.Id" selected="@(voteSettings.PollSurveyId == poll.Id ? "selected" : null)">@poll.Title (@poll.TotalResponded response@(poll.TotalResponded == 1 ? "" : "s"))</option>
+                  }
+                </select>
+                <div class="form-text">Visitors vote on the page, one vote per browser. Results appear after the first vote; if you also emailed this poll to clients, results stay hidden until it reaches 10 responses, to keep their answers anonymous.</div>
+              }
+              else
+              {
+                <div class="alert alert-info mb-0">Create a poll with at least one question under <a href="/portal/Polls">Polls</a>, then come back here to attach it. It does not need to be sent by email.</div>
+              }
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PollResults)
           {
             var pollSettings = IPRO.Entities.WebsitePollResultsSettings.FromJson(block.SettingsJson);

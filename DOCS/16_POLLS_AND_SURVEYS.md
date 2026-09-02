@@ -50,3 +50,23 @@ Only polls that are still Drafts (never sent) can be deleted. Once a poll has an
 ## Package Availability
 
 Polls and surveys are included with every package. If a package removes access to it later, agents keep any polls already sent and their results, but can't create new polls or reach the review screens until they upgrade.
+
+## Let Visitors Vote on Your Website
+
+A poll does not have to be emailed to be useful. The **Poll (Visitors Vote)** block puts the question and its options on a page, and anyone visiting can vote (added 2026-09-02).
+
+1. Create the poll under **Polls** with at least one question. It can stay a draft; sending by email is optional.
+2. Go to **My Website** > **Manage Pages**, edit the page, and add a **Poll (Visitors Vote)** block.
+3. Under **Which poll?** choose the poll and save the block. Publish the page.
+
+What a visitor sees: the question, the options, a **Vote** button, then "Thanks for voting" and the results.
+
+How votes are handled:
+
+- Each vote is anonymous: no name, no email, no client record. Your **Results** page shows how many responses came from the website block, so an emailed poll and a website poll stay distinguishable.
+- One vote per browser. A second attempt from the same browser is told it has already voted.
+- A very busy poll is capped at 300 website votes an hour, to keep floods out.
+- **Results appear after the first vote** for a poll that was never emailed, because every response is anonymous.
+- If you also emailed the poll to clients, results stay hidden on the page until the poll reaches 10 responses, the same anonymity rule the **Poll Results** block uses, because with only a few responses someone who knows your clients could work out who answered what.
+
+Your own preview in the page editor always shows the numbers.

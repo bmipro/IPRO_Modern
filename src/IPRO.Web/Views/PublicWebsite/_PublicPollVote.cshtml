@@ -1,0 +1,57 @@
+@model IPRO.Web.Models.PollVoteBlockData
+@{
+    // 450: a visitor poll. The form, or the thank-you / results once this browser has voted.
+    // Style-neutral on purpose -- it inherits the shell's font and colours like _PublicPageNotFound.
+    var outcome = Context.Request.Query["poll"].ToString();
+    var forThisBlock = Context.Request.Query["block"].ToString() == Model.BlockId.ToString();
+    var justVoted = forThisBlock && outcome == "thanks";
+    var showForm = !Model.HasVoted && !justVoted;
+    var returnPath = Context.Request.Path.HasValue ? Context.Request.Path.Value! : "/";
+    var message = forThisBlock ? outcome switch
+    {
+        "thanks" => "Thanks for voting.",
+        "already" => "You have already voted in this poll.",
+        "incomplete" => "Please answer every question before submitting.",
+        "busy" => "This poll is very busy right now. Please try again in a little while.",
+        "invalid" => "That vote could not be recorded. Please refresh the page and try again.",
+        _ => string.Empty
+    } : string.Empty;
+}
+<div class="public-poll-vote" id="poll-@Model.BlockId">
+  @if (!string.IsNullOrEmpty(message))
+  {
+    <p class="small fw-semibold mb-3" role="status">@message</p>
+  }
+  @if (showForm)
+  {
+    <form method="post" action="/Poll/WebsiteVote">
+      @Html.AntiForgeryToken()
+      <input type="hidden" name="SurveyId" value="@Model.SurveyId" />
+      <input type="hidden" name="BlockId" value="@Model.BlockId" />
+      <input type="hidden" name="ReturnPath" value="@returnPath" />
+      @for (var i = 0; i < Model.Questions.Count; i++)
+      {
+        var question = Model.Questions[i];
+        <fieldset class="mb-3">
+          <legend class="fw-semibold" style="font-size:1rem;">@question.Text</legend>
+          <input type="hidden" name="Answers[@i].QuestionId" value="@question.Id" />
+          @foreach (var option in question.Options)
+          {
+            <label class="d-block mb-1" style="cursor:pointer;">
+              <input type="radio" name="Answers[@i].OptionId" value="@option.Id" required class="me-2" />@option.Text
+            </label>
+          }
+        </fieldset>
+      }
+      <button type="submit" class="btn btn-primary">Vote</button>
+    </form>
+  }
+  else if (Model.ShowResults && Model.Results != null)
+  {
+    @await Html.PartialAsync("_PollResults", Model.Results)
+  }
+  else
+  {
+    <p class="small mb-0" style="opacity:.75;">Results will appear here once more people have voted.</p>
+  }
+</div>

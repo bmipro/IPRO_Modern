@@ -1280,6 +1280,20 @@ public static class StartupSchemaRepair
     // in OpenConnectionAsync/CloseConnectionAsync" mistake has taken production down three times
     // (2026-07-16, 2026-07-24, 2026-07-26 - see 09_TROUBLESHOOTING.md). A documented convention wasn't
     // enough; making the helper foolproof is.
+    // 450 (2026-09-02): anonymous website votes are PollRecipients with Source = Website.
+    public static async Task EnsurePollWebsiteVoteSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "PollRecipients", "Source", "ALTER TABLE `PollRecipients` ADD COLUMN `Source` int NOT NULL DEFAULT 0");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     public static async Task EnsureTableColumnAsync(IPRODbContext db, string tableName, string columnName, string alterSql)
     {
         var ownsConnection = db.Database.GetDbConnection().State != System.Data.ConnectionState.Open;

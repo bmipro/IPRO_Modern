@@ -340,6 +340,8 @@ public class PollsController : Controller
 
         var survey = await _db.PollSurveys.FirstOrDefaultAsync(p => p.Id == id && p.AgentUserId == AgentId);
         if (survey == null) return NotFound();
+        // 450: how many of the responses were anonymous website votes rather than emailed clients.
+        ViewBag.WebsiteVotes = await _db.PollRecipients.CountAsync(r => r.PollSurveyId == survey.Id && r.Source == PollRecipientSource.Website && r.Status == PollRecipientStatus.Responded);
 
         var questions = await _db.PollQuestions.Where(q => q.PollSurveyId == id).OrderBy(q => q.SortOrder).ToListAsync();
         var questionIds = questions.Select(q => q.Id).ToList();

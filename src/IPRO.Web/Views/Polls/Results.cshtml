@@ -12,6 +12,10 @@
     <div class="small text-muted mb-1"><a href="/portal/Polls">Polls</a> / <a href="/portal/Polls/Preview/@Model.Id">Preview</a> / Results</div>
     <h2 class="fw-bold mb-1"><i class="fas fa-chart-column me-2 text-primary"></i>@Model.Title</h2>
     <div class="text-muted">Sent to @Model.TotalSent &middot; @Model.TotalResponded responded (@responseRate%)</div>
+    @if ((ViewBag.WebsiteVotes as int? ?? 0) > 0)
+    {
+      <div class="text-muted small">@ViewBag.WebsiteVotes of the responses came from your website poll block.</div>
+    }
   </div>
   <a href="/portal/Polls/Preview/@Model.Id" class="btn btn-outline-secondary">Back to Preview</a>
 </div>
