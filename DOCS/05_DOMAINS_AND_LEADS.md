@@ -21,6 +21,8 @@ The agent should not alter temporary-domain DNS records.
 
 IPRO checks pending domains automatically. Agents can also click **Retry** beside a domain to recheck it immediately (about every 2 minutes at most). Super Admin can also select **Recheck**.
 
+Once the Connection status panel shows **Found**, **Connected**, **Secured** and **Forwarding OK**, the two registrar instruction cards fold away behind **Show the setup steps (for adding another domain)**. They come back on their own if anything stops being green.
+
 ## What to Tell a New Agent
 
 Wording that can be used directly in onboarding, support replies, or a help page. It matches the

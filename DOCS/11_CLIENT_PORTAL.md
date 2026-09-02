@@ -11,6 +11,19 @@ The Client Portal is a secure, separate login for an agent's own clients — dis
 
 If a client loses their invite email, click **Resend Invite** — this generates a fresh activation link and clears any half-finished setup.
 
+While the invite is pending, the card also says whether the invite email actually went out ("Invite emailed Sep 2, 3:10 pm") or why it could not ("The invite could not be emailed: ..."). The activation link is shown in both cases, so you can pass it to the client directly.
+
+## Where the portal lives (the address to give a client)
+
+The client portal is on **your own domain** when you have connected one and it is live; otherwise it is on the platform host. The sign-in address is shown on the client's profile under **Client Portal**, both while the invite is pending and once the client is active:
+
+```
+https://<your-domain>/ClientPortalAccount/Login        (a connected custom domain)
+https://app.iproadvisers.com/ClientPortalAccount/Login  (no custom domain attached)
+```
+
+The invite email's activation link and the appointment emails are built on the same address (TODO 457/460, 2026-09-02). Your free `<name>.247advisers.com` site also serves the portal, but links we send clients do not use it.
+
 ## Revoke Portal Access
 
 Click **Revoke Access** on the client's profile at any time. This immediately clears their portal password, so they can no longer log in until re-invited.
@@ -30,7 +43,7 @@ Clients can request an appointment from their portal, optionally with a preferre
 2. For a pending request, pick the actual date and time (prefilled from the client's preferred date when they gave one, but yours to adjust) and click **Schedule** — this creates a real follow-up on your **Calendar**, and the client is emailed the confirmed date/time.
 3. Click **Decline** to turn down a request — the client is emailed a polite decline notice; no calendar entry is created.
 
-Once scheduled, the client sees the confirmed date/time on their own Appointments page, and it also appears in their "Upcoming" follow-ups list there.
+Once scheduled, the client sees the confirmed date/time on their own Appointments page, and it also appears in their "Upcoming" follow-ups list there. The confirmation and decline emails both carry the client portal's sign-in address, and if either email cannot be sent you are told on the Portal Requests page (the appointment itself is still scheduled or declined).
 
 Rescheduling or cancelling an already-scheduled appointment isn't a separate flow — use the normal follow-up edit/delete tools on the client's Details page, since the appointment *is* a follow-up under the hood.
 

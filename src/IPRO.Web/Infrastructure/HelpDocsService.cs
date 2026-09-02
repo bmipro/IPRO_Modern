@@ -28,6 +28,11 @@ public static class HelpDocsService
         new HelpArticle("social-posts", "Social Posts: Draft, Check Limits, and Track", "13_SOCIAL_MEDIA_POSTS.md"),
         new HelpArticle("testimonials", "Testimonials: Collect, Review, and Approve", "15_TESTIMONIALS.md"),
         new HelpArticle("polls", "Polls and Surveys: Build, Send, and View Results", "16_POLLS_AND_SURVEYS.md"),
+        // 461 (2026-09-02): four agent-facing guides existed on disk but were never listed here.
+        new HelpArticle("forms", "Forms: Build, Publish, and Collect Submissions", "17_FORMS.md"),
+        new HelpArticle("ecards", "E-Cards: Designs, Occasions, and Sending", "18_ECARDS.md"),
+        new HelpArticle("eletters", "E-Letters: Templates and Sending", "19_ELETTERS.md"),
+        new HelpArticle("google-visibility", "Getting Found on Google", "21_AGENT_GOOGLE_VISIBILITY.md"),
     };
 
     public static IReadOnlyList<HelpArticle> GetArticles() => Articles;

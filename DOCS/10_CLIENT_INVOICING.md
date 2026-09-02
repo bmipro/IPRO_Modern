@@ -29,6 +29,19 @@ A document number (`EST-####` for estimates, `INV-####` for invoices) is assigne
 
 IPRO does not process the payment itself — the agent always confirms and records payment manually (see **Mark Paid** below).
 
+## Knowing Whether the Client Received It
+
+Every email an invoice generates is tracked (added 2026-09-02):
+
+- **Send** mails the document first and only then marks it **Sent**. If the mail provider refuses the address, the document stays a draft, the Send button stays, and the banner tells you why.
+- The invoice page lists each email under the public link: sent, **delivered**, **bounced** (with the reason), or **could not be sent**. Delivery events come from the mail provider and usually arrive within a minute.
+- **Viewed by client** appears the moment the client opens the invoice link, with the time and how many times. Your own preview does not count.
+- The invoice list has a **Delivery** column: Viewed, Delivered, Sent, Bounced, Send failed, or Not sent yet.
+- **Resend email** on a sent document sends it again, for a bounce or a changed address. Resending a paid invoice sends a copy and does not reopen it.
+- **Email Activity** has an **Invoices** tab listing every invoice email and reminder.
+
+A hard bounce automatically stops all email to that client until you resubscribe them from their profile, the same as every other channel.
+
 ## Converting an Approved Estimate to an Invoice
 
 1. Once a client approves an estimate, open it from **Client Invoices**.

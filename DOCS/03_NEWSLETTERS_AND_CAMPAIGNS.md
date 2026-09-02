@@ -122,3 +122,8 @@ Campaign access is controlled by package features.
 
 Every drip campaign email includes an unsubscribe link scoped to that specific campaign. If a client clicks it, only their enrollment in that one campaign is cancelled (their status changes to **Cancelled** and future steps stop) — it does not affect their newsletter subscription or any other campaign they may be enrolled in.
 
+### When Each Step Goes Out
+
+- **Step 1** is sent within a minute of enrolling the recipients (since 2026-09-02). Before that, the first step waited for the hourly run.
+- Later steps are sent by the hourly run once their delay has passed.
+- Each step's delivery is under **Email Activity → Campaigns**: one row per step, with the recipients and their delivered / opened status.

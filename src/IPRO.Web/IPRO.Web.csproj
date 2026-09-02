@@ -27,6 +27,10 @@
   <EmbeddedResource Include="..\..\DOCS\13_SOCIAL_MEDIA_POSTS.md" LogicalName="HelpDocs.13_SOCIAL_MEDIA_POSTS.md" />
   <EmbeddedResource Include="..\..\DOCS\15_TESTIMONIALS.md" LogicalName="HelpDocs.15_TESTIMONIALS.md" />
   <EmbeddedResource Include="..\..\DOCS\16_POLLS_AND_SURVEYS.md" LogicalName="HelpDocs.16_POLLS_AND_SURVEYS.md" />
+  <EmbeddedResource Include="..\..\DOCS\17_FORMS.md" LogicalName="HelpDocs.17_FORMS.md" />
+  <EmbeddedResource Include="..\..\DOCS\18_ECARDS.md" LogicalName="HelpDocs.18_ECARDS.md" />
+  <EmbeddedResource Include="..\..\DOCS\19_ELETTERS.md" LogicalName="HelpDocs.19_ELETTERS.md" />
+  <EmbeddedResource Include="..\..\DOCS\21_AGENT_GOOGLE_VISIBILITY.md" LogicalName="HelpDocs.21_AGENT_GOOGLE_VISIBILITY.md" />
 </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />
