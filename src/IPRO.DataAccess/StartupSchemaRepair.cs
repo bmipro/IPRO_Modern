@@ -240,6 +240,8 @@ public static class StartupSchemaRepair
         {
             await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "UnsubscribeToken", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `UnsubscribeToken` varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
             await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "SendAttempts", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `SendAttempts` int NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "ClaimedAt", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `ClaimedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "ClaimAttempts", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `ClaimAttempts` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "Articles", "ImageSizeBytes", "ALTER TABLE `Articles` ADD COLUMN `ImageSizeBytes` bigint NOT NULL DEFAULT 0");
         }
         finally

@@ -37,142 +37,178 @@ public class DripCampaignJob
         await ProcessLegacySchedulerRowsAsync();
     }
 
+    // Hourly: every due enrollment, each taken under a claim so an overlapping run -- or the
+    // one-off run enqueued at enrolment -- cannot mail it too. (TODO 448.)
     private async Task ProcessEnrollmentsAsync()
     {
-        var dueEnrollments = await _db.DripCampaignEnrollments
-            .Include(e => e.Client)
-            .Include(e => e.DripCampaign)
-            .Where(e => e.Status == DripCampaignEnrollmentStatus.Active &&
-                        e.NextSendAt <= DateTime.UtcNow &&
-                        e.DripCampaign.IsActive)
+        var now = DateTime.UtcNow;
+        var exhausted = await DripEnrollmentClaims.FailExhaustedAsync(_db, now);
+        if (exhausted > 0)
+        {
+            _logger.LogWarning("Drip: {Count} enrollment(s) stopped after repeated interrupted processing.", exhausted);
+        }
+
+        var dueIds = await DripEnrollmentClaims.Due(_db, now)
             .OrderBy(e => e.NextSendAt)
             .Take(100)
+            .Select(e => e.Id)
             .ToListAsync();
 
-        foreach (var enrollment in dueEnrollments)
+        foreach (var id in dueIds)
         {
+            if (!await ProcessEnrollmentAsync(id))
+            {
+                // Failure bookkeeping itself could not be saved: the tracker is cleared and the
+                // batch stops. The remaining enrollments run next tick.
+                break;
+            }
+        }
+    }
+
+    // One enrollment, right now. Enqueued by the enrol action so "send immediately" is true rather
+    // than "on the next hourly tick". The claim makes this safe against the hourly run; a step that
+    // is not yet due is simply refused by the claim and nothing happens.
+    [Hangfire.Queue("drip")]
+    public async Task RunEnrollmentAsync(int enrollmentId)
+    {
+        await ProcessEnrollmentAsync(enrollmentId);
+    }
+
+    // CLAIM FIRST, LOAD SECOND. Returns false only when the failure bookkeeping could not be
+    // persisted -- the one case where the caller must stop its batch. The claim is released as
+    // soon as an outcome (a send, or its failure) is on disk; if that never happens the claim goes
+    // stale, is taken over with the attempt counter bumped, and after MaxAttempts the enrollment is
+    // named Failed by the next hourly run rather than silently excluded forever.
+    private async Task<bool> ProcessEnrollmentAsync(int enrollmentId)
+    {
+        var now = DateTime.UtcNow;
+        var held = await DripEnrollmentClaims.TryClaimAsync(_db, enrollmentId, now);
+        if (held == null) return true;
+
+        SendClaims.ForgetTracked<DripCampaignEnrollment>(_db, enrollmentId);
+        var enrollment = await _db.DripCampaignEnrollments
+            .Include(e => e.Client)
+            .Include(e => e.DripCampaign)
+            .FirstOrDefaultAsync(e => e.Id == enrollmentId);
+        if (enrollment == null)
+        {
+            return true;
+        }
+
+        var persisted = false;
+        try
+        {
+            if (!enrollment.DripCampaign.IsActive)
+            {
+                // Paused between enrolment and this run. Nothing to do; the claim is released below
+                // and the hourly run's Due() filter keeps it off the batch until the campaign resumes.
+                persisted = true;
+                return true;
+            }
+
+            var steps = await _db.DripCampaignSteps
+                .Where(s => s.DripCampaignId == enrollment.DripCampaignId)
+                .OrderBy(s => s.SortOrder)
+                .ToListAsync();
+
+            if (enrollment.NextStepIndex >= steps.Count)
+            {
+                enrollment.Status = DripCampaignEnrollmentStatus.Completed;
+                enrollment.CompletedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+                persisted = true;
+                return true;
+            }
+
+            if (_consent.IsSuppressed(enrollment.Client, EmailChannel.DripCampaign))
+            {
+                enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
+                enrollment.CancelledAt = DateTime.UtcNow;   // M12: the CASL "when did we stop" answer
+                enrollment.LastError = "Client has unsubscribed; enrollment cancelled.";
+                await _db.SaveChangesAsync();
+                persisted = true;
+                _logger.LogInformation(
+                    "Drip enrollment {EnrollmentId} cancelled: client {ClientId} has opted out.",
+                    enrollment.Id, enrollment.ClientId);
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(enrollment.UnsubscribeToken))
+            {
+                enrollment.UnsubscribeToken = Guid.NewGuid().ToString("N");
+            }
+
+            var clientName = $"{enrollment.Client.FirstName} {enrollment.Client.LastName}".Trim();
+            var sendResult = await _dispatcher.DispatchDripStepAsync(
+                enrollment.DripCampaignId,
+                enrollment.NextStepIndex,
+                enrollment.Client.Email,
+                string.IsNullOrWhiteSpace(clientName) ? enrollment.Client.Email : clientName,
+                enrollment.UnsubscribeToken,
+                enrollment.Id);
+
+            if (sendResult == null)
+            {
+                HandleSendFailure(enrollment, transient: true, "Dispatcher had nothing to send for this step.");
+                await _db.SaveChangesAsync();
+                persisted = true;
+                return true;
+            }
+
+            if (!sendResult.Success)
+            {
+                HandleSendFailure(enrollment, sendResult.IsTransient, sendResult.Message);
+                await _db.SaveChangesAsync();
+                persisted = true;
+                return true;
+            }
+
+            enrollment.SendAttempts = 0;
+            enrollment.LastSentAt = DateTime.UtcNow;
+            enrollment.LastError = string.Empty;
+            enrollment.NextStepIndex++;
+
+            if (enrollment.NextStepIndex >= steps.Count)
+            {
+                enrollment.Status = DripCampaignEnrollmentStatus.Completed;
+                enrollment.CompletedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                var nextStep = steps[enrollment.NextStepIndex];
+                enrollment.NextSendAt = DateTime.UtcNow.AddDays(Math.Max(0, nextStep.DelayDays));
+            }
+
+            // Persist THIS enrollment's advance before moving on: a crash after the send but before
+            // the save would otherwise re-mail this step on the next run.
+            await _db.SaveChangesAsync();
+            persisted = true;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            HandleSendFailure(enrollment, transient: true, ex.Message);
+            _logger.LogError(ex, "Drip campaign enrollment {EnrollmentId} send attempt failed (attempt {Attempts})", enrollment.Id, enrollment.SendAttempts);
             try
             {
-                var steps = await _db.DripCampaignSteps
-                    .Where(s => s.DripCampaignId == enrollment.DripCampaignId)
-                    .OrderBy(s => s.SortOrder)
-                    .ToListAsync();
-
-                if (enrollment.NextStepIndex >= steps.Count)
-                {
-                    enrollment.Status = DripCampaignEnrollmentStatus.Completed;
-                    enrollment.CompletedAt = DateTime.UtcNow;
-                    await _db.SaveChangesAsync();
-                    continue;
-                }
-
-                // Drip was the one outbound path that never asked. There was no EmailChannel member
-                // for it, so the omission was invisible to anyone reading EmailConsentService, and
-                // an unsubscribed client kept receiving every remaining step -- the most plausible
-                // in-product source of the spam complaints behind the shared-IP reputation problem
-                // (2026-08-14 ultra-audit). Cancelled, not Failed: they asked to stop, this is not
-                // an error to retry.
-                if (_consent.IsSuppressed(enrollment.Client, EmailChannel.DripCampaign))
-                {
-                    enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
-                    enrollment.CancelledAt = DateTime.UtcNow;   // M12: the CASL "when did we stop" answer
-                    enrollment.LastError = "Client has unsubscribed; enrollment cancelled.";
-                    await _db.SaveChangesAsync();
-                    _logger.LogInformation(
-                        "Drip enrollment {EnrollmentId} cancelled: client {ClientId} has opted out.",
-                        enrollment.Id, enrollment.ClientId);
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(enrollment.UnsubscribeToken))
-                {
-                    enrollment.UnsubscribeToken = Guid.NewGuid().ToString("N");
-                }
-
-                var clientName = $"{enrollment.Client.FirstName} {enrollment.Client.LastName}".Trim();
-                var sendResult = await _dispatcher.DispatchDripStepAsync(
-                    enrollment.DripCampaignId,
-                    enrollment.NextStepIndex,
-                    enrollment.Client.Email,
-                    string.IsNullOrWhiteSpace(clientName) ? enrollment.Client.Email : clientName,
-                    enrollment.UnsubscribeToken,
-                    enrollment.Id);
-
-                // JOBS-7 (fixed 2026-08-20): a failed send must not advance the enrollment -- the
-                // client silently skipped the step while the error was blanked. JOBS-8: a
-                // transient failure retries on later ticks instead of killing the campaign; the
-                // attempt counter stops a permanent problem from retrying forever.
-                if (sendResult == null)
-                {
-                    // M11: the dispatcher had nothing to send (campaign deactivated in the race
-                    // between our query and its own re-read). NOT a success -- no advance, no
-                    // LastSentAt -- and NOT a hot loop either: the transient backoff pushes the
-                    // row behind healthy ones and the cap bounds it.
-                    HandleSendFailure(enrollment, transient: true, "Dispatcher had nothing to send for this step.");
-                    await _db.SaveChangesAsync();
-                    continue;
-                }
-
-                if (!sendResult.Success)
-                {
-                    HandleSendFailure(enrollment, sendResult.IsTransient, sendResult.Message);
-                    await _db.SaveChangesAsync();
-                    continue;
-                }
-
-                enrollment.SendAttempts = 0;
-                enrollment.LastSentAt = DateTime.UtcNow;
-                enrollment.LastError = string.Empty;
-                enrollment.NextStepIndex++;
-
-                if (enrollment.NextStepIndex >= steps.Count)
-                {
-                    enrollment.Status = DripCampaignEnrollmentStatus.Completed;
-                    enrollment.CompletedAt = DateTime.UtcNow;
-                }
-                else
-                {
-                    var nextStep = steps[enrollment.NextStepIndex];
-                    enrollment.NextSendAt = DateTime.UtcNow.AddDays(Math.Max(0, nextStep.DelayDays));
-                }
-
-                // Persist THIS enrollment's advance immediately. The single SaveChangesAsync after
-                // the loop meant a transient failure at the end discarded every advance in the
-                // batch, and Hangfire's default retry (up to 10 attempts) then re-sent up to 100
-                // steps to clients who had already received them. DidYouKnowEmailDispatchJob fixed
-                // this shape for itself; its neighbours never got the same treatment.
                 await _db.SaveChangesAsync();
+                persisted = true;
+                return true;
             }
-            catch (Exception ex)
+            catch (Exception saveEx)
             {
-                // JOBS-8 (fixed 2026-08-20): an unexpected exception used to mark the enrollment
-                // Failed PERMANENTLY on the first occurrence -- one hiccup and that client's
-                // campaign stopped forever, with no retry and no screen to notice it on.
-                // Exceptions get the same capped transient retry as a transient send failure.
-                HandleSendFailure(enrollment, transient: true, ex.Message);
-                _logger.LogError(ex, "Drip campaign enrollment {EnrollmentId} send attempt failed (attempt {Attempts})", enrollment.Id, enrollment.SendAttempts);
-                // H13: this save is the catch's own failure surface -- if IT throws (the original
-                // exception WAS a DbUpdateException, say), the whole job aborts and Hangfire
-                // replays the batch, re-sending steps that already went out. Clear the tracker so
-                // the next enrollment starts clean; this row's bookkeeping retries next tick.
-                try
-                {
-                    await _db.SaveChangesAsync();
-                }
-                catch (Exception saveEx)
-                {
-                    // Wave-2 C (audit 2026-08-25): after this Clear the REST of the tracked batch
-                    // is detached — their emails would still send (the dispatcher inserts a fresh
-                    // row), but their NextStepIndex++ would be a silent no-op, re-sending the
-                    // identical step to every remaining client next tick. Continuing here was
-                    // WORSE than the pre-H13 abort it replaced. Break instead: the untouched
-                    // remainder is still due and simply runs on the next hourly tick.
-                    _db.ChangeTracker.Clear();
-                    _logger.LogError(saveEx,
-                        "Could not persist the failure bookkeeping for drip enrollment {EnrollmentId}; tracker cleared and the batch stopped — the remaining enrollments run next tick.",
-                        enrollment.Id);
-                    break;
-                }
+                _db.ChangeTracker.Clear();
+                _logger.LogError(saveEx,
+                    "Could not persist the failure bookkeeping for drip enrollment {EnrollmentId}; tracker cleared and the batch stopped -- the remaining enrollments run next tick.",
+                    enrollment.Id);
+                return false;
+            }
+        }
+        finally
+        {
+            if (persisted)
+            {
+                await DripEnrollmentClaims.ReleaseAsync(_db, enrollmentId, held.Value, resetAttempts: true);
             }
         }
     }

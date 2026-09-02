@@ -282,7 +282,7 @@
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-0 p-4 pb-0">
           <h5 class="fw-bold mb-1"><i class="fas fa-chart-line me-2 text-info"></i>Performance</h5>
-          <div class="text-muted small">Delivery and engagement per step, based on tracked SendGrid events.</div>
+          <div class="text-muted small">Delivery and engagement per step, based on delivery events reported by the mail provider.</div>
         </div>
         <div class="card-body p-4">
           <div class="table-responsive">
@@ -295,12 +295,19 @@
                 var perf = Model.StepPerformance.TryGetValue(step.Id, out var p) ? p : new IPRO.Web.Models.CampaignStepPerformance();
                 <tr>
                   <td>Step @(i + 1)</td>
-                  <td>@perf.Sent</td>
-                  <td>@perf.Delivered</td>
-                  <td>@perf.Opened</td>
-                  <td>@perf.OpenRate%</td>
-                  <td>@perf.Clicked</td>
-                  <td>@perf.ClickRate%</td>
+                  @if (perf.Sent == 0)
+                  {
+                    <td colspan="6" class="text-muted small">nothing sent yet</td>
+                  }
+                  else
+                  {
+                    <td>@perf.Sent</td>
+                    <td>@perf.Delivered</td>
+                    <td>@perf.Opened</td>
+                    <td>@perf.OpenRate%</td>
+                    <td>@perf.Clicked</td>
+                    <td>@perf.ClickRate%</td>
+                  }
                 </tr>
               }
               </tbody>
@@ -356,7 +363,7 @@
           <h5 class="fw-bold mb-1"><i class="fas fa-users me-2 text-info"></i>Recent Enrollments</h5>
           @if (Model.FailedEnrollmentCount > 0)
           {
-            @* H7: failed enrollments (a rotated SendGrid key, an outage outrunning the retry
+            @* H7: failed enrollments (a rotated provider key, an outage outrunning the retry
                cap) resume from the step that never went out -- no already-delivered step is
                repeated. Without this button the only recovery was re-enrolling, which replays
                the whole campaign into the client's inbox. *@

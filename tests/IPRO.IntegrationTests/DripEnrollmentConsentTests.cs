@@ -123,7 +123,7 @@ public class DripEnrollmentConsentTests
 
     private static CampaignsController NewController(IPRODbContext db, int agentId)
     {
-        var controller = new CampaignsController(db, new GrantAllEntitlements(), NewConsent(db));
+        var controller = new CampaignsController(db, new GrantAllEntitlements(), NewConsent(db), new RecordingJobClient());
         var context = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(

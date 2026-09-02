@@ -222,11 +222,14 @@ public class EmailActivityController : Controller
                 g.Count(q => q.OpenedAt != null),
                 g.Count(q => q.Status == DidYouKnowQueueStatuses.Failed))));
 
+        rows.AddRange(await EmailActivityQueries.DripStepRowsAsync(_db, AgentId));
+
         return rows.OrderByDescending(r => r.When ?? DateTime.MinValue).ToList();
     }
 
     private async Task<List<EmailRecipientRow>> LoadRecipientsAsync(string type, int id) => type switch
     {
+        "drip" => await EmailActivityQueries.DripStepRecipientsAsync(_db, AgentId, id),
         "newsletter" => await _db.NewsLetterRecipients
             .AsNoTracking()
             .Where(r => r.NewsLetterSendId == id)

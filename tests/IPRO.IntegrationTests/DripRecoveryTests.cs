@@ -287,7 +287,8 @@ public class DripRecoveryTests
         var controller = new CampaignsController(
             db,
             new PackageEntitlementService(new UnitOfWork(db), db),
-            new NoSweepConsent());
+            new NoSweepConsent(),
+            new RecordingJobClient());
         var context = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(

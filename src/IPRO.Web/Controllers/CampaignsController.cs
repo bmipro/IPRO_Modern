@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Hangfire;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
 using IPRO.DataAccess;
@@ -16,13 +17,14 @@ public class CampaignsController : Controller
     private readonly IPRODbContext _db;
     private readonly IPackageEntitlementService _entitlements;
     private readonly IEmailConsentService _consent;
+    private readonly Hangfire.IBackgroundJobClient _jobs;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public CampaignsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailConsentService consent)
+    public CampaignsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailConsentService consent, Hangfire.IBackgroundJobClient jobs)
     {
         _db = db;
         _entitlements = entitlements;
-        _consent = consent;
+        _consent = consent; _jobs = jobs;
     }
 
     public async Task<IActionResult> Index()
@@ -517,6 +519,8 @@ public class CampaignsController : Controller
             enrollment.Status = DripCampaignEnrollmentStatus.Active;
             enrollment.SendAttempts = 0;
             enrollment.NextSendAt = DateTime.UtcNow;
+            enrollment.ClaimedAt = null;      // a stopped enrollment gets a fresh claim slate
+            enrollment.ClaimAttempts = 0;
         }
         await _db.SaveChangesAsync();
 
@@ -592,6 +596,14 @@ public class CampaignsController : Controller
 
         _db.DripCampaignEnrollments.AddRange(enrollments);
         await _db.SaveChangesAsync();
+
+        // TODO 448: "send immediately" means now, not on the next hourly tick. The one-off run
+        // claims the enrollment, so it and the hourly job cannot both mail it.
+        var dueNow = DateTime.UtcNow;
+        foreach (var e in enrollments.Where(e => e.NextSendAt <= dueNow))
+        {
+            _jobs.Enqueue<IPRO.Scheduler.DripCampaignJob>(j => j.RunEnrollmentAsync(e.Id));
+        }
         return enrollments.Count;
     }
 
