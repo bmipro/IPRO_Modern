@@ -42,6 +42,8 @@
     var dnsReady = primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.DnsReady || primaryDomain?.DnsStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var bindingReady = primaryDomain?.AzureBindingStatus == IPRO.Entities.AgentDomainStatus.Bound;
     var sslReady = primaryDomain?.SslStatus == IPRO.Entities.AgentDomainStatus.Bound;
+    // 459: when every check is green the registrar instructions fold away (still one click from view).
+    var setupDone = IPRO.Web.Infrastructure.DomainSetupState.IsFullyConnected(primaryDomain);
     // Bound but not yet secured. Azure issues managed certificates asynchronously, so this is a
     // normal few-minute window, not a fault -- but during it the site really is unreachable (the app
     // is HTTPS-only and serves a certificate for the wrong name), so it must not read as "done".
@@ -379,6 +381,19 @@
         }
         <h5 class="fw-bold mb-3"><i class="fas fa-route me-2 text-primary"></i>Custom Domain Setup</h5>
 
+        @if (setupDone)
+        {
+          @* 459: everything below is done for this domain. The instructions stay one click away,
+             worded for the reason an agent would want them again: a second domain. *@
+          <div class="alert alert-success border-0 small py-2 mb-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <div><i class="fas fa-circle-check me-1"></i><strong>@(primaryDomain?.DomainName) is connected.</strong> Nothing more to set at your registrar.</div>
+            <button class="btn btn-link btn-sm p-0 small" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#registrarSteps" aria-expanded="false" aria-controls="registrarSteps">
+              Show the setup steps (for adding another domain)
+            </button>
+          </div>
+        }
+        <div class="collapse @(setupDone ? "" : "show")" id="registrarSteps">
         @* Both registrar actions are shown together, on purpose. Presenting only the CNAME and then
            reporting "Root domain: Not forwarding" afterwards meant agents believed they were finished,
            and found out later that anyone typing the address without "www" never reached their site.
@@ -445,6 +460,7 @@
         <div class="small text-muted mt-2">
           That's everything. Your security certificate is issued and renewed automatically — there is no
           third step and nothing else to add.
+        </div>
         </div>
         <div class="border rounded-3 p-3 mt-3">
           <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
