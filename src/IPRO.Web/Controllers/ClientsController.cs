@@ -101,6 +101,13 @@ public class ClientsController : Controller
         ViewBag.Comments = comments;
         ViewBag.Timeline = BuildClientTimeline(client, comments);
         ViewBag.PortalAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
+        // 457: the client portal's address on THIS agent's domain, shown on the card whether the
+        // client is invited or active, so the agent always has it to hand.
+        var clientPortalBase = await ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration);
+        ViewBag.ClientPortalLoginUrl = ClientPortalUrls.LoginUrl(clientPortalBase);
+        ViewBag.ClientPortalActivateUrl = string.IsNullOrWhiteSpace(client.PortalInviteToken)
+            ? null
+            : ClientPortalUrls.ActivateUrl(clientPortalBase, client.PortalInviteToken);
         ViewBag.PortalDocuments = await _db.PortalDocuments.AsNoTracking().Where(d => d.ClientId == id).OrderByDescending(d => d.UploadedAt).ToListAsync();
         ViewBag.LifeEventAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.LifeEventReminders);
         ViewBag.TestimonialAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.TestimonialManager);
@@ -145,7 +152,9 @@ public class ClientsController : Controller
         client.PortalActivatedAt = null;
         await _db.SaveChangesAsync();
 
-        var activateUrl = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/ClientPortalAccount/Activate?token={System.Net.WebUtility.UrlEncode(client.PortalInviteToken)}";
+        // 457: on the agent's own domain (custom when serving, else the free subdomain), never the
+        // platform host -- the client is this agent's client, and the portal is branded as theirs.
+        var activateUrl = ClientPortalUrls.ActivateUrl(await ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration), client.PortalInviteToken);
         var companyName = client.AgentUser.CompanyName;
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
@@ -156,11 +165,25 @@ public class ClientsController : Controller
               </div>
             </div>
             """;
-        await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html);
+        // 454: the provider's answer is kept and remembered. The token stays either way -- the
+        // activation link on the profile is the manual fallback when the email cannot be delivered.
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html);
+        client.PortalInviteEmailedAt = result.Success ? DateTime.UtcNow : null;
+        client.PortalInviteEmailError = result.Success ? null : Clip(result.Message, 500);
+        await _db.SaveChangesAsync();
+
+        if (!result.Success)
+        {
+            TempData["Error"] = $"The invite could not be emailed to {client.Email}: {result.Message} The activation link is shown below; share it with {client.FirstName} directly, or fix the address and click Resend Invite.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
         TempData["Success"] = $"Portal invite sent to {client.Email}.";
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    private static string Clip(string? value, int max) =>
+        string.IsNullOrEmpty(value) ? string.Empty : value.Length <= max ? value : value[..max];
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UploadPortalDocument(int clientId, IFormFile file)

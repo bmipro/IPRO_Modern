@@ -150,6 +150,10 @@
         else if (Model.PortalActivatedAt.HasValue)
         {
           <div class="small text-success mb-2"><i class="fas fa-circle-check me-1"></i>Active since @Model.PortalActivatedAt.Value.ToString("MMM d, yyyy")</div>
+          <div class="small text-muted mb-2">
+            Sign-in address for @Model.FirstName:
+            <a href="@ViewBag.ClientPortalLoginUrl" target="_blank" rel="noopener">@ViewBag.ClientPortalLoginUrl</a>
+          </div>
           <form asp-action="RevokePortal" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Revoke portal access for @Model.FirstName?">Revoke Access</button>
@@ -157,9 +161,17 @@
         }
         else if (!string.IsNullOrWhiteSpace(Model.PortalInviteToken))
         {
-          var activateUrl = Url.Action("Activate", "ClientPortalAccount", new { token = Model.PortalInviteToken }, Context.Request.Scheme);
           <div class="small text-warning mb-2"><i class="fas fa-clock me-1"></i>Invited, pending activation</div>
-          <div class="small text-muted mb-2">Activation link: <a href="@activateUrl" target="_blank">@activateUrl</a></div>
+          @if (!string.IsNullOrWhiteSpace(Model.PortalInviteEmailError))
+          {
+            <div class="small text-danger mb-2"><i class="fas fa-triangle-exclamation me-1"></i>The invite could not be emailed: @Model.PortalInviteEmailError Share the activation link below directly, or fix the address and resend.</div>
+          }
+          else if (Model.PortalInviteEmailedAt.HasValue)
+          {
+            <div class="small text-muted mb-2">Invite emailed @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(Model.PortalInviteEmailedAt.Value, (ViewBag.Agent as IPRO.Entities.AgentUser)?.TimeZone).ToString("MMM d, yyyy h:mm tt")</div>
+          }
+          <div class="small text-muted mb-2">Activation link (the one in the email; valid 7 days): <a href="@ViewBag.ClientPortalActivateUrl" target="_blank" rel="noopener">@ViewBag.ClientPortalActivateUrl</a></div>
+          <div class="small text-muted mb-2">Sign-in address once activated: <a href="@ViewBag.ClientPortalLoginUrl" target="_blank" rel="noopener">@ViewBag.ClientPortalLoginUrl</a></div>
           <form asp-action="InvitePortal" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-sm btn-outline-success">Resend Invite</button>
