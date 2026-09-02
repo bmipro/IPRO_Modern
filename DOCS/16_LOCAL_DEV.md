@@ -88,3 +88,20 @@ PayPal-sandbox testing still needs sandbox credentials placed in `appsettings.De
   agent: `/portal/Clients/FollowUps` → 404, `/Clients/FollowUps` → 200.
 - Caught the seeder-ordering defect above within minutes of first boot.
 - Full signup → forced password change → billing gate → simulated activation → portal, all local.
+
+## After a reboot: start MySQL before any test gate
+
+MySQL here is a portable ZIP, not a service, so it does not survive a restart. The symptom is
+unmistakable and was mistaken for a real regression once (2026-09-02): the full gate fails
+~40 database-backed tests in the first 13 seconds, across unrelated areas, every one of them
+`MySqlException: Unable to connect to any of the specified MySQL hosts`, while DB-free tests pass.
+
+Check and start (PowerShell):
+
+```powershell
+Get-Process mysqld -ErrorAction SilentlyContinue   # nothing = not running
+Start-Process 'C:\Users\admin\ipro-local\mysql-8.0.44-winx64\bin\mysqld.exe' `
+  -ArgumentList '--defaults-file="C:\Users\admin\ipro-local\my.ini"' -WindowStyle Hidden
+```
+
+It listens on 127.0.0.1:3306 within a few seconds. Azurite is not needed by the test suite.

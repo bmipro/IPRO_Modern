@@ -75,6 +75,8 @@ public class DashboardController : Controller
                 dailyInsight.SuggestedActionReason = null;
             }
         }
+        // Rows written before TODO 446 carry a bare path; normalise on read so they are right today.
+        if (dailyInsight != null) dailyInsight.SuggestedActionUrl = IPRO.Utility.PortalPaths.Normalize(dailyInsight.SuggestedActionUrl);
         ViewBag.DailyInsight = dailyInsight;
         ViewBag.OverdueFollowUpCount = await _db.ClientFollowUps
             .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today);

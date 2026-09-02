@@ -98,7 +98,7 @@ public class AiDailyDigestJob
                     {
                         var daysOverdue = (today - mostOverdueFollowUp.DueAt.Date).Days;
                         actionType = AgentDailyInsightActionTypes.OverdueFollowUp;
-                        actionUrl = $"/Clients/Details/{mostOverdueFollowUp.ClientId}";
+                        actionUrl = IPRO.Utility.PortalPaths.To($"/Clients/Details/{mostOverdueFollowUp.ClientId}");
                         actionText = $"Call {mostOverdueFollowUp.Client.FirstName} {mostOverdueFollowUp.Client.LastName} first — \"{mostOverdueFollowUp.Title}\" is {daysOverdue} day{(daysOverdue == 1 ? "" : "s")} overdue.";
                         aiSituation = $"A client follow-up task titled \"{mostOverdueFollowUp.Title}\" is {daysOverdue} day{(daysOverdue == 1 ? "" : "s")} overdue.";
                         relatedEntityId = mostOverdueFollowUp.Id;
@@ -107,7 +107,7 @@ public class AiDailyDigestJob
                     {
                         var hoursOld = (int)(DateTime.UtcNow - oldestStaleLead.CreatedAt).TotalHours;
                         actionType = AgentDailyInsightActionTypes.StaleLead;
-                        actionUrl = "/WebsiteLeads?status=new";
+                        actionUrl = IPRO.Utility.PortalPaths.To("/WebsiteLeads?status=new");
                         actionText = $"Call {oldestStaleLead.FirstName} {oldestStaleLead.LastName} first — lead has been waiting {hoursOld} hours.";
                         aiSituation = $"A new website lead (a contact request, not yet an existing client) has gone unanswered for {hoursOld} hours.";
                         relatedEntityId = oldestStaleLead.Id;
@@ -115,7 +115,7 @@ public class AiDailyDigestJob
                     else if (noFollowUpClient != null)
                     {
                         actionType = AgentDailyInsightActionTypes.NoFollowUp;
-                        actionUrl = $"/Clients/Details/{noFollowUpClient.Id}";
+                        actionUrl = IPRO.Utility.PortalPaths.To($"/Clients/Details/{noFollowUpClient.Id}");
                         actionText = $"Schedule a follow-up with {noFollowUpClient.FirstName} {noFollowUpClient.LastName} — nothing is on the books.";
                         aiSituation = "A client currently has no follow-up task scheduled at all.";
                         relatedEntityId = noFollowUpClient.Id;

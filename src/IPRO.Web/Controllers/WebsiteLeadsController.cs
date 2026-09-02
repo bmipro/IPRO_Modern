@@ -251,6 +251,6 @@ public class WebsiteLeadsController : Controller
 
     private static string SafeReturnUrl(string? returnUrl) =>
         !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
-            ? returnUrl
-            : "/WebsiteLeads";
+            ? IPRO.Utility.PortalPaths.To(returnUrl)
+            : IPRO.Utility.PortalPaths.To("/WebsiteLeads");
 }

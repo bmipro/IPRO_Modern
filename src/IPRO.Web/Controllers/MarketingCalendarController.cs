@@ -47,7 +47,7 @@ public class MarketingCalendarController : Controller
                 Date = date,
                 Type = "Newsletter",
                 Title = send.NewsLetter?.Subject is { Length: > 0 } subject ? subject : "Newsletter",
-                Url = $"/Newsletter/Edit/{send.NewsLetterId}"
+                Url = IPRO.Utility.PortalPaths.To($"/Newsletter/Edit/{send.NewsLetterId}")
             });
         }
 
@@ -63,7 +63,7 @@ public class MarketingCalendarController : Controller
                 Date = date,
                 Type = "Social",
                 Title = string.IsNullOrWhiteSpace(post.Topic) ? "Social post" : post.Topic,
-                Url = $"/SocialPosts/Edit/{post.Id}"
+                Url = IPRO.Utility.PortalPaths.To($"/SocialPosts/Edit/{post.Id}")
             });
         }
 
@@ -85,7 +85,7 @@ public class MarketingCalendarController : Controller
                 Date = group.Key.Date,
                 Type = "Campaign",
                 Title = $"{group.Key.Name}: sent to {group.Count()}",
-                Url = $"/Campaigns/Details/{group.Key.DripCampaignId}"
+                Url = IPRO.Utility.PortalPaths.To($"/Campaigns/Details/{group.Key.DripCampaignId}")
             });
         }
 

@@ -1081,7 +1081,7 @@ public class ClientsController : Controller
                 ColorClass = "text-warning bg-warning-subtle",
                 Title = $"Follow-up added: {followUp.Title}",
                 Details = $"Due {followUp.DueAt:MMM d, yyyy}" + (string.IsNullOrWhiteSpace(followUp.Notes) ? "" : $" - {followUp.Notes}"),
-                Url = $"/Clients/FollowUps/{client.Id}"
+                Url = IPRO.Utility.PortalPaths.To($"/Clients/FollowUps/{client.Id}")
             });
 
             if (followUp.IsCompleted && followUp.CompletedAt.HasValue)
@@ -1094,7 +1094,7 @@ public class ClientsController : Controller
                     ColorClass = "text-success bg-success-subtle",
                     Title = $"Follow-up completed: {followUp.Title}",
                     Details = $"Completed on {followUp.CompletedAt.Value:MMM d, yyyy}",
-                    Url = $"/Clients/FollowUps/{client.Id}?status=completed"
+                    Url = IPRO.Utility.PortalPaths.To($"/Clients/FollowUps/{client.Id}?status=completed")
                 });
             }
         }
