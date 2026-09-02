@@ -34,6 +34,19 @@ public class AdminDashboardController : Controller
         ViewBag.RecentInvoices = (await _uow.Invoices.FindAsync(i => i.IsPaid))
                                   .OrderByDescending(i => i.IssuedAt).Take(8).ToList();
 
+        // 453 (2026-09-02): support requests are the first thing on the dashboard, so a ticket
+        // cannot wait unnoticed on its own page. Unanswered ones first, then the longest-waiting.
+        var openStatuses = new[] { SupportTicketStatus.Open, SupportTicketStatus.InProgress };
+        ViewData["OpenTickets"] = await _db.SupportTickets.AsNoTracking()
+            .Include(t => t.AgentUser)
+            .Where(t => openStatuses.Contains(t.Status))
+            .OrderByDescending(t => t.HasUnreadForAdmin)
+            .ThenBy(t => t.LastMessageAt)
+            .Take(10)
+            .ToListAsync();
+        ViewData["OpenTicketCount"] = await _db.SupportTickets.CountAsync(t => openStatuses.Contains(t.Status));
+        ViewData["AwaitingReplyCount"] = await _db.SupportTickets.CountAsync(t => openStatuses.Contains(t.Status) && t.HasUnreadForAdmin);
+
         if (User.HasClaim("Role", AdminRoles.SuperAdmin))
         {
             var aiSettings = await _db.AiBillingSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Id == 1);

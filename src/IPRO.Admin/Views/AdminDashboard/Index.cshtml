@@ -11,6 +11,59 @@
   </div>
 }
 
+@{
+    // 453: support requests come before everything else on this page.
+    var openTickets = ViewData["OpenTickets"] as System.Collections.Generic.List<IPRO.Entities.SupportTicket> ?? new System.Collections.Generic.List<IPRO.Entities.SupportTicket>();
+    var openTicketCount = ViewData["OpenTicketCount"] is int oc ? oc : 0;
+    var awaitingReplyCount = ViewData["AwaitingReplyCount"] is int ac ? ac : 0;
+}
+<div class="card border-0 shadow-sm mb-4 @(awaitingReplyCount > 0 ? "border-start border-4 border-danger" : "")">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <i class="fas fa-life-ring me-2 text-primary"></i><strong>Support requests</strong>
+      <span class="badge @(awaitingReplyCount > 0 ? "bg-danger" : "bg-secondary") ms-2">@awaitingReplyCount awaiting reply</span>
+      <span class="text-muted small ms-2">@openTicketCount open</span>
+    </div>
+    <a class="btn btn-sm btn-outline-primary" href="/SupportTickets">All tickets</a>
+  </div>
+  @if (openTickets.Count == 0)
+  {
+    <div class="card-body text-muted small">No open support requests.</div>
+  }
+  else
+  {
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Ticket</th><th>Agent</th><th>Status</th><th>Last message</th><th></th></tr>
+        </thead>
+        <tbody>
+        @foreach (var t in openTickets)
+        {
+          var age = DateTime.UtcNow - t.LastMessageAt;
+          var ageLabel = age.TotalMinutes < 60 ? $"{Math.Max(0, (int)age.TotalMinutes)} min ago"
+                       : age.TotalHours < 48 ? $"{(int)age.TotalHours} h ago"
+                       : $"{(int)age.TotalDays} days ago";
+          <tr class="@(t.HasUnreadForAdmin ? "fw-semibold" : "")">
+            <td>
+              <a href="/SupportTickets/Details/@t.Id">#@t.Id @t.Subject</a>
+              @if (t.HasUnreadForAdmin)
+              {
+                <span class="badge bg-danger-subtle text-danger ms-1">awaiting reply</span>
+              }
+            </td>
+            <td>@t.AgentUser?.FirstName @t.AgentUser?.LastName</td>
+            <td><span class="badge bg-light text-dark">@t.Status</span></td>
+            <td class="text-muted small">@ageLabel</td>
+            <td class="text-end"><a class="btn btn-sm btn-primary" href="/SupportTickets/Details/@t.Id">Open</a></td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
         <div class="card stat-card h-100">

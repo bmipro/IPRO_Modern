@@ -6,6 +6,7 @@ using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace IPRO.Admin.Controllers;
 
@@ -17,8 +18,11 @@ public class SupportTicketsController : Controller
     private readonly ILogger<SupportTicketsController> _logger;
     private readonly IAdminAuditLogService _auditLog;
 
-    public SupportTicketsController(IPRODbContext db, IEmailService email, ILogger<SupportTicketsController> logger, IAdminAuditLogService auditLog)
+    private readonly IConfiguration _configuration;
+
+    public SupportTicketsController(IPRODbContext db, IEmailService email, ILogger<SupportTicketsController> logger, IAdminAuditLogService auditLog, IConfiguration configuration)
     {
+        _configuration = configuration;
         _db = db;
         _email = email;
         _logger = logger;
@@ -161,9 +165,21 @@ public class SupportTicketsController : Controller
 
         try
         {
+            // 453 (2026-09-02): the agent's natural move is to hit Reply, which lands in a mailbox
+            // nobody reads as a ticket. Say so, and give the two ways back in: the sign-in page and
+            // the ticket itself. Both are on the portal host (App:BaseUrl); /Account/Login is a
+            // never-shadowed path so it is correct on every host.
+            var baseUrl = IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
+            var loginUrl = $"{baseUrl}/Account/Login";
+            var ticketUrl = $"{baseUrl}/portal/Support/Details/{ticket.Id}";
             var html = $"""
                 <p>Support replied to your ticket: <strong>{System.Net.WebUtility.HtmlEncode(ticket.Subject)}</strong></p>
                 <p>{System.Net.WebUtility.HtmlEncode(body).Replace("\n", "<br>")}</p>
+                <p style="margin-top:20px"><a href="{ticketUrl}" style="display:inline-block;padding:10px 16px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">Open your ticket</a></p>
+                <p style="margin-top:18px;padding-top:12px;border-top:1px solid #dce4ef;color:#64748b;font-size:13px">
+                  Please do not reply to this email. To continue this conversation, sign in to your portal at
+                  <a href="{loginUrl}">{loginUrl}</a> and open <strong>Support &rsaquo; My Tickets</strong>, or use the button above.
+                </p>
                 """;
             await _email.SendDetailedAsync(ticket.AgentUser.Email, $"{ticket.AgentUser.FirstName} {ticket.AgentUser.LastName}".Trim(), $"[Ticket #{ticket.Id}] {ticket.Subject}", html);
         }
