@@ -54,19 +54,16 @@ Everything else keeps the bare status it always had.
 
 Tests: `tests/IPRO.IntegrationTests/ErrorPagesTests.cs` (policy tables, controllers, wiring pins).
 
-## Later: agent-level pages (TODO 458)
+## Agent-level pages (458): already the case for missing pages
 
-These pages carry the platform's branding. On an agent's own domain, a 404 for a public-site page
-would ideally look like the agent's site: their header, their colours, their navigation. That is a
-second step, deliberately deferred (owner, 2026-09-02: "for now we go with server level errors and
-later we could change it to agent level as well").
+The pages above carry the platform's branding. On an agent's own domain, a **missing page on a live
+site** already renders inside the agent's own template shell -- their header, navigation, footer
+and accent colour, a drawn 404, "We couldn't find that page", a home button and up to six page
+suggestions -- with status 404 and `noindex,follow`. That is `_PublicPageNotFound.cshtml`, rendered
+by all three shells when `PublicWebsiteViewModel.PageNotFound` is set in `PublicWebsiteController`.
+Because that response has a body, the status-page middleware never replaces it. Verified live on
+2026-09-02.
 
-When it is built:
-
-1. In `PublicWebsiteController`, where an unknown slug returns `NotFound()`, render a
-   `NotFound.cshtml` through the site's managed-page shell instead (the same partials the three
-   shells use), with `Response.StatusCode = 404` -- the status-page middleware only fires when the
-   response has **no body**, so a themed 404 with a body simply wins.
-2. Keep the platform page for everything that is not a public-site page (the agent portal, the
-   client portal, sign-in), since those are not the agent's site.
-3. Consider a per-website "404 page" content block so an agent can write their own message.
+Everything that is not a public-site page (the agent portal, the client portal, sign-in, a domain
+with no published site) gets the platform page. Unbuilt and optional: a per-website custom 404
+message an agent can write themselves.
