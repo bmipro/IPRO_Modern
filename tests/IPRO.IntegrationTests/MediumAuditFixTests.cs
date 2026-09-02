@@ -206,14 +206,18 @@ public class MediumAuditFixTests
         db.ChangeTracker.Clear();
 
         var email = new RecordingEmailService();
+        var errors = new RecordingErrorLogger<IPRO.Scheduler.OverdueInvoiceReminderJob>();
         var job = new IPRO.Scheduler.OverdueInvoiceReminderJob(
             db,
             new IPRO.Business.Services.PackageEntitlementService(new UnitOfWork(db), db),
             email,
             new ConfigurationBuilder().AddInMemoryCollection().Build(),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<IPRO.Scheduler.OverdueInvoiceReminderJob>.Instance);
+            errors);
         await job.RunAsync();
 
+        // 447: the job catches and logs per invoice, so a database hiccup under parallel load used to
+        // surface here as "Assert.Single failed" with no cause. Name the cause first.
+        Assert.True(errors.Errors.Count == 0, "the job logged errors:\n" + string.Join("\n", errors.Errors));
         var sent = Assert.Single(email.Sent);
         Assert.Contains("INV-A", sent.Subject);
 
@@ -273,6 +277,20 @@ public class MediumAuditFixTests
         db.ClientInvoices.Add(invoice);
         await db.SaveChangesAsync();
         return invoice.Id;
+    }
+
+    /// Captures Error-level log lines (message plus exception) so a swallowed failure is reported
+    /// with its cause instead of as a missing side effect.
+    private sealed class RecordingErrorLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+    {
+        public System.Collections.Generic.List<string> Errors { get; } = new();
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => logLevel >= Microsoft.Extensions.Logging.LogLevel.Error;
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel >= Microsoft.Extensions.Logging.LogLevel.Error)
+                Errors.Add(formatter(state, exception) + (exception == null ? string.Empty : " :: " + exception.GetType().Name + ": " + exception.Message));
+        }
     }
 
     private sealed class RecordingEmailService : IPRO.Email.IEmailService

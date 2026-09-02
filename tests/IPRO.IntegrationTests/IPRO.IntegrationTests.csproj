@@ -17,4 +17,8 @@
     <!-- Referenced for the ADMIN-7 cookie revalidator and ADMIN-10 policy-attribute tests. -->
     <ProjectReference Include="..\..\src\IPRO.Admin\IPRO.Admin.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
