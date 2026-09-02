@@ -549,6 +549,35 @@ public static class StartupSchemaRepair
         PRIMARY KEY (`Id`)
     ) CHARACTER SET=utf8mb4;");
 
+        // 452 (2026-09-02): the invoice email log. Mirrors the EF model in IPRODbContext exactly
+        // (lengths, indexes, the cascading FK) so a model-built test database and production agree.
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ClientInvoiceEmails` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `ClientInvoiceId` int NOT NULL,
+        `AgentUserId` int NOT NULL,
+        `ClientId` int NOT NULL,
+        `Kind` int NOT NULL,
+        `Status` int NOT NULL,
+        `ToEmail` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Subject` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `ProviderMessageId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `LastEvent` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `FailureReason` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `SentAt` datetime(6) NULL,
+        `DeliveredAt` datetime(6) NULL,
+        `OpenedAt` datetime(6) NULL,
+        `ClickedAt` datetime(6) NULL,
+        `BouncedAt` datetime(6) NULL,
+        `FailedAt` datetime(6) NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_ClientInvoiceEmails_ProviderMessageId` (`ProviderMessageId`),
+        KEY `IX_ClientInvoiceEmails_ClientInvoiceId` (`ClientInvoiceId`),
+        CONSTRAINT `FK_ClientInvoiceEmails_ClientInvoices_ClientInvoiceId` FOREIGN KEY (`ClientInvoiceId`) REFERENCES `ClientInvoices` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+
         await db.Database.OpenConnectionAsync();
         try
         {
@@ -558,6 +587,10 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetToken", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetToken` varchar(80) CHARACTER SET utf8mb4 NULL");
             await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetTokenExpiresAt", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetTokenExpiresAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "AgentUsers", "TrialEndsAt", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialEndsAt` datetime(6) NULL");
+            // 452: view stamps on the invoice itself.
+            await EnsureTableColumnAsync(db, "ClientInvoices", "FirstViewedAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `FirstViewedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "ClientInvoices", "LastViewedAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastViewedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "ClientInvoices", "ViewCount", "ALTER TABLE `ClientInvoices` ADD COLUMN `ViewCount` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "AgentUsers", "TrialRemindersSentCount", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialRemindersSentCount` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "ClientInvoices", "LastReminderSentAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastReminderSentAt` datetime(6) NULL");
             await EnsureUniqueIndexAsync(db, "ClientInvoices", "UX_ClientInvoices_Agent_DocumentNumber",

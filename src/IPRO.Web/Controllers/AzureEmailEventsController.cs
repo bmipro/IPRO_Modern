@@ -252,7 +252,7 @@ public class AzureEmailEventsController : Controller
 
     // ---- correlation --------------------------------------------------------------------------
 
-    public enum TrackedKind { Newsletter, DripStep, ECard, ELetter, Poll, DidYouKnow }
+    public enum TrackedKind { Newsletter, DripStep, ECard, ELetter, Poll, DidYouKnow, Invoice }
     public readonly record struct TrackedMatch(TrackedKind Kind, int Id, int? ClientId);
 
     // ACS gives only its message id, so every table whose dispatcher persists ProviderMessageId has
@@ -297,6 +297,12 @@ public class AzureEmailEventsController : Controller
             .Select(r => new { r.Id, r.ClientId }).FirstOrDefaultAsync();
         if (dyk != null) return new TrackedMatch(TrackedKind.DidYouKnow, dyk.Id, dyk.ClientId);
 
+        // 452: invoice emails -- the send, a resend, or an overdue reminder.
+        var invoiceEmail = await _db.ClientInvoiceEmails.AsNoTracking()
+            .Where(e => e.ProviderMessageId == messageId)
+            .Select(e => new { e.Id, e.ClientId }).FirstOrDefaultAsync();
+        if (invoiceEmail != null) return new TrackedMatch(TrackedKind.Invoice, invoiceEmail.Id, invoiceEmail.ClientId);
+
         return null;
     }
 
@@ -310,6 +316,7 @@ public class AzureEmailEventsController : Controller
             TrackedKind.ELetter => _deliveryTracker.RecordAsync("eletter", match.Id, mappedEvent, messageId, reason, occurredAt),
             TrackedKind.Poll => _deliveryTracker.RecordAsync("poll", match.Id, mappedEvent, messageId, reason, occurredAt),
             TrackedKind.DidYouKnow => _deliveryTracker.RecordAsync("didyouknow", match.Id, mappedEvent, messageId, reason, occurredAt),
+            TrackedKind.Invoice => _deliveryTracker.RecordAsync("invoice", match.Id, mappedEvent, messageId, reason, occurredAt),
             _ => Task.CompletedTask
         };
 

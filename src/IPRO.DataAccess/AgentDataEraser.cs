@@ -127,6 +127,7 @@ public static class AgentDataEraser
         ("TrialInviteCodeRedemptions",  "AgentUserId = @agentId"),
 
         // -- Client invoicing (the agent charging their own clients) --
+        ("ClientInvoiceEmails",         "ClientInvoiceId IN (SELECT Id FROM ClientInvoices WHERE AgentUserId = @agentId)"),
         ("ClientInvoiceLineItems",      "ClientInvoiceId IN (SELECT Id FROM ClientInvoices WHERE AgentUserId = @agentId)"),
         ("ClientInvoices",              "AgentUserId = @agentId"),
         ("RecurringInvoiceLineItems",   "RecurringInvoiceScheduleId IN (SELECT Id FROM RecurringInvoiceSchedules WHERE AgentUserId = @agentId)"),

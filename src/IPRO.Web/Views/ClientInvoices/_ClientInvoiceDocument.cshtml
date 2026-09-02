@@ -169,12 +169,65 @@
         <div class="muted">
           Public link: <a href="@publicUrl" target="_blank">@publicUrl</a>
         </div>
+        @{
+            // 452: what happened to this document after Send -- the client's views and every email.
+            var emailHistory = ViewBag.EmailHistory as System.Collections.Generic.List<IPRO.Entities.ClientInvoiceEmail>;
+            string When(DateTime? utc) => utc.HasValue
+                ? IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc.Value, agent?.TimeZone).ToString("MMM d, h:mm tt")
+                : string.Empty;
+        }
+        <div class="muted" style="margin-top:8px;font-size:13px">
+          @if (Model.ViewCount > 0)
+          {
+            <div><strong>Viewed by client</strong> @When(Model.LastViewedAt)@(Model.ViewCount > 1 ? $" ({Model.ViewCount} times, first {When(Model.FirstViewedAt)})" : string.Empty)</div>
+          }
+          else if (Model.SentAt != null)
+          {
+            <div>Not viewed yet</div>
+          }
+          @if (emailHistory != null && emailHistory.Count > 0)
+          {
+            <ul style="margin:6px 0 0;padding-left:18px">
+              @foreach (var e in emailHistory)
+              {
+                var kind = e.Kind == IPRO.Entities.ClientInvoiceEmailKind.Reminder ? "Reminder" : "Email";
+                <li>
+                  @kind @When(e.SentAt ?? e.CreatedAt) to @e.ToEmail:
+                  @if (e.Status == IPRO.Entities.ClientInvoiceEmailStatus.Delivered)
+                  {
+                    <span style="color:var(--green)">delivered @When(e.DeliveredAt)</span>@(e.OpenedAt != null ? $", opened {When(e.OpenedAt)}" : string.Empty)
+                  }
+                  else if (e.Status == IPRO.Entities.ClientInvoiceEmailStatus.Bounced)
+                  {
+                    <span style="color:#b91c1c">bounced@(string.IsNullOrWhiteSpace(e.FailureReason) ? string.Empty : $" ({e.FailureReason})")</span>
+                  }
+                  else if (e.Status == IPRO.Entities.ClientInvoiceEmailStatus.Failed)
+                  {
+                    <span style="color:#b91c1c">could not be sent@(string.IsNullOrWhiteSpace(e.FailureReason) ? string.Empty : $" ({e.FailureReason})")</span>
+                  }
+                  else
+                  {
+                    <span>accepted by the mail provider, delivery report pending</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           @if (Model.Status == IPRO.Entities.ClientInvoiceStatus.Draft)
           {
             <form method="post" action="/portal/ClientInvoices/Send/@Model.Id">
               @Html.AntiForgeryToken()
               <button type="submit" class="btn btn-success">Send to Client</button>
+            </form>
+          }
+          else if (Model.Status != IPRO.Entities.ClientInvoiceStatus.Void)
+          {
+            @* 452: a bounced or failed email needs a way back; a paid invoice resends as a copy. *@
+            <form method="post" action="/portal/ClientInvoices/Send/@Model.Id">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn">Resend email</button>
             </form>
           }
           @if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Invoice && Model.Status is IPRO.Entities.ClientInvoiceStatus.Sent)

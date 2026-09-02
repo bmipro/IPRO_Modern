@@ -136,7 +136,8 @@ public class AzureEmailEventTests
         foreach (var table in new[]
                  {
                      "NewsLetterRecipients", "DripCampaignStepSends", "ECardRecipients",
-                     "ELetterRecipients", "PollRecipients", "DidYouKnowEmailQueueItems"
+                     "ELetterRecipients", "PollRecipients", "DidYouKnowEmailQueueItems",
+                     "ClientInvoiceEmails" // 452: invoice emails are tracked too
                  })
         {
             Assert.Contains(table, src);

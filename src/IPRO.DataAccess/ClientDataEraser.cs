@@ -36,6 +36,7 @@ public static class ClientDataEraser
     private static readonly (string Table, string Where)[] DeleteMap =
     {
         // -- The agent's invoicing OF this client --
+        ("ClientInvoiceEmails",         "ClientId = @clientId"), // 452: the invoice email log goes with the client
         ("ClientInvoiceLineItems",      "ClientInvoiceId IN (SELECT Id FROM ClientInvoices WHERE ClientId = @clientId)"),
         ("ClientInvoices",              "ClientId = @clientId"),
         ("RecurringInvoiceLineItems",   "RecurringInvoiceScheduleId IN (SELECT Id FROM RecurringInvoiceSchedules WHERE ClientId = @clientId)"),

@@ -65,9 +65,18 @@ public class OverdueInvoiceReminderJob
                       </div>
                     </div>
                     """;
-                await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(),
-                    $"Reminder: Invoice {invoice.DocumentNumber} is overdue", html);
-                invoice.LastReminderSentAt = DateTime.UtcNow;
+                var subject = $"Reminder: Invoice {invoice.DocumentNumber} is overdue";
+                var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html);
+
+                // 452: every reminder is recorded on the invoice like the original send. A permanent
+                // rejection still stamps the marker -- retrying a dead address every run is a bounce
+                // a day against our sending reputation -- while a transient failure leaves it clear
+                // so the next run tries again.
+                await ClientInvoiceEmailLog.RecordAsync(_db, invoice, ClientInvoiceEmailKind.Reminder, invoice.Client.Email, subject, result.Success, result.ProviderMessageId, result.Message);
+                if (result.Success || !result.IsTransient)
+                {
+                    invoice.LastReminderSentAt = DateTime.UtcNow;
+                }
 
                 // Persist THIS invoice's marker immediately. Saving once after the loop meant a
                 // transient failure at the end discarded every marker in the batch, and Hangfire's

@@ -68,4 +68,56 @@ public static class EmailActivityQueries
                 s.RecipientName, s.Email, s.Status.ToString(),
                 s.SentAt, s.DeliveredAt, s.OpenedAt, s.ClickedAt, s.FailureReason))
             .ToListAsync();
+
+    // 452: invoices in Email Activity. One row per email (a resend or a reminder is its own row),
+    // because each is its own delivery with its own outcome.
+    public static async Task<List<EmailActivityRow>> InvoiceRowsAsync(IPRODbContext db, int agentId)
+    {
+        var emails = await db.ClientInvoiceEmails
+            .AsNoTracking()
+            .Where(e => e.AgentUserId == agentId)
+            .Select(e => new
+            {
+                e.Id, e.Kind, e.Status, e.Subject, e.ToEmail, e.SentAt, e.CreatedAt,
+                e.DeliveredAt, e.OpenedAt,
+                Number = e.ClientInvoice.DocumentNumber,
+                ClientFirst = e.ClientInvoice.Client.FirstName,
+                ClientLast = e.ClientInvoice.Client.LastName
+            })
+            .ToListAsync();
+
+        return emails
+            .Select(e => new EmailActivityRow(
+                e.Kind == ClientInvoiceEmailKind.Reminder ? "Invoice reminder" : "Invoice", "invoice", e.Id,
+                e.Subject,
+                $"{e.Number} · {($"{e.ClientFirst} {e.ClientLast}").Trim()} · {e.ToEmail}",
+                e.Status.ToString(),
+                e.SentAt ?? e.CreatedAt,
+                1,
+                e.SentAt != null ? 1 : 0,
+                e.DeliveredAt != null ? 1 : 0,
+                e.OpenedAt != null ? 1 : 0,
+                e.Status is ClientInvoiceEmailStatus.Failed or ClientInvoiceEmailStatus.Bounced ? 1 : 0))
+            .ToList();
+    }
+
+    public static async Task<List<EmailRecipientRow>> InvoiceRecipientsAsync(IPRODbContext db, int agentId, int emailId)
+    {
+        var rows = await db.ClientInvoiceEmails
+            .AsNoTracking()
+            .Where(e => e.Id == emailId && e.AgentUserId == agentId)
+            .Select(e => new
+            {
+                e.ToEmail, e.Status, e.SentAt, e.DeliveredAt, e.OpenedAt, e.ClickedAt, e.FailureReason,
+                ClientFirst = e.ClientInvoice.Client.FirstName,
+                ClientLast = e.ClientInvoice.Client.LastName
+            })
+            .ToListAsync();
+
+        return rows
+            .Select(r => new EmailRecipientRow(
+                ($"{r.ClientFirst} {r.ClientLast}").Trim(), r.ToEmail, r.Status.ToString(),
+                r.SentAt, r.DeliveredAt, r.OpenedAt, r.ClickedAt, r.FailureReason))
+            .ToList();
+    }
 }

@@ -64,6 +64,7 @@ public class IPRODbContext : DbContext
     public DbSet<TrialSettings> TrialSettings => Set<TrialSettings>();
     public DbSet<ClientInvoice> ClientInvoices => Set<ClientInvoice>();
     public DbSet<ClientInvoiceLineItem> ClientInvoiceLineItems => Set<ClientInvoiceLineItem>();
+    public DbSet<ClientInvoiceEmail> ClientInvoiceEmails => Set<ClientInvoiceEmail>();
     public DbSet<RecurringInvoiceSchedule> RecurringInvoiceSchedules => Set<RecurringInvoiceSchedule>();
     public DbSet<RecurringInvoiceLineItem> RecurringInvoiceLineItems => Set<RecurringInvoiceLineItem>();
     public DbSet<PortalMessage> PortalMessages => Set<PortalMessage>();
@@ -392,6 +393,23 @@ public class IPRODbContext : DbContext
             // refuses to index it (error 1170).
             e.Property(i => i.DocumentNumber).HasMaxLength(40);
             e.Property(i => i.ViewToken).HasMaxLength(80);
+        });
+
+        // 452: the invoice's email log. Cascades with the invoice; ProviderMessageId is indexed because
+        // every delivery event resolves by it (AzureEmailEventsController.ResolveByMessageIdAsync).
+        modelBuilder.Entity<ClientInvoiceEmail>(e =>
+        {
+            e.HasOne(m => m.ClientInvoice)
+             .WithMany(i => i.Emails)
+             .HasForeignKey(m => m.ClientInvoiceId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.Property(m => m.ToEmail).HasMaxLength(200);
+            e.Property(m => m.Subject).HasMaxLength(300);
+            e.Property(m => m.ProviderMessageId).HasMaxLength(200);
+            e.Property(m => m.LastEvent).HasMaxLength(40);
+            e.Property(m => m.FailureReason).HasMaxLength(500);
+            e.HasIndex(m => m.ProviderMessageId);
+            e.HasIndex(m => m.ClientInvoiceId);
         });
 
         modelBuilder.Entity<InvoiceLineItem>(e =>

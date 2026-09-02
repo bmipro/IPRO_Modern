@@ -62,6 +62,14 @@ public class ClientInvoicesController : Controller
             .Take(PageSize)
             .ToListAsync();
 
+        // 452: the latest email per invoice on this page drives the Delivery column.
+        var pageIds = invoices.Select(i => i.Id).ToList();
+        var latestEmails = await _db.ClientInvoiceEmails.AsNoTracking()
+            .Where(e => pageIds.Contains(e.ClientInvoiceId))
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync();
+        ViewBag.LatestEmail = latestEmails.GroupBy(e => e.ClientInvoiceId).ToDictionary(g => g.Key, g => g.First());
+
         return View(invoices);
     }
 
@@ -294,6 +302,11 @@ public class ClientInvoicesController : Controller
 
         ViewBag.Agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
         ViewBag.PublicUrl = BuildPublicDocumentUrl(invoice.ViewToken);
+        // 452: what happened to each email this invoice generated, newest first.
+        ViewBag.EmailHistory = await _db.ClientInvoiceEmails.AsNoTracking()
+            .Where(e => e.ClientInvoiceId == invoice.Id)
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync();
         return View(invoice);
     }
 
@@ -311,17 +324,6 @@ public class ClientInvoicesController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // A5-M-RESEND (fixed 2026-08-20): re-sending a PAID invoice used to flip it back to Sent,
-        // which put it straight back into the overdue-reminder query -- the client got dunned for
-        // a bill they had already settled. A resend of a paid invoice is just a copy.
-        if (invoice.Status != ClientInvoiceStatus.Paid)
-        {
-            invoice.Status = ClientInvoiceStatus.Sent;
-        }
-        invoice.SentAt = DateTime.UtcNow;
-        invoice.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-
         var publicUrl = BuildPublicDocumentUrl(invoice.ViewToken);
         var docLabel = invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "estimate" : "invoice";
         var senderName = $"{invoice.AgentUser.FirstName} {invoice.AgentUser.LastName}".Trim();
@@ -334,9 +336,34 @@ public class ClientInvoicesController : Controller
               </div>
             </div>
             """;
-        await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), $"{senderName} sent you {docLabel} {invoice.DocumentNumber}", html);
+        var subject = $"{senderName} sent you {docLabel} {invoice.DocumentNumber}";
+        var docLabelCap = invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "Estimate" : "Invoice";
 
-        TempData["Success"] = $"{(invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "Estimate" : "Invoice")} sent to {invoice.Client.Email}.";
+        // 452 (2026-09-02): the mail goes FIRST and the invoice only becomes Sent once the provider
+        // accepted it. Until this change the status was stamped before the send and the provider's
+        // answer was thrown away, so a rejected address or a quota refusal still showed "Invoice
+        // sent to x" -- and the agent had no way to know. Every attempt is recorded, with the
+        // provider's message id so the delivery pipeline can report Delivered / Bounced on it.
+        var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html);
+        await ClientInvoiceEmailLog.RecordAsync(_db, invoice, ClientInvoiceEmailKind.Send, invoice.Client.Email, subject, result.Success, result.ProviderMessageId, result.Message);
+        if (!result.Success)
+        {
+            TempData["Error"] = $"{docLabelCap} {invoice.DocumentNumber} could not be sent to {invoice.Client.Email}: {result.Message} Nothing was changed; check the client's email address and try again.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // A5-M-RESEND (fixed 2026-08-20): re-sending a PAID invoice used to flip it back to Sent,
+        // which put it straight back into the overdue-reminder query -- the client got dunned for
+        // a bill they had already settled. A resend of a paid invoice is just a copy.
+        if (invoice.Status != ClientInvoiceStatus.Paid)
+        {
+            invoice.Status = ClientInvoiceStatus.Sent;
+        }
+        invoice.SentAt = DateTime.UtcNow;
+        invoice.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = $"{docLabelCap} sent to {invoice.Client.Email}.";
         return RedirectToAction(nameof(Details), new { id });
     }
 

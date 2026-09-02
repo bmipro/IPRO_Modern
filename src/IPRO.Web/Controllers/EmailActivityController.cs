@@ -223,6 +223,7 @@ public class EmailActivityController : Controller
                 g.Count(q => q.Status == DidYouKnowQueueStatuses.Failed))));
 
         rows.AddRange(await EmailActivityQueries.DripStepRowsAsync(_db, AgentId));
+        rows.AddRange(await EmailActivityQueries.InvoiceRowsAsync(_db, AgentId)); // 452
 
         return rows.OrderByDescending(r => r.When ?? DateTime.MinValue).ToList();
     }
@@ -230,6 +231,7 @@ public class EmailActivityController : Controller
     private async Task<List<EmailRecipientRow>> LoadRecipientsAsync(string type, int id) => type switch
     {
         "drip" => await EmailActivityQueries.DripStepRecipientsAsync(_db, AgentId, id),
+        "invoice" => await EmailActivityQueries.InvoiceRecipientsAsync(_db, AgentId, id), // 452
         "newsletter" => await _db.NewsLetterRecipients
             .AsNoTracking()
             .Where(r => r.NewsLetterSendId == id)

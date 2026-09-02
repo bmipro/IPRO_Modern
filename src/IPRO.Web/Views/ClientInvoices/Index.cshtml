@@ -81,13 +81,14 @@
           <th>Issue Date</th>
           <th class="text-end">Total</th>
           <th>Status</th>
+          <th>Delivery</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         @if (!Model.Any())
         {
-          <tr><td colspan="7" class="text-center text-muted py-4">No documents yet.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-4">No documents yet.</td></tr>
         }
         @foreach (var invoice in Model)
         {
@@ -98,6 +99,37 @@
             <td>@invoice.IssueDate.ToString("MMM d, yyyy")</td>
             <td class="text-end">$@invoice.Total.ToString("N2") @invoice.Currency</td>
             <td><span class="badge @StatusBadge(invoice.Status)">@invoice.Status</span></td>
+            <td>
+              @{
+                  // 452: the client's view beats any delivery report; otherwise the latest email's outcome.
+                  IPRO.Entities.ClientInvoiceEmail? latest = null;
+                  (ViewBag.LatestEmail as System.Collections.Generic.Dictionary<int, IPRO.Entities.ClientInvoiceEmail>)?.TryGetValue(invoice.Id, out latest);
+              }
+              @if (invoice.ViewCount > 0)
+              {
+                <span class="badge bg-success-subtle text-success">Viewed</span>
+              }
+              else if (latest == null)
+              {
+                <span class="text-muted small">Not sent yet</span>
+              }
+              else if (latest.Status == IPRO.Entities.ClientInvoiceEmailStatus.Delivered)
+              {
+                <span class="badge bg-info-subtle text-info-emphasis">Delivered</span>
+              }
+              else if (latest.Status == IPRO.Entities.ClientInvoiceEmailStatus.Bounced)
+              {
+                <span class="badge bg-danger-subtle text-danger">Bounced</span>
+              }
+              else if (latest.Status == IPRO.Entities.ClientInvoiceEmailStatus.Failed)
+              {
+                <span class="badge bg-danger-subtle text-danger">Send failed</span>
+              }
+              else
+              {
+                <span class="badge bg-light text-muted">Sent</span>
+              }
+            </td>
             <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/portal/ClientInvoices/Details/@invoice.Id">Open</a></td>
           </tr>
         }

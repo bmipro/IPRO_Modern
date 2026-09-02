@@ -90,6 +90,9 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
             case "didyouknow":
                 clientId = await RecordDidYouKnowAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
                 break;
+            case "invoice":
+                clientId = await RecordInvoiceEmailAsync(recipientId, outcome, normalized, providerMessageId, reason, occurredAt);
+                break;
             default:
                 _logger.LogWarning("Unrecognised email entity kind '{EntityKind}' in SendGrid event; ignoring.", entityKind);
                 return;
@@ -231,6 +234,48 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
     // Timestamps are write-once (??=): the FIRST time an event type is seen is the interesting one.
     // SendGrid re-sends events on its own retry schedule and a client opening a card five times
     // should not keep moving OpenedAt forward.
+    // 452: an invoice email -- the send, a resend, or an overdue reminder. Same milestones as the
+    // four channels above; Bounced and Failed are terminal here too.
+    private async Task<int?> RecordInvoiceEmailAsync(int id, Outcome outcome, string normalized, string? messageId, string? reason, DateTime at)
+    {
+        var row = await _db.ClientInvoiceEmails.FirstOrDefaultAsync(e => e.Id == id);
+        if (row == null) return null;
+
+        row.LastEvent = normalized;
+        row.UpdatedAt = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(messageId)) row.ProviderMessageId = messageId;
+
+        var alreadyTerminal = row.Status is ClientInvoiceEmailStatus.Failed or ClientInvoiceEmailStatus.Bounced;
+        ApplyTimestamps(outcome, at, t => row.SentAt ??= t, t => row.DeliveredAt ??= t,
+            t => row.OpenedAt ??= t, t => row.ClickedAt ??= t, t => row.BouncedAt ??= t);
+
+        if (!alreadyTerminal && outcome == Outcome.Bounced)
+        {
+            row.Status = ClientInvoiceEmailStatus.Bounced;
+            row.FailureReason = Clip(reason);
+        }
+        else if (!alreadyTerminal && outcome == Outcome.Failed)
+        {
+            row.Status = ClientInvoiceEmailStatus.Failed;
+            row.FailedAt ??= at;
+            row.FailureReason = Clip(reason);
+        }
+        else if (!alreadyTerminal && outcome is Outcome.Delivered or Outcome.Opened or Outcome.Clicked)
+        {
+            row.Status = ClientInvoiceEmailStatus.Delivered;
+        }
+        else if (!alreadyTerminal && outcome == Outcome.Sent && row.Status != ClientInvoiceEmailStatus.Delivered)
+        {
+            row.Status = ClientInvoiceEmailStatus.Sent;
+        }
+
+        await _db.SaveChangesAsync();
+        return row.ClientId;
+    }
+
+    private static string Clip(string? value) =>
+        string.IsNullOrEmpty(value) ? string.Empty : value.Length <= 500 ? value : value[..500];
+
     private static void ApplyTimestamps(
         Outcome outcome, DateTime at,
         Action<DateTime> sent, Action<DateTime> delivered,
