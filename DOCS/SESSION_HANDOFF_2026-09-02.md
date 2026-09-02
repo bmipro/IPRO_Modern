@@ -10,7 +10,15 @@ at `/health/version` on both hosts before its TODO row was ticked.
 | `595d4a1` | **446** portal links built as strings now carry `/portal` — five writers (digest job, client timeline, marketing calendar ×3, leads return-URL), read-time repair on the dashboard for rows already stored bare, regression sweep across Controllers/Scheduler/Business | 599/600 (the 1 = the flake, now named) |
 | `92263ee` | **448** drip step 1 sends at enrolment (Hangfire one-off, `drip` queue) under a claim shared with the hourly run (`DripEnrollmentClaims`); drips appear in Email Activity (Campaigns tab + recipient detail); Performance panel provider-neutral, "nothing sent yet". Two new columns via the schema repair | 614/614 |
 | `a0e8e4e` | **449** page-editor Image Library is a picker not a gallery: 6-across, 4:3 thumbs, actions side by side; JS hooks and delete form pinned | 615/615 (combined) |
-| _see log_ | **451 (2)** Hangfire `ShutdownTimeout = 10s` (Web); Admin pinned server-less | 616/617 (the 1 = a second load-only failure, named under 447) |
+| `73bb14d` | **451 (2)** Hangfire `ShutdownTimeout = 10s` (Web); Admin pinned server-less | 616/617 (the 1 = a second load-only failure, named under 447) |
+| `eda4efa` | **452** invoice emails tracked: a `ClientInvoiceEmails` row per send/resend/reminder with the provider id; Send mails first and only then marks Sent (a failure keeps the draft and says why); delivery events resolve to invoices (hard bounce suppresses); the public page stamps client views; history on the invoice, a Delivery column, an Invoices tab in Email Activity | 628/629 -- the 1 was the client-eraser coverage pin catching the new table (fixed, covered) |
+| _see log_ | **453** support tickets: dashboard panel (unanswered first), do-not-reply footer + ticket button on the reply email, existing inbox notification pinned | whole tree, see log |
+| _see log_ | **455** client-portal Logout 400: the logout form's antiforgery token was bound to the client identity but validated against the default (agent/anonymous) principal; Logout now authenticates against the ClientPortal scheme | whole tree |
+| _see log_ | **456** branded status pages (400/403/404/405/500...) in both apps, real status kept, browsers only (webhooks/health excluded), way back by area; `DOCS/ERROR_PAGES.md`; agent-level pages deferred as 458 | whole tree |
+| _see log_ | **457** one resolver for the client portal's address (healthy custom domain > free subdomain > platform); invite email and profile card use it; sign-in address shown while invited and once active | whole tree |
+| _see log_ | **459** the registrar setup cards collapse once the primary domain is fully connected (DomainSetupState) | whole tree |
+| _see log_ | **460** appointment emails carry the client-portal sign-in link; 457's resolver now follows the owner's rule exactly (attached domain, else the platform host -- the free subdomain is not a tier) | whole tree |
+| _see log_ | **454** the portal invite, appointment and testimonial emails keep the provider's answer; invite outcome remembered on the client | whole tree |
 | `aa985a5` `d86ad05` `f286c00` `cd2729e` | ticks for 446/448/449, TODO 450/451, this handoff | docs |
 
 ## Findings worth keeping
@@ -37,6 +45,19 @@ at `/health/version` on both hosts before its TODO row was ticked.
   on both apps (owner-authorised, 13:49) and Hangfire `ShutdownTimeout = 10s` in code (Admin runs no
   server -- pinned). The general lesson: on this platform, anything that holds a MySQL lock must be
   able to finish or roll back inside the stop window.
+- **Invoices were fire-and-forget (452).** The invoice was stamped Sent before the mail was
+  attempted, the provider's answer was discarded, no message id was stored, and the public page
+  recorded nothing when the client opened it. Found by the owner asking one question. The general
+  check for any transactional sender: does it keep the EmailSendResult, and does the delivery
+  resolver know its table? Lead notifications, receipts and welcome mails still do not.
+- **The coverage pins earn their keep (452).** The full gate's one failure was
+  `ClientDataEraserCoverageTests` noticing the new `ClientInvoiceEmails` table has a ClientId column the
+  client eraser did not list. Adding a table means three erasers/pins: agent eraser, client eraser,
+  delivery-correlation pin. All three are tests; let them tell you.
+- **An antiforgery 400 on a POST from an authenticated area is an identity mismatch (455).** The token
+  carries the identity that rendered the form. If the receiving action does not authenticate against the
+  same scheme, HttpContext.User is somebody else at validation time and the filter refuses. Any
+  [AllowAnonymous] controller receiving a form from an [Authorize(AuthenticationSchemes=...)] page has this.
 - **The flaky test has a name (447):** `SendClaimsTests.Retiring_a_poll_send_that_mailed_nobody_returns_the_survey_to_draft`
   — fails under parallel load, green alone. Shared-state race; investigate the fixture, do not
   retry-loop it.
