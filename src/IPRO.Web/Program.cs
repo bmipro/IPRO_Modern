@@ -60,6 +60,12 @@ if (!recurringJobsDisabled)
 {
     builder.Services.AddHangfireServer(o =>
     {
+        // 451: App Service gives a stopping container WEBSITES_CONTAINER_STOP_TIME_LIMIT seconds
+        // (30 on both apps). Hangfire waits ShutdownTimeout for in-flight jobs before the host may
+        // exit; it must fit inside that window with margin, or the container is killed mid-shutdown,
+        // a worker's dequeue transaction never rolls back, and MySQL keeps the dead session's row lock
+        // until it notices -- the next container's workers then stall on it (2026-09-02 16:37 UTC).
+        o.ShutdownTimeout = TimeSpan.FromSeconds(10);
         o.WorkerCount = 5;
         o.Queues = new[] { "newsletters", "drip", "reminders", "default" };
     });
