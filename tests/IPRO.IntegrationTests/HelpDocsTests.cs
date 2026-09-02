@@ -22,6 +22,9 @@ public class HelpDocsTests
         "10_CLIENT_INVOICING.md", "11_CLIENT_PORTAL.md", "12_AGENT_DOCUMENT_LIBRARY.md",
         "13_SOCIAL_MEDIA_POSTS.md", "15_TESTIMONIALS.md", "16_POLLS_AND_SURVEYS.md",
         "17_FORMS.md", "18_ECARDS.md", "19_ELETTERS.md", "21_AGENT_GOOGLE_VISIBILITY.md",
+        // 461 (second half): the eight guides written 2026-09-02.
+        "23_EMAIL_ACTIVITY.md", "24_MARKETING_CALENDAR.md", "25_AI_DAILY_ASSISTANT.md", "26_DID_YOU_KNOW.md",
+        "27_SUPPORT_TICKETS.md", "28_CALENDAR_AND_GOOGLE_CALENDAR.md", "29_ARTICLES.md", "30_IMAGE_LIBRARY.md",
     };
 
     [Fact]

@@ -31,6 +31,14 @@
   <EmbeddedResource Include="..\..\DOCS\18_ECARDS.md" LogicalName="HelpDocs.18_ECARDS.md" />
   <EmbeddedResource Include="..\..\DOCS\19_ELETTERS.md" LogicalName="HelpDocs.19_ELETTERS.md" />
   <EmbeddedResource Include="..\..\DOCS\21_AGENT_GOOGLE_VISIBILITY.md" LogicalName="HelpDocs.21_AGENT_GOOGLE_VISIBILITY.md" />
+  <EmbeddedResource Include="..\..\DOCS\23_EMAIL_ACTIVITY.md" LogicalName="HelpDocs.23_EMAIL_ACTIVITY.md" />
+  <EmbeddedResource Include="..\..\DOCS\24_MARKETING_CALENDAR.md" LogicalName="HelpDocs.24_MARKETING_CALENDAR.md" />
+  <EmbeddedResource Include="..\..\DOCS\25_AI_DAILY_ASSISTANT.md" LogicalName="HelpDocs.25_AI_DAILY_ASSISTANT.md" />
+  <EmbeddedResource Include="..\..\DOCS\26_DID_YOU_KNOW.md" LogicalName="HelpDocs.26_DID_YOU_KNOW.md" />
+  <EmbeddedResource Include="..\..\DOCS\27_SUPPORT_TICKETS.md" LogicalName="HelpDocs.27_SUPPORT_TICKETS.md" />
+  <EmbeddedResource Include="..\..\DOCS\28_CALENDAR_AND_GOOGLE_CALENDAR.md" LogicalName="HelpDocs.28_CALENDAR_AND_GOOGLE_CALENDAR.md" />
+  <EmbeddedResource Include="..\..\DOCS\29_ARTICLES.md" LogicalName="HelpDocs.29_ARTICLES.md" />
+  <EmbeddedResource Include="..\..\DOCS\30_IMAGE_LIBRARY.md" LogicalName="HelpDocs.30_IMAGE_LIBRARY.md" />
 </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />

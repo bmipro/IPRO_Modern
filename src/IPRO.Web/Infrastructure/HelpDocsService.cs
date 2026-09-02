@@ -33,6 +33,15 @@ public static class HelpDocsService
         new HelpArticle("ecards", "E-Cards: Designs, Occasions, and Sending", "18_ECARDS.md"),
         new HelpArticle("eletters", "E-Letters: Templates and Sending", "19_ELETTERS.md"),
         new HelpArticle("google-visibility", "Getting Found on Google", "21_AGENT_GOOGLE_VISIBILITY.md"),
+        // 461 (second half, 2026-09-02): the eight guides that did not exist until today.
+        new HelpArticle("email-activity", "Email Activity: What Was Sent and Whether It Arrived", "23_EMAIL_ACTIVITY.md"),
+        new HelpArticle("marketing-calendar", "Marketing Calendar", "24_MARKETING_CALENDAR.md"),
+        new HelpArticle("ai-daily-assistant", "AI Daily Assistant", "25_AI_DAILY_ASSISTANT.md"),
+        new HelpArticle("did-you-know", "Did You Know: Article Teasers That Capture Leads", "26_DID_YOU_KNOW.md"),
+        new HelpArticle("support-tickets", "Support and Help: Articles and Tickets", "27_SUPPORT_TICKETS.md"),
+        new HelpArticle("calendar", "Calendar and Google Calendar", "28_CALENDAR_AND_GOOGLE_CALENDAR.md"),
+        new HelpArticle("articles", "Articles: Write Once, Use Everywhere", "29_ARTICLES.md"),
+        new HelpArticle("image-library", "Image Library: Images for Hero and Text Blocks", "30_IMAGE_LIBRARY.md"),
     };
 
     public static IReadOnlyList<HelpArticle> GetArticles() => Articles;
