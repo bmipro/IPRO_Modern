@@ -232,7 +232,7 @@ public static class PackageEntitlementSeeder
         "coupon_manager", "needs_analysis_calculator", "did_you_know_manager", "quote_form"
     };
 
-    internal const string MultilingualFeatureName = "Supports multilingual content (paste from any editor)";
+    internal const string MultilingualFeatureName = "Content in any language"; // shortened 2026-09-08
 
     // Features that are REAL but were sold under a name that overstated or misdescribed them.
     // Renamed rather than withdrawn: the capability exists, only the wording was wrong.
@@ -254,8 +254,14 @@ public static class PackageEntitlementSeeder
         //     lead there. Real, but "Prospect manager" was the marketing name and nobody recognised it.
         //   social_media_integration -- Social Posts: draft a post, check each platform's limits, track
         //     it. There is no auto-posting or feed embed, so "integration" overstated it (2026-09-08).
-        (PackageFeatureCodes.ProspectManager, "Website leads inbox (prospect manager)"),
-        (PackageFeatureCodes.SocialMediaIntegration, "Social posts: draft, check platform limits, and track")
+        (PackageFeatureCodes.ProspectManager, "Website leads inbox"),
+        (PackageFeatureCodes.SocialMediaIntegration, "Social posts: draft and track"),
+        //   Owner, 2026-09-08: the list wants three to five words a row, like its neighbours. These
+        //   three were real but wordy or dated; the detail is in the help guides.
+        (PackageFeatureCodes.MenuCreator, "Website menu editor (3 levels)"),
+        (PackageFeatureCodes.SeoTool, "Built-in SEO and sitemap"),
+        (PackageFeatureCodes.EmailTracking, "Email delivery tracking"),
+        (PackageFeatureCodes.VisitorTracking, "Website analytics")
     };
 
     private static async Task RetireWithdrawnFeaturesAsync(IPRODbContext db)
@@ -348,17 +354,19 @@ public static class PackageEntitlementSeeder
             Feature(150, PackageFeatureCodes.FileUploadCapacity, "File upload capacity", new FeatureValue(true, 50, "50 MB"), new FeatureValue(true, 500, "500 MB"), new FeatureValue(true, 1000, "1000 MB"), new FeatureValue(true, 1000, "1000 MB/per user")),
             Feature(170, PackageFeatureCodes.MultiDomainSupport, "Multi domain support", new FeatureValue(true, 2, "2"), unlimited, unlimited, unlimited),
             Feature(200, PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link", all, all, all, all),
-            Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO tool", all, all, all, all),
+            Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO and sitemap", all, all, all, all),
             Feature(250, PackageFeatureCodes.MeetingRequestForm, "Request meeting form with email function", all, all, all, all),
             Feature(260, PackageFeatureCodes.OutlookImport, "Import contact list from Outlook", all, all, all, all),
-            Feature(270, PackageFeatureCodes.EmailTracking, "Email report and tracking system", all, all, all, all),
-            Feature(280, PackageFeatureCodes.VisitorTracking, "Detailed visitor/hits tracking system", all, all, all, all),
+            Feature(270, PackageFeatureCodes.EmailTracking, "Email delivery tracking", all, all, all, all),
+            Feature(280, PackageFeatureCodes.VisitorTracking, "Website analytics", all, all, all, all),
             Feature(290, PackageFeatureCodes.CustomWebPages, "Custom web pages", all, all, all, all),
-            Feature(300, PackageFeatureCodes.SocialMediaIntegration, "Social media integration", all, all, all, all),
-            Feature(320, PackageFeatureCodes.MenuCreator, "Menu and sub-menu creator", all, all, all, all),
+            Feature(300, PackageFeatureCodes.SocialMediaIntegration, "Social posts: draft and track", all, all, all, all),
+            // 465 (2026-09-08): the Social links block -- the footer's social profiles shown in the page body.
+            Feature(310, PackageFeatureCodes.SocialLinksBlock, "Social links on your website", all, all, all, all),
+            Feature(320, PackageFeatureCodes.MenuCreator, "Website menu editor (3 levels)", all, all, all, all),
             Feature(330, PackageFeatureCodes.TestimonialManager, "Testimonial manager", all, all, all, all),
             Feature(340, PackageFeatureCodes.MultilingualEditor, "Supports multilingual content (paste from any editor)", all, all, all, all),
-            Feature(350, PackageFeatureCodes.ProspectManager, "Prospect manager", all, all, all, all),
+            Feature(350, PackageFeatureCodes.ProspectManager, "Website leads inbox", all, all, all, all),
             Feature(360, PackageFeatureCodes.ManagedBlog, "Blog on your website - publish your own articles", no, no, all, all),
             Feature(380, PackageFeatureCodes.PayPalIntegration, "PayPal integration", no, no, all, all),
             Feature(400, PackageFeatureCodes.ClientInvoicing, "Client invoicing and estimates", no, no, all, all),

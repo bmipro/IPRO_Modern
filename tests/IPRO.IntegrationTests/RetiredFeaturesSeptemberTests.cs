@@ -37,6 +37,11 @@ public class RetiredFeaturesSeptemberTests
         }
         db.Add(new PackageFeature { BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.ProspectManager, FeatureName = "Prospect manager", IsIncluded = true, SortOrder = 350 });
         db.Add(new PackageFeature { BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.SocialMediaIntegration, FeatureName = "Social media integration", IsIncluded = true, SortOrder = 300 });
+        db.Add(new PackageFeature { BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.MenuCreator, FeatureName = "Menu and sub-menu creator", IsIncluded = true, SortOrder = 320 });
+        db.Add(new PackageFeature { BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.SeoTool, FeatureName = "Built-in SEO tool", IsIncluded = true, SortOrder = 220 });
+        db.Add(new PackageFeature { BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.EmailTracking, FeatureName = "Email report and tracking system", IsIncluded = true, SortOrder = 270 });
+        db.Add(new PackageFeature { BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.MultilingualEditor, FeatureName = "Supports multilingual content (paste from any editor)", IsIncluded = true, SortOrder = 340 });
+        db.Add(new PackageFeature { BillingRuleId = rule.Id, FeatureCode = PackageFeatureCodes.VisitorTracking, FeatureName = "Detailed visitor/hits tracking system", IsIncluded = true, SortOrder = 280 });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
@@ -51,14 +56,27 @@ public class RetiredFeaturesSeptemberTests
                 $"'{code}' is still in the package data and will render as a row on the pricing page");
         }
 
-        var prospects = await db.PackageFeatures.AsNoTracking().Where(f => f.FeatureCode == PackageFeatureCodes.ProspectManager).ToListAsync();
-        Assert.NotEmpty(prospects);
-        Assert.All(prospects, f => Assert.Equal("Website leads inbox (prospect manager)", f.FeatureName));
-
-        var social = await db.PackageFeatures.AsNoTracking().Where(f => f.FeatureCode == PackageFeatureCodes.SocialMediaIntegration).ToListAsync();
-        Assert.NotEmpty(social);
-        Assert.All(social, f => Assert.Equal("Social posts: draft, check platform limits, and track", f.FeatureName));
+        foreach (var (code, name) in ShortNames)
+        {
+            var rows = await db.PackageFeatures.AsNoTracking().Where(f => f.FeatureCode == code).ToListAsync();
+            Assert.NotEmpty(rows);
+            Assert.All(rows, f => Assert.Equal(name, f.FeatureName));
+        }
     }
+
+    // Owner, 2026-09-08: the feature list wants three to five words a row, like the rows around
+    // them ("Create and send newsletters", "Poll and survey builder"). The detail lives in the
+    // help guides. Applied to every existing row, so production and fresh installs agree.
+    private static readonly (string Code, string Name)[] ShortNames =
+    {
+        (PackageFeatureCodes.ProspectManager, "Website leads inbox"),
+        (PackageFeatureCodes.SocialMediaIntegration, "Social posts: draft and track"),
+        (PackageFeatureCodes.MenuCreator, "Website menu editor (3 levels)"),
+        (PackageFeatureCodes.SeoTool, "Built-in SEO and sitemap"),
+        (PackageFeatureCodes.EmailTracking, "Email delivery tracking"),
+        (PackageFeatureCodes.MultilingualEditor, "Content in any language"),
+        (PackageFeatureCodes.VisitorTracking, "Website analytics"),
+    };
 
     [Fact]
     public async Task A_fresh_database_never_gets_the_four_rows()

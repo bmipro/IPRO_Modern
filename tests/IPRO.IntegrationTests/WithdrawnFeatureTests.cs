@@ -72,8 +72,8 @@ public class WithdrawnFeatureTests
         var multilingual = await db.PackageFeatures.AsNoTracking()
             .Where(f => f.FeatureCode == PackageFeatureCodes.MultilingualEditor).ToListAsync();
         Assert.NotEmpty(multilingual);
-        Assert.All(multilingual, f => Assert.Equal(
-            "Supports multilingual content (paste from any editor)", f.FeatureName));
+        // Shortened by the owner on 2026-09-08 (the list wants three to five words a row).
+        Assert.All(multilingual, f => Assert.Equal("Content in any language", f.FeatureName));
 
         // Same treatment for the other real-but-misnamed one: the CallToAction block carries the
         // agent's own button text and link, on any page -- not just the home page.
