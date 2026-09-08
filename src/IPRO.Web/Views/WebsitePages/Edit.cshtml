@@ -269,7 +269,7 @@
           <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
           <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
           }
-          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm or IPRO.Entities.WebsiteBlockTypes.Maps or IPRO.Entities.WebsiteBlockTypes.Gallery)
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm or IPRO.Entities.WebsiteBlockTypes.Maps or IPRO.Entities.WebsiteBlockTypes.Gallery or IPRO.Entities.WebsiteBlockTypes.SocialLinks)
           {
             <div class="col-md-4">
               <label class="form-label fw-semibold">Layout</label>
@@ -296,6 +296,11 @@
                 {
                   <option value="badge" selected="@(block.LayoutVariant == "badge" ? "selected" : null)">Badge (centered card)</option>
                   <option value="banner" selected="@(block.LayoutVariant == "banner" ? "selected" : null)">Banner (full-width, colored)</option>
+                }
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.SocialLinks)
+                {
+                  <option value="icons" selected="@(block.LayoutVariant == "icons" || string.IsNullOrEmpty(block.LayoutVariant) ? "selected" : null)">Icons only</option>
+                  <option value="labels" selected="@(block.LayoutVariant == "labels" ? "selected" : null)">Icons with names</option>
                 }
                 else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
                 {

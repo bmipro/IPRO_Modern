@@ -370,3 +370,13 @@ library feeds Hero and Text blocks only.
 **Draft with AI**. It fills in a title, summary and body for you to review and edit -- it never
 publishes anything by itself. You are the author: read and adjust every draft before publishing,
 the same as the newsletter and social drafting tools.
+
+## Social Links Block
+
+Show your social profiles in the body of a page, larger than the footer icons (added 2026-09-08).
+
+1. Enter your profiles once under **My Website** > **Footer** (Facebook, LinkedIn, Instagram, X, YouTube, or another site). They appear as icons in the footer of every page.
+2. To feature them on a page, edit the page and add a **Social links** block. Give it a heading and a line of text if you like.
+3. Under **Layout**, choose **Icons only** or **Icons with names**.
+
+The block always shows the same links as the footer, so there is nothing to keep in sync. If the footer has no links yet, the block shows nothing to visitors and a reminder to you in the editor preview. Each link opens in a new tab.

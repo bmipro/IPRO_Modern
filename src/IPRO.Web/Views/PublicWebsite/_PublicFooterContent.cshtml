@@ -8,14 +8,7 @@
         : website.SiteTitle;
     var copyrightName = string.IsNullOrWhiteSpace(footer.CopyrightText) ? fallbackName : footer.CopyrightText;
     var agentLoginUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/Account/Login";
-    var platformIcons = new Dictionary<string, string>
-    {
-        ["facebook"] = "fa-facebook",
-        ["linkedin"] = "fa-linkedin",
-        ["instagram"] = "fa-instagram",
-        ["twitter-x"] = "fa-x-twitter",
-        ["youtube"] = "fa-youtube"
-    };
+    // 465: the icon map is shared with the Social links block (SocialPlatformIcons).
 }
 <div class="public-footer__copyright">&copy; @DateTime.UtcNow.Year @copyrightName</div>
 @if (!string.IsNullOrWhiteSpace(footer.Phone) || !string.IsNullOrWhiteSpace(footer.Email) || !string.IsNullOrWhiteSpace(footer.Address))
@@ -38,8 +31,7 @@
 <div class="public-footer__social">
   @foreach (var link in footer.SocialLinks.OrderBy(l => l.SortOrder))
   {
-    var iconClass = platformIcons.TryGetValue(link.Platform, out var icon) ? icon : "fa-link";
-    <a href="@link.Url" target="_blank" rel="noopener noreferrer" aria-label="@link.Platform"><i class="fab @iconClass"></i></a>
+    <a href="@link.Url" target="_blank" rel="noopener noreferrer" aria-label="@IPRO.Web.Infrastructure.SocialPlatformIcons.Label(link.Platform)"><i class="@IPRO.Web.Infrastructure.SocialPlatformIcons.IconClass(link.Platform)" aria-hidden="true"></i></a>
   }
   <a class="public-footer__agent-login" href="@agentLoginUrl" aria-label="Agent login" title="Agent login"><i class="fas fa-arrow-right-to-bracket"></i></a>
 </div>

@@ -45,4 +45,5 @@ public static class PackageFeatureCodes
     public const string AiDailyAssistant = "ai_daily_assistant";
     public const string CustomForms = "custom_forms";
     public const string TeamMembers = "team_members";
+    public const string SocialLinksBlock = "social_links_block";
 }

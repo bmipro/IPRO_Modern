@@ -1,0 +1,35 @@
+@model IPRO.Web.Models.SocialLinksBlockData
+@{
+    // 465: the agent's social profiles, from the footer, shown in the page body. Style-neutral on
+    // purpose -- inherits the shell's font and colours, uses --site-theme like _PublicPageNotFound.
+    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true;
+    var withLabels = Model.Style == IPRO.Web.Infrastructure.SocialLinksBlock.StyleLabels;
+}
+<style>
+  .public-social-links { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .public-social-links a {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+    color: var(--site-theme, #1457d9); font-weight: 600;
+  }
+  .public-social-links a i { font-size: 30px; line-height: 1; }
+  .public-social-links--labels a {
+    padding: 10px 16px; border: 1px solid var(--site-theme, #1457d9); border-radius: var(--button-radius, 7px);
+  }
+  .public-social-links--labels a i { font-size: 22px; }
+  .public-social-links a:hover, .public-social-links a:focus-visible { opacity: .8; }
+</style>
+@if (Model.Links.Count > 0)
+{
+  <div class="public-social-links public-social-links--@Model.Style">
+    @foreach (var link in Model.Links)
+    {
+      <a href="@link.Url" target="_blank" rel="noopener noreferrer" aria-label="@link.Label">
+        <i class="@link.IconClass" aria-hidden="true"></i>@if (withLabels) { <span>@link.Label</span> }
+      </a>
+    }
+  </div>
+}
+else if (isPreview)
+{
+  <p class="small" style="opacity:.7;">No social links yet. Add them under <strong>My Website &rsaquo; Footer</strong> and they appear here and in the footer.</p>
+}
