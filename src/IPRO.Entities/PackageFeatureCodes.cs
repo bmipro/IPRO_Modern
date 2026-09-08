@@ -21,13 +21,9 @@ public static class PackageFeatureCodes
     public const string Newsletters = "newsletters";
     public const string SupportTraining = "support_training";
     public const string FileUploadCapacity = "file_upload_capacity";
-    public const string CouponManager = "coupon_manager";
     public const string MultiDomainSupport = "multi_domain_support";
     public const string CustomHomeButtons = "custom_home_buttons";
-    public const string NeedsAnalysisCalculator = "needs_analysis_calculator";
     public const string SeoTool = "seo_tool";
-    public const string DidYouKnowManager = "did_you_know_manager";
-    public const string QuoteForm = "quote_form";
     public const string MeetingRequestForm = "meeting_request_form";
     public const string OutlookImport = "outlook_import";
     public const string EmailTracking = "email_tracking";

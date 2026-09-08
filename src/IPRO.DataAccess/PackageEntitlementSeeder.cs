@@ -222,7 +222,14 @@ public static class PackageEntitlementSeeder
         // pages"; "Designated support") that the business is not committing to at launch. The SEO
         // TOOLING that exists (meta descriptions, sitemap, robots) stays sold as the built-in SEO
         // tool row; a support commitment can return as package data if it is ever made for real.
-        "managed_seo", "designated_support"
+        "managed_seo", "designated_support",
+        // Owner decision 2026-09-08 (TODO 464), from the public package table: four rows for things
+        // the product does not offer, none of whose codes is checked anywhere in the code. The
+        // Calculator block exists but computes mortgage, refinance, rent-vs-buy, retirement, tax
+        // comparison, loan amortisation and APR -- there is no needs-analysis calculator. Promotion
+        // codes are a SuperAdmin signup tool, not an agent-facing coupon manager. The Did You Know
+        // block is gated by Newsletters. A quote request is any custom form.
+        "coupon_manager", "needs_analysis_calculator", "did_you_know_manager", "quote_form"
     };
 
     internal const string MultilingualFeatureName = "Supports multilingual content (paste from any editor)";
@@ -242,7 +249,13 @@ public static class PackageEntitlementSeeder
         //     block, which lists the agent's own published articles on their site. AI drafting help
         //     is NOT part of this row -- that is gated by AiDailyAssistant, so the two can be
         //     unbundled later.
-        (PackageFeatureCodes.ManagedBlog, "Blog on your website - publish your own articles")
+        (PackageFeatureCodes.ManagedBlog, "Blog on your website - publish your own articles"),
+        //   prospect_manager -- the Website Leads inbox: every form submission on the site becomes a
+        //     lead there. Real, but "Prospect manager" was the marketing name and nobody recognised it.
+        //   social_media_integration -- Social Posts: draft a post, check each platform's limits, track
+        //     it. There is no auto-posting or feed embed, so "integration" overstated it (2026-09-08).
+        (PackageFeatureCodes.ProspectManager, "Website leads inbox (prospect manager)"),
+        (PackageFeatureCodes.SocialMediaIntegration, "Social posts: draft, check platform limits, and track")
     };
 
     private static async Task RetireWithdrawnFeaturesAsync(IPRODbContext db)
@@ -333,13 +346,9 @@ public static class PackageEntitlementSeeder
             Feature(110, PackageFeatureCodes.Newsletters, "Create and send newsletters", all, all, all, all),
             Feature(120, PackageFeatureCodes.SupportTraining, "Support and training", limited, unlimited, unlimited, unlimited),
             Feature(150, PackageFeatureCodes.FileUploadCapacity, "File upload capacity", new FeatureValue(true, 50, "50 MB"), new FeatureValue(true, 500, "500 MB"), new FeatureValue(true, 1000, "1000 MB"), new FeatureValue(true, 1000, "1000 MB/per user")),
-            Feature(160, PackageFeatureCodes.CouponManager, "Coupon manager", no, all, all, all),
             Feature(170, PackageFeatureCodes.MultiDomainSupport, "Multi domain support", new FeatureValue(true, 2, "2"), unlimited, unlimited, unlimited),
             Feature(200, PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link", all, all, all, all),
-            Feature(210, PackageFeatureCodes.NeedsAnalysisCalculator, "Need analysis calculator", all, all, all, all),
             Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO tool", all, all, all, all),
-            Feature(230, PackageFeatureCodes.DidYouKnowManager, "Did you know manager", all, all, all, all),
-            Feature(240, PackageFeatureCodes.QuoteForm, "Get a quote form with email function", all, all, all, all),
             Feature(250, PackageFeatureCodes.MeetingRequestForm, "Request meeting form with email function", all, all, all, all),
             Feature(260, PackageFeatureCodes.OutlookImport, "Import contact list from Outlook", all, all, all, all),
             Feature(270, PackageFeatureCodes.EmailTracking, "Email report and tracking system", all, all, all, all),
