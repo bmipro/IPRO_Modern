@@ -17,15 +17,19 @@
 - **464 shipped:** the public package table stops selling four things we do not offer (Coupon
   manager, Need analysis calculator, Did you know manager, Get a quote form with email function),
   withdrawn the 28-August way (definitions gone, codes retired so existing databases lose the rows at
-  startup, constants removed). Two real features renamed on every row: "Website leads inbox
-  (prospect manager)" and "Social posts: draft, check platform limits, and track". Three tests
-  red-first; full gate; deployed and verified on both hosts (see the TODO row for the commit).
+  startup, constants removed). Seven real features renamed on every row to three-to-five-word names the owner approved
+  (Website leads inbox; Social posts: draft and track; Website menu editor (3 levels); Built-in SEO
+  and sitemap; Email delivery tracking; Content in any language; Website analytics). Tests
+  red-first; full gates; deployed and verified on both hosts.
+- **465 shipped:** a Social links block that shows the footer's social profiles in the page body,
+  icons only or icons with names, in all three templates, with one shared icon map and a package
+  row; guide section in 04.
 
 | commit | what | gate |
 |---|---|---|
 | `5f12fd7` | **464** four package-table rows withdrawn, two renamed | 700/700 (31m58s) |
-| _see log_ | **464 (2)** seven rows shortened to three to five words (owner-approved wording) | whole tree |
-| _see log_ | **465** Social links block: the footer's profiles in the page body, icons or icons with names, all three templates, one shared icon map; a package row; guide section | whole tree |
+| `b9514e6` | **464 (2)** seven rows shortened to three to five words (owner-approved wording) | whole tree |
+| `8f81cfd` | **465** Social links block: the footer's profiles in the page body, icons or icons with names, all three templates, one shared icon map; a package row; guide section | whole tree |
 | `6aa7e6d` `bcc9e95` | 442 timeline; Masoud proposal + TODO 463 | docs |
 
 ## Findings worth keeping
@@ -36,6 +40,11 @@
   selling the thing forever. Definitions, retired list, constants: all three, or none of it works.
   Still listed with no code check but real (left as is): Menu and sub-menu creator, Built-in SEO
   tool, Email report and tracking system, Supports multilingual content, Detailed visitor tracking.
+
+## Deployed
+
+Build `affb5e9`, verified at `/health/version` on both hosts: 464, 464 (2), 465, plus the held docs
+(442 timeline, Masoud proposal, this handoff). Tree clean and pushed.
 
 ## Do this first tomorrow
 
