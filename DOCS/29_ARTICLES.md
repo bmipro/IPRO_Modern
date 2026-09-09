@@ -37,5 +37,5 @@ Only published articles appear on the website or in Did You Know. Unticking **Pu
 ## Limits and Availability
 
 - Cover images are limited to 8 MB and count toward the storage pool you share with Documents and website images.
-- **Delete** on the Articles list is permanent and asks no confirmation. Unpublish instead if you may want the article back.
+- **Delete** on the Articles list is permanent; it asks you to confirm first. Unpublish instead if you may want the article back.
 - Articles need the Newsletters feature in your package. **Draft with AI** needs the AI Assistant feature, included with Platinum and Broker.
