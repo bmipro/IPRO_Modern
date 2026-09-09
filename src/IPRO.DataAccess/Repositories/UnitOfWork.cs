@@ -59,6 +59,8 @@ public class UnitOfWork : IUnitOfWork, IDisposable, IAsyncDisposable
     private IRepository<PortalDocument>? _portalDocuments;
     private IRepository<PortalAppointmentRequest>? _portalAppointmentRequests;
 
+    public IPRODbContext Context => _context;
+
     public UnitOfWork(IPRODbContext context) // <-- CHANGED
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));

@@ -1,5 +1,6 @@
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
+using IPRO.DataAccess;
 using IPRO.Entities;
 
 namespace IPRO.Business.Services;
@@ -42,21 +43,20 @@ public class ClientInvoiceService : IClientInvoiceService
         return new ClientInvoiceTaxResult(taxRate.Rate, amount, $"{taxRate.ProvinceCode} {taxRate.TaxLabel}".Trim());
     }
 
+    // 418 (2026-09-09): per agent and per document type, a counter that only goes up (see
+    // PayPalBillingService.GenerateInvoiceNumberAsync for the incident). Seeded from the agent's
+    // existing maximum the first time, floor 1000 so numbering starts at 1001 as before.
     public async Task<string> GenerateDocumentNumberAsync(int agentUserId, ClientInvoiceDocumentType documentType)
     {
         var prefix = documentType == ClientInvoiceDocumentType.Estimate ? "EST-" : "INV-";
-        var existing = await _uow.ClientInvoices.FindAsync(i => i.AgentUserId == agentUserId && i.DocumentNumber.StartsWith(prefix));
-        var nextNumber = existing
-            .Select(i => int.TryParse(i.DocumentNumber[prefix.Length..], out var number) ? number : 0)
-            .DefaultIfEmpty(1000)
-            .Max() + 1;
-        if (nextNumber < 1001) nextNumber = 1001;
+        var key = InvoiceNumbering.ClientKey(agentUserId, documentType);
+        var db = _uow.Context;
 
         string documentNumber;
         do
         {
-            documentNumber = $"{prefix}{nextNumber}";
-            nextNumber++;
+            var next = await NumberSequences.NextAsync(db, key, () => InvoiceNumbering.SeedClientAsync(db, agentUserId, prefix));
+            documentNumber = $"{prefix}{next}";
         }
         while (await _uow.ClientInvoices.FirstOrDefaultAsync(i => i.AgentUserId == agentUserId && i.DocumentNumber == documentNumber) != null);
 

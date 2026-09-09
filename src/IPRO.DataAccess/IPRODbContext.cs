@@ -32,6 +32,7 @@ public class IPRODbContext : DbContext
     public DbSet<PackageFeature> PackageFeatures => Set<PackageFeature>();
     public DbSet<ProvinceTaxRate> ProvinceTaxRates => Set<ProvinceTaxRate>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<NumberSequence> NumberSequences => Set<NumberSequence>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
     public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
@@ -393,6 +394,13 @@ public class IPRODbContext : DbContext
             // refuses to index it (error 1170).
             e.Property(i => i.DocumentNumber).HasMaxLength(40);
             e.Property(i => i.ViewToken).HasMaxLength(80);
+        });
+
+        // 418: one counter row per key; the key is the primary key.
+        modelBuilder.Entity<NumberSequence>(e =>
+        {
+            e.HasKey(n => n.Key);
+            e.Property(n => n.Key).HasMaxLength(120);
         });
 
         // 452: the invoice's email log. Cascades with the invoice; ProviderMessageId is indexed because

@@ -55,4 +55,7 @@ public interface IUnitOfWork : IAsyncDisposable, IDisposable
     IRepository<PortalAppointmentRequest> PortalAppointmentRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    // 418: the context behind the repositories, for the few operations that need row locks.
+    IPRODbContext Context { get; }
 }

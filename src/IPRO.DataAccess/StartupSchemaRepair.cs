@@ -1280,6 +1280,18 @@ public static class StartupSchemaRepair
     // in OpenConnectionAsync/CloseConnectionAsync" mistake has taken production down three times
     // (2026-07-16, 2026-07-24, 2026-07-26 - see 09_TROUBLESHOOTING.md). A documented convention wasn't
     // enough; making the helper foolproof is.
+    // 418 (2026-09-09): the never-decrementing counters behind invoice numbers. Mirrors the EF model.
+    public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `NumberSequences` (
+        `Key` varchar(120) CHARACTER SET utf8mb4 NOT NULL,
+        `LastValue` bigint NOT NULL DEFAULT 0,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Key`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     // 450 (2026-09-02): anonymous website votes are PollRecipients with Source = Website.
     public static async Task EnsurePollWebsiteVoteSchemaAsync(IPRODbContext db)
     {

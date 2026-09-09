@@ -2925,20 +2925,20 @@ public class PayPalBillingService : IBillingService
         && mysql.ErrorCode == MySqlConnector.MySqlErrorCode.DuplicateKeyEntry
         && mysql.Message.Contains("InvoiceNumber", StringComparison.OrdinalIgnoreCase);
 
+    // 418 (2026-09-09): numbers come from a counter that only goes up, never from MAX(rows)+1.
+    // IPRO-2026-000008 was issued twice after a full agent deletion removed the rows that carried
+    // it. The counter is seeded from the existing maximum the first time a year is used, so
+    // production continues where it is; the uniqueness check below stays as a belt-and-braces.
     private async Task<string> GenerateInvoiceNumberAsync(DateTime issuedAt)
     {
         var prefix = $"IPRO-{issuedAt:yyyy}-";
-        var existingInvoices = await _uow.Invoices.FindAsync(i => i.InvoiceNumber.StartsWith(prefix));
-        var nextNumber = existingInvoices
-            .Select(i => int.TryParse(i.InvoiceNumber[prefix.Length..], out var number) ? number : 0)
-            .DefaultIfEmpty(0)
-            .Max() + 1;
+        var key = InvoiceNumbering.PlatformKey(issuedAt.Year);
 
         string invoiceNumber;
         do
         {
-            invoiceNumber = $"{prefix}{nextNumber:000000}";
-            nextNumber++;
+            var next = await NumberSequences.NextAsync(_db, key, () => InvoiceNumbering.SeedPlatformAsync(_db, prefix));
+            invoiceNumber = $"{prefix}{next:000000}";
         }
         while (await _uow.Invoices.FirstOrDefaultAsync(i => i.InvoiceNumber == invoiceNumber) != null);
 
