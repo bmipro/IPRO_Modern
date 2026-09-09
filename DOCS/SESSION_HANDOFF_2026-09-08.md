@@ -33,6 +33,7 @@
 | `4029218` | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
 | `451aed5` | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
 | `3cef520` | **469** (09-09) the Team Member Logins guide, indexed, the Help icon on My Team pointing at it | whole tree |
+| _see log_ | **462(a)(d)(e)** (09-09) Did You Know help text says the articles are emailed; Articles Delete asks for confirmation; the Blog-block gate is pinned to the guide (the code already gated it) | whole tree |
 | `06f309b` | **432** (09-09) Admin header clock shows the platform's time zone (Admin:TimeZone, Eastern when unset) with a short label, not the server's UTC | whole tree |
 | `cea3ac8` | **462(b)+(c)** (09-09) dead CalendarReminderJob removed, its stale Hangfire definition dropped at startup; Marketing Calendar on the agent's local date, month bounded by local midnights | whole tree |
 | `455ee57` | **418** (09-09) invoice numbers from a never-decrementing counter (platform per year, client invoices per agent and type); seeded from the existing maximum; row-locked | whole tree |
@@ -71,7 +72,6 @@ Third push, build `5d09e6d`: 466 (verified on both hosts). Earlier, build `affb5
 **Bugs, medium**
 
 **Bugs, low**
-- 462(a) Did You Know editor help text says "sees the full content immediately"; (d) Articles Delete has no confirmation; (e) doc says the Blog block is Platinum/Broker, code does not gate it.
 - 454 (rest): nine agent/ops senders still discard the send result; they log, so acceptable.
 - 447: two load-only test failures; measures in place, watch only. 396: billing watch item, not reproduced since August.
 
@@ -87,7 +87,7 @@ Third push, build `5d09e6d`: 466 (verified on both hosts). Earlier, build `affb5
 
 ## Known-open
 
-- **462** six small findings from the guide research.
+- **462** six small findings from the guide research -- all six closed 09-09.
 - The owner could not find a new help section at the bottom of a 24-section guide; 466 is the fix. Rule from it: a guide gets a section list, and a new section still goes where the reader expects it, not just at the end.
 - **450** is live: worth one manual check of a Poll (Visitors Vote) block on the owner's site.
 
