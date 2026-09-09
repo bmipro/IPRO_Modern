@@ -30,6 +30,7 @@
 | `5f12fd7` | **464** four package-table rows withdrawn, two renamed | 700/700 (31m58s) |
 | `b9514e6` | **464 (2)** seven rows shortened to three to five words (owner-approved wording) | whole tree |
 | `8f81cfd` | **465** Social links block: the footer's profiles in the page body, icons or icons with names, all three templates, one shared icon map; a package row; guide section | whole tree |
+| _see log_ | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
 | `6aa7e6d` `bcc9e95` | 442 timeline; Masoud proposal + TODO 463 | docs |
 
 ## Findings worth keeping
@@ -56,6 +57,7 @@ Build `affb5e9`, verified at `/health/version` on both hosts: 464, 464 (2), 465,
 ## Known-open
 
 - **462** six small findings from the guide research.
+- The owner could not find a new help section at the bottom of a 24-section guide; 466 is the fix. Rule from it: a guide gets a section list, and a new section still goes where the reader expects it, not just at the end.
 - **450** is live: worth one manual check of a Poll (Visitors Vote) block on the owner's site.
 
 Related: `DOCS/TODO.md` 442, 447, 450, 461–465; `DOCS/MASOUD_PROPOSAL.md`; `DOCS/SESSION_HANDOFF_2026-09-02.md`.
