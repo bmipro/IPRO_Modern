@@ -33,7 +33,7 @@
 | `4029218` | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
 | `451aed5` | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
 | `3cef520` | **469** (09-09) the Team Member Logins guide, indexed, the Help icon on My Team pointing at it | whole tree |
-| _see log_ | **418** (09-09) invoice numbers from a never-decrementing counter (platform per year, client invoices per agent and type); seeded from the existing maximum; row-locked | whole tree |
+| `455ee57` | **418** (09-09) invoice numbers from a never-decrementing counter (platform per year, client invoices per agent and type); seeded from the existing maximum; row-locked | whole tree |
 | `6aa7e6d` `bcc9e95` | 442 timeline; Masoud proposal + TODO 463 | docs |
 
 ## Findings worth keeping
@@ -67,7 +67,6 @@ Third push, build `5d09e6d`: 466 (verified on both hosts). Earlier, build `affb5
 3. Owner-side pre-launch: Postmaster Tools, the PayPal Verified badge, a "Contact us" channel.
 
 **Bugs, medium**
-- 418 invoice numbers reused after a full agent deletion (counter table / high-water mark, about two hours).
 - 462(b) CalendarReminderJob reads a table nothing writes (dead hourly job): remove or wire follow-ups to it.
 - 462(c) Marketing Calendar places events by calendar date without the agent time zone.
 
