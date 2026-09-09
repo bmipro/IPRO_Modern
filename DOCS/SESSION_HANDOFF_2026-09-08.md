@@ -32,6 +32,7 @@
 | `8f81cfd` | **465** Social links block: the footer's profiles in the page body, icons or icons with names, all three templates, one shared icon map; a package row; guide section | whole tree |
 | `4029218` | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
 | `451aed5` | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
+| _see log_ | **469** (09-09) the Team Member Logins guide, indexed, the Help icon on My Team pointing at it | whole tree |
 | `6aa7e6d` `bcc9e95` | 442 timeline; Masoud proposal + TODO 463 | docs |
 
 ## Findings worth keeping
@@ -56,6 +57,34 @@ Third push, build `5d09e6d`: 466 (verified on both hosts). Earlier, build `affb5
 2. **PayPal live cutover** remains the one launch-day blocker on money.
 3. **After the Masoud demo:** fill the questions section of `DOCS/MASOUD_PROPOSAL.md`, then decide
    the sending-domain work.
+
+## Open work, ranked (inventory taken 2026-09-09, 12 days to launch)
+
+**Launch-critical**
+1. 442 -- ACS sending quota and engagement tracking: waiting on Microsoft; fallback is launch at 100/hour (senders queue), re-apply with 30 days of data.
+2. PayPal live cutover (owner): the one launch-day blocker on money; every package re-synced to live plans.
+3. Owner-side pre-launch: Postmaster Tools, the PayPal Verified badge, a "Contact us" channel.
+
+**Bugs, medium**
+- 418 invoice numbers reused after a full agent deletion (counter table / high-water mark, about two hours).
+- 462(b) CalendarReminderJob reads a table nothing writes (dead hourly job): remove or wire follow-ups to it.
+- 462(c) Marketing Calendar places events by calendar date without the agent time zone.
+
+**Bugs, low**
+- 432 Admin header clock shows UTC.
+- 462(a) Did You Know editor help text says "sees the full content immediately"; (d) Articles Delete has no confirmation; (e) doc says the Blog block is Platinum/Broker, code does not gate it.
+- 454 (rest): nine agent/ops senders still discard the send result; they log, so acceptable.
+- 447: two load-only test failures; measures in place, watch only. 396: billing watch item, not reproduced since August.
+
+**Decisions waiting on the owner**
+- 412 the 15-page marketing site: only Home, Terms and Privacy exist; blocked on the prototype's look; real screenshots needed before any marketing push.
+- 463 Masoud proposal, after the demo. 458 optional per-website custom 404 message.
+
+**Wishlist / future**
+- 467 the new builder as a Beta next to the current editor (post-launch).
+- 378 broker / white-label / organization model (teammates exist; org grouping and white-label do not).
+- 380 SMS reminders (cost model done), in-portal payments, real-estate IDX listings, social auto-publishing, vertical starter packs beyond Accountants.
+- Post-launch engineering: fold StartupSchemaRepair DDL into migrations; unify SeedGuard/StartupGuard; a Standard-tier slot swap so deploys stop costing ~90 s of 503; a per-organization sending domain (from the Masoud assessment).
 
 ## Known-open
 
