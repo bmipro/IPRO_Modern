@@ -30,7 +30,7 @@
 | `5f12fd7` | **464** four package-table rows withdrawn, two renamed | 700/700 (31m58s) |
 | `b9514e6` | **464 (2)** seven rows shortened to three to five words (owner-approved wording) | whole tree |
 | `8f81cfd` | **465** Social links block: the footer's profiles in the page body, icons or icons with names, all three templates, one shared icon map; a package row; guide section | whole tree |
-| _see log_ | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
+| `4029218` | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
 | `6aa7e6d` `bcc9e95` | 442 timeline; Masoud proposal + TODO 463 | docs |
 
 ## Findings worth keeping
@@ -44,7 +44,7 @@
 
 ## Deployed
 
-Build `affb5e9`, verified at `/health/version` on both hosts: 464, 464 (2), 465, plus the held docs
+Third push, build `5d09e6d`: 466 (verified on both hosts). Earlier, build `affb5e9`, verified at `/health/version` on both hosts: 464, 464 (2), 465, plus the held docs
 (442 timeline, Masoud proposal, this handoff). Tree clean and pushed.
 
 ## Do this first tomorrow
