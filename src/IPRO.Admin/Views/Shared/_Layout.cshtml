@@ -1,4 +1,5 @@
 @inject Microsoft.Extensions.Configuration.IConfiguration AdminLayoutConfiguration
+@using IPRO.Admin.Infrastructure
 <!DOCTYPE html>
 @{
     // Break-glass recovery must not be left switched on: while Admin__RecoveryReset is set, every
@@ -236,7 +237,7 @@
 <div class="admin-topbar">
     <div class="fw-semibold text-muted">@ViewData["Title"]</div>
     <div class="d-flex align-items-center gap-3">
-        <span class="text-muted small"><i class="fas fa-clock me-1"></i>@DateTime.Now.ToString("MMM d, yyyy h:mm tt")</span>
+        <span class="text-muted small"><i class="fas fa-clock me-1"></i>@AdminClock.Format(DateTime.UtcNow, AdminClock.Zone(AdminLayoutConfiguration))</span>
         <span class="badge bg-danger">Super Admin</span>
     </div>
 </div>
