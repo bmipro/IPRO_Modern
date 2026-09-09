@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.DataAccess;
 
-// 418 (2026-09-09): the one way to take the next number for a key. The row is locked (SELECT ...
-// FOR UPDATE) for the duration of the increment, so concurrent callers queue and never share a
+// 418 (2026-09-09): the one way to take the next number for a key. The increment is one atomic
+// UPDATE on the row (LastValue = LastValue + 1), so concurrent callers queue and never share a
 // value. The first time a key is used the row is seeded from the existing maximum (what the old
 // MAX+1 would have seen), so production continues its current numbering; after that the rows can
 // come and go and the counter only moves forward. Works inside a caller's transaction (the lock is
