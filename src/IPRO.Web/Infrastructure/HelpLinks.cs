@@ -20,7 +20,7 @@ public static class HelpLinks
     {
         ["Dashboard"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: the Dashboard", "use-the-dashboard") },
         ["Account"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: your account", "edit-the-agent-profile") },
-        ["Team"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: your account") },
+        ["Team"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("team-members", "Help: team member logins") },
         ["Billing"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("billing-invoices", "Help: packages and billing") },
 
         ["Clients"] = new(StringComparer.OrdinalIgnoreCase)

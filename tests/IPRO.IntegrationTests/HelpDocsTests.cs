@@ -25,6 +25,8 @@ public class HelpDocsTests
         // 461 (second half): the eight guides written 2026-09-02.
         "23_EMAIL_ACTIVITY.md", "24_MARKETING_CALENDAR.md", "25_AI_DAILY_ASSISTANT.md", "26_DID_YOU_KNOW.md",
         "27_SUPPORT_TICKETS.md", "28_CALENDAR_AND_GOOGLE_CALENDAR.md", "29_ARTICLES.md", "30_IMAGE_LIBRARY.md",
+        // 469: the gap the help-icon map surfaced.
+        "31_TEAM_MEMBERS.md",
     };
 
     [Fact]

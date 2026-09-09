@@ -39,6 +39,7 @@
   <EmbeddedResource Include="..\..\DOCS\28_CALENDAR_AND_GOOGLE_CALENDAR.md" LogicalName="HelpDocs.28_CALENDAR_AND_GOOGLE_CALENDAR.md" />
   <EmbeddedResource Include="..\..\DOCS\29_ARTICLES.md" LogicalName="HelpDocs.29_ARTICLES.md" />
   <EmbeddedResource Include="..\..\DOCS\30_IMAGE_LIBRARY.md" LogicalName="HelpDocs.30_IMAGE_LIBRARY.md" />
+  <EmbeddedResource Include="..\..\DOCS\31_TEAM_MEMBERS.md" LogicalName="HelpDocs.31_TEAM_MEMBERS.md" />
 </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IPRO.Business\IPRO.Business.csproj" />

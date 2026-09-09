@@ -47,6 +47,8 @@ public static class HelpDocsService
         new HelpArticle("calendar", "Calendar and Google Calendar", "28_CALENDAR_AND_GOOGLE_CALENDAR.md"),
         new HelpArticle("articles", "Articles: Write Once, Use Everywhere", "29_ARTICLES.md"),
         new HelpArticle("image-library", "Image Library: Images for Hero and Text Blocks", "30_IMAGE_LIBRARY.md"),
+        // 469 (2026-09-09): the gap the help-icon map (468) surfaced.
+        new HelpArticle("team-members", "Team Member Logins: Seats, Passwords, and Access", "31_TEAM_MEMBERS.md"),
     };
 
     public static IReadOnlyList<HelpArticle> GetArticles() => Articles;
