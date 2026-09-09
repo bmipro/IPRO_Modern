@@ -1,4 +1,4 @@
-# Session handoff — 2026-09-08 (13 days to launch)
+# Session handoff — 2026-09-08 and 09-09 (12 days to launch)
 
 ## What happened
 
@@ -31,6 +31,7 @@
 | `b9514e6` | **464 (2)** seven rows shortened to three to five words (owner-approved wording) | whole tree |
 | `8f81cfd` | **465** Social links block: the footer's profiles in the page body, icons or icons with names, all three templates, one shared icon map; a package row; guide section | whole tree |
 | `4029218` | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
+| _see log_ | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
 | `6aa7e6d` `bcc9e95` | 442 timeline; Masoud proposal + TODO 463 | docs |
 
 ## Findings worth keeping
