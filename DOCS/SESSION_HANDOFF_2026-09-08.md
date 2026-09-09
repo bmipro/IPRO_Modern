@@ -33,6 +33,7 @@
 | `4029218` | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
 | `451aed5` | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
 | `3cef520` | **469** (09-09) the Team Member Logins guide, indexed, the Help icon on My Team pointing at it | whole tree |
+| _see log_ | **432** (09-09) Admin header clock shows the platform's time zone (Admin:TimeZone, Eastern when unset) with a short label, not the server's UTC | whole tree |
 | `cea3ac8` | **462(b)+(c)** (09-09) dead CalendarReminderJob removed, its stale Hangfire definition dropped at startup; Marketing Calendar on the agent's local date, month bounded by local midnights | whole tree |
 | `455ee57` | **418** (09-09) invoice numbers from a never-decrementing counter (platform per year, client invoices per agent and type); seeded from the existing maximum; row-locked | whole tree |
 | `6aa7e6d` `bcc9e95` | 442 timeline; Masoud proposal + TODO 463 | docs |
@@ -70,7 +71,6 @@ Third push, build `5d09e6d`: 466 (verified on both hosts). Earlier, build `affb5
 **Bugs, medium**
 
 **Bugs, low**
-- 432 Admin header clock shows UTC.
 - 462(a) Did You Know editor help text says "sees the full content immediately"; (d) Articles Delete has no confirmation; (e) doc says the Blog block is Platinum/Broker, code does not gate it.
 - 454 (rest): nine agent/ops senders still discard the send result; they log, so acceptable.
 - 447: two load-only test failures; measures in place, watch only. 396: billing watch item, not reproduced since August.
