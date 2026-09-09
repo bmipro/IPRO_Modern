@@ -50,6 +50,48 @@ public class HelpDocsTests
         }
     }
 
+    // TODO 466 (2026-09-08). The owner could not find the new "Social Links Block" section: it is
+    // the 24th heading of the longest guide and the article page rendered the whole guide with no
+    // way to see its shape. Every article now opens with "In this guide", a list of links to its
+    // sections, whenever it has three or more.
+
+    [Fact]
+    public void A_guide_with_three_or_more_sections_opens_with_a_list_of_them()
+    {
+        const string md = "# Title\n\nIntro.\n\n## First Thing\n\ntext\n\n## Second Thing\n\ntext\n\n## Social Links Block\n\ntext\n";
+        var html = HelpDocsService.RenderArticle(md);
+
+        // The list sits after the title and before the first section...
+        var toc = html.IndexOf("class=\"help-toc\"", StringComparison.Ordinal);
+        var firstH2 = html.IndexOf("<h2", StringComparison.Ordinal);
+        Assert.True(toc >= 0, "no table of contents rendered");
+        Assert.True(html.IndexOf("</h1>", StringComparison.Ordinal) < toc && toc < firstH2, "the list must sit between the title and the first section");
+
+        // ...and every link lands on the section's own heading.
+        Assert.Contains("href=\"#social-links-block\">Social Links Block</a>", html);
+        Assert.Contains("<h2 id=\"social-links-block\">", html);
+        Assert.Contains("href=\"#first-thing\">First Thing</a>", html);
+        Assert.Contains("In this guide", html);
+    }
+
+    [Fact]
+    public void A_short_guide_gets_no_list()
+    {
+        const string md = "# Title\n\n## Only One\n\ntext\n\n## And Two\n\ntext\n";
+        var html = HelpDocsService.RenderArticle(md);
+        Assert.DoesNotContain("help-toc", html);
+        Assert.Contains("<h2 id=\"only-one\">", html); // headings still get their anchors
+    }
+
+    [Fact]
+    public void The_website_builder_guide_lists_the_social_links_section()
+    {
+        var html = HelpDocsService.GetArticleHtml("website-builder");
+        Assert.NotNull(html);
+        Assert.Contains("class=\"help-toc\"", html!);
+        Assert.Contains("href=\"#social-links-block\">Social Links Block</a>", html);
+    }
+
     [Fact]
     public void Slugs_are_unique_and_url_safe()
     {

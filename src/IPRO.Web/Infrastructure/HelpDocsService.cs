@@ -1,6 +1,11 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Text;
 using Markdig;
+using Markdig.Renderers;
+using Markdig.Renderers.Html;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
 
 namespace IPRO.Web.Infrastructure;
 
@@ -49,6 +54,56 @@ public static class HelpDocsService
     public static HelpArticle? FindArticle(string slug) =>
         Articles.FirstOrDefault(a => string.Equals(a.Slug, slug, StringComparison.OrdinalIgnoreCase));
 
+    // 466 (2026-09-08): every guide opens with "In this guide", a list of links to its sections,
+    // whenever it has three or more. The owner could not find a new section that sat 24th in the
+    // longest guide; a reader needs to see the guide's shape before its text. The anchors are the
+    // ids Markdig's auto-identifier extension already puts on each heading, so a link and its
+    // heading can never disagree.
+    private const int TocMinimumSections = 3;
+
+    public static string RenderArticle(string markdown)
+    {
+        var document = Markdown.Parse(markdown, Pipeline);
+
+        var sections = new List<(string Id, string Text)>();
+        foreach (var heading in document.Descendants<HeadingBlock>())
+        {
+            if (heading.Level != 2) continue;
+            var id = heading.GetAttributes().Id;
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            var text = new StringBuilder();
+            if (heading.Inline != null)
+            {
+                foreach (var literal in heading.Inline.Descendants<LiteralInline>())
+                    text.Append(literal.Content.ToString());
+            }
+            if (text.Length > 0) sections.Add((id, text.ToString()));
+        }
+
+        var writer = new StringWriter();
+        var renderer = new HtmlRenderer(writer);
+        Pipeline.Setup(renderer);
+        renderer.Render(document);
+        writer.Flush();
+        var html = writer.ToString();
+
+        if (sections.Count < TocMinimumSections) return html;
+
+        var toc = new StringBuilder();
+        toc.Append("<nav class=\"help-toc\" aria-label=\"In this guide\"><div class=\"help-toc__title\">In this guide</div><ol>");
+        foreach (var (id, text) in sections)
+        {
+            toc.Append("<li><a href=\"#").Append(id).Append("\">").Append(System.Net.WebUtility.HtmlEncode(text)).Append("</a></li>");
+        }
+        toc.Append("</ol></nav>\n");
+
+        // After the title when there is one, otherwise at the top.
+        var titleEnd = html.IndexOf("</h1>", StringComparison.Ordinal);
+        return titleEnd < 0
+            ? toc + html
+            : html[..(titleEnd + 5)] + "\n" + toc + html[(titleEnd + 5)..];
+    }
+
     public static string? GetArticleHtml(string slug)
     {
         var article = FindArticle(slug);
@@ -62,7 +117,7 @@ public static class HelpDocsService
 
             using var reader = new StreamReader(stream);
             var markdown = reader.ReadToEnd();
-            return Markdown.ToHtml(markdown, Pipeline);
+            return RenderArticle(markdown);
         });
     }
 }
