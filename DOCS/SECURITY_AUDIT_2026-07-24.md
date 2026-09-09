@@ -219,6 +219,7 @@ The codebase is in better shape than the finding count below might suggest. The 
 - **Where:** `src/IPRO.Scheduler/CalendarReminderJob.cs:24-32`.
 - **What:** no try/catch around the per-event loop (and because the query window is `StartDate` between now and +1 hour, a crash partway through *permanently* drops the remaining reminders in that batch, not just delays them — by the next hourly run they've already fallen out of the window). Separately, the loop discards `_email.SendAsync`'s boolean result and unconditionally logs "Reminder sent" regardless of whether it actually was.
 - **Fix:** add try/catch per event; check the send result before logging success.
+- **2026-09-09:** the job itself was removed (TODO 462(b)): no portal page ever wrote a CalendarEvents row, so it had nothing to send.
 
 ### M-12. Domain automation job has no per-item isolation and no logger at all
 

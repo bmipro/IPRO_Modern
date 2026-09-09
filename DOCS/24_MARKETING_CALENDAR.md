@@ -28,13 +28,13 @@ The three buttons in the header, **Newsletter**, **Campaigns** and **Social Post
 - **Newsletters** appear on their sent date, or on their scheduled date if they have not gone out yet, so a scheduled newsletter shows in the future.
 - **Social posts** appear when they have a "Schedule for" date or a posted date.
 - **Drip campaign steps** appear only after they have actually been sent. Future steps are not forecast on the calendar; see the campaign's Details page for its schedule.
+- Days follow the time zone on your Profile, the same as Email Activity, so a newsletter sent at 11 pm sits on that day, not the next.
 
 ## What Is Not Here
 
 - E-Cards, E-Letters, Polls and Did You Know emails do not appear on this calendar. Their delivery is under **Email Activity**.
 - Client follow-ups and appointments are on the client **Calendar**, not here.
 - There is no week or day view, no filter by type, and nothing can be dragged or created by clicking a day.
-- Days are placed by calendar date without a time-zone adjustment, so an event sent very close to midnight can show on the neighbouring day.
 
 ## Package Availability
 
