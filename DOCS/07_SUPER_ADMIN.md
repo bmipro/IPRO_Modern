@@ -191,6 +191,26 @@ A handful of starter templates (announcement, market update, thank-you note, sea
 
 New agents receive matching starter pages based on business type/package. Agents may edit their resulting content.
 
+### A Did You Know block that arrives filled
+
+A **Did You Know** starter block is the one block whose content lives somewhere else: it shows
+teasers of the agent's own Articles, and a new agent has no Articles until their site is built. So
+the starter block does not hold article ids; it holds **which starter articles** it should show.
+
+1. Under **Starter Articles**, make sure the articles you want exist for that business type (or
+   for **All**) and are active.
+2. On the starter page, add a **Did You Know** block, or open the one that is there.
+3. Tick the articles under **Articles in this block**, choose the **Teaser layout**, and press
+   **Save Block**. The list offers only the active starter articles for this page's business type
+   plus the **All** ones; anything else is ignored.
+
+When an agent of that business type is provisioned, the ticked starter articles become their own
+Articles first (an article they already have under the same title is reused, never duplicated;
+the Resources section reuses the same rows a moment later), and the block is written with those
+real ids. The agent sees a working block on day one and can change the selection on their own
+site. The prospect preview shows the same teasers. This works for any business type you create
+here; a starter article you deactivate later simply drops out of the block for future signups.
+
 ## Preview And Delete An Agent's Data
 
 Deleting an agent is permanent and removes everything they own. Before doing it, use **Preview Erasure**

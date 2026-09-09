@@ -34,6 +34,7 @@
 | `451aed5` | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
 | `3cef520` | **469** (09-09) the Team Member Logins guide, indexed, the Help icon on My Team pointing at it | whole tree |
 | `9b89ad2` | **462(a)(d)(e)** (09-09) Did You Know help text says the articles are emailed; Articles Delete asks for confirmation; the Blog-block gate is pinned to the guide (the code already gated it) | whole tree |
+| _see log_ | **470** (09-09, owner's launch call) Did You Know starter block: SuperAdmin picks starter articles per business type; provisioning creates the agent's Articles first and fills the block with real ids; preview shows the teasers | whole tree |
 | `06f309b` | **432** (09-09) Admin header clock shows the platform's time zone (Admin:TimeZone, Eastern when unset) with a short label, not the server's UTC | whole tree |
 | `cea3ac8` | **462(b)+(c)** (09-09) dead CalendarReminderJob removed, its stale Hangfire definition dropped at startup; Marketing Calendar on the agent's local date, month bounded by local midnights | whole tree |
 | `455ee57` | **418** (09-09) invoice numbers from a never-decrementing counter (platform per year, client invoices per agent and type); seeded from the existing maximum; row-locked | whole tree |
