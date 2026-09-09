@@ -44,6 +44,23 @@ public static class WebsiteStarterPagesHelper
             meetingFormSettingsJson = new WebsiteFormSettings { WebsiteFormId = meetingForm.Id }.ToJson();
         }
 
+        // 470 (2026-09-09): a Did You Know starter block names STARTER articles. The agent's own
+        // Articles are created first (or reused by title), then the block is written with their real
+        // ids -- the same two-phase shape as the meeting form above and the Resources tree.
+        var didYouKnowStarterIds = selected.SelectMany(p => p.Blocks)
+            .Where(b => b.BlockType == WebsiteBlockTypes.DidYouKnow)
+            .SelectMany(b => WebsiteStarterDidYouKnowSettings.FromJson(b.SettingsJson).StarterArticleIds)
+            .Distinct()
+            .ToList();
+        var articlesByStarterId = new Dictionary<int, Article>();
+        if (didYouKnowStarterIds.Count > 0)
+        {
+            var starterArticles = await db.WebsiteStarterArticles.AsNoTracking()
+                .Where(a => a.IsActive && didYouKnowStarterIds.Contains(a.Id))
+                .ToListAsync();
+            articlesByStarterId = await WebsiteStarterArticleCopier.EnsureAgentArticlesAsync(db, agentId, starterArticles);
+        }
+
         foreach (var starter in selected)
         {
             var isMeetingPage = starter.Slug.Equals("request-meeting", StringComparison.OrdinalIgnoreCase);
@@ -71,10 +88,29 @@ public static class WebsiteStarterPagesHelper
                         {
                             BlockType = b.BlockType, Heading = b.Heading, Subheading = b.Subheading, Body = b.Body,
                             ImageUrl = b.ImageUrl, ButtonText = b.ButtonText, ButtonUrl = b.ButtonUrl,
-                            SettingsJson = b.SettingsJson, SortOrder = b.SortOrder, IsVisible = b.IsVisible
+                            SettingsJson = b.BlockType == WebsiteBlockTypes.DidYouKnow
+                                ? ProvisionedDidYouKnow(b.SettingsJson, articlesByStarterId)
+                                : b.SettingsJson,
+                            SortOrder = b.SortOrder, IsVisible = b.IsVisible
                         }).ToList()
             });
         }
         await db.SaveChangesAsync();
+    }
+
+    // The starter block's chosen starter articles, as the agent's own article ids, in the chosen
+    // order; a starter article that has since been retired simply drops out.
+    private static string ProvisionedDidYouKnow(string starterSettingsJson, Dictionary<int, Article> articlesByStarterId)
+    {
+        var starter = WebsiteStarterDidYouKnowSettings.FromJson(starterSettingsJson);
+        return new WebsiteDidYouKnowSettings
+        {
+            ArticleIds = starter.StarterArticleIds
+                .Where(articlesByStarterId.ContainsKey)
+                .Select(id => articlesByStarterId[id].Id)
+                .Distinct()
+                .ToList(),
+            LayoutStyle = starter.LayoutStyle == "grid-2x3" ? "grid-2x3" : "auto"
+        }.ToJson();
     }
 }

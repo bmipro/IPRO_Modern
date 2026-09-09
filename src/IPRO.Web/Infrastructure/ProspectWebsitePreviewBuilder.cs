@@ -105,6 +105,36 @@ public static class ProspectWebsitePreviewBuilder
             });
         }
 
+        // 470 (2026-09-09): a Did You Know starter block names starter articles; the preview gives
+        // them fake Article ids, exactly as it does for Resources below, so the teasers show.
+        var didYouKnowByBlockId = new Dictionary<int, DidYouKnowBlockData>();
+        var didYouKnowBlocks = pages.SelectMany(p => p.Blocks).Where(b => b.BlockType == WebsiteBlockTypes.DidYouKnow).ToList();
+        if (didYouKnowBlocks.Count > 0)
+        {
+            var wantedStarters = didYouKnowBlocks
+                .SelectMany(b => WebsiteStarterDidYouKnowSettings.FromJson(b.SettingsJson).StarterArticleIds)
+                .Distinct()
+                .ToList();
+            var previewStarters = await db.WebsiteStarterArticles.AsNoTracking()
+                .Where(a => a.IsActive && wantedStarters.Contains(a.Id))
+                .ToListAsync();
+            var previewArticles = previewStarters.ToDictionary(s => s.Id, s => new Article
+            {
+                Id = NextId(), AgentUserId = agent.Id, Title = s.Title, Summary = s.Summary, Content = s.Content,
+                ImageUrl = s.ImageUrl, IsPublished = true, PublishedAt = DateTime.UtcNow
+            });
+            foreach (var block in didYouKnowBlocks)
+            {
+                var starterSettings = WebsiteStarterDidYouKnowSettings.FromJson(block.SettingsJson);
+                block.SettingsJson = new WebsiteDidYouKnowSettings
+                {
+                    ArticleIds = starterSettings.StarterArticleIds.Where(previewArticles.ContainsKey).Select(id => previewArticles[id].Id).ToList(),
+                    LayoutStyle = starterSettings.LayoutStyle
+                }.ToJson();
+            }
+            didYouKnowByBlockId = DidYouKnowBuilder.Build(didYouKnowBlocks, previewArticles.Values.ToList());
+        }
+
         // Resources -- same selection rule EnsureResourcesAsync uses. The real helper needs a
         // two-phase save (create Article, save, THEN reference its real Id in the block's
         // SettingsJson) because ArticleContent needs a real database-assigned Article.Id; here a
@@ -415,6 +445,7 @@ public static class ProspectWebsitePreviewBuilder
             CurrentPage = currentPage,
             ApprovedTestimonials = BuildTestimonials(prospect.BusinessType),
             ArticleContentByBlockId = articleContentByBlockId,
+            DidYouKnowByBlockId = didYouKnowByBlockId,
             FormsByBlockId = formsByBlockId
         };
     }

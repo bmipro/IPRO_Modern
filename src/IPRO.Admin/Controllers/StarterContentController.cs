@@ -56,8 +56,19 @@ public class StarterContentController : Controller
         if (page == null) return NotFound();
         page.Blocks = page.Blocks.OrderBy(b => b.SortOrder).ToList();
         ViewBag.ImagePool = await StarterImagePoolAsync();
-        return View(new StarterPageEditViewModel { Page = page, Packages = await PackagesAsync() });
+        return View(new StarterPageEditViewModel
+        {
+            Page = page, Packages = await PackagesAsync(), StarterArticles = await StarterArticlesForAsync(page.BusinessType)
+        });
     }
+
+    // 470 (2026-09-09): the starter articles a Did You Know block on this page may show -- the
+    // page's own business type plus "All", active only, in their Resources order.
+    private async Task<List<WebsiteStarterArticle>> StarterArticlesForAsync(string businessType) =>
+        await _db.WebsiteStarterArticles.AsNoTracking()
+            .Where(a => a.IsActive && (a.BusinessType == businessType || a.BusinessType == "All"))
+            .OrderBy(a => a.BusinessType == "All").ThenBy(a => a.SortOrder).ThenBy(a => a.Title)
+            .ToListAsync();
 
     // Every image already in use anywhere in starter content -- blocks and articles both, since they
     // draw on the same library. This is what the Image URL field's picker offers, so an admin can
@@ -172,7 +183,7 @@ public class StarterContentController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateBlock(int id, string heading, string subheading, string body,
-        string imageUrl, string buttonText, string buttonUrl, bool isVisible)
+        string imageUrl, string buttonText, string buttonUrl, bool isVisible, int[]? starterArticleIds = null, string? layoutStyle = null)
     {
         var block = await _db.WebsiteStarterBlocks.FirstOrDefaultAsync(b => b.Id == id);
         if (block == null) return NotFound();
@@ -183,6 +194,25 @@ public class StarterContentController : Controller
         block.ButtonText = buttonText?.Trim() ?? string.Empty;
         block.ButtonUrl = SafeLink(buttonUrl);
         block.IsVisible = isVisible;
+        if (block.BlockType == WebsiteBlockTypes.DidYouKnow)
+        {
+            // 470 (2026-09-09): the block names STARTER articles (this page's business type or "All",
+            // active); provisioning turns them into each new agent's own articles. The order is the
+            // list's order, which is the Resources order.
+            var page = await _db.WebsiteStarterPages.AsNoTracking().FirstAsync(p => p.Id == block.WebsiteStarterPageId);
+            var requested = (starterArticleIds ?? Array.Empty<int>()).Where(x => x > 0).Distinct().ToList();
+            var allowed = requested.Count == 0
+                ? new List<int>()
+                : await _db.WebsiteStarterArticles
+                    .Where(a => requested.Contains(a.Id) && a.IsActive && (a.BusinessType == page.BusinessType || a.BusinessType == "All"))
+                    .Select(a => a.Id)
+                    .ToListAsync();
+            block.SettingsJson = new WebsiteStarterDidYouKnowSettings
+            {
+                StarterArticleIds = requested.Where(allowed.Contains).ToList(),
+                LayoutStyle = layoutStyle == "grid-2x3" ? "grid-2x3" : "auto"
+            }.ToJson();
+        }
         await _db.SaveChangesAsync();
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "StarterBlockUpdate", $"Updated starter block id {id} on page id {block.WebsiteStarterPageId}");
         TempData["Success"] = "Starter block saved.";
@@ -215,7 +245,7 @@ public class StarterContentController : Controller
 
     private Task<List<BillingRule>> PackagesAsync() => _db.BillingRules.AsNoTracking().OrderBy(p => p.PackageName).ToListAsync();
     private static string NormalizeSlug(string value) => Regex.Replace(value.Trim().ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
-    private static string DefaultHeading(string type) => type switch { WebsiteBlockTypes.Hero => "Main headline", WebsiteBlockTypes.Services => "Services", WebsiteBlockTypes.CallToAction => "Ready to connect?", WebsiteBlockTypes.ContactForm => "Contact us", WebsiteBlockTypes.TestimonialForm => "Client testimonials", _ => "Content heading" };
+    private static string DefaultHeading(string type) => type switch { WebsiteBlockTypes.Hero => "Main headline", WebsiteBlockTypes.Services => "Services", WebsiteBlockTypes.CallToAction => "Ready to connect?", WebsiteBlockTypes.ContactForm => "Contact us", WebsiteBlockTypes.TestimonialForm => "Client testimonials", WebsiteBlockTypes.DidYouKnow => "Did you know?", _ => "Content heading" };
     private static string SafeUrl(string? value) => Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri.ToString() : string.Empty;
     private static string SafeLink(string? value) { value = value?.Trim() ?? string.Empty; return value.StartsWith('/') ? value : SafeUrl(value); }
 }
