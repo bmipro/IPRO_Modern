@@ -85,6 +85,8 @@ If a function is outside the active package, the link remains visible and displa
 
 ## Get Help or Contact Support
 
+
+Every page of the portal has a **Help** icon (a question mark) at the top right. It opens the guide for the page you are on, at the right section, in a new tab so you keep your place. Pages without a guide of their own open the full help library.
 1. Select **Support** in the top navigation.
 2. Browse **Help Documentation** for guides on clients, newsletters, the website builder, domains, and billing.
 3. Under **My Tickets**, click **New Ticket** to describe an issue and submit it to Support.

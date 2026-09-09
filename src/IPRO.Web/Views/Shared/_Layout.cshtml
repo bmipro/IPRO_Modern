@@ -141,6 +141,9 @@
         .agent-sidebar-footer .nav-link { font-size:.9rem; }
 
         .agent-topbar { margin-left:250px; background:#fff; border-bottom:1px solid #e5e7eb; padding:.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1030; }
+        .help-for-page { display:inline-flex; align-items:center; color:#64748b; text-decoration:none; font-size:.9rem; padding:.25rem .5rem; border-radius:6px; }
+        .help-for-page:hover, .help-for-page:focus-visible { color:var(--agent-accent, #1457d9); background:#f1f5f9; }
+        .help-for-page i { font-size:1.15rem; }
         .agent-content { margin-left:250px; padding:1.25rem 1.5rem; }
         .sidebar-toggle-btn { display:none; background:none; border:1px solid #d1d5db; border-radius:6px; padding:.5rem .75rem; min-width:44px; min-height:44px; }
         /* The open drawer is z-index 1040 and the topbar 1030, so the panel painted OVER this
@@ -252,6 +255,12 @@
         <button type="button" class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Menu" aria-controls="agentSidebar" aria-expanded="false"><i class="fas fa-bars" aria-hidden="true"></i></button>
         <span class="fw-semibold text-muted">@ViewData["Title"]</span>
     </div>
+    @{
+        // 468: the help icon opens the guide for THIS screen (HelpLinks maps controller/action to a
+        // guide and section); a new tab so the agent keeps their place in whatever they were doing.
+        var helpLink = IPRO.Web.Infrastructure.HelpLinks.For(currentController, currentAction);
+    }
+    <a class="help-for-page" href="@helpLink.Url" target="_blank" rel="noopener" title="@helpLink.Label" aria-label="@helpLink.Label (opens in a new tab)"><i class="fas fa-circle-question" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Help</span></a>
 </div>
 }
 <div class="@(User.Identity?.IsAuthenticated == true ? "agent-content" : "")">
