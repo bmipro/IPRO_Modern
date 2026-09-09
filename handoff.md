@@ -1,3 +1,5 @@
+> **Latest handoff: `DOCS/SESSION_HANDOFF_2026-09-08.md` (covers 09-08 and 09-09, close-out 09-09).** This file is the 2026-08-28 snapshot and is kept for history.
+
 # Handoff — 2026-08-28 EOD (truth-pack round COMPLETE; the Blog is real; 24 days to Sept 21)
 
 **Evening addendum (owner live-testing round).** The owner ran two live tests and found four

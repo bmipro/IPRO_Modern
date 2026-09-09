@@ -33,7 +33,7 @@
 | `4029218` | **466** help articles open with 'In this guide', a list of links to their sections (three or more) | whole tree |
 | `451aed5` | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
 | `3cef520` | **469** (09-09) the Team Member Logins guide, indexed, the Help icon on My Team pointing at it | whole tree |
-| _see log_ | **462(a)(d)(e)** (09-09) Did You Know help text says the articles are emailed; Articles Delete asks for confirmation; the Blog-block gate is pinned to the guide (the code already gated it) | whole tree |
+| `9b89ad2` | **462(a)(d)(e)** (09-09) Did You Know help text says the articles are emailed; Articles Delete asks for confirmation; the Blog-block gate is pinned to the guide (the code already gated it) | whole tree |
 | `06f309b` | **432** (09-09) Admin header clock shows the platform's time zone (Admin:TimeZone, Eastern when unset) with a short label, not the server's UTC | whole tree |
 | `cea3ac8` | **462(b)+(c)** (09-09) dead CalendarReminderJob removed, its stale Hangfire definition dropped at startup; Marketing Calendar on the agent's local date, month bounded by local midnights | whole tree |
 | `455ee57` | **418** (09-09) invoice numbers from a never-decrementing counter (platform per year, client invoices per agent and type); seeded from the existing maximum; row-locked | whole tree |
@@ -85,6 +85,41 @@ Third push, build `5d09e6d`: 466 (verified on both hosts). Earlier, build `affb5
 - 380 SMS reminders (cost model done), in-portal payments, real-estate IDX listings, social auto-publishing, vertical starter packs beyond Accountants.
 - Post-launch engineering: fold StartupSchemaRepair DDL into migrations; unify SeedGuard/StartupGuard; a Standard-tier slot swap so deploys stop costing ~90 s of 503; a per-organization sending domain (from the Masoud assessment).
 
+## Close-out 2026-09-09
+
+Four pushes, each verified at `/health/version` on both hosts before its tick:
+
+| Code | Item | Gate |
+|---|---|---|
+| `455ee57` | **418** invoice numbers from a counter that only goes up (platform per year, client invoices per agent and type); the concurrency test caught that an EF-composed `SELECT ... FOR UPDATE` does not lock (derived table), so the increment is one atomic UPDATE | 717/717 |
+| `cea3ac8` | **462(b)+(c)** dead CalendarReminderJob removed, stale Hangfire definition dropped at startup; Marketing Calendar on the agent's local date | 721/721 |
+| `06f309b` | **432** Admin header clock in the platform's time zone (Admin:TimeZone, Eastern when unset, labelled ET) | 724/724 |
+| `9b89ad2` | **462(a)(d)(e)** Did You Know help text says the articles are emailed; Articles Delete confirms; Blog-block gate pinned to the guide | see the tick |
+
+Final build on both hosts: `ed0cd56`. Tree clean and pushed.
+
+Then the close-out the owner asked for: both snapshot zips (`git archive HEAD` to
+`OneDrive\Codex_Code_Bkup` and `Documents\IPRO_Backups`), build servers shut down, no test host
+running. **Local MySQL is now the Windows service `IPROLocalMySQL`** (installed and started by the
+owner today, AUTO_START): nothing to stop before a reboot, and nothing to hand-start after one.
+Never `mysqladmin shutdown` it after a gate. Check `netstat -ano | findstr :3306` before a gate; if
+nothing listens, the owner runs `Start-Service IPROLocalMySQL`.
+
+Also today, outside the code: the Starter Articles how-to (the add button is at the top; Business
+Type is free text and must read exactly `Mortgage`), a rewritten Canadian mortgage glossary and a
+mortgage-process table for the Mortgage starter articles (both handed over as HTML to paste), and
+two gently rewritten Mortgage page texts with a title suggestion ("Bank or Broker: Who Should
+Arrange Your Mortgage?").
+
+## Do this first tomorrow
+
+1. **Ticket 2608310040012537 (442)** -- the reframed reply went out 09-08; watch for Microsoft's answer.
+   Until granted, launch runs at 100/hour and every sender queues and retries.
+2. **PayPal live cutover** -- production is still sandbox; the one item that stops real money on launch day.
+3. **Owner pre-launch list** -- Postmaster Tools, the PayPal Verified badge, a "Contact us" channel,
+   the Masoud demo (463).
+4. **Launch-week quiet** -- the agreed bug list is empty (418, 462 all six, 432 shipped). Remaining rows
+   are watch items (447, 396, 454 rest) and post-launch wishlist (467, 378, 380, 458, 412).
 ## Known-open
 
 - **462** six small findings from the guide research -- all six closed 09-09.
