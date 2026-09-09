@@ -4,6 +4,7 @@
     var monthStart = (DateTime)(ViewBag.MonthStart ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1));
     var previousMonth = (DateTime)(ViewBag.PreviousMonth ?? monthStart.AddMonths(-1));
     var nextMonth = (DateTime)(ViewBag.NextMonth ?? monthStart.AddMonths(1));
+    var today = (DateTime)(ViewBag.Today ?? DateTime.Today); // the agent's today (462c)
     var firstVisibleDay = monthStart.AddDays(-(int)monthStart.DayOfWeek);
     var eventsByDate = Model
         .GroupBy(e => e.Date.Date)
@@ -14,7 +15,7 @@
     {
         var classes = new List<string> { "calendar-day" };
         if (day.Month != monthStart.Month) classes.Add("is-muted");
-        if (day.Date == DateTime.Today) classes.Add("is-today");
+        if (day.Date == today) classes.Add("is-today");
         return string.Join(" ", classes);
     }
 

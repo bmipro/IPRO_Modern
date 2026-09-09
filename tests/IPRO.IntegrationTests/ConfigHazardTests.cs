@@ -18,7 +18,7 @@ namespace IPRO.IntegrationTests;
 //      Service on every real instance) MATCHES the configured target: it can only mutate the app
 //      it is running as. Production matches itself; everything else goes inert, loudly.
 //
-//   2. All 16 recurring jobs registered unconditionally and the Hangfire server started
+//   2. All 16 (15 since 462(b)) recurring jobs registered unconditionally and the Hangfire server started
 //      unconditionally. Jobs__RecurringDisabled=true now makes an instance a bystander -- no
 //      server (a server on shared storage processes jobs even with no registrations), no
 //      registrations. Program.cs wiring is pinned by source-walk (the M8 pattern).
