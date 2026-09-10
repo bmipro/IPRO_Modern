@@ -33,6 +33,7 @@
             <a href="/portal/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
         }
         <a href="/portal/Clients/AccountTypes" class="btn btn-outline-primary"><i class="fas fa-tags me-1"></i>Account Types</a>
+        <a href="/portal/Clients/RecycleBin" class="btn btn-outline-secondary"><i class="fas fa-trash-can-arrow-up me-1"></i>Recently Deleted</a>
         @if (importIsLocked)
         {
             <button type="button" class="btn btn-outline-secondary" @Html.Raw(ImportLockAttributes())><i class="fas fa-file-import me-1"></i>Import CSV</button>

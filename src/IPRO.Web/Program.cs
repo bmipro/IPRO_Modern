@@ -429,7 +429,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 15);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 16);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -444,6 +444,8 @@ RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices",
 RecurringJob.AddOrUpdate<GoogleCalendarSyncJob>("google-calendar-sync", job => job.RunAsync(), "*/15 * * * *");
 RecurringJob.AddOrUpdate<ClientLifeEventReminderJob>("client-life-event-reminders", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<OverdueInvoiceReminderJob>("overdue-invoice-reminders", job => job.RunAsync(), Cron.Daily);
+// 472 (2026-09-10): recycle-bin snapshots past their 30 days are removed, then their files.
+RecurringJob.AddOrUpdate<ClientRecycleBinPurgeJob>("client-recycle-bin-purge", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<AiDailyDigestJob>("ai-daily-digest", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<TrialReminderJob>("trial-reminders", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<ECardDispatchJob>("dispatch-ecards", job => job.RunAsync(), Cron.Minutely);
@@ -602,6 +604,7 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePollSchemaAsync", () => StartupSchemaRepair.EnsurePollSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePollWebsiteVoteSchemaAsync", () => StartupSchemaRepair.EnsurePollWebsiteVoteSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNumberSequenceSchemaAsync", () => StartupSchemaRepair.EnsureNumberSequenceSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync", () => StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteFormSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteFormSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync", () => StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAiUsageSchemaAsync", () => StartupSchemaRepair.EnsureAiUsageSchemaAsync(db), db, app.Logger);

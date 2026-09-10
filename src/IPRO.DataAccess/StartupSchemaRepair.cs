@@ -1281,6 +1281,26 @@ public static class StartupSchemaRepair
     // (2026-07-16, 2026-07-24, 2026-07-26 - see 09_TROUBLESHOOTING.md). A documented convention wasn't
     // enough; making the helper foolproof is.
     // 418 (2026-09-09): the never-decrementing counters behind invoice numbers. Mirrors the EF model.
+    // 472 (2026-09-10): the client recycle bin. Mirrors the EF model.
+    public static async Task EnsureClientRecycleBinSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ClientRecycleBinItems` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `OriginalClientId` int NOT NULL,
+        `DisplayName` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+        `Email` varchar(320) CHARACTER SET utf8mb4 NOT NULL,
+        `DeletedAt` datetime(6) NOT NULL,
+        `PurgeAfter` datetime(6) NOT NULL,
+        `PayloadJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `BlobUrlsJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_ClientRecycleBinItems_AgentUserId` (`AgentUserId`),
+        KEY `IX_ClientRecycleBinItems_PurgeAfter` (`PurgeAfter`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

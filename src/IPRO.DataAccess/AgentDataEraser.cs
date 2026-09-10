@@ -145,6 +145,7 @@ public static class AgentDataEraser
 
         // -- Everything else keyed directly on the agent --
         ("TeamMembers",                 "AgentUserId = @agentId"),
+        ("ClientRecycleBinItems",       "AgentUserId = @agentId"), // 472: the bin goes with the agent
         ("Clients",                     "AgentUserId = @agentId"),
         ("ClientCategories",            "AgentUserId = @agentId"),
         ("Articles",                    "AgentUserId = @agentId"),

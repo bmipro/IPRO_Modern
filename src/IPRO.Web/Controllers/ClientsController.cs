@@ -603,27 +603,37 @@ public class ClientsController : Controller
         return RedirectToAction(nameof(AccountTypes));
     }
 
+    // 472 (2026-09-10): a delete is a move to Recently Deleted. Every row the eraser removes is
+    // snapshotted first and the files are kept; the agent can restore for 30 days, after which the
+    // nightly purge removes the snapshot and only then the files.
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
         var client = await _clients.GetByIdAsync(id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
-        var blobUrls = await _clients.DeleteAsync(id);
-
-        // The rows are gone; now remove their files. Per-file try/catch: a storage hiccup on one
-        // document must not fail the whole deletion (the DB rows no longer exist to retry from --
-        // an orphaned blob is the recoverable outcome, a failed delete-with-partial-erasure is not).
-        foreach (var url in blobUrls)
-        {
-            try { await _blob.DeleteAsync(url); }
-            catch (Exception)
-            {
-                // Deliberately swallowed; the blob is unreachable by the app either way.
-            }
-        }
-
-        TempData["Success"] = "Client deleted.";
+        await ClientRecycleBin.DeleteToBinAsync(_db, id);
+        TempData["Success"] = $"{client.FirstName} {client.LastName} moved to Recently Deleted. You can restore them for {ClientRecycleBin.RetentionDays} days.";
         return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> RecycleBin()
+    {
+        ViewBag.AgentTimeZone = await IPRO.Web.Infrastructure.AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
+        ViewBag.RetentionDays = ClientRecycleBin.RetentionDays;
+        var items = await _db.ClientRecycleBinItems.AsNoTracking()
+            .Where(i => i.AgentUserId == AgentId)
+            .OrderByDescending(i => i.DeletedAt)
+            .ToListAsync();
+        return View(items);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Restore(int id)
+    {
+        var restoredId = await ClientRecycleBin.RestoreAsync(_db, id, AgentId);
+        if (restoredId == null) return NotFound();
+        TempData["Success"] = "Client restored, with their notes, follow-ups, documents and invoices.";
+        return RedirectToAction(nameof(Details), new { id = restoredId.Value });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

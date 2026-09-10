@@ -33,6 +33,7 @@ public class IPRODbContext : DbContext
     public DbSet<ProvinceTaxRate> ProvinceTaxRates => Set<ProvinceTaxRate>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<NumberSequence> NumberSequences => Set<NumberSequence>();
+    public DbSet<ClientRecycleBinItem> ClientRecycleBinItems => Set<ClientRecycleBinItem>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
     public DbSet<SubscriptionChange> SubscriptionChanges => Set<SubscriptionChange>();
@@ -394,6 +395,15 @@ public class IPRODbContext : DbContext
             // refuses to index it (error 1170).
             e.Property(i => i.DocumentNumber).HasMaxLength(40);
             e.Property(i => i.ViewToken).HasMaxLength(80);
+        });
+
+        // 472: the client recycle bin; listed per agent, purged by PurgeAfter.
+        modelBuilder.Entity<ClientRecycleBinItem>(e =>
+        {
+            e.Property(i => i.DisplayName).HasMaxLength(200);
+            e.Property(i => i.Email).HasMaxLength(320);
+            e.HasIndex(i => i.AgentUserId);
+            e.HasIndex(i => i.PurgeAfter);
         });
 
         // 418: one counter row per key; the key is the primary key.

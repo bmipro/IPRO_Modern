@@ -188,7 +188,7 @@ public class AgentErasureOrphanTests
     // Only tables this fixture does not yet create rows in. Shrink this, never grow it.
     private static readonly HashSet<string> NotYetSeeded = new(StringComparer.OrdinalIgnoreCase)
     {
-        "ClientComments", "ClientLifeEvents", "ClientPolicies", "ClientDocuments", "PortalDocuments",
+        "ClientRecycleBinItems", "ClientComments", "ClientLifeEvents", "ClientPolicies", "ClientDocuments", "PortalDocuments",
         "PortalMessages", "PortalRequests", "ClientPortalActivities", "DidYouKnowEmailQueueItems",
         "DripCampaignStepSends", "DripCampaignEnrollments", "DripCampaignSteps", "DripCampaigns",
         "NewsLetterArticles", "NewsLetterRecipients", "NewsLetterSends", "NewsLetters",

@@ -1,0 +1,56 @@
+@model IEnumerable<IPRO.Entities.ClientRecycleBinItem>
+@{
+    ViewData["Title"] = "Recently Deleted Clients";
+    var timeZone = ViewBag.AgentTimeZone as string;
+    var retentionDays = (int)(ViewBag.RetentionDays ?? 30);
+    var now = DateTime.UtcNow;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="/portal/Clients">My Clients</a></li>
+        <li class="breadcrumb-item active">Recently Deleted</li>
+      </ol>
+    </nav>
+    <h2 class="fw-bold mb-0"><i class="fas fa-trash-can-arrow-up me-2 text-primary"></i>Recently Deleted</h2>
+    <small class="text-muted">A deleted client stays here for @retentionDays days with everything that belonged to them. Restore brings it all back.</small>
+  </div>
+  <a href="/portal/Clients" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Clients</a>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="card border-0 shadow-sm"><div class="card-body p-5 text-center text-muted">Nothing here. Clients you delete appear on this page for @retentionDays days.</div></div>
+}
+else
+{
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Client</th><th>Email</th><th>Deleted</th><th>Days left</th><th class="text-end">Action</th></tr></thead>
+        <tbody>
+        @foreach (var item in Model)
+        {
+          var deletedLocal = IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(item.DeletedAt, timeZone);
+          var daysLeft = Math.Max(0, (int)Math.Ceiling((item.PurgeAfter - now).TotalDays));
+          <tr>
+            <td><strong>@item.DisplayName</strong></td>
+            <td class="text-muted">@item.Email</td>
+            <td>@deletedLocal.ToString("MMM d, yyyy h:mm tt")</td>
+            <td>@if (daysLeft <= 3) { <span class="badge bg-danger">@daysLeft</span> } else { <span class="badge bg-secondary">@daysLeft</span> }</td>
+            <td class="text-end">
+              <form method="post" action="/portal/Clients/Restore/@item.Id" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-rotate-left me-1"></i>Restore</button>
+              </form>
+            </td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="small text-muted mt-3">After @retentionDays days a nightly clean-up removes the entry and its files for good.</div>
+}

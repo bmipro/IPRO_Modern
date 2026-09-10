@@ -30,7 +30,7 @@
         <a href="/portal/Clients/Edit/@Model.Id" class="btn btn-outline-primary"><i class="fas fa-edit me-1"></i>Edit</a>
         <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
           @Html.AntiForgeryToken()
-          <button type="submit" class="btn btn-outline-danger js-confirm-submit" data-confirm-message="Delete @Model.FirstName @Model.LastName permanently?"><i class="fas fa-trash me-1"></i>Delete</button>
+          <button type="submit" class="btn btn-outline-danger js-confirm-submit" data-confirm-message="Move @Model.FirstName @Model.LastName to Recently Deleted? You can restore them within 30 days."><i class="fas fa-trash me-1"></i>Delete</button>
         </form>
       </div>
     </div>

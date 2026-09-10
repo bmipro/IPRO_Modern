@@ -30,6 +30,7 @@ public static class HelpLinks
             ["FollowUpQueue"] = Article("clients-followups", "Help: follow-ups", "review-follow-ups"),
             ["Calendar"] = Article("calendar", "Help: the calendar"),
             ["Import"] = Article("clients-followups", "Help: importing clients", "import-clients-from-csv"),
+            ["RecycleBin"] = Article("clients-followups", "Help: recently deleted clients", "recently-deleted"),
         },
         ["GoogleCalendar"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("calendar", "Help: Google Calendar", "connect-google-calendar") },
         ["PortalMessages"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("client-portal", "Help: portal messages", "portal-messages") },

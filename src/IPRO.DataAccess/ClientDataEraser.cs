@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace IPRO.DataAccess;
 
@@ -97,6 +98,10 @@ public static class ClientDataEraser
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    // 472: the recycle bin snapshots exactly what this class removes and re-links what it unlinks.
+    public static IReadOnlyList<(string Table, string Where)> DeleteTables => DeleteMap;
+    public static IReadOnlyList<(string Table, string Column)> UnlinkTables => UnlinkMap;
+
     public sealed record ClientErasureLine(string Table, int Rows);
 
     public sealed record ClientErasureReport(
@@ -157,6 +162,7 @@ public static class ClientDataEraser
     private static async Task<bool> TableExistsAsync(IPRODbContext db, string table, CancellationToken ct)
     {
         await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         command.CommandText =
             "SELECT COUNT(1) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @table";
         var parameter = command.CreateParameter();
@@ -172,6 +178,7 @@ public static class ClientDataEraser
     {
         var values = new List<string>();
         await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         command.CommandText = sql.Replace("@clientId", "@p0");
         var parameter = command.CreateParameter();
         parameter.ParameterName = "@p0";
