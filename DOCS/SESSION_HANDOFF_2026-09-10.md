@@ -12,6 +12,11 @@
   and enabled blob/container soft delete (30 days) and versioning -- done and read back the same
   morning; (2) restore rehearsal this week (473); (3) a client recycle bin before launch (472, built
   today); (4) a nightly logical dump after launch (474).
+- **473 restore rehearsal, done the same evening:** production restored to a throwaway server at
+  22:10 UTC, Ready in 7 min 14 s, `ipro_crm` present, 27 clients and 2 agents on the copy and on
+  production, the recycle-bin table present; copy deleted; runbook in `DOCS/14`. Two production
+  firewall rules were left at the end (one added today for the check, one from 1 July); the owner
+  removes them.
 
 ## Pushed today
 
@@ -21,7 +26,6 @@
 
 ## Do this first tomorrow
 
-1. **473 restore rehearsal** with the owner: restore to a throwaway server, verify, write the runbook, delete it.
 2. **Ticket 2608310040012537 (442)** -- Microsoft's answer to the 09-08 reply.
 3. **PayPal live cutover** -- production is still sandbox.
 4. Owner pre-launch list: Postmaster Tools, PayPal Verified badge, "Contact us" channel, the Masoud demo (463).
