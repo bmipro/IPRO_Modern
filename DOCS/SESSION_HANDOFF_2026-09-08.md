@@ -34,7 +34,7 @@
 | `451aed5` | **468** (09-09) a Help icon on every portal page opening the guide and section for that page; HelpLinksTests keeps the map complete | whole tree |
 | `3cef520` | **469** (09-09) the Team Member Logins guide, indexed, the Help icon on My Team pointing at it | whole tree |
 | `9b89ad2` | **462(a)(d)(e)** (09-09) Did You Know help text says the articles are emailed; Articles Delete asks for confirmation; the Blog-block gate is pinned to the guide (the code already gated it) | whole tree |
-| _see log_ | **470** (09-09, owner's launch call) Did You Know starter block: SuperAdmin picks starter articles per business type; provisioning creates the agent's Articles first and fills the block with real ids; preview shows the teasers | whole tree |
+| `1fbcc6c` | **470** (09-09, owner's launch call) Did You Know starter block: SuperAdmin picks starter articles per business type; provisioning creates the agent's Articles first and fills the block with real ids; preview shows the teasers | whole tree |
 | `06f309b` | **432** (09-09) Admin header clock shows the platform's time zone (Admin:TimeZone, Eastern when unset) with a short label, not the server's UTC | whole tree |
 | `cea3ac8` | **462(b)+(c)** (09-09) dead CalendarReminderJob removed, its stale Hangfire definition dropped at startup; Marketing Calendar on the agent's local date, month bounded by local midnights | whole tree |
 | `455ee57` | **418** (09-09) invoice numbers from a never-decrementing counter (platform per year, client invoices per agent and type); seeded from the existing maximum; row-locked | whole tree |
@@ -96,8 +96,9 @@ Four pushes, each verified at `/health/version` on both hosts before its tick:
 | `cea3ac8` | **462(b)+(c)** dead CalendarReminderJob removed, stale Hangfire definition dropped at startup; Marketing Calendar on the agent's local date | 721/721 |
 | `06f309b` | **432** Admin header clock in the platform's time zone (Admin:TimeZone, Eastern when unset, labelled ET) | 724/724 |
 | `9b89ad2` | **462(a)(d)(e)** Did You Know help text says the articles are emailed; Articles Delete confirms; Blog-block gate pinned to the guide | see the tick |
+| `1fbcc6c` | **470** (owner's launch call, evening) a Did You Know starter block arrives filled: SuperAdmin ticks starter articles per business type; provisioning creates the agent's Articles first and writes the real ids; preview shows the teasers | 730/730 |
 
-Final build on both hosts: `ed0cd56`. Tree clean and pushed.
+Final build on both hosts: `63b50ed` (after 470, pushed in the evening).
 
 Then the close-out the owner asked for: both snapshot zips (`git archive HEAD` to
 `OneDrive\Codex_Code_Bkup` and `Documents\IPRO_Backups`), build servers shut down, no test host
