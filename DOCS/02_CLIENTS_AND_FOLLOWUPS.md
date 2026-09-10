@@ -26,7 +26,16 @@ The email address is normalized to lowercase and must be unique for that agent. 
 2. Click the edit icon beside the client.
 3. Make changes and save.
 
-To delete a client, click the trash icon and confirm. Deletion also removes related activity that depends on that client, so use it carefully.
+To delete a client, click the trash icon and confirm. The client moves to **Recently Deleted** for 30 days (see below); nothing is destroyed straight away.
+
+## Recently Deleted
+
+Deleting a client no longer destroys anything immediately. The client and everything that belonged to them (notes, follow-ups, life events, account-type links, portal documents, invoices and estimates with their lines, queued e-cards and e-letters, testimonial submissions) move to **Recently Deleted**, reachable from the button at the top of **Clients**. They stay there for 30 days.
+
+- **Restore** on that page brings the client back with all of it, and re-links the history that was kept as part of your own records (newsletter and poll sends, website leads).
+- After 30 days a nightly clean-up removes the entry and, only then, the files.
+- A restored client gets a new internal number. Anything that shows the client, such as an invoice, points at the restored record.
+- The page shows how many days each entry has left; entries with three days or fewer are marked in red.
 
 ## Import Clients from CSV
 

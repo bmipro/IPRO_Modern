@@ -47,8 +47,10 @@ and a stale "not yet fixed" line actively causes harm, having been re-raised as 
 weeks after the thing was fixed.
 
 ### Database
-- The production MySQL server (`ipro-mysql-prod`, resource group `ipro-production`, an Azure Database for MySQL Flexible Server) has **automated backups with 7-day retention** (confirmed via `az mysql flexible-server list`). Geo-redundant backup is currently **disabled** — the backup only survives a regional Azure outage if that's turned on, which it isn't today. Worth revisiting once real customer data volume justifies the extra cost.
-- Point-in-time restore within that 7-day window is available directly through Azure (`az mysql flexible-server restore`) if ever needed — this hasn't been exercised/tested in this project yet.
+- The production MySQL server (`ipro-mysql-prod`, resource group `ipro-production`, an Azure Database for MySQL Flexible Server) has **automated backups with 35-day retention** (raised from 7 by the owner on 2026-09-10; confirmed via `az mysql flexible-server show`). The window fills from that date: the earliest restore point was still 2026-09-02 on the day it was raised. Geo-redundant backup is currently **disabled** — the backup only survives a regional Azure outage if that's turned on, which it isn't today. Worth revisiting once real customer data volume justifies the extra cost.
+- Point-in-time restore within that 35-day window is available directly through Azure (`az mysql flexible-server restore`) if ever needed — this hasn't been exercised/tested in this project yet (rehearsal planned, TODO 473).
+- **Files** (`iprostorageprod`): blob soft delete and container soft delete (30 days) and blob versioning, all enabled by the owner on 2026-09-10. A file the app deletes can be undeleted in the Azure portal within 30 days.
+- **Application level** (472, 2026-09-10): deleting a client moves it to a 30-day recycle bin the agent restores themselves (`ClientRecycleBin`); every other delete in the portal is still immediate. The nightly `client-recycle-bin-purge` job removes expired snapshots and only then their files.
 
 ## Release (shipping a change to production)
 
@@ -76,4 +78,4 @@ There is no staging environment — every push to `main` deploys straight to pro
 - **No staging/pre-prod slot.** Every deploy goes directly to the live app. An Azure App Service deployment slot (swap-based) would let a change be verified before it's user-facing — not set up today.
 - **No automated rollback procedure.** Today, undoing a bad deploy means reverting the commit and pushing again (which redeploys via the same pipeline), or re-running a previous successful GitHub Actions workflow run from the Actions tab. Neither is scripted or documented step-by-step yet.
 - **No automated smoke tests post-deploy.** Verification today is manual (log check + visual check per the steps above), not a scripted health check that runs automatically after every deploy.
-- **Database point-in-time restore has never actually been tested** in this project — the 7-day automated backup exists, but the restore *procedure* itself is unverified.
+- **Database point-in-time restore has never actually been tested** in this project — the 35-day automated backup exists, but the restore *procedure* itself is unverified.
