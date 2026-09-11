@@ -257,6 +257,15 @@ it reports zero.
 Background jobs already queued for a deleted agent (newsletter sends, e-cards, e-letters, queued article
 emails) find no rows and stop on their own.
 
+## Database Backups
+
+**Backups** (Super Admin only, under **System**) lists the nightly database dumps: a gzipped SQL file of
+the whole database, taken at 02:15 Eastern into a private storage container and kept for 30 days. The
+page shows each file's name and when it was taken, and **Run a dump now** takes one immediately (a
+moment, logged in the audit log). The files are private: download them from the storage account in the
+Azure portal, never from a link. How to restore one is in the repository's backup checklist (DOCS/14).
+Azure's own point-in-time backups (35 days) are separate and unaffected.
+
 ## Rebuild an Agent's Resources Section
 
 New agents get their Resources section built automatically from the starter articles for their business

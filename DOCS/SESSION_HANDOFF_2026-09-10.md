@@ -24,6 +24,7 @@
 |---|---|---|
 | `4a3b9ca` | **472** client recycle bin: delete snapshots everything the eraser removes and keeps the files; Recently Deleted page; one-click Restore with ids remapped and history re-linked; nightly purge after 30 days; erasure covers the table; guides 02 and 14 | 733/733 |
 | `9137190` | **475** Starter Articles editor: 'Add to this group' pre-fills business type, category and the next sort order; Business Type offers the verticals in use (datalist), on articles and starter pages | 736/736 |
+| _see log_ | **474** (09-11) nightly gzipped SQL dump of the database to the private db-backups container, 30-day retention; SuperAdmin Backups page with Run now; restore runbook | whole tree |
 
 ## Close-out 2026-09-10
 

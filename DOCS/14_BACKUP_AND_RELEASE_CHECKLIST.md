@@ -74,6 +74,18 @@ Use this to recover data from any moment in the last 35 days without touching pr
 Total on 2026-09-10: about 35 minutes including the data check.
 - **Files** (`iprostorageprod`): blob soft delete and container soft delete (30 days) and blob versioning, all enabled by the owner on 2026-09-10. A file the app deletes can be undeleted in the Azure portal within 30 days.
 - **Application level** (472, 2026-09-10): deleting a client moves it to a 30-day recycle bin the agent restores themselves (`ClientRecycleBin`); every other delete in the portal is still immediate. The nightly `client-recycle-bin-purge` job removes expired snapshots and only then their files.
+- **Nightly logical dump** (474, 2026-09-11): the `database-dump` job writes a gzipped SQL dump of the whole database (every table's CREATE TABLE and rows; Hangfire's own tables excluded) to the **private** `db-backups` container at 06:15 UTC and removes dumps older than 30 days. It is written in-process (`DatabaseDump`) because Linux App Service has no mysqldump. SuperAdmin → **Backups** lists the files and can take a dump on demand. A file we own, independent of Azure's backups.
+
+### Runbook: restore from a nightly dump
+
+1. Azure portal → `iprostorageprod` → Containers → `db-backups` → download the file you want (they are named `ipro_crm-YYYYMMDD-HHMMSS.sql.gz`, UTC).
+2. Unzip it (7-Zip, or `gzip -d`).
+3. Create an empty database on a throwaway server (the point-in-time runbook above creates one; or `CREATE DATABASE restore_test CHARACTER SET utf8mb4` on any MySQL 8) and replay:
+   ```
+   & "C:\Users\admin\ipro-local\mysql-8.0.44-winx64\bin\mysql.exe" -h <host> -u <user> -p --ssl-mode=REQUIRED restore_test < ipro_crm-20260911-061500.sql
+   ```
+   The script disables foreign-key checks while it runs, so table order does not matter.
+4. Query what you need and copy rows into production with new ids, or use the whole database as a rehearsal copy. Never replay a dump into production itself.
 
 ## Release (shipping a change to production)
 
