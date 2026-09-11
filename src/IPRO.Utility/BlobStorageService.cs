@@ -15,7 +15,18 @@ public interface IBlobStorageService
     Task<List<string>> ListAsync(string containerName);
     string GetPublicUrl(string containerName, string fileName);
     Task EnsureContainerAccessAsync(string containerName, bool isPrivate);
+
+    // 476: names with sizes and creation times. The default maps ListAsync so fakes and older
+    // implementations keep working; the real service overrides it with the blob properties.
+    async Task<List<BlobFileInfo>> ListDetailedAsync(string containerName)
+    {
+        var urls = await ListAsync(containerName);
+        return urls.Select(u => new BlobFileInfo(u, u.Split('/').Last(), null, null)).ToList();
+    }
 }
+
+// 476 (2026-09-11): one file in a container as the Backups page needs it.
+public sealed record BlobFileInfo(string Url, string Name, long? SizeBytes, DateTimeOffset? CreatedOn);
 
 public class AzureBlobStorageService : IBlobStorageService
 {
@@ -92,6 +103,19 @@ public class AzureBlobStorageService : IBlobStorageService
             urls.Add($"{container.Uri}/{blob.Name}");
         }
         return urls;
+    }
+
+    // 476: the same enumeration with each blob's size and creation time, for the Backups page.
+    public async Task<List<BlobFileInfo>> ListDetailedAsync(string containerName)
+    {
+        var container = _client.GetBlobContainerClient(containerName);
+        var files = new List<BlobFileInfo>();
+        if (!await container.ExistsAsync()) return files;
+        await foreach (var blob in container.GetBlobsAsync())
+        {
+            files.Add(new BlobFileInfo($"{container.Uri}/{blob.Name}", blob.Name, blob.Properties.ContentLength, blob.Properties.CreatedOn));
+        }
+        return files;
     }
 
     // Azurite uses path-style URLs (account name as a path segment) while real Azure Storage

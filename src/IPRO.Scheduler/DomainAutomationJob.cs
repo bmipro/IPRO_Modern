@@ -188,7 +188,9 @@ public class DomainAutomationJob
 
         try
         {
-            await _email.SendAsync(to, "IPRO Operations", $"Domain needs a certificate: {domain.DomainName}", html);
+            // 454 (2026-09-11): a returned false is a refused send, not a thrown one; say so.
+            var sent = await _email.SendAsync(to, "IPRO Operations", $"Domain needs a certificate: {domain.DomainName}", html);
+            if (!sent) _logger.LogWarning("Certificate alert for {Domain} to {To} was not sent: the provider refused it", domain.DomainName, to);
         }
         catch (Exception ex)
         {

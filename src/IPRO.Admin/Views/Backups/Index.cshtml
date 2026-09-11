@@ -5,6 +5,7 @@
     var container = (string)(ViewBag.Container ?? "db-backups");
     var retentionDays = (int)(ViewBag.RetentionDays ?? 30);
     var listError = ViewBag.ListError as string;
+    string SizeText(long bytes) => bytes >= 1024 * 1024 ? $"{bytes / 1024.0 / 1024.0:0.0} MB" : $"{Math.Max(1, bytes / 1024)} KB";
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -28,13 +29,15 @@
   else
   {
     <div class="table-responsive"><table class="table align-middle mb-0">
-      <thead><tr><th>File</th><th>Taken</th><th>Age</th></tr></thead>
+      <thead><tr><th>File</th><th>Taken</th><th>Size</th><th>Change</th><th>Age</th></tr></thead>
       <tbody>
       @foreach (var row in Model)
       {
         <tr>
           <td><code>@row.Name</code></td>
           <td>@(row.TakenAtUtc.HasValue ? IPRO.Admin.Infrastructure.AdminClock.Format(row.TakenAtUtc.Value, zone) : "-")</td>
+          <td>@(row.SizeBytes.HasValue ? SizeText(row.SizeBytes.Value) : "-")</td>
+          <td>@if (row.ChangePercent.HasValue) { var swing = Math.Abs(row.ChangePercent.Value) >= 25; <span class="@(swing ? "badge bg-danger" : "text-muted")">@(row.ChangePercent.Value >= 0 ? "+" : "")@row.ChangePercent.Value.ToString("0.#")%</span> } else { <span class="text-muted">-</span> }</td>
           <td class="text-muted">@(row.TakenAtUtc.HasValue ? $"{Math.Floor((DateTime.UtcNow - row.TakenAtUtc.Value).TotalDays)} day(s)" : "")</td>
         </tr>
       }
@@ -42,4 +45,4 @@
     </table></div>
   }
 </div>
-<div class="small text-muted mt-3">To restore: download a file from the storage account (Azure portal &rarr; iprostorageprod &rarr; Containers &rarr; @container), unzip it, and replay it into an <strong>empty</strong> database on a throwaway server. The steps are in DOCS/14 of the repository.</div>
+<div class="small text-muted mt-3">Change is against the previous dump; a swing of 25% or more is marked in red. To restore: download a file from the storage account (Azure portal &rarr; iprostorageprod &rarr; Containers &rarr; @container), unzip it, and replay it into an <strong>empty</strong> database on a throwaway server. The steps are in DOCS/14 of the repository.</div>

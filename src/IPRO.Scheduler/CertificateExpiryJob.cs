@@ -134,7 +134,9 @@ public class CertificateExpiryJob
 
         try
         {
-            await _email.SendAsync(to, "IPRO Operations", "Certificate renewal due", html);
+            // 454 (2026-09-11): a returned false is a refused send, not a thrown one; say so.
+            var sent = await _email.SendAsync(to, "IPRO Operations", "Certificate renewal due", html);
+            if (!sent) _logger.LogWarning("Certificate expiry alert email to {To} was not sent: the provider refused it", to);
         }
         catch (Exception ex)
         {

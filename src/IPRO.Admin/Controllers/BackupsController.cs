@@ -27,21 +27,37 @@ public class BackupsController : Controller
         _blob = blob; _services = services; _auditLog = auditLog; _configuration = configuration;
     }
 
-    public sealed record BackupFileRow(string Name, DateTime? TakenAtUtc);
+    public sealed record BackupFileRow(string Name, DateTime? TakenAtUtc, long? SizeBytes = null, double? ChangePercent = null);
 
     public async Task<IActionResult> Index()
     {
-        List<string> urls;
-        try { urls = await _blob.ListAsync(DatabaseDumpJob.ContainerName); }
+        List<BlobFileInfo> files;
+        try { files = await _blob.ListDetailedAsync(DatabaseDumpJob.ContainerName); }
         catch (Exception ex)
         {
-            urls = new List<string>();
+            files = new List<BlobFileInfo>();
             ViewBag.ListError = ex.Message;
         }
-        var rows = urls
-            .Select(url => new BackupFileRow(url.Split('/').Last(), DatabaseDumpJob.TryParseTimestamp(url, out var t) ? t : null))
-            .OrderByDescending(r => r.TakenAtUtc ?? DateTime.MinValue)
+        var dated = files
+            .Select(f => (file: f, taken: DatabaseDumpJob.TryParseTimestamp(f.Url, out var t) ? t : (DateTime?)null))
+            .OrderByDescending(x => x.taken ?? DateTime.MinValue)
             .ToList();
+
+        // 476 (2026-09-11): the change against the previous dump, so a swing in the database
+        // stands out on the page rather than in a spreadsheet later.
+        var rows = new List<BackupFileRow>();
+        for (var i = 0; i < dated.Count; i++)
+        {
+            var (file, taken) = dated[i];
+            double? change = null;
+            if (taken != null && file.SizeBytes is > 0)
+            {
+                var previous = dated.Skip(i + 1).FirstOrDefault(x => x.taken != null && x.file.SizeBytes is > 0);
+                if (previous.file != null)
+                    change = (file.SizeBytes.Value - previous.file.SizeBytes!.Value) * 100.0 / previous.file.SizeBytes.Value;
+            }
+            rows.Add(new BackupFileRow(file.Name, taken, file.SizeBytes, change));
+        }
         ViewBag.Zone = AdminClock.Zone(_configuration);
         ViewBag.Container = DatabaseDumpJob.ContainerName;
         ViewBag.RetentionDays = DatabaseDumpJob.RetentionDays;
