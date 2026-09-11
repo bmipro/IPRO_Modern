@@ -104,6 +104,9 @@
   .dyk-readmore:hover { text-decoration: underline; }
   .dyk-teasers.dyk-grid-2x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .dyk-teasers.dyk-grid-2x3 .dyk-card { border-bottom: 0; padding: 16px; background: rgba(0,0,0,.03); border-radius: 8px; }
+  /* 479: the grid keeps its three columns down to 560px, so the landing pages' preview frame (about
+     620px wide on a desktop) shows the 2 x 3 the block was set to; only phones stack it. */
+  @@media (max-width: 559px) { .dyk-teasers.dyk-grid-2x3 { grid-template-columns: 1fr; } }
   /* Hover reveal is desktop-only: below 801px the accordion in _PublicNavigation.cshtml drives
      visibility off .is-open instead, so these rules must not apply there. */
   @@media (min-width: 801px) {
@@ -159,6 +162,5 @@
     .managed-grid { grid-template-columns: 1fr; }
     .managed-contact { grid-template-columns: 1fr; }
     .managed-hero__layout { grid-template-columns: 1fr; }
-    .dyk-teasers.dyk-grid-2x3 { grid-template-columns: 1fr; }
   }
 </style>

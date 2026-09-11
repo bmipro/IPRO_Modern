@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using IPRO.DataAccess;
 using IPRO.Entities;
@@ -69,6 +70,9 @@ public static class DidYouKnowBuilder
     private static string BuildExcerpt(string html)
     {
         var text = Regex.Replace(html ?? string.Empty, "<.*?>", " ");
+        // 479: the body's entities (&mdash;, &rsquo;, &amp;) read as the characters they stand for; the
+        // page encodes the excerpt again, so left in they showed as literal "&mdash;" on the site.
+        text = WebUtility.HtmlDecode(text);
         text = Regex.Replace(text, @"\s+", " ").Trim();
         if (text.Length <= ExcerptLength) return text;
 
