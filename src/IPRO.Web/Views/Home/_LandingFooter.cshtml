@@ -1,0 +1,23 @@
+@{
+    // 478 (2026-09-11): the footer every vertical landing page shares -- the designer's corrected
+    // four-column footer (mortgage-page-v1) with the platform's links: the home's sections, the
+    // vertical pages, the live legal routes (/terms and /privacy; the first cut of /accountants
+    // linked the conventional Home-controller paths for them, which answer 404) and the same social
+    // links as the home.
+}
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <img class="footer-logo" src="/images/ipro-advisers-logo.png" alt="IPRO Advisers">
+      <p>Website, CRM, marketing and client engagement tools for adviser niches and growing businesses.</p>
+      <div class="footer-social" aria-label="Social links">
+        <a href="https://www.facebook.com/p/iPRO-100071151034796/" target="_blank" rel="noopener" aria-label="IPRO Advisers on Facebook">f</a>
+        <a href="https://www.youtube.com/@@AllAdvisers" target="_blank" rel="noopener" aria-label="IPRO Advisers on YouTube">&#9654;</a>
+      </div>
+    </div>
+    <div><h3>Product</h3><div class="footer-links"><a href="/#i2-platform">Platform</a><a href="#pricing">Pricing</a><a href="/Preview">Website preview</a><a href="/Account/Login">Sign in</a></div></div>
+    <div><h3>Markets</h3><div class="footer-links"><a href="/#i2-start">Insurance / Financial</a><a href="/accountants">Accountants</a><a href="/mortgage">Mortgage</a><a href="/#i2-start">Generic</a></div></div>
+    <div><h3>Company</h3><div class="footer-links"><a href="/#i2-trust">About IPRO</a><a href="/#i2-contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div>
+  </div>
+  <div class="container footer-bottom"><span>&copy; @DateTime.UtcNow.Year IPRO Advisers. Canadian dollars before applicable tax.</span><span>Built and supported in Canada.</span></div>
+</footer>

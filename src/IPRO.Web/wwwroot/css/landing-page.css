@@ -1,4 +1,4 @@
-/* 478 (2026-09-11): the accountants landing page. The designer's stylesheet (accountants-page-v2-font-revision), with the phone-width fix marked 478 and the platform's slot styles at the end. */
+/* 478 (2026-09-11): the stylesheet every vertical landing page shares (/accountants, /mortgage). The designer's sheet (mortgage-page-v1: the corrected four-column footer, the phone-width fix) as delivered, with the platform's slot styles at the end. */
 :root {
   --navy: #173b55;
   --navy-deep: #102c40;
@@ -47,10 +47,10 @@ a { color: inherit; }
 .main-nav .nav-register { border: 1px solid var(--orange); color: var(--orange-dark); padding: .55rem 1rem; border-radius: 4px; font-weight: 700; }
 .hero { background: var(--navy); color: var(--white); overflow: hidden; }
 .hero-grid { min-height: 650px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: center; gap: var(--space-7); padding-block: var(--space-7); }
-.hero-copy { max-width: 560px; }
+.hero-copy { width: 100%; max-width: 560px; min-width: 0; }
 .eyebrow { margin: 0 0 var(--space-2); color: var(--orange); font-size: .78rem; letter-spacing: .08em; line-height: 1.3; font-weight: 700; text-transform: uppercase; }
 .hero h1 { max-width: 640px; margin: 0 0 var(--space-4); font-size: clamp(2.4rem, 4vw, 4.2rem); line-height: 1.08; letter-spacing: 0; }
-.hero-subline { max-width: 510px; color: var(--blue-grey); font-size: 1.18rem; margin: 0 0 var(--space-5); }
+.hero-subline { width: 100%; max-width: 510px; min-width: 0; color: var(--blue-grey); font-size: 1.18rem; margin: 0 0 var(--space-5); }
 .button-row { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
 .btn { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; padding: .72rem 1.2rem; border-radius: 4px; border: 1px solid transparent; font-weight: 700; text-decoration: none; }
 .btn-primary { color: var(--white); background: var(--orange); border-color: var(--orange); }
@@ -141,8 +141,18 @@ a { color: inherit; }
 .final-cta .btn-secondary:hover { background: var(--pale-blue); }
 .centered-row { justify-content: center; }
 .site-footer { background: var(--navy-deep); color: var(--light-blue); }
-.footer-inner { min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: .82rem; }
-.footer-inner span:first-child { color: var(--white); font-weight: 700; }
+.footer-grid { display: grid; grid-template-columns: 1.4fr repeat(3, .7fr); gap: var(--space-6); padding-block: var(--space-7); }
+.footer-brand { max-width: 290px; }
+.footer-logo { width: 176px; height: auto; margin-bottom: var(--space-3); }
+.footer-brand p { margin: 0; font-size: .85rem; line-height: 1.5; }
+.footer-grid h3 { margin: 0 0 var(--space-3); color: var(--white); font-family: var(--font); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.footer-links { display: grid; gap: .55rem; }
+.footer-links a { color: var(--light-blue); font-size: .85rem; text-decoration: none; }
+.footer-links a:hover { color: var(--white); }
+.footer-social { display: flex; gap: .55rem; margin-top: var(--space-4); }
+.footer-social a { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--light-blue); border-radius: 50%; color: var(--white); font-family: var(--font); font-size: .78rem; font-weight: 700; text-decoration: none; }
+.footer-social a:hover { background: var(--navy); border-color: var(--white); }
+.footer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-top: 1px solid rgba(198,213,223,.35); font-size: .78rem; }
 
 @media (min-width: 768px) {
   .col-lg-3 { width: 25%; }
@@ -150,7 +160,7 @@ a { color: inherit; }
 }
 
 @media (max-width: 900px) {
-  .hero-grid, .see-grid, .pricing-layout, .trust-grid { grid-template-columns: minmax(0, 1fr); } /* 478: a 1fr track sized to a 116%-wide stage pushed the hero 26 px past a 375 px screen */
+.hero-grid, .see-grid, .pricing-layout, .trust-grid { grid-template-columns: minmax(0, 1fr); } /* 478: a 1fr track sized to a 116%-wide stage pushed the hero 26 px past a 375 px screen; the designer carried the fix into mortgage-page-v1 */
   .hero-copy { max-width: 700px; }
   .device-stage { max-width: 700px; min-height: 390px; }
   .trust-points { max-width: 700px; }
@@ -163,12 +173,12 @@ a { color: inherit; }
   .main-nav { gap: .7rem; font-size: .76rem; }
   .main-nav a:not(.nav-register) { display: none; }
   .nav-register { padding: .5rem .72rem; }
-  .hero-grid { min-height: auto; padding-block: var(--space-7); gap: var(--space-6); }
+  .hero-grid { display: block; min-height: auto; padding-block: var(--space-7); }
   .hero h1 { font-size: 2.45rem; }
   .hero-subline { font-size: 1.05rem; }
   .button-row { align-items: stretch; flex-direction: column; }
   .btn { width: 100%; }
-  .device-stage { min-height: 270px; transform: scale(.86); transform-origin: left top; width: 100%; margin-bottom: -35px; }
+  .device-stage { min-height: 270px; margin-top: var(--space-6); transform: scale(.86); transform-origin: left top; width: 116%; margin-bottom: -35px; }
   .laptop { transform: translateX(-.5rem); }
   .phone { right: -1rem; }
   .section { padding-block: var(--space-7); }
@@ -177,7 +187,9 @@ a { color: inherit; }
   .preview-site-header nav { flex-wrap: wrap; }
   .preview-site-body { padding: 2rem 1.3rem; }
   .trust-points { grid-template-columns: 1fr; gap: var(--space-4); }
-  .footer-inner { align-items: flex-start; flex-direction: column; justify-content: center; padding-block: 1rem; }
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+  .footer-brand { grid-column: 1 / -1; max-width: 100%; }
+  .footer-bottom { align-items: flex-start; flex-direction: column; }
 }
 
 /* ---- 478: platform slots ---- */
@@ -195,10 +207,6 @@ a { color: inherit; }
 .pricing-more { margin: 1rem 0 0; color: var(--muted); font-size: .85rem; }
 .pricing-more a { color: var(--orange-dark); font-weight: 700; }
 .preview-live { display: block; width: 100%; height: 540px; border: 0; background: var(--white); }
-.preview-fallback { padding: 2rem; color: var(--muted); }
-.site-footer .footer-links { display: flex; flex-wrap: wrap; gap: 1.2rem; }
-.site-footer .footer-links a { color: var(--light-blue); text-decoration: none; font-size: .82rem; }
-.site-footer .footer-links a:hover { color: var(--white); }
 @media (max-width: 767px) {
   .preview-live { height: 420px; }
   .brand img.platform-logo { width: 130px; }

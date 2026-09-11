@@ -1,0 +1,35 @@
+@model List<IPRO.Entities.BillingRule>
+@{
+    // 478 (2026-09-11): the pricing slot every vertical landing page shares -- the live packages, the
+    // same rows the platform home shows, with register links carrying the page's business type.
+    var businessType = ViewData["BusinessType"] as string ?? "";
+    var now = DateTime.UtcNow;
+    static string Money(decimal amount) => amount % 1 == 0 ? amount.ToString("N0") : amount.ToString("N2");
+}
+<div class="pricing-cards">
+  @foreach (var package in Model)
+  {
+    var setupFeeDue = package.SetupFee > 0 && !(package.SetupFeeWaived || (package.SetupFeeWaivedUntil.HasValue && package.SetupFeeWaivedUntil.Value > now));
+    var included = package.Features.Where(f => f.IsIncluded).OrderBy(f => f.SortOrder).Take(6).ToList();
+    <article class="pricing-card">
+      <h3>@package.PackageName</h3>
+      <p class="price">$@Money(package.MonthlyPrice) <small>per month</small></p>
+      <p class="price-note">
+        @if (package.AnnualPrice > 0) { <text>or $@Money(package.AnnualPrice) per year. </text> }
+        @if (setupFeeDue) { <text>One-time setup fee $@Money(package.SetupFee). </text> }
+        Canadian dollars before applicable tax.
+      </p>
+      @if (included.Count > 0)
+      {
+        <ul>
+          @foreach (var feature in included)
+          {
+            <li>@feature.FeatureName@(string.IsNullOrWhiteSpace(feature.LimitLabel) ? "" : $" ({feature.LimitLabel})")</li>
+          }
+        </ul>
+      }
+      <a class="btn btn-primary" href="/Account/Register?businessType=@Uri.EscapeDataString(businessType)&amp;package=@Uri.EscapeDataString(package.PackageName)">Register with @package.PackageName</a>
+    </article>
+  }
+</div>
+<p class="pricing-more">Every feature, package by package: <a href="/#i2-pricing">compare the full table</a>.</p>

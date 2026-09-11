@@ -17,9 +17,10 @@ namespace IPRO.IntegrationTests;
 
 // TODO 478 (2026-09-11), the first vertical landing page: app.iproadvisers.com/accountants, built
 // from the designer's package (accountants-page-v2-font-revision). One page inside the platform,
-// the platform's own header and footer, the live package list from the database in the pricing
-// slot, the live accountant starter-site preview in the preview slot, the register and preview
-// links wired with the business type. iproaccountants.com lands here on the domain-switch day (477).
+// the platform's own header, the shared footer and pricing partials (the corrected four-column
+// footer arrived with the mortgage package the same day), the live accountant starter-site preview
+// in the preview slot, the register and preview links wired with the business type.
+// iproaccountants.com lands here on the domain-switch day (477).
 public class AccountantsLandingPageTests
 {
     [Fact]
@@ -65,32 +66,38 @@ public class AccountantsLandingPageTests
         // The links the brief said we would wire.
         Assert.Contains("/Account/Register?businessType=Accountants", view);
         Assert.Contains("/Preview/Show?businessType=Accountants", view);
+        Assert.Contains("ViewData[\"BusinessType\"] = \"Accountants\"", view);   // the pricing partial's register links
 
         // The four slots are filled by the platform, not left as placeholders or offline stand-ins.
         Assert.DoesNotContain("{{", view);
-        Assert.DoesNotContain("Northline Accounting", view);
-        Assert.Contains("@foreach (var package in Model)", view);
-        Assert.Contains("MonthlyPrice", view);
+        Assert.DoesNotContain("Northline", view);
+        Assert.Contains("<partial name=\"_LandingPricing\"", view);
+        Assert.Contains("<partial name=\"_LandingFooter\"", view);
         Assert.Contains("/Preview/Site?businessType=Accountants", view);   // the live preview in the frame
-        Assert.Contains("/images/ipro-advisers-logo.png", view);           // the platform's header and footer
+        Assert.Contains("/images/ipro-advisers-logo.png", view);           // the platform's header
         Assert.Contains("/Account/Login", view);
+        // The first cut linked /Home/Terms and /Home/Privacy, which answer 404 in production; the
+        // shared footer links the live /terms and /privacy.
+        Assert.DoesNotContain("/Home/Terms", view);
+        Assert.DoesNotContain("/Home/Privacy", view);
 
-        // No scripts from anywhere, and the stylesheet is the platform's own file.
+        // No scripts from anywhere, and the stylesheet is the one both vertical pages share.
         Assert.DoesNotContain("<script src=\"http", view);
-        Assert.Contains("/css/accountants-page.css", view);
+        Assert.Contains("/css/landing-page.css", view);
+        Assert.DoesNotContain("accountants-page.css", view);
     }
 
     [Fact]
     public void The_stylesheet_and_assets_are_in_place_with_the_phone_width_fix()
     {
-        var css = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\wwwroot\css\accountants-page.css"));
+        var css = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\wwwroot\css\landing-page.css"));
         Assert.Contains("--navy: #173b55", css);
         // The package clipped the hero by 26 px at 375 px: a 116%-wide device stage forced the single
         // grid track wider than the container. The track is now allowed to shrink.
         Assert.Contains("grid-template-columns: minmax(0, 1fr)", css);
 
         foreach (var asset in new[] { "icon-website.svg", "icon-portal.svg", "icon-followups.svg", "icon-newsletter.svg" })
-            Assert.True(File.Exists(FindRepoFile(@"src\IPRO.Web\wwwroot\images\accountants\" + asset)), asset + " is missing");
+            Assert.True(File.Exists(FindRepoFile(@"src\IPRO.Web\wwwroot\images\landing\" + asset)), asset + " is missing");
     }
 
     [Fact]

@@ -60,6 +60,22 @@ public class HomeController : Controller
         return View(await LoadPublicPackagesAsync());
     }
 
+    // 478 (2026-09-11), the second vertical: the mortgage landing page, /mortgage, from the designer's
+    // package mortgage-page-v1 (the one with the corrected four-column footer, now the footer of every
+    // vertical page). Same template as Accountants: the public packages in the home's order, the live
+    // mortgage starter-site preview, register and preview links with the business type. /mortgages
+    // too, because the designer's README named the page that. ipromortgages.com lands here once it
+    // is registered and bound (477).
+    [AllowAnonymous]
+    [HttpGet("/mortgage")]
+    [HttpGet("/mortgages")]
+    [HttpGet("/Home/Mortgage")]
+    public async Task<IActionResult> Mortgage()
+    {
+        ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
+        return View(await LoadPublicPackagesAsync());
+    }
+
     // The packages the public may buy, in the order the home shows them.
     private async Task<List<BillingRule>> LoadPublicPackagesAsync()
     {
