@@ -23,10 +23,31 @@
 | Code | Item | Gate |
 |---|---|---|
 | `4a3b9ca` | **472** client recycle bin: delete snapshots everything the eraser removes and keeps the files; Recently Deleted page; one-click Restore with ids remapped and history re-linked; nightly purge after 30 days; erasure covers the table; guides 02 and 14 | 733/733 |
-| _see log_ | **475** Starter Articles editor: 'Add to this group' pre-fills business type, category and the next sort order; Business Type offers the verticals in use (datalist), on articles and starter pages | whole tree |
+| `9137190` | **475** Starter Articles editor: 'Add to this group' pre-fills business type, category and the next sort order; Business Type offers the verticals in use (datalist), on articles and starter pages | 736/736 |
 
+## Close-out 2026-09-10
+
+Pushed and verified at `/health/version` on both hosts before each tick:
+
+| Code | Item | Gate |
+|---|---|---|
+| `4a3b9ca` | **472** client recycle bin: snapshot of everything the eraser removes, files kept, Recently Deleted page, one-click Restore with ids remapped and history re-linked, nightly purge after 30 days | 733/733 |
+| docs | **473** restore rehearsal done (22:10 UTC point, Ready in 7 min 14 s, counts matched, copy deleted); runbook in DOCS/14 | -- |
+| `9137190` | **475** Starter Articles editor: 'Add to this group' pre-fills, Business Type offers the verticals in use (datalist), same on starter pages | see the tick |
+
+Final build on both hosts: `d632b69`. Tree clean and pushed.
+
+Owner-side today, all read back: database backup retention 35 days; blob and container soft delete
+30 days; blob versioning on; production firewall back to `AllowAzureServices` only (two client-IP
+rules removed on the owner's word). The owner tested the recycle bin on a client with a follow-up:
+delete, Recently Deleted, Restore -- everything back.
+
+Close-out as asked: both snapshot zips (`git archive HEAD` to `OneDrive\Codex_Code_Bkup` and
+`Documents\IPRO_Backups`), build servers shut down, no test host running. Local MySQL is the
+Windows service `IPROLocalMySQL` (AUTO_START): nothing to stop before a reboot.
 ## Do this first tomorrow
 
+0. **474 nightly database dump to blob storage** -- the owner chose to start the day with it (3-4 h build with tests; no mysqldump on Linux App Service, so an in-app export job to a private container with a 30-day lifecycle rule).
 2. **Ticket 2608310040012537 (442)** -- Microsoft's answer to the 09-08 reply.
 3. **PayPal live cutover** -- production is still sandbox.
 4. Owner pre-launch list: Postmaster Tools, PayPal Verified badge, "Contact us" channel, the Masoud demo (463).
