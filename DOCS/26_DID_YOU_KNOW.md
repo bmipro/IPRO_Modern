@@ -13,7 +13,7 @@ Write and **publish** the Articles you want to offer (see the Articles guide). D
 1. Go to **My Website** > **Manage Pages** and edit the page (or create one).
 2. Add a block of type **Did You Know Teaser**.
 3. Under **Which articles?** tick the articles to include. They appear in the order you tick them. If you have no published articles yet, the panel tells you to write one first.
-4. Choose the **Teaser layout**: **Auto-arrange** or **Grid**.
+4. Choose the **Teaser layout**: **Auto-arrange** or **Grid**. Grid shows three columns on any screen wider than 560 px and stacks the cards on phones.
 5. Save the block and publish the page.
 
 ## What a Visitor Sees

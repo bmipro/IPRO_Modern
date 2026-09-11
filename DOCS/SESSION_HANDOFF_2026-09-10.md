@@ -29,6 +29,7 @@
 | `417da98` | **477** (code half) the old public names redirect permanently to the platform -- the home, or the host's own landing page (/accountants) -- once App:AliasHosts is set; launch-day runbook in DOCS/14 | 745/745 |
 | `fc8fd00` | **478** (/accountants) the accountants landing page from the designer's package: platform header and footer, live package cards, live starter-site preview in the frame, register and preview links with the business type; phone-width clip fixed | 749/749 |
 | `770d126` | **478** (/mortgage) the mortgage landing page from the designer's package on the same template; the corrected four-column footer and the pricing cards become partials both pages share, one stylesheet, icons under images/landing; the accountants footer's Terms and Privacy links fixed (/Home/Terms and /Home/Privacy answered 404) | 754/754 |
+| _see log_ | **479** Did You Know teasers decode entities (a literal &mdash; showed in the accountants preview); the 2 x 3 grid keeps its three columns inside the landing pages' preview frame (stack rule phone-only now) | whole tree |
 
 ## Close-out 2026-09-10
 
