@@ -43,6 +43,7 @@ public class StarterContentController : Controller
 
     public async Task<IActionResult> Create()
     {
+        ViewBag.BusinessTypes = await StarterBusinessTypes.ListAsync(_db);
         return View("Edit", new StarterPageEditViewModel
         {
             Page = new WebsiteStarterPage { BusinessType = "All", ShowInNavigation = true, IsActive = true },
@@ -56,6 +57,7 @@ public class StarterContentController : Controller
         if (page == null) return NotFound();
         page.Blocks = page.Blocks.OrderBy(b => b.SortOrder).ToList();
         ViewBag.ImagePool = await StarterImagePoolAsync();
+        ViewBag.BusinessTypes = await StarterBusinessTypes.ListAsync(_db);
         return View(new StarterPageEditViewModel
         {
             Page = page, Packages = await PackagesAsync(), StarterArticles = await StarterArticlesForAsync(page.BusinessType)

@@ -17,7 +17,9 @@
       <div class="row">
         <div class="col-md-4 mb-3">
           <label class="form-label fw-semibold">Business Type</label>
-          <input asp-for="BusinessType" class="form-control" placeholder="All, Insurance / Financial, Mortgage, or Accountants" />
+          <input asp-for="BusinessType" class="form-control" list="businessTypes" autocomplete="off" placeholder="Pick a vertical, or type a new one" />
+          <datalist id="businessTypes">@foreach (var type in (ViewBag.BusinessTypes as IEnumerable<string>) ?? Enumerable.Empty<string>()){<option value="@type"></option>}</datalist>
+          <div class="form-text">"All" goes to every vertical. The names offered are the ones in use; a new name creates a vertical.</div>
         </div>
         <div class="col-md-4 mb-3">
           <label class="form-label fw-semibold">Category</label>

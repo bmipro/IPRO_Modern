@@ -40,12 +40,28 @@ public class WebsiteStarterArticlesController : Controller
         return View(articles);
     }
 
-    public IActionResult Create() => View("Edit", new WebsiteStarterArticle { BusinessType = "All", IsActive = true });
+    // 475 (2026-09-10): "Add to this group" on the list opens the form filled in for that business
+    // type and category with the next sort order; the header button still opens a blank one.
+    public async Task<IActionResult> Create(string? businessType = null, string? category = null)
+    {
+        var type = string.IsNullOrWhiteSpace(businessType) ? StarterBusinessTypes.All : businessType.Trim();
+        var cat = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+        var siblings = await _db.WebsiteStarterArticles.AsNoTracking()
+            .Where(a => a.BusinessType == type && a.Category == cat)
+            .Select(a => a.SortOrder)
+            .ToListAsync();
+        ViewBag.BusinessTypes = await StarterBusinessTypes.ListAsync(_db);
+        return View("Edit", new WebsiteStarterArticle
+        {
+            BusinessType = type, Category = cat, SortOrder = siblings.Count == 0 ? 0 : siblings.Max() + 1, IsActive = true
+        });
+    }
 
     public async Task<IActionResult> Edit(int id)
     {
         var article = await _db.WebsiteStarterArticles.FirstOrDefaultAsync(a => a.Id == id);
         if (article == null) return NotFound();
+        ViewBag.BusinessTypes = await StarterBusinessTypes.ListAsync(_db);
         return View(article);
     }
 
@@ -66,7 +82,11 @@ public class WebsiteStarterArticlesController : Controller
         if (string.IsNullOrWhiteSpace(model.Content))
             ModelState.AddModelError(nameof(model.Content), "Content is required.");
 
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid)
+        {
+            ViewBag.BusinessTypes = await StarterBusinessTypes.ListAsync(_db);
+            return View(model);
+        }
 
         var isNew = model.Id == 0;
         if (isNew)
