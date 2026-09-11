@@ -191,6 +191,21 @@ A handful of starter templates (announcement, market update, thank-you note, sea
 
 New agents receive matching starter pages based on business type/package. Agents may edit their resulting content.
 
+### Starter Articles
+
+**Starter Articles** are the Resources articles a new agent receives for their business type. The list
+groups them by business type and category.
+
+- **Add to this group** on a group's header opens the form with that business type and category filled
+  in and the next sort order. **New Starter Article** at the top opens a blank form.
+- **Business Type** offers the verticals in use (All, Accountants, Insurance / Financial, Mortgage, and
+  anything you have already typed). Pick one, or type a new name once to create a vertical; it is
+  offered from then on. "All" goes to every vertical.
+- **Category** blank gives the article its own Resources page; articles sharing a category are stacked
+  on one page.
+- Articles reach agents provisioned after you add them; agents who already have a Resources page keep
+  what they have (see Rebuild an Agent's Resources Section below).
+
 ### A Did You Know block that arrives filled
 
 A **Did You Know** starter block is the one block whose content lives somewhere else: it shows
