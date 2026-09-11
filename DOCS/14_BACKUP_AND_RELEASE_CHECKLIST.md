@@ -87,6 +87,36 @@ Total on 2026-09-10: about 35 minutes including the data check.
    The script disables foreign-key checks while it runs, so table order does not matter.
 4. Query what you need and copy rows into production with new ids, or use the whole database as a rehearsal copy. Never replay a dump into production itself.
 
+## Launch-day domain switch (477)
+
+The old public names -- `www.iproaccountants.com`, `iproaccountants.com`, `www.iproadvisers.com`,
+`iproadvisers.com` -- resolve today (2026-09-11) to the old site at 66.102.128.65. At launch they
+point at the new site, and the app answers them with a permanent redirect to
+the platform: `iproadvisers.com` to the home, `iproaccountants.com` to `/accountants` (and later
+`ipromortgages.com` to `/mortgage`), never the old path. The code is in place
+(`PlatformAliasHosts`, first middleware in `IPRO.Web`); it does nothing until `App:AliasHosts` is set.
+
+Order on the day, owner's actions marked:
+
+1. **Owner, registrar:** for each of the four names add the App Service verification record
+   `TXT asuid.<name>` = the app's custom-domain verification id (Azure portal → ipro-prod-web →
+   Custom domains → the id shown there). Touch nothing else on `iproadvisers.com`: its SPF, DKIM and
+   MX records carry the ACS email domain.
+2. **Owner's go, then CLI or portal:** bind the four hostnames to `ipro-prod-web` and create an App
+   Service managed certificate for each (portal: Custom domains → Add → managed certificate).
+3. **Owner's go, App Service configuration:** `App__AliasHosts` =
+   `www.iproadvisers.com,iproadvisers.com,www.iproaccountants.com=/accountants,iproaccountants.com=/accountants`
+   on ipro-prod-web (the app restarts once). Add `www.ipromortgages.com=/mortgage,ipromortgages.com=/mortgage`
+   once that domain is registered and bound.
+4. **Owner, registrar, the moment of the switch:** `www` names → `CNAME ipro-prod-web.azurewebsites.net`;
+   apexes → `A` the app's inbound IP (Custom domains page shows it; 40.89.19.0 on 2026-09-11) --
+   or an ALIAS/ANAME record to `ipro-prod-web.azurewebsites.net` if the registrar supports one.
+5. **Verify:** `curl -sI https://www.iproaccountants.com/` answers `301` with
+   `Location: https://app.iproadvisers.com/accountants`, and the iproadvisers names with `Location: https://app.iproadvisers.com/`; mail from `@iproadvisers.com` still authenticates
+   (send one to a Gmail address and check "signed-by").
+
+Rollback is the DNS records back to 66.102.128.65; the bindings and the setting can stay.
+
 ## Release (shipping a change to production)
 
 There is no staging environment — every push to `main` deploys straight to production via GitHub Actions. The discipline below exists to compensate for that.

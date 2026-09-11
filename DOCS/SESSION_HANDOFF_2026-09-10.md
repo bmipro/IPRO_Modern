@@ -26,6 +26,7 @@
 | `9137190` | **475** Starter Articles editor: 'Add to this group' pre-fills business type, category and the next sort order; Business Type offers the verticals in use (datalist), on articles and starter pages | 736/736 |
 | `161fac8` | **474** (09-11) nightly gzipped SQL dump of the database to the private db-backups container, 30-day retention; SuperAdmin Backups page with Run now; restore runbook | 739/739 |
 | `ee59468` | **454 (rest) + 476** the two ops mails keep the provider's answer (warn on a refused send); Backups page shows each dump's size and the change against the previous one | 742/742 |
+| _see log_ | **477** (code half) the old public names redirect permanently to the platform -- the home, or the host's own landing page (/accountants) -- once App:AliasHosts is set; launch-day runbook in DOCS/14 | whole tree |
 
 ## Close-out 2026-09-10
 
