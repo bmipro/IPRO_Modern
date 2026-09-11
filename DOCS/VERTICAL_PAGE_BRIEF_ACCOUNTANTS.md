@@ -139,3 +139,10 @@ Bahman approves the design; the designer delivers the package; the page is built
 from it in about a day (the shared header and footer, the live pricing table, the preview and the
 links wired, SEO tags, tests), deployed, and `iproaccountants.com` lands on it on the domain-switch
 day. Questions about the package go through Bahman.
+
+**Delivered so far (2026-09-11):** `/accountants` from accountants-page-v2-font-revision, and
+`/mortgage` from mortgage-page-v1 (whose corrected four-column footer is now the footer of every
+vertical page). Both live at app.iproadvisers.com on the same template. The footer, the pricing
+cards and the stylesheet are shared in the platform, so a package for the next vertical
+(`/insurance`) needs only its own sections, copy and screenshots in the shape above; its footer
+links and package table come from the platform.

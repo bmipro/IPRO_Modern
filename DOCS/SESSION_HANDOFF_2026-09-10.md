@@ -28,6 +28,7 @@
 | `ee59468` | **454 (rest) + 476** the two ops mails keep the provider's answer (warn on a refused send); Backups page shows each dump's size and the change against the previous one | 742/742 |
 | `417da98` | **477** (code half) the old public names redirect permanently to the platform -- the home, or the host's own landing page (/accountants) -- once App:AliasHosts is set; launch-day runbook in DOCS/14 | 745/745 |
 | `fc8fd00` | **478** (/accountants) the accountants landing page from the designer's package: platform header and footer, live package cards, live starter-site preview in the frame, register and preview links with the business type; phone-width clip fixed | 749/749 |
+| _see log_ | **478** (/mortgage) the mortgage landing page from the designer's package on the same template; the corrected four-column footer and the pricing cards become partials both pages share, one stylesheet, icons under images/landing; the accountants footer's Terms and Privacy links fixed (/Home/Terms and /Home/Privacy answered 404) | whole tree |
 
 ## Close-out 2026-09-10
 
