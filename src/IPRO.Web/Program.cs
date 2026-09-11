@@ -429,7 +429,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 16);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 17);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -453,6 +453,9 @@ RecurringJob.AddOrUpdate<ELetterDispatchJob>("dispatch-eletters", job => job.Run
 // 07:00 UTC so a due certificate is a red row on the Job Scheduler dashboard at the start of the
 // day rather than overnight. Deliberately fails when renewal is due -- see CertificateExpiryJob.
 RecurringJob.AddOrUpdate<CertificateExpiryJob>("certificate-expiry", job => job.RunAsync(), "0 7 * * *");
+// 474 (2026-09-11): a gzipped SQL dump of the whole database to the private db-backups container,
+// 30-day retention. 06:15 UTC is 02:15 Eastern, the quietest hour.
+RecurringJob.AddOrUpdate<DatabaseDumpJob>("database-dump", job => job.RunAsync(), "15 6 * * *");
 }
 
 using (var scope = app.Services.CreateScope())

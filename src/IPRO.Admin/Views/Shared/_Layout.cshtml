@@ -223,6 +223,9 @@
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Refunds" ? "active" : "")" href="/Refunds">
               <i class="fas fa-hand-holding-usd"></i>Refunds
           </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Backups" ? "active" : "")" href="/Backups">
+              <i class="fas fa-database"></i>Backups
+          </a>
         }
         <a class="nav-link" href="/hangfire" target="_blank">
             <i class="fas fa-cogs"></i>Job Scheduler

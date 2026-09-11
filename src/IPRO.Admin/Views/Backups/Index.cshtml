@@ -1,0 +1,45 @@
+@model List<IPRO.Admin.Controllers.BackupsController.BackupFileRow>
+@{
+    ViewData["Title"] = "Database Backups";
+    var zone = ViewBag.Zone as string;
+    var container = (string)(ViewBag.Container ?? "db-backups");
+    var retentionDays = (int)(ViewBag.RetentionDays ?? 30);
+    var listError = ViewBag.ListError as string;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-database me-2 text-primary"></i>Database Backups</h4>
+    <p class="text-muted mb-0">A gzipped SQL dump of the whole database is taken every night at 02:15 Eastern into the private <code>@container</code> container and kept for @retentionDays days. Azure's own point-in-time backups (35 days) are separate; this is the file we own.</p>
+  </div>
+  <form method="post" action="/Backups/RunNow">@Html.AntiForgeryToken()<button class="js-confirm-submit btn btn-primary" data-confirm-message="Take a full database dump now? It runs in this request and takes a moment."><i class="fas fa-play me-1"></i>Run a dump now</button></form>
+</div>
+
+@if (!string.IsNullOrEmpty(listError))
+{
+  <div class="alert alert-warning border-0 shadow-sm">The file list could not be read: @listError</div>
+}
+
+<div class="card border-0 shadow-sm">
+  @if (Model.Count == 0)
+  {
+    <div class="card-body p-5 text-center text-muted">No dumps yet. The first one is taken tonight, or press <strong>Run a dump now</strong>.</div>
+  }
+  else
+  {
+    <div class="table-responsive"><table class="table align-middle mb-0">
+      <thead><tr><th>File</th><th>Taken</th><th>Age</th></tr></thead>
+      <tbody>
+      @foreach (var row in Model)
+      {
+        <tr>
+          <td><code>@row.Name</code></td>
+          <td>@(row.TakenAtUtc.HasValue ? IPRO.Admin.Infrastructure.AdminClock.Format(row.TakenAtUtc.Value, zone) : "-")</td>
+          <td class="text-muted">@(row.TakenAtUtc.HasValue ? $"{Math.Floor((DateTime.UtcNow - row.TakenAtUtc.Value).TotalDays)} day(s)" : "")</td>
+        </tr>
+      }
+      </tbody>
+    </table></div>
+  }
+</div>
+<div class="small text-muted mt-3">To restore: download a file from the storage account (Azure portal &rarr; iprostorageprod &rarr; Containers &rarr; @container), unzip it, and replay it into an <strong>empty</strong> database on a throwaway server. The steps are in DOCS/14 of the repository.</div>
