@@ -12,7 +12,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log_ | **480** Reply-To is the adviser's own address on every client-facing message, webmail or not; the support address only when none is given; the freemail classifier removed | whole tree |
+| `e8ed964` | **480** Reply-To is the adviser's own address on every client-facing message, webmail or not; the support address only when none is given; the freemail classifier removed | 738/738 |
 
 ## Do this first tomorrow
 
