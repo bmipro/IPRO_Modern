@@ -55,10 +55,10 @@ public class SendGridEmailService : IEmailService
                 new EmailAddress(_settings.FromEmail, _settings.FromName),
                 new EmailAddress(toEmail, toName),
                 subject, textBody ?? string.Empty, htmlBody);
-            // Same rule as AzureEmailService: a freemail Reply-To is replaced by the support address
-            // (SpamAssassin FREEMAIL_FORGED_REPLYTO, +2.5). Email:Provider can flip back to SendGrid at
-            // any time, so the two seams must not drift (440).
-            if (!string.IsNullOrWhiteSpace(replyToEmail) && !IPRO.Utility.FreemailDomains.IsFreemail(replyToEmail))
+            // Same rule as AzureEmailService: the caller's Reply-To (the adviser's own address) as given,
+            // the support address only when none is given (480). Email:Provider can flip back to
+            // SendGrid at any time, so the two seams must not drift.
+            if (!string.IsNullOrWhiteSpace(replyToEmail))
             {
                 msg.SetReplyTo(new EmailAddress(replyToEmail, string.IsNullOrWhiteSpace(replyToName) ? null : replyToName));
             }

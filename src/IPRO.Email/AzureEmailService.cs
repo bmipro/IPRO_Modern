@@ -54,11 +54,13 @@ public class AzureEmailService : IEmailService
             }
 
             var message = BuildMessage(new[] { new EmailRecipient(toEmail, toName) }, subject, htmlBody, textBody);
-            // A freemail Reply-To under our business-domain From is the header shape of
-            // business-email-compromise (SpamAssassin FREEMAIL_FORGED_REPLYTO, +2.5), so an agent on
-            // Gmail/Yahoo gets the support address here instead. Their own address is still in the
-            // signature as a mailto: link. Enforced at this seam so no caller can reintroduce it (440).
-            if (!string.IsNullOrWhiteSpace(replyToEmail) && !IPRO.Utility.FreemailDomains.IsFreemail(replyToEmail))
+            // Reply-To is whatever the caller gave, which on every client-facing channel is the sending
+            // adviser's own address: a client's reply must reach their adviser. 440 (2026-09-01) had
+            // swapped a free-webmail address for the support one to dodge SpamAssassin's
+            // FREEMAIL_FORGED_REPLYTO (+2.5); 480 (2026-09-12) took that back, because replies from
+            // every client of every adviser on Gmail were landing at support, to be relayed by hand.
+            // The support address is only the fallback when no Reply-To is given at all.
+            if (!string.IsNullOrWhiteSpace(replyToEmail))
             {
                 message.ReplyTo.Add(new EmailAddress(replyToEmail, string.IsNullOrWhiteSpace(replyToName) ? null : replyToName));
             }
