@@ -32,6 +32,12 @@
   iproadvisers.com pair still redirects to the home. Canonical stays on the platform. Details in
   `DOCS/TODO.md` 484.
 
+- **485 (afternoon):** Google Calendar connect answered redirect_uri_mismatch on every host. The
+  callback address was built from the route table and had become /portal/GoogleCalendar/Callback on
+  2026-08-07; Google holds the unprefixed one. It is a fixed address from configuration now, and the
+  callback action has its own route at that path. The owner checks the Google console holds
+  `https://app.iproadvisers.com/GoogleCalendar/Callback`. Details in `DOCS/TODO.md` 485 and DOCS/09.
+
 ## Pushed today
 
 | Code | Item | Gate |
@@ -41,6 +47,7 @@
 | docs | **482** SuperAdmin behind Microsoft Entra sign-in; health paths excluded; runbook in DOCS/14 (owner-side in the portal, one CLI change on his go; no code) | -- |
 | docs | **483** ipromortgages.com registered, bound, certificate issued, redirecting to /mortgage; the runbook rehearsed and corrected (append, not set) | -- |
 | `59c8c78` | **484** a brand domain serves its landing page under its own name (files and the preview frame too), redirects the rest to the platform with the path kept; the landing partials link the home absolutely | 763/763 |
+| _see log_ | **485** Google Calendar connect: the callback address is the canonical base plus a literal path (Url.ActionLink had produced /portal/... since 08-07, redirect_uri_mismatch everywhere); Callback routed explicitly at that path | whole tree |
 
 ## Close-out 2026-09-12
 

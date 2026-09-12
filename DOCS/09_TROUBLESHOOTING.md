@@ -391,7 +391,7 @@ One initially-suspected issue turned out to already be handled correctly: both D
 - Non-client Google events (personal appointments, other meetings) are cached into a separate `ExternalCalendarEvent` table purely for Calendar-view display — they're never forced into the client-scoped `ClientFollowUp` model, which keeps "mark complete," Dashboard counts, and the Follow-up Queue meaningful (only real client follow-ups appear there).
 - Editing a follow-up's date/title from within IPRO after it's already synced does not currently propagate to Google — there's no "edit a follow-up" UI in this codebase yet (only add/complete/delete), so that gap doesn't apply in practice; if an edit flow is ever added, it will need to also push the update to Google.
 
-**Requires setup outside IPRO before it can be tested live**: a Google Cloud project with the Calendar API enabled, an OAuth consent screen, and a Web-application OAuth Client ID (redirect URI `https://ipro-prod-web.azurewebsites.net/GoogleCalendar/Callback`) with its Client ID/Secret placed in Azure App Settings as `GoogleCalendar:ClientId`/`GoogleCalendar:ClientSecret`. Google also requires app-review/verification for the Calendar scope before agents outside a manually-added test-user list can connect without an "unverified app" warning — this can take Google days to weeks, independent of when the code itself ships.
+**Requires setup outside IPRO before it can be tested live**: a Google Cloud project with the Calendar API enabled, an OAuth consent screen, and a Web-application OAuth Client ID (authorized redirect URIs `https://app.iproadvisers.com/GoogleCalendar/Callback` and `https://ipro-prod-web.azurewebsites.net/GoogleCalendar/Callback` -- exactly these, the app sends the canonical base plus that literal path, see 485) with its Client ID/Secret placed in Azure App Settings as `GoogleCalendar:ClientId`/`GoogleCalendar:ClientSecret`. Google also requires app-review/verification for the Calendar scope before agents outside a manually-added test-user list can connect without an "unverified app" warning — this can take Google days to weeks, independent of when the code itself ships.
 
 **Incident: "not syncing" after OAuth setup looked complete (2026-07-19).** The user finished the OAuth client setup, connected successfully (email showed correctly), then reported neither direction of sync was actually happening. Two separate, sequential root causes, both entirely on the Google Cloud Console side (no code was wrong):
 1. **The Google Calendar API itself was never enabled** for the project — creating an OAuth Client ID does *not* enable the underlying API; that's a separate step (APIs & Services → Library → search "Google Calendar API" → Enable). Confirmed via `az webapp log download` + grepping the container log for `GoogleCalendarSyncJob`: the job was running correctly every 15 minutes, but every Google API call failed with `403 SERVICE_DISABLED` / "Google Calendar API has not been used in project ... or it is disabled." The job's per-connection `try/catch` meant this failed silently from the user's perspective — no app-level error, no crash, just nothing happening.
@@ -1463,3 +1463,30 @@ startup with the reason on the row (`Not sent: the letter finished before this r
 up ... Send it again.`); the adviser sends the letter to that client again. If a Queued row appears
 under a Sent parent after 481, that is a new bug: read ACS's `ApiRequests` metric (one SendMail per
 recipient expected) and the container log before assuming the sweep.
+
+## Incident: Google Calendar Connect Failed With redirect_uri_mismatch On Every Host (2026-09-12)
+
+**Symptom.** Connecting Google Calendar from the agent portal ends on Google's "Access blocked: This
+app's request is invalid, Error 400: redirect_uri_mismatch" -- from an agent's domain, from
+app.iproadvisers.com and from the temporary domain alike. The 2026-07-28 incident above was the
+same message from agent domains only, and its fix (the canonical-host bounce) was still in place.
+
+**Root cause.** `Connect()` and `Callback()` built the `redirect_uri` with `Url.ActionLink`, which
+reflects the route table. On 2026-08-07 the portal got its own URL space and the `portal` route
+(`portal/{controller}/{action}`) was registered ahead of `default`, so link generation produced
+`https://app.iproadvisers.com/portal/GoogleCalendar/Callback`. Google's console has the address
+without `/portal`, and Google compares byte for byte. Every connect attempt from that day on failed;
+nobody connected a calendar in production in between, so it surfaced on the owner's 09-12 test.
+Google's error page shows the address the app sent under "error details" -- read that first next time.
+
+**Fix (485).** The redirect_uri is the one out-of-band address Google is told to call, so it is now
+`PortalUrlHelper.GoogleCalendarRedirectUri`: the canonical base (`App:BaseUrl`, then `App:PortalBaseUrl`,
+then the azurewebsites fallback) plus the literal `/GoogleCalendar/Callback`, used by Connect and by
+the code exchange in Callback; and `Callback` carries `[HttpGet("/GoogleCalendar/Callback")]` so it
+answers at exactly that path whatever the conventional routes do.
+
+**Rule.** Anything a third party is told to call back (Google here; PayPal's webhook id is the other)
+is built from configuration and a literal path, never from `Url.Action`/`Url.ActionLink`, and the
+console entry is written down next to it. The address the console must hold is
+`https://app.iproadvisers.com/GoogleCalendar/Callback` (plus the azurewebsites.net one for the
+fallback base).
