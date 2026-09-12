@@ -117,6 +117,18 @@ Order on the day, owner's actions marked:
 
 Rollback is the DNS records back to 66.102.128.65; the bindings and the setting can stay.
 
+Rehearsed 2026-09-12 on ipromortgages.com, end to end (483): GoDaddy's authoritative servers showed
+the four records within a minute of saving, `hostname add` verified both names at once, each managed
+certificate took a few minutes, the alias setting's restart about a minute. Two things worth knowing
+on the day: GoDaddy pre-creates a `www` CNAME (edit it, a name takes one CNAME), and between the DNS
+change and the alias setting the app answers the name with its "Website not published yet" page,
+which is the normal in-between state, not a fault. And the certificate step: `az webapp config ssl create`
+printed a JSON traceback and the certificate list showed nothing for a few minutes, yet both
+certificate resources HAD been created (a second create then fails as a duplicate). Read the
+resource by name (`.../Microsoft.Web/certificates/<hostname>`) until it carries a thumbprint, then
+`az webapp config ssl bind --certificate-thumbprint <thumb> --ssl-type SNI`; the front ends pick the
+binding up within a minute or two.
+
 ## SuperAdmin behind Microsoft Entra sign-in (482)
 
 Since 2026-09-12 the admin site (`ipro-prod-admin`, resource group `ipro-prod-admin_group`,
