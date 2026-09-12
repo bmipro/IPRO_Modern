@@ -29,7 +29,12 @@ public class GoogleCalendarService : IGoogleCalendarService
     private const string RevokeEndpoint = "https://oauth2.googleapis.com/revoke";
     private const string UserInfoEndpoint = "https://www.googleapis.com/oauth2/v2/userinfo";
     private const string CalendarApiBase = "https://www.googleapis.com/calendar/v3";
-    private const string Scope = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email";
+    // 486 (2026-09-12): the narrowest scope that covers what the sync does -- list, insert, update and
+    // delete events on the adviser's chosen calendar -- plus the account's email so the adviser can see
+    // which Google account is connected. Google's app verification is per scope; the full "calendar"
+    // scope (settings, sharing, every calendar) was never needed. The console's Data Access page must
+    // list this exact scope or Google answers ACCESS_TOKEN_SCOPE_INSUFFICIENT (DOCS/09, DOCS/27).
+    private const string Scope = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
