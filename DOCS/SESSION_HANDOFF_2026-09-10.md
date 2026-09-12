@@ -1,4 +1,4 @@
-# Session handoff — 2026-09-10 (11 days to launch)
+# Session handoff — 2026-09-10 and 2026-09-11 (10 days to launch)
 
 ## What happened
 
@@ -51,11 +51,43 @@ delete, Recently Deleted, Restore -- everything back.
 Close-out as asked: both snapshot zips (`git archive HEAD` to `OneDrive\Codex_Code_Bkup` and
 `Documents\IPRO_Backups`), build servers shut down, no test host running. Local MySQL is the
 Windows service `IPROLocalMySQL` (AUTO_START): nothing to stop before a reboot.
+## Close-out 2026-09-11
+
+Pushed and verified at `/health/version` on both hosts before each tick:
+
+| Code | Item | Gate |
+|---|---|---|
+| `161fac8` | **474** nightly gzipped SQL dump to the private db-backups container, 30-day retention; SuperAdmin Backups page with Run now; restore runbook | 739/739 |
+| `ee59468` | **454 (rest) + 476** the two ops mails keep the provider's answer; Backups page shows each dump's size and the change against the previous one | 742/742 |
+| `417da98` | **477** (code) the old public names redirect permanently to the platform once `App:AliasHosts` is set; launch-day runbook in DOCS/14; the DNS switch itself on or before 21 September | 745/745 |
+| `fc8fd00` | **478** /accountants from the designer's package (phone-width clip fixed in the platform copy) | 749/749 |
+| `770d126` | **478** /mortgage from the designer's package; footer, pricing cards and stylesheet became the partials every vertical page shares; the accountants footer's Terms and Privacy links fixed (they answered 404) | 754/754 |
+| `843f4be` | **479** Did You Know teasers decode entities (a literal &mdash; on the live accountants preview); the 2 x 3 grid keeps three columns inside the landing pages' preview frame | 756/756 |
+
+Final build on both hosts before this close-out: `8ee5ad1`. Tree clean and pushed.
+
+Decided with the owner today: three vertical pages on the one site rather than three separate
+sites; iproaccountants.com and iproadvisers.com point at app.iproadvisers.com on the switch day
+(477), ipromortgages.com to be registered. The designer works from
+`DOCS/VERTICAL_PAGE_BRIEF_ACCOUNTANTS.md` (brief plus the handover-package contract); the
+accountants and mortgage packages were checked against its acceptance list before the build.
+The owner sent the reply to Microsoft on ticket 2608310040012537 (asking to split engagement
+tracking from volume). The owner took the first on-demand database dump and set the Grid layout
+with six starter articles on the Accountants and Mortgage Did You Know blocks.
+
+Owner's answers on record: no CAPTCHA on the two sign-in pages for launch (per-account lockout
+later if needed); SuperAdmin behind Microsoft Entra sign-in instead of an IP allow-list, because
+the office has no static address -- tomorrow, owner in the Azure portal.
+
+Close-out as asked: both snapshot zips (`git archive HEAD` to `OneDrive\Codex_Code_Bkup` and
+`Documents\IPRO_Backups`), build servers shut down, no test host running. Local MySQL is the
+Windows service `IPROLocalMySQL` (AUTO_START): nothing to stop before a reboot.
 ## Do this first tomorrow
 
-0. **474 nightly database dump to blob storage** -- the owner chose to start the day with it (3-4 h build with tests; no mysqldump on Linux App Service, so an in-app export job to a private container with a 30-day lifecycle rule).
-2. **Ticket 2608310040012537 (442)** -- Microsoft's answer to the 09-08 reply.
-3. **PayPal live cutover** -- production is still sandbox.
-4. Owner pre-launch list: Postmaster Tools, PayPal Verified badge, "Contact us" channel, the Masoud demo (463).
+1. **SuperAdmin sign-in through Microsoft Entra** -- App Service Authentication on `ipro-prod-admin` (Microsoft identity provider, require authentication, `/health/*` excluded so the version check keeps working), owner in the portal, the assistant guiding; replaces the IP allow-list idea, since the office address changes. Verify `/health/version` on both hosts after the restart.
+2. **Ticket 2608310040012537 (442)** -- Microsoft's answer to the 09-11 reply.
+3. **PayPal live cutover** -- production is still sandbox; the owner wanted the first free slot.
+4. **Owner-side:** register ipromortgages.com (then `App:AliasHosts` gains its two entries, DOCS/14); the DNS switch on or before 21 September (runbook in DOCS/14); tell the designer about the accountants package's 375 px clip and the two open confirmations (trial card, orange hex); the /insurance package when ready -- only its own sections, the footer, pricing and stylesheet are shared already.
+5. After launch week: 471 (Azure CLI signed out or read-only on the dev machine; branch protection on main), 450 manual poll check.
 
-Related: `DOCS/TODO.md` 471-474; `DOCS/14_BACKUP_AND_RELEASE_CHECKLIST.md`; `DOCS/SESSION_HANDOFF_2026-09-08.md` (09-08 and 09-09).
+Related: `DOCS/TODO.md` 471-479; `DOCS/14_BACKUP_AND_RELEASE_CHECKLIST.md`; `DOCS/VERTICAL_PAGE_BRIEF_ACCOUNTANTS.md`; `DOCS/SESSION_HANDOFF_2026-09-08.md` (09-08 and 09-09).
