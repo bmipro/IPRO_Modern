@@ -47,7 +47,7 @@
 | docs | **482** SuperAdmin behind Microsoft Entra sign-in; health paths excluded; runbook in DOCS/14 (owner-side in the portal, one CLI change on his go; no code) | -- |
 | docs | **483** ipromortgages.com registered, bound, certificate issued, redirecting to /mortgage; the runbook rehearsed and corrected (append, not set) | -- |
 | `59c8c78` | **484** a brand domain serves its landing page under its own name (files and the preview frame too), redirects the rest to the platform with the path kept; the landing partials link the home absolutely | 763/763 |
-| _see log_ | **485** Google Calendar connect: the callback address is the canonical base plus a literal path (Url.ActionLink had produced /portal/... since 08-07, redirect_uri_mismatch everywhere); Callback routed explicitly at that path | whole tree |
+| `4fe3f37` | **485** Google Calendar connect: the callback address is the canonical base plus a literal path (Url.ActionLink had produced /portal/... since 08-07, redirect_uri_mismatch everywhere); Callback routed explicitly at that path | 765/765 |
 
 ## Close-out 2026-09-12
 
