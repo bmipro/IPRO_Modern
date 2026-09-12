@@ -38,6 +38,12 @@
   callback action has its own route at that path. The owner checks the Google console holds
   `https://app.iproadvisers.com/GoogleCalendar/Callback`. Details in `DOCS/TODO.md` 485 and DOCS/09.
 
+- **486 (evening):** with the callback fixed the owner reached Google's consent screen, in Testing
+  mode. The app now asks for calendar.events (not the full calendar scope); the verification runbook
+  with the justification text and the demo-video script is `DOCS/27_GOOGLE_OAUTH_VERIFICATION.md`.
+  Owner-side: add the scope on Data Access before the deploy, then branding, Search Console proof,
+  publish, submit.
+
 ## Pushed today
 
 | Code | Item | Gate |
@@ -48,6 +54,7 @@
 | docs | **483** ipromortgages.com registered, bound, certificate issued, redirecting to /mortgage; the runbook rehearsed and corrected (append, not set) | -- |
 | `59c8c78` | **484** a brand domain serves its landing page under its own name (files and the preview frame too), redirects the rest to the platform with the path kept; the landing partials link the home absolutely | 763/763 |
 | `4fe3f37` | **485** Google Calendar connect: the callback address is the canonical base plus a literal path (Url.ActionLink had produced /portal/... since 08-07, redirect_uri_mismatch everywhere); Callback routed explicitly at that path | 765/765 |
+| _see log_ | **486** Google Calendar asks for calendar.events + userinfo.email, the narrowest scope for what the sync does; DOCS/27 verification runbook | whole tree |
 
 ## Close-out 2026-09-12
 
