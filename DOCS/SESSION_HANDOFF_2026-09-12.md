@@ -26,6 +26,12 @@
   managed certificates, `App__AliasHosts` set to the two mortgage entries. The name now redirects
   permanently to /mortgage. DOCS/14 step 3 says APPEND on the day. Details in `DOCS/TODO.md` 483.
 
+- **484 (afternoon):** the owner saw ipromortgages.com redirect and asked for the brand name to
+  stay in the address bar. A brand domain now serves its landing page in place (its files and the
+  live preview frame too) and redirects everything else to the platform with the path kept; the
+  iproadvisers.com pair still redirects to the home. Canonical stays on the platform. Details in
+  `DOCS/TODO.md` 484.
+
 ## Pushed today
 
 | Code | Item | Gate |
@@ -34,6 +40,7 @@
 | `5fbcd8b` | **481** e-letter and e-card creation commit the send and its recipient rows together (the minutely job could claim a letter before its rows existed: two recipients, one delivered, one Queued forever); startup marks rows stranded under a finished send as Failed with the reason | 742/742 |
 | docs | **482** SuperAdmin behind Microsoft Entra sign-in; health paths excluded; runbook in DOCS/14 (owner-side in the portal, one CLI change on his go; no code) | -- |
 | docs | **483** ipromortgages.com registered, bound, certificate issued, redirecting to /mortgage; the runbook rehearsed and corrected (append, not set) | -- |
+| _see log_ | **484** a brand domain serves its landing page under its own name (files and the preview frame too), redirects the rest to the platform with the path kept; the landing partials link the home absolutely | whole tree |
 
 ## Close-out 2026-09-12
 

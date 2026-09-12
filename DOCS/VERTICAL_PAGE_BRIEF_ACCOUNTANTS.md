@@ -146,3 +146,31 @@ vertical page). Both live at app.iproadvisers.com on the same template. The foot
 cards and the stylesheet are shared in the platform, so a package for the next vertical
 (`/insurance`) needs only its own sections, copy and screenshots in the shape above; its footer
 links and package table come from the platform.
+
+**Brand domains (484, 2026-09-12):** a vertical's own domain shows its landing page under its own
+name (ipromortgages.com shows the mortgage page; iproaccountants.com will show the accountants page
+from the switch day). Register, Sign in, the preview and the legal pages still open on
+app.iproadvisers.com, and the page's canonical tag names the platform address, so the designer's
+package needs nothing extra for a domain: relative links to the page's own files are fine, links to
+sections of the platform home must be absolute.
+
+**Brand domains (484, 2026-09-12):** a vertical's own domain shows its landing page under its own
+name (ipromortgages.com shows the mortgage page; iproaccountants.com will show the accountants page
+from the switch day). Register, Sign in, the preview and the legal pages still open on
+app.iproadvisers.com, and the page's canonical tag names the platform address, so the designer's
+package needs nothing extra for a domain: relative links to the page's own files are fine, links to
+sections of the platform home must be absolute.
+
+**Brand domains (484, 2026-09-12):** a vertical's own domain shows its landing page under its own
+name (ipromortgages.com shows the mortgage page; iproaccountants.com will show the accountants page
+from the switch day). Register, Sign in, the preview and the legal pages still open on
+app.iproadvisers.com, and the page's canonical tag names the platform address, so the designer's
+package needs nothing extra for a domain: relative links to the page's own files are fine, links to
+sections of the platform home must be absolute.
+
+**Brand domains (484, 2026-09-12):** a vertical's own domain shows its landing page under its own
+name (ipromortgages.com shows the mortgage page; iproaccountants.com will show the accountants page
+from the switch day). Register, Sign in, the preview and the legal pages still open on
+app.iproadvisers.com, and the page's canonical tag names the platform address, so the designer's
+package needs nothing extra for a domain: relative links to the page's own files are fine, links to
+sections of the platform home must be absolute.

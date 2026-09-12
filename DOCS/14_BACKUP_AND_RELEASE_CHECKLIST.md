@@ -91,9 +91,10 @@ Total on 2026-09-10: about 35 minutes including the data check.
 
 The old public names -- `www.iproaccountants.com`, `iproaccountants.com`, `www.iproadvisers.com`,
 `iproadvisers.com` -- resolve today (2026-09-11) to the old site at 66.102.128.65. At launch they
-point at the new site, and the app answers them with a permanent redirect to
-the platform: `iproadvisers.com` to the home, `iproaccountants.com` to `/accountants` (and later
-`ipromortgages.com` to `/mortgage`), never the old path. The code is in place
+point at the new site. The app answers the iproadvisers.com pair with a permanent redirect to the
+platform home; a brand name with a landing path (`iproaccountants.com` -> `/accountants`,
+`ipromortgages.com` -> `/mortgage`, live since 2026-09-12) SERVES that page under its own name (484)
+and redirects everything else on the name to the platform with the path kept, never the old path. The code is in place
 (`PlatformAliasHosts`, first middleware in `IPRO.Web`); it does nothing until `App:AliasHosts` is set.
 
 Order on the day, owner's actions marked:
@@ -106,13 +107,19 @@ Order on the day, owner's actions marked:
    Service managed certificate for each (portal: Custom domains → Add → managed certificate).
 3. **Owner's go, App Service configuration:** `App__AliasHosts` =
    `www.iproadvisers.com,iproadvisers.com,www.iproaccountants.com=/accountants,iproaccountants.com=/accountants`
-   on ipro-prod-web (the app restarts once). Add `www.ipromortgages.com=/mortgage,ipromortgages.com=/mortgage`
-   once that domain is registered and bound.
+   on ipro-prod-web (the app restarts once). **The setting already exists since 2026-09-12 with
+   `www.ipromortgages.com=/mortgage,ipromortgages.com=/mortgage` (483, the rehearsal on the new
+   domain): read it first (`az webapp config appsettings list ... --query "[?name=='App__AliasHosts'].value"`)
+   and APPEND the four live names to that value -- setting only the four would drop the mortgage
+   entries.** Under Git Bash prefix the command with `MSYS_NO_PATHCONV=1` so the `=/path` parts
+   are not rewritten as Windows paths.
 4. **Owner, registrar, the moment of the switch:** `www` names → `CNAME ipro-prod-web.azurewebsites.net`;
    apexes → `A` the app's inbound IP (Custom domains page shows it; 40.89.19.0 on 2026-09-11) --
    or an ALIAS/ANAME record to `ipro-prod-web.azurewebsites.net` if the registrar supports one.
-5. **Verify:** `curl -sI https://www.iproaccountants.com/` answers `301` with
-   `Location: https://app.iproadvisers.com/accountants`, and the iproadvisers names with `Location: https://app.iproadvisers.com/`; mail from `@iproadvisers.com` still authenticates
+5. **Verify:** `curl -sI https://www.iproaccountants.com/` answers `200` with the accountants page
+   (its title in the body; since 484 a brand name serves its landing page in place), `curl -sI
+   https://www.iproaccountants.com/Account/Register` answers `301` to the same path on the platform, and
+   the iproadvisers names answer `301` with `Location: https://app.iproadvisers.com/`; mail from `@iproadvisers.com` still authenticates
    (send one to a Gmail address and check "signed-by").
 
 Rollback is the DNS records back to 66.102.128.65; the bindings and the setting can stay.
