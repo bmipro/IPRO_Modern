@@ -8,11 +8,18 @@
   that reaches the adviser outweighs the partial spam score, so both providers keep the adviser's
   own address as Reply-To, webmail or not, and the classifier is gone. Details in `DOCS/TODO.md` 480.
 
+- **481 (owner's finding, morning):** an e-letter to two clients delivered one and left the other Queued.
+  ACS's metric showed one SendMail and no retry; the log showed no error; the dispatcher mails every
+  Queued row it finds. The letter had been saved as due before its recipient rows existed, and the
+  minutely job claimed it in that gap. The send and its rows commit together now (e-cards too), and
+  startup marks rows stranded under a finished send as Failed with the reason. Details in `DOCS/TODO.md` 481.
+
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `e8ed964` | **480** Reply-To is the adviser's own address on every client-facing message, webmail or not; the support address only when none is given; the freemail classifier removed | 738/738 |
+| _see log_ | **481** e-letter and e-card creation commit the send and its recipient rows together (the minutely job could claim a letter before its rows existed: two recipients, one delivered, one Queued forever); startup marks rows stranded under a finished send as Failed with the reason | whole tree |
 
 ## Do this first tomorrow
 

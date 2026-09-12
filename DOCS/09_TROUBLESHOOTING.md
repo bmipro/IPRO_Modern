@@ -1446,3 +1446,20 @@ and both `BlobReferences` commands); the third was only found because the full s
 every commit — the focused tests all passed, since their seeds happened not to cross the
 transaction boundary. When adding a transaction around existing code, grep the whole call graph
 for `CreateCommand()` first.
+
+## A recipient stays Queued under a letter or card that says Sent (2026-09-12)
+
+**Symptom.** Email Activity shows an e-letter (or e-card) as Sent, one or more recipients Delivered,
+and another recipient still **Queued** with no Sent time, minutes or hours later. The minutely sweep
+never picks it up, because the parent is finished.
+
+**Cause (fixed in 481).** The letter used to be saved first -- Scheduled with `ScheduledAt = now`,
+already due -- and its recipient rows in a second save. The minutely dispatch job could claim the
+letter in that gap and finish with none, or one, of its recipients. The creation is one transaction
+now, so the letter is never visible before its rows.
+
+**What to do.** Nothing for new sends. Rows left behind by the old gap are marked Failed at the next
+startup with the reason on the row (`Not sent: the letter finished before this recipient was picked
+up ... Send it again.`); the adviser sends the letter to that client again. If a Queued row appears
+under a Sent parent after 481, that is a new bug: read ACS's `ApiRequests` metric (one SendMail per
+recipient expected) and the container log before assuming the sweep.
