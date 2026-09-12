@@ -628,6 +628,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTrialFeatureSchemaAsync", () => StartupSchemaRepair.EnsureTrialFeatureSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureECardSchemaAsync", () => StartupSchemaRepair.EnsureECardSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureELetterSchemaAsync", () => StartupSchemaRepair.EnsureELetterSchemaAsync(db), db, app.Logger);
+    // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Must run AFTER the three CREATE TABLE passes above (E-Card, E-Letter, Poll) -- it adds the
     // delivery-tracking columns to tables those create. Shared with IPRO.Admin/Program.cs so the
     // column list cannot drift between the two apps; see INVARIANTS.md rule 4.

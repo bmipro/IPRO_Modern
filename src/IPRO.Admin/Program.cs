@@ -343,6 +343,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTrialFeatureSchemaAsync", () => StartupSchemaRepair.EnsureTrialFeatureSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureECardSchemaAsync", () => StartupSchemaRepair.EnsureECardSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureELetterSchemaAsync", () => StartupSchemaRepair.EnsureELetterSchemaAsync(db), db, app.Logger);
+    // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Same shared call as IPRO.Web/Program.cs -- see the note there. Admin needs it too because
     // CardLetterActivity reads DeliveredAt, and because whichever app starts first must find the
     // schema complete (INVARIANTS.md rule 4).

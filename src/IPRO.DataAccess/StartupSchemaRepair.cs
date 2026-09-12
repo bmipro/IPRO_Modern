@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.DataAccess;
@@ -900,6 +901,37 @@ public static class StartupSchemaRepair
         INDEX `IX_ELetterRecipients_ELetterId` (`ELetterId`)
     ) CHARACTER SET=utf8mb4;");
         // Delivery-tracking columns are owned by EmailDeliverySchema.EnsureAsync -- see EnsureECardSchemaAsync.
+    }
+
+    // 481 (2026-09-12): a Queued recipient row under a letter or card that is already Sent or Failed
+    // is a contradiction the sweep never resolves -- the parent is finished, so nothing will pick the
+    // row up again. It happened when the parent was saved (already due) before its recipient rows
+    // and the minutely job claimed it in the gap; the creation is one transaction now, and this
+    // marks what that gap left behind, with the reason on the row where Email Activity's Issue
+    // column reads it. Idempotent: a repaired row is Failed and no longer matches.
+    public static async Task<int> RepairRecipientsStrandedUnderFinishedSendsAsync(IPRODbContext db)
+    {
+        const string letterReason = "Not sent: the letter finished before this recipient was picked up (a gap at creation, closed 2026-09-12). Send it again.";
+        const string cardReason = "Not sent: the card finished before this recipient was picked up (a gap at creation, closed 2026-09-12). Send it again.";
+        var now = DateTime.UtcNow;
+
+        var letters = await db.ELetterRecipients
+            .Where(r => r.Status == ELetterRecipientStatuses.Queued
+                        && db.ELetters.Any(l => l.Id == r.ELetterId && (l.Status == ELetterStatuses.Sent || l.Status == ELetterStatuses.Failed)))
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.Status, ELetterRecipientStatuses.Failed)
+                .SetProperty(r => r.FailureReason, letterReason)
+                .SetProperty(r => r.UpdatedAt, now));
+
+        var cards = await db.ECardRecipients
+            .Where(r => r.Status == ECardRecipientStatuses.Queued
+                        && db.ECards.Any(c => c.Id == r.ECardId && (c.Status == ECardStatuses.Sent || c.Status == ECardStatuses.Failed)))
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(r => r.Status, ECardRecipientStatuses.Failed)
+                .SetProperty(r => r.FailureReason, cardReason)
+                .SetProperty(r => r.UpdatedAt, now));
+
+        return letters + cards;
     }
 
     public static async Task EnsureTestimonialSubmissionSchemaAsync(IPRODbContext db)

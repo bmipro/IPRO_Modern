@@ -100,19 +100,26 @@ public class ECardsController : Controller
             Status = ECardStatuses.Scheduled,
             ScheduledAt = sendNow ? DateTime.UtcNow : AgentTimeZoneHelper.ToUtc(scheduledAt, timeZone)
         };
-        _db.ECards.Add(card);
-        await _db.SaveChangesAsync();
-
-        var recipients = clients.Select(c => new ECardRecipient
+        // 481 (2026-09-12): the card and its recipient rows commit together -- see ELettersController,
+        // the same gap and the same fix.
+        List<ECardRecipient> recipients;
+        await using (var creation = await _db.Database.BeginTransactionAsync())
         {
-            ECardId = card.Id,
-            ClientId = c.Id,
-            Email = c.Email.Trim().ToLowerInvariant(),
-            RecipientName = $"{c.FirstName} {c.LastName}".Trim()
-        }).ToList();
-        card.TotalRecipients = recipients.Count;
-        _db.ECardRecipients.AddRange(recipients);
-        await _db.SaveChangesAsync();
+            _db.ECards.Add(card);
+            await _db.SaveChangesAsync();
+
+            recipients = clients.Select(c => new ECardRecipient
+            {
+                ECardId = card.Id,
+                ClientId = c.Id,
+                Email = c.Email.Trim().ToLowerInvariant(),
+                RecipientName = $"{c.FirstName} {c.LastName}".Trim()
+            }).ToList();
+            card.TotalRecipients = recipients.Count;
+            _db.ECardRecipients.AddRange(recipients);
+            await _db.SaveChangesAsync();
+            await creation.CommitAsync();
+        }
 
         if (sendNow)
         {

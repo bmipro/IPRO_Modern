@@ -93,19 +93,29 @@ public class ELettersController : Controller
             Status = ELetterStatuses.Scheduled,
             ScheduledAt = sendNow ? DateTime.UtcNow : AgentTimeZoneHelper.ToUtc(scheduledAt, timeZone)
         };
-        _db.ELetters.Add(letter);
-        await _db.SaveChangesAsync();
-
-        var recipients = clients.Select(c => new ELetterRecipient
+        // 481 (2026-09-12): the letter and its recipient rows commit together. Saved one after the
+        // other, the letter was already due (Scheduled, ScheduledAt = now) while its recipients did
+        // not exist yet, and the minutely dispatch job could claim it in that gap and finish with
+        // none, or one, of them -- the owner's test: two recipients, one delivered, one Queued for
+        // good under a letter marked Sent. Inside one transaction nothing sees the letter before its rows.
+        List<ELetterRecipient> recipients;
+        await using (var creation = await _db.Database.BeginTransactionAsync())
         {
-            ELetterId = letter.Id,
-            ClientId = c.Id,
-            Email = c.Email.Trim().ToLowerInvariant(),
-            RecipientName = $"{c.FirstName} {c.LastName}".Trim()
-        }).ToList();
-        letter.TotalRecipients = recipients.Count;
-        _db.ELetterRecipients.AddRange(recipients);
-        await _db.SaveChangesAsync();
+            _db.ELetters.Add(letter);
+            await _db.SaveChangesAsync();
+
+            recipients = clients.Select(c => new ELetterRecipient
+            {
+                ELetterId = letter.Id,
+                ClientId = c.Id,
+                Email = c.Email.Trim().ToLowerInvariant(),
+                RecipientName = $"{c.FirstName} {c.LastName}".Trim()
+            }).ToList();
+            letter.TotalRecipients = recipients.Count;
+            _db.ELetterRecipients.AddRange(recipients);
+            await _db.SaveChangesAsync();
+            await creation.CommitAsync();
+        }
 
         if (sendNow)
         {
