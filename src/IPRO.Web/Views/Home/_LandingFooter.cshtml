@@ -1,4 +1,8 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration LandingFooterConfig
 @{
+    // 484 (2026-09-12): the links to the platform home's sections are absolute. On a brand domain
+    // (ipromortgages.com serves /mortgage under its own name) "/#i2-pricing" would be the brand's root.
+    var platformBase = IPRO.Web.Infrastructure.PlatformAliasHosts.PlatformBase(LandingFooterConfig);
     // 478 (2026-09-11): the footer every vertical landing page shares -- the designer's corrected
     // four-column footer (mortgage-page-v1) with the platform's links: the home's sections, the
     // vertical pages, the live legal routes (/terms and /privacy; the first cut of /accountants
@@ -15,9 +19,9 @@
         <a href="https://www.youtube.com/@@AllAdvisers" target="_blank" rel="noopener" aria-label="IPRO Advisers on YouTube">&#9654;</a>
       </div>
     </div>
-    <div><h3>Product</h3><div class="footer-links"><a href="/#i2-platform">Platform</a><a href="#pricing">Pricing</a><a href="/Preview">Website preview</a><a href="/Account/Login">Sign in</a></div></div>
-    <div><h3>Markets</h3><div class="footer-links"><a href="/#i2-start">Insurance / Financial</a><a href="/accountants">Accountants</a><a href="/mortgage">Mortgage</a><a href="/#i2-start">Generic</a></div></div>
-    <div><h3>Company</h3><div class="footer-links"><a href="/#i2-trust">About IPRO</a><a href="/#i2-contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div>
+    <div><h3>Product</h3><div class="footer-links"><a href="@platformBase/#i2-platform">Platform</a><a href="#pricing">Pricing</a><a href="/Preview">Website preview</a><a href="/Account/Login">Sign in</a></div></div>
+    <div><h3>Markets</h3><div class="footer-links"><a href="@platformBase/#i2-start">Insurance / Financial</a><a href="/accountants">Accountants</a><a href="/mortgage">Mortgage</a><a href="@platformBase/#i2-start">Generic</a></div></div>
+    <div><h3>Company</h3><div class="footer-links"><a href="@platformBase/#i2-trust">About IPRO</a><a href="@platformBase/#i2-contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div>
   </div>
   <div class="container footer-bottom"><span>&copy; @DateTime.UtcNow.Year IPRO Advisers. Canadian dollars before applicable tax.</span><span>Built and supported in Canada.</span></div>
 </footer>

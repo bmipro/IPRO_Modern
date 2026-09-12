@@ -1,5 +1,8 @@
 @model List<IPRO.Entities.BillingRule>
+@inject Microsoft.Extensions.Configuration.IConfiguration LandingPricingConfig
 @{
+    // 484: the link to the home's full table is absolute -- see _LandingFooter.
+    var platformBase = IPRO.Web.Infrastructure.PlatformAliasHosts.PlatformBase(LandingPricingConfig);
     // 478 (2026-09-11): the pricing slot every vertical landing page shares -- the live packages, the
     // same rows the platform home shows, with register links carrying the page's business type.
     var businessType = ViewData["BusinessType"] as string ?? "";
@@ -32,4 +35,4 @@
     </article>
   }
 </div>
-<p class="pricing-more">Every feature, package by package: <a href="/#i2-pricing">compare the full table</a>.</p>
+<p class="pricing-more">Every feature, package by package: <a href="@platformBase/#i2-pricing">compare the full table</a>.</p>

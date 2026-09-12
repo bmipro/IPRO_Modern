@@ -92,7 +92,7 @@ public class MortgageLandingPageTests
         // and /Home/Privacy, which answer 404 in production.
         var footer = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Home\_LandingFooter.cshtml"));
         Assert.Contains("class=\"container footer-grid\"", footer);   // the four-column footer, as the designer built it
-        foreach (var href in new[] { "/terms", "/privacy", "/accountants", "/mortgage", "/Account/Login", "/Preview", "/#i2-platform", "/#i2-contact" })
+        foreach (var href in new[] { "/terms", "/privacy", "/accountants", "/mortgage", "/Account/Login", "/Preview" })
             Assert.Contains("href=\"" + href + "\"", footer);
         Assert.Contains("facebook.com/p/iPRO-100071151034796", footer);
         Assert.Contains("youtube.com/@@AllAdvisers", footer);   // @@ is Razor's literal @
@@ -105,7 +105,7 @@ public class MortgageLandingPageTests
         Assert.Contains("@foreach (var package in Model)", pricing);
         Assert.Contains("MonthlyPrice", pricing);
         Assert.Contains("ViewData[\"BusinessType\"]", pricing);
-        Assert.Contains("/#i2-pricing", pricing);
+        Assert.Contains("#i2-pricing", pricing);
     }
 
     [Fact]

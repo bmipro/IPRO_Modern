@@ -48,18 +48,8 @@ public class PlatformAliasHostsTests
         Assert.False(PlatformAliasHosts.IsAlias(config, "iproaccountants.com"));
     }
 
-    [Fact]
-    public void The_web_app_redirects_alias_hosts_before_routing_and_leaves_well_known_alone()
-    {
-        var program = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Program.cs"));
-        var redirect = program.IndexOf("PlatformAliasHosts.IsAlias(", StringComparison.Ordinal);
-        var routing = program.IndexOf("app.UseRouting()", StringComparison.Ordinal);
-        Assert.True(redirect >= 0, "the alias redirect is not wired");
-        Assert.True(routing < 0 || redirect < routing, "the alias redirect must run before routing");
-        var window = program[Math.Max(0, redirect - 400)..Math.Min(program.Length, redirect + 900)]; // the well-known check precedes the call
-        Assert.Contains("/.well-known/", window);
-        Assert.Contains("permanent: true", window);
-    }
+    // The wiring pin (the rule runs before routing, /.well-known is left alone, the redirects are
+    // permanent) lives in BrandDomainLandingTests since 484.
 
     private static string FindRepoFile(string relative)
     {

@@ -214,17 +214,13 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// 477 (2026-09-11): the old public names redirect to the platform home, permanently, before anything
-// else looks at the request. /.well-known/ is left alone so certificate validation on those names
-// keeps working. Configured by App:AliasHosts; nothing is an alias until it is set.
+// 477 / 484: the old public names and the brand domains, before anything else looks at the request.
+// A brand domain's own page is served under its name (the request is re-addressed to the platform
+// host and its landing path); everything else on an alias name is a permanent redirect to the
+// platform. Configured by App:AliasHosts; nothing is an alias until it is set. See PlatformAliasHosts.
 app.Use(async (context, next) =>
 {
-    if (!context.Request.Path.StartsWithSegments("/.well-known/", StringComparison.OrdinalIgnoreCase)
-        && IPRO.Web.Infrastructure.PlatformAliasHosts.IsAlias(app.Configuration, context.Request.Host.Host))
-    {
-        context.Response.Redirect(IPRO.Web.Infrastructure.PlatformAliasHosts.RedirectTarget(app.Configuration, context.Request.Host.Host), permanent: true);
-        return;
-    }
+    if (IPRO.Web.Infrastructure.PlatformAliasHosts.TryHandle(app.Configuration, context)) return;
     await next();
 });
 
