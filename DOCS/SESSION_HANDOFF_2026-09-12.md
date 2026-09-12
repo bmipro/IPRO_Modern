@@ -52,8 +52,9 @@ Pushed and verified at `/health/version` on both hosts before each tick:
 | `5fbcd8b` | **481** an e-letter's or e-card's recipient rows commit with the send (the minutely job could claim a letter before its rows existed); rows stranded under a finished send are repaired at startup | 742/742 |
 | docs | **482** SuperAdmin behind Microsoft Entra sign-in: portal by the owner, health paths excluded from the CLI on his go, assignment required with only the owner assigned; secret expires 2028-09-11 | -- |
 | docs | **483** ipromortgages.com registered, bound with managed certificates, redirecting to /mortgage; the 21 September runbook rehearsed end to end and corrected (append the live names to the existing alias setting) | -- |
+| `59c8c78` | **484** a brand domain serves its landing page under its own name (files and the live preview frame too) and redirects the rest to the platform with the path kept; the iproadvisers names still redirect to the home; the landing partials link the home absolutely | 763/763 |
 
-Final build on both hosts before this close-out: `bf00f10`. Tree clean and pushed.
+Final build on both hosts before this close-out: `013a595` (second close-out of the day, after 484). Tree clean and pushed.
 
 Owner-side today, all read back: the e-card unsubscribe / preferences / subscribe-again loop tested
 end to end on a live client; the Hangfire dashboard checked (one server, minutely jobs current) and
@@ -65,7 +66,7 @@ Decisions on record: open and click tracking waits for Microsoft's answer until 
 positive, the platform's own pixel and click redirect get built (about a day). PayPal live cutover
 and the ticket also wait until Monday.
 
-Close-out as asked: both snapshot zips (`git archive HEAD` to `OneDrive\Codex_Code_Bkup` and
+Close-out as asked, taken twice today (13:50 after 483, and again after 484): both snapshot zips (`git archive HEAD` to `OneDrive\Codex_Code_Bkup` and
 `Documents\IPRO_Backups`), build servers shut down, no test host running. Local MySQL is the
 Windows service `IPROLocalMySQL` (AUTO_START): nothing to stop before a reboot.
 ## Do this first tomorrow
