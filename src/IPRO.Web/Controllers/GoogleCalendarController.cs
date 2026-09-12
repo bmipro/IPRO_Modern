@@ -51,13 +51,18 @@ public class GoogleCalendarController : Controller
         var gate = await RequireGoogleCalendarAccessAsync();
         if (gate != null) return gate;
 
-        var redirectUri = Url.ActionLink(nameof(Callback))!;
+        // 485: the registered address, from configuration -- Url.ActionLink reflects the route table
+        // and has answered /portal/GoogleCalendar/Callback since 2026-08-07 (redirect_uri_mismatch).
+        var redirectUri = PortalUrlHelper.GoogleCalendarRedirectUri(_configuration);
         var state = _stateProtector.Protect($"{AgentId}|{DateTime.UtcNow.Ticks}");
         return Redirect(_googleCalendar.BuildAuthorizationUrl(redirectUri, state));
     }
 
     // No canonical bounce here on purpose: Google only ever calls the redirect_uri that was
     // registered with it, which is on the canonical host — this action cannot arrive anywhere else.
+    // The explicit route (485) keeps it answering at exactly the registered path whatever the
+    // conventional routes do; the exchange below quotes the same fixed address Connect sent.
+    [HttpGet("/GoogleCalendar/Callback")]
     public async Task<IActionResult> Callback(string? code, string? state, string? error)
     {
         var gate = await RequireGoogleCalendarAccessAsync();
@@ -101,7 +106,7 @@ public class GoogleCalendarController : Controller
 
         try
         {
-            var redirectUri = Url.ActionLink(nameof(Callback))!;
+            var redirectUri = PortalUrlHelper.GoogleCalendarRedirectUri(_configuration);
             var tokenResult = await _googleCalendar.ExchangeCodeAsync(code, redirectUri);
 
             var existing = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.AgentUserId == AgentId);

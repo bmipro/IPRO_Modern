@@ -127,6 +127,15 @@ public static class PortalUrlHelper
     // OAuth). Moved verbatim from GoogleCalendarController so "which hosts are ours" has one
     // answer; that controller's allowlist knew only canonical + azurewebsites and had already
     // drifted from this one. Returns null when no bounce is needed.
+    // 485 (2026-09-12): the ONE out-of-band address Google is told to call back. It must equal, byte
+    // for byte, an address registered in the Google Cloud console, so it is the canonical base plus a
+    // literal path -- never a route-table product. Url.ActionLink had been producing
+    // /portal/GoogleCalendar/Callback since the portal got its own URL space (2026-08-07, the "portal"
+    // route registered ahead of "default"), and every connect attempt since then failed with
+    // redirect_uri_mismatch on every host. The console must list exactly this address.
+    public static string GoogleCalendarRedirectUri(IConfiguration configuration) =>
+        GetAgentPortalBaseUrl(configuration) + "/GoogleCalendar/Callback";
+
     public static string? CanonicalRedirectUrlIfNeeded(HttpRequest request, IConfiguration configuration)
     {
         var canonicalBaseUrl = GetAgentPortalBaseUrl(configuration);
