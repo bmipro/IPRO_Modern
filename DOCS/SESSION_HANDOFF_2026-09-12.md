@@ -14,12 +14,20 @@
   minutely job claimed it in that gap. The send and its rows commit together now (e-cards too), and
   startup marks rows stranded under a finished send as Failed with the reason. Details in `DOCS/TODO.md` 481.
 
+- **482 (afternoon):** SuperAdmin is behind Microsoft Entra sign-in. The owner added the Microsoft
+  identity provider on `ipro-prod-admin` in the portal (single tenant, 24-month secret, require
+  authentication, 302 redirect); the two health paths were excluded from the CLI on his go, because
+  the portal dialog has no field for it and the deploy workflow reads `/health/version` anonymously.
+  Verified from outside: health 200 for anyone, everything else 302 to Microsoft / 401 for API callers.
+  Client secret expires 2028-09-11 (TODO 482). Runbook in `DOCS/14`.
+
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `e8ed964` | **480** Reply-To is the adviser's own address on every client-facing message, webmail or not; the support address only when none is given; the freemail classifier removed | 738/738 |
 | `5fbcd8b` | **481** e-letter and e-card creation commit the send and its recipient rows together (the minutely job could claim a letter before its rows existed: two recipients, one delivered, one Queued forever); startup marks rows stranded under a finished send as Failed with the reason | 742/742 |
+| docs | **482** SuperAdmin behind Microsoft Entra sign-in; health paths excluded; runbook in DOCS/14 (owner-side in the portal, one CLI change on his go; no code) | -- |
 
 ## Do this first tomorrow
 

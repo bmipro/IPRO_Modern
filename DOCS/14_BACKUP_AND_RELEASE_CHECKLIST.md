@@ -117,6 +117,43 @@ Order on the day, owner's actions marked:
 
 Rollback is the DNS records back to 66.102.128.65; the bindings and the setting can stay.
 
+## SuperAdmin behind Microsoft Entra sign-in (482)
+
+Since 2026-09-12 the admin site (`ipro-prod-admin`, resource group `ipro-prod-admin_group`,
+admin.iproadvisers.com) sits behind App Service Authentication with the Microsoft identity provider.
+A browser reaching any page is sent to login.windows.net for the owner's tenant first; the
+SuperAdmin username/password login is the second gate. API-style callers get 401.
+
+**What stays open, and why it matters:** `/health` and `/health/version` are excluded from
+authentication. The deploy workflow's verify step (`main_ipro-prod-admin.yml`) and the host watch
+read `/health/version` anonymously; with the exclusion missing they answer 401 and the deploy is
+declared failed. If the admin site ever answers 401 on that path, check the exclusion before
+anything else:
+
+```
+az webapp auth show -n ipro-prod-admin -g ipro-prod-admin_group --query properties.globalValidation
+MSYS_NO_PATHCONV=1 az webapp auth update -n ipro-prod-admin -g ipro-prod-admin_group --excluded-paths "/health,/health/version"
+```
+
+The portal's Edit dialog has no field for excluded paths; the CLI takes them as ONE comma-joined
+argument, and under Git Bash the `MSYS_NO_PATHCONV=1` prefix is required or `/health` arrives as
+`C:/Program Files/Git/health`. The change takes about a minute to apply; no restart needed.
+
+**Who can pass the first gate:** the enterprise application `IPRO SuperAdmin sign-in` has
+Assignment required = Yes and only the owner assigned (Microsoft Entra ID -> Enterprise
+applications -> the app -> Properties, then Users and groups). Adding a second administrator means
+assigning them there AND creating their SuperAdmin login.
+
+**The client secret expires 2028-09-11.** When it lapses the Microsoft sign-in stops with an error
+page and nothing warns beforehand. Before that date: Microsoft Entra ID -> App registrations ->
+`IPRO SuperAdmin sign-in` -> Certificates & secrets -> new client secret, then on the admin site
+Authentication -> the Microsoft provider -> Edit -> paste the new secret (it is stored in the
+`MICROSOFT_PROVIDER_AUTHENTICATION_SECRET` app setting, never in the repo).
+
+**Lock-out recovery (the owner's own account unavailable):** Authentication -> Edit ->
+App Service authentication = Disabled removes the first gate; the SuperAdmin login keeps
+protecting the site meanwhile. Re-enable once the account is back.
+
 ## Release (shipping a change to production)
 
 There is no staging environment — every push to `main` deploys straight to production via GitHub Actions. The discipline below exists to compensate for that.
