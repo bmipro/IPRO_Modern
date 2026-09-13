@@ -51,15 +51,6 @@ app refuses such a grant at connect time with a message that says to tick the bo
 adviser who sees it is Disconnect, Connect again, tick the box, Allow. Also the Data Access list:
 a scope the app asks for but the list does not hold is dropped silently in the same way.
 
-## Known trap: the checkbox on Google's consent screen (487)
-
-Google's consent screen shows the calendar permission as a **checkbox** that is not ticked by
-default. Left unticked, Google still returns a token, with the email only, and every sync run then
-fails with `403 insufficient authentication scopes` (the owner's 2026-09-12 evening). Since 487 the
-app refuses such a grant at connect time with a message that says to tick the box; the fix for an
-adviser who sees it is Disconnect, Connect again, tick the box, Allow. Also the Data Access list:
-a scope the app asks for but the list does not hold is dropped silently in the same way.
-
 ## Justification text (calendar.events)
 
 > IPRO Advisers is a client-management platform for Canadian financial, insurance, accounting and
