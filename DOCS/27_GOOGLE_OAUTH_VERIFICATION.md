@@ -42,6 +42,24 @@ client is `https://app.iproadvisers.com/GoogleCalendar/Callback` (485), plus the
    following weeks for the scope review; answer from the same account. Nothing in the app changes
    during the review.
 
+## Known trap: the checkbox on Google's consent screen (487)
+
+Google's consent screen shows the calendar permission as a **checkbox** that is not ticked by
+default. Left unticked, Google still returns a token, with the email only, and every sync run then
+fails with `403 insufficient authentication scopes` (the owner's 2026-09-12 evening). Since 487 the
+app refuses such a grant at connect time with a message that says to tick the box; the fix for an
+adviser who sees it is Disconnect, Connect again, tick the box, Allow. Also the Data Access list:
+a scope the app asks for but the list does not hold is dropped silently in the same way.
+
+## Known trap: the checkbox on Google's consent screen (487)
+
+Google's consent screen shows the calendar permission as a **checkbox** that is not ticked by
+default. Left unticked, Google still returns a token, with the email only, and every sync run then
+fails with `403 insufficient authentication scopes` (the owner's 2026-09-12 evening). Since 487 the
+app refuses such a grant at connect time with a message that says to tick the box; the fix for an
+adviser who sees it is Disconnect, Connect again, tick the box, Allow. Also the Data Access list:
+a scope the app asks for but the list does not hold is dropped silently in the same way.
+
 ## Justification text (calendar.events)
 
 > IPRO Advisers is a client-management platform for Canadian financial, insurance, accounting and
@@ -58,7 +76,7 @@ client is `https://app.iproadvisers.com/GoogleCalendar/Callback` (485), plus the
 
 1. Open https://app.iproadvisers.com, sign in as an adviser (a test account).
 2. Profile -> Google Calendar -> **Connect**. Show the Google account chooser and the consent screen
-   with the two scopes; accept.
+   with the two scopes; **tick the calendar box on camera**, then allow.
 3. Back in IPRO, show the connection status (account email shown, Disconnect available).
 4. Marketing Calendar: create an appointment. Open Google Calendar in another tab: show it there.
 5. In Google Calendar, move or rename that appointment. Back in IPRO: show the change after sync.

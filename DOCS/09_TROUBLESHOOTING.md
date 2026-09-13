@@ -1490,3 +1490,11 @@ is built from configuration and a literal path, never from `Url.Action`/`Url.Act
 console entry is written down next to it. The address the console must hold is
 `https://app.iproadvisers.com/GoogleCalendar/Callback` (plus the azurewebsites.net one for the
 fallback base).
+
+**Second act, the same evening (487).** With the callback fixed and the app on the narrower scope, the
+owner reconnected and every sync run failed with `403 Request had insufficient authentication scopes`.
+Google's consent screen shows the calendar permission as a checkbox the person can leave unticked;
+the token came back with the email only and the connection had been stored as a success. Since 487
+the token exchange reads the `scope` Google returns and refuses a grant without calendar access with
+a message that says to tick the box. Symptom to recognise: a fresh connection, and `Google event
+create failed ... 403 ... insufficient authentication scopes` every 15 minutes in the container log.
