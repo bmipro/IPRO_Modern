@@ -49,6 +49,21 @@ public class GoogleCalendarService : IGoogleCalendarService
         _logger = logger;
     }
 
+    // 487 (2026-09-12): does the grant Google actually returned let the sync work? Its consent screen
+    // shows the calendar permission as a box the person can leave unticked (and the console's Data
+    // Access list can drop a scope it does not list); the token then carries only the email, and a
+    // connection stored on it fails every sync with 403. calendar.events is what the app asks for;
+    // an older, wider "calendar" grant still counts.
+    public static bool GrantsCalendarAccess(string? grantedScopes)
+    {
+        if (string.IsNullOrWhiteSpace(grantedScopes)) return false;
+        foreach (var scope in grantedScopes.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (scope == "https://www.googleapis.com/auth/calendar.events" || scope == "https://www.googleapis.com/auth/calendar") return true;
+        }
+        return false;
+    }
+
     public string BuildAuthorizationUrl(string redirectUri, string state)
     {
         var query = new Dictionary<string, string>
@@ -91,6 +106,15 @@ public class GoogleCalendarService : IGoogleCalendarService
         var accessToken = root.GetProperty("access_token").GetString() ?? string.Empty;
         var refreshToken = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() ?? string.Empty : string.Empty;
         var expiresIn = root.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600;
+
+        // 487: refuse a grant without calendar access here, while the person is still looking, instead
+        // of storing it as a success and failing every sync run afterwards (the owner's 09-12 evening).
+        var grantedScopes = root.TryGetProperty("scope", out var sc) ? sc.GetString() : null;
+        if (!GrantsCalendarAccess(grantedScopes))
+        {
+            _logger.LogWarning("Google granted '{Scopes}' without calendar access; the connection is refused.", grantedScopes ?? "(none)");
+            throw new InvalidOperationException("Google did not grant access to your calendar. Connect again and, on Google's screen, tick the box for your calendar events before you allow.");
+        }
 
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
