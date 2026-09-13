@@ -60,7 +60,7 @@
 | `59c8c78` | **484** a brand domain serves its landing page under its own name (files and the preview frame too), redirects the rest to the platform with the path kept; the landing partials link the home absolutely | 763/763 |
 | `4fe3f37` | **485** Google Calendar connect: the callback address is the canonical base plus a literal path (Url.ActionLink had produced /portal/... since 08-07, redirect_uri_mismatch everywhere); Callback routed explicitly at that path | 765/765 |
 | `e3f5a27` | **486** Google Calendar asks for calendar.events + userinfo.email, the narrowest scope for what the sync does; DOCS/27 verification runbook | 766/766 |
-| _see log_ | **487** Google Calendar connect refuses a grant without calendar access (the consent checkbox left unticked) with a plain message, instead of storing it and failing every sync | whole tree |
+| `1c0c591` | **487** Google Calendar connect refuses a grant without calendar access (the consent checkbox left unticked) with a plain message, instead of storing it and failing every sync | 774/774 |
 
 ## Close-out 2026-09-12
 
