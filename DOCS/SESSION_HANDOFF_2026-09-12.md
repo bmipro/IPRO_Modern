@@ -73,8 +73,11 @@ Pushed and verified at `/health/version` on both hosts before each tick:
 | docs | **482** SuperAdmin behind Microsoft Entra sign-in: portal by the owner, health paths excluded from the CLI on his go, assignment required with only the owner assigned; secret expires 2028-09-11 | -- |
 | docs | **483** ipromortgages.com registered, bound with managed certificates, redirecting to /mortgage; the 21 September runbook rehearsed end to end and corrected (append the live names to the existing alias setting) | -- |
 | `59c8c78` | **484** a brand domain serves its landing page under its own name (files and the live preview frame too) and redirects the rest to the platform with the path kept; the iproadvisers names still redirect to the home; the landing partials link the home absolutely | 763/763 |
+| `4fe3f37` | **485** Google Calendar connect: the callback address is the canonical base plus a literal path (Url.ActionLink had produced /portal/... since 08-07, redirect_uri_mismatch on every host); Callback routed explicitly | 765/765 |
+| `e3f5a27` | **486** Google Calendar asks for calendar.events + userinfo.email, the narrowest scope for what the sync does; DOCS/27 OAuth verification runbook (consent screen published to production by the owner, verification submission prepared) | 766/766 |
+| `1c0c591` | **487** Google Calendar connect refuses a grant without calendar access (the consent checkbox left unticked) with a plain message, instead of storing it and failing every sync | 774/774 |
 
-Final build on both hosts before this close-out: `013a595` (second close-out of the day, after 484). Tree clean and pushed.
+Final build on both hosts before this close-out: `6e6bcaf` (third close-out of the day, after 487). Tree clean and pushed.
 
 Owner-side today, all read back: the e-card unsubscribe / preferences / subscribe-again loop tested
 end to end on a live client; the Hangfire dashboard checked (one server, minutely jobs current) and
@@ -82,11 +85,18 @@ its 771 historical failed jobs deleted; the Entra sign-in tested in two browsers
 the second was a bookmark to a path that never existed; `/` is the address); the four DNS records
 at GoDaddy; the on-demand checks of `/health` and `/health/version` through the new gate.
 
+Google Calendar this evening: the owner reached the consent screen after 485, published the OAuth
+consent screen to production (Branding filled, both authorised domains, calendar.events added to Data
+Access, userinfo.email listed), reconnected on the 486 build, hit the unticked-checkbox trap, and
+reconnected with the box ticked -- the sync runs. Left for him: untick the old full `calendar` scope on
+Data Access, then submit in the Verification centre with the DOCS/27 justification and a video recorded
+on this build.
+
 Decisions on record: open and click tracking waits for Microsoft's answer until Monday; if it is not
 positive, the platform's own pixel and click redirect get built (about a day). PayPal live cutover
 and the ticket also wait until Monday.
 
-Close-out as asked, taken twice today (13:50 after 483, and again after 484): both snapshot zips (`git archive HEAD` to `OneDrive\Codex_Code_Bkup` and
+Close-out as asked, taken three times today (13:50 after 483, 14:46 after 484, and again after 487): both snapshot zips (`git archive HEAD` to `OneDrive\Codex_Code_Bkup` and
 `Documents\IPRO_Backups`), build servers shut down, no test host running. Local MySQL is the
 Windows service `IPROLocalMySQL` (AUTO_START): nothing to stop before a reboot.
 ## Do this first tomorrow
