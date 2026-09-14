@@ -3,8 +3,11 @@
     CANONICAL PRIVACY POLICY TEXT.  Rendered by /privacy (Views/Home/Privacy.cshtml).
 
     Every third-party processor named in section 4 was confirmed present in the codebase on
-    15 August 2026. If a provider is added or removed, THIS TABLE MUST BE UPDATED -- an
-    undisclosed cross-border processor is a PIPEDA problem, not a documentation gap.
+    15 August 2026, and again on 14 September 2026 (489: Azure Communication Services has sent
+    the mail since 30 August, SendGrid is the standby; the Google Calendar paragraph in section 2
+    is what Google's OAuth reviewer reads; clicks are recorded by the platform itself since 488).
+    If a provider is added or removed, THIS TABLE MUST BE UPDATED -- an undisclosed cross-border
+    processor is a PIPEDA problem, not a documentation gap.
 
     Markdown source and the reviewer's change log:
       DOCS/legal/privacy-policy.md
@@ -23,7 +26,7 @@
   Effective date:
   @if (string.IsNullOrWhiteSpace(effDate)) { <span class="lg-todo">SET ON PUBLICATION</span> }
   else { <strong>@effDate</strong> }
-  &nbsp;&middot;&nbsp; Last updated: 15 August 2026
+  &nbsp;&middot;&nbsp; Last updated: 14 September 2026
 </p>
 
 <h2>The short version</h2>
@@ -101,8 +104,23 @@ abuse. Diagnostic telemetry is scrubbed of tokens and credentials before it is s
 
 <h3>Email delivery and engagement</h3>
 <p>For email sent through the platform, we record what was sent, to whom, when, and whether it was
-delivered, bounced, opened or reported as spam. You need this to know your mail is arriving. We need it
-to keep our sending reputation intact.</p>
+delivered, bounced, opened, clicked or reported as spam. Opens and clicks are measured by the platform
+itself: each message carries a small image that loads when it is opened, and its links pass through our
+own address on the way to the page. You need this to know your mail is arriving and being read. We need
+it to keep our sending reputation intact. We do not sell this information or use it for advertising.</p>
+
+<h3>Your Google Calendar, if you connect it</h3>
+<p>Connecting is optional. If you do, we ask Google for two things: permission to see, create, change and
+delete events on the one calendar you choose, and your Google account email address, so we can show you
+which account is connected. We use that access for one purpose: keeping the appointments in your IPRO
+calendar and your Google Calendar in step, in both directions, every fifteen minutes. We do not read other
+calendars, change your calendar settings or sharing, or use anything from your calendar for advertising,
+profiling or sale.</p>
+<p>The credentials Google gives us are encrypted and held in our database in Canada (Microsoft Azure).
+Disconnect on your profile page revokes them with Google and deletes them from our side, and closing your
+account does the same. Our use of information received from Google APIs adheres to the
+<a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Google API Services
+User Data Policy</a>, including the Limited Use requirements.</p>
 
 <h2>3. Artificial intelligence features</h2>
 <p>If your package includes the AI daily assistant or AI drafting tools, and you use them, the relevant
@@ -131,9 +149,10 @@ may use it for their own purposes.</p>
     <tr><td><strong>Microsoft Azure</strong></td><td>Hosting, database, uploaded files, diagnostic telemetry (Application Insights)</td>
         <td>@if (string.IsNullOrWhiteSpace(dataRegion)) { <span class="lg-todo">CONFIRM REGION</span> } else { @dataRegion }</td></tr>
     <tr><td><strong>PayPal</strong></td><td>Subscription payments and card details</td><td>Canada / United States</td></tr>
-    <tr><td><strong>SendGrid (Twilio)</strong></td><td>Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery</td><td>United States</td></tr>
+    <tr><td><strong>Microsoft Azure Communication Services</strong></td><td>Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery</td><td>Canada</td></tr>
+    <tr><td><strong>SendGrid (Twilio)</strong></td><td>Standby email delivery, used only if Azure cannot send</td><td>United States</td></tr>
     <tr><td><strong>Anthropic PBC</strong></td><td>AI drafting and daily-assistant content, when you use those features</td><td>United States</td></tr>
-    <tr><td><strong>Google</strong></td><td>Calendar synchronisation &mdash; only if you connect your Google Calendar</td><td>United States</td></tr>
+    <tr><td><strong>Google</strong></td><td>Calendar synchronisation &mdash; only if you connect your Google Calendar (section 2 says exactly what)</td><td>United States</td></tr>
     <tr><td><strong>Let&rsquo;s Encrypt</strong></td><td>Issuing SSL certificates for custom domains (domain name only)</td><td>International</td></tr>
   </tbody>
 </table>
