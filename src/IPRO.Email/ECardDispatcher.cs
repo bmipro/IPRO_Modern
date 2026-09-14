@@ -66,7 +66,8 @@ public class ECardDispatcher
         }
 
         // Card artwork lives in the web app's wwwroot, so the email needs absolute URLs.
-        var html = ECardHtmlComposer.Wrap(card, agent, design, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration));
+        var baseUrl = IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
+        var html = ECardHtmlComposer.Wrap(card, agent, design, baseUrl);
         var replyToName = $"{agent.FirstName} {agent.LastName}".Trim();
 
         var recipients = await _db.ECardRecipients
@@ -119,6 +120,15 @@ public class ECardDispatcher
                 // landing in spam.
                 var preferencesUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
 
+                // 488: the platform's own open pixel and click redirect, keyed by a per-recipient token
+                // minted here (a resumed send keeps the one its Queued rows already carry). The body is
+                // composed once for the whole card above; only this per-recipient layer differs.
+                if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = EmailTrackingLinks.NewToken();
+                var trackedHtml = EmailTrackingLinks.IsEnabled(_configuration)
+                    ? EmailTrackingLinks.Instrument(EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl), "ecard",
+                        recipient.TrackingToken, baseUrl, EmailTrackingLinks.SigningKey(_configuration))
+                    : EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl);
+
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
@@ -126,7 +136,7 @@ public class ECardDispatcher
                     // The visible unsubscribe line. The List-Unsubscribe header alone is not enough:
                     // mail clients show their own button at their discretion, so without this a
                     // recipient can open a card and have nothing to click.
-                    EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl),
+                    trackedHtml,
                     // Plain-text alternative. Cards are a big image carrying ~10 words, which is a
                     // heavy spam signal on its own; sending HTML only made it worse. Observed
                     // 2026-08-08: every e-card to a SpamAssassin host arrived tagged ***SPAM***

@@ -2,6 +2,7 @@ using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace IPRO.Email;
@@ -11,13 +12,15 @@ public class ELetterDispatcher
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
     private readonly IEmailConsentService _consent;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<ELetterDispatcher> _logger;
 
-    public ELetterDispatcher(IPRODbContext db, IEmailService email, IEmailConsentService consent, ILogger<ELetterDispatcher> logger)
+    public ELetterDispatcher(IPRODbContext db, IEmailService email, IEmailConsentService consent, IConfiguration configuration, ILogger<ELetterDispatcher> logger)
     {
         _db = db;
         _email = email;
         _consent = consent;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -96,12 +99,21 @@ public class ELetterDispatcher
                 var subject = MergeFieldResolver.ResolveText(letter.Subject, client, agent);
                 var html = ELetterHtmlComposer.Wrap(letter, agent, client);
 
+                // 488: the platform's own open pixel and click redirect, keyed by a per-recipient token
+                // minted here (a resumed send keeps the one its Queued rows already carry).
+                if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = EmailTrackingLinks.NewToken();
+                var trackedHtml = EmailTrackingLinks.IsEnabled(_configuration)
+                    ? EmailTrackingLinks.Instrument(EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl), "eletter",
+                        recipient.TrackingToken, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration),
+                        EmailTrackingLinks.SigningKey(_configuration))
+                    : EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl);
+
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
                     subject,
                     // Visible unsubscribe line -- see the note in ECardDispatcher.
-                    EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl),
+                    trackedHtml,
                     // Plain-text alternative -- see the note in ECardDispatcher.
                     ELetterHtmlComposer.WrapText(letter, agent, client, preferencesUrl),
                     customArgs: new Dictionary<string, string>

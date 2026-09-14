@@ -16,6 +16,11 @@ public class PollRecipient
     public string RecipientName { get; set; } = string.Empty;
     public PollRecipientStatus Status { get; set; } = PollRecipientStatus.Queued;
     public string SendGridMessageId { get; set; } = string.Empty;
+    // 488: the platform's own open pixel and click redirect carry this token instead of the
+    // provider's message id (which only exists after the send). Minted by the dispatcher just
+    // before sending; empty on rows that pre-date 488 and on rows that were never sent.
+    [System.ComponentModel.DataAnnotations.MaxLength(64)]
+    public string TrackingToken { get; set; } = string.Empty;
     public string VoteToken { get; set; } = string.Empty;
     public PollRecipientSource Source { get; set; } = PollRecipientSource.Email;
     public string FailureReason { get; set; } = string.Empty;

@@ -113,7 +113,9 @@ else
                 @if (row.Sent == 0) { <span class="text-muted">&mdash;</span> } else { @row.Delivered }
               </td>
               <td class="text-end">
-                @if (!tracking && row.Opened == 0) { <span class="text-muted small">not tracked</span> }
+                @* 488: invoice mail is not instrumented (the invoice page records its own views), so its
+                   rows keep saying so rather than showing a zero that reads as "nobody opened it". *@
+                @if ((!tracking || row.TypeKey == "invoice") && row.Opened == 0) { <span class="text-muted small">not tracked</span> }
                 else if (row.Sent == 0) { <span class="text-muted">&mdash;</span> }
                 else { @row.Opened }
               </td>

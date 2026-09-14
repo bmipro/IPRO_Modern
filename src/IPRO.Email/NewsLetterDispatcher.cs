@@ -174,11 +174,18 @@ public class NewsLetterDispatcher
             try
             {
                 var unsubscribeUrl = BuildUnsubscribeUrl(recipient.UnsubscribeToken);
+                // 488: the platform's own open pixel and click redirect, keyed by a per-recipient token
+                // minted here. A resumed send keeps the token its Queued rows already carry.
+                if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = EmailTrackingLinks.NewToken();
+                var htmlBody = EmailTrackingLinks.IsEnabled(_configuration)
+                    ? EmailTrackingLinks.Instrument(AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl), "newsletter",
+                        recipient.TrackingToken, GetBaseUrl(), EmailTrackingLinks.SigningKey(_configuration))
+                    : AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl);
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
                     newsletter.Subject,
-                    AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl),
+                    htmlBody,
                     AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl),
                     new Dictionary<string, string>
                     {
@@ -396,7 +403,8 @@ public class NewsLetterDispatcher
             StepIndex = stepIndex,
             Email = toEmail.Trim().ToLowerInvariant(),
             RecipientName = toName,
-            Status = NewsLetterRecipientStatus.Queued
+            Status = NewsLetterRecipientStatus.Queued,
+            TrackingToken = EmailTrackingLinks.NewToken()   // 488: saved with the row, before the send
         };
         _db.DripCampaignStepSends.Add(stepSend);
         await _db.SaveChangesAsync();
@@ -410,16 +418,20 @@ public class NewsLetterDispatcher
         };
 
         var sanitizedHtmlBody = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(step.HtmlBody);
+        // 488: instrumented AFTER sanitising and after the footer, so nothing re-processes the redirect links.
+        string Track(string body) => EmailTrackingLinks.IsEnabled(_configuration)
+            ? EmailTrackingLinks.Instrument(body, "drip", stepSend.TrackingToken, GetBaseUrl(), EmailTrackingLinks.SigningKey(_configuration))
+            : body;
 
         EmailSendResult result;
         if (string.IsNullOrWhiteSpace(unsubscribeToken))
         {
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, sanitizedHtmlBody, customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, Track(sanitizedHtmlBody), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName);
         }
         else
         {
             var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName, listUnsubscribeUrl: unsubscribeUrl);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, Track(AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl)), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName, listUnsubscribeUrl: unsubscribeUrl);
         }
 
         stepSend.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;

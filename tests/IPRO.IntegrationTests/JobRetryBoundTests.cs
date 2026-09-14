@@ -97,7 +97,8 @@ public class JobRetryBoundTests
         db.ChangeTracker.Clear();
 
         var job = new DidYouKnowEmailDispatchJob(
-            db, new TransientFailEmailService(), new StubConsent(), NullLogger<DidYouKnowEmailDispatchJob>.Instance);
+            db, new TransientFailEmailService(), new StubConsent(),
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), NullLogger<DidYouKnowEmailDispatchJob>.Instance);
 
         // Five rounds; between rounds, age the claim past the 15-minute stale window exactly the
         // way production time does. Pre-fix there was no counter: round 5 looked like round 1 and

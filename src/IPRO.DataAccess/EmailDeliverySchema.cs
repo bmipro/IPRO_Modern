@@ -84,6 +84,22 @@ public static class EmailDeliverySchema
         "PollSends"
     };
 
+    // 488: the platform's own open pixel and click redirect (EmailTrackingLinks) carry one random
+    // token per recipient row, minted by the dispatcher just before the send. Every table that
+    // gets a per-recipient marketing email, including the two (newsletters, drip steps) that
+    // predate the shared tracking set above. Looked up by token on every pixel load and click.
+    private static readonly string[] TrackingTokenTables =
+    {
+        "NewsLetterRecipients",
+        "DripCampaignStepSends",
+        "ECardRecipients",
+        "ELetterRecipients",
+        "PollRecipients",
+        "DidYouKnowEmailQueueItems"
+    };
+
+    private const string TrackingTokenDefinition = "varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''";
+
     private static readonly (string Column, string Definition)[] SendClaimColumns =
     {
         ("ClaimedAt",     "datetime(6) NULL"),
@@ -149,6 +165,21 @@ public static class EmailDeliverySchema
                     alter.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `{column}` {definition};";
                     await alter.ExecuteNonQueryAsync();
                 }
+            }
+
+            foreach (var table in TrackingTokenTables)
+            {
+                if (!await TableExistsAsync(db, table)) continue;
+
+                if (!await ColumnExistsAsync(db, table, "TrackingToken"))
+                {
+                    await using var alter = db.Database.GetDbConnection().CreateCommand();
+                    alter.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `TrackingToken` {TrackingTokenDefinition};";
+                    await alter.ExecuteNonQueryAsync();
+                }
+
+                // Every pixel load and every click is a lookup by token; without this it is a table scan.
+                await EnsureIndexAsync(db, table, $"idx_{table.ToLowerInvariant()}_tracking_token", "`TrackingToken`");
             }
         }
         finally

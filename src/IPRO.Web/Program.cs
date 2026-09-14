@@ -710,6 +710,11 @@ static bool IsNeverShadowedPrefix(string segment) => segment.ToLowerInvariant() 
     // 404s is not a broken page, it is a spam complaint, and these links stay in inboxes for years.
     "email-preferences" => true,
 
+    // 488: EmailTrackingController [Route("t")] -- the open pixel (/t/o/...gif; an extension, so it
+    // never reached the slug lookup anyway) and the click redirect (/t/c/..., no extension, so it
+    // would have). Every tracked link in every adviser's mail points here, for years.
+    "t" => true,
+
     _ => false
 };
 

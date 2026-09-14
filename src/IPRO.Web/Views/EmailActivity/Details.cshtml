@@ -3,8 +3,9 @@
     var send = (IPRO.Web.Controllers.EmailActivityRow)ViewBag.Send;
     ViewData["Title"] = $"{send.TypeLabel} — {send.Subject}";
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
-    // 444: is the provider injecting open/click tracking right now? Off means Opened/Clicked cannot
+    // 444: is anything injecting open/click tracking right now? Off means Opened/Clicked cannot
     // populate for new sends, so the screen says so rather than showing a dash that reads as "nobody".
+    // 488: the platform's own pixel and redirect count; the controller turns this off for invoices.
     var tracking = ViewBag.EngagementTracking as bool? ?? false;
 
     string Stamp(DateTime? value) => value.HasValue
@@ -146,12 +147,13 @@ else
 
   <p class="text-muted small mt-3 mb-0">
     <i class="fas fa-circle-info me-1"></i>
-    Delivered, Opened and Clicked are reported back by the mail provider and can take a minute or two
-    to appear. Opens rely on the recipient's mail app loading images, so the real open rate is usually
-    a little higher than the number shown.
+    Delivered is reported back by the mail provider. Opened is recorded when the recipient's mail app
+    loads the message's images, and Clicked when a link in it is followed; both can take a minute or
+    two to appear. Opens rely on images loading, so the real open rate is usually a little higher
+    than the number shown.
     @if (!tracking)
     {
-      <span><br /><strong>Open and click tracking is not switched on for this account's mail provider</strong>, so Opened and Clicked stay empty until it is. Delivered is unaffected.</span>
+      <span><br /><strong>Open and click tracking is not switched on for this kind of mail</strong>, so Opened and Clicked stay empty. Delivered is unaffected.</span>
     }
   </p>
 }

@@ -2,6 +2,7 @@ using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace IPRO.Scheduler;
@@ -15,13 +16,15 @@ public class DidYouKnowEmailDispatchJob
     private readonly IPRODbContext _db;
     private readonly IEmailService _email;
     private readonly IPRO.Business.Services.IEmailConsentService _consent;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<DidYouKnowEmailDispatchJob> _logger;
 
-    public DidYouKnowEmailDispatchJob(IPRODbContext db, IEmailService email, IPRO.Business.Services.IEmailConsentService consent, ILogger<DidYouKnowEmailDispatchJob> logger)
+    public DidYouKnowEmailDispatchJob(IPRODbContext db, IEmailService email, IPRO.Business.Services.IEmailConsentService consent, IConfiguration configuration, ILogger<DidYouKnowEmailDispatchJob> logger)
     {
         _db = db;
         _email = email;
         _consent = consent;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -116,6 +119,13 @@ public class DidYouKnowEmailDispatchJob
                     continue;
                 }
 
+                // 488: the platform's own open pixel and click redirect. The row is untracked in this job,
+                // so the token is written the same way every other marker on it is.
+                var trackingToken = IPRO.Business.Services.EmailTrackingLinks.NewToken();
+                await _db.DidYouKnowEmailQueueItems
+                    .Where(q => q.Id == item.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(q => q.TrackingToken, trackingToken));
+
                 var agent = await _db.AgentUsers.FirstOrDefaultAsync(u => u.Id == article.AgentUserId);
                 var companyName = agent == null || string.IsNullOrWhiteSpace(agent.CompanyName)
                     ? $"{agent?.FirstName} {agent?.LastName}".Trim()
@@ -130,6 +140,13 @@ public class DidYouKnowEmailDispatchJob
                       </div>
                     </div>
                     """;
+
+                if (IPRO.Business.Services.EmailTrackingLinks.IsEnabled(_configuration))
+                {
+                    html = IPRO.Business.Services.EmailTrackingLinks.Instrument(html, "didyouknow", trackingToken,
+                        IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration),
+                        IPRO.Business.Services.EmailTrackingLinks.SigningKey(_configuration));
+                }
 
                 var clientName = $"{client.FirstName} {client.LastName}".Trim();
                 var result = await _email.SendDetailedAsync(

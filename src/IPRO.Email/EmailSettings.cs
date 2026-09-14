@@ -20,4 +20,11 @@ public class EmailSettings
     // Email__EngagementTrackingEnabled=true on BOTH App Services once the domain Overview reads
     // Enabled. Until then Email Activity says "not tracked" instead of a misleading dash or zero.
     public bool EngagementTrackingEnabled { get; set; } = false;
+
+    // 488 (2026-09-14): the platform's OWN open pixel and click redirect (EmailTrackingLinks),
+    // built because the provider's tracking above is gated on 442. On by default; set
+    // Email__PlatformTrackingEnabled=false on BOTH App Services to stop instrumenting mail --
+    // the switch to use if Microsoft ever enables provider tracking, so the two do not stack.
+    // Either flag being on means Email Activity shows Opened/Clicked instead of "not tracked".
+    public bool PlatformTrackingEnabled { get; set; } = true;
 }

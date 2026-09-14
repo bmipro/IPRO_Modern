@@ -20,7 +20,7 @@ public class HelpLinksTests
     {
         "AzureEmailEvents", "ClientDocument", "ClientPortal", "ClientPortalAccount", "ClientPortalAppointments",
         "ClientPortalDocuments", "ClientPortalMessages", "ClientPortalPreferences", "ClientPortalProfile",
-        "EmailPreferences", "Error", "Home", "PollVote", "Preview", "PublicWebsite", "TestimonialRequest",
+        "EmailPreferences", "EmailTracking", "Error", "Home", "PollVote", "Preview", "PublicWebsite", "TestimonialRequest",
     };
 
     [Fact]

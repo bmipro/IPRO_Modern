@@ -48,9 +48,10 @@ public class EmailActivityController : Controller
 
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();
         ViewBag.Filter = normalizedType;
-        // 444: lets the screen say "not tracked" instead of an ambiguous dash while the provider is
-        // not injecting open/click tracking (see EmailSettings.EngagementTrackingEnabled).
-        ViewBag.EngagementTracking = _email.EngagementTrackingEnabled;
+        // 444: lets the screen say "not tracked" instead of an ambiguous dash while nothing is
+        // injecting open/click tracking. 488: the platform's own pixel and redirect count too; the
+        // view keeps saying "not tracked" for invoice rows, which are not instrumented.
+        ViewBag.EngagementTracking = _email.EngagementTrackingEnabled || _email.PlatformTrackingEnabled;
         ViewBag.Counts = (await LoadSendsAsync())
             .GroupBy(r => r.TypeKey)
             .ToDictionary(g => g.Key, g => g.Count());
@@ -75,7 +76,9 @@ public class EmailActivityController : Controller
 
         ViewBag.Send = send;
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();
-        ViewBag.EngagementTracking = _email.EngagementTrackingEnabled;
+        // Invoice mail is not instrumented (488): the invoice page records its own views instead.
+        ViewBag.EngagementTracking = _email.EngagementTrackingEnabled
+            || (_email.PlatformTrackingEnabled && normalizedType != "invoice");
         return View(await LoadRecipientsAsync(normalizedType, id));
     }
 

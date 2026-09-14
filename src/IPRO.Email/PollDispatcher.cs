@@ -168,11 +168,21 @@ public class PollDispatcher
 
                 var preferencesUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
 
+                // 488: the platform's own open pixel and click redirect, keyed by a per-recipient token
+                // minted here (a resumed send keeps the one its Queued rows already carry). The vote
+                // link carries its own token and is left exactly as built.
+                if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = IPRO.Business.Services.EmailTrackingLinks.NewToken();
+                var trackedHtml = IPRO.Business.Services.EmailTrackingLinks.IsEnabled(_configuration)
+                    ? IPRO.Business.Services.EmailTrackingLinks.Instrument(BuildEmailHtml(survey, voteUrl), "poll",
+                        recipient.TrackingToken, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration),
+                        IPRO.Business.Services.EmailTrackingLinks.SigningKey(_configuration))
+                    : BuildEmailHtml(survey, voteUrl);
+
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
                     survey.Subject,
-                    BuildEmailHtml(survey, voteUrl),
+                    trackedHtml,
                     BuildEmailText(survey, voteUrl),
                     new Dictionary<string, string>
                     {
