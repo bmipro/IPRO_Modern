@@ -23,7 +23,7 @@ Two kinds of card to pick from:
 
 The card face, then your greeting on the card's own background, then your contact block — details on one side, your photo on the other. The greeting is never printed over the picture: text on top of artwork is hard to read, and how hard depends on the design and on how much you typed, so it gets its own clear space instead.
 
-There's no tracking pixel or click-through link beyond your own reply-to address; a reply goes straight to your inbox.
+Every card carries the platform's own open pixel, and its links pass through a short redirect on app.iproadvisers.com so Email Activity can show Opened and Clicked (488); the unsubscribe link is left exactly as issued. A reply goes straight to your inbox.
 
 ## Notes
 

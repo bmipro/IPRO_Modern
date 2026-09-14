@@ -33,9 +33,9 @@ E-Cards and E-Letters also link straight into this detail page from their own li
 ## Where the Numbers Come From
 
 - **Sent** is our side: the mail provider accepted the message.
-- **Delivered**, **Opened** and **Clicked** come from the mail provider's delivery reports, matched back to each recipient. They usually arrive within a minute or two of the send, so a row you open immediately can still be filling in.
+- **Delivered** comes from the mail provider's delivery reports, matched back to each recipient. **Opened** and **Clicked** are recorded by the platform itself since 2026-09-14 (488): a one-pixel image loads when the message is opened, and each link passes through a short redirect on app.iproadvisers.com that notes the click before sending the reader on. They usually appear within a minute or two of the action, so a row you open immediately can still be filling in.
 - **Opened** depends on the recipient's mail app loading images, so real opens are always at least as high as the number shown.
-- If open and click tracking is not switched on for the account's mail provider, Opened and Clicked read **not tracked** and the detail page says so. Delivered is unaffected. Sends made before tracking was switched on stay blank.
+- If open and click tracking is switched off (`Email__PlatformTrackingEnabled=false`, and no provider tracking either), Opened and Clicked read **not tracked** and the detail page says so. Invoice emails always read **not tracked**: the invoice page records its own views instead. Delivered is unaffected. Sends made before tracking was switched on stay blank.
 
 ## What Is Not Here
 

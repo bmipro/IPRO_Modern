@@ -152,6 +152,15 @@ cure this).
 Opens and clicks populate for NEW sends only -- historical rows stay blank forever, and the screen
 now says so.
 
+**488 (2026-09-14):** the platform tracks opens and clicks on its own now -- a pixel and a signed
+redirect on the platform host (`EmailTrackingLinks`, `EmailTrackingController`), on by default. If
+Microsoft ever lifts the gate, do NOT run both: either leave the domain's engagement tracking off,
+or set `Email__PlatformTrackingEnabled=false` on BOTH App Services first and then flip
+`Email__EngagementTrackingEnabled=true` as above. The redirect is signed with
+`Email__TrackingSigningKey` when that is set, otherwise with the Event Grid webhook secret; rotating
+either invalidates the links already in inboxes (they answer "This link is not valid" rather than
+redirecting), so rotate deliberately and never both at once.
+
 ---
 
 ## Production paging (TODO 445, in place 2026-09-01)
