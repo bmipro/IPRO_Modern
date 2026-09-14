@@ -41,7 +41,7 @@
 |---|---|---|
 | `03f77ce` | docs: DOCS/27 duplicated 487 section removed | -- |
 | `fa58c71` | **488** platform-owned open and click tracking for newsletters, drip steps, e-cards, e-letters, polls and Did You Know: pixel + signed redirect on the platform host, per-recipient token, the same recorders and columns as the provider path; invoice mail stays "not tracked" | 803/803 |
-| _see log_ | **489** privacy policy: clicked + how it is measured, the Google Calendar paragraph, Azure Communication Services as the deliverer; both copies, change log, nine pins | whole tree |
+| `bbd5b6a` | **489** privacy policy: clicked + how it is measured, the Google Calendar paragraph, Azure Communication Services as the deliverer; both copies, change log, nine pins | 812/812 |
 
 ## Do this first tomorrow
 
