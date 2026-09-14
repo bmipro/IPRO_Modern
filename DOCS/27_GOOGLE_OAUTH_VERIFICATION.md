@@ -42,6 +42,17 @@ client is `https://app.iproadvisers.com/GoogleCalendar/Callback` (485), plus the
    following weeks for the scope review; answer from the same account. Nothing in the app changes
    during the review.
 
+## Seen on the page, 2026-09-14 (corrections to the steps above)
+
+- The Data access list held ONLY the wide `calendar` scope; `calendar.events` and `userinfo.email` had
+  never been saved. Step 1 above is therefore: untick `calendar`, tick `calendar.events` and
+  `userinfo.email` in the Add-or-remove-scopes panel (paged ten rows at a time; filter `events`), Update.
+- The justification ("How will the scopes be used?", 1000 characters) and the demo video's YouTube link
+  are entered ON the Data access page, under the sensitive scopes; the Verification centre only submits.
+  Two Saves with the justification box empty did not persist -- fill it before Save.
+- Google's note on that page: the unverified-app screen will appear for the test account and MUST be
+  shown in the video. The owner's reading copy of these steps: `C:\Users\admin\Documents\IPRO_Google_Verification_Steps.html`.
+
 ## Known trap: the checkbox on Google's consent screen (487)
 
 Google's consent screen shows the calendar permission as a **checkbox** that is not ticked by
