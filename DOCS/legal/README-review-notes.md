@@ -200,3 +200,28 @@ Legal__ReviewComplete     false  -- set true LAST, once the two above are filled
 2. **`BillingCompany` has a name, email and website but no postal address.** Invoices and the legal
    pages both want one. Consider making `Legal__RegisteredAddress` the single place it lives and
    having invoices read from it too, rather than adding a second copy.
+
+---
+
+## 14 September 2026 -- three corrections to the privacy policy (489), still unreviewed
+
+Both copies (`src/IPRO.Web/Views/Shared/_LegalPrivacy.cshtml` and `privacy-policy.md`) changed the
+same way; `tests/IPRO.IntegrationTests/PrivacyPolicyTests.cs` keeps them in step. Last updated moved
+to 14 September 2026. Nothing here changes what the platform does; each line describes something it
+already did and the policy had not caught up with.
+
+1. **Email delivery and engagement** now says *clicked* as well as opened, and says how: the platform
+   measures opens and clicks itself (a one-pixel image and a link redirect on app.iproadvisers.com,
+   TODO 488, live 14 September). The old text described the SendGrid-era provider tracking.
+2. **Your Google Calendar, if you connect it** is a new paragraph under section 2: what is asked for
+   (events on the one chosen calendar, the account email), the single purpose (two-way sync every
+   fifteen minutes), what is not done (other calendars, settings, sharing, advertising, profiling,
+   sale), storage (encrypted, database in Canada), deletion (Disconnect revokes and deletes; closing
+   the account too), and the Google API Services User Data Policy / Limited Use sentence. Google's
+   OAuth verification (DOCS/27) reads the policy for exactly this.
+3. **Section 4 table**: production has sent all email through Microsoft Azure Communication Services
+   since 30 August 2026 (data location Canada, read from the resource); SendGrid stays in the
+   codebase as the rollback provider and is listed as standby. The Google row points at section 2.
+
+For counsel: item 2 is a disclosure Google requires in this shape; item 1 is the PIPEDA-relevant
+one (a new form of collection, first-party, disclosed at the point it happens).

@@ -28,16 +28,24 @@
 - **Also this morning:** the owner asked whether PHP could go on the dev machine; the answer was yes
   with the one caution (bundles that carry their own MySQL on 3306); he chose another server instead.
 
+- **489 (evening):** the privacy policy caught up with three facts -- clicks are measured by the
+  platform itself (488), a Google Calendar paragraph in the shape Google's OAuth reviewer looks for,
+  and Azure Communication Services named as the deliverer (SendGrid as standby). Both copies, the
+  reviewer's change log, nine pins. The lawyer's review is still outstanding. The owner also got a
+  step-by-step Google verification guide as a file outside the repo
+  (`C:\Users\admin\Documents\IPRO_Google_Verification_Steps.html`, generated from DOCS/27).
+
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `03f77ce` | docs: DOCS/27 duplicated 487 section removed | -- |
 | `fa58c71` | **488** platform-owned open and click tracking for newsletters, drip steps, e-cards, e-letters, polls and Did You Know: pixel + signed redirect on the platform host, per-recipient token, the same recorders and columns as the provider path; invoice mail stays "not tracked" | 803/803 |
+| _see log_ | **489** privacy policy: clicked + how it is measured, the Google Calendar paragraph, Azure Communication Services as the deliverer; both copies, change log, nine pins | whole tree |
 
 ## Do this first tomorrow
 
-1. **489 (offered, one legal review):** the privacy policy -- "clicked" in the email paragraph (the
+1. **489 shipped this evening; the lawyer's review of both legal documents is still outstanding.** It was: the privacy policy -- "clicked" in the email paragraph (the
    policy already says opened); a short Google Calendar data paragraph for the OAuth verification; the
    email-provider row (still names SendGrid; production sends through Azure Communication Services).
 2. **Owner-side, after the 488 deploy:** send one birthday card to test@iproadvisers.com, open it, read

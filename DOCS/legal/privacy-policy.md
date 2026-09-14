@@ -1,7 +1,7 @@
 # Privacy Policy
 
 **iPro Advisers Inc.**
-Effective date: **15 February 2012** · Last updated: 15 August 2026
+Effective date: **15 February 2012** · Last updated: 14 September 2026
 
 > **Not yet legal advice.** Drafted from what the platform verifiably does, not from a
 > template. Every third-party processor named below was confirmed in the codebase. Not
@@ -87,8 +87,26 @@ before it is stored.
 ### Email delivery and engagement
 
 For email sent through the platform, we record what was sent, to whom, when, and whether it
-was delivered, bounced, opened or reported as spam. You need this to know your mail is
-arriving. We need it to keep our sending reputation intact.
+was delivered, bounced, opened, clicked or reported as spam. Opens and clicks are measured by
+the platform itself: each message carries a small image that loads when it is opened, and its
+links pass through our own address on the way to the page. You need this to know your mail is
+arriving and being read. We need it to keep our sending reputation intact. We do not sell this
+information or use it for advertising.
+
+### Your Google Calendar, if you connect it
+
+Connecting is optional. If you do, we ask Google for two things: permission to see, create,
+change and delete events on the one calendar you choose, and your Google account email address,
+so we can show you which account is connected. We use that access for one purpose: keeping the
+appointments in your IPRO calendar and your Google Calendar in step, in both directions, every
+fifteen minutes. We do not read other calendars, change your calendar settings or sharing, or
+use anything from your calendar for advertising, profiling or sale.
+
+The credentials Google gives us are encrypted and held in our database in Canada (Microsoft
+Azure). Disconnect on your profile page revokes them with Google and deletes them from our side,
+and closing your account does the same. Our use of information received from Google APIs
+adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
+including the Limited Use requirements.
 
 ## 3. Artificial intelligence features
 
@@ -118,9 +136,10 @@ of them may use it for their own purposes.
 |---|---|---|
 | **Microsoft Azure** | Hosting, database, uploaded files, diagnostic telemetry (Application Insights) | Eastern Canada |
 | **PayPal** | Subscription payments and card details | Canada / United States |
-| **SendGrid (Twilio)** | Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery | United States |
+| **Microsoft Azure Communication Services** | Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery | Canada |
+| **SendGrid (Twilio)** | Standby email delivery, used only if Azure cannot send | United States |
 | **Anthropic PBC** | AI drafting and daily-assistant content, when you use those features | United States |
-| **Google** | Calendar synchronisation — only if you connect your Google Calendar | United States |
+| **Google** | Calendar synchronisation — only if you connect your Google Calendar (section 2 says exactly what) | United States |
 | **Let's Encrypt** | Issuing SSL certificates for custom domains (domain name only) | International |
 
 Some of these are outside Canada. While information is held in another country it is subject
