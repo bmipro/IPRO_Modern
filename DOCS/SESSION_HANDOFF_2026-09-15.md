@@ -24,7 +24,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log_ | **490** Google Calendar Disconnect removes the copied Google events; the Calendar page shows copies only while connected; confirm text says so | whole tree |
+| `4775ff0` | **490** Google Calendar Disconnect removes the copied Google events; the Calendar page shows copies only while connected; confirm text says so | 816/816 |
 
 ## Do this first tomorrow
 
