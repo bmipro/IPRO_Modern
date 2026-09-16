@@ -21,7 +21,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log_ | **491** the sending gate (30/minute, 100/hour, transactional reserve, settings) and the pause path in the four blast loops | whole tree |
+| `6c9264d` | **491** the sending gate (30/minute, 100/hour, transactional reserve, settings) and the pause path in the four blast loops | 841/841 |
 
 ## Do this first tomorrow
 
