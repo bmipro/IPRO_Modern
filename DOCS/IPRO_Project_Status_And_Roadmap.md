@@ -1032,6 +1032,29 @@ public class Broker
 
 **Status**: designed, not started. Revisit when a specific broker relationship makes this worth prioritizing.
 
+**Re-sized 2026-09-16 against the shipped code** (owner asked for a fresh estimate). The (A) design above still
+holds; the inventory found 82 brand-only strings in 26 views (Home/landing 42, Shared 13, Account 11, Billing 7,
+Preview 6, PublicWebsite 4, Newsletter 3, Error 1, PollVote 1; every other folder is brand-free), one global
+email identity in `EmailSettings`, branded transactional mail in AccountController (welcome, reset), the three
+trial reminders, the PayPal texts (`brand_name`, plan name, invoice subject), the error page, the admin invoice
+view; `EmailUnsubscribeFooter` and the card/letter/newsletter composers are already agent-branded. Reusable now:
+`AgentUser.PortalAccentColor` + the `--portal-accent` mechanism (one line to default it per broker), the host
+routing + `AgentDomain` managed-certificate automation, `PlatformAliasHosts` (484) for brand hosts, the
+ECardDesigns admin CRUD shape, `TeamMember` (379) as the login-under-an-owner precedent. New since July and
+NOT covered by (A): the sender identity is one ACS domain on a per-SUBSCRIPTION quota (491 gate) -- a partner
+sender domain is DNS + ACS verification per partner and shares the cap; Google Calendar connect is welded to
+app.iproadvisers.com (consent screen, authorized domain, redirect URI); tracking (488), unsubscribe and
+preferences links name the platform host; the Terms are a contract with iPro Advisers Inc. (correct for (A)).
+**Estimate (A):** about 10-11 working days of build with the usual red-first gates -- data + schema + SuperAdmin
+Brokers CRUD 1.5; a per-request brand resolver (by the agent's broker, or by host for sign-in) driving layout,
+titles, logo, accent and the picker lock 2; transactional mail and PayPal texts through the brand 1.5; a broker
+host on the existing domain automation 2; a broker admin dashboard 1.5; tests, docs, deploys 2. Owner: half a
+day per partner (logo, colours, a CNAME, optional sender-domain DNS). Infrastructure: none new. Optional add-on:
+per-partner sender identity, about 2 days plus the partner's DNS. **(B) full reseller** (partner-level billing
+and invoices, partner-scoped admin, support routing, partner-branded contract, optional Google project per
+partner): 2-3 months and legal work; not before launch, not in the first month after. An (A)-lite without the
+custom domain (partner brand inside app.iproadvisers.com) is about a week.
+
 ### Team member / sub-user accounts under an agent (SHIPPED 2026-08-12 — see TODO #379 for the full record)
 
 **History, so this doesn't happen again**: this was originally a one-line bullet ("Team member accounts") in the same 2026-07-16 backlog list as the broker/white-label idea above. When that list got rewritten into the detailed white-label design on 2026-07-22, this bullet — along with "Shared templates and campaigns" and "Broker-level reporting" above — was silently dropped instead of carried forward or explicitly marked as cut. It sat undesigned and untracked for over a week until the user asked directly where it had gone. **Lesson applied going forward**: when consolidating or rewriting a backlog section in this doc, every existing bullet gets either carried into the new text, explicitly marked "deliberately dropped: [reason]," or left alone — never silently disappeared.
