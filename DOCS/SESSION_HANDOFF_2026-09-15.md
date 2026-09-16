@@ -26,6 +26,28 @@
 |---|---|---|
 | `4775ff0` | **490** Google Calendar Disconnect removes the copied Google events; the Calendar page shows copies only while connected; confirm text says so | 816/816 |
 
+## Close-out 2026-09-15
+
+Close-out as asked at the end of the day, after 490. Final build on both hosts before this close-out:
+`3e70ef0`. Tree clean and pushed.
+
+| Code | Item | Gate |
+|---|---|---|
+| `4775ff0` | **490** Google Calendar Disconnect removes the copied Google events; the Calendar page shows copies only while connected; the confirm text says so | 816/816 |
+| docs | Google OAuth verification SUBMITTED (Data access saved, branding verified via Search Console + cPanel TXT, published, questionnaire, submit); the working order in DOCS/27; last night's platform restart in DOCS/09 | -- |
+
+Owner-side today: the demo video recorded and frame-checked, YouTube unlisted; Search Console Domain
+property verified with a TXT record in the cPanel Zone Editor (keep it); branding verified and
+published; Data access under review. Google's questions arrive at support@iproadvisers.com and
+bahman.motamed@gmail.com; answer from the same account; do not edit Branding while the review runs.
+
+Last night's Sev1 SMS pair (22:33 Toronto) was Azure restarting both web apps -- self-healed in 8 and 12
+minutes, database untouched, nothing to fix; the owner accepts this on the current plan (DOCS/09).
+
+Backups: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup` and
+`C:\Users\admin\Documents\IPRO_Backups` (git archive of HEAD, stamped at the close-out); build servers
+shut down; MySQL stays a Windows service.
+
 ## Do this first tomorrow
 
 1. ~~490~~ shipped this afternoon.
