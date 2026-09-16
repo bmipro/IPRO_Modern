@@ -27,7 +27,7 @@ public class AzureEmailProviderTests
             Provider = "Azure",
             AzureCommunicationConnectionString = connectionString ?? string.Empty
         });
-        var service = new AzureEmailService(settings, NullLogger<AzureEmailService>.Instance);
+        var service = new AzureEmailService(settings, NullLogger<AzureEmailService>.Instance, new EmailSendGate(settings));
         if (sendCore != null)
         {
             service.ClientFactory = _ => new StubEmailClient(sendCore);

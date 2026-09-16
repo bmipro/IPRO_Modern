@@ -141,7 +141,7 @@ public class AdviserReplyToTests
             FromName = "IPRO Advisers",
             ReplyToEmail = "support@iproadvisers.com"
         });
-        var service = new AzureEmailService(settings, NullLogger<AzureEmailService>.Instance);
+        var service = new AzureEmailService(settings, NullLogger<AzureEmailService>.Instance, new EmailSendGate(settings));
         service.ClientFactory = _ => new StubEmailClient(sendCore);
         return service;
     }

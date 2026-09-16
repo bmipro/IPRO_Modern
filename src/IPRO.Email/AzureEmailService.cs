@@ -19,11 +19,13 @@ public class AzureEmailService : IEmailService
 {
     private readonly EmailSettings _settings;
     private readonly ILogger<AzureEmailService> _logger;
+    private readonly EmailSendGate _gate;
 
-    public AzureEmailService(IOptions<EmailSettings> settings, ILogger<AzureEmailService> logger)
+    public AzureEmailService(IOptions<EmailSettings> settings, ILogger<AzureEmailService> logger, EmailSendGate gate)
     {
         _settings = settings.Value;
         _logger = logger;
+        _gate = gate;
     }
 
     // Same seam pattern as SendGridEmailService.ClientFactory: production builds the real client;
@@ -87,6 +89,11 @@ public class AzureEmailService : IEmailService
                 message.Headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
             }
 
+            // 491: every Azure send waits here for a slot inside the subscription's limits (30 a minute,
+            // 100 an hour on the defaults), bulk mail behind the transactional reserve. A blast is
+            // slowed to the cap instead of being rejected by it.
+            await _gate.WaitForSlotAsync(EmailSendGate.IsBulk(customArgs));
+
             var client = ClientFactory(_settings.AzureCommunicationConnectionString);
             // WaitUntil.Started: we want the accepted operation id, not a poll to final delivery --
             // delivery outcomes arrive through the event pipeline, exactly as they did for SendGrid.
@@ -96,6 +103,9 @@ public class AzureEmailService : IEmailService
         catch (RequestFailedException ex)
         {
             _logger.LogWarning(ex, "Azure email rejected send to {Email}. Status: {Status}", toEmail, ex.Status);
+            // 491: a 429 that got past the gate holds every send for the provider's Retry-After (a
+            // minute when it does not say), so the next hundred attempts are not a hundred more 429s.
+            if (ex.Status == 429) _gate.ReportThrottled(RetryAfter(ex));
             var failureMessage = $"Azure email rejected the send. Status: {ex.Status}. {Summarize(ex.Message)}";
             return ex.Status is 429 or 401 or 403 || ex.Status >= 500 || ex.Status == 0
                 ? EmailSendResult.FailedTransient(failureMessage)
@@ -175,6 +185,25 @@ public class AzureEmailService : IEmailService
     private bool IsConfigured() =>
         !string.IsNullOrWhiteSpace(_settings.AzureCommunicationConnectionString)
         && _settings.AzureCommunicationConnectionString.Contains("endpoint=", StringComparison.OrdinalIgnoreCase);
+
+    // The Retry-After header on a throttled response, in seconds; null when absent or unreadable.
+    private static TimeSpan? RetryAfter(RequestFailedException ex)
+    {
+        try
+        {
+            var response = ex.GetRawResponse();
+            if (response != null && response.Headers.TryGetValue("Retry-After", out var value)
+                && int.TryParse(value, out var seconds) && seconds > 0)
+            {
+                return TimeSpan.FromSeconds(seconds);
+            }
+        }
+        catch
+        {
+            // Reading a header must never turn a throttle into an exception.
+        }
+        return null;
+    }
 
     private static string Summarize(string message)
     {

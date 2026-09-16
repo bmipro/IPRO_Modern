@@ -64,6 +64,8 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 // Email provider switch (2026-08-30, TODO 431): "Azure" = Azure Communication Services,
 // anything else = the historical SendGrid implementation. Both classes stay registered-able so
 // a provider incident is a config flip (Email__Provider), not a deploy.
+// 491: one gate per process paces every Azure send to the subscription's limits (EmailSettings).
+builder.Services.AddSingleton<EmailSendGate>();
 if (string.Equals(builder.Configuration["Email:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddScoped<IEmailService, AzureEmailService>();

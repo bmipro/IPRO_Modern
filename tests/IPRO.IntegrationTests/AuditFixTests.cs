@@ -334,7 +334,7 @@ public class AuditFixTests
             Provider = "Azure",
             AzureCommunicationConnectionString = "endpoint=https://x.canada.communication.azure.com/;accesskey=abc"
         });
-        var service = new AzureEmailService(settings, NullLogger<AzureEmailService>.Instance)
+        var service = new AzureEmailService(settings, NullLogger<AzureEmailService>.Instance, new EmailSendGate(settings))
         {
             ClientFactory = _ => new StubEmailClient(sendCore)
         };

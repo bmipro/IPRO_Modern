@@ -130,6 +130,7 @@ public class PollDispatcher
 
         var sentCount = 0;
         var failedCount = 0;
+        string? pausedReason = null;   // 491
         var lastHeartbeat = DateTime.UtcNow;
         foreach (var recipient in recipients)
         {
@@ -195,6 +196,14 @@ public class PollDispatcher
                     },
                     listUnsubscribeUrl: preferencesUrl);
 
+                // 491: "not right now" -- a throttle (429), a 5xx, a timeout -- is not this recipient's
+                // fault. Leave the row Queued, end this pass, hand the send back to the schedule.
+                if (!result.Success && result.IsTransient)
+                {
+                    pausedReason = result.Message;
+                    break;
+                }
+
                 recipient.Status = result.Success ? PollRecipientStatus.Sent : PollRecipientStatus.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
                 recipient.SentAt = result.Success ? DateTime.UtcNow : null;
@@ -218,6 +227,12 @@ public class PollDispatcher
             // Outside the try -- see the matching note in ECardDispatcher. Persisting each recipient
             // as it is handled is what makes the Queued filter above a real resume guard.
             await _db.SaveChangesAsync();
+        }
+
+        if (pausedReason != null)
+        {
+            await PauseForRetryAsync(send.Id, heldAttempts.Value, sentCount, pausedReason);
+            return;
         }
 
         // Every total below is COUNTED from the recipient rows rather than accumulated in this run.
@@ -264,6 +279,22 @@ public class PollDispatcher
     // A send that cannot proceed. Writes the terminal status and clears the claim together, so it is
     // never left Sending-and-claimed for the sweep to retry three times before reporting something
     // that was never going to work.
+    // 491: the provider said "not right now" (a throttle, a 5xx, a timeout) part-way through the list.
+    // Nothing is marked Failed: the recipients not yet reached stay Queued, this pass ends, and the
+    // send goes back to Scheduled with its claim released, so the minutely job claims it again as a
+    // FRESH claim -- no attempt spent -- and resumes exactly the Queued rows. EmailSendGate makes
+    // this rare; this is the safety net under it. Guarded on the held attempt count like every other
+    // write to the send row, so a run that was re-claimed mid-send cannot undo the new owner's work.
+    private async Task PauseForRetryAsync(int sendId, int heldAttempts, int sentThisPass, string reason)
+    {
+        _logger.LogWarning("Poll send {SendId} paused after {Sent} sends this pass: {Reason}. Left for the next run.", sendId, sentThisPass, reason);
+        await _db.PollSends
+            .Where(x => x.Id == sendId && x.ClaimAttempts == heldAttempts)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(x => x.Status, PollSendStatus.Scheduled)
+                .SetProperty(x => x.ClaimedAt, (DateTime?)null));
+    }
+
     private async Task FailAndReleaseAsync(int sendId, int heldAttempts, string reason)
     {
         _logger.LogError("Poll send {SendId} was cancelled because {Reason}.", sendId, reason);

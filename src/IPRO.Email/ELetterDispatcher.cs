@@ -55,6 +55,7 @@ public class ELetterDispatcher
         // 90% would send the whole list again.
         var sentCount = 0;
         var suppressedCount = 0;
+        string? pausedReason = null;   // 491
         var lastHeartbeat = DateTime.UtcNow;
         foreach (var recipient in recipients)
         {
@@ -128,6 +129,14 @@ public class ELetterDispatcher
                     replyToName: replyToName,
                     listUnsubscribeUrl: preferencesUrl);
 
+                // 491: "not right now" -- a throttle (429), a 5xx, a timeout -- is not this recipient's
+                // fault. Leave the row Queued, end this pass, hand the send back to the schedule.
+                if (!result.Success && result.IsTransient)
+                {
+                    pausedReason = result.Message;
+                    break;
+                }
+
                 recipient.Status = result.Success ? ELetterRecipientStatuses.Sent : ELetterRecipientStatuses.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
                 recipient.SentAt = result.Success ? DateTime.UtcNow : null;
@@ -147,6 +156,12 @@ public class ELetterDispatcher
             // Outside the try on purpose -- see the matching note in ECardDispatcher. A save failure
             // must end the run, not be logged and stepped over.
             await _db.SaveChangesAsync();
+        }
+
+        if (pausedReason != null)
+        {
+            await PauseForRetryAsync(letter.Id, heldAttempts.Value, sentCount, pausedReason);
+            return;
         }
 
         // Derived from the recipient rows, not from this run's counter: on a resume the local count
@@ -178,6 +193,22 @@ public class ELetterDispatcher
         _logger.LogInformation(
             "E-letter {ELetterId} dispatched to {Count} recipients. Sent this pass: {Sent}. Sent in total: {Total}. Suppressed (unsubscribed): {Suppressed}",
             letter.Id, recipients.Count, sentCount, sentTotal, suppressedCount);
+    }
+
+    // 491: the provider said "not right now" (a throttle, a 5xx, a timeout) part-way through the list.
+    // Nothing is marked Failed: the recipients not yet reached stay Queued, this pass ends, and the
+    // send goes back to Scheduled with its claim released, so the minutely job claims it again as a
+    // FRESH claim -- no attempt spent -- and resumes exactly the Queued rows. EmailSendGate makes
+    // this rare; this is the safety net under it. Guarded on the held attempt count like every other
+    // write to the send row, so a run that was re-claimed mid-send cannot undo the new owner's work.
+    private async Task PauseForRetryAsync(int eletterId, int heldAttempts, int sentThisPass, string reason)
+    {
+        _logger.LogWarning("E-letter {SendId} paused after {Sent} sends this pass: {Reason}. Left for the next run.", eletterId, sentThisPass, reason);
+        await _db.ELetters
+            .Where(x => x.Id == eletterId && x.ClaimAttempts == heldAttempts)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(x => x.Status, ELetterStatuses.Scheduled)
+                .SetProperty(x => x.ClaimedAt, (DateTime?)null));
     }
 
     private async Task FailAndReleaseAsync(int eletterId, int heldAttempts, string reason)

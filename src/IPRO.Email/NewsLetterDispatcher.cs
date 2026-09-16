@@ -152,6 +152,7 @@ public class NewsLetterDispatcher
         }
 
         var sentCount = 0;
+        string? pausedReason = null;   // 491
         var lastHeartbeat = DateTime.UtcNow;
         foreach (var recipient in recipients)
         {
@@ -200,6 +201,14 @@ public class NewsLetterDispatcher
                     replyToName: newsletterReplyToName,
                     listUnsubscribeUrl: unsubscribeUrl);
 
+                // 491: "not right now" -- a throttle (429), a 5xx, a timeout -- is not this recipient's
+                // fault. Leave the row Queued, end this pass, hand the send back to the schedule.
+                if (!result.Success && result.IsTransient)
+                {
+                    pausedReason = result.Message;
+                    break;
+                }
+
                 recipient.Status = result.Success ? NewsLetterRecipientStatus.Sent : NewsLetterRecipientStatus.Failed;
                 recipient.SendGridMessageId = result.ProviderMessageId ?? string.Empty;
                 recipient.LastEvent = result.Success ? "processed" : "failed";
@@ -235,6 +244,12 @@ public class NewsLetterDispatcher
             await _uow.SaveChangesAsync();
         }
 
+        if (pausedReason != null)
+        {
+            await PauseForRetryAsync(send.Id, heldAttempts.Value, sentCount, pausedReason);
+            return;
+        }
+
         // Counted from the RECIPIENT ROWS, never from this run's local counter. A resume that
         // finishes the last 100 of a 1,000-recipient blast would otherwise write TotalSent = 100 --
         // and if those last 100 all failed, would write Cancelled over a send that reached 900
@@ -263,6 +278,22 @@ public class NewsLetterDispatcher
         _logger.LogInformation(
             "Newsletter send {SendId} for newsletter {NewsletterId}: {Count} handled this pass, {Sent} sent this pass, {Total} sent in total.",
             send.Id, newsletter.Id, recipients.Count, sentCount, sentTotal);
+    }
+
+    // 491: the provider said "not right now" (a throttle, a 5xx, a timeout) part-way through the list.
+    // Nothing is marked Failed: the recipients not yet reached stay Queued, this pass ends, and the
+    // send goes back to Scheduled with its claim released, so the minutely job claims it again as a
+    // FRESH claim -- no attempt spent -- and resumes exactly the Queued rows. EmailSendGate makes
+    // this rare; this is the safety net under it. Guarded on the held attempt count like every other
+    // write to the send row, so a run that was re-claimed mid-send cannot undo the new owner's work.
+    private async Task PauseForRetryAsync(int sendId, int heldAttempts, int sentThisPass, string reason)
+    {
+        _logger.LogWarning("Newsletter send {SendId} paused after {Sent} sends this pass: {Reason}. Left for the next run.", sendId, sentThisPass, reason);
+        await _db.NewsLetterSends
+            .Where(x => x.Id == sendId && x.ClaimAttempts == heldAttempts)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(x => x.Status, NewsLetterSendStatus.Scheduled)
+                .SetProperty(x => x.ClaimedAt, (DateTime?)null));
     }
 
     // A send that cannot proceed at all. Terminal status and claim release in one guarded statement,
