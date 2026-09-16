@@ -151,10 +151,22 @@ public class GoogleCalendarController : Controller
             }
 
             _db.GoogleCalendarConnections.Remove(connection);
-            await _db.SaveChangesAsync();
         }
 
-        TempData["Success"] = "Google Calendar disconnected.";
+        // 490: the events copied in from Google are that person's Google data, and they leave with the
+        // connection -- someone who disconnects expects nothing of theirs to stay behind, the privacy
+        // policy reads that way, and Google's reviewer watches this exact step. Follow-ups are IPRO
+        // records and stay; their GoogleEventId stays too, so a later reconnect does not push them to
+        // Google a second time. Runs whether or not a connection row was found, so copies left behind by
+        // a disconnect from before 490 go the next time the button is pressed. Same SaveChanges as the
+        // connection removal: the two go together or not at all.
+        var copies = await _db.ExternalCalendarEvents.Where(e => e.AgentUserId == AgentId).ToListAsync();
+        _db.ExternalCalendarEvents.RemoveRange(copies);
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = copies.Count == 0
+            ? "Google Calendar disconnected."
+            : $"Google Calendar disconnected. {copies.Count} event{(copies.Count == 1 ? "" : "s")} copied from Google removed from your calendar; your follow-ups are untouched.";
         return RedirectToAction("Profile", "Account");
     }
 

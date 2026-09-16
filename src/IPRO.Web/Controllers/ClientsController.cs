@@ -424,10 +424,15 @@ public class ClientsController : Controller
             .ThenBy(f => f.IsCompleted)
             .ToListAsync();
 
-        ViewBag.ExternalEvents = await _db.ExternalCalendarEvents
-            .Where(e => e.AgentUserId == AgentId && e.StartAt >= monthStart && e.StartAt < monthEnd)
-            .OrderBy(e => e.StartAt)
-            .ToListAsync();
+        // 490: copies of Google events are shown only while a Google Calendar is connected. Disconnect
+        // deletes them now; this guard also hides anything left behind by a disconnect from before 490.
+        var googleConnected = await _db.GoogleCalendarConnections.AnyAsync(c => c.AgentUserId == AgentId);
+        ViewBag.ExternalEvents = googleConnected
+            ? await _db.ExternalCalendarEvents
+                .Where(e => e.AgentUserId == AgentId && e.StartAt >= monthStart && e.StartAt < monthEnd)
+                .OrderBy(e => e.StartAt)
+                .ToListAsync()
+            : new List<ExternalCalendarEvent>();
 
         return View(followUps);
     }

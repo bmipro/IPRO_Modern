@@ -249,7 +249,7 @@
           @* js-confirm-submit, not onsubmit=confirm(): CSP's script-src drops inline handlers, which
              made the old confirm silently vanish -- the Disconnect fired with no prompt at all. *@
           <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit"
-                  data-confirm-message="Disconnect Google Calendar? Events already synced will stay as-is, but new changes will stop syncing.">Disconnect</button>
+                  data-confirm-message="Disconnect Google Calendar? The events copied in from Google will be removed from your IPRO calendar and syncing stops. Your own follow-ups stay here, and the events already on your Google Calendar stay there.">Disconnect</button>
         </form>
       </div>
     }
