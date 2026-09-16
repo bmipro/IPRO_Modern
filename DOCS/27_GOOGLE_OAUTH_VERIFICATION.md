@@ -42,6 +42,31 @@ client is `https://app.iproadvisers.com/GoogleCalendar/Callback` (485), plus the
    following weeks for the scope review; answer from the same account. Nothing in the app changes
    during the review.
 
+## Submitted 2026-09-15 -- the order that actually worked
+
+Status in the Verification centre at 2026-09-15: Branding "verified and being shown to users";
+Data access "under review". Video: https://youtu.be/-RMdkghZKAk (unlisted, 4:15, recorded on the live
+site; frame-checked before upload -- unverified-app screen, the consent box ticked on camera, a follow-up
+reaching Google, a Google event reaching the IPRO Calendar page, Disconnect, the privacy paragraph).
+
+1. **Data access**: Add or remove scopes (paged, ten rows; filter `events`) -- untick `calendar`, tick
+   `calendar.events` and `userinfo.email`, Update; paste the justification (876 chars); paste the YouTube
+   link; Save -> toast "Data access changes saved". The Save does NOT persist while the justification box
+   is empty (two silent failures on 09-14).
+2. **Branding -> Verify branding** answered "homepage URL is not registered to you" (View issues). Fix:
+   Search Console, Domain property `iproadvisers.com`, TXT `google-site-verification=...` added in the
+   cPanel Zone Editor at the apex (the zone lives at the legacy host, DNS_ZONE_RUNBOOK), Verify ->
+   "Ownership verified" within minutes. Then View issues -> "I have fixed the issues" -> Proceed ->
+   "verified, publish within 7 days" -> **Publish branding** -> green tick. Keep the TXT record forever.
+3. **Verification centre -> Prepare for verification**: a read-back of Branding and Data access, an
+   optional "Additional info" box (filled: live URL, single client, optional connection, the privacy
+   section, test account on request via support@), Confirm, then a questionnaire (personal use / internal /
+   dev-staging / WordPress SMTP plug-in: all No; two acknowledgements ticked) -> Submit for verification.
+
+Expect Google's questions at support@iproadvisers.com and bahman.motamed@gmail.com (the contact
+addresses on Branding); answer from the same Google account. Do not edit Branding while the review runs.
+Until approval the Advanced -> "Go to iproadvisers.com (unsafe)" bridge stays, capped at 100 users.
+
 ## Seen on the page, 2026-09-14 (corrections to the steps above)
 
 - The Data access list held ONLY the wide `calendar` scope; `calendar.events` and `userinfo.email` had

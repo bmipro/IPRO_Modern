@@ -1498,3 +1498,17 @@ the token came back with the email only and the connection had been stored as a 
 the token exchange reads the `scope` Google returns and refuses a grant without calendar access with
 a message that says to tick the box. Symptom to recognise: a fresh connection, and `Google event
 create failed ... 403 ... insufficient authentication scopes` every 15 minutes in the container log.
+
+## Sev1 SMS pair, 2026-09-14 22:33 Toronto: Azure restarted both web apps (no action)
+
+Both availability alerts (`app-health-ipro-prod-web-insights` fired 02:33:45Z, resolved 02:43:47Z;
+`admin-health-ipro-prod-admin-insights` fired 02:40:02Z, resolved 02:51:59Z) paged the owner. Read-only
+diagnosis the next morning: every test location saw each host down for one or two 5-minute bins; App
+Service requests and CPU went to zero for the same bins and came back with a start-up burst; MySQL stayed
+healthy (CPU ~10%, memory 27%) and merely lost the apps' six connections; no operation by anyone in the
+activity log; both sites' `lastModifiedTimeUtc` changed to the same second (02:43:13Z) -- the signature
+of platform maintenance moving the instance. The admin host answered a few hundred 5xx while its
+container booted (the front end's not-ready answer, not the app). Self-healed in 8 and 12 minutes.
+Owner's decision (2026-09-15): acceptable on the current plan; revisit (two instances, or an alert that
+waits for two consecutive failures) only if it becomes frequent. Nothing in flight is lost: sends are
+claimed and resumed, the Google sync runs at its next quarter hour.
