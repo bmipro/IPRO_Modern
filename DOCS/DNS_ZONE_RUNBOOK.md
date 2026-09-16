@@ -161,6 +161,13 @@ or set `Email__PlatformTrackingEnabled=false` on BOTH App Services first and the
 either invalidates the links already in inboxes (they answer "This link is not valid" rather than
 redirecting), so rotate deliberately and never both at once.
 
+**491 (2026-09-16):** the platform paces every Azure send to the subscription's limits
+(`EmailSendGate`, defaults 30/minute and 100/hour with a transactional reserve of 5 and 10). When
+Microsoft raises the quota, set `Email__SendsPerMinute` and `Email__SendsPerHour` (and, if wanted,
+`Email__TransactionalReservePerMinute` / `Email__TransactionalReservePerHour`) on BOTH App Services to
+the granted figures and restart -- no deploy. A blast that meets a 429 anyway pauses (rows stay Queued,
+the send returns to Scheduled) and the minutely job resumes it; nothing is marked Failed by a throttle.
+
 ---
 
 ## Production paging (TODO 445, in place 2026-09-01)

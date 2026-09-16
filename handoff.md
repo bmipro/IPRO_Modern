@@ -1,4 +1,4 @@
-> **Latest handoff: `DOCS/SESSION_HANDOFF_2026-09-15.md`** (09-14 is in `DOCS/SESSION_HANDOFF_2026-09-14.md`; 09-12 in `DOCS/SESSION_HANDOFF_2026-09-12.md`; 09-10 and 09-11 in `DOCS/SESSION_HANDOFF_2026-09-10.md`). This file is the 2026-08-28 snapshot and is kept for history.
+> **Latest handoff: `DOCS/SESSION_HANDOFF_2026-09-16.md`** (09-15 is in `DOCS/SESSION_HANDOFF_2026-09-15.md`; 09-14 in `DOCS/SESSION_HANDOFF_2026-09-14.md`; 09-12 in `DOCS/SESSION_HANDOFF_2026-09-12.md`). This file is the 2026-08-28 snapshot and is kept for history.
 
 # Handoff — 2026-08-28 EOD (truth-pack round COMPLETE; the Blog is real; 24 days to Sept 21)
 
