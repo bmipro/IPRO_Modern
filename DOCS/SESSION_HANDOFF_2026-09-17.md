@@ -30,7 +30,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `e692cd7` | **492** pre-launch audit remainder (eleven Lows) + the owner's three small items | 864/864 |
-| _see log_ | **493** the send gate never waits past its bound; the narrow audit's before-launch fixes | whole tree |
+| `0da8190` | **493** the send gate never waits past its bound; the narrow audit's before-launch fixes | 884/884 |
 
 ## Do this first tomorrow
 
