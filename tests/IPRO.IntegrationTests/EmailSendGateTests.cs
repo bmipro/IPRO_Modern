@@ -132,7 +132,9 @@ public class EmailSendGateTests
         Assert.Equal(30, defaults.SendsPerMinute);
         Assert.Equal(100, defaults.SendsPerHour);
         Assert.Equal(5, defaults.TransactionalReservePerMinute);
-        Assert.Equal(10, defaults.TransactionalReservePerHour);
+        // 493 (2026-09-17): 10 -> 20. A newsletter blast must leave room for launch-day sign-ups, password
+        // resets and invoices; with the bounded wait a transactional send past the reserve is refused, not queued.
+        Assert.Equal(20, defaults.TransactionalReservePerHour);
 
         var cfg = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {

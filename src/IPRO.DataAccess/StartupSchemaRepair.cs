@@ -708,6 +708,8 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ScheduledAt", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ScheduledAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "PortalAppointmentRequests", "ClientFollowUpId", "ALTER TABLE `PortalAppointmentRequests` ADD COLUMN `ClientFollowUpId` int NULL");
             await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleEventId", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleEventId` varchar(255) CHARACTER SET utf8mb4 NULL");
+            // 493: a follow-up the adviser deleted from Google stays off Google (GoogleCalendarSyncJob).
+            await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleUnlinkedAt", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleUnlinkedAt` datetime(6) NULL");
         }
         finally
         {

@@ -20,4 +20,20 @@ public record EmailSendResult(bool Success, string Message, string? ProviderMess
     // deserves another attempt. Callers that retire work on failure must check IsTransient first.
     public static EmailSendResult FailedTransient(string message) => new(false, message) { IsTransient = true };
     public bool IsTransient { get; init; }
+
+    // 493 (2026-09-17): the send gate would not free a slot inside its bound. Transient, so every
+    // dispatcher takes the pause path it already has; IsDeferred, so the paths that count attempts
+    // (Did You Know, drip) do not count this one -- waiting for quota is not a failure.
+    public static EmailSendResult Deferred(TimeSpan retryAfter) =>
+        new(false, DeferredMessage(retryAfter)) { IsTransient = true, IsDeferred = true, RetryAfter = retryAfter };
+    public bool IsDeferred { get; init; }
+    public TimeSpan? RetryAfter { get; init; }
+
+    private static string DeferredMessage(TimeSpan wait)
+    {
+        var when = wait.TotalMinutes >= 1.5
+            ? $"about {Math.Ceiling(wait.TotalMinutes):0} minutes"
+            : $"about {Math.Max(1, Math.Ceiling(wait.TotalSeconds)):0} seconds";
+        return $"Sending is paused for the email provider's hourly limit; the next slot opens in {when}. Nothing was sent; try again then.";
+    }
 }

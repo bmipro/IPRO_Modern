@@ -68,11 +68,13 @@ public class EmailTrackingController : Controller
         // endpoint would be an open redirector on app.iproadvisers.com. IsTrackable is the same
         // rule that decided what was rewritten, so a target that could never have been signed is
         // refused even before the signature is looked at.
-        var key = EmailTrackingLinks.SigningKey(_configuration);
+        // 493: verified against the signing key AND the previous one (Email__TrackingSigningKeyPrevious),
+        // so the key can be rotated without every link already in an inbox answering "not valid".
+        var keys = EmailTrackingLinks.VerificationKeys(_configuration);
         if (string.IsNullOrWhiteSpace(u)
-            || string.IsNullOrWhiteSpace(key)
+            || keys.Count == 0
             || !EmailTrackingLinks.IsTrackable(u)
-            || !EmailTrackingLinks.VerifySignature(kind ?? string.Empty, token ?? string.Empty, u, s, key))
+            || !EmailTrackingLinks.VerifySignature(kind ?? string.Empty, token ?? string.Empty, u, s, keys))
         {
             return BadRequest("This link is not valid.");
         }
@@ -121,8 +123,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.NewsLetterRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId }).FirstOrDefaultAsync();
-                if (row != null)
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
                     await _newsletters.RecordRecipientEventAsync(row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -130,8 +132,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.DripCampaignStepSends.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId }).FirstOrDefaultAsync();
-                if (row != null)
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
                     await _newsletters.RecordDripStepEventAsync(row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -139,8 +141,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.ECardRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId }).FirstOrDefaultAsync();
-                if (row != null)
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
                     await _tracker.RecordAsync("ecard", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -148,8 +150,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.ELetterRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId }).FirstOrDefaultAsync();
-                if (row != null)
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
                     await _tracker.RecordAsync("eletter", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -157,8 +159,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.PollRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId }).FirstOrDefaultAsync();
-                if (row != null)
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
                     await _tracker.RecordAsync("poll", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -166,14 +168,20 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.DidYouKnowEmailQueueItems.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId }).FirstOrDefaultAsync();
-                if (row != null)
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
                     await _tracker.RecordAsync("didyouknow", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
             // Anything else (a mistyped or invented kind) is served the image and recorded nowhere.
         }
     }
+
+    // 493: opens and clicks are write-once milestones. A replayed pixel -- a mail client re-fetching
+    // it, or anyone who has the URL -- costs the one indexed read above and nothing else: never the
+    // recorder's read-modify-write of the row and the roll-up recount of the whole send again.
+    private static bool AlreadyRecorded(string eventName, DateTime? openedAt, DateTime? clickedAt) =>
+        eventName == "click" ? clickedAt != null : openedAt != null;
 
     private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 }

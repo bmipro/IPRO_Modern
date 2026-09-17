@@ -10,6 +10,7 @@
     {
         "Sent" => "bg-success-subtle text-success",
         "Sending" => "bg-info-subtle text-info",
+        "In progress" => "bg-info-subtle text-info",   // 493: paused between passes, part sent
         "Failed" => "bg-danger-subtle text-danger",
         _ => "bg-warning-subtle text-warning-emphasis"
     };
@@ -103,7 +104,7 @@ else
                   <div class="text-muted small">@row.Detail</div>
                 }
               </td>
-              <td><span class="badge @StatusClass(row.Status)">@row.Status</span></td>
+              <td><span class="badge @StatusClass(row.DisplayStatus)">@row.DisplayStatus</span></td>
               <td class="text-end">@row.Recipients</td>
               <td class="text-end">@row.Sent</td>
               <td class="text-end">

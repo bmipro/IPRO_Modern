@@ -36,7 +36,9 @@ public class PrivacyPolicyTests
     {
         var text = Read(file);
         Assert.Contains("Your Google Calendar, if you connect it", text);
-        Assert.Contains("calendar you choose", text);
+        // 493: there is no calendar chooser (GoogleCalendarId is always "primary"), so the policy says so.
+        Assert.Contains("primary Google calendar", text);
+        Assert.DoesNotContain("calendar you choose", text);
         Assert.Contains("email address", text);
         Assert.Contains("encrypted", text);
         Assert.Contains("Disconnect", text);
@@ -65,7 +67,7 @@ public class PrivacyPolicyTests
     public void Both_copies_carry_the_same_last_updated_date(string file)
     {
         var text = Read(file);
-        Assert.Contains("Last updated: 14 September 2026", text);
+        Assert.Contains("Last updated: 17 September 2026", text);   // 493: the calendar wording
         Assert.DoesNotContain("Last updated: 15 August 2026", text);
     }
 
@@ -73,7 +75,7 @@ public class PrivacyPolicyTests
     public void The_reviewers_change_log_records_the_edit()
     {
         var text = Read(ReviewNotes);
-        Assert.Contains("14 September 2026", text);
+        Assert.Contains("17 September 2026", text);
         Assert.Contains("Azure Communication Services", text);
         Assert.Contains("Google Calendar", text);
     }

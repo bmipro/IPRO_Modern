@@ -45,6 +45,9 @@ public class SendThrottlePauseTests
         Assert.Equal(ECardStatuses.Scheduled, card.Status);
         Assert.Null(card.ClaimedAt);
         Assert.Equal(0, card.ClaimAttempts);
+        // 493: a paused send carries its running total, so the activity screen reads "In progress, 2 sent"
+        // rather than "Scheduled, 0 sent" -- which an adviser reads as "it never went out".
+        Assert.Equal(2, card.TotalSent);
         // ...and the job's own due query would pick it up again right now.
         Assert.Contains(cardId, await SendClaims.DueECards(db, DateTime.UtcNow).Select(c => c.Id).ToListAsync());
 
@@ -84,6 +87,7 @@ public class SendThrottlePauseTests
         Assert.Equal(NewsLetterSendStatus.Scheduled, send.Status);
         Assert.Null(send.ClaimedAt);
         Assert.Equal(0, send.ClaimAttempts);
+        Assert.Equal(3, send.TotalSent);   // 493
 
         var working = new ThrottlingEmailService { SucceedFirst = int.MaxValue };
         await NewNewsletterDispatcher(db, working).DispatchSendAsync(sendId);

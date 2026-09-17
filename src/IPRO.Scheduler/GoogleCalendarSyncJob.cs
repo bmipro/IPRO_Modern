@@ -69,7 +69,10 @@ public class GoogleCalendarSyncJob
     {
         var unsyncedFollowUps = await _db.ClientFollowUps
             .Include(f => f.Client)
-            .Where(f => f.Client.AgentUserId == connection.AgentUserId && f.GoogleEventId == null && !f.IsCompleted)
+            // 493: GoogleUnlinkedAt marks a follow-up the adviser deleted from Google (the pull below
+            // unlinks it rather than deleting the IPRO record). Without it the unlink put the follow-up
+            // straight back into this query, and the event came back fifteen minutes later, forever.
+            .Where(f => f.Client.AgentUserId == connection.AgentUserId && f.GoogleEventId == null && f.GoogleUnlinkedAt == null && !f.IsCompleted)
             .OrderBy(f => f.DueAt)
             .Take(100)
             .ToListAsync();
@@ -125,6 +128,7 @@ public class GoogleCalendarSyncJob
                     // Unlink rather than delete - a follow-up is CRM history, not just a calendar
                     // block, so vanishing from Google shouldn't silently destroy the IPRO record.
                     linkedFollowUp.GoogleEventId = null;
+                    linkedFollowUp.GoogleUnlinkedAt = DateTime.UtcNow;   // 493: and it stays off Google
                 }
                 else
                 {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -50,7 +51,8 @@ public static class EmailTrackingLinks
     // A dedicated Email__TrackingSigningKey if one is ever set; otherwise the Event Grid webhook
     // secret that production already carries, so the redirect is signed from the first deploy with
     // no new setting to create. Rotating either invalidates the links already in inboxes (they fall
-    // to "This link is not valid" rather than to an unsigned redirect), so rotate deliberately.
+    // to "This link is not valid" rather than to an unsigned redirect) -- unless the old value is
+    // carried in Email__TrackingSigningKeyPrevious for a while (493, VerificationKeys below).
     public static string? SigningKey(IConfiguration configuration)
     {
         var own = configuration["Email:TrackingSigningKey"];
@@ -58,6 +60,30 @@ public static class EmailTrackingLinks
 
         var hook = configuration["Email:AzureEventWebhookSecret"];
         return string.IsNullOrWhiteSpace(hook) ? null : hook;
+    }
+
+    // 493: the keys a signature may verify against -- the signing key, then Email__TrackingSigningKeyPrevious
+    // if set. Production signed its first days of links with the webhook secret (the fallback above);
+    // setting a dedicated key with the old value in Previous keeps every link already in an inbox
+    // working until Previous is cleared, and unties the redirect from the webhook's own secret. Only
+    // the first key ever SIGNS.
+    public static IReadOnlyList<string> VerificationKeys(IConfiguration configuration)
+    {
+        var keys = new List<string>(2);
+        var own = SigningKey(configuration);
+        if (own != null) keys.Add(own);
+        var previous = configuration["Email:TrackingSigningKeyPrevious"];
+        if (!string.IsNullOrWhiteSpace(previous) && !keys.Contains(previous)) keys.Add(previous);
+        return keys;
+    }
+
+    public static bool VerifySignature(string kind, string token, string target, string? signature, IReadOnlyList<string> keys)
+    {
+        foreach (var key in keys)
+        {
+            if (VerifySignature(kind, token, target, signature, key)) return true;
+        }
+        return false;
     }
 
     public static string PixelUrl(string baseUrl, string kind, string token) =>

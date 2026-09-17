@@ -79,7 +79,7 @@ public class ECardDispatcher
         // the database until the very end, and a crash at 90% would re-mail the whole list.
         var sentCount = 0;
         var suppressedCount = 0;
-        string? pausedReason = null;   // 491
+        EmailSendResult? paused = null;   // 491; 493 carries the whole result
         var lastHeartbeat = DateTime.UtcNow;
         foreach (var recipient in recipients)
         {
@@ -159,7 +159,7 @@ public class ECardDispatcher
                 // fault. Leave the row Queued, end this pass, hand the send back to the schedule.
                 if (!result.Success && result.IsTransient)
                 {
-                    pausedReason = result.Message;
+                    paused = result;
                     break;
                 }
 
@@ -187,9 +187,9 @@ public class ECardDispatcher
             await _db.SaveChangesAsync();
         }
 
-        if (pausedReason != null)
+        if (paused != null)
         {
-            await PauseForRetryAsync(card.Id, heldAttempts.Value, sentCount, pausedReason);
+            await PauseForRetryAsync(card.Id, heldAttempts.Value, sentCount, paused);
             return;
         }
 
@@ -239,13 +239,22 @@ public class ECardDispatcher
     // FRESH claim -- no attempt spent -- and resumes exactly the Queued rows. EmailSendGate makes
     // this rare; this is the safety net under it. Guarded on the held attempt count like every other
     // write to the send row, so a run that was re-claimed mid-send cannot undo the new owner's work.
-    private async Task PauseForRetryAsync(int ecardId, int heldAttempts, int sentThisPass, string reason)
+    private async Task PauseForRetryAsync(int ecardId, int heldAttempts, int sentThisPass, EmailSendResult paused)
     {
-        _logger.LogWarning("E-card {SendId} paused after {Sent} sends this pass: {Reason}. Left for the next run.", ecardId, sentThisPass, reason);
+        // 493: a deferral (no send slot inside the gate's bound) is the expected rhythm of a launch-day
+        // blast -- once a minute for most of an hour -- so it logs at Information; anything else the
+        // provider said is worth a Warning. Either way the running total is written, so the activity
+        // screen reads "In progress, 150 sent" rather than "Scheduled, 0 sent".
+        if (paused.IsDeferred)
+            _logger.LogInformation("E-card {SendId} paused after {Sent} sends this pass: {Reason}", ecardId, sentThisPass, paused.Message);
+        else
+            _logger.LogWarning("E-card {SendId} paused after {Sent} sends this pass: {Reason}. Left for the next run.", ecardId, sentThisPass, paused.Message);
+        var sentTotal = await _db.ECardRecipients.CountAsync(r => r.ECardId == ecardId && r.Status == ECardRecipientStatuses.Sent);
         await _db.ECards
             .Where(x => x.Id == ecardId && x.ClaimAttempts == heldAttempts)
             .ExecuteUpdateAsync(u => u
                 .SetProperty(x => x.Status, ECardStatuses.Scheduled)
+                .SetProperty(x => x.TotalSent, sentTotal)
                 .SetProperty(x => x.ClaimedAt, (DateTime?)null));
     }
 

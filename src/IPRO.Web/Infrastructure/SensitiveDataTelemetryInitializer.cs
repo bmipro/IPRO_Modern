@@ -15,14 +15,19 @@ namespace IPRO.Web.Infrastructure;
 // Tokens travel two ways, and both are scrubbed (SO-M-NEW-6, completed 2026-08-20):
 //   query string  - ?token=..., ?subscription_id=...   (password reset, email preferences, PayPal)
 //   path segment  - /invoice/{token}, /testimonial/{token}   (client invoice + testimonial links)
+//   493 (2026-09-17) - ?secret=... (the Event Grid webhook secret rides in the query string of
+//                    every delivery report), and the platform's own tracking links, which carry a
+//                    never-expiring per-recipient token in the path (/t/o/{kind}/{token}.gif,
+//                    /t/c/{kind}/{token}) and the redirect's signature in ?s=. The privacy policy
+//                    says telemetry is scrubbed of tokens; 488 had added these without a scrub.
 // The first pass only handled the query string; the two path-carried links kept logging live
 // tokens for another month. The path scrub also covers request.Name, which repeats the path.
 public class SensitiveDataTelemetryInitializer : ITelemetryInitializer
 {
-    private static readonly string[] SensitiveQueryParams = { "token", "subscription_id" };
+    private static readonly string[] SensitiveQueryParams = { "token", "subscription_id", "secret", "s" };
 
     private static readonly Regex TokenPathSegment = new(
-        @"(?i)(/(?:invoice|testimonial)/)([^/?#\s]+)",
+        @"(?i)(/(?:invoice|testimonial)/|/t/[oc]/[^/?#\s]+/)([^/?#\s]+)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public void Initialize(ITelemetry telemetry)

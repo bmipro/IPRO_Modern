@@ -184,6 +184,18 @@ public class DidYouKnowEmailDispatchJob
                 // definitive outcome -- leaving the item claimed hands it to the stale-claim sweep
                 // for another attempt in 15 minutes, exactly like the exception path below. Only
                 // an answered rejection (4xx: bad address, bad payload) retires the item.
+                // 493: no send slot inside the gate's bound. Not a failed attempt: the item is handed
+                // straight back (claim released, nothing counted) and this pass ends, because every
+                // item behind it would get the same answer. The next minutely pass tries again.
+                if (result.IsDeferred)
+                {
+                    await _db.DidYouKnowEmailQueueItems
+                        .Where(q => q.Id == item.Id)
+                        .ExecuteUpdateAsync(s => s.SetProperty(q => q.ClaimedAtUtc, (DateTime?)null));
+                    _logger.LogInformation("Did You Know dispatch paused at item {ItemId}: {Reason}", item.Id, result.Message);
+                    break;
+                }
+
                 if (result.IsTransient)
                 {
                     // H14: the retry loop is BOUNDED. Leaving the item claimed hands it to the

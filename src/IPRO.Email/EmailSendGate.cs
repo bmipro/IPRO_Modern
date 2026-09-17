@@ -12,14 +12,25 @@ namespace IPRO.Email;
 // waits here for a slot, so a blast is slowed to the cap instead of being rejected by it. The
 // dispatchers' pause path (PauseForRetryAsync) is the second line for a 429 that still gets through.
 //
-// How: one instance per process (a singleton; IPRO.Web is the only process that sends). It keeps
-// the UTC time of every send in the last hour and, before each send, checks the last minute and the
-// last hour against the limits. When a window is full it waits until the oldest send in that window
-// has aged out, then records the new send and lets it go. A small reserve is kept out of reach of
-// bulk mail so transactional messages -- a sign-in code, an invoice, a portal invite -- never queue
-// behind a newsletter for an hour. ReportThrottled holds everything for the provider's Retry-After
-// when a 429 arrives anyway (a limit that moved, another process). The limits are settings
-// (Email__SendsPerMinute etc.), so the day Microsoft relents is a config change on both apps.
+// How: one instance per process (a singleton; IPRO.Web is the only process that sends in volume).
+// It keeps the UTC time of every send in the last hour and, before each send, checks the last
+// minute and the last hour against the limits. When a window is full it waits until the oldest
+// send in that window has aged out, then records the new send and lets it go. A small reserve is
+// kept out of reach of bulk mail so transactional messages -- a sign-in code, an invoice, a portal
+// invite -- never queue behind a newsletter. ReportThrottled holds everything for the provider's
+// Retry-After when a 429 arrives anyway (a limit that moved, another process). The limits are
+// settings (Email__SendsPerMinute etc.), so the day Microsoft relents is a config change on both apps.
+//
+// 493 (2026-09-17): BUT NEVER FOR LONG. The first version waited however long the windows took, and
+// the callers sit in places that cannot wait: the four blast loops hold a 15-minute claim that a
+// heartbeat at the top of each iteration keeps alive, so a 56-minute wait for the hour window
+// inside one iteration let the stale-claim sweep re-claim the send and mail the same recipient
+// twice, then retire it as Failed after three such thefts; Did You Know and drip steps have no
+// heartbeat at all; five parked Hangfire workers stopped every other job; and a password reset or
+// a lead notification waited inside the web request until Azure's 230-second cut-off. So a wait is
+// bounded (TryWaitForSlotAsync, Email__MaxSlotWaitSeconds): a slot that would not free inside the
+// bound is not waited for, the caller is told how long it would have been, and it decides -- the
+// dispatchers pause and resume on a later pass, a web request answers honestly.
 //
 // The clock and the delay are injectable so the tests drive it in fake time; production uses
 // DateTime.UtcNow and Task.Delay.
@@ -81,9 +92,20 @@ public sealed class EmailSendGate
         }
     }
 
-    // Returns once a slot in both windows is free and has been taken for this send.
-    public async Task WaitForSlotAsync(bool bulk, CancellationToken ct = default)
+    // Returns once a slot in both windows is free and has been taken for this send, however long
+    // that takes. No production sender calls this any more (493); it stays for a caller that
+    // genuinely wants to wait it out, and for the tests of the windows themselves.
+    public async Task WaitForSlotAsync(bool bulk, CancellationToken ct = default) =>
+        await TryWaitForSlotAsync(bulk, Timeout.InfiniteTimeSpan, ct);
+
+    // 493: the bounded form. Returns null once a slot has been taken for this send, waiting at most
+    // maxWait for it; or, when no slot would free inside maxWait, the wait it declined to make --
+    // WITHOUT sleeping and WITHOUT taking a slot. The deadline is fixed on entry, so a hold that
+    // arrives mid-wait cannot stretch a call past its bound either.
+    public async Task<TimeSpan?> TryWaitForSlotAsync(bool bulk, TimeSpan maxWait, CancellationToken ct = default)
     {
+        var bounded = maxWait != Timeout.InfiniteTimeSpan;
+        var deadline = bounded ? _now() + maxWait : DateTime.MaxValue;
         while (true)
         {
             TimeSpan wait;
@@ -119,7 +141,11 @@ public sealed class EmailSendGate
                 if (wait <= TimeSpan.Zero)
                 {
                     _sends.Add(now);
-                    return;
+                    return null;
+                }
+                if (bounded && now + wait > deadline)
+                {
+                    return wait;
                 }
             }
             finally

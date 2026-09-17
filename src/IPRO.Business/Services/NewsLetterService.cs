@@ -268,7 +268,12 @@ public class NewsLetterService : INewsLetterService
                 break;
         }
 
-        _uow.NewsLetterRecipients.Update(recipient);
+        // 493: no Repository Update call here or below. It marks EVERY column modified, so the send row's
+        // Status, ClaimedAt and ClaimAttempts were written back from a snapshot taken moments earlier,
+        // over whatever the dispatcher wrote in between -- a finished or paused send resurrected into
+        // "Sending with a stale claim", which the sweep then re-claims at the cost of an attempt. 488
+        // made this path live on every pixel hit. The entities are tracked; assignment is enough, and
+        // only the columns that changed are written.
 
         if (recipient.NewsLetterSendId.HasValue)
         {
@@ -279,7 +284,6 @@ public class NewsLetterService : INewsLetterService
                 send.TotalSent = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
                 send.TotalOpened = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
                 send.TotalClicked = recipients.Count(r => r.ClickedAt.HasValue);
-                _uow.NewsLetterSends.Update(send);
             }
         }
         else
@@ -291,7 +295,6 @@ public class NewsLetterService : INewsLetterService
                 newsletter.TotalSent = recipients.Count(r => r.SentAt.HasValue || r.DeliveredAt.HasValue || r.OpenedAt.HasValue || r.ClickedAt.HasValue);
                 newsletter.TotalOpened = recipients.Count(r => r.OpenedAt.HasValue || r.ClickedAt.HasValue);
                 newsletter.TotalClicked = recipients.Count(r => r.ClickedAt.HasValue);
-                _uow.NewsLetters.Update(newsletter);
             }
         }
 
@@ -375,8 +378,7 @@ public class NewsLetterService : INewsLetterService
                 break;
         }
 
-        _uow.DripCampaignStepSends.Update(stepSend);
-        await _uow.SaveChangesAsync();
+        await _uow.SaveChangesAsync();   // 493: tracked; no Repository Update call
     }
 
     // A step send names an enrollment, not a client, so the client is one hop away. SuppressAllAsync

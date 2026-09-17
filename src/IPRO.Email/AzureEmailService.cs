@@ -32,6 +32,10 @@ public class AzureEmailService : IEmailService
     // tests substitute a stub so the REAL classification below is what gets exercised.
     internal Func<string, EmailClient> ClientFactory = connectionString => new EmailClient(connectionString);
 
+    // 493: the longest any send waits at the gate. Past this the answer is Deferred, and the caller
+    // decides -- a blast loop pauses and resumes on a later pass, a web request answers honestly.
+    private TimeSpan MaxSlotWait => TimeSpan.FromSeconds(Math.Max(1, _settings.MaxSlotWaitSeconds));
+
     public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null, string? listUnsubscribeUrl = null) =>
         (await SendDetailedAsync(toEmail, toName, subject, htmlBody, textBody, customArgs, replyToEmail, replyToName, listUnsubscribeUrl)).Success;
 
@@ -92,7 +96,16 @@ public class AzureEmailService : IEmailService
             // 491: every Azure send waits here for a slot inside the subscription's limits (30 a minute,
             // 100 an hour on the defaults), bulk mail behind the transactional reserve. A blast is
             // slowed to the cap instead of being rejected by it.
-            await _gate.WaitForSlotAsync(EmailSendGate.IsBulk(customArgs));
+            // 493: but never for longer than the bound. A slot that would not free inside it comes back
+            // as Deferred -- transient, so a blast loop pauses and resumes on a later pass, and a web
+            // request answers with the wait instead of hanging until Azure's 230-second cut-off.
+            var deferred = await _gate.TryWaitForSlotAsync(EmailSendGate.IsBulk(customArgs), MaxSlotWait);
+            if (deferred is { } wait)
+            {
+                _logger.LogInformation("Azure email to {Email} deferred: no send slot within {Bound}s, the next opens in about {Wait}.",
+                    toEmail, MaxSlotWait.TotalSeconds, wait);
+                return EmailSendResult.Deferred(wait);
+            }
 
             var client = ClientFactory(_settings.AzureCommunicationConnectionString);
             // WaitUntil.Started: we want the accepted operation id, not a poll to final delivery --
@@ -141,12 +154,31 @@ public class AzureEmailService : IEmailService
             // have been cross-tenant and unrecallable.)
             var client = ClientFactory(_settings.AzureCommunicationConnectionString);
             var allSent = true;
+            var sent = 0;
             foreach (var recipient in recipientList)
             {
                 try
                 {
+                    // 493: this was the one send path 491 did not pace. Transactional (a notice to
+                    // agents), and it stops at the first deferral: every recipient behind it would get
+                    // the same answer, and the caller is told the batch did not complete.
+                    var deferred = await _gate.TryWaitForSlotAsync(bulk: false, MaxSlotWait);
+                    if (deferred is { } wait)
+                    {
+                        _logger.LogWarning("Bulk email stopped before {Email}: no send slot within {Bound}s (the next opens in about {Wait}); {Sent} of {Count} sent.",
+                            recipient.Email, MaxSlotWait.TotalSeconds, wait, sent, recipientList.Count);
+                        allSent = false;
+                        break;
+                    }
                     var message = BuildMessage(new[] { recipient }, subject, htmlBody, textBody);
                     await client.SendAsync(WaitUntil.Started, message);
+                    sent++;
+                }
+                catch (RequestFailedException ex)
+                {
+                    if (ex.Status == 429) _gate.ReportThrottled(RetryAfter(ex));
+                    _logger.LogError(ex, "Bulk email to {Email} failed; continuing with the rest of the batch.", recipient.Email);
+                    allSent = false;
                 }
                 catch (Exception ex)
                 {

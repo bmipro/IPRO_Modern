@@ -41,7 +41,10 @@ public static class PlatformAliasHosts
     {
         var baseUrl = PlatformBase(configuration);
         if (!path.HasValue || path == "/") return baseUrl + (Find(configuration, host)?.Path ?? "/");
-        return baseUrl + path.Value + query.Value;
+        // 493: PathString.Value is the DECODED path; a %0A or a space in it made a Location header
+        // Kestrel refuses (a 500 on a public host). ToUriComponent re-escapes it; the query string is
+        // carried as received, already escaped.
+        return baseUrl + path.ToUriComponent() + query.Value;
     }
 
     // What a brand domain serves under its own name: its landing page at "/", the files that page and

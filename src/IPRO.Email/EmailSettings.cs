@@ -38,5 +38,13 @@ public class EmailSettings
     public int SendsPerMinute { get; set; } = 30;
     public int SendsPerHour { get; set; } = 100;
     public int TransactionalReservePerMinute { get; set; } = 5;
-    public int TransactionalReservePerHour { get; set; } = 10;
+    // 493 (2026-09-17): the hourly reserve 10 -> 20 (bulk keeps 80 of the 100). On launch day a
+    // sign-up, a password reset and an invoice must find a slot; with the bounded wait below, a
+    // transactional send past the reserve is refused with an honest message, not queued for an hour.
+    public int TransactionalReservePerHour { get; set; } = 20;
+    // 493: the longest any send waits at the gate. Past this the answer is Deferred: a blast loop
+    // pauses and resumes on a later pass (no attempt spent), a web request answers with the wait.
+    // 90 seconds covers the minute window (at most 60) and stays well under Azure's 230-second
+    // request cut-off; the hour window, which can be most of an hour, is never waited out in place.
+    public int MaxSlotWaitSeconds { get; set; } = 90;
 }

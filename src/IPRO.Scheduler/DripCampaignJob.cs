@@ -15,6 +15,9 @@ public class DripCampaignJob
     private readonly NewsLetterDispatcher _dispatcher;
     private readonly IEmailConsentService _consent;
     private readonly ILogger<DripCampaignJob> _logger;
+    // 493: set when the gate had no send slot inside its bound; the rest of the batch would get the
+    // same answer, so the loop stops and the next tick tries again.
+    private bool _sendingDeferred;
 
     public DripCampaignJob(IUnitOfWork uow, IPRODbContext db, NewsLetterDispatcher dispatcher, IEmailConsentService consent, ILogger<DripCampaignJob> logger)
     {
@@ -62,6 +65,7 @@ public class DripCampaignJob
                 // batch stops. The remaining enrollments run next tick.
                 break;
             }
+            if (_sendingDeferred) break;   // 493
         }
     }
 
@@ -156,6 +160,17 @@ public class DripCampaignJob
                 HandleSendFailure(enrollment, transient: true, "Dispatcher had nothing to send for this step.");
                 await _db.SaveChangesAsync();
                 persisted = true;
+                return true;
+            }
+
+            if (sendResult.IsDeferred)
+            {
+                // 493: no send slot inside the gate's bound. Not an attempt: nothing is counted, no
+                // back-off, the step stays due, and the hourly tick (or the one-off run) tries again.
+                enrollment.LastError = Truncate(sendResult.Message);
+                await _db.SaveChangesAsync();
+                persisted = true;
+                _sendingDeferred = true;
                 return true;
             }
 

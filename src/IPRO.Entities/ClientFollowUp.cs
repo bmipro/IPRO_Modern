@@ -11,5 +11,6 @@ public class ClientFollowUp
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }
     public string? GoogleEventId { get; set; }
+    public DateTime? GoogleUnlinkedAt { get; set; }
     public Client Client { get; set; } = null!;
 }

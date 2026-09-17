@@ -39,6 +39,11 @@ public class EmailActivityController : Controller
     public async Task<IActionResult> Index(string type = "all")
     {
         var rows = await LoadSendsAsync();
+        // The tab badges count the UNFILTERED list, so they do not change with the filter. (493: the
+        // list was being built twice per request, once for the rows and once for these counts.)
+        ViewBag.Counts = rows
+            .GroupBy(r => r.TypeKey)
+            .ToDictionary(g => g.Key, g => g.Count());
 
         var normalizedType = (type ?? "all").Trim().ToLowerInvariant();
         if (normalizedType != "all")
@@ -52,9 +57,6 @@ public class EmailActivityController : Controller
         // injecting open/click tracking. 488: the platform's own pixel and redirect count too; the
         // view keeps saying "not tracked" for invoice rows, which are not instrumented.
         ViewBag.EngagementTracking = _email.EngagementTrackingEnabled || _email.PlatformTrackingEnabled;
-        ViewBag.Counts = (await LoadSendsAsync())
-            .GroupBy(r => r.TypeKey)
-            .ToDictionary(g => g.Key, g => g.Count());
 
         return View(rows);
     }
@@ -305,7 +307,12 @@ public record EmailActivityRow(
     int Sent,
     int Delivered,
     int Opened,
-    int Failed);
+    int Failed)
+{
+    // 493: a send the dispatcher paused (no send slot inside the gate's bound, or a provider hiccup)
+    // goes back to Scheduled with its running total. Half-way through is not "not started".
+    public string DisplayStatus => Status == "Scheduled" && Sent > 0 ? "In progress" : Status;
+}
 
 public record EmailRecipientRow(
     string Name,

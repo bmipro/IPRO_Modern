@@ -1037,6 +1037,17 @@ public class PublicWebsiteController : Controller
     {
         try
         {
+            // 493: ten notification emails an hour per website. The form is public and the subscription
+            // is capped at 100 sends an hour; the lead is saved whatever happens, this only decides the
+            // email, and the row under Website Leads says why it was held.
+            if (await IPRO.Business.Services.WebsiteLeadNotifications.IsHeldAsync(_db, website.Id, DateTime.UtcNow))
+            {
+                lead.NotificationSent = false;
+                lead.NotificationError = IPRO.Business.Services.WebsiteLeadNotifications.HeldMessage;
+                _logger.LogWarning("Website lead {LeadId} saved; the notification was held: website {WebsiteId} reached {Cap} notifications this hour.",
+                    lead.Id, website.Id, IPRO.Business.Services.WebsiteLeadNotifications.PerWebsitePerHour);
+                return;
+            }
             var name = WebUtility.HtmlEncode($"{lead.FirstName} {lead.LastName}".Trim());
             var type = lead.SubmissionType == WebsiteLeadTypes.Newsletter ? "newsletter signup" : "website inquiry";
             var html = $"""
