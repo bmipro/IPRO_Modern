@@ -225,3 +225,11 @@ already did and the policy had not caught up with.
 
 For counsel: item 2 is a disclosure Google requires in this shape; item 1 is the PIPEDA-relevant
 one (a new form of collection, first-party, disclosed at the point it happens).
+
+## 17 September 2026 (493)
+
+One wording correction in section 2, **Your Google Calendar, if you connect it**: the text said events
+were kept in step on "the one calendar you choose". There is no chooser -- the connection always uses
+the primary Google calendar -- so the sentence now says "your primary Google calendar". Nothing else
+changed; the Azure Communication Services and Google Calendar disclosures of 14 September stand.
+The Last-updated date moved to 17 September 2026 in the page and in this folder's copy.

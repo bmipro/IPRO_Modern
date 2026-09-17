@@ -31,6 +31,14 @@ switch), ADMIN-11 (reset confirmation), ADMIN-12 (tax-rate before/after), plus t
 (client Edit note, /Admin landing, Hangfire deleting exhausted jobs). JOBS-11 dropped on the owner's
 call (SendGrid no longer the provider). The tables below are as found on the morning of 2026-09-17.
 
+## The narrow audit of the same afternoon (493)
+
+After this reconciliation, two independent review passes over everything built since 2026-08-28
+(`DOCS/NARROW_AUDIT_2026-09-17.md`) found one serious defect -- 491 waited for a send slot inside the
+claimed send loops, which on launch morning would have duplicated recipients and retired every blast
+as Failed -- and a tail of small ones. The before-launch set went out as 493 the same day; the rest
+are listed there with a home. The tables below are as found on the morning of 2026-09-17.
+
 ## Still open today
 
 ### Security

@@ -1,7 +1,7 @@
 # Privacy Policy
 
 **iPro Advisers Inc.**
-Effective date: **15 February 2012** · Last updated: 14 September 2026
+Effective date: **15 February 2012** · Last updated: 17 September 2026
 
 > **Not yet legal advice.** Drafted from what the platform verifiably does, not from a
 > template. Every third-party processor named below was confirmed in the codebase. Not
@@ -96,7 +96,7 @@ information or use it for advertising.
 ### Your Google Calendar, if you connect it
 
 Connecting is optional. If you do, we ask Google for two things: permission to see, create,
-change and delete events on the one calendar you choose, and your Google account email address,
+change and delete events on your primary Google calendar, and your Google account email address,
 so we can show you which account is connected. We use that access for one purpose: keeping the
 appointments in your IPRO calendar and your Google Calendar in step, in both directions, every
 fifteen minutes. We do not read other calendars, change your calendar settings or sharing, or

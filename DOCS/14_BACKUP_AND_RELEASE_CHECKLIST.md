@@ -116,11 +116,16 @@ Order on the day, owner's actions marked:
 4. **Owner, registrar, the moment of the switch:** `www` names → `CNAME ipro-prod-web.azurewebsites.net`;
    apexes → `A` the app's inbound IP (Custom domains page shows it; 40.89.19.0 on 2026-09-11) --
    or an ALIAS/ANAME record to `ipro-prod-web.azurewebsites.net` if the registrar supports one.
-5. **Verify:** `curl -sI https://www.iproaccountants.com/` answers `200` with the accountants page
-   (its title in the body; since 484 a brand name serves its landing page in place), `curl -sI
-   https://www.iproaccountants.com/Account/Register` answers `301` to the same path on the platform, and
-   the iproadvisers names answer `301` with `Location: https://app.iproadvisers.com/`; mail from `@iproadvisers.com` still authenticates
-   (send one to a Gmail address and check "signed-by").
+5. **Verify, all four names (493):** `curl -sI https://www.iproaccountants.com/` and the apex answer
+   `200` with the accountants page (its title in the body; since 484 a brand name serves its landing
+   page in place); `curl -sI https://www.iproaccountants.com/Account/Register` answers `301` to the
+   same path on the platform; `www.iproadvisers.com` and `iproadvisers.com` answer `301` with
+   `Location: https://app.iproadvisers.com/`. A name that answers the "Website not published yet" page
+   AFTER step 3 is a typo in `App__AliasHosts`, not the in-between state. Mail from
+   `@iproadvisers.com` still authenticates (send one to a Gmail address and check "signed-by").
+   Confirmed 2026-09-17 and worth keeping true: **HTTPS Only is on** for ipro-prod-web, so a plain
+   `http://` visit to a brand name is redirected by the front end before the app sees it (the app's
+   own redirect would land on the platform host and lose the brand).
 
 Rollback is the DNS records back to 66.102.128.65; the bindings and the setting can stay.
 

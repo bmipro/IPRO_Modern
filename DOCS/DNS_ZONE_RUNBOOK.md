@@ -159,7 +159,10 @@ or set `Email__PlatformTrackingEnabled=false` on BOTH App Services first and the
 `Email__EngagementTrackingEnabled=true` as above. The redirect is signed with
 `Email__TrackingSigningKey` when that is set, otherwise with the Event Grid webhook secret; rotating
 either invalidates the links already in inboxes (they answer "This link is not valid" rather than
-redirecting), so rotate deliberately and never both at once.
+redirecting), so rotate deliberately and never both at once -- or, since 493, carry the old value in
+`Email__TrackingSigningKeyPrevious` while the new one signs, and clear it a month later. The owner's
+post-493 step is exactly that: a dedicated `Email__TrackingSigningKey` on BOTH App Services with the
+webhook secret's value in `Previous`, so the redirect is no longer tied to the webhook's own secret.
 
 **491 (2026-09-16):** the platform paces every Azure send to the subscription's limits
 (`EmailSendGate`, defaults 30/minute and 100/hour with a transactional reserve of 5 and 10). When
@@ -167,6 +170,13 @@ Microsoft raises the quota, set `Email__SendsPerMinute` and `Email__SendsPerHour
 `Email__TransactionalReservePerMinute` / `Email__TransactionalReservePerHour`) on BOTH App Services to
 the granted figures and restart -- no deploy. A blast that meets a 429 anyway pauses (rows stay Queued,
 the send returns to Scheduled) and the minutely job resumes it; nothing is marked Failed by a throttle.
+
+**493 (2026-09-17):** the gate never waits past `Email__MaxSlotWaitSeconds` (90). A send that would
+wait longer is answered Deferred: the blast loops pause and resume once a minute (the activity screen
+says In progress), Did You Know and drip count nothing, and a web request gets "Sending is paused
+for the email provider's hourly limit; the next slot opens in about N minutes". The transactional
+reserve is 20 an hour (bulk 80). On the defaults a 500-client newsletter takes about six and a half
+hours; when Microsoft raises the quota the two limit settings above are the whole change.
 
 ---
 
