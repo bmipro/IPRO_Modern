@@ -18,7 +18,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log_ | **492** pre-launch audit remainder (eleven Lows) + the owner's three small items | whole tree |
+| `e692cd7` | **492** pre-launch audit remainder (eleven Lows) + the owner's three small items | 864/864 |
 
 ## Do this first tomorrow
 
