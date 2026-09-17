@@ -42,6 +42,16 @@ client is `https://app.iproadvisers.com/GoogleCalendar/Callback` (485), plus the
    following weeks for the scope review; answer from the same account. Nothing in the app changes
    during the review.
 
+## APPROVED 2026-09-17
+
+Google's Third Party Data Safety Team approved the OAuth verification for project 433464086635
+(total-now-243122) for `.../auth/calendar.events`, two days after submission (the email arrived on the
+morning of 2026-09-17). Effect: the "Google hasn't verified this app" screen and the Advanced link are
+gone for every adviser, and the 100-user cap no longer applies. Google's reminders, which are now rules
+for this project: keep the Project Owner/Editor accounts current; any new scope, and ANY change to the
+consent-screen configuration (Branding, Data access), needs a new verification request -- so do not add
+a logo, rename the app, or touch the scope list casually; the approval is not inherited by other scopes.
+
 ## Submitted 2026-09-15 -- the order that actually worked
 
 Status in the Verification centre at 2026-09-15: Branding "verified and being shown to users";
@@ -110,7 +120,7 @@ a scope the app asks for but the list does not hold is dropped silently in the s
 6. Profile -> Google Calendar -> **Disconnect**. Show the status cleared.
 7. End on the privacy page https://app.iproadvisers.com/privacy.
 
-## The bridge until approval
+## The bridge until approval (history -- approved 2026-09-17)
 
 After step 4 the notice changes from "being tested" to "Google hasn't verified this app"; an adviser
 clicks **Advanced -> Go to IPRO Advisers (unsafe)** and connects. The cap is 100 users for an
