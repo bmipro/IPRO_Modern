@@ -32,15 +32,45 @@
 | `e692cd7` | **492** pre-launch audit remainder (eleven Lows) + the owner's three small items | 864/864 |
 | `0da8190` | **493** the send gate never waits past its bound; the narrow audit's before-launch fixes | 884/884 |
 
+## Close-out 2026-09-17
+
+Close-out as asked at the end of the day, after the narrow audit, 493 and the signing-key settings. Final
+build on both hosts before this close-out: `eb929c9`. Tree clean and pushed.
+
+| Code | Item | Gate |
+|---|---|---|
+| `0da8190` | **493** the send gate never waits past its bound (Deferred; the pause path in all six senders; reserve 20/hour; In progress on Email Activity) plus the narrow audit's small fixes (telemetry scrub, previous signing key, lead-notification cap, form limits, alias path encoding, primary-calendar wording, the Google delete loop, the roll-up writer, replayed pixels) | 884/884 |
+| docs | `DOCS/NARROW_AUDIT_2026-09-17.md` (every finding of both passes with its disposition); DOCS/14 verify step for all four names; the runbook's 493 note; TODO 493; the legal notes corrected | -- |
+
+Deployed on the owner's go at about 16:00; both hosts verified at `/health/version`; the four live checks
+passed (pixel 200 image/gif, unsigned click 400, privacy wording present, a brand-domain path with a space
+or a newline answers 301). The owner then set `Email__TrackingSigningKey` (new, 64 characters) and
+`Email__TrackingSigningKeyPrevious` (the webhook secret's value, 44 characters) on BOTH apps in the portal;
+checked by name and length only, never values. A card sent at 17:56 proved the new key end to end (delivered
+to both recipients, one open and one click recorded at 18:01). **Clear `Previous` on both apps around
+17 October.**
+
+Legal, settled today: the Terms were approved by counsel on 2026-08-17 (owner re-confirmed; the old clause-7
+public licence was replaced by Terms s.4, live since August). Only the privacy policy's 14/17 September
+changes remain for a short read. The notes file's stale "neither document reviewed" line is corrected.
+
+Backups: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup` and
+`C:\Users\admin\Documents\IPRO_Backups` (git archive of HEAD, stamped at the close-out); build servers
+shut down; MySQL is the Windows service and stays running; nothing else of ours running. Reboot-ready.
+
+Launch is Monday 21 September. Launch morning the assistant watches both health endpoints, the Job
+Scheduler dashboard and Email Activity with the owner while the first sends go out; a blast should read
+**In progress** with a rising total and one Information line a minute in the log, never Failed.
+
 ## Do this first tomorrow
 
 1. **PayPal live cutover (Friday or Saturday, owner's choice):** production is still sandbox; portal-to-portal
    (the owner enters the live client id, secret and webhook id), then the webhook and a first live charge
    path verified together, with margin before the 21st.
 2. **Owner-side:** the DNS switch for the four live names on or before 21 September (DOCS/14 -- APPEND to
-   `App__AliasHosts`, 483), the 19th or 20th is fine; the lawyer's review of both legal documents; the
+   `App__AliasHosts`, 483), the 19th or 20th is fine; counsel's short read of the privacy policy's 14/17 September changes when convenient (the Terms were approved 2026-08-17; owner re-confirmed 09-17); the
    designer's items and the /insurance package when ready.
-3. **Owner-side, five minutes, after 493 is live (H-1 of the narrow audit):** on BOTH App Services set
+3. **DONE 2026-09-17 evening (both apps, verified by name and length only) -- owner-side, after 493 is live (H-1 of the narrow audit):** on BOTH App Services set
    `Email__TrackingSigningKey` to a new random value (32+ characters) and `Email__TrackingSigningKeyPrevious`
    to the current value of `Email__AzureEventWebhookSecret` (copied in the portal), so the click links
    sent since the 14th keep redirecting; clear `Previous` in a month. Both apps restart once.

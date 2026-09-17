@@ -4,8 +4,12 @@ Drafted 15 August 2026. Source of truth for the rewrite was the live agreement a
 `src/IPRO.Web/wwwroot/content/ipro_agreement.txt`, shown inside the signup form at
 `src/IPRO.Web/Views/Account/Register.cshtml:364`, plus verified platform behaviour.
 
-**Neither document has been reviewed by a lawyer. Do not publish either without that
-review.** What follows is what a reviewer should look at first.
+**Status (corrected 17 September 2026):** the Terms were approved by counsel on 17 August 2026
+(see the closure under section 1; the owner re-confirmed it on 17 September). The privacy policy's
+changes of 14 and 17 September 2026 (the two sections at the end of this file) have not yet been read
+by counsel; they are a short read, and nothing in the launch depends on it. The paragraph that stood
+here from 15 August ("neither document has been reviewed") was true when written and is not now.
+What follows is what a reviewer should look at first.
 
 ---
 
