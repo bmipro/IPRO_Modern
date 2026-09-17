@@ -102,8 +102,11 @@ public class MediumAuditFixTests
         Assert.True(PublicHostGuard.IsBlockedHost("[::1]"));
         Assert.True(PublicHostGuard.IsBlockedHost("  127.0.0.1. "));
         Assert.False(PublicHostGuard.IsBlockedHost("www.example.com"));
-        // A PUBLIC IP literal is not blocked by shape alone -- the resolved-address screen decides.
-        Assert.False(PublicHostGuard.IsBlockedHost("8.8.8.8"));
+        // 492 (post-sweep audit L1): a custom domain is a NAME. Any IP literal is refused by shape,
+        // public ones included -- App Service cannot bind an IP as a custom hostname and no certificate
+        // can be issued for one, so fetching it was only ever a pointless probe. The header comment of
+        // PublicHostGuard promised this from the start; the code now matches it.
+        Assert.True(PublicHostGuard.IsBlockedHost("8.8.8.8"));
     }
 
     [Fact]

@@ -24,6 +24,10 @@ public class AdminController : Controller
         _auditLog = auditLog;
     }
 
+    // 492 (owner): /Admin and /Admin/ used to answer 404 on the admin host. The root is the dashboard,
+    // and the cookie's LoginPath takes a signed-out visitor to /Admin/Login from there.
+    [HttpGet] public IActionResult Index() => Redirect("/");
+
     [HttpGet] public IActionResult Login() => View();
 
     [HttpPost, ValidateAntiForgeryToken]

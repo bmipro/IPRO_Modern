@@ -83,7 +83,8 @@
   </div>
 </div>
 
-<script>
+@* 492 (audit M-6 residual): every inline script needs the CSP nonce or a strict browser drops it silently. *@
+<script nonce="@Context.GetCspNonce()">
   (function () {
     var pageSelect = document.getElementById('legalLinkPageId');
     var urlInput = document.getElementById('legalLinkUrl');

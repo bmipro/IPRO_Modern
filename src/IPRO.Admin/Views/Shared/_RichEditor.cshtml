@@ -31,7 +31,7 @@
         <span class="ipro-toolbar-spacer"></span>
         <button type="button" data-command="toggleSource" title="HTML source"><i class="fas fa-code"></i></button>
     </div>
-    <div id="@visualId" class="ipro-rich-surface" contenteditable="true" style="min-height:@(height)px">@Html.Raw(Model ?? string.Empty)</div>
+    <div id="@visualId" class="ipro-rich-surface" contenteditable="true" style="min-height:@(height)px">@Html.Raw(IPRO.Business.Services.HtmlContentSanitizer.Sanitize(Model ?? string.Empty))</div>
     <textarea id="@sourceId" class="form-control ipro-rich-source d-none" rows="10">@Model</textarea>
     <textarea id="@editorId" name="@fieldName" class="d-none" data-custom-rich-editor="true">@Model</textarea>
 </div>

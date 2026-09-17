@@ -38,21 +38,34 @@ public class TaxRatesController : Controller
         var ids = model.Rates.Select(r => r.Id).ToList();
         var taxRatesById = (await _uow.ProvinceTaxRates.FindAsync(x => ids.Contains(x.Id))).ToDictionary(x => x.Id);
 
+        // 492 (audit ADMIN-12): the audit line carries before and after per province, so a wrong HST
+        // rate can be reconstructed from the log instead of only "N rows updated".
+        var changes = new List<string>();
         foreach (var row in model.Rates)
         {
             if (!taxRatesById.TryGetValue(row.Id, out var taxRate)) continue;
 
-            taxRate.ProvinceCode = row.ProvinceCode.Trim().ToUpperInvariant();
+            var newCode = row.ProvinceCode.Trim().ToUpperInvariant();
+            var newLabel = row.TaxLabel.Trim();
+            var newRate = Math.Round(row.RatePercent / 100m, 5, MidpointRounding.AwayFromZero);
+            if (taxRate.ProvinceCode != newCode || taxRate.TaxLabel != newLabel || taxRate.Rate != newRate || taxRate.IsActive != row.IsActive)
+            {
+                changes.Add($"{taxRate.ProvinceCode} {taxRate.TaxLabel} {taxRate.Rate * 100m:0.###}% {(taxRate.IsActive ? "active" : "inactive")} -> {newCode} {newLabel} {newRate * 100m:0.###}% {(row.IsActive ? "active" : "inactive")}");
+            }
+
+            taxRate.ProvinceCode = newCode;
             taxRate.ProvinceName = row.ProvinceName.Trim();
-            taxRate.TaxLabel = row.TaxLabel.Trim();
-            taxRate.Rate = Math.Round(row.RatePercent / 100m, 5, MidpointRounding.AwayFromZero);
+            taxRate.TaxLabel = newLabel;
+            taxRate.Rate = newRate;
             taxRate.IsActive = row.IsActive;
             taxRate.UpdatedAt = DateTime.UtcNow;
             _uow.ProvinceTaxRates.Update(taxRate);
         }
 
         await _uow.SaveChangesAsync();
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "TaxRatesUpdate", $"Bulk-updated {model.Rates.Count} province tax rate(s)");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "TaxRatesUpdate", changes.Count == 0
+            ? $"Saved {model.Rates.Count} province tax rate(s); no values changed"
+            : $"Changed {changes.Count} of {model.Rates.Count} province tax rate(s): {string.Join("; ", changes)}");
         TempData["Success"] = "Tax rates updated.";
         return RedirectToAction(nameof(Index));
     }

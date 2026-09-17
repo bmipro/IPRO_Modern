@@ -14,7 +14,7 @@
         <a href="/Agents/Edit/@Model.Id" class="btn btn-primary"><i class="fas fa-pen me-1"></i>Edit</a>
         <form asp-action="ResetPassword" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-dark js-confirm-submit" data-confirm-message="Reset @Model.UserName password to their last name and force password change?"><i class="fas fa-key me-1"></i>Reset Password</button>
+            <button type="submit" class="btn btn-outline-dark js-confirm-submit" data-confirm-message="Reset @Model.UserName's password to a new random temporary password and force a change at next sign-in? The temporary password is emailed to the agent."><i class="fas fa-key me-1"></i>Reset Password</button>
         </form>
         @* Pre-launch audit (2026-08-30): this rendered unconditionally while the rebuild actions
            below correctly gate on the SuperAdmin claim, so a Support admin saw a live button

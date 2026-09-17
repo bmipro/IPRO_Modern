@@ -652,7 +652,8 @@ public class AccountController : Controller
         agent.BusinessFax = model.BusinessFax ?? "";
         agent.CellPhone = model.CellPhone ?? "";
         agent.BusinessType = model.BusinessType;
-        agent.PromotionCode = model.PromotionCode ?? "";
+        // 492 (audit BILLING-12): the promotion code is recorded at sign-up and shown read-only here;
+        // an agent may not rewrite it from the profile form.
         agent.DefaultPaymentLink = model.DefaultPaymentLink;
 
         await _agents.UpdateAsync(agent);

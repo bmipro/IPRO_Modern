@@ -665,7 +665,7 @@ public class WebsiteController : Controller
         return (domain, ShouldUseWwwHost(domain) ? "www." + domain : domain);
     }
 
-    private static string NormalizeDomain(string? domain)
+    internal static string NormalizeDomain(string? domain)
     {
         if (string.IsNullOrWhiteSpace(domain)) return string.Empty;
 
@@ -678,6 +678,13 @@ public class WebsiteController : Controller
             {
                 value = value[..index];
             }
+        }
+
+        // 492 (audit L1): "user@example.com" pasted into the domain box is the domain, not a mailbox.
+        var atIndex = value.LastIndexOf('@');
+        if (atIndex >= 0)
+        {
+            value = value[(atIndex + 1)..];
         }
 
         value = value.Trim().Trim('.');

@@ -120,7 +120,11 @@ public class DripCampaignJob
                 return true;
             }
 
-            if (_consent.IsSuppressed(enrollment.Client, EmailChannel.DripCampaign))
+            // 492 (audit L8): consent is checked against a FRESH read of the client, not the copy this
+            // context may already hold from an earlier enrollment of the same person in this batch --
+            // an unsubscribe a minute ago must stop this step.
+            var clientNow = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == enrollment.ClientId) ?? enrollment.Client;
+            if (_consent.IsSuppressed(clientNow, EmailChannel.DripCampaign))
             {
                 enrollment.Status = DripCampaignEnrollmentStatus.Cancelled;
                 enrollment.CancelledAt = DateTime.UtcNow;   // M12: the CASL "when did we stop" answer

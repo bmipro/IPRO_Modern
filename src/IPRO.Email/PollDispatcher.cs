@@ -319,12 +319,8 @@ public class PollDispatcher
 
     private string BuildVoteUrl(string token)
     {
-        var baseUrl = _configuration["App:BaseUrl"];
-        if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("yourdomain.com", StringComparison.OrdinalIgnoreCase))
-        {
-            baseUrl = "https://ipro-prod-web.azurewebsites.net";
-        }
-
+        // 492 (audit SO-MIN-7): one base-URL helper for the whole platform, no private copy here.
+        var baseUrl = IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
         return $"{baseUrl.TrimEnd('/')}/Poll/Vote?token={WebUtility.UrlEncode(token)}";
     }
 

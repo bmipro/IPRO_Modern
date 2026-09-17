@@ -84,7 +84,10 @@ public static class PublicHostGuard
     {
         if (string.IsNullOrWhiteSpace(host)) return true;
         var trimmed = host.Trim().TrimEnd('.').Trim('[', ']');
-        return IPAddress.TryParse(trimmed, out var literal) && IsBlockedAddress(literal);
+        // 492 (audit L1): a custom domain is a NAME. Any IP literal is refused outright, public ones
+        // included -- which is what the comment at the top has promised since the guard was written;
+        // the previous line only refused literals that were themselves private.
+        return IPAddress.TryParse(trimmed, out _);
     }
 
     /// True when any address the name resolves to is one a server-side check must not touch.

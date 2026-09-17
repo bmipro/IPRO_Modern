@@ -176,7 +176,7 @@ public class NewsletterController : Controller
         ViewBag.Articles = previewArticles;
         ViewBag.SidebarCtas = NewsLetterSidebarCtas.FromJson(nl.SidebarCtasJson);
         var previewAgent = await _uow.AgentUsers.GetByIdAsync(AgentId);
-        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent, GetRequestBaseUrl(), previewArticles, (List<NewsLetterCta>)ViewBag.SidebarCtas);
+        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent, GetBrowserPreviewBaseUrl(), previewArticles, (List<NewsLetterCta>)ViewBag.SidebarCtas);
         var sends = (await _newsletters.GetSendsAsync(id)).OrderByDescending(s => s.ScheduledAt).ToList();
         ViewBag.Sends = sends;
         ViewBag.Recipients = sends.Any()
@@ -232,7 +232,7 @@ public class NewsletterController : Controller
             <div style="margin-bottom:16px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e3a8a;font-family:Arial,sans-serif;">
               <strong>Test send:</strong> This preview was sent only to you. No clients received it.
             </div>
-            {NewsletterHtmlComposer.Wrap(nl, agent, GetRequestBaseUrl(), testSendArticles, testSendCtas)}
+            {NewsletterHtmlComposer.Wrap(nl, agent, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration), testSendArticles, testSendCtas)}
             """;
         var result = await _email.SendDetailedAsync(
             agent.Email,
@@ -671,7 +671,10 @@ public class NewsletterController : Controller
     // Only an unprocessed CONSENT event may withhold it.
     internal static bool ShouldAcknowledge(bool consentEventFailed) => !consentEventFailed;
 
-    private string GetRequestBaseUrl() => $"{Request.Scheme}://{Request.Host}";
+    // The in-browser preview is viewed on whatever host the adviser is signed in on, so its media
+    // links may follow that host. Email bodies must not (LB-1 sibling, 492): test sends and every
+    // dispatcher build from WebAppUrlHelper, the canonical base, because the mail outlives the request.
+    private string GetBrowserPreviewBaseUrl() => $"{Request.Scheme}://{Request.Host}";
 
     private async Task LoadNewsletterContextAsync()
     {

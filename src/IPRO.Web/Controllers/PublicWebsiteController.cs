@@ -452,7 +452,10 @@ public class PublicWebsiteController : Controller
         if (!documentExists) return null;
 
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds();
-        return _leadMagnetProtector.Protect($"{agentDocumentId}|{expiresAt}");
+        // 492 (audit WEB-L-2): the token names the agent as well as the document, and the download
+        // checks both -- a guessed document id inside a valid token can no longer reach another
+        // agent's private file. Tokens live 30 minutes, so the old two-part shape simply expires.
+        return _leadMagnetProtector.Protect($"{agentDocumentId}|{website.AgentUserId}|{expiresAt}");
     }
 
     [HttpGet]
@@ -471,7 +474,10 @@ public class PublicWebsiteController : Controller
         }
 
         var parts = payload.Split('|');
-        if (parts.Length != 2 || !int.TryParse(parts[0], out var documentId) || !long.TryParse(parts[1], out var expiresAt))
+        if (parts.Length != 3
+            || !int.TryParse(parts[0], out var documentId)
+            || !int.TryParse(parts[1], out var agentUserId)
+            || !long.TryParse(parts[2], out var expiresAt))
         {
             return NotFound();
         }
@@ -480,7 +486,7 @@ public class PublicWebsiteController : Controller
             return NotFound();
         }
 
-        var document = await _db.AgentDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+        var document = await _db.AgentDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.AgentUserId == agentUserId);
         if (document == null) return NotFound();
 
         var stream = await _blob.DownloadAsync(document.BlobUrl);

@@ -70,7 +70,7 @@
                             <a href="/Agents/Edit/@a.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-pen"></i></a>
                             <form asp-action="ResetPassword" asp-route-id="@a.Id" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-dark js-confirm-submit" title="Reset password" data-confirm-message="Reset @a.UserName password to their last name and force password change?"><i class="fas fa-key"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-dark js-confirm-submit" title="Reset password" data-confirm-message="Reset @a.UserName's password to a new random temporary password and force a change at next sign-in? The temporary password is emailed to the agent."><i class="fas fa-key"></i></button>
                             </form>
                             <form asp-action="Delete" asp-route-id="@a.Id" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()

@@ -150,6 +150,13 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
             return AzureDomainAutomationResult.Skipped("Domain name is missing.");
         }
 
+        // 492 (audit L5): the same switch AddDomainAsync honours. With automation off, nothing here
+        // may delete a live binding or certificate either.
+        if (!_options.Enabled)
+        {
+            return AzureDomainAutomationResult.Skipped("Azure domain automation is disabled. Set AzureDomainAutomation__Enabled=true.");
+        }
+
         if (!_options.HasRequiredBindingSettings)
         {
             return AzureDomainAutomationResult.Skipped($"Azure domain automation settings are incomplete. Missing: {_options.MissingBindingSettingsSummary()}.");

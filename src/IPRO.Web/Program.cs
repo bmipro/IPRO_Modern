@@ -41,6 +41,10 @@ builder.Services.AddHangfire(config => config
    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
    .UseSimpleAssemblyNameTypeSerializer()
    .UseRecommendedSerializerSettings()
+   // 492 (owner): a job that has used up its retries is deleted from the dashboard instead of sitting
+   // there until someone deletes it by hand. Every send path records its own outcome on its rows, so
+   // nothing is lost with the job entry.
+   .UseFilter(new AutomaticRetryAttribute { Attempts = 10, OnAttemptsExceeded = AttemptsExceededAction.Delete })
    .UseStorage(new MySqlStorage(connStr, new MySqlStorageOptions
     {
         TablesPrefix = "Hangfire_"
