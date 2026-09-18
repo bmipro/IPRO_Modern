@@ -30,7 +30,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `4ae2eaa` | **494** the Generic edition is offered as a business type | 894/894 |
-| _see log_ | **495** the Generic edition's own starter pack; buttons on the starting-point panel | whole tree |
+| `e493950` | **495** the Generic edition's own starter pack; buttons on the starting-point panel | 901/901 |
 
 ## Do this first tomorrow
 
