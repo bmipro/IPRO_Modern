@@ -122,6 +122,12 @@ public static class WebsiteStarterResourcesHelper
         // article is a real, independently editable Article row on its own page.
         var childOrder = 0;
         var pairs = selected.Zip(articles, (starter, article) => (starter, article)).ToList();
+        // 497: an article category can itself be called "Calculators" (the Accountants library files "Which
+        // Calculator Do You Actually Need?" under it). The calculators below then go under THAT page rather
+        // than a second one of the same name: every accountant's Resources menu showed "Calculators" twice,
+        // the second at /calculators-2. Mirrored in ProspectWebsitePreviewBuilder.
+        WebsitePage? calculatorsCategoryFromArticles = null;
+        var calculatorsCategoryArticleCount = 0;
         foreach (var group in pairs.GroupBy(p => p.starter.Category))
         {
             if (string.IsNullOrWhiteSpace(group.Key))
@@ -188,6 +194,11 @@ public static class WebsiteStarterResourcesHelper
                 }
             };
             db.WebsitePages.Add(categoryPage);
+            if (string.Equals(group.Key.Trim(), "Calculators", StringComparison.OrdinalIgnoreCase))
+            {
+                calculatorsCategoryFromArticles = categoryPage;
+                calculatorsCategoryArticleCount = ordered.Count;
+            }
 
             var articleOrder = 0;
             foreach (var (starter, article) in ordered)
@@ -226,34 +237,39 @@ public static class WebsiteStarterResourcesHelper
         // the parent SectionIndex renders on its cards.
         if (calculatorEntries.Count > 0)
         {
-            var calcCategorySlug = UniqueSlug("calculators", existingSlugs);
-            existingSlugs.Add(calcCategorySlug);
-            var calcCategoryPage = new WebsitePage
+            // 497: under the article category of the same name when there is one (see above).
+            var calcCategoryPage = calculatorsCategoryFromArticles;
+            var calcOrder = calculatorsCategoryArticleCount;
+            if (calcCategoryPage == null)
             {
-                AgentWebsiteId = website.Id,
-                ParentPage = resourcesPage,
-                Title = "Calculators",
-                Slug = calcCategorySlug,
-                NavigationLabel = "Calculators",
-                MetaTitle = "Calculators",
-                MetaDescription = "Free financial calculators you can use any time.",
-                ShowInNavigation = true,
-                IsPublished = true,
-                SortOrder = childOrder++,
-                Blocks = new List<WebsiteContentBlock>
+                var calcCategorySlug = UniqueSlug("calculators", existingSlugs);
+                existingSlugs.Add(calcCategorySlug);
+                calcCategoryPage = new WebsitePage
                 {
-                    new()
+                    AgentWebsiteId = website.Id,
+                    ParentPage = resourcesPage,
+                    Title = "Calculators",
+                    Slug = calcCategorySlug,
+                    NavigationLabel = "Calculators",
+                    MetaTitle = "Calculators",
+                    MetaDescription = "Free financial calculators you can use any time.",
+                    ShowInNavigation = true,
+                    IsPublished = true,
+                    SortOrder = childOrder++,
+                    Blocks = new List<WebsiteContentBlock>
                     {
-                        BlockType = WebsiteBlockTypes.SectionIndex,
-                        Heading = "Calculators",
-                        SortOrder = 0,
-                        IsVisible = true
+                        new()
+                        {
+                            BlockType = WebsiteBlockTypes.SectionIndex,
+                            Heading = "Calculators",
+                            SortOrder = 0,
+                            IsVisible = true
+                        }
                     }
-                }
-            };
-            db.WebsitePages.Add(calcCategoryPage);
+                };
+                db.WebsitePages.Add(calcCategoryPage);
+            }
 
-            var calcOrder = 0;
             foreach (var entry in calculatorEntries)
             {
                 var title = CalculatorKinds.DisplayName(entry.Kind);
