@@ -84,7 +84,7 @@ are listed there with a home. The tables below are as found on the morning of 20
 ### Product
 | Finding | Where it still shows | Size |
 |---|---|---|
-| PT Phase 3 truth sweep: /Preview, Register and the help docs never audited against the brief; the Azure region confirmation for the data-location claim had no record (settled 2026-09-17: App Service canadaeast, MySQL Canada East, ACS data location Canada, see 489) | TODO 412 | days |
+| **PUBLIC PAGES DONE 2026-09-18 (TODO 496, `DOCS/TRUTH_SWEEP_2026-09-18.md`); the in-portal help remains.** PT Phase 3 truth sweep: /Preview, Register and the help docs never audited against the brief; the Azure region confirmation for the data-location claim had no record (settled 2026-09-17: App Service canadaeast, MySQL Canada East, ACS data location Canada, see 489) | TODO 412 | days |
 | 08-20 M6 (owner decision, parked): no credit-note mechanism; `RefundStatus.ConvertedToCredit` unreachable; the CRA tax-by-region figure over-reports after a refund | `SubscriptionChange.cs:4` | day |
 | 08-14 ADMIN-11: the admin confirm still says "Reset ... password to their last name"; the action generates a random password | `Agents/Details.cshtml:17`, `Agents/Index.cshtml:73` | minutes |
 | 08-14 ADMIN-12: tax-rate edits are logged as "Bulk-updated N ..." with no before/after | `TaxRatesController.cs:55` | minutes |

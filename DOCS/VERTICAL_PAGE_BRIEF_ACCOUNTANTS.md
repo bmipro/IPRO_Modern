@@ -33,9 +33,12 @@ the product does.
    words, and one sentence:
    - A website with accountant starter pages and a Resources section already written (personal
      financial planning, personal tax preparation, what to bring to your first meeting).
-   - A client portal where clients upload their slips and documents and message you.
+   - On Platinum, a client portal where clients upload their slips and documents and message you.
+     (496: the portal is a Platinum feature. Wherever a page promises it, the page says "on Platinum".)
    - Follow-ups and reminders, so tax season is a list, not a memory test.
-   - Newsletters and "Did you know" teasers built from the same articles, sent from your own name.
+   - Newsletters, and "Did you know" teasers shown on the site, built from the same articles. (496: mail
+     leaves from IPRO's sender with the adviser as the reply-to, so never write "in your own name";
+     write "replies come straight to you". The teasers are shown on the site, not sent.)
 3. **See it.** The starter site the accountant gets on day one, framed as a screenshot or an
    embedded preview. Caption: "Every new account starts with this site, already written for
    accountants. Change anything."
@@ -44,7 +47,8 @@ the product does.
 5. **Pricing.** The same package table as the platform home. The rows come from the database
    (package names, prices, features); the designer styles the frame and the row style, never the
    content. No prices or feature lists in the mockup, use placeholders.
-6. **Trust.** One provider, one login, one number to call. Canadian, data stored in Canada (Azure
+6. **Trust.** One provider, one login, one number to call -- and SHOW the number, 1-416-363-2220
+   (496: the line was on three pages with no number on any of them). Canadian, data stored in Canada (Azure
    Canada East), nightly backups, support by ticket from inside the product. Short.
 7. **Final call to action.** Register, one line above it. Whether to say "no card needed for the
    trial": confirm with Bahman before writing it.

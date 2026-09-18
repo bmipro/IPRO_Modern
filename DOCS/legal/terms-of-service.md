@@ -1,7 +1,7 @@
 # Terms of Service
 
 **iPro Advisers Inc.**
-Effective date: **15 February 2012** · Last updated: 15 August 2026
+Effective date: **15 February 2012** · Last updated: 18 September 2026
 
 > **Not yet legal advice.** This document was drafted from the existing Online Subscription
 > Agreement (`src/IPRO.Web/wwwroot/content/ipro_agreement.txt`) plus what the platform
@@ -173,7 +173,7 @@ domain registrar, or a third-party service outside our control.
 hours, 9am to 5pm Eastern, Monday to Friday, excluding national holidays.
 
 **Third-party services.** Some features depend on services we do not control — PayPal for
-payments, SendGrid for email delivery, Google for calendar sync, certificate authorities for
+payments, Microsoft for email delivery, Google for calendar sync, certificate authorities for
 SSL. An outage or policy change at one of those providers may interrupt the corresponding
 feature, and that is not downtime under this section.
 

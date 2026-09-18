@@ -17,6 +17,15 @@
   production tables; all editable under SuperAdmin -> Starter Content. The panel's two buttons carry the
   chosen edition into sign-up and the preview. Details in `DOCS/TODO.md` 495.
 
+- **496, the truth sweep of the public pages (afternoon):** the owner asked what else was left after
+  the Generic gap. Two read-only reviewers checked every promise a prospect reads before paying
+  against the code; `DOCS/TRUTH_SWEEP_2026-09-18.md` is the record. Built the same day: a new account's
+  site is created AND published at sign-up (only the Publish button did it; the welcome email's main
+  button opened a 404); the landing pages' setup-fee test (it would have hidden a charged fee from
+  1 October); the plan table's three unbacked rows; the live preview's stale plan descriptions; the
+  phone number published (owner: 1-416-363-2220) so "one number to call" is true; the hero badge,
+  the Terms naming Microsoft, and about twenty wording corrections. Details in `DOCS/TODO.md` 496.
+
 - **The local environment, fixed rather than avoided (afternoon):** a local look at 494 failed because
   IPRO.Web never listened. Cause: `ops\Start-LocalEnv.ps1` ran `Start-Process "azurite"`, which on this
   machine opens npm's extensionless shim in Notepad instead of running it, so the blob emulator never
@@ -31,6 +40,7 @@
 |---|---|---|
 | `4ae2eaa` | **494** the Generic edition is offered as a business type | 894/894 |
 | `e493950` | **495** the Generic edition's own starter pack; buttons on the starting-point panel | 901/901 |
+| _see log_ | **496** truth sweep of the public pages: the site goes live at sign-up; every promise checked | whole tree |
 
 ## Do this first tomorrow
 
@@ -40,7 +50,12 @@
 2. **Owner-side:** the DNS switch for the four live names on or before 21 September (DOCS/14 -- APPEND to
    `App__AliasHosts`, verify all four names); counsel's short read of the privacy policy's 14/17 September
    changes when convenient; the designer's items and the /insurance package when ready.
-3. **Owner, when convenient:** read the Generic pack under SuperAdmin -> Starter Content (six pages, eight
+3. **Owner's calls left by the truth sweep (`DOCS/TRUTH_SWEEP_2026-09-18.md`, last section):** a real daily
+   follow-ups email (restores the withdrawn "Email reminder" row); insurance wording inside the portal
+   for every business type; the duplicated Calculators menu on accountants' sites; preview template vs
+   real template; article libraries for Insurance and Mortgage; three stale lines in the Accountants
+   library; exports for a lapsed account.
+3b. **Owner, when convenient:** read the Generic pack under SuperAdmin -> Starter Content (six pages, eight
    articles, two forms) and edit anything that does not sound like IPRO; every adviser who picks Generic
    from now on starts from it.
 4. **Launch morning (Monday 21 September):** watch both health endpoints, the Job Scheduler dashboard and
