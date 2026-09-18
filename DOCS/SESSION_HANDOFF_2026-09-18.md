@@ -10,11 +10,27 @@
   Accountants; the daily-assistant preview speaks each type's own language (it had insurance copy for
   everyone); Generic gets three neutral calculators. Details in `DOCS/TODO.md` 494.
 
+- **495 (afternoon):** the owner's follow-up -- content written FOR the Generic edition, and a button on
+  the panel that sells the four editions. Six Generic starter pages (the shared set's home page read
+  "Professional professional services..."), eight articles in two categories drafted by two
+  content-writer agents to a strict brief and edited, two forms; seeded so they reach the already-seeded
+  production tables; all editable under SuperAdmin -> Starter Content. The panel's two buttons carry the
+  chosen edition into sign-up and the preview. Details in `DOCS/TODO.md` 495.
+
+- **The local environment, fixed rather than avoided (afternoon):** a local look at 494 failed because
+  IPRO.Web never listened. Cause: `ops\Start-LocalEnv.ps1` ran `Start-Process "azurite"`, which on this
+  machine opens npm's extensionless shim in Notepad instead of running it, so the blob emulator never
+  started and two start-up steps sat retrying 127.0.0.1:10000. The script now calls `azurite.cmd` and
+  reports whether port 10000 came up; DOCS/16 says so, and says how to stop a Browser-pane run (close
+  the tab first, or the pane restarts the app and its process locks the next build). The owner's
+  words: "why can't you fix it instead of avoiding it?"
+
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `4ae2eaa` | **494** the Generic edition is offered as a business type | 894/894 |
+| _see log_ | **495** the Generic edition's own starter pack; buttons on the starting-point panel | whole tree |
 
 ## Do this first tomorrow
 
@@ -24,8 +40,9 @@
 2. **Owner-side:** the DNS switch for the four live names on or before 21 September (DOCS/14 -- APPEND to
    `App__AliasHosts`, verify all four names); counsel's short read of the privacy policy's 14/17 September
    changes when convenient; the designer's items and the /insurance package when ready.
-3. **Offered, the owner's call:** a button in the home page's starting-point panel ("Start with this
-   edition" -> sign-up with that business type preselected). None of the four tabs has one today.
+3. **Owner, when convenient:** read the Generic pack under SuperAdmin -> Starter Content (six pages, eight
+   articles, two forms) and edit anything that does not sound like IPRO; every adviser who picks Generic
+   from now on starts from it.
 4. **Launch morning (Monday 21 September):** watch both health endpoints, the Job Scheduler dashboard and
    Email Activity with the owner while the first sends go out; a blast should read **In progress** with a
    rising total and one Information line a minute in the log, never Failed. Bulk mail goes at 80 an hour.

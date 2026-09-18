@@ -26,7 +26,15 @@ if (Test-Port 10000) {
     Write-Host "Azurite already running on 10000" -ForegroundColor Green
 } else {
     Write-Host "Starting Azurite..." -ForegroundColor Yellow
-    Start-Process -FilePath "azurite" -ArgumentList "--silent", "--location", "$mysqlBase\azurite", "--blobHost", "127.0.0.1", "--queueHost", "127.0.0.1", "--tableHost", "127.0.0.1" -WindowStyle Minimized
+    # "azurite.cmd", not "azurite": npm drops an extensionless shell shim beside the .cmd, and
+    # Start-Process resolves the bare name to THAT file, which Windows opens in Notepad instead of
+    # running. The emulator never started, and IPRO.Web then sat for minutes retrying
+    # 127.0.0.1:10000 in two start-up steps before it would listen (found 2026-09-18).
+    Start-Process -FilePath "azurite.cmd" -ArgumentList "--silent", "--location", "$mysqlBase\azurite", "--blobHost", "127.0.0.1", "--queueHost", "127.0.0.1", "--tableHost", "127.0.0.1" -WindowStyle Minimized
+    $up = $false
+    foreach ($i in 1..15) { Start-Sleep -Seconds 1; if (Test-Port 10000) { $up = $true; break } }
+    if ($up) { Write-Host "Azurite is listening on 10000" -ForegroundColor Green }
+    else { Write-Host "Azurite did NOT come up on 10000 -- IPRO.Web will stall at start-up until it does." -ForegroundColor Red }
 }
 
 Write-Host ""

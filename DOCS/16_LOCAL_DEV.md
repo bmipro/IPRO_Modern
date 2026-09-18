@@ -17,6 +17,14 @@ of that week's new-breakage findings to exactly that gap.
 Start everything: `powershell -ExecutionPolicy Bypass -File ops\Start-LocalEnv.ps1`, then the two
 `dotnet run` commands it prints.
 
+**IPRO.Web will not listen until Azurite does.** Two start-up steps create blob containers, and with
+nothing on 127.0.0.1:10000 each retries a closed port for the better part of a minute. Until 2026-09-18
+the script started the emulator with `Start-Process "azurite"`, which on this machine resolves to npm's
+extensionless shim and opens it in Notepad instead of running it; it now calls `azurite.cmd` and says
+whether port 10000 came up. When the app is run through the desktop app's Browser pane, stop it by
+closing the pane's tab first and then stopping the server -- with the tab open the pane restarts the
+app within seconds, and a running `IPRO.Web.exe` locks `src/IPRO.Web/bin` so the next build fails.
+
 ## Config isolation — why a local run cannot touch real services
 
 The committed `appsettings.json` is a placeholder template (real secrets live only in Azure App
