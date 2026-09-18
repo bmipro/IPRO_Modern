@@ -40,7 +40,7 @@
 |---|---|---|
 | `4ae2eaa` | **494** the Generic edition is offered as a business type | 894/894 |
 | `e493950` | **495** the Generic edition's own starter pack; buttons on the starting-point panel | 901/901 |
-| _see log_ | **496** truth sweep of the public pages: the site goes live at sign-up; every promise checked | whole tree |
+| `0a8914b` | **496** truth sweep of the public pages: the site goes live at sign-up; every promise checked | 930/930 |
 
 ## Do this first tomorrow
 
