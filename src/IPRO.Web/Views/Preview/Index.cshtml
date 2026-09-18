@@ -2,6 +2,7 @@
     ViewData["Title"] = "See Your Website";
     Layout = null;
     var carriedPackage = ViewBag.CarriedPackage as string;
+    var carriedBusinessType = ViewBag.CarriedBusinessType as string;   // 495
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -52,7 +53,7 @@
           @* 494: the one list every business-type form shares (StarterBusinessTypes.Offered). *@
           @foreach (var businessTypeOption in IPRO.DataAccess.StarterBusinessTypes.Offered)
           {
-            <option value="@businessTypeOption.Value">@businessTypeOption.Label</option>
+            <option value="@businessTypeOption.Value" selected="@(businessTypeOption.Value == carriedBusinessType)">@businessTypeOption.Label</option>
           }
         </select>
       </div>

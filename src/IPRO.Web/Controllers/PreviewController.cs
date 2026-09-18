@@ -17,11 +17,14 @@ public class PreviewController : Controller
     public PreviewController(IPRODbContext db) { _db = db; }
 
     [HttpGet]
-    public IActionResult Index([FromQuery] string? package = null)
+    public IActionResult Index([FromQuery] string? package = null, [FromQuery] string? businessType = null)
     {
         // Carried from a Home pricing card's "See a live X site in 30s" link -- threaded into the
         // form as a hidden field so submitting doesn't silently drop back to the default package.
         ViewBag.CarriedPackage = ProspectPreviewInput.ValidPackages.Contains(package) ? package : null;
+        // 495: carried from the home page's starting-point panel ("Preview it first"), so the form opens
+        // with that edition already chosen. Anything not in the product's list is dropped.
+        ViewBag.CarriedBusinessType = ProspectPreviewInput.ValidBusinessTypes.Contains(businessType) ? businessType : null;
         return View();
     }
 

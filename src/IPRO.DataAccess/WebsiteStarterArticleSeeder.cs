@@ -287,7 +287,11 @@ public static class WebsiteStarterArticleSeeder
                     "</ul>" +
                     "<p>The number a calculator gives you is a starting point, not a final answer — the real value comes from talking through what it means for your specific situation. That's what we're here for.</p>",
                     0, "Calculators")
-            };
+            }
+            // 495: the Generic edition's library (GenericStarterArticles). Added per title like every
+            // other article here, so it reaches a database that was seeded long ago.
+            .Concat(GenericStarterArticles.All.Select((a, i) => Article(StarterBusinessTypes.Generic, a.Title, a.Summary, a.Content, i, a.Category)))
+            .ToArray();
 
             var missing = desired.Where(a => !existingKeys.Contains((a.BusinessType, a.Title))).ToList();
             if (missing.Count == 0) return;

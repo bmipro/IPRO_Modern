@@ -361,6 +361,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("WebsiteTemplateSeeder.SeedAsync", () => WebsiteTemplateSeeder.SeedAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedAsync", () => WebsiteStarterContentSeeder.SeedAsync(db, seedLogger), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync", () => WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db, seedLogger), db, app.Logger);
+    // 495: the Generic edition's own six starter pages (one-time, its own guard).
+    await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedGenericEditionAsync", () => WebsiteStarterContentSeeder.SeedGenericEditionAsync(db, seedLogger), db, app.Logger);
 
     // LAST, after every schema repair and seeder: report any model relationship whose foreign key
     // the database does not enforce and that is not in the known baseline (auditor 5, F14). Never

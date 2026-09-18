@@ -121,6 +121,27 @@ public static class WebsiteStarterFormSeeder
                         options: new[] { "Annual tax preparation & filing", "Ongoing bookkeeping & payroll", "Corporate advisory / fractional CFO", "CRA / tax authority audit assistance" }),
                     Field(WebsiteFormFieldTypes.Dropdown, "Estimated annual business revenue (if applicable)",
                         options: new[] { "Pre-revenue / startup", "Under $100,000", "$100,000 - $500,000", "$500,000 - $2,000,000", "Over $2,000,000" })),
+
+                // 495: the Generic edition -- any professional-service business. A quote request and a
+                // new-client intake; the shared General Inquiry, Refer a Friend and meeting forms reach a
+                // Generic adviser as well.
+                Template(StarterBusinessTypes.Generic, "Request a Quote",
+                    "Gathers what you need to price a piece of work before the first conversation.", 0,
+                    Field(WebsiteFormFieldTypes.Dropdown, "What do you need help with?", required: true, options: new[] { "A new project", "Ongoing support", "A second opinion", "Not sure yet" }),
+                    Field(WebsiteFormFieldTypes.Textarea, "Tell us about it", required: true),
+                    Field(WebsiteFormFieldTypes.Dropdown, "When do you need it?", required: true, options: new[] { "As soon as possible", "Within a month", "In the next few months", "Just exploring" }),
+                    Field(WebsiteFormFieldTypes.Text, "Budget range, if you have one"),
+                    Field(WebsiteFormFieldTypes.Dropdown, "Preferred contact method", required: true, options: new[] { "Email", "Phone", "Either" })),
+
+                Template(StarterBusinessTypes.Generic, "New Client Intake",
+                    "The basics about a new client, collected before your first working session.", 1,
+                    Field(WebsiteFormFieldTypes.Section, "About You"),
+                    Field(WebsiteFormFieldTypes.Text, "Business or organization, if any"),
+                    Field(WebsiteFormFieldTypes.Text, "How did you hear about us?"),
+                    Field(WebsiteFormFieldTypes.Section, "Getting Started"),
+                    Field(WebsiteFormFieldTypes.Textarea, "What would you like us to help with first?", required: true),
+                    Field(WebsiteFormFieldTypes.Textarea, "Anything we should know before we begin?"),
+                    Field(WebsiteFormFieldTypes.Dropdown, "Best time to reach you", options: new[] { "Morning", "Afternoon", "Evening", "Any time" })),
             };
 
             var missing = desired.Where(t => !existingKeys.Contains((t.BusinessType, t.Title))).ToList();

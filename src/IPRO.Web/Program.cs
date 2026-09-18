@@ -646,6 +646,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("WebsiteTemplateSeeder.SeedAsync", () => WebsiteTemplateSeeder.SeedAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedAsync", () => WebsiteStarterContentSeeder.SeedAsync(db, seedLogger), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync", () => WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db, seedLogger), db, app.Logger);
+    // 495: the Generic edition's own six starter pages (one-time, its own guard).
+    await StartupGuard.RunStepAsync("WebsiteStarterContentSeeder.SeedGenericEditionAsync", () => WebsiteStarterContentSeeder.SeedGenericEditionAsync(db, seedLogger), db, app.Logger);
 
     // QA-only, sandbox-gated (see QaDailyBillingPackageSeeder). Involves live PayPal API calls, so
     // isolated the same way as starter-content seeding above -- a PayPal outage at boot must never

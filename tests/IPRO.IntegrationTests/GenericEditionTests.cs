@@ -18,13 +18,15 @@ namespace IPRO.IntegrationTests;
 // SuperAdmin agent editor each offered a hard-coded list of three. A visitor who chose Generic had
 // nowhere to go; worse, the preview silently turned an unlisted type into Accountants.
 //
-// The neutral content was already in the product: an "All" set of starter pages, two "All" forms,
-// an "All" meeting form and two "All" articles, which every vertical falls back to. Generic is the
-// business type that takes exactly that set. What was missing was the option itself, in one list the
-// four forms share so they cannot drift from the marketing page again -- and the two places where a
-// type without its own copy was shown another vertical's (the daily-assistant preview said "her life
-// insurance policy review is 4 days overdue" to everyone; the fallback calculators led with a
-// mortgage payment).
+// A neutral fallback was already in the product: an "All" set of starter pages, two "All" forms,
+// an "All" meeting form and two "All" articles, which every vertical falls back to. 494 made Generic
+// the business type that takes that set; 495 then gave it a pack written for it (its own six pages,
+// eight articles and two forms -- see GenericStarterPackTests), which these tests now expect.
+//
+// What 494 itself added was the option, in one list the four forms share so they cannot drift from
+// the marketing page again -- and a fix for the two places where a type without its own copy was
+// shown another vertical's (the daily-assistant preview said "her life insurance policy review is
+// 4 days overdue" to everyone; the fallback calculators led with a mortgage payment).
 public class GenericEditionTests
 {
     // ---- the one list -----------------------------------------------------------------------
@@ -119,7 +121,7 @@ public class GenericEditionTests
             Assert.Contains(slug, topLevel);
 
         var hero = pages.Single(p => p.IsHomePage).Blocks.OrderBy(b => b.SortOrder).First();
-        Assert.Equal("Build confidence in your business", hero.Heading);
+        Assert.Equal("Good work starts with a conversation.", hero.Heading);   // 495: the Generic pack's own home page
 
         // Nothing on the starter pages speaks another vertical's language.
         var starterText = string.Join(" ", pages
@@ -131,12 +133,12 @@ public class GenericEditionTests
 
         // The Request Meeting page carries the shared meeting form, copied to the adviser.
         Assert.True(await db.WebsiteForms.AnyAsync(f => f.AgentUserId == agentId));
-        // Resources: the two shared articles and the three neutral calculators, nothing vertical.
+        // Resources: the two shared articles, the Generic library's eight (495), and the three neutral calculators.
         var calculatorKinds = pages.SelectMany(p => p.Blocks)
             .Where(b => b.BlockType == WebsiteBlockTypes.Calculator)
             .Select(b => WebsiteCalculatorSettings.FromJson(b.SettingsJson).CalculatorKind).OrderBy(k => k).ToArray();
         Assert.Equal(new[] { CalculatorKinds.LoanAmortization, CalculatorKinds.SavingsGoal, CalculatorKinds.SavingsGrowth }, calculatorKinds);
-        Assert.Equal(2, await db.Articles.CountAsync(a => a.AgentUserId == agentId));
+        Assert.Equal(10, await db.Articles.CountAsync(a => a.AgentUserId == agentId));
     }
 
     [Fact]
@@ -155,7 +157,7 @@ public class GenericEditionTests
         Assert.Equal("Generic", model!.Website.AgentUser.BusinessType);
         Assert.Equal(WebsiteTemplateSeeder.DefaultTemplateKey, model.Website.Template.TemplateKey);
         var hero = model.Pages.Single(p => p.IsHomePage).Blocks.OrderBy(b => b.SortOrder).First();
-        Assert.Equal("Build confidence in your business", hero.Heading);
+        Assert.Equal("Good work starts with a conversation.", hero.Heading);   // 495: the Generic pack's own home page
     }
 
     // ---- harness ----------------------------------------------------------------------------
@@ -167,6 +169,7 @@ public class GenericEditionTests
         await WebsiteTemplateSeeder.SeedAsync(db);
         await WebsiteStarterContentSeeder.SeedAsync(db);
         await WebsiteStarterContentSeeder.SeedNavV2AdditionsAsync(db);
+        await WebsiteStarterContentSeeder.SeedGenericEditionAsync(db);   // 495
         await WebsiteStarterFormSeeder.SeedAsync(db);
         await WebsiteStarterArticleSeeder.SeedAsync(db);
         db.ChangeTracker.Clear();

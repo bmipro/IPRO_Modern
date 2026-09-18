@@ -59,6 +59,59 @@ public static class WebsiteStarterContentSeeder
             await db.SaveChangesAsync();
         });
 
+    // 495 (2026-09-18): the Generic edition's own starter pages. 494 made Generic a business type that
+    // took the shared "All" set, but that set was only ever a fallback -- its home page reads
+    // "Professional professional services with responsive, personal service", because the vertical's
+    // name is substituted into a sentence that already says "professional". These six are written for
+    // ANY professional-service business and read as finished on day one. Same slugs as every other
+    // set, so for a Generic adviser they take the place of the shared pages (exact business type wins)
+    // and the Request Meeting page still receives the shared meeting form at provisioning.
+    //
+    // Its own guard and its own existence check, like SeedNavV2AdditionsAsync: SeedAsync above ran in
+    // production long ago and its body never runs again. Block bodies are plain text (the public
+    // site encodes them); only articles carry markup. Editable afterwards under SuperAdmin ->
+    // Starter Content.
+    public static async Task SeedGenericEditionAsync(IPRODbContext db, Microsoft.Extensions.Logging.ILogger? logger = null) =>
+        await SeedGuard.RunAsync(db, "WebsiteStarterPages_Generic", logger, async () =>
+        {
+            const string generic = StarterBusinessTypes.Generic;
+            if (await db.WebsiteStarterPages.AnyAsync(p => p.BusinessType == generic)) return;
+
+            db.WebsiteStarterPages.AddRange(
+                Page(generic, "Home", "home", true, 0,
+                    Block(WebsiteBlockTypes.Hero, "Good work starts with a conversation.",
+                        "Tell us what you need. We will listen, give you a straight answer, and look after it properly.",
+                        "", "Get in touch", "/contact", 0),
+                    Block(WebsiteBlockTypes.Services, "How we can help", "Practical help, shaped around what you actually need.",
+                        "Clear advice you can act on\nWork delivered when we said it would be\nA real person who knows your situation", "", "", 1),
+                    Block(WebsiteBlockTypes.Text, "How we work", "Simple, and the same every time.",
+                        "First we listen, so we understand what you need and why it matters. Then we tell you plainly what we recommend, what it involves and what it will cost. Then we do the work, keep you posted as it moves along, and stay in touch afterwards.",
+                        "", "", 2),
+                    Block(WebsiteBlockTypes.CallToAction, "Ready to talk it through?",
+                        "Tell us what you are working on and we will suggest a sensible next step.", "", "Request a meeting", "/request-meeting", 3)),
+                Page(generic, "About", "about", false, 1,
+                    Block(WebsiteBlockTypes.Text, "About us", "Experienced, approachable, and easy to reach.",
+                        "We take pride in doing careful work for people we enjoy working with. Clients come to us because they want something done properly, explained in plain language, and finished when promised. That is what we set out to do, every time.",
+                        "", "", 0),
+                    Block(WebsiteBlockTypes.Text, "What you can expect from us", "A few things we hold ourselves to.",
+                        "We return calls and messages promptly. We tell you what something will involve before we begin. We say so when something is outside what we do, and point you to someone who can help. And we treat your information as confidential, always.",
+                        "", "", 1)),
+                Page(generic, "Testimonials", "testimonials", false, 2,
+                    Block(WebsiteBlockTypes.TestimonialForm, "What our clients say", "Kind words from people we have worked with.",
+                        "Have we worked together? We would be glad to hear how it went.", "", "", 0)),
+                Page(generic, "Contact", "contact", false, 3,
+                    Block(WebsiteBlockTypes.ContactForm, "Get in touch", "Call, email, or send a note below.",
+                        "Tell us a little about what you need and the best way to reach you. We will get back to you shortly.", "Send message", "", 0)),
+                Page(generic, "Free Newsletter", "free-newsletter", false, 4,
+                    Block(WebsiteBlockTypes.NewsletterSignup, "Stay in the loop", "Short, useful updates, only now and then.",
+                        "Sign up for our free newsletter. Practical tips and news from us, and you can unsubscribe at any time.", "", "", 0)),
+                Page(generic, "Request Meeting", "request-meeting", false, 5,
+                    Block(WebsiteBlockTypes.ContactForm, "Request a meeting", "Book a time to talk through what you need.",
+                        "Share a few details and we will follow up to find a time that works.", "Request a meeting", "", 0)));
+
+            await db.SaveChangesAsync();
+        });
+
     private static void AddNavV2Set(IPRODbContext db, string businessType, string goal, string serviceDescription)
     {
         db.WebsiteStarterPages.AddRange(

@@ -15,8 +15,8 @@ public static class StarterBusinessTypes
     public const string All = "All";
     // 494 (2026-09-18): Generic is the fourth. The home page has sold a "Generic edition -- the flexible
     // starting point for any professional-service business" since the redesign, and both landing
-    // footers link to it, but no form offered it. It needs no content of its own: a Generic adviser
-    // takes exactly the "All" starter pages, forms and articles every vertical already falls back to.
+    // footers link to it, but no form offered it. 495 gave it a pack of its own (six pages, eight
+    // articles, two forms); the shared "All" forms and articles still reach a Generic adviser too.
     public const string Generic = "Generic";
     public static readonly string[] Known = { "Accountants", "Insurance / Financial", "Mortgage", Generic };
 
