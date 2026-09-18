@@ -66,8 +66,47 @@
 | `a8cae45` | **499** article libraries for Insurance / Financial and Mortgage | 961/961 |
 | `2acc4d0` | **500** the Mortgage library's categories renamed: they collided with the owner's own article | 963/963 |
 
+## Close-out 2026-09-18
+
+Close-out as asked when the owner left the office (about 18:45), after seven items in one day. Final
+build on both hosts before this close-out: `59acc62`. Tree clean and pushed. The day's code and gates are
+in the table above (494 to 500); nothing is half-built and nothing is waiting for a deploy.
+
+**Left for the owner, first thing in the morning (his words):** switch off his three legacy starter
+articles. SuperAdmin -> **Starter Articles** (`admin.iproadvisers.com/WebsiteStarterArticles`, the item
+below Starter Content, which lists pages only). In the group *Insurance / Financial (uncategorized)*:
+**Critical Illness** -> Deactivate, **Life Insurance** -> Deactivate. In *Mortgage (uncategorized)*:
+**Using a Mortgage Professional** -> Deactivate. The grey Deactivate button, NOT the red trash; Restore
+undoes it. The reviewed articles on the same subjects stay active. Then tell the assistant, who checks
+the live preview's menus (`/Preview/Site?...&businessType=Mortgage` and `Insurance / Financial`).
+
+**Saturday morning is also the first run of the follow-ups email (498):** about 7:05 a.m. in each
+adviser's own time zone, only where something is due that day or fell due within the last week. Look at
+`follow-up-reminders` on the Job Scheduler dashboard and at Email Activity. To hold it until launch day
+the owner adds `FollowUpReminders__NotBefore` = `2026-09-21` on ipro-prod-web (Environment variables
+blade, no deploy); `FollowUpReminders__Enabled` = `false` switches it off.
+
+**Outside the code today:** content writers (background agents with strict briefs) wrote the Generic
+pack and the two edition libraries; every article was read line by line before it was wired in, and a
+generator refuses anything that breaks the rules. The owner's decisions of the day: publish the phone
+number (1-416-363-2220); "Free preview, no card needed"; the Terms name Microsoft, no counsel needed;
+build the follow-ups email and the libraries now ("why wait?"); retire one of each duplicated article.
+Two mistakes of mine, both caught the same evening and written down where they will be found: a
+category name chosen without looking at what production already held (500), and sending the owner to
+Starter Content for articles that live under Starter Articles.
+
+**Found and NOT fixed (needs the owner's Google account):** Google Calendar sync reads a follow-up's
+date as UTC (`DOCS/TRUTH_SWEEP_2026-09-18.md` item 11; `DOCS/INVARIANTS.md` rule 10).
+
+Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
+and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; the local blob emulator (Azurite,
+started this afternoon for the local look) stopped; MySQL is the Windows service and needs nothing.
+Reboot-ready.
+
 ## Do this first tomorrow
 
+0. **Owner, first thing (two minutes):** the three Deactivate clicks in the close-out section above, then
+   a look at whether the first follow-up emails went out at 7:05 (Job Scheduler, Email Activity).
 1. **PayPal live cutover (owner's call on the day, Friday or Saturday):** production is still sandbox;
    portal-to-portal (the owner enters the live client id, secret and webhook id), then the webhook and a
    first live charge path verified together, with margin before the 21st.
