@@ -64,7 +64,7 @@
 | `259efee` | **497** one Calculators entry on an accountant's Resources menu | 961/961 |
 | `24a9335` | **498** the daily follow-ups email; the plan row back under a true name | 961/961 |
 | `a8cae45` | **499** article libraries for Insurance / Financial and Mortgage | 961/961 |
-| _see log 500_ | **500** the Mortgage library's categories renamed: they collided with the owner's own article | whole tree |
+| `2acc4d0` | **500** the Mortgage library's categories renamed: they collided with the owner's own article | 963/963 |
 
 ## Do this first tomorrow
 
