@@ -37,6 +37,15 @@
   date, not UTC -- now `DOCS/INVARIANTS.md` rule 10 -- and that Google Calendar sync treats it as UTC
   (not fixed; sweep doc item 11). Details in `DOCS/TODO.md` 497-499.
 
+- **500, a wart 499 made and the live preview showed (evening):** production's starter library holds
+  eight articles the owner added himself in SuperAdmin (five Mortgage, three Insurance), unknown to the
+  code. His "Buying a home?" made 499's category "Buying a Home" a near-twin in the menu and pushed the
+  category page of every new mortgage site to `/buying-a-home-2`. Renamed the same evening ("Home Buying
+  Basics", "Managing Your Mortgage"), with a one-time rename of the rows already written. Rule for next
+  time: read the live preview's menu for the edition before naming starter content. And a second
+  mistake of mine the same hour: I sent the owner to "Starter Content" to read the articles; that page
+  lists PAGES. Articles are under **Starter Articles** (`/WebsiteStarterArticles`), its neighbour.
+
 - **The local environment, fixed rather than avoided (afternoon):** a local look at 494 failed because
   IPRO.Web never listened. Cause: `ops\Start-LocalEnv.ps1` ran `Start-Process "azurite"`, which on this
   machine opens npm's extensionless shim in Notepad instead of running it, so the blob emulator never
@@ -55,6 +64,7 @@
 | `259efee` | **497** one Calculators entry on an accountant's Resources menu | 961/961 |
 | `24a9335` | **498** the daily follow-ups email; the plan row back under a true name | 961/961 |
 | `a8cae45` | **499** article libraries for Insurance / Financial and Mortgage | 961/961 |
+| _see log 500_ | **500** the Mortgage library's categories renamed: they collided with the owner's own article | whole tree |
 
 ## Do this first tomorrow
 
@@ -70,14 +80,23 @@
    Activity. To hold it until launch day the OWNER adds the App Service setting
    `FollowUpReminders__NotBefore` = `2026-09-21` on ipro-prod-web (Environment variables blade; no
    deploy); `FollowUpReminders__Enabled` = `false` switches it off altogether.
+3-bis. **Owner, in SuperAdmin -> Starter Articles (`admin.iproadvisers.com/WebsiteStarterArticles`; NOT Starter
+   Content, which lists pages):** (1) "Retire one" (owner, 18 September) -- untick **Active** on your
+   "Life Insurance", "Critical Illness" and "Using a Mortgage Professional"; the reviewed articles on the
+   same subjects stay. Nothing is deleted. (2) When convenient, give your other five a Category so they
+   are not loose links: Mortgage Process Table, Buying a home? -> `Home Buying Basics`; Mortgage Life
+   Insurance, Mortgage Glossary -> `Managing Your Mortgage`; Travel Insurance -> `Protection`. Reasons in
+   `DOCS/TODO.md` 500.
 3a. **Owner's calls left by the truth sweep (`DOCS/TRUTH_SWEEP_2026-09-18.md`, last section):** insurance
    wording inside the portal for every business type; preview template vs real template; three stale
    lines in the Accountants library; exports for a lapsed account; **Google Calendar sync reads a
    follow-up's time as UTC (item 11) -- fix it together, on the owner's calendar**; the follow-up list's
    "today" is the server's date (item 12). Done the same day: the follow-ups email (498), the
    Calculators menu (497), the two article libraries (499) -- **the owner's read of the sixteen
-   articles is still wanted** (SuperAdmin -> Starter Content; regulated subjects).
-3b. **Owner, when convenient:** read the Generic pack under SuperAdmin -> Starter Content (six pages, eight
+   articles is still wanted** (SuperAdmin -> **Starter Articles**, `/WebsiteStarterArticles` -- NOT Starter
+   Content, which lists pages only; regulated subjects).
+3b. **Owner, when convenient:** read the Generic pack -- pages under SuperAdmin -> Starter Content, articles
+   under Starter Articles, forms under Starter Forms, three neighbours in the sidebar (six pages, eight
    articles, two forms) and edit anything that does not sound like IPRO; every adviser who picks Generic
    from now on starts from it.
 4. **Launch morning (Monday 21 September):** watch both health endpoints, the Job Scheduler dashboard and
@@ -88,4 +107,4 @@
 6. **After launch:** the list at the end of `DOCS/NARROW_AUDIT_2026-09-17.md`; then 471, 450, the From
    display name (480), the Entra client secret rotation (482); white-label per `DOCS/WHITE_LABEL_UPGRADE.md`.
 
-Related: `DOCS/TODO.md` 494-499; `DOCS/SESSION_HANDOFF_2026-09-17.md`; `DOCS/NARROW_AUDIT_2026-09-17.md`.
+Related: `DOCS/TODO.md` 494-500; `DOCS/SESSION_HANDOFF_2026-09-17.md`; `DOCS/NARROW_AUDIT_2026-09-17.md`.

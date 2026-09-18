@@ -94,3 +94,9 @@ import and export on every plan; nightly backups with 30-day retention; data in 
 12. **Same family, small:** the follow-up list, its badges and the dashboard's counts decide "today" with the server's date
     (`DateTime.Today`, UTC in production), so from 8 p.m. Eastern an item due tomorrow already reads "Today".
     `AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, zone).Date` is the adviser's today; about an hour with tests.
+13. **Correction to item 5 (TODO 500):** "four articles each" counted the CODE. Production's starter library
+    also holds eight articles the owner added in SuperAdmin -> Starter Articles (five Mortgage, three
+    Insurance / Financial). Three of them cover a subject the new library also covers; the owner's
+    decision is to retire one of each pair, and the call was to retire the legacy piece (reasons in TODO
+    500). Before adding starter content to an edition, read the live preview's menu for that edition --
+    the database knows things the code does not.
