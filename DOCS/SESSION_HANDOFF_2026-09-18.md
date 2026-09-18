@@ -52,9 +52,9 @@
 | `4ae2eaa` | **494** the Generic edition is offered as a business type | 894/894 |
 | `e493950` | **495** the Generic edition's own starter pack; buttons on the starting-point panel | 901/901 |
 | `0a8914b` | **496** truth sweep of the public pages: the site goes live at sign-up; every promise checked | 930/930 |
-| _see log 497_ | **497** one Calculators entry on an accountant's Resources menu | whole tree |
-| _see log 498_ | **498** the daily follow-ups email; the plan row back under a true name | whole tree |
-| _see log 499_ | **499** article libraries for Insurance / Financial and Mortgage | whole tree |
+| `259efee` | **497** one Calculators entry on an accountant's Resources menu | 961/961 |
+| `24a9335` | **498** the daily follow-ups email; the plan row back under a true name | 961/961 |
+| `a8cae45` | **499** article libraries for Insurance / Financial and Mortgage | 961/961 |
 
 ## Do this first tomorrow
 
