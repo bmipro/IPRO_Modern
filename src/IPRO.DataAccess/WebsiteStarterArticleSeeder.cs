@@ -48,26 +48,26 @@ public static class WebsiteStarterArticleSeeder
                     "<p>Most people's life insurance coverage traces back to a number chosen years ago — a multiple of salary suggested at a previous job, or a round number that felt sufficient at the time. Life changes; policies often don't keep up.</p>" +
                     "<p>A useful starting point is to add up what your family would actually need to cover: remaining debts like a mortgage, a number of years of household expenses, and any future costs you'd want fully funded, such as education. Then subtract what's already covered by savings, existing policies, or workplace benefits.</p>" +
                     "<p>The gap between those two numbers is a much more grounded starting point than a generic rule of thumb. It's also worth revisiting after any major life event — a new home, a new child, a change in income — since each of these shifts the number meaningfully.</p>" +
-                    "<p>If it's been a few years since you last looked at this, it's worth ten minutes of your time. We're glad to walk through it together.</p>", 0),
+                    "<p>If it's been a few years since you last looked at this, it's worth ten minutes of your time. We're glad to walk through it together.</p>", 0, "Protection"),
                 Article("Insurance / Financial", "RRSP or TFSA: Which Should You Prioritize?",
                     "Both accounts are useful, but the right order to fund them depends on your income today versus your expected income later.",
                     "<p>The RRSP-versus-TFSA question comes up often, and the honest answer is: it depends on your situation, particularly your income now compared to your expected income when you'd withdraw the money.</p>" +
                     "<p>An RRSP contribution reduces your taxable income today and grows tax-deferred, but withdrawals are taxed later. That makes it especially effective when you're in a higher tax bracket now than you expect to be in retirement — the deduction is worth more today than the tax owed later.</p>" +
                     "<p>A TFSA works differently: contributions don't reduce your income today, but growth and withdrawals are entirely tax-free. That flexibility makes it a strong choice when you're in a lower tax bracket now, or when you might need access to the money before retirement without a tax consequence.</p>" +
-                    "<p>In practice, many people benefit from using both, in a mix that shifts over time as income changes. There isn't a single correct answer — only the answer that fits your own numbers, which we're happy to work through with you.</p>", 1),
+                    "<p>In practice, many people benefit from using both, in a mix that shifts over time as income changes. There isn't a single correct answer — only the answer that fits your own numbers, which we're happy to work through with you.</p>", 1, "Planning"),
 
                 Article("Mortgage", "Fixed or Variable: Choosing the Right Mortgage Rate",
                     "The right rate type depends less on predicting interest rates and more on how much certainty you want in your monthly budget.",
                     "<p>The fixed-versus-variable decision is one of the most common questions we hear, and it's less about predicting where rates are headed than about how much certainty you want in your monthly budget.</p>" +
                     "<p>A fixed rate locks your payment for the term, which makes budgeting simple and removes the stress of rate movements entirely. The tradeoff is that you don't benefit if rates fall, and breaking a fixed-rate mortgage early can carry a larger penalty.</p>" +
                     "<p>A variable rate moves with the market. Historically it has often cost less over the life of a mortgage, but that comes with genuine month-to-month uncertainty, and payments can rise if rates do. Many variable products also offer more flexibility if you need to break the term early.</p>" +
-                    "<p>There's no universally right choice — it comes down to your tolerance for payment fluctuation and your broader financial picture. We're glad to walk through both scenarios with your actual numbers so the decision feels less like a guess.</p>", 0),
+                    "<p>There's no universally right choice — it comes down to your tolerance for payment fluctuation and your broader financial picture. We're glad to walk through both scenarios with your actual numbers so the decision feels less like a guess.</p>", 0, "Buying a Home"),
                 Article("Mortgage", "What First-Time Buyers Should Know About Pre-Approval",
                     "Pre-approval is more than a formality — it tells you what you can actually afford before you start looking.",
                     "<p>If you're buying your first home, getting pre-approved before you start house-hunting is one of the most useful early steps you can take — and one of the most commonly skipped.</p>" +
                     "<p>Pre-approval gives you a realistic sense of what you can actually afford, based on your real income, debts, and credit — not a rough estimate from an online calculator. It also typically locks in a rate for a set period, protecting you if rates move while you're searching.</p>" +
                     "<p>Just as importantly, a pre-approval signals to sellers that you're a serious, qualified buyer, which can matter in a competitive market. It's worth noting that pre-approval isn't a guarantee — final approval still depends on the specific property and a full review of your finances — but it removes most of the uncertainty going in.</p>" +
-                    "<p>If you're starting to think about buying, this is a good first conversation to have, well before you've found a place you love.</p>", 1),
+                    "<p>If you're starting to think about buying, this is a good first conversation to have, well before you've found a place you love.</p>", 1, "Buying a Home"),
 
                 // Accountants vertical: adapted from the real content library at X:\ipro_related\IPro_accountants
                 // (a genuine former IPRO accountant client's site, authored 2013), grouped into the same four
@@ -291,12 +291,32 @@ public static class WebsiteStarterArticleSeeder
             // 495: the Generic edition's library (GenericStarterArticles). Added per title like every
             // other article here, so it reaches a database that was seeded long ago.
             .Concat(GenericStarterArticles.All.Select((a, i) => Article(StarterBusinessTypes.Generic, a.Title, a.Summary, a.Content, i, a.Category)))
+            // 499: the Insurance / Financial and Mortgage libraries (EditionStarterArticles). From 10 up,
+            // so each edition's two older articles still read first inside their category.
+            .Concat(EditionStarterArticles.InsuranceFinancial.Select((a, i) => Article("Insurance / Financial", a.Title, a.Summary, a.Content, 10 + i, a.Category)))
+            .Concat(EditionStarterArticles.Mortgage.Select((a, i) => Article("Mortgage", a.Title, a.Summary, a.Content, 10 + i, a.Category)))
             .ToArray();
 
             var missing = desired.Where(a => !existingKeys.Contains((a.BusinessType, a.Title))).ToList();
             if (missing.Count == 0) return;
 
             db.WebsiteStarterArticles.AddRange(missing);
+
+            // 499: an edition's older articles were seeded without a category, which would leave them
+            // loose in a new site's Resources menu beside the library's two category entries. File them
+            // -- ONCE, in the pass that brings that edition's library, and only where the category is
+            // still blank, so a choice made in SuperAdmin -> Starter Content is never overwritten and a
+            // category blanked later stays blank. (A fresh database gets it from the definitions above.)
+            foreach (var (businessType, library) in new[] { ("Insurance / Financial", EditionStarterArticles.InsuranceFinancial), ("Mortgage", EditionStarterArticles.Mortgage) })
+            {
+                if (!library.Any(entry => missing.Any(m => m.BusinessType == businessType && m.Title == entry.Title))) continue;
+                foreach (var wanted in desired.Where(a => a.BusinessType == businessType && a.SortOrder < 10 && !missing.Contains(a)))
+                {
+                    var older = await db.WebsiteStarterArticles.FirstOrDefaultAsync(a => a.BusinessType == businessType && a.Title == wanted.Title);
+                    if (older != null && string.IsNullOrWhiteSpace(older.Category)) older.Category = wanted.Category;
+                }
+            }
+
             await db.SaveChangesAsync();
         });
 
