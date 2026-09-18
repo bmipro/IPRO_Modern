@@ -14,7 +14,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log_ | **494** the Generic edition is offered as a business type | whole tree |
+| `4ae2eaa` | **494** the Generic edition is offered as a business type | 894/894 |
 
 ## Do this first tomorrow
 
