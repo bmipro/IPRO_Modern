@@ -297,9 +297,11 @@ textarea:focus{box-shadow:none;}
           <label><span class="required">*</span>Business Type:</label>
           <select asp-for="BusinessType" class="short" required>
             <option value="">Click here</option>
-            <option>Accountants</option>
-            <option>Insurance / Financial</option>
-            <option>Mortgage</option>
+            @* 494: the one list every business-type form shares (StarterBusinessTypes.Offered). *@
+            @foreach (var businessTypeOption in IPRO.DataAccess.StarterBusinessTypes.Offered)
+            {
+              <option value="@businessTypeOption.Value">@businessTypeOption.Label</option>
+            }
           </select>
         </div>
         @if (trialPackage != null)

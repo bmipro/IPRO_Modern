@@ -53,14 +53,54 @@ public static class MockDailyInsightCatalog
                 "Follow up with Green Valley Bakery — they requested a bookkeeping quote 3 days ago.",
                 "Small business leads often compare a few firms quickly."),
             ["NoFollowUp"] = new Entry(3, 4, 5,
+                "Check in with Diane Foster — no follow-up scheduled since her annual review.",
+                "A mid-year check-in is a good moment to flag planning opportunities.")
+        },
+        // 494 (2026-09-18): this catalog held ONE vertical, so the preview told an accountant, a
+        // mortgage broker and anyone else that "her life insurance policy review is 4 days overdue".
+        // Each type now has its own three lines, and Generic is the neutral set any other type gets.
+        ["Accountants"] = new()
+        {
+            ["OverdueFollowUp"] = new Entry(3, 5, 4,
+                "Call Jennifer Walsh first — her year-end planning call is 4 days overdue.",
+                "She is weighing incorporating and wanted the numbers before the quarter closes."),
+            ["StaleLead"] = new Entry(3, 5, 4,
+                "Follow up with Marcus Chen — he asked about bookkeeping help 2 days ago and hasn't heard back.",
+                "Leads contacted within 48 hours are far more likely to convert."),
+            ["NoFollowUp"] = new Entry(3, 4, 5,
                 "Check in with Diane Foster — no follow-up scheduled since her last filing.",
                 "A mid-year check-in is a good moment to flag planning opportunities.")
+        },
+        ["Mortgage"] = new()
+        {
+            ["OverdueFollowUp"] = new Entry(3, 5, 4,
+                "Call Jennifer Walsh first — her renewal conversation is 4 days overdue.",
+                "Her term ends in four months and she wanted to compare rates before her lender's offer arrives."),
+            ["StaleLead"] = new Entry(3, 5, 4,
+                "Follow up with Marcus Chen — he requested a pre-approval 2 days ago and hasn't heard back.",
+                "Leads contacted within 48 hours are far more likely to convert."),
+            ["NoFollowUp"] = new Entry(3, 4, 5,
+                "Check in with Diane Foster — no follow-up scheduled since her purchase closed.",
+                "An annual check-in is where most refinance and referral conversations start.")
+        },
+        [IPRO.DataAccess.StarterBusinessTypes.Generic] = new()
+        {
+            ["OverdueFollowUp"] = new Entry(3, 5, 4,
+                "Call Jennifer Walsh first — her follow-up is 4 days overdue.",
+                "She asked for a proposal at your last meeting and is waiting to hear back."),
+            ["StaleLead"] = new Entry(3, 5, 4,
+                "Follow up with Marcus Chen — he sent an enquiry through your website 2 days ago and hasn't heard back.",
+                "Leads contacted within 48 hours are far more likely to convert."),
+            ["NoFollowUp"] = new Entry(3, 4, 5,
+                "Check in with Diane Foster — nothing has been scheduled since her last appointment.",
+                "A short check-in keeps the relationship warm and often surfaces new work.")
         }
     };
 
     public static Entry Get(string businessType, string actionType = "OverdueFollowUp")
     {
-        var vertical = Catalog.TryGetValue(businessType, out var entries) ? entries : Catalog["Insurance / Financial"];
+        // 494: a type with no copy of its own gets the neutral set, not another vertical's.
+        var vertical = Catalog.TryGetValue(businessType ?? string.Empty, out var entries) ? entries : Catalog[IPRO.DataAccess.StarterBusinessTypes.Generic];
         return vertical.TryGetValue(actionType, out var entry) ? entry : vertical["OverdueFollowUp"];
     }
 }

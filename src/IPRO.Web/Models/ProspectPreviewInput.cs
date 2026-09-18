@@ -5,7 +5,8 @@ namespace IPRO.Web.Models;
 // this only ever exists as request-scoped data materialized from the querystring.
 public class ProspectPreviewInput
 {
-    public static readonly string[] ValidBusinessTypes = { "Accountants", "Insurance / Financial", "Mortgage" };
+    // 494: the product's one list, not a copy of it (the copy had three of the four).
+    public static readonly string[] ValidBusinessTypes = IPRO.DataAccess.StarterBusinessTypes.Known;
 
     // Mirrors the real BillingRule.PackageName values seeded by PackageEntitlementSeeder. Kept as a
     // small hardcoded set here (like ValidBusinessTypes) rather than a DB round-trip, since this type
@@ -25,7 +26,9 @@ public class ProspectPreviewInput
         FirstName = Clamp(FirstName, 80, "Alex"),
         LastName = Clamp(LastName, 80, "Morgan"),
         CompanyName = Clamp(CompanyName, 150, "Your Company"),
-        BusinessType = ValidBusinessTypes.Contains(BusinessType) ? BusinessType : ValidBusinessTypes[0],
+        // 494: a type nobody listed falls back to the neutral edition. It used to become the first of
+        // the list, "Accountants" -- a stranger's business shown an accounting practice.
+        BusinessType = ValidBusinessTypes.Contains(BusinessType) ? BusinessType : IPRO.DataAccess.StarterBusinessTypes.Generic,
         Package = ValidPackages.Contains(Package) ? Package : DefaultPackage,
         Page = string.IsNullOrWhiteSpace(Page) ? null : Page.Trim()
     };

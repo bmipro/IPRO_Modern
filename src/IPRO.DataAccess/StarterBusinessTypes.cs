@@ -13,7 +13,19 @@ namespace IPRO.DataAccess;
 public static class StarterBusinessTypes
 {
     public const string All = "All";
-    public static readonly string[] Known = { "Accountants", "Insurance / Financial", "Mortgage" };
+    // 494 (2026-09-18): Generic is the fourth. The home page has sold a "Generic edition -- the flexible
+    // starting point for any professional-service business" since the redesign, and both landing
+    // footers link to it, but no form offered it. It needs no content of its own: a Generic adviser
+    // takes exactly the "All" starter pages, forms and articles every vertical already falls back to.
+    public const string Generic = "Generic";
+    public static readonly string[] Known = { "Accountants", "Insurance / Financial", "Mortgage", Generic };
+
+    // What the four forms that ask for a business type render (sign-up, the profile, the 30-second
+    // preview, SuperAdmin's agent editor). ONE list, so they cannot drift from each other or from the
+    // marketing page again -- each used to carry its own hard-coded copy of three. The stored value is
+    // the plain name; only Generic needs a label that says what it is.
+    public static readonly (string Value, string Label)[] Offered =
+        Known.Select(k => (k, k == Generic ? "Generic (any other business)" : k)).ToArray();
 
     public static async Task<List<string>> ListAsync(IPRODbContext db)
     {
