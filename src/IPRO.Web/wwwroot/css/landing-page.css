@@ -131,6 +131,10 @@ a { color: inherit; }
 .trust-band { padding-block: var(--space-7); background: var(--navy); color: var(--white); }
 .trust-grid { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: var(--space-7); }
 .trust-band h2 { color: var(--white); max-width: 500px; }
+/* 496: the number behind "One number to call" -- prominent, because it is the claim. */
+.trust-band .trust-phone { margin: var(--space-3) 0 0; }
+.trust-band .trust-phone a { color: var(--white); font-size: 1.5rem; font-weight: 600; letter-spacing: .02em; text-decoration: none; }
+.trust-band .trust-phone a:hover { color: var(--orange); }
 .trust-points { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
 .trust-points p { margin: 0; padding-top: .8rem; border-top: 2px solid var(--orange); }
 .trust-points strong, .trust-points span { display: block; }

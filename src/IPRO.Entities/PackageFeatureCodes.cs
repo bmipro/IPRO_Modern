@@ -11,7 +11,6 @@ public static class PackageFeatureCodes
     public const string InstantWebsite = "instant_website";
     public const string LeadGenerator = "lead_generator";
     public const string CalendarScheduler = "calendar_scheduler";
-    public const string EmailReminder = "email_reminder";
     public const string SmsReminder = "sms_reminder";
     public const string PreDesignedECard = "pre_designed_ecard";
     public const string PreDesignedELetters = "pre_designed_eletters";

@@ -401,6 +401,26 @@ public class AccountController : Controller
             await _uow.SaveChangesAsync();
         }
 
+        // 496: the adviser's site is written AND published now, not when they find the Publish button.
+        // The home page, both landing pages and the email below all say the site is there from day
+        // one, and the email's main button opens it. Safe before payment: an unpaid account's public
+        // site answers 404 until billing is active. Its own scope and context, so nothing it tracks
+        // leaks into this request; and a failure here must never cost a sign-up -- the adviser can
+        // still press Publish under My Website, which runs the same code.
+        try
+        {
+            using var provisioningScope = _scopeFactory.CreateScope();
+            var provisioningServices = provisioningScope.ServiceProvider;
+            await IPRO.Web.Infrastructure.WebsiteProvisioning.EnsurePublishedAsync(
+                provisioningServices.GetRequiredService<IPRODbContext>(),
+                provisioningServices.GetRequiredService<IPRO.Business.Interfaces.IWebsiteService>(),
+                agent);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not provision the website for new agent {AgentId}; it can still be published from My Website.", agent.Id);
+        }
+
         // Welcome email carries NO credentials (they chose their password on the form; C-1 stays
         // honoured because nothing secret ever travels by email).
         var welcome = BuildWelcomeModel(agent, string.Empty);

@@ -31,6 +31,7 @@ public static class PackageEntitlementSeeder
             await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
             await RepairSmsReminderEntitlementAsync(db);
             await RetireWithdrawnFeaturesAsync(db);
+            await RepairSupportRowAsync(db);
         });
     }
 
@@ -44,8 +45,8 @@ public static class PackageEntitlementSeeder
             // existing rows are edited in Super Admin -> Packages, and the PayPal plan MUST be
             // re-synced there afterwards or PayPal keeps billing the old plan's price.
             new PackageDefinition("IPro Silver", "Entry package for individual advisors.", 40m, 120m, 400m, 150m, 500, 12),
-            new PackageDefinition("IPro Gold", "Expanded package with marketing, banners, coupons, and mail tools.", 60m, 180m, 600m, 200m, Unlimited, Unlimited),
-            new PackageDefinition("IPro Platinum", "Premium package with managed content, SEO, and PayPal tools.", 90m, 270m, 900m, 400m, Unlimited, Unlimited),
+            new PackageDefinition("IPro Gold", "Everything in Silver, plus e-cards, e-letters, unlimited contacts and more storage.", 60m, 180m, 600m, 200m, Unlimited, Unlimited),
+            new PackageDefinition("IPro Platinum", "Everything in Gold, plus the AI daily assistant, client portal, invoicing, blog and Google Calendar sync.", 90m, 270m, 900m, 400m, Unlimited, Unlimited),
             new PackageDefinition("Broker Package", "Broker/team package. Pricing, setup, and monthly fees vary.", 0m, 0m, 0m, 0m, Unlimited, Unlimited)
         };
 
@@ -72,6 +73,14 @@ public static class PackageEntitlementSeeder
             else
             {
                 existing.Description = string.IsNullOrWhiteSpace(existing.Description) ? definition.Description : existing.Description;
+                // 496: the two descriptions seeded before 2026-08-28 name features withdrawn since (banners,
+                // coupons, mail tools; managed content, SEO), and the preview prints the description under
+                // "the plan this preview is showing". Only the exact old seeded text is replaced; a
+                // description the owner wrote in SuperAdmin is never touched.
+                if (StaleSeededDescriptions.TryGetValue(existing.Description ?? string.Empty, out var currentDescription))
+                {
+                    existing.Description = currentDescription;
+                }
                 existing.SetupFee = existing.SetupFee == 0 ? definition.SetupFee : existing.SetupFee;
                 existing.MaxClients = existing.MaxClients == 0 ? definition.MaxClients : existing.MaxClients;
                 existing.MaxNewsletters = existing.MaxNewsletters == 0 ? definition.MaxNewsletters : existing.MaxNewsletters;
@@ -210,6 +219,14 @@ public static class PackageEntitlementSeeder
     // A permanent no-op once it has run. If any of the four is ever built, re-add its definition
     // and DELETE its code from RetiredFeatureCodes rather than leaving this to delete the rows on
     // every startup.
+    private static readonly Dictionary<string, string> StaleSeededDescriptions = new(StringComparer.Ordinal)
+    {
+        ["Expanded package with marketing, banners, coupons, and mail tools."] =
+            "Everything in Silver, plus e-cards, e-letters, unlimited contacts and more storage.",
+        ["Premium package with managed content, SEO, and PayPal tools."] =
+            "Everything in Gold, plus the AI daily assistant, client portal, invoicing, blog and Google Calendar sync."
+    };
+
     private static readonly string[] RetiredFeatureCodes =
     {
         "rotating_banner", "newsboard", "mail_merge", "printable_label_creator",
@@ -229,7 +246,13 @@ public static class PackageEntitlementSeeder
         // comparison, loan amortisation and APR -- there is no needs-analysis calculator. Promotion
         // codes are a SuperAdmin signup tool, not an agent-facing coupon manager. The Did You Know
         // block is gated by Newsletters. A quote request is any custom form.
-        "coupon_manager", "needs_analysis_calculator", "did_you_know_manager", "quote_form"
+        "coupon_manager", "needs_analysis_calculator", "did_you_know_manager", "quote_form",
+        // Withdrawn 2026-09-18 (TODO 496, the truth sweep): "Email reminder" was ticked on every plan
+        // and was line four of every price card, but its only job (CalendarReminderJob) was removed on
+        // 2026-09-09 because it read a table no page wrote, and nothing reads the code. The reminder
+        // mails that do exist (overdue invoices, trial expiry) are sold under their own rows. If a
+        // daily "follow-ups due" email is built, re-add the definition and delete this code.
+        "email_reminder"
     };
 
     internal const string MultilingualFeatureName = "Content in any language"; // shortened 2026-09-08
@@ -261,7 +284,12 @@ public static class PackageEntitlementSeeder
         (PackageFeatureCodes.MenuCreator, "Website menu editor (3 levels)"),
         (PackageFeatureCodes.SeoTool, "Built-in SEO and sitemap"),
         (PackageFeatureCodes.EmailTracking, "Email delivery tracking"),
-        (PackageFeatureCodes.VisitorTracking, "Website analytics")
+        (PackageFeatureCodes.VisitorTracking, "Website analytics"),
+        // 496: what exists behind this row is the Payment Link on the adviser's profile, shown as a
+        // Pay Now button on their client invoices -- a Platinum feature, as the row's ticks say.
+        (PackageFeatureCodes.PayPalIntegration, "Pay Now link on client invoices"),
+        // 496: see RepairSupportRowAsync.
+        (PackageFeatureCodes.SupportTraining, "Support by phone, email and portal tickets")
     };
 
     private static async Task RetireWithdrawnFeaturesAsync(IPRODbContext db)
@@ -287,6 +315,35 @@ public static class PackageEntitlementSeeder
                     feature.FeatureName = name;
                     changed = true;
                 }
+            }
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    // 496: the support row read "Limited" on Silver and "Unlimited" above it. Neither word was defined
+    // anywhere, and SupportController makes no distinction between plans: every adviser can open a
+    // ticket, write or call. The same class as "Designated support", withdrawn 2026-08-28. The rename
+    // is in RenamedFeatures; this clears the undefined labels on rows that already exist, which
+    // EnsureFeaturesAsync never re-syncs. A no-op once it has run.
+    private static async Task RepairSupportRowAsync(IPRODbContext db)
+    {
+        var rows = await db.PackageFeatures
+            .Where(f => f.FeatureCode == PackageFeatureCodes.SupportTraining)
+            .ToListAsync();
+
+        var changed = false;
+        foreach (var feature in rows)
+        {
+            if (!feature.IsIncluded || feature.LimitValue.HasValue || !string.IsNullOrEmpty(feature.LimitLabel))
+            {
+                feature.IsIncluded = true;
+                feature.LimitValue = null;
+                feature.LimitLabel = string.Empty;
+                changed = true;
             }
         }
 
@@ -335,7 +392,6 @@ public static class PackageEntitlementSeeder
             Feature(10, PackageFeatureCodes.InstantWebsite, "Self managed instant website with full content", all, all, all, all),
             Feature(20, PackageFeatureCodes.LeadGenerator, "Automated lead generator", all, all, all, all),
             Feature(30, PackageFeatureCodes.CalendarScheduler, "Calendar scheduler", all, all, all, all),
-            Feature(40, PackageFeatureCodes.EmailReminder, "Email reminder", all, all, all, all),
             // SMS IS NOT BUILT. Seeded as excluded on every package so a fresh database never
             // advertises it on the public pricing comparison, and no agent is entitled to a
             // feature that cannot fire. It stays in the catalogue rather than being deleted so the
@@ -350,7 +406,7 @@ public static class PackageEntitlementSeeder
             Feature(90, PackageFeatureCodes.Contacts, "Contacts", new FeatureValue(true, 500, "500"), unlimited, unlimited, unlimited),
             Feature(100, PackageFeatureCodes.WebsiteDesign, "Pre-formatted website design", all, all, all, all),
             Feature(110, PackageFeatureCodes.Newsletters, "Create and send newsletters", all, all, all, all),
-            Feature(120, PackageFeatureCodes.SupportTraining, "Support and training", limited, unlimited, unlimited, unlimited),
+            Feature(120, PackageFeatureCodes.SupportTraining, "Support by phone, email and portal tickets", all, all, all, all),
             Feature(150, PackageFeatureCodes.FileUploadCapacity, "File upload capacity", new FeatureValue(true, 50, "50 MB"), new FeatureValue(true, 500, "500 MB"), new FeatureValue(true, 1000, "1000 MB"), new FeatureValue(true, 1000, "1000 MB/per user")),
             Feature(170, PackageFeatureCodes.MultiDomainSupport, "Multi domain support", new FeatureValue(true, 2, "2"), unlimited, unlimited, unlimited),
             Feature(200, PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link", all, all, all, all),
@@ -368,7 +424,7 @@ public static class PackageEntitlementSeeder
             Feature(340, PackageFeatureCodes.MultilingualEditor, "Supports multilingual content (paste from any editor)", all, all, all, all),
             Feature(350, PackageFeatureCodes.ProspectManager, "Website leads inbox", all, all, all, all),
             Feature(360, PackageFeatureCodes.ManagedBlog, "Blog on your website - publish your own articles", no, no, all, all),
-            Feature(380, PackageFeatureCodes.PayPalIntegration, "PayPal integration", no, no, all, all),
+            Feature(380, PackageFeatureCodes.PayPalIntegration, "Pay Now link on client invoices", no, no, all, all),
             Feature(400, PackageFeatureCodes.ClientInvoicing, "Client invoicing and estimates", no, no, all, all),
             Feature(410, PackageFeatureCodes.ClientPortal, "Client portal (login, messages, documents, appointments)", no, no, all, all),
             Feature(420, PackageFeatureCodes.GoogleCalendarSync, "Google Calendar two-way sync", no, no, all, all),

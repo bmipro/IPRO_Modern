@@ -12,7 +12,10 @@
 <div class="pricing-cards">
   @foreach (var package in Model)
   {
-    var setupFeeDue = package.SetupFee > 0 && !(package.SetupFeeWaived || (package.SetupFeeWaivedUntil.HasValue && package.SetupFeeWaivedUntil.Value > now));
+    @* 496: the ONE waiver rule (BillingRule.IsSetupFeeWaivedOn), the same call that decides the PayPal
+       charge. This partial carried its own copy, inverted for a lapsed waiver: with "waived until
+       September 30" it would have shown no fee from 1 October while PayPal charged it. *@
+    var setupFeeDue = package.SetupFee > 0 && !package.IsSetupFeeWaivedOn(now);
     var included = package.Features.Where(f => f.IsIncluded).OrderBy(f => f.SortOrder).Take(6).ToList();
     <article class="pricing-card">
       <h3>@package.PackageName</h3>

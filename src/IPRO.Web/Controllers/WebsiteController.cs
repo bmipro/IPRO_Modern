@@ -218,28 +218,10 @@ public class WebsiteController : Controller
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
-        var existing = await _websites.GetByAgentIdAsync(AgentId);
-        if (existing == null)
-        {
-            var agent = await _agents.GetByIdAsync(AgentId);
-            var template = await _websites.EnsureDefaultTemplateForPackageAsync(agent?.PackageId, agent?.BusinessType);
-            existing = await _websites.CreateAsync(new AgentWebsite
-            {
-                AgentUserId = AgentId,
-                TemplateId = template.Id,
-                SiteTitle = BuildDefaultSiteTitle(agent),
-                TagLine = "Professional service and client support.",
-                ThemeColor = "#1457d9",
-                IsPublished = true
-            });
-        }
-        else
-        {
-            await _websites.PublishAsync(AgentId);
-        }
-
-        await WebsiteStarterPagesHelper.EnsureStarterPagesAsync(_db, existing, AgentId);
-        await WebsiteStarterResourcesHelper.EnsureResourcesAsync(_db, existing, AgentId);
+        // 496: the same provisioning sign-up now runs (WebsiteProvisioning), so the two cannot drift.
+        var agent = await _agents.GetByIdAsync(AgentId);
+        if (agent == null) return RedirectToAction(nameof(Index));
+        await WebsiteProvisioning.EnsurePublishedAsync(_db, _websites, agent);
 
         TempData["Success"] = "Your website is now live!";
         return RedirectToAction(nameof(Index));

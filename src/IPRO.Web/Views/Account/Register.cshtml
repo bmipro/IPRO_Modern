@@ -332,7 +332,7 @@ textarea:focus{box-shadow:none;}
               {
                 <div class="plan-summary-period">
                   <label><input type="radio" asp-for="BillingPeriodChoice" value="Monthly"/> Monthly &mdash; $@selectedPackage.MonthlyPrice.ToString("N0")/mo</label>
-                  <label><input type="radio" asp-for="BillingPeriodChoice" value="Annually"/> Annual &mdash; $@selectedPackage.AnnualPrice.ToString("N0")/yr (two months free)</label>
+                  <label><input type="radio" asp-for="BillingPeriodChoice" value="Annually"/> Annual &mdash; $@selectedPackage.AnnualPrice.ToString("N0")/yr@(selectedPackage.AnnualPrice == selectedPackage.MonthlyPrice * 10 ? " (two months free)" : "")</label>
                 </div>
               }
               <a class="plan-summary-change" href="/Account/Register">Change plan</a>

@@ -1,14 +1,27 @@
 @model IPRO.Web.Models.ProspectPreviewInput
 @{
     var insight = IPRO.Web.Infrastructure.MockDailyInsightCatalog.Get(Model.BusinessType);
+    var aiTiers = (ViewBag.AiTierNames as System.Collections.Generic.List<string>) ?? new();
+    var tierLabel = string.Join(" & ", aiTiers.Select(n => n.Replace("IPro ", "").Replace(" Package", "")));
+    // 496: the card used to render under EVERY plan, including "IPro Silver -- the plan this preview is
+    // showing", ending "sign up to see this for your real clients, every morning". The assistant comes
+    // with the plans the database says include it; for any other plan the preview says so instead.
+    var planIncludesAssistant = aiTiers.Count == 0 || aiTiers.Contains(Model.Package);
 }
+@if (!planIncludesAssistant)
+{
 <div class="card border-0 shadow-sm">
   <div class="card-body p-4">
     <h6 class="fw-bold mb-1"><i class="fas fa-robot me-2 text-primary"></i>AI Daily Assistant</h6>
-    @{
-        var aiTiers = (ViewBag.AiTierNames as System.Collections.Generic.List<string>) ?? new();
-        var tierLabel = string.Join(" & ", aiTiers.Select(n => n.Replace("IPro ", "").Replace(" Package", "")));
-    }
+    <p class="text-muted ai-tier-note mb-0">Not part of @Model.Package.Replace("IPro ", "").Replace(" Package", ""). A morning summary of new leads, stale leads and the next best action comes with @tierLabel.</p>
+  </div>
+</div>
+}
+else
+{
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <h6 class="fw-bold mb-1"><i class="fas fa-robot me-2 text-primary"></i>AI Daily Assistant</h6>
     @if (aiTiers.Count > 0)
     {
         <p class="text-muted ai-tier-note mb-3">Included in @tierLabel plans.</p>
@@ -30,3 +43,4 @@
     <p class="text-muted small mt-3 mb-0"><i class="fas fa-circle-info me-1"></i>This is a preview — sign up to see this for your real clients, every morning.</p>
   </div>
 </div>
+}

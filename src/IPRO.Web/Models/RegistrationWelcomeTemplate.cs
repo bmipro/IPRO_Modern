@@ -21,6 +21,7 @@ public static class RegistrationWelcomeTemplate
         var domain = WebUtility.HtmlEncode(model.SetupDomain);
         var domainUrl = $"http://{domain}";
         var trainingEmail = WebUtility.HtmlEncode(model.TrainingEmail);
+        var supportPhone = IPRO.Web.Infrastructure.PlatformContact.SupportPhone;   // 496
         var websiteUrl = WebUtility.HtmlEncode(model.WebsiteUrl);
 
         return $$"""
@@ -44,7 +45,7 @@ public static class RegistrationWelcomeTemplate
       <div style="background:#f6f9ff;border:1px solid #d8e5ff;border-radius:14px;padding:18px;margin:22px 0;">
         <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#556987;margin-bottom:6px;">Temporary Website</div>
         <a href="{{domainUrl}}" style="font-size:17px;font-weight:800;color:#1457d9;text-decoration:none;">{{domainUrl}}</a>
-        <p style="margin:10px 0 0;color:#667085;font-size:14px;line-height:1.45;">You can use this temporary domain right away and later attach your own registered domain from the control panel.</p>
+        <p style="margin:10px 0 0;color:#667085;font-size:14px;line-height:1.45;">Your website is already written and published at this address. It goes live the moment your subscription is active, and you can attach your own registered domain later from the control panel.</p>
       </div>
 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:22px 0;">
@@ -62,7 +63,7 @@ public static class RegistrationWelcomeTemplate
       </table>
 
       <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 16px;">{{passwordNote}}</p>
-      <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 24px;">We recommend visiting the video tutorials in each admin section to get familiar with your tools. For training, contact <a href="mailto:{{trainingEmail}}" style="color:#1457d9;">{{trainingEmail}}</a>.</p>
+      <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 24px;">Each section of your portal has a help guide to get you started. For help, call {{supportPhone}}; for training, contact <a href="mailto:{{trainingEmail}}" style="color:#1457d9;">{{trainingEmail}}</a>.</p>
 
       <div style="text-align:center;margin:28px 0;">
         <a href="{{domainUrl}}" style="display:inline-block;background:#1457d9;color:#fff;text-decoration:none;font-weight:800;border-radius:999px;padding:13px 24px;">Open Your Temporary Website</a>
