@@ -618,7 +618,9 @@ public class AccountController : Controller
         ViewBag.GoogleCalendarAccess = await _entitlements.GetAccessAsync(agent.Id, PackageFeatureCodes.GoogleCalendarSync);
         ViewBag.GoogleCalendarConnection = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.AgentUserId == agent.Id && c.IsActive);
 
-        return View(ToProfileViewModel(agent, package?.PackageName ?? ""));
+        var profile = ToProfileViewModel(agent, package?.PackageName ?? "");
+        profile.FollowUpReminderEmails = await FollowUpReminderPreference.IsEnabledAsync(_db, agent.Id);
+        return View(profile);
     }
 
     [Authorize]
@@ -677,6 +679,8 @@ public class AccountController : Controller
         agent.DefaultPaymentLink = model.DefaultPaymentLink;
 
         await _agents.UpdateAsync(agent);
+        // 498: the morning follow-ups email's switch lives in its own table, not on the adviser's row.
+        await FollowUpReminderPreference.SetAsync(_db, agent.Id, model.FollowUpReminderEmails);
         await SignInAgentAsync(agent, new AuthenticationProperties
         {
             IsPersistent = false,

@@ -39,6 +39,9 @@ public class AgentProfileViewModel
 
     public string? TimeZone { get; set; }
 
+    // 498: "Email me my follow-ups each morning" (AgentFollowUpReminder; no row means on).
+    public bool FollowUpReminderEmails { get; set; } = true;
+
     [Required]
     public string Phone { get; set; } = string.Empty;
 

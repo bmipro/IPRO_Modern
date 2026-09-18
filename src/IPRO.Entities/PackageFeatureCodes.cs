@@ -11,6 +11,9 @@ public static class PackageFeatureCodes
     public const string InstantWebsite = "instant_website";
     public const string LeadGenerator = "lead_generator";
     public const string CalendarScheduler = "calendar_scheduler";
+    // 498: back, because the thing now exists -- FollowUpReminderJob reads this code. (496 withdrew the
+    // constant along with the "Email reminder" row that had nothing behind it.)
+    public const string EmailReminder = "email_reminder";
     public const string SmsReminder = "sms_reminder";
     public const string PreDesignedECard = "pre_designed_ecard";
     public const string PreDesignedELetters = "pre_designed_eletters";

@@ -103,7 +103,10 @@ public class FrontDoorTruth496Tests
         var platinum = await db.BillingRules.SingleAsync(p => p.PackageName == "IPro Platinum");
         gold.Description = "Expanded package with marketing, banners, coupons, and mail tools.";
         platinum.Description = "The owner's own words about Platinum.";
-        db.PackageFeatures.Add(new PackageFeature { BillingRuleId = gold.Id, FeatureCode = "email_reminder", FeatureName = "Email reminder", IsIncluded = true, SortOrder = 40 });
+        // 498: the row exists again (the job behind it was built the same day); production still has it
+        // under its old name.
+        foreach (var row in await db.PackageFeatures.Where(f => f.FeatureCode == PackageFeatureCodes.EmailReminder).ToListAsync())
+            row.FeatureName = "Email reminder";
         foreach (var row in await db.PackageFeatures.Where(f => f.FeatureCode == PackageFeatureCodes.SupportTraining).ToListAsync())
         {
             row.FeatureName = "Support and training"; row.LimitLabel = "Limited"; row.LimitValue = null;
@@ -116,8 +119,12 @@ public class FrontDoorTruth496Tests
         await PackageEntitlementSeeder.SeedAsync(db);   // the next start-up
         db.ChangeTracker.Clear();
 
-        // "Email reminder" was ticked on every plan; its job was removed on 2026-09-09 and nothing reads the code.
-        Assert.False(await db.PackageFeatures.AnyAsync(f => f.FeatureCode == "email_reminder"));
+        // "Email reminder" was ticked on every plan with nothing behind it, and 496 withdrew it. 498 built
+        // the daily follow-ups email the same afternoon, so the row is back -- under a name that says
+        // what it is, never the old one (FollowUpReminderJobTests covers the job itself).
+        var reminder = await db.PackageFeatures.Where(f => f.FeatureCode == PackageFeatureCodes.EmailReminder).ToListAsync();
+        Assert.NotEmpty(reminder);
+        Assert.All(reminder, f => Assert.Equal("Daily follow-up reminder email", f.FeatureName));
         // What exists behind the PayPal row is a Pay Now link on the adviser's client invoices.
         Assert.All(await db.PackageFeatures.Where(f => f.FeatureCode == PackageFeatureCodes.PayPalIntegration).ToListAsync(),
             f => Assert.Equal("Pay Now link on client invoices", f.FeatureName));

@@ -161,6 +161,10 @@ public static class AgentDataEraser
         ("SocialPostDrafts",            "AgentUserId = @agentId"),
         ("AgentDailyInsights",          "AgentUserId = @agentId"),
         ("AgentDocuments",              "AgentUserId = @agentId"),
+        // 498: the morning follow-ups email's switch and day-claim. Its foreign key cascades, but the map
+        // is what the SuperAdmin erasure preview counts and what still works if a cascade is ever dropped
+        // (AgentDataEraserCoverageTests caught its absence in the 498 gate, which is what it is for).
+        ("AgentFollowUpReminders",      "AgentUserId = @agentId"),
         ("OperateLogs",                 "AgentUserId = @agentId"),
 
         // The agent row itself, last, and by raw SQL like everything else. Deleting it through EF

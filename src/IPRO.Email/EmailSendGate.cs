@@ -38,9 +38,12 @@ public sealed class EmailSendGate
 {
     // The "ipro_entity" tag the six marketing dispatchers put on their sends. Everything untagged or
     // tagged otherwise (invoices, portal invites, sign-in mail, support) is transactional.
+    // 498: and the morning follow-ups email (FollowUpReminderJob). It is not marketing, but it goes to
+    // many advisers in the same hour and nobody is waiting on it, so it queues behind the reserve
+    // too: a morning's reminders must never cost someone their password reset.
     private static readonly HashSet<string> BulkEntities = new(StringComparer.OrdinalIgnoreCase)
     {
-        "newsletter", "drip_step", "ecard", "eletter", "poll", "didyouknow"
+        "newsletter", "drip_step", "ecard", "eletter", "poll", "didyouknow", "follow_up_reminder"
     };
 
     private readonly Func<DateTime> _now;

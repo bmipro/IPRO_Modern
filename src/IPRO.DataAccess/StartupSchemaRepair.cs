@@ -1335,6 +1335,21 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 498: the morning follow-ups email's switch and day-claim (AgentFollowUpReminder). A table of its
+    // own and NOT columns on AgentUsers -- the entity says why. Matches the EF model column for column.
+    public static async Task EnsureFollowUpReminderSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AgentFollowUpReminders` (
+        `AgentUserId` int NOT NULL,
+        `IsEnabled` tinyint(1) NOT NULL DEFAULT 1,
+        `LastDecidedOn` datetime(6) NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        CONSTRAINT `FK_AgentFollowUpReminders_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

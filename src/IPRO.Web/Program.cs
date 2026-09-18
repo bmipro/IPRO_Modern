@@ -445,7 +445,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 17);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 18);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -460,6 +460,10 @@ RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices",
 RecurringJob.AddOrUpdate<GoogleCalendarSyncJob>("google-calendar-sync", job => job.RunAsync(), "*/15 * * * *");
 RecurringJob.AddOrUpdate<ClientLifeEventReminderJob>("client-life-event-reminders", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<OverdueInvoiceReminderJob>("overdue-invoice-reminders", job => job.RunAsync(), Cron.Daily);
+// 498 (2026-09-18): the morning follow-ups email. Hourly because "morning" is a different UTC hour
+// in each time zone and because the next pass is the retry when the send gate defers; at five past,
+// clear of the jobs that start on the hour.
+RecurringJob.AddOrUpdate<FollowUpReminderJob>("follow-up-reminders", job => job.RunAsync(), "5 * * * *");
 // 472 (2026-09-10): recycle-bin snapshots past their 30 days are removed, then their files.
 RecurringJob.AddOrUpdate<ClientRecycleBinPurgeJob>("client-recycle-bin-purge", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<AiDailyDigestJob>("ai-daily-digest", job => job.RunAsync(), Cron.Daily);
@@ -630,6 +634,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTrialFeatureSchemaAsync", () => StartupSchemaRepair.EnsureTrialFeatureSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureECardSchemaAsync", () => StartupSchemaRepair.EnsureECardSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureELetterSchemaAsync", () => StartupSchemaRepair.EnsureELetterSchemaAsync(db), db, app.Logger);
+    // 498: the morning follow-ups email's own small table (AgentFollowUpReminder).
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureFollowUpReminderSchemaAsync", () => StartupSchemaRepair.EnsureFollowUpReminderSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Must run AFTER the three CREATE TABLE passes above (E-Card, E-Letter, Poll) -- it adds the

@@ -246,13 +246,11 @@ public static class PackageEntitlementSeeder
         // comparison, loan amortisation and APR -- there is no needs-analysis calculator. Promotion
         // codes are a SuperAdmin signup tool, not an agent-facing coupon manager. The Did You Know
         // block is gated by Newsletters. A quote request is any custom form.
-        "coupon_manager", "needs_analysis_calculator", "did_you_know_manager", "quote_form",
-        // Withdrawn 2026-09-18 (TODO 496, the truth sweep): "Email reminder" was ticked on every plan
-        // and was line four of every price card, but its only job (CalendarReminderJob) was removed on
-        // 2026-09-09 because it read a table no page wrote, and nothing reads the code. The reminder
-        // mails that do exist (overdue invoices, trial expiry) are sold under their own rows. If a
-        // daily "follow-ups due" email is built, re-add the definition and delete this code.
-        "email_reminder"
+        "coupon_manager", "needs_analysis_calculator", "did_you_know_manager", "quote_form"
+        // "email_reminder" was here for a few hours on 2026-09-18: 496 withdrew the row because its
+        // only job had been removed on 2026-09-09 and nothing read the code; 498 built the daily
+        // follow-ups email the same day (FollowUpReminderJob, which DOES read the code), so the
+        // definition is back below and the code is out of this list, as the note above asks.
     };
 
     internal const string MultilingualFeatureName = "Content in any language"; // shortened 2026-09-08
@@ -289,7 +287,9 @@ public static class PackageEntitlementSeeder
         // Pay Now button on their client invoices -- a Platinum feature, as the row's ticks say.
         (PackageFeatureCodes.PayPalIntegration, "Pay Now link on client invoices"),
         // 496: see RepairSupportRowAsync.
-        (PackageFeatureCodes.SupportTraining, "Support by phone, email and portal tickets")
+        (PackageFeatureCodes.SupportTraining, "Support by phone, email and portal tickets"),
+        // 498: a database that never ran 496's removal still carries this row as "Email reminder".
+        (PackageFeatureCodes.EmailReminder, "Daily follow-up reminder email")
     };
 
     private static async Task RetireWithdrawnFeaturesAsync(IPRODbContext db)
@@ -392,6 +392,8 @@ public static class PackageEntitlementSeeder
             Feature(10, PackageFeatureCodes.InstantWebsite, "Self managed instant website with full content", all, all, all, all),
             Feature(20, PackageFeatureCodes.LeadGenerator, "Automated lead generator", all, all, all, all),
             Feature(30, PackageFeatureCodes.CalendarScheduler, "Calendar scheduler", all, all, all, all),
+            // 498: one email each morning listing the follow-ups due and overdue (FollowUpReminderJob).
+            Feature(40, PackageFeatureCodes.EmailReminder, "Daily follow-up reminder email", all, all, all, all),
             // SMS IS NOT BUILT. Seeded as excluded on every package so a fresh database never
             // advertises it on the public pricing comparison, and no agent is entitled to a
             // feature that cannot fire. It stays in the catalogue rather than being deleted so the

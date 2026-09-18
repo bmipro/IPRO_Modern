@@ -176,6 +176,13 @@
               </select>
               <div class="form-text">Schedules and reminders use this time zone.</div>
             </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input asp-for="FollowUpReminderEmails" class="form-check-input" />
+                <label asp-for="FollowUpReminderEmails" class="form-check-label fw-semibold">Email me my follow-ups each morning</label>
+              </div>
+              <div class="form-text">One email around 7 a.m. in your time zone, only on days when a follow-up is due or has just become overdue.</div>
+            </div>
           </div>
         </div>
       </div>

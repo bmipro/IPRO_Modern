@@ -33,6 +33,7 @@ public class IPRODbContext : DbContext
     public DbSet<ProvinceTaxRate> ProvinceTaxRates => Set<ProvinceTaxRate>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<NumberSequence> NumberSequences => Set<NumberSequence>();
+    public DbSet<AgentFollowUpReminder> AgentFollowUpReminders => Set<AgentFollowUpReminder>();
     public DbSet<ClientRecycleBinItem> ClientRecycleBinItems => Set<ClientRecycleBinItem>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
@@ -404,6 +405,16 @@ public class IPRODbContext : DbContext
             e.Property(i => i.Email).HasMaxLength(320);
             e.HasIndex(i => i.AgentUserId);
             e.HasIndex(i => i.PurgeAfter);
+        });
+
+        // 498: one row per adviser, keyed by the adviser; goes with the account. No navigation on
+        // AgentUser on purpose -- nothing that loads an adviser should ever touch this table.
+        modelBuilder.Entity<AgentFollowUpReminder>(e =>
+        {
+            e.HasKey(r => r.AgentUserId);
+            e.Property(r => r.AgentUserId).ValueGeneratedNever();
+            e.Property(r => r.IsEnabled).HasDefaultValue(true);
+            e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentFollowUpReminder>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // 418: one counter row per key; the key is the primary key.
