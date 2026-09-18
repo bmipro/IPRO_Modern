@@ -55,18 +55,20 @@ import and export on every plan; nightly backups with 30-day retention; data in 
 
 ## Still open after 496 (the owner's calls, in rough priority)
 
-1. **A real "Email reminder".** A daily "follow-ups due today" email to the adviser (about a day:
+1. **DONE the same day (TODO 498): the row is back as "Daily follow-up reminder email", with the job behind it.**
+   ~~A real "Email reminder".~~ A daily "follow-ups due today" email to the adviser (about a day:
    a job, a template, an opt-out on the profile, tests) would restore the withdrawn row.
 2. **Insurance wording inside the portal for every business type.** Placeholders ("Call about policy
    renewal", "life insurance prospects", "John Smith Insurance Adviser") and the four AI prompts
    ("financial/insurance advisor") are the same for an accountant, a mortgage broker and a Generic
    business. About half a day, keyed on business type, with tests.
-3. **An accountant's Resources menu shows "Calculators" twice** (live, verified): an article category
+3. **DONE the same day (TODO 497).** **An accountant's Resources menu shows "Calculators" twice** (live, verified): an article category
    of that name and the real calculators. A small fix in the provisioning helper and its preview mirror.
 4. **The preview's template is hard-coded per edition; a real account gets the database default.** An
    accountant previews Classic Sidebar and may receive Modern Professional. Either set per-business-type
    defaults in SuperAdmin -> Website Templates, or let the real path fall back to the preview's mapping.
-5. **Article libraries for Insurance / Financial and Mortgage** (four articles each today, against
+5. **DONE the same day (TODO 499): eight articles each, rules pinned by tests; the owner's read is still wanted.**
+   **Article libraries for Insurance / Financial and Mortgage** (four articles each today, against
    Accountants' twenty-one and Generic's ten). The 495 method, with the owner's read: regulated subjects.
 6. **Three stale lines in the Accountants library**: a US term ("sales and use tax returns"), two
    federal credits that ended in 2017, and a pointer to a calculator an accountant's site does not get.
@@ -79,3 +81,16 @@ import and export on every plan; nightly backups with 30-day retention; data in 
    the welcome email are offered.
 10. Presentational: the hero screenshot is the Platinum dashboard (caption it); the preview's two
     testimonials are invented (label them samples).
+11. **Found while building 498, not fixed: Google Calendar sync reads a follow-up's time as UTC; the rest of the
+    product stores the adviser's own calendar date.** The follow-up form posts a bare date, the appointment
+    scheduler a local date and time, and nothing converts either; `GoogleCalendarService.BuildEventPayload`
+    sends the value with `timeZone = "UTC"` and `ParseEventDateTime` reads Google's time back as UTC. So a
+    follow-up typed for 21 September is an event at 8 p.m. on the 20th in an Eastern calendar, and a 2 p.m.
+    Google event comes back as 6 p.m. A Platinum feature. The fix is small in code (all-day events for bare
+    dates; the adviser's IANA zone for timed ones; convert on the way back) but existing linked events were
+    pushed under the old rule and must be re-pushed before the first pull or the pull will move the
+    follow-ups, and none of it can be verified without a real Google account: do it WITH the owner, on his
+    calendar. `DOCS/INVARIANTS.md` rule 10 records the convention.
+12. **Same family, small:** the follow-up list, its badges and the dashboard's counts decide "today" with the server's date
+    (`DateTime.Today`, UTC in production), so from 8 p.m. Eastern an item due tomorrow already reads "Today".
+    `AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, zone).Date` is the adviser's today; about an hour with tests.

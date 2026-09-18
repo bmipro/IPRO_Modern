@@ -264,6 +264,24 @@ four.
 
 ---
 
+## 10. A follow-up's due time is the adviser's own calendar date, not UTC
+
+`ClientFollowUp.DueAt` is stored exactly as the adviser typed it: the follow-up form posts a bare date
+(`ClientsController.AddFollowUp`), the appointment scheduler a local date and time
+(`PortalRequestsController.Schedule`), the life-event job a date. Nothing converts it, and the follow-up
+list, the calendar and the dashboard compare `DueAt.Date` with today. Every OTHER timestamp in the
+product is UTC and is shown through `AgentTimeZoneHelper` -- which is exactly why this one gets
+converted by mistake.
+
+- **Compare `DueAt` with the adviser's LOCAL date. Never pass it through `AgentLocalTime.ToUtc/FromUtc`.**
+  The adviser's time zone decides only which date is their today (`FromUtc(DateTime.UtcNow, zone).Date`).
+- Read as a UTC instant, "due 21 September" is 20 September at 8 p.m. in Toronto. The first draft of
+  the morning follow-ups email (TODO 498) did that and would have mailed an item due today as "overdue
+  since yesterday"; `FollowUpReminderJobTests` pins the rule with the values the forms really store.
+- **Known violation, recorded 2026-09-18 and NOT yet fixed:** `GoogleCalendarService` pushes and reads
+  the field as UTC (`DOCS/TRUTH_SWEEP_2026-09-18.md`, item 11). Fix it with the owner's Google account
+  in hand; do not "fix" it by converting the stored values, which every other page reads as local.
+
 ## Before calling a cross-cutting change "done"
 
 **Fix by SURFACE, not by symptom.** When a change alters a shared convention — routing, auth, naming,
