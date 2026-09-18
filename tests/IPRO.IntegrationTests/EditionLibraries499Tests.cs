@@ -27,7 +27,7 @@ public class EditionLibraries499Tests
     public static IEnumerable<object[]> Libraries() => new[]
     {
         new object[] { InsuranceFinancial, new[] { "Protection", "Planning" } },
-        new object[] { Mortgage, new[] { "Buying a Home", "Owning a Home" } }
+        new object[] { Mortgage, new[] { "Home Buying Basics", "Managing Your Mortgage" } }   // renamed by 500, the same evening
     };
 
     private static GenericStarterArticles.Entry[] Library(string businessType) =>
@@ -123,8 +123,8 @@ public class EditionLibraries499Tests
         Assert.Equal(10, articles.Count(a => a.BusinessType == Mortgage));
         Assert.Equal("Protection", articles.Single(a => a.Title == "Do You Actually Have Enough Life Insurance?").Category);
         Assert.Equal("The owner's own", articles.Single(a => a.Title == "RRSP or TFSA: Which Should You Prioritize?").Category);
-        Assert.Equal("Buying a Home", articles.Single(a => a.Title == "Fixed or Variable: Choosing the Right Mortgage Rate").Category);
-        Assert.Equal("Buying a Home", articles.Single(a => a.Title == "What First-Time Buyers Should Know About Pre-Approval").Category);
+        Assert.Equal("Home Buying Basics", articles.Single(a => a.Title == "Fixed or Variable: Choosing the Right Mortgage Rate").Category);
+        Assert.Equal("Home Buying Basics", articles.Single(a => a.Title == "What First-Time Buyers Should Know About Pre-Approval").Category);
         // The older two read first inside their category.
         Assert.All(articles.Where(a => newTitles.Contains(a.Title)), a => Assert.True(a.SortOrder >= 10));
 
@@ -156,15 +156,15 @@ public class EditionLibraries499Tests
         {
             "How to Get the Most Out of Your First Meeting",
             "Questions Worth Asking Before You Choose an Advisor",
-            "Buying a Home", "Owning a Home", "Calculators"
+            "Home Buying Basics", "Managing Your Mortgage", "Calculators"
         }, menu);
 
-        var buying = pages.Single(p => p.ParentPageId == resources.Id && p.Title == "Buying a Home");
+        var buying = pages.Single(p => p.ParentPageId == resources.Id && p.Title == "Home Buying Basics");
         var buyingChildren = pages.Where(p => p.ParentPageId == buying.Id).OrderBy(p => p.SortOrder).Select(p => p.Title).ToList();
         Assert.Equal(6, buyingChildren.Count);
         Assert.Equal("Fixed or Variable: Choosing the Right Mortgage Rate", buyingChildren[0]);
         Assert.Equal("How Much Home Can You Comfortably Afford?", buyingChildren[2]);
-        var owning = pages.Single(p => p.ParentPageId == resources.Id && p.Title == "Owning a Home");
+        var owning = pages.Single(p => p.ParentPageId == resources.Id && p.Title == "Managing Your Mortgage");
         Assert.Equal(4, pages.Count(p => p.ParentPageId == owning.Id));
         // Every article is a real, editable Article row of the adviser's own.
         Assert.Equal(12, await db.Articles.CountAsync(a => a.AgentUserId == agentId));

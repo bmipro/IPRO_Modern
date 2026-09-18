@@ -18,6 +18,19 @@ public static class WebsiteStarterArticleSeeder
             // original 8 articles before the Accountants expansion below was written, so a
             // blanket AnyAsync() guard would have silently skipped inserting any of the new ones
             // on every environment that had already run this seeder once.
+            // 500: 499 shipped the Mortgage library under "Buying a Home" and "Owning a Home". Production
+            // already held an article of the owner's own called "Buying a home?" (added in SuperAdmin; no
+            // code or test knew), so the category arrived as a near-twin in the menu and, because an
+            // uncategorized article takes its slug first, as /buying-a-home-2 on every new site. Renamed
+            // the same evening; the rows 499 had already written are renamed here, once (afterwards
+            // nothing matches), together with anything the owner filed beside them. Mortgage only.
+            foreach (var (from, to) in RenamedMortgageCategories)
+            {
+                await db.WebsiteStarterArticles
+                    .Where(a => a.BusinessType == "Mortgage" && a.Category == from)
+                    .ExecuteUpdateAsync(u => u.SetProperty(a => a.Category, to));
+            }
+
             var existingKeys = (await db.WebsiteStarterArticles
                     .Select(a => new { a.BusinessType, a.Title })
                     .ToListAsync())
@@ -61,13 +74,13 @@ public static class WebsiteStarterArticleSeeder
                     "<p>The fixed-versus-variable decision is one of the most common questions we hear, and it's less about predicting where rates are headed than about how much certainty you want in your monthly budget.</p>" +
                     "<p>A fixed rate locks your payment for the term, which makes budgeting simple and removes the stress of rate movements entirely. The tradeoff is that you don't benefit if rates fall, and breaking a fixed-rate mortgage early can carry a larger penalty.</p>" +
                     "<p>A variable rate moves with the market. Historically it has often cost less over the life of a mortgage, but that comes with genuine month-to-month uncertainty, and payments can rise if rates do. Many variable products also offer more flexibility if you need to break the term early.</p>" +
-                    "<p>There's no universally right choice — it comes down to your tolerance for payment fluctuation and your broader financial picture. We're glad to walk through both scenarios with your actual numbers so the decision feels less like a guess.</p>", 0, "Buying a Home"),
+                    "<p>There's no universally right choice — it comes down to your tolerance for payment fluctuation and your broader financial picture. We're glad to walk through both scenarios with your actual numbers so the decision feels less like a guess.</p>", 0, "Home Buying Basics"),
                 Article("Mortgage", "What First-Time Buyers Should Know About Pre-Approval",
                     "Pre-approval is more than a formality — it tells you what you can actually afford before you start looking.",
                     "<p>If you're buying your first home, getting pre-approved before you start house-hunting is one of the most useful early steps you can take — and one of the most commonly skipped.</p>" +
                     "<p>Pre-approval gives you a realistic sense of what you can actually afford, based on your real income, debts, and credit — not a rough estimate from an online calculator. It also typically locks in a rate for a set period, protecting you if rates move while you're searching.</p>" +
                     "<p>Just as importantly, a pre-approval signals to sellers that you're a serious, qualified buyer, which can matter in a competitive market. It's worth noting that pre-approval isn't a guarantee — final approval still depends on the specific property and a full review of your finances — but it removes most of the uncertainty going in.</p>" +
-                    "<p>If you're starting to think about buying, this is a good first conversation to have, well before you've found a place you love.</p>", 1, "Buying a Home"),
+                    "<p>If you're starting to think about buying, this is a good first conversation to have, well before you've found a place you love.</p>", 1, "Home Buying Basics"),
 
                 // Accountants vertical: adapted from the real content library at X:\ipro_related\IPro_accountants
                 // (a genuine former IPRO accountant client's site, authored 2013), grouped into the same four
@@ -319,6 +332,12 @@ public static class WebsiteStarterArticleSeeder
 
             await db.SaveChangesAsync();
         });
+
+    private static readonly (string From, string To)[] RenamedMortgageCategories =
+    {
+        ("Buying a Home", "Home Buying Basics"),
+        ("Owning a Home", "Managing Your Mortgage")
+    };
 
     private static WebsiteStarterArticle Article(string businessType, string title, string summary, string content, int order, string? category = null) => new()
     {
