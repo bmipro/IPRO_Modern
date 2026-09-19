@@ -15,6 +15,21 @@
 - **501, from that morning:** no starter calculators on a Generic site (his question, his yes); the
   home page's calculator sentence narrowed to stay true; the welcome email's `https://` link, its
   sign-in sentence, and its plain-text version, which was still the legacy "CONGRATULATIONS!" letter.
+- **502, seen in his support-ticket test:** the four support screens printed ticket times in UTC (a
+  ticket written at 12:38 p.m. Eastern read "4:38 PM" in both apps) and the status as "InProgress".
+  The portal now uses the adviser's zone, SuperAdmin its header clock's zone and label, and the status
+  reads "In progress".
+- **A prospect asked the owner about other languages (Croatian; then French and Spanish).** What is
+  true today, checked in the code: an adviser's own CONTENT can be in any language (pages, articles,
+  menus, newsletters, custom-form questions -- the plan row "Content in any language"; the owner's
+  Farsi article is the live proof). The site's FIXED text (standard form labels, buttons,
+  confirmations, calculators, consent and unsubscribe wording, system emails) and the whole back
+  office are English; there is no localization layer (`<html lang="en">` is hard-coded in the three
+  templates) and no language switcher. Sizes given to the owner: a site-language option for the
+  fixed public text, 1-2 weeks plus a fluent reviewer; a bilingual site with a switcher, 3-5 weeks;
+  the back office, months. French is the one that matters commercially (a Quebec adviser's clients
+  must be served in French, and Quebec's language law bears on selling software there -- counsel's
+  question): do not sell to Quebec advisers until at least the site-language option exists in French.
 - **The red row on the Job Scheduler is the certificate check doing its job:** the two platform
   certificates (app, admin) expire on **19 October 2026**; today is day 30, the first day it turns
   red, and it will be red every morning until they are renewed (`DOCS/20_CERTIFICATES.md`, by hand,
@@ -30,6 +45,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `bcf557a` | **501** no Generic starter calculators; the welcome email's link, sign-in sentence and text version | 968/968 |
+| _see log 502_ | **502** support tickets: times in the reader's zone; the status as words | whole tree |
 
 ## Do this first tomorrow
 
