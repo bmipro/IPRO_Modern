@@ -29,7 +29,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 501_ | **501** no Generic starter calculators; the welcome email's link, sign-in sentence and text version | whole tree |
+| `bcf557a` | **501** no Generic starter calculators; the welcome email's link, sign-in sentence and text version | 968/968 |
 
 ## Do this first tomorrow
 
