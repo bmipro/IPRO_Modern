@@ -47,6 +47,22 @@
 | `bcf557a` | **501** no Generic starter calculators; the welcome email's link, sign-in sentence and text version | 968/968 |
 | `d22a982` | **502** support tickets: times in the reader's zone; the status as words | 979/979 |
 
+## Close-out 2026-09-19
+
+Final build on both hosts before this close-out: `36e7ad9`. Tree clean and pushed; nothing half-built and
+nothing waiting for a deploy. The day's code and gates are in the table above (501, 502).
+
+**State left for Sunday morning:** production is still PayPal SANDBOX (`PayPal__IsSandbox=true` on both
+apps, read 19 September); the four public names still resolve to the old site (66.102.128.65); the
+test accounts bobmoore (Mortgage, promotion code FINALTEST, one follow-up dated 20 September) and
+generictest (Generic, created before 501, so it still has three calculators) exist on purpose and are
+deleted in Stage 1 of the cutover; the owner's three legacy starter articles are Inactive (his clicks,
+verified from the live preview); ticket #7 is a test ticket.
+
+Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
+and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; no local app, emulator or test
+process running; MySQL is the Windows service and needs nothing. Reboot-ready.
+
 ## Do this first tomorrow
 
 1. **7:05 a.m.:** did bobmoore (created 19 September, one follow-up dated the 20th) get the morning email?
