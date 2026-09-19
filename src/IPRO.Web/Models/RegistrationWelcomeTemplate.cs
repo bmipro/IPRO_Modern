@@ -17,9 +17,13 @@ public static class RegistrationWelcomeTemplate
         var passwordCellValue = hasTempPassword ? password : "The one you chose at signup";
         var passwordNote = hasTempPassword
             ? "For your security, you will be asked to change this temporary password the first time you sign in."
-            : "You sign in with your email address and the password you chose when you registered. It was never sent by email.";
+            // 501: the box above shows a USERNAME and the sign-in page asks for one; the email address
+            // works as well (AgentService.AuthenticateAsync tries both). The sentence said only "email".
+            : "You sign in with your username or your email address, and the password you chose when you registered. It was never sent by email.";
         var domain = WebUtility.HtmlEncode(model.SetupDomain);
-        var domainUrl = $"http://{domain}";
+        // 501: https. Every temporary domain is served under the wildcard certificate and the app is
+        // HTTPS-only, so http:// worked only by redirect -- and read as dated in a welcome email.
+        var domainUrl = $"https://{domain}";
         var trainingEmail = WebUtility.HtmlEncode(model.TrainingEmail);
         var supportPhone = IPRO.Web.Infrastructure.PlatformContact.SupportPhone;   // 496
         var websiteUrl = WebUtility.HtmlEncode(model.WebsiteUrl);
@@ -78,29 +82,34 @@ public static class RegistrationWelcomeTemplate
 """;
     }
 
+    // 501: the plain-text alternative says what the HTML says. Until now it was still the legacy letter
+    // ("CONGRATULATIONS! ... one of the most exciting and unique set of tools available on the Internet
+    // today for professional advisors"), with an http:// link, no phone number and a promise of a
+    // training "session". Few mail clients show this part, but filters read both, and a text part that
+    // disagrees with the HTML is a small mark against the message.
     public static string BuildText(RegistrationWelcomeModel model)
     {
+        var hasTempPassword = !string.IsNullOrWhiteSpace(model.TemporaryPassword);
         var builder = new StringBuilder();
-        builder.AppendLine("CONGRATULATIONS!");
+        builder.AppendLine($"Welcome, {model.FullName}");
         builder.AppendLine();
-        builder.AppendLine($"Dear {model.FullName}");
+        builder.AppendLine("Your IPRO Advisers account registration is complete. Your account gives you access to tools designed to help you manage, follow up, prospect, service, and attract new clients.");
         builder.AppendLine();
-        builder.AppendLine("We are pleased that you have decided to use one of the most exciting and unique set of tools available on the Internet today for professional advisors.");
+        builder.AppendLine($"Your temporary website: https://{model.SetupDomain}");
+        builder.AppendLine("Your website is already written and published at this address. It goes live the moment your subscription is active, and you can attach your own registered domain later from the control panel.");
         builder.AppendLine();
-        builder.AppendLine($"You can access your web site at this URL address: http://{model.SetupDomain}");
+        builder.AppendLine($"Username: {model.UserName}");
+        builder.AppendLine(hasTempPassword
+            ? $"Temporary password: {model.TemporaryPassword}"
+            : "Password: the one you chose at signup");
         builder.AppendLine();
-        builder.AppendLine("This is your temporary website domain but you can add your own domain or use your temporary one as much as you want.");
+        builder.AppendLine(hasTempPassword
+            ? "For your security, you will be asked to change this temporary password the first time you sign in."
+            : "You sign in with your username or your email address, and the password you chose when you registered. It was never sent by email.");
         builder.AppendLine();
-        builder.AppendLine("Please log in to your admin section of your website.");
+        builder.AppendLine($"Each section of your portal has a help guide to get you started. For help, call {IPRO.Web.Infrastructure.PlatformContact.SupportPhone}; for training, contact {model.TrainingEmail}.");
         builder.AppendLine();
-        builder.AppendLine($"Your username. : {model.UserName}");
-        builder.AppendLine(string.IsNullOrWhiteSpace(model.TemporaryPassword)
-            ? "Your Password: the one you chose at signup (never sent by email)"
-            : $"Your Password: {model.TemporaryPassword}");
-        builder.AppendLine();
-        builder.AppendLine("Please contact our training department through: training@IProAdvisers.com in order to book a seat for our next available training session.");
-        builder.AppendLine();
-        builder.AppendLine("IPro Management");
+        builder.AppendLine("IPRO Advisers Management");
         builder.AppendLine(model.WebsiteUrl);
         return builder.ToString();
     }

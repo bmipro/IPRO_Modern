@@ -40,14 +40,13 @@ public static class VerticalCalculatorCatalog
             new CalculatorEntry(CalculatorKinds.SavingsGrowth, "What a starting amount plus steady monthly deposits grows into, in future and today's dollars."),
             new CalculatorEntry(CalculatorKinds.TaxAdvantageComparison, "Whether a tax-deferred (RRSP-style) or tax-free (TFSA-style) account leaves you further ahead."),
         },
-        // 494: the Generic edition -- any other professional-service business. Tools anyone's clients
-        // can use; nothing that presumes a mortgage or a retirement practice.
-        "Generic" => new[]
-        {
-            new CalculatorEntry(CalculatorKinds.LoanAmortization, "A full month-by-month amortization schedule for any business or personal loan."),
-            new CalculatorEntry(CalculatorKinds.SavingsGrowth, "What a starting amount plus steady monthly deposits grows into, in future and today's dollars."),
-            new CalculatorEntry(CalculatorKinds.SavingsGoal, "How long it takes to reach a savings goal, honestly adjusted for inflation."),
-        },
+        // 501 (owner, 2026-09-19, looking at his first Generic test site: "do we need calculators for
+        // generic?"): no. 494 gave the Generic edition three "neutral" ones, but a loan schedule and a
+        // savings timeline on a designer's or a contractor's site read as a financial template with the
+        // labels changed -- what the Generic pack exists to avoid -- and its eight articles fill Resources
+        // on their own. Both builders skip the Calculators section when this is empty. Any adviser can
+        // still put any calculator on any page with the Calculator block.
+        "Generic" => Array.Empty<CalculatorEntry>(),
         _ => new[]
         {
             new CalculatorEntry(CalculatorKinds.MortgagePayment, "Estimate your monthly payment, total interest, and the bi-weekly equivalent for any purchase price."),

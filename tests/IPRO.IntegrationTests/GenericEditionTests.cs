@@ -94,10 +94,11 @@ public class GenericEditionTests
     }
 
     [Fact]
-    public void The_generic_resources_carry_neutral_calculators()
+    public void The_generic_resources_carry_no_starter_calculators()
     {
-        var kinds = VerticalCalculatorCatalog.ForBusinessType("Generic").Select(c => c.Kind).ToArray();
-        Assert.Equal(new[] { CalculatorKinds.LoanAmortization, CalculatorKinds.SavingsGrowth, CalculatorKinds.SavingsGoal }, kinds);
+        // 494 gave Generic three "neutral" calculators; the owner, looking at his first real Generic site
+        // on 2026-09-19, asked whether it needed them, and it does not (501, SmallPolish501Tests).
+        Assert.Empty(VerticalCalculatorCatalog.ForBusinessType("Generic"));
     }
 
     // ---- what a Generic adviser actually gets -----------------------------------------------
@@ -133,11 +134,8 @@ public class GenericEditionTests
 
         // The Request Meeting page carries the shared meeting form, copied to the adviser.
         Assert.True(await db.WebsiteForms.AnyAsync(f => f.AgentUserId == agentId));
-        // Resources: the two shared articles, the Generic library's eight (495), and the three neutral calculators.
-        var calculatorKinds = pages.SelectMany(p => p.Blocks)
-            .Where(b => b.BlockType == WebsiteBlockTypes.Calculator)
-            .Select(b => WebsiteCalculatorSettings.FromJson(b.SettingsJson).CalculatorKind).OrderBy(k => k).ToArray();
-        Assert.Equal(new[] { CalculatorKinds.LoanAmortization, CalculatorKinds.SavingsGoal, CalculatorKinds.SavingsGrowth }, calculatorKinds);
+        // Resources: the two shared articles and the Generic library's eight (495); no calculators since 501.
+        Assert.DoesNotContain(pages.SelectMany(p => p.Blocks), b => b.BlockType == WebsiteBlockTypes.Calculator);
         Assert.Equal(10, await db.Articles.CountAsync(a => a.AgentUserId == agentId));
     }
 
