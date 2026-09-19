@@ -45,7 +45,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `bcf557a` | **501** no Generic starter calculators; the welcome email's link, sign-in sentence and text version | 968/968 |
-| _see log 502_ | **502** support tickets: times in the reader's zone; the status as words | whole tree |
+| `d22a982` | **502** support tickets: times in the reader's zone; the status as words | 979/979 |
 
 ## Do this first tomorrow
 
