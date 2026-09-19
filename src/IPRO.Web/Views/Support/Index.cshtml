@@ -3,6 +3,7 @@
     ViewData["Title"] = "Support";
     var articles = (ViewBag.Articles as IEnumerable<IPRO.Web.Infrastructure.HelpArticle>) ?? Enumerable.Empty<IPRO.Web.Infrastructure.HelpArticle>();
     string status = ViewBag.Status;
+    var agentTimeZone = ViewBag.AgentTimeZone as string;   // 502: times in the adviser's own zone
 }
 
 <div class="mb-4">
@@ -71,8 +72,8 @@
                   <span class="badge bg-danger ms-1">New reply</span>
                 }
               </td>
-              <td><span class="badge @statusClass">@ticket.Status</span></td>
-              <td class="small text-muted">@ticket.LastMessageAt.ToString("MMM d, yyyy h:mm tt")</td>
+              <td><span class="badge @statusClass">@ticket.Status.ToDisplayText()</span></td>
+              <td class="small text-muted">@IPRO.Web.Infrastructure.SupportTicketDisplay.Time(ticket.LastMessageAt, agentTimeZone)</td>
               <td class="text-end"><a href="/portal/Support/Details/@ticket.Id" class="btn btn-sm btn-outline-primary">Open</a></td>
             </tr>
           }

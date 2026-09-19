@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IPRO.Admin.Infrastructure;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Email;
@@ -76,6 +77,8 @@ public class SupportTicketsController : Controller
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalCount = totalCount;
         ViewBag.UnreadCount = await _db.SupportTickets.CountAsync(t => t.HasUnreadForAdmin);
+        // 502: ticket times in the platform's zone, with the label the header clock uses.
+        ViewBag.Zone = AdminClock.Zone(_configuration);
 
         return View(tickets);
     }
@@ -94,6 +97,7 @@ public class SupportTicketsController : Controller
             await _db.SaveChangesAsync();
         }
 
+        ViewBag.Zone = AdminClock.Zone(_configuration);
         return View(ticket);
     }
 

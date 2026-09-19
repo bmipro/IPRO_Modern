@@ -2,6 +2,16 @@ namespace IPRO.Entities;
 
 public enum SupportTicketStatus { Open, InProgress, Resolved, Closed }
 
+// 502: the badge printed the enum's name, so an adviser read "InProgress".
+public static class SupportTicketStatusExtensions
+{
+    public static string ToDisplayText(this SupportTicketStatus status) => status switch
+    {
+        SupportTicketStatus.InProgress => "In progress",
+        _ => status.ToString()
+    };
+}
+
 public class SupportTicket
 {
     public int Id { get; set; }

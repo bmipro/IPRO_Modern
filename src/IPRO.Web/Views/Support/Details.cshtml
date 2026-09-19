@@ -1,6 +1,7 @@
 @model IPRO.Entities.SupportTicket
 @{
     ViewData["Title"] = Model.Subject;
+    var agentTimeZone = ViewBag.AgentTimeZone as string;   // 502: times in the adviser's own zone
     var statusClass = Model.Status switch
     {
         IPRO.Entities.SupportTicketStatus.Open => "bg-warning text-dark",
@@ -17,7 +18,7 @@
 <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
   <div>
     <h3 class="fw-bold mb-1">@Model.Subject</h3>
-    <span class="badge @statusClass">@Model.Status</span>
+    <span class="badge @statusClass">@Model.Status.ToDisplayText()</span>
   </div>
   @if (Model.Status != IPRO.Entities.SupportTicketStatus.Resolved && Model.Status != IPRO.Entities.SupportTicketStatus.Closed)
   {
@@ -36,7 +37,7 @@
         <div class="rounded-3 p-3 @(message.IsFromAdmin ? "bg-light border-start border-4 border-primary" : "border")">
           <div class="d-flex justify-content-between gap-2 flex-wrap mb-1">
             <span class="fw-semibold small">@(message.IsFromAdmin ? $"{message.AuthorName} (Support)" : message.AuthorName)</span>
-            <span class="small text-muted">@message.CreatedAt.ToString("MMM d, yyyy h:mm tt")</span>
+            <span class="small text-muted">@IPRO.Web.Infrastructure.SupportTicketDisplay.Time(message.CreatedAt, agentTimeZone)</span>
           </div>
           <div style="white-space:pre-wrap">@message.Body</div>
         </div>

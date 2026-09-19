@@ -54,6 +54,7 @@ public class SupportController : Controller
             .ToListAsync();
 
         ViewBag.Status = status;
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 502
         ViewBag.Page = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.Articles = HelpDocsService.GetArticles();
@@ -135,6 +136,7 @@ public class SupportController : Controller
             await _db.SaveChangesAsync();
         }
 
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 502
         return View(ticket);
     }
 

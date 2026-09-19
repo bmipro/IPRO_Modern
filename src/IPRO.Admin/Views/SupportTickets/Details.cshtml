@@ -1,6 +1,7 @@
 @model IPRO.Entities.SupportTicket
 @{
     ViewData["Title"] = Model.Subject;
+    var zone = ViewBag.Zone as string;   // 502
     var statusClass = Model.Status switch
     {
         IPRO.Entities.SupportTicketStatus.Open => "bg-warning text-dark",
@@ -21,11 +22,11 @@
   </div>
   <form method="post" action="/SupportTickets/SetStatus/@Model.Id" class="d-flex gap-2 align-items-center">
     @Html.AntiForgeryToken()
-    <span class="badge @statusClass">@Model.Status</span>
+    <span class="badge @statusClass">@Model.Status.ToDisplayText()</span>
     <select name="status" class="form-select form-select-sm js-auto-submit" style="width:auto">
       @foreach (var s in Enum.GetValues<IPRO.Entities.SupportTicketStatus>())
       {
-        <option value="@s" selected="@(Model.Status == s)">@s</option>
+        <option value="@s" selected="@(Model.Status == s)">@s.ToDisplayText()</option>
       }
     </select>
   </form>
@@ -39,7 +40,7 @@
         <div class="rounded-3 p-3 @(message.IsFromAdmin ? "bg-light border-start border-4 border-primary" : "border")">
           <div class="d-flex justify-content-between gap-2 flex-wrap mb-1">
             <span class="fw-semibold small">@(message.IsFromAdmin ? $"{message.AuthorName} (Support)" : message.AuthorName)</span>
-            <span class="small text-muted">@message.CreatedAt.ToString("MMM d, yyyy h:mm tt")</span>
+            <span class="small text-muted">@IPRO.Admin.Infrastructure.AdminClock.Format(message.CreatedAt, zone)</span>
           </div>
           <div style="white-space:pre-wrap">@message.Body</div>
         </div>
