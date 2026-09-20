@@ -15,10 +15,19 @@ visible, and retroactive. That is why there is a watchdog.
 | `app.iproadvisers.com` | Let's Encrypt | **Manual, ours** | Newsletter images resolve here on real sends |
 | `admin.iproadvisers.com` | Let's Encrypt | **Manual, ours** | SuperAdmin only |
 | `*.247advisers.com` | Sectigo | Managed by the host | Agent custom domains; not our responsibility |
+| `www.iproadvisers.com`, `www.iproaccountants.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-20, valid to 20 March 2027. The two bare names get the same when they move |
+| `ipromortgages.com`, `www.ipromortgages.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-12 (the rehearsal) |
 
 Azure's free managed certificate was tried for the two `iproadvisers.com` hosts in July 2026 and
 never issued correctly, which is why these are Let's Encrypt via [lego](https://go-acme.github.io/lego/)
 instead. Do not assume the managed option now works without re-testing it.
+
+**Why it never issued, found 2026-09-20:** the `iproadvisers.com` zone carries CAA records (the legacy
+host's, for its AutoSSL) that named Sectigo, Google, GlobalSign and Let's Encrypt only. App Service's
+managed certificates come from DigiCert, which had to refuse; Let's Encrypt was on the list, which is
+why lego worked. The owner added `CAA 0 issue "digicert.com"` that day and a managed certificate for
+`www.iproadvisers.com` issued in about 13 minutes. So `app.` and `admin.` CAN now move to managed
+certificates and stop needing a hand renewal -- TODO 505, before 5 October.
 
 ## The watchdog in Azure (primary)
 

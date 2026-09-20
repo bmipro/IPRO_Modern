@@ -1,5 +1,39 @@
 # PayPal: sandbox to LIVE -- the cutover runbook
 
+## DONE -- Sunday 20 September 2026
+
+Production takes real money since about 12:30 p.m. Eastern. What exists now:
+
+- **The live app at PayPal:** "IPRO Advisers", on the business account of I Pro Advisers Inc. (c/o
+  Global Business Solutions). Card statements read `PAYPAL *IPROADVISER`. Subscriptions ticked, Payouts
+  unticked (the owner's own transfers to the bank do not use it). Webhook id `8C545407P7783292M`, the
+  six events, target `https://app.iproadvisers.com/billing/webhook`.
+- **Both apps:** `PayPal__ClientId` 82 characters, `PayPal__ClientSecret` 80, `PayPal__WebhookId` 17,
+  `PayPal__IsSandbox=false` (checked by name and length, never by value).
+- **Live plans** (monthly / annual): Silver `P-77L71201W6799880TNKYAROA` / `P-5E662034RL247084VNKYAROI`;
+  Gold `P-57753849B3441680HNKYASEY` / `P-1K049969TV027583HNKYASFA`; Platinum
+  `P-6VW125527U009062BNKYASLY` / `P-9X6941285R639304KNKYASMA`. The three QA daily packages were NOT
+  synced and must not be.
+- **The owner's two demo accounts** (his own and MichaelTran) stay forever on code `OLD_DEMO` (100% off
+  forever plus the setup fee, Platinum, 2 of 2 used): comped Active with no PayPal subscription, invoices
+  IPRO-2026-000025 and -000026 at $0.00. The reconciliation job skips rows without a subscription id.
+- **The real-money check:** code `LIVECHECK` (95% off one cycle, Gold, 1 of 1 used), account "Boby
+  Moore": invoice **IPRO-2026-000027, $3.39, Paid**; subscription `I-06NA6SDTLYJW`; sale
+  `582843411U3731847`; settled in CAD ($3.39 gross, $0.40 fee, $2.99 net). PayPal's event log showed
+  sale completed, activated and cancelled, each **Success**. The owner refunded it at PayPal the same
+  day; the test account is deleted WITH the financial tick, so invoice number 000027 is a gap with this
+  explanation. The cancelled row PayPal lists at "US$0.00" is the subscription profile's
+  cancellation, not a payment.
+- **All four sandbox-era codes are Inactive**; the owner starts fresh with new codes.
+- **Found by the test and fixed the same day (503):** the Billing page printed the discounted price
+  as the next charge of a one-cycle code.
+
+Left for the owner, none urgent: delete the Boby Moore account (eye icon -> Preview Erasure, tick the
+financial records); untick "Package is active" on the three QA daily packages; set
+`PayPal__BaseUrl` on ipro-prod-admin to `https://api-m.paypal.com` (display only).
+
+The runbook below is kept as it was used, for the next time a PayPal environment changes.
+
 Planned for **Sunday 20 September 2026, first thing**, the day before launch. Written 19 September from
 the code as it stands (`PayPalBillingService`, `PayPalSettings`, SuperAdmin's PayPal Setup, Packages and
 Agents screens), not from memory.
@@ -109,7 +143,8 @@ Cheapest honest path: **IPro Silver, monthly** (the setup-fee waiver is active),
 2. [ ] Back on the site: Billing shows **Active**; the invoice email arrives with a real PayPal
        transaction id; the welcome email arrived; the site is live.
 3. [ ] PayPal (live) -> the webhook's **event log**: `BILLING.SUBSCRIPTION.ACTIVATED` and
-       `PAYMENT.SALE.COMPLETED` each show a **200** response. (A 400 here means the Webhook ID in Azure is
+       `PAYMENT.SALE.COMPLETED` each show **Success** (PayPal's live log words it so; it is our 200). (A **401** here -- that is what
+       `/billing/webhook` answers a bad signature with, not 400 -- means the Webhook ID in Azure is
        not the id of THIS webhook: the signature check uses it.)
 4. [ ] In the new account's portal -> Billing -> **Cancel**. PayPal shows the subscription cancelled; the
        event log shows `BILLING.SUBSCRIPTION.CANCELLED` with 200; the account keeps access to its

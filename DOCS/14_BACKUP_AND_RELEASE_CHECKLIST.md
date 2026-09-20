@@ -97,12 +97,46 @@ platform home; a brand name with a landing path (`iproaccountants.com` -> `/acco
 and redirects everything else on the name to the platform with the path kept, never the old path. The code is in place
 (`PlatformAliasHosts`, first middleware in `IPRO.Web`); it does nothing until `App:AliasHosts` is set.
 
+### Three traps the rehearsal could not show (found on the day, 2026-09-20)
+
+The rehearsal domain was new, at GoDaddy, with no mail and no CAA records. The two real zones are old,
+at the legacy web host (cPanel Zone Editor, `ns1/ns2.websiteservername.com`), and carried all three:
+
+1. **Mail follows the bare name.** In both zones `MX 0` pointed at the bare domain and `mail` was a
+   CNAME to it, so moving the bare name's A record to Azure would have sent every incoming message for
+   `@iproadvisers.com` (support@, billing@, the owner's mailboxes) to a host that does not take mail.
+   BEFORE any name moves: make `mail` an **A** record to the old server (66.102.128.65) -- an MX may
+   not point at a CNAME -- THEN point `MX 0` at `mail.<domain>`; cPanel -> Email Routing stays "Local
+   Mail Exchanger". Done in both zones on 20 September. Anything else that is a CNAME to the bare name
+   moves with it (`ftp.iproaccountants.com` was one). The old records live in caches for their TTL
+   (4 hours here), so the bare names move some hours AFTER the MX change, or mail can arrive late
+   (late, not lost: a sending server retries).
+2. **CAA.** Both zones list the certificate authorities allowed to issue for them (the host's AutoSSL
+   put them there: Sectigo, Google, GlobalSign, Let's Encrypt). App Service's managed certificates
+   come from **DigiCert**, which was not listed, so the certificate orders sat "in progress" and
+   never issued -- while the switched names showed visitors a certificate warning. Add
+   `CAA 0 issue "digicert.com"` on the bare domain (it covers `www` too) BEFORE switching; check with
+   `https://dns.google/resolve?name=<domain>&type=CAA`. With it in place a certificate took about 13
+   minutes. (This is also why the managed certificate "never issued" for `app.` in July -- TODO 505.)
+3. **The host's nameservers hand out old and new answers side by side for a while** after every save
+   (ten to forty-five minutes on the day; the serial number flips between reads). Azure's own DNS check
+   refused `www.iproadvisers.com` twice for that reason and accepted it on the third try. Read the
+   zone from its own nameservers several times before believing either answer, and give a new or
+   changed record a TTL of 300 so a correction takes minutes.
+
+Useful on the day: binding a name needs only its `asuid` TXT record, so all four names were bound and
+`App__AliasHosts` set BEFORE any visitor moved, and each name was proved against the app directly with
+`curl -k --resolve <name>:443:40.89.19.0 https://<name>/` (the certificate check is skipped for that
+one test only; after the certificate is bound, the same command without `-k` is the proof).
+
 Order on the day, owner's actions marked:
 
-1. **Owner, registrar:** for each of the four names add the App Service verification record
+1. **Owner, DNS panel:** for each of the four names add the App Service verification record
    `TXT asuid.<name>` = the app's custom-domain verification id (Azure portal → ipro-prod-web →
-   Custom domains → the id shown there). Touch nothing else on `iproadvisers.com`: its SPF, DKIM and
-   MX records carry the ACS email domain.
+   Custom domains → the id shown there); in cPanel the Name box takes `asuid` and `asuid.www`, the
+   Record box the 64-character id. On `iproadvisers.com` leave the SPF, DKIM and
+   `ms-domain-verification` records alone: they carry the ACS email domain. (The MX does NOT: it is
+   the owner's own mailboxes at the legacy host -- see trap 1.)
 2. **Owner's go, then CLI or portal:** bind the four hostnames to `ipro-prod-web` and create an App
    Service managed certificate for each (portal: Custom domains → Add → managed certificate).
 3. **Owner's go, App Service configuration:** `App__AliasHosts` =

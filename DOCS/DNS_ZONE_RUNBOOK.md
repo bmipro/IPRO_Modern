@@ -9,6 +9,7 @@ is ever lost, this file rebuilds the app's DNS from scratch. Re-capture after an
 | Zone | DNS host | Panel |
 |---|---|---|
 | `iproadvisers.com` | `ns1/ns2.websiteservername.com` (legacy web host) | cPanel Zone Editor |
+| `iproaccountants.com` | `ns1/ns2.websiteservername.com` (legacy web host) | cPanel Zone Editor |
 | `247advisers.com` | `ns69/ns70.domaincontrol.com` (GoDaddy) | GoDaddy DNS Management |
 
 > Owner action at next review: export/screenshot the raw zone from each panel and attach beside
@@ -62,10 +63,29 @@ caches up to the 14400s TTL after edits.
 | Name | Type | Value | Purpose |
 |---|---|---|---|
 | `@` | A | `66.102.128.65` | Legacy marketing site at the old host |
-| `www` | CNAME | `iproadvisers.com` | Legacy site |
-| `mail` | CNAME | `iproadvisers.com` | Owner mailboxes at the legacy host |
-| `@` | MX 0 | `iproadvisers.com` | Mail delivery to the legacy host |
+| `www` | CNAME | `ipro-prod-web.azurewebsites.net` (TTL 300) | **Switched 2026-09-20**: the app answers it with a 301 to the platform home (`App__AliasHosts`). Was `iproadvisers.com` (the legacy site) |
+| `asuid`, `asuid.www` | TXT | the app's verification id (the `asuid.app` value above) | Added 2026-09-20 so the two names could be bound before DNS moved |
+| `@` | CAA | `0 issue "digicert.com"`, beside the host's own eight (Sectigo, Google, GlobalSign, Let's Encrypt; issue and issuewild) | Added 2026-09-20: App Service managed certificates come from DigiCert and could not be issued without it. Do not delete the host's rows: its AutoSSL needs them |
+| `mail` | **A** | `66.102.128.65` | Owner mailboxes at the legacy host. **Pinned 2026-09-20** (was a CNAME to the bare name, which would have followed it to Azure) |
+| `@` | MX 0 | `mail.iproadvisers.com` | Mail delivery to the legacy host. **Changed 2026-09-20** from the bare name, for the same reason. cPanel Email Routing: Local Mail Exchanger |
 | `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:dmarc@iproadvisers.com` | DMARC. Reporting address added 2026-08-31 so aggregate reports start arriving — **the mailbox must exist or the reports are silently lost**. Enforcement deliberately left at `p=none`: this domain ALSO sends ordinary business mail through the legacy host (MX -> 66.102.128.65), and nobody has confirmed that mail is DKIM-aligned. Tightening to `p=quarantine` before checking would quarantine the owner's own email. Revisit after ~2 weeks of reports, once ACS deliverability is proven |
+
+---
+
+## Zone: iproaccountants.com (legacy web host; SOA serial 2026092007 on 2026-09-20)
+
+A brand name for the Accountants landing page; nothing sends mail from it.
+
+| Name | Type | Value | Purpose |
+|---|---|---|---|
+| `www` | CNAME | `ipro-prod-web.azurewebsites.net` (TTL 300) | **Switched 2026-09-20**: serves `/accountants` under its own name (`App__AliasHosts`); everything else goes to the platform |
+| `@` | A | `66.102.128.65` until the bare names move (then `40.89.19.0`) | The legacy host answers the bare name with a 301 to `www`, which is already the new site |
+| `asuid`, `asuid.www` | TXT | the app's verification id | App Service custom-domain verification |
+| `@` | CAA | `0 issue "digicert.com"` beside the host's own eight | Managed certificates (DigiCert) |
+| `mail` | **A** | `66.102.128.65` | Pinned 2026-09-20 (was a CNAME to the bare name) |
+| `@` | MX 0 | `mail.iproaccountants.com` | Changed 2026-09-20 from the bare name |
+| `ftp` | CNAME | `iproaccountants.com` | Follows the bare name to Azure when it moves; pin it to an A record only if FTP by this name is still used |
+| `@` | TXT | `v=spf1 ip4:66.102.128.65 +a +mx +include:spf.websiteservername.com ~all` | SPF (legacy host) |
 
 ---
 
