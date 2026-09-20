@@ -36,7 +36,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 503_ | **503** the Billing page names the next real charge when a limited promotion runs out | whole tree |
+| `6fa6434` | **503** the Billing page names the next real charge when a limited promotion runs out | 1000/1000 |
 
 ## Do this first tomorrow
 
