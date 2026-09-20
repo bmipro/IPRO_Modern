@@ -112,7 +112,23 @@ else if (subscription == null && trialEndsAt.HasValue && trialEndsAt.Value > Dat
          (13% HST in Ontario, and so on). Saying "plus applicable taxes" is honest without having to
          resolve the agent's province on every page render, and avoids the surprise of a banner
          promising $90.00 while PayPal takes $101.70. *@
-      <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@subscription.Amount.ToString("N2") @subscription.Currency plus applicable taxes</small>
+      @{
+          // 503: the stored amount is not the next charge while a limited promotion is running
+          // out -- this line read "$3.00" the day before PayPal billed $60.00 plus tax. NextCharge
+          // works out which cycle the next billing date is; with none supplied the stored amount
+          // stands, as before.
+          var nextCharge = ViewBag.NextCharge as IPRO.Billing.NextCharge;
+          var nextChargeAmount = nextCharge?.Amount ?? subscription.Amount;
+      }
+      <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@nextChargeAmount.ToString("N2") @subscription.Currency plus applicable taxes</small>
+      @if (nextCharge is { DiscountedCyclesLeft: > 0, RegularAmount: not null })
+      {
+        <small class="d-block mt-1">Promotional price: @nextCharge.DiscountedCyclesLeft more billing @(nextCharge.DiscountedCyclesLeft == 1 ? "cycle" : "cycles") at this price, then $@nextCharge.RegularAmount.Value.ToString("N2") @subscription.Currency plus applicable taxes.</small>
+      }
+      else if (nextCharge?.PromotionEnded == true)
+      {
+        <small class="d-block mt-1">Your promotional price covered your first @(nextCharge.PromoCycles == 1 ? "billing cycle" : $"{nextCharge.PromoCycles} billing cycles"); the regular price applies from this date.</small>
+      }
       @{
           // A deferred start (an upgrade mid-way through a prepaid period): the next charge sits
           // far beyond one billing cycle because the agent already paid this far. Without this

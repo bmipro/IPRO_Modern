@@ -183,13 +183,23 @@
                     var activeBilling = ViewBag.Subscription as IPRO.Entities.Billing;
                     var activePackage = activeBilling != null && packageLookup.TryGetValue(activeBilling.BillingRuleId, out var activePkg) ? activePkg : null;
                     var failedPayments = failedPaymentInvoices;
+                    // 503: the same number the agent's own Billing page shows (see NextCharge).
+                    var nextCharge = ViewBag.NextCharge as IPRO.Billing.NextCharge;
                 }
                 <h6 class="fw-bold mb-3"><i class="fas fa-credit-card me-2 text-primary"></i>Billing Status</h6>
                 @if (activeBilling != null)
                 {
                     <div class="alert alert-success border-0">
                         <div class="fw-bold">Current package: @(activePackage?.PackageName ?? $"Package {activeBilling.BillingRuleId}")</div>
-                        <div class="small">Next billing: @(activeBilling.NextBillingDate?.ToString("MMM d, yyyy") ?? "-") - $@activeBilling.Amount.ToString("N2") @activeBilling.Currency / @activeBilling.Period</div>
+                        <div class="small">Next billing: @(activeBilling.NextBillingDate?.ToString("MMM d, yyyy") ?? "-") - $@((nextCharge?.Amount ?? activeBilling.Amount).ToString("N2")) @activeBilling.Currency / @activeBilling.Period</div>
+                        @if (nextCharge is { DiscountedCyclesLeft: > 0, RegularAmount: not null })
+                        {
+                            <div class="small text-muted">Promotional price: @nextCharge.DiscountedCyclesLeft more at this price, then $@nextCharge.RegularAmount.Value.ToString("N2").</div>
+                        }
+                        else if (nextCharge?.PromotionEnded == true)
+                        {
+                            <div class="small text-muted">The promotional price is used up; this is the regular price (the stored amount, $@activeBilling.Amount.ToString("N2"), catches up with the first full-price payment).</div>
+                        }
                         @if (!string.IsNullOrWhiteSpace(activeBilling.PayPalSubscriptionId))
                         {
                             <div class="small font-monospace mt-1">PayPal subscription: @activeBilling.PayPalSubscriptionId</div>

@@ -50,7 +50,13 @@ public class BillingController : Controller
         // and in principle any future package retired from sale) -- only what to offer new subscribers
         // should be filtered, not what an existing subscriber already has.
         ViewBag.AllPackages  = await _uow.BillingRules.GetAllAsync();
-        ViewBag.Subscription = await _billing.GetActiveSubscriptionAsync(AgentId);
+        var activeSubscription = await _billing.GetActiveSubscriptionAsync(AgentId);
+        ViewBag.Subscription = activeSubscription;
+        // 503: the stored amount is not the next charge while a limited promotion is running out
+        // (see NextCharge) -- the page printed "$3.00" for a charge PayPal made at $60.00 plus tax.
+        ViewBag.NextCharge = activeSubscription == null
+            ? null
+            : await NextCharge.ForAsync(_db, activeSubscription, DateTime.UtcNow);
         // AUDIT H2: a cancelled agent still owns everything up to PaidThroughAt, but nothing on
         // this page knew that -- so it showed no current package, suppressed the lock banner, fell
         // through to a stale "Trial active" line, and offered Subscribe buttons that billed for

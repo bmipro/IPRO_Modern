@@ -71,10 +71,19 @@ public class AgentsController : Controller
             () => _websites.GetByAgentIdAsync(id),
             "Website details",
             warnings);
-        ViewBag.Subscription = await LoadDetailsPanelAsync(
+        var activeSubscription = await LoadDetailsPanelAsync(
             () => _uow.Billings.FirstOrDefaultAsync(b => b.AgentUserId == id && b.Status == BillingStatus.Active),
             "Subscription details",
             warnings);
+        ViewBag.Subscription = activeSubscription;
+        // 503: the same next charge the agent's own Billing page shows (see NextCharge), so the
+        // owner answering "what will I be billed?" reads the number the customer is reading.
+        ViewBag.NextCharge = activeSubscription == null
+            ? null
+            : await LoadDetailsPanelAsync(
+                async () => (NextCharge?)await NextCharge.ForAsync(_db, activeSubscription, DateTime.UtcNow),
+                "Next charge",
+                warnings);
         ViewBag.Billings = await LoadDetailsPanelAsync(
             async () => (await _uow.Billings.FindAsync(b => b.AgentUserId == id)).OrderByDescending(b => b.CreatedAt).ToList(),
             "Billing history",
