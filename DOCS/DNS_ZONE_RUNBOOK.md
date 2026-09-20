@@ -62,7 +62,7 @@ caches up to the 14400s TTL after edits.
 
 | Name | Type | Value | Purpose |
 |---|---|---|---|
-| `@` | A | `66.102.128.65` | Legacy marketing site at the old host |
+| `@` | A | `40.89.19.0` (TTL 300) | **Switched 2026-09-20** to ipro-prod-web's inbound address: the app answers the bare name with a 301 to the platform home. Was `66.102.128.65`, the legacy site -- which is also the rollback value, and still the mail server (`mail`, below) |
 | `www` | CNAME | `ipro-prod-web.azurewebsites.net` (TTL 300) | **Switched 2026-09-20**: the app answers it with a 301 to the platform home (`App__AliasHosts`). Was `iproadvisers.com` (the legacy site) |
 | `asuid`, `asuid.www` | TXT | the app's verification id (the `asuid.app` value above) | Added 2026-09-20 so the two names could be bound before DNS moved |
 | `@` | CAA | `0 issue "digicert.com"`, beside the host's own eight (Sectigo, Google, GlobalSign, Let's Encrypt; issue and issuewild) | Added 2026-09-20: App Service managed certificates come from DigiCert and could not be issued without it. Do not delete the host's rows: its AutoSSL needs them |
@@ -79,12 +79,12 @@ A brand name for the Accountants landing page; nothing sends mail from it.
 | Name | Type | Value | Purpose |
 |---|---|---|---|
 | `www` | CNAME | `ipro-prod-web.azurewebsites.net` (TTL 300) | **Switched 2026-09-20**: serves `/accountants` under its own name (`App__AliasHosts`); everything else goes to the platform |
-| `@` | A | `66.102.128.65` until the bare names move (then `40.89.19.0`) | The legacy host answers the bare name with a 301 to `www`, which is already the new site |
+| `@` | A | `40.89.19.0` (TTL 300) | **Switched 2026-09-20**: serves `/accountants` under its own name, like `www`. Was `66.102.128.65` (the rollback value) |
 | `asuid`, `asuid.www` | TXT | the app's verification id | App Service custom-domain verification |
 | `@` | CAA | `0 issue "digicert.com"` beside the host's own eight | Managed certificates (DigiCert) |
 | `mail` | **A** | `66.102.128.65` | Pinned 2026-09-20 (was a CNAME to the bare name) |
 | `@` | MX 0 | `mail.iproaccountants.com` | Changed 2026-09-20 from the bare name |
-| `ftp` | CNAME | `iproaccountants.com` | Follows the bare name to Azure when it moves; pin it to an A record only if FTP by this name is still used |
+| `ftp` | **A** | `66.102.128.65` | Pinned by the owner 2026-09-20 (was a CNAME to the bare name and would have followed it to Azure) |
 | `@` | TXT | `v=spf1 ip4:66.102.128.65 +a +mx +include:spf.websiteservername.com ~all` | SPF (legacy host) |
 
 ---

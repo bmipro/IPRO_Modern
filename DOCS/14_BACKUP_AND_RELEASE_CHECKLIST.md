@@ -89,6 +89,14 @@ Total on 2026-09-10: about 35 minutes including the data check.
 
 ## Launch-day domain switch (477)
 
+**DONE 2026-09-20.** All four names answer from `ipro-prod-web` with managed certificates (valid to
+20 March 2027, self-renewing), and incoming mail for `@iproadvisers.com` was checked afterwards (the
+owner's test message reached both of his mailboxes). The procedure as it was actually run, in the
+order that avoids the three traps below, with the commands, the scripts and the day's timeline, is
+**`DOCS/DOMAIN_SWITCH_RUNBOOK.md`** -- use that one for any name that already has a site, mail or a
+zone somebody else set up. What follows is the plan as written before the day, kept for the
+rehearsal notes.
+
 The old public names -- `www.iproaccountants.com`, `iproaccountants.com`, `www.iproadvisers.com`,
 `iproadvisers.com` -- resolve today (2026-09-11) to the old site at 66.102.128.65. At launch they
 point at the new site. The app answers the iproadvisers.com pair with a permanent redirect to the

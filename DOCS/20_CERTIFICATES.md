@@ -15,7 +15,7 @@ visible, and retroactive. That is why there is a watchdog.
 | `app.iproadvisers.com` | Let's Encrypt | **Manual, ours** | Newsletter images resolve here on real sends |
 | `admin.iproadvisers.com` | Let's Encrypt | **Manual, ours** | SuperAdmin only |
 | `*.247advisers.com` | Sectigo | Managed by the host | Agent custom domains; not our responsibility |
-| `www.iproadvisers.com`, `www.iproaccountants.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-20, valid to 20 March 2027. The two bare names get the same when they move |
+| `www.iproadvisers.com`, `iproadvisers.com`, `www.iproaccountants.com`, `iproaccountants.com` | DigiCert (App Service managed) | **Automatic** | All four bound 2026-09-20, valid to 20 March 2027 (`DOCS/DOMAIN_SWITCH_RUNBOOK.md`). They need the zone's `CAA 0 issue "digicert.com"` record to renew: do not delete it |
 | `ipromortgages.com`, `www.ipromortgages.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-12 (the rehearsal) |
 
 Azure's free managed certificate was tried for the two `iproadvisers.com` hosts in July 2026 and

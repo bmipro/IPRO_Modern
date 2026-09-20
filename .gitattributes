@@ -1,0 +1,3 @@
+# Bash scripts keep LF line endings on every checkout: with core.autocrlf=true a fresh clone would
+# otherwise hand Git Bash CRLF files that fail on their first line (ops/domain-switch/*.sh).
+*.sh text eol=lf

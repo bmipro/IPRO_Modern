@@ -27,6 +27,7 @@ Neither script contains a secret. The PFX password is read at runtime out of `ru
 | `Check-CertExpiry.ps1` | Daily TLS expiry watchdog. Run by the "IPRO Certificate Expiry Watch" scheduled task. |
 | `Renew-Certs.ps1` | Renews the two **platform** certs and pushes them to Azure App Service. Needs a person for the DNS TXT step. |
 | `New-AgentCert.ps1` | Issues a first certificate for **any** custom domain — an agent's, on their own registrar. |
+| `domain-switch/` | Git Bash helpers for moving an existing public name onto the platform: `dns-check.sh` (read-only: mail on the bare name, the `asuid` records, CAA, a lagging DNS host), `cert-order.sh` and `cert-wait.sh` (managed certificates; they change production, so the owner's go first). Unlike the scripts above these are the live files, run from the repo. The procedure is [DOCS/DOMAIN_SWITCH_RUNBOOK.md](../DOCS/DOMAIN_SWITCH_RUNBOOK.md). |
 
 ### When an agent binds a custom domain: do nothing
 
