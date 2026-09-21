@@ -26,7 +26,9 @@ Since 509 (2026-09-21) a public name also: tells search engines its OWN address 
 `/index.php`) to its own front page instead of a 404; answers `/robots.txt` and `/sitemap.xml`; and
 answers HEAD on its front page. A new name gets all of this from its `App__AliasHosts` entry alone.
 After a switch, the owner verifies the domain in Google Search Console and Bing Webmaster Tools and
-submits `https://<name>/sitemap.xml`.
+submits `https://<name>/sitemap.xml`. A name's sitemap lists that site's own pages only (510): 509's
+first version listed every brand's front page on every host, and Search Console refused the other
+domains' addresses -- "URL not allowed for a Sitemap at this location" -- within the hour.
 
 The three scripts are in `ops/domain-switch/` (Git Bash; the az CLI signed in; read the header of each):
 `dns-check.sh` (read-only), `cert-order.sh` and `cert-wait.sh` (both change production: owner's go).

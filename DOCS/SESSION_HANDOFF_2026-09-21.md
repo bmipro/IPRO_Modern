@@ -49,6 +49,11 @@
   stays (TODO 504, item 14, lists the three places that do not follow it yet). The share cards were
   redone with the capitals before 509 shipped -- and once more right after it, because that redo had
   dropped the `www.`, which he had not meant.
+- **510, the afternoon batch:** Search Console refused 509's shared sitemap ("URL not allowed" for the
+  other two domains) -- my design, wrong in practice; each site's sitemap now lists its own pages only.
+  With it, at the owner's word: the first invoice says what a promotion code did and names it (no more
+  "subscription adjustment" on a free month), and the three places that wrote the brand domain
+  without its capitals. Asked and still open: whether displayed email addresses follow the capitals.
 
 ## Pushed today
 
@@ -57,6 +62,7 @@
 | `05b2dbd` | **507** the home page under `www.iproadvisers.com` and the bare name; forwards carry a cache lifetime | 1014/1014 |
 | `bdd4cf1` | **508** a promotion code can be limited to monthly or to annual billing | 1027/1027 |
 | `35da4fe` | **509** the public front door after the owner's independent review | 1074/1074 |
+| _see log 510_ | **510** a sitemap per site; promotion wording on the first invoice; the brand domain's capitals | whole tree |
 
 ## Do this first tomorrow
 
@@ -69,4 +75,4 @@
    first; SOC 2 after launch; whether the vertical pages, Terms and Privacy should also live under
    `www.iproadvisers.com` (507 moved the home page only).
 
-Related: `DOCS/TODO.md` 507-509; `DOCS/SESSION_HANDOFF_2026-09-20.md`; `DOCS/DOMAIN_SWITCH_RUNBOOK.md`.
+Related: `DOCS/TODO.md` 507-510; `DOCS/SESSION_HANDOFF_2026-09-20.md`; `DOCS/DOMAIN_SWITCH_RUNBOOK.md`.
