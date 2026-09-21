@@ -62,7 +62,7 @@
 | `05b2dbd` | **507** the home page under `www.iproadvisers.com` and the bare name; forwards carry a cache lifetime | 1014/1014 |
 | `bdd4cf1` | **508** a promotion code can be limited to monthly or to annual billing | 1027/1027 |
 | `35da4fe` | **509** the public front door after the owner's independent review | 1074/1074 |
-| _see log 510_ | **510** a sitemap per site; promotion wording on the first invoice; the brand domain's capitals | whole tree |
+| `52f4abf` | **510** a sitemap per site; promotion wording on the first invoice; the brand domain's capitals | 1093/1093 |
 
 ## Do this first tomorrow
 
