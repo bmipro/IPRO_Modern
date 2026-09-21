@@ -156,6 +156,15 @@ public class PayPalBillingService : IBillingService
 
             var agent = await _uow.AgentUsers.GetByIdAsync(userId);
             var promo = await ValidatePromotionCodeAsync(agent?.PromotionCode, requestedPackage.Id, userId);
+            // 508: a code limited to one billing period (PromotionCodePeriodLimit) is simply not this
+            // checkout's code when the customer picks the other one -- before the cap slot is claimed and
+            // before anything is priced. "100% off, 1 cycle" was a free first YEAR for anyone who chose
+            // annual billing. Registration says so up front; an existing adviser choosing the other period
+            // on the Billing page sees the full price on PayPal's page before approving anything.
+            if (promo != null && !await PromotionCodePeriod.AllowsAsync(_db, promo.Id, period))
+            {
+                promo = null;
+            }
 
             // M-8 / A2-H4 (fixed 2026-08-20): the cap slot is claimed HERE, atomically, before the
             // discount is priced into anything -- not at activation, after the money has moved.

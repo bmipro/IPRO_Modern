@@ -62,6 +62,7 @@ public class IPRODbContext : DbContext
     public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
     public DbSet<PromotionCode> PromotionCodes => Set<PromotionCode>();
     public DbSet<PromotionCodeRedemption> PromotionCodeRedemptions => Set<PromotionCodeRedemption>();
+    public DbSet<PromotionCodePeriodLimit> PromotionCodePeriodLimits => Set<PromotionCodePeriodLimit>();
     public DbSet<TrialInviteCode> TrialInviteCodes => Set<TrialInviteCode>();
     public DbSet<TrialInviteCodeRedemption> TrialInviteCodeRedemptions => Set<TrialInviteCodeRedemption>();
     public DbSet<TrialSettings> TrialSettings => Set<TrialSettings>();
@@ -415,6 +416,14 @@ public class IPRODbContext : DbContext
             e.Property(r => r.AgentUserId).ValueGeneratedNever();
             e.Property(r => r.IsEnabled).HasDefaultValue(true);
             e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentFollowUpReminder>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 508: the one billing period a promotion code works with; no row = both. Keyed by the code.
+        modelBuilder.Entity<PromotionCodePeriodLimit>(e =>
+        {
+            e.HasKey(l => l.PromotionCodeId);
+            e.Property(l => l.PromotionCodeId).ValueGeneratedNever();
+            e.HasOne(l => l.PromotionCode).WithOne().HasForeignKey<PromotionCodePeriodLimit>(l => l.PromotionCodeId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // 418: one counter row per key; the key is the primary key.

@@ -347,6 +347,9 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureELetterSchemaAsync", () => StartupSchemaRepair.EnsureELetterSchemaAsync(db), db, app.Logger);
     // 498: the morning follow-ups email's own small table (AgentFollowUpReminder).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureFollowUpReminderSchemaAsync", () => StartupSchemaRepair.EnsureFollowUpReminderSchemaAsync(db), db, app.Logger);
+    // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit); after the
+    // promotion code tables it points at.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync", () => StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Same shared call as IPRO.Web/Program.cs -- see the note there. Admin needs it too because

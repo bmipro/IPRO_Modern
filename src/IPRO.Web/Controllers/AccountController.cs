@@ -332,6 +332,19 @@ public class AccountController : Controller
             {
                 ModelState.AddModelError("", "That promotion code is not valid for the selected package, or has expired/reached its redemption limit.");
             }
+            else
+            {
+                // 508: a code for one billing period. Checkout would quietly drop it for the other period;
+                // here the customer is still choosing, so say which period the code needs.
+                var chosenPeriod = string.Equals(model.BillingPeriodChoice, "Annually", StringComparison.OrdinalIgnoreCase)
+                    ? BillingPeriod.Annually
+                    : BillingPeriod.Monthly;
+                var periodLimit = await PromotionCodePeriod.LimitAsync(_db, promo.Id);
+                if (periodLimit.HasValue && periodLimit != chosenPeriod)
+                {
+                    ModelState.AddModelError("", PromotionCodeText.WrongPeriod(periodLimit.Value));
+                }
+            }
         }
         if (!ModelState.IsValid)
         {
@@ -536,7 +549,7 @@ public class AccountController : Controller
     // Paired with a 5m/5 IP rate-limit rule on this exact endpoint in appsettings.json.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ValidatePromoCode(string code, int packageId)
+    public async Task<IActionResult> ValidatePromoCode(string code, int packageId, string? period = null)
     {
         var package = await _uow.BillingRules.FirstOrDefaultAsync(p => p.Id == packageId && p.IsActive);
         if (package == null)
@@ -550,31 +563,16 @@ public class AccountController : Controller
             return Json(new { valid = false, message = "That code is not valid for the selected package, or has expired/reached its redemption limit." });
         }
 
-        var parts = new List<string>();
-        if (promo.RecurringDiscountType != PromoDiscountType.None)
+        // 508: the page sends the billing period the customer has chosen. A code for the other period
+        // is answered with the period it needs; an accepted one says which billing it works with.
+        var periodLimit = await PromotionCodePeriod.LimitAsync(_db, promo.Id);
+        var chosenPeriod = PromotionCodePeriod.Parse(period);
+        if (periodLimit.HasValue && chosenPeriod.HasValue && periodLimit != chosenPeriod)
         {
-            var durationText = promo.RecurringDurationCycles == null
-                ? "for the life of your subscription"
-                : promo.RecurringDurationCycles == 1
-                    ? "on your first billing cycle only"
-                    : $"for your first {promo.RecurringDurationCycles} billing cycles";
-            var discountText = promo.RecurringDiscountType == PromoDiscountType.PercentOff
-                ? $"{promo.RecurringDiscountValue}% off"
-                : $"${promo.RecurringDiscountValue} off";
-            parts.Add($"{discountText} the recurring price {durationText}");
-        }
-        if (promo.SetupFeeDiscountType != PromoDiscountType.None)
-        {
-            var discountText = promo.SetupFeeDiscountType == PromoDiscountType.PercentOff
-                ? $"{promo.SetupFeeDiscountValue}% off"
-                : $"${promo.SetupFeeDiscountValue} off";
-            parts.Add($"{discountText} the setup fee");
+            return Json(new { valid = false, message = PromotionCodeText.WrongPeriod(periodLimit.Value) });
         }
 
-        var message = parts.Count == 0
-            ? "Code accepted."
-            : $"Code accepted: {string.Join(" and ", parts)}.";
-        return Json(new { valid = true, message });
+        return Json(new { valid = true, message = PromotionCodeText.Accepted(promo, periodLimit) });
     }
 
     // RegisterSuccess (the v1 signup receipt) was DELETED 2026-08-29 by the front-door truth

@@ -39,6 +39,10 @@
                 &mdash; @(code.RecurringDurationCycles == null ? "forever" : code.RecurringDurationCycles == 1 ? "first cycle only" : $"{code.RecurringDurationCycles} cycles")
               </div>
             }
+            @if ((ViewBag.PeriodLimits as Dictionary<int, IPRO.Entities.BillingPeriod>)?.TryGetValue(code.Id, out var periodLimit) == true)
+            {
+              <div class="small fw-semibold">@(periodLimit == IPRO.Entities.BillingPeriod.Annually ? "Annual billing only" : "Monthly billing only")</div>
+            }
             @if (code.SetupFeeDiscountType != IPRO.Entities.PromoDiscountType.None)
             {
               <div class="small text-muted">

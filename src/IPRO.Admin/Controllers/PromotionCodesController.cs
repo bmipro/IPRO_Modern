@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Admin.Controllers;
 
@@ -12,11 +14,13 @@ public class PromotionCodesController : Controller
 {
     private readonly IUnitOfWork _uow;
     private readonly IAdminAuditLogService _auditLog;
+    private readonly IPRODbContext _db;
 
-    public PromotionCodesController(IUnitOfWork uow, IAdminAuditLogService auditLog)
+    public PromotionCodesController(IUnitOfWork uow, IAdminAuditLogService auditLog, IPRODbContext db)
     {
         _uow = uow;
         _auditLog = auditLog;
+        _db = db;
     }
 
     private int CurrentAdminId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
@@ -27,6 +31,9 @@ public class PromotionCodesController : Controller
         var codes = (await _uow.PromotionCodes.GetAllAsync()).ToList();
         var packages = (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id, p => p.PackageName);
         ViewBag.PackageNames = packages;
+        // 508: which codes work with one billing period only (no row = both).
+        ViewBag.PeriodLimits = (await _db.PromotionCodePeriodLimits.AsNoTracking().ToListAsync())
+            .ToDictionary(l => l.PromotionCodeId, l => l.Period);
         return View(codes.OrderByDescending(c => c.CreatedAt));
     }
 
@@ -42,11 +49,12 @@ public class PromotionCodesController : Controller
         if (code == null) return NotFound();
 
         ViewBag.Packages = (await _uow.BillingRules.GetAllAsync()).OrderBy(p => p.PackageName).ToList();
+        ViewBag.AppliesTo = (await PromotionCodePeriod.LimitAsync(_db, code.Id))?.ToString() ?? "";
         return View(code);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(PromotionCode model)
+    public async Task<IActionResult> Edit(PromotionCode model, string? appliesTo = null)
     {
         model.Code = model.Code?.Trim().ToUpperInvariant() ?? string.Empty;
         model.Description = model.Description?.Trim() ?? string.Empty;
@@ -105,6 +113,7 @@ public class PromotionCodesController : Controller
         if (!ModelState.IsValid)
         {
             ViewBag.Packages = (await _uow.BillingRules.GetAllAsync()).OrderBy(p => p.PackageName).ToList();
+            ViewBag.AppliesTo = appliesTo ?? "";
             return View(model);
         }
 
@@ -148,7 +157,11 @@ public class PromotionCodesController : Controller
         }
 
         await _uow.SaveChangesAsync();
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, isNew ? "PromotionCodeCreate" : "PromotionCodeEdit", $"Promotion code '{model.Code}' {(isNew ? "created" : "updated")}");
+        // 508: the billing period the code works with, in its own table (no row = both). After the save,
+        // so a new code has its id.
+        var periodLimit = PromotionCodePeriod.Parse(appliesTo);
+        await PromotionCodePeriod.SetAsync(_db, model.Id, periodLimit);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, isNew ? "PromotionCodeCreate" : "PromotionCodeEdit", $"Promotion code '{model.Code}' {(isNew ? "created" : "updated")} ({(periodLimit.HasValue ? PromotionCodePeriod.Words(periodLimit.Value) + " only" : "monthly and annual billing")})");
         TempData["Success"] = "Promotion code saved.";
         return RedirectToAction(nameof(Index));
     }

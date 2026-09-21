@@ -1350,6 +1350,19 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit). A table of its
+    // own and NOT a column on PromotionCodes -- the entity says why. Matches the EF model column for column.
+    public static async Task EnsurePromotionCodePeriodLimitSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `PromotionCodePeriodLimits` (
+        `PromotionCodeId` int NOT NULL,
+        `Period` int NOT NULL,
+        PRIMARY KEY (`PromotionCodeId`),
+        CONSTRAINT `FK_PromotionCodePeriodLimits_PromotionCodes_PromotionCodeId` FOREIGN KEY (`PromotionCodeId`) REFERENCES `PromotionCodes` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

@@ -78,6 +78,16 @@
                 <span asp-validation-for="RestrictedBillingRuleId" class="text-danger small"></span>
                 <div class="form-text">Required whenever a recurring discount is set &mdash; PayPal plans are package-specific.</div>
               </div>
+              <div class="col-12">
+                @{ var appliesTo = ViewBag.AppliesTo as string ?? ""; }
+                <label class="form-label fw-semibold" for="appliesTo">Applies to</label>
+                <select id="appliesTo" name="appliesTo" class="form-select">
+                  <option value="" selected="@(appliesTo == "")">Monthly and annual billing</option>
+                  <option value="Monthly" selected="@(appliesTo == "Monthly")">Monthly billing only</option>
+                  <option value="Annually" selected="@(appliesTo == "Annually")">Annual billing only</option>
+                </select>
+                <div class="form-text">A cycle is whatever the customer picks: &ldquo;100% off, 1 cycle&rdquo; is a free first month on monthly billing and a free first YEAR on annual. For a &ldquo;months free&rdquo; offer choose <strong>Monthly billing only</strong>; the registration page then tells the customer so.</div>
+              </div>
             </div>
           </div>
         </div>

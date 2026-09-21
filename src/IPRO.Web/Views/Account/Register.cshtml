@@ -445,11 +445,36 @@ textarea:focus{box-shadow:none;}
   var result = document.getElementById('promoCodeResult');
   if (!button || !input || !packageSelect || !result) return;
 
+  // 508: a code can be for monthly or for annual billing only, so the check carries the period the
+  // customer has chosen (Monthly when the page shows no choice) and runs again when they change it.
+  function chosenPeriod() {
+    var radio = document.querySelector('input[name="BillingPeriodChoice"]:checked');
+    return radio ? radio.value : 'Monthly';
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="BillingPeriodChoice"]'), function (radio) {
+    radio.addEventListener('change', function () { if (input.value.trim() && result.textContent) button.click(); });
+  });
+  // The endpoint allows five checks in five minutes. An answer already given for this code, package
+  // and period is shown again from here, so switching Monthly/Annual back and forth costs nothing.
+  var answers = {};
+  function show(data) {
+    if (data.valid) {
+      result.style.color = '#166534';
+      result.textContent = data.message;
+    } else {
+      result.style.color = '#b91c1c';
+      result.textContent = data.message || 'That code is not valid for the selected package.';
+    }
+  }
+
   button.addEventListener('click', function () {
     var code = input.value.trim();
     var packageId = packageSelect.value;
     if (!code) { result.textContent = ''; return; }
     if (!packageId) { result.style.color = '#b91c1c'; result.textContent = 'Choose a package first.'; return; }
+    var period = chosenPeriod();
+    var key = code.toUpperCase() + '|' + packageId + '|' + period;
+    if (answers[key]) { show(answers[key]); return; }
 
     result.style.color = '#334155';
     result.textContent = 'Checking...';
@@ -466,17 +491,12 @@ textarea:focus{box-shadow:none;}
         'Content-Type': 'application/x-www-form-urlencoded',
         'RequestVerificationToken': tokenValue
       },
-      body: 'code=' + encodeURIComponent(code) + '&packageId=' + encodeURIComponent(packageId)
+      body: 'code=' + encodeURIComponent(code) + '&packageId=' + encodeURIComponent(packageId) + '&period=' + encodeURIComponent(period)
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data.valid) {
-          result.style.color = '#166534';
-          result.textContent = data.message;
-        } else {
-          result.style.color = '#b91c1c';
-          result.textContent = data.message || 'That code is not valid for the selected package.';
-        }
+        answers[key] = data;
+        show(data);
       })
       .catch(function () {
         result.style.color = '#b91c1c';
