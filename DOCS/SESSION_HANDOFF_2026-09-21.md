@@ -12,6 +12,7 @@
   `www.iproadvisers.com` is the address Google should treat as the main one. Built as `name=/` in
   `App:AliasHosts` (TODO 507). The forwards had no cache lifetime, so browsers that visited since
   Sunday afternoon may keep landing on app. for a while: check in a private window.
+- **507 live:** the setting rewritten at 9:35 a.m. on the owner's go (the advisers pair as `www.iproadvisers.com=/,iproadvisers.com=/`; the app back within a minute); proved from outside with full certificate checking: both names 200 with the home page, canonical and og:url `https://www.iproadvisers.com/` (also when the page is opened at app.), its 8 files 200, deep paths 301 to the platform with `Cache-Control: public, max-age=3600`, the accountants and mortgage names unchanged, the accountants page's links to the home page's sections now at www.iproadvisers.com.
 - **Promotion codes (next, TODO 508):** the owner will send codes to prospects and wants "one month
   free or more". A code's cycle is whatever billing period the customer picks, so "100% off, 1
   cycle" is a free YEAR on annual billing; he was told to publish no free-month code until a code can
@@ -23,7 +24,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 507_ | **507** the home page under `www.iproadvisers.com` and the bare name; forwards carry a cache lifetime | whole tree |
+| `05b2dbd` | **507** the home page under `www.iproadvisers.com` and the bare name; forwards carry a cache lifetime | 1014/1014 |
 
 ## Do this first tomorrow
 
