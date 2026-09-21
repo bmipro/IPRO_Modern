@@ -29,7 +29,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `05b2dbd` | **507** the home page under `www.iproadvisers.com` and the bare name; forwards carry a cache lifetime | 1014/1014 |
-| _see log 508_ | **508** a promotion code can be limited to monthly or to annual billing | whole tree |
+| `bdd4cf1` | **508** a promotion code can be limited to monthly or to annual billing | 1027/1027 |
 
 ## Do this first tomorrow
 
