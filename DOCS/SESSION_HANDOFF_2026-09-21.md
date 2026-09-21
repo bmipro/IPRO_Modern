@@ -13,18 +13,23 @@
   `App:AliasHosts` (TODO 507). The forwards had no cache lifetime, so browsers that visited since
   Sunday afternoon may keep landing on app. for a while: check in a private window.
 - **507 live:** the setting rewritten at 9:35 a.m. on the owner's go (the advisers pair as `www.iproadvisers.com=/,iproadvisers.com=/`; the app back within a minute); proved from outside with full certificate checking: both names 200 with the home page, canonical and og:url `https://www.iproadvisers.com/` (also when the page is opened at app.), its 8 files 200, deep paths 301 to the platform with `Cache-Control: public, max-age=3600`, the accountants and mortgage names unchanged, the accountants page's links to the home page's sections now at www.iproadvisers.com.
-- **Promotion codes (next, TODO 508):** the owner will send codes to prospects and wants "one month
-  free or more". A code's cycle is whatever billing period the customer picks, so "100% off, 1
-  cycle" is a free YEAR on annual billing; he was told to publish no free-month code until a code can
-  be limited to monthly billing. Any number of months works (the Duration box); Expires and Max
-  Redemptions already exist. After it ships: one live free-month sign-up together before he sends any
-  (a $0 first cycle has never run on live PayPal).
+- **Promotion codes (TODO 508):** the owner will send codes to prospects and wants "one month free or
+  more". A code's cycle is whatever billing period the customer picks, so "100% off, 1 cycle" was a
+  free YEAR on annual billing. Built the same morning: a code can be limited to monthly or to annual
+  billing (its own table; enforced at checkout, said on the registration page, **Applies to** on
+  SuperAdmin's form). A "months free" code is: Recurring 100% off, Duration = the months, one package
+  per code, Applies to = Monthly billing only, plus Expires and Max Redemptions (both already existed).
+  **Before he sends any:** he opens SuperAdmin -> Promotion Codes once (it reads the new table, which
+  proves the table exists in production), then one live free-month sign-up together -- a $0 first
+  cycle has never run on live PayPal: watch activation, the $0 invoice, the hourly reconcile moving
+  the next billing date, and the Billing page's next charge (503 counts cycles by dates for this case).
 
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `05b2dbd` | **507** the home page under `www.iproadvisers.com` and the bare name; forwards carry a cache lifetime | 1014/1014 |
+| _see log 508_ | **508** a promotion code can be limited to monthly or to annual billing | whole tree |
 
 ## Do this first tomorrow
 
