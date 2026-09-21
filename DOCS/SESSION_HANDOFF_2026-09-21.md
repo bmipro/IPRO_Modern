@@ -75,7 +75,7 @@
 | `bdd4cf1` | **508** a promotion code can be limited to monthly or to annual billing | 1027/1027 |
 | `35da4fe` | **509** the public front door after the owner's independent review | 1074/1074 |
 | `52f4abf` | **510** a sitemap per site; promotion wording on the first invoice; the brand domain's capitals | 1093/1093 |
-| _see log 511_ | **511** brand email addresses shown with the capitals, sent from as configured | whole tree |
+| `f0cfea8` | **511** brand email addresses shown with the capitals, sent from as configured | 1111/1111 |
 
 ## Do this first tomorrow
 
