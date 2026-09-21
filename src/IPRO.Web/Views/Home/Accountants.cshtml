@@ -9,11 +9,11 @@
     ViewData["Title"] = "Websites and Client Management for Accountants in Canada | IPRO Advisers";
     ViewData["BusinessType"] = "Accountants";
     Layout = null;
-    var configuredBase = AccountantsSeoConfig["App:BaseUrl"];
-    var seoOrigin = !string.IsNullOrWhiteSpace(configuredBase) && !configuredBase.Contains("yourdomain", StringComparison.OrdinalIgnoreCase)
-        ? configuredBase.TrimEnd('/')
-        : "https://app.iproadvisers.com";
     var rootDomain = ViewBag.TemporaryRootDomain as string ?? "247advisers.com";
+    // 509: the address this page is KNOWN by is the brand name that serves it (App:AliasHosts), the
+    // platform address when none does -- what it tells search engines, and where its share card lives.
+    var pageUrl = IPRO.Web.Infrastructure.PlatformAliasHosts.PageUrl(AccountantsSeoConfig, "/accountants");
+    var shareImage = new Uri(new Uri(pageUrl), "/images/share/ipro-accountants.png").ToString();
 }
 <!doctype html>
 <html lang="en">
@@ -22,11 +22,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Websites and Client Management for Accountants in Canada | IPRO Advisers</title>
   <meta name="description" content="A professional website, follow-ups and newsletters for Canadian accountants and bookkeepers, with a client portal for documents and messages on Platinum.">
-  <link rel="canonical" href="@seoOrigin/accountants">
+  <link rel="canonical" href="@pageUrl">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Websites and Client Management for Accountants in Canada | IPRO Advisers">
   <meta property="og:description" content="A professional website, follow-ups and newsletters for Canadian accountants and bookkeepers, with a client portal for documents and messages on Platinum.">
-  <meta property="og:url" content="@seoOrigin/accountants">
+  <meta property="og:url" content="@pageUrl">
+  <meta property="og:site_name" content="IPRO Advisers">
+  <meta property="og:image" content="@shareImage">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="627">
+  <meta property="og:image:alt" content="IPRO Advisers: websites and client management for accountants in Canada">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="@shareImage">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/landing-page.css" asp-append-version="true">
 </head>

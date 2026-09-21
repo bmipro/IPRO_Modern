@@ -105,6 +105,15 @@ public class PublicWebsiteController : Controller
     [HttpGet("/robots.txt")]
     public async Task<IActionResult> Robots()
     {
+        // 509: the platform's own public pages. A request served under a brand name arrives here
+        // re-addressed to the platform host; PublicHost is the name the visitor used, and robots.txt
+        // must name THAT host's sitemap.
+        var publicHost = IPRO.Web.Infrastructure.PlatformAliasHosts.PublicHost(HttpContext);
+        if (IPRO.Web.Infrastructure.PlatformSeoFiles.IsPlatformOrAlias(_configuration, publicHost))
+        {
+            return Content(IPRO.Web.Infrastructure.PlatformSeoFiles.Robots(publicHost), "text/plain", Encoding.UTF8);
+        }
+
         var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
         if (website == null) return NotFound();
         var origin = await ResolveCanonicalOriginAsync(website);
@@ -114,6 +123,12 @@ public class PublicWebsiteController : Controller
     [HttpGet("/sitemap.xml")]
     public async Task<IActionResult> Sitemap()
     {
+        // 509: see Robots.
+        if (IPRO.Web.Infrastructure.PlatformSeoFiles.IsPlatformOrAlias(_configuration, IPRO.Web.Infrastructure.PlatformAliasHosts.PublicHost(HttpContext)))
+        {
+            return Content(IPRO.Web.Infrastructure.PlatformSeoFiles.Sitemap(_configuration), "application/xml", Encoding.UTF8);
+        }
+
         var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
         if (website == null) return NotFound();
 

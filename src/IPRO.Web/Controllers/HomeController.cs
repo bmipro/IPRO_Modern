@@ -68,13 +68,18 @@ public class HomeController : Controller
     // is registered and bound (477).
     [AllowAnonymous]
     [HttpGet("/mortgage")]
-    [HttpGet("/mortgages")]
     [HttpGet("/Home/Mortgage")]
     public async Task<IActionResult> Mortgage()
     {
         ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
         return View(await LoadPublicPackagesAsync());
     }
+
+    // 509: /mortgages (the name in the designer's README) served the same page as /mortgage with a
+    // 200 -- one page at two addresses. It forwards now, with whatever parameters came along.
+    [AllowAnonymous]
+    [HttpGet("/mortgages")]
+    public IActionResult Mortgages() => RedirectPermanent("/mortgage" + Request.QueryString.Value);
 
     // The packages the public may buy, in the order the home shows them.
     private async Task<List<BillingRule>> LoadPublicPackagesAsync()

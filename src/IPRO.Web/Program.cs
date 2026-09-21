@@ -230,6 +230,12 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// 509: HEAD is answered like GET without the body, for the public addresses HeadRequests lists and
+// no others (it says why). An [HttpGet] action answers HEAD with 405, which uptime monitors and link
+// checkers read as a broken page. Kestrel never sends a body for HEAD; the null stream spares the
+// work of writing one, and the method is put back so the request is logged as what it was.
+app.Use((context, next) => IPRO.Web.Infrastructure.HeadRequests.AnswerAsync(context, next));
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/error/500");

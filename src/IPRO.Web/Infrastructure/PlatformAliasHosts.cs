@@ -31,6 +31,14 @@ namespace IPRO.Web.Infrastructure;
 //   App:AliasHosts = "www.iproadvisers.com=/,iproadvisers.com=/,www.iproaccountants.com=/accountants,..."
 // And a forward now says how long it may be remembered: a 301 with no cache lifetime can sit in a
 // browser indefinitely, which is why visitors from the first evening kept landing on app. after this.
+//
+// 509 (2026-09-21, from an independent review of the public names the owner commissioned): every
+// public page is known by the brand name that serves it (PageUrl: the accountants page told search
+// engines app.iproadvisers.com/accountants while living at www.iproaccountants.com); an old-style
+// page address left over from the legacy sites (/websites_for_advisers.html, /index.php) goes to the
+// name's own front page instead of a 404; a forward from the root keeps the visitor's parameters;
+// and a request served under a brand name remembers the name it came in on (PublicHost), because
+// robots.txt must name that host's own sitemap.
 public static class PlatformAliasHosts
 {
     public const string ConfigKey = "App:AliasHosts";
@@ -42,11 +50,40 @@ public static class PlatformAliasHosts
 
     // The address the home page is known by: the first alias whose own page is the home ("name=/"),
     // over https; the platform address when there is none (every local and test configuration).
-    public static string HomeBase(IConfiguration configuration)
+    public static string HomeBase(IConfiguration configuration) => PageUrl(configuration, "/").TrimEnd('/');
+
+    // 509: the address a public page is KNOWN by -- its canonical tag, og:url, share image and sitemap
+    // entry. The first name whose own page it is, over https ("https://www.iproaccountants.com/" for
+    // "/accountants"); the platform address and the path when no name serves it.
+    public static string PageUrl(IConfiguration configuration, string path)
     {
+        var wanted = "/" + (path ?? "").Trim().Trim('/');
         foreach (var alias in All(configuration))
-            if (alias.OwnPage && alias.Path == "/") return "https://" + alias.Host.ToLowerInvariant();
-        return PlatformBase(configuration);
+            if (alias.OwnPage && string.Equals(alias.Path, wanted, StringComparison.OrdinalIgnoreCase))
+                return "https://" + alias.Host.ToLowerInvariant() + "/";
+        return PlatformBase(configuration) + wanted;
+    }
+
+    // 509: TryHandle re-addresses a brand name's own page to the platform host, so further down the
+    // pipeline Request.Host is the platform's. The name the visitor actually used is kept here.
+    public const string PublicHostItem = "IPRO.PublicHost";
+
+    public static string PublicHost(HttpContext context) =>
+        context.Items.TryGetValue(PublicHostItem, out var host) && host is string name && name.Length > 0
+            ? name
+            : context.Request.Host.Host;
+
+    // 509: addresses of the legacy sites' pages. Search engines and old bookmarks still hold them; none
+    // of them is a file this app serves (wwwroot has no page of these kinds).
+    private static readonly string[] LegacyPageExtensions = { ".html", ".htm", ".php", ".asp", ".aspx", ".cfm", ".jsp", ".shtml" };
+
+    public static bool IsLegacyPage(PathString path)
+    {
+        if (!path.HasValue) return false;
+        var value = path.Value!;
+        foreach (var extension in LegacyPageExtensions)
+            if (value.EndsWith(extension, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
     }
 
     // The absolute target for the root of this host: the platform base plus the host's own landing
@@ -59,7 +96,9 @@ public static class PlatformAliasHosts
     public static string RedirectTarget(IConfiguration configuration, string? host, PathString path, QueryString query)
     {
         var baseUrl = PlatformBase(configuration);
-        if (!path.HasValue || path == "/") return baseUrl + (Find(configuration, host)?.Path ?? "/");
+        // 509: the root keeps its query too -- a campaign link to a name that only forwards arrived at
+        // the platform without its utm_ parameters.
+        if (!path.HasValue || path == "/") return baseUrl + (Find(configuration, host)?.Path ?? "/") + query.Value;
         // 493: PathString.Value is the DECODED path; a %0A or a space in it made a Location header
         // Kestrel refuses (a 500 on a public host). ToUriComponent re-escapes it; the query string is
         // carried as received, already escaped.
@@ -89,8 +128,20 @@ public static class PlatformAliasHosts
         var alias = Find(configuration, request.Host.Host);
         if (alias == null) return false;
 
+        if (IsLegacyPage(request.Path))
+        {
+            // 509: to the front page of the name the visitor used when that name has a page of its own
+            // (the closest thing to what the old page was about); to the platform home when it only
+            // forwards. The old query string meant something to the old site only.
+            var front = alias.OwnPage ? "https://" + request.Host.Value.ToLowerInvariant() + "/" : PlatformBase(configuration) + "/";
+            context.Response.Headers.CacheControl = RedirectLifetime;
+            context.Response.Redirect(front, permanent: true);
+            return true;
+        }
+
         if (alias.OwnPage && ServesInPlace(request.Path))
         {
+            context.Items[PublicHostItem] = request.Host.Host.ToLowerInvariant();
             request.Host = HostString.FromUriComponent(new Uri(PlatformBase(configuration)).Authority);
             if (!request.Path.HasValue || request.Path == "/") request.Path = alias.Path;
             return false;

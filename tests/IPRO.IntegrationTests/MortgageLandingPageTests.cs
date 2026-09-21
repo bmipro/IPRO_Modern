@@ -132,7 +132,12 @@ public class MortgageLandingPageTests
         Assert.NotNull(action);
         var routes = action!.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Select(a => a.Template).ToList();
         Assert.Contains("/mortgage", routes);
-        Assert.Contains("/mortgages", routes);   // the designer's README named the page /mortgages
+        // The designer's README named the page /mortgages. Still answered, but since 509 by a permanent
+        // forward to /mortgage (its own action): one page, one address.
+        Assert.DoesNotContain("/mortgages", routes);
+        var plural = typeof(HomeController).GetMethod("Mortgages");
+        Assert.NotNull(plural);
+        Assert.Contains("/mortgages", plural!.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Select(a => a.Template));
 
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
