@@ -23,6 +23,31 @@
   proves the table exists in production), then one live free-month sign-up together -- a $0 first
   cycle has never run on live PayPal: watch activation, the $0 invoice, the hourly reconcile moving
   the next billing date, and the Billing page's next charge (503 counts cycles by dates for this case).
+- **The owner's independent review of the public names (TODO 509):** tested at 9:10 a.m., before 507's
+  setting change, so part of it was already stale. Checked claim by claim against the live site and
+  the code and answered as his adviser: most true, none a launch blocker, all cheap; fixed the same
+  day -- each page known by its own brand address, old `.html`/`.php` addresses forwarded to the
+  name's front page, `robots.txt` and `sitemap.xml`, 1200x627 share cards, HEAD for the public
+  addresses only, `/mortgages` forwarding. His own steps afterwards: Search Console and Bing
+  (verify, submit the sitemaps, request indexing) and LinkedIn's Post Inspector before he posts.
+- **The free-month test, first half:** his test code was refused because its Expires date was today --
+  the date is read as the first moment of that day (UTC). He moved it a day and it was accepted; he
+  said to leave the behaviour (TODO 504, item 13: set Expires one day after the last day wanted).
+  That the form saved and re-opened with "Monthly billing only" proved the new table exists in
+  production.
+- **The free-month test, second half: it works on live PayPal.** Subscription `I-1P5H6REKEL35` on the
+  plan "IPro Gold Monthly - Promo": set-up fee $0.00, trial period 1 of 1 at $0.00 in progress, then
+  $67.80 CAD every month (13% included), custom id 56; PayPal's activity row reads "Created - US$0.00".
+  Our side: the account active, invoice IPRO-2026-000028 Paid at $0.00, the welcome email sent, and not
+  one warning in the container log for the whole window. PayPal sent him no email: nothing was
+  charged, so there is no receipt, and its set-up notice goes to the PAYER's PayPal address. Seen on
+  the invoice: the line reads "IPro Gold subscription adjustment" (polish item 8, now the first
+  document every free-month customer sees; offered to the owner, his call). He cleans up the test
+  account himself (cancel, then delete with the financial tick).
+- **The owner's rule for brand domains in anything a person reads:** `iProAdvisers.com`,
+  `iProAccountants.com`, `iProMortgages.com` -- the capitals separate the words (TODO 504, item 14,
+  lists the three places that do not follow it yet). The share cards were redone that way before
+  509 shipped.
 
 ## Pushed today
 
@@ -30,6 +55,7 @@
 |---|---|---|
 | `05b2dbd` | **507** the home page under `www.iproadvisers.com` and the bare name; forwards carry a cache lifetime | 1014/1014 |
 | `bdd4cf1` | **508** a promotion code can be limited to monthly or to annual billing | 1027/1027 |
+| _see log 509_ | **509** the public front door after the owner's independent review | whole tree |
 
 ## Do this first tomorrow
 
@@ -42,4 +68,4 @@
    first; SOC 2 after launch; whether the vertical pages, Terms and Privacy should also live under
    `www.iproadvisers.com` (507 moved the home page only).
 
-Related: `DOCS/TODO.md` 507-508; `DOCS/SESSION_HANDOFF_2026-09-20.md`; `DOCS/DOMAIN_SWITCH_RUNBOOK.md`.
+Related: `DOCS/TODO.md` 507-509; `DOCS/SESSION_HANDOFF_2026-09-20.md`; `DOCS/DOMAIN_SWITCH_RUNBOOK.md`.

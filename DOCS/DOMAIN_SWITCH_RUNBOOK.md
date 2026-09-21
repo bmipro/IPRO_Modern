@@ -20,6 +20,14 @@ such name is the address the home page tells search engines); a bare `name` with
 everything, with a 301 to the platform. Forwards carry `Cache-Control: public, max-age=3600` since 507:
 on the switch day they had no lifetime, and a browser may keep such a 301 indefinitely.
 
+Since 509 (2026-09-21) a public name also: tells search engines its OWN address for the page it serves
+(canonical, og:url and the share image name `https://www.iproaccountants.com/`, not the platform's
+`/accountants`); sends an old-style page address left over from the legacy site (`/something.html`,
+`/index.php`) to its own front page instead of a 404; answers `/robots.txt` and `/sitemap.xml`; and
+answers HEAD on its front page. A new name gets all of this from its `App__AliasHosts` entry alone.
+After a switch, the owner verifies the domain in Google Search Console and Bing Webmaster Tools and
+submits `https://<name>/sitemap.xml`.
+
 The three scripts are in `ops/domain-switch/` (Git Bash; the az CLI signed in; read the header of each):
 `dns-check.sh` (read-only), `cert-order.sh` and `cert-wait.sh` (both change production: owner's go).
 
