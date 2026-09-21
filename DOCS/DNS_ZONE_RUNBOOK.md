@@ -62,8 +62,8 @@ caches up to the 14400s TTL after edits.
 
 | Name | Type | Value | Purpose |
 |---|---|---|---|
-| `@` | A | `40.89.19.0` (TTL 300) | **Switched 2026-09-20** to ipro-prod-web's inbound address: the app answers the bare name with a 301 to the platform home. Was `66.102.128.65`, the legacy site -- which is also the rollback value, and still the mail server (`mail`, below) |
-| `www` | CNAME | `ipro-prod-web.azurewebsites.net` (TTL 300) | **Switched 2026-09-20**: the app answers it with a 301 to the platform home (`App__AliasHosts`). Was `iproadvisers.com` (the legacy site) |
+| `@` | A | `40.89.19.0` (TTL 300) | **Switched 2026-09-20** to ipro-prod-web's inbound address: the app serves the home page under the bare name (507; a 301 to the platform home until 2026-09-21). Was `66.102.128.65`, the legacy site -- which is also the rollback value, and still the mail server (`mail`, below) |
+| `www` | CNAME | `ipro-prod-web.azurewebsites.net` (TTL 300) | **Switched 2026-09-20**: the app serves the home page under this name, and it is the address the page tells search engines (507, `App__AliasHosts` `www.iproadvisers.com=/`; a 301 to the platform home until 2026-09-21). Was `iproadvisers.com` (the legacy site) |
 | `asuid`, `asuid.www` | TXT | the app's verification id (the `asuid.app` value above) | Added 2026-09-20 so the two names could be bound before DNS moved |
 | `@` | CAA | `0 issue "digicert.com"`, beside the host's own eight (Sectigo, Google, GlobalSign, Let's Encrypt; issue and issuewild) | Added 2026-09-20: App Service managed certificates come from DigiCert and could not be issued without it. Do not delete the host's rows: its AutoSSL needs them |
 | `mail` | **A** | `66.102.128.65` | Owner mailboxes at the legacy host. **Pinned 2026-09-20** (was a CNAME to the bare name, which would have followed it to Azure) |

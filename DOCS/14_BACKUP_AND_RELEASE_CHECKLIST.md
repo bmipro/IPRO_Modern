@@ -161,8 +161,10 @@ Order on the day, owner's actions marked:
 5. **Verify, all four names (493):** `curl -sI https://www.iproaccountants.com/` and the apex answer
    `200` with the accountants page (its title in the body; since 484 a brand name serves its landing
    page in place); `curl -sI https://www.iproaccountants.com/Account/Register` answers `301` to the
-   same path on the platform; `www.iproadvisers.com` and `iproadvisers.com` answer `301` with
-   `Location: https://app.iproadvisers.com/`. A name that answers the "Website not published yet" page
+   same path on the platform; `www.iproadvisers.com` and `iproadvisers.com` answer `200` with the
+   HOME page under their own name since 507 (2026-09-21: the entries are written `name=/`; the page's
+   canonical tag names `https://www.iproadvisers.com/`), and a deep path on them `301` to the platform --
+   before 507 the pair answered `301` with `Location: https://app.iproadvisers.com/`. A name that answers the "Website not published yet" page
    AFTER step 3 is a typo in `App__AliasHosts`, not the in-between state. Mail from
    `@iproadvisers.com` still authenticates (send one to a Gmail address and check "signed-by").
    Confirmed 2026-09-17 and worth keeping true: **HTTPS Only is on** for ipro-prod-web, so a plain

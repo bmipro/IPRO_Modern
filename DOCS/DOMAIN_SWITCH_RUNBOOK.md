@@ -14,8 +14,11 @@ No deploys while names are moving.
 
 **What the app does with a name** is decided by `App__AliasHosts` on `ipro-prod-web`
 (`PlatformAliasHosts`, the first middleware): a name WITH a landing path (`iproaccountants.com=/accountants`)
-serves that page under its own name and sends every other path to the platform with the path kept; a
-name WITHOUT one (`iproadvisers.com`) answers everything with a 301 to the platform home.
+serves that page under its own name and sends every other path to the platform with the path kept;
+`name=/` does the same with the HOME page (507, 2026-09-21: the `iproadvisers.com` pair, and the first
+such name is the address the home page tells search engines); a bare `name` with no `=` only forwards,
+everything, with a 301 to the platform. Forwards carry `Cache-Control: public, max-age=3600` since 507:
+on the switch day they had no lifetime, and a browser may keep such a 301 indefinitely.
 
 The three scripts are in `ops/domain-switch/` (Git Bash; the az CLI signed in; read the header of each):
 `dns-check.sh` (read-only), `cert-order.sh` and `cert-wait.sh` (both change production: owner's go).
@@ -105,6 +108,9 @@ MSYS_NO_PATHCONV=1 az webapp config appsettings set -n ipro-prod-web -g ipro-pro
   "App__AliasHosts=www.ipromortgages.com=/mortgage,ipromortgages.com=/mortgage,www.iproadvisers.com,iproadvisers.com,www.iproaccountants.com=/accountants,iproaccountants.com=/accountants"
 ```
 
+(That is the value as set on the switch day. Since 507 the live value writes the advisers pair as
+`www.iproadvisers.com=/,iproadvisers.com=/`, in that order: the first one is the home page's public address.)
+
 (`MSYS_NO_PATHCONV=1` or Git Bash rewrites `=/accountants` as a Windows path; `-o none` because the
 command otherwise prints every app setting.) **Prove it before DNS moves** by asking the app directly
 for each name -- the certificate check is skipped for THIS test only, because no certificate exists yet:
@@ -115,7 +121,8 @@ curl -sk --resolve www.iproaccountants.com:443:40.89.19.0 -o /dev/null -w "%{htt
 
 Expected: the accountants pair 200 with the Accountants page (its `<title>`), `/Account/Register` on
 them 301 to the same path on `app.iproadvisers.com`; the advisers pair 301 to
-`https://app.iproadvisers.com/`. A name answering "Website not published yet" is a typo in the setting.
+`https://app.iproadvisers.com/` (on the switch day; since 507, 200 with the home page and
+`<link rel="canonical" href="https://www.iproadvisers.com/"/>` in it). A name answering "Website not published yet" is a typo in the setting.
 
 ## 5. Move the `www` names (owner), then their certificates (assistant, owner's go)
 
