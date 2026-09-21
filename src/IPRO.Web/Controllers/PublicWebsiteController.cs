@@ -124,9 +124,10 @@ public class PublicWebsiteController : Controller
     public async Task<IActionResult> Sitemap()
     {
         // 509: see Robots.
-        if (IPRO.Web.Infrastructure.PlatformSeoFiles.IsPlatformOrAlias(_configuration, IPRO.Web.Infrastructure.PlatformAliasHosts.PublicHost(HttpContext)))
+        var publicHost = IPRO.Web.Infrastructure.PlatformAliasHosts.PublicHost(HttpContext);
+        if (IPRO.Web.Infrastructure.PlatformSeoFiles.IsPlatformOrAlias(_configuration, publicHost))
         {
-            return Content(IPRO.Web.Infrastructure.PlatformSeoFiles.Sitemap(_configuration), "application/xml", Encoding.UTF8);
+            return Content(IPRO.Web.Infrastructure.PlatformSeoFiles.Sitemap(_configuration, publicHost), "application/xml", Encoding.UTF8);
         }
 
         var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));

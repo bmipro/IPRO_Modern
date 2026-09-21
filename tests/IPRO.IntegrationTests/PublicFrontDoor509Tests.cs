@@ -151,24 +151,8 @@ public class PublicFrontDoor509Tests
             PlatformSeoFiles.Robots("www.iproaccountants.com"));
     }
 
-    [Fact]
-    public void The_sitemap_lists_each_public_page_once_at_the_address_it_is_known_by()
-    {
-        var xml = PlatformSeoFiles.Sitemap(Config());
-
-        Assert.StartsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", xml);
-        foreach (var loc in new[]
-        {
-            "https://www.iproadvisers.com/", "https://www.iproaccountants.com/", "https://www.ipromortgages.com/",
-            "https://app.iproadvisers.com/terms", "https://app.iproadvisers.com/privacy"
-        })
-        {
-            Assert.Contains("<loc>" + loc + "</loc>", xml);
-        }
-        Assert.DoesNotContain("app.iproadvisers.com/accountants", xml);
-        Assert.DoesNotContain("<loc>https://iproadvisers.com/</loc>", xml);
-        Assert.Equal(5, xml.Split("<url>").Length - 1);
-    }
+    // The sitemap's CONTENT is pinned in FrontDoorFollowUp510Tests: 509 listed all three brands' pages in
+    // one file, and Search Console refused the other two domains' addresses ("URL not allowed").
 
     [Fact]
     public void The_public_site_controller_hands_the_platforms_names_to_those_files()

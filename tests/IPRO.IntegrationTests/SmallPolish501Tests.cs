@@ -110,7 +110,7 @@ public class SmallPolish501Tests
         Assert.DoesNotContain("most exciting", text);
         Assert.DoesNotContain("training session", text);
         Assert.Contains("Username: FirstnameLastname", text);
-        Assert.Contains("training@IProAdvisers.com", text);
+        Assert.Contains("training@iProAdvisers.com", text);   // 510: the capitals are iPro, not IPro
 
         // An account made for the adviser by SuperAdmin still gets its temporary password, in both.
         var made = RegistrationWelcomeTemplate.Sample();

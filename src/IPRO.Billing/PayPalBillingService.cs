@@ -187,6 +187,9 @@ public class PayPalBillingService : IBillingService
 
             decimal? overrideAmount = null;
             string? overridePlanId = null;
+            // 510: what the first invoice says the code did (PromotionInvoiceText).
+            string? promoRecurringLabel = null;
+            string? promoSetupLabel = null;
 
             // The per-package setup-fee waiver (Super Admin -> Packages -> Edit) is applied first,
             // so what PayPal charges is what the pricing page advertised. A promotion code then
@@ -199,11 +202,13 @@ public class PayPalBillingService : IBillingService
                 if (promo.SetupFeeDiscountType != PromoDiscountType.None)
                 {
                     overrideSetupFee = ComputeDiscountedAmount(baseSetupFee, promo.SetupFeeDiscountType, promo.SetupFeeDiscountValue);
+                    promoSetupLabel = PromotionInvoiceText.Setup(requestedPackage.PackageName, promo, baseSetupFee, overrideSetupFee.Value);
                 }
 
                 if (promo.RecurringDiscountType != PromoDiscountType.None)
                 {
                     overrideAmount = ComputeDiscountedAmount(GetAmount(requestedPackage, period), promo.RecurringDiscountType, promo.RecurringDiscountValue);
+                    promoRecurringLabel = PromotionInvoiceText.Recurring(requestedPackage.PackageName, period, promo, overrideAmount.Value);
 
                     var effectiveSetupFee = overrideSetupFee ?? baseSetupFee;
                     var isFullyComped = promo.RecurringDurationCycles == null && overrideAmount <= 0 && effectiveSetupFee <= 0;
@@ -290,7 +295,10 @@ public class PayPalBillingService : IBillingService
                 overrideAmount: overrideAmount,
                 overridePlanId: overridePlanId,
                 overrideSetupFee: overrideSetupFee,
-                promotionCodeId: promo?.Id);
+                promotionCodeId: promo?.Id,
+                promoRecurringLabel: promoRecurringLabel,
+                // A completed scheduled change pays no setup fee at all, so a code has nothing to take off it.
+                promoSetupLabel: completesScheduledChange ? null : promoSetupLabel);
 
             // M-8: a checkout that failed to start never created the pending change whose later
             // cancellation would release the claimed slot -- give it back here or capped codes
@@ -2163,7 +2171,9 @@ public class PayPalBillingService : IBillingService
         decimal? overrideAmount = null,
         string? overridePlanId = null,
         decimal? overrideSetupFee = null,
-        int? promotionCodeId = null)
+        int? promotionCodeId = null,
+        string? promoRecurringLabel = null,
+        string? promoSetupLabel = null)
     {
         if (!HasPayPalSettings())
         {
@@ -2198,7 +2208,9 @@ public class PayPalBillingService : IBillingService
         // checkout completes, settled the moment it does; the webhook's oldest-unpaid fallback
         // skips $0 rows either way.
         var invoice = await CreateInvoiceAsync(billing.Id, userId, requestedPackage, period, amountDue, setupFee, false,
-            recurringLineLabel: ChangeInvoiceRecurringLabel(changeType, requestedPackage.PackageName, period, billing.NextBillingDate));
+            recurringLineLabel: ChangeInvoiceRecurringLabel(changeType, requestedPackage.PackageName, period, billing.NextBillingDate),
+            promoRecurringLabel: promoRecurringLabel,
+            promoSetupLabel: promoSetupLabel);
 
         await _uow.SubscriptionChanges.AddAsync(new SubscriptionChange
         {
@@ -2810,17 +2822,31 @@ public class PayPalBillingService : IBillingService
             : $"{packageName} {FormatPeriod(period)} recurring subscription";
 
     private async Task<IPRO.Entities.Invoice> CreateInvoiceAsync(int billingId, int userId, BillingRule package, BillingPeriod period, decimal recurringAmount, decimal setupFee, bool isPaid,
-        decimal? taxRateOverride = null, string? taxRegionOverride = null, string? recurringLineLabel = null)
+        decimal? taxRateOverride = null, string? taxRegionOverride = null, string? recurringLineLabel = null,
+        string? promoRecurringLabel = null, string? promoSetupLabel = null)
     {
+        // 510: what a promotion code gave is SAID (PromotionInvoiceText). A period the code made free is
+        // a $0.00 line that says so -- the first live free-month invoice read "subscription adjustment"
+        // -- and a setup fee the code took off is shown, waived or reduced, instead of silently missing.
         var lineItems = new List<InvoiceLineDraft>();
         if (recurringAmount > 0)
         {
-            lineItems.Add(new InvoiceLineDraft(recurringLineLabel ?? $"{package.PackageName} {FormatPeriod(period)} recurring subscription", recurringAmount));
+            // The code's own wording first (only a new subscription carries one), then the plan-change
+            // label (UpgradeTruthfulnessTests pins that call site), then the plain line.
+            lineItems.Add(new InvoiceLineDraft(promoRecurringLabel ?? recurringLineLabel ?? $"{package.PackageName} {FormatPeriod(period)} recurring subscription", recurringAmount));
+        }
+        else if (promoRecurringLabel != null)
+        {
+            lineItems.Add(new InvoiceLineDraft(promoRecurringLabel, 0));
         }
 
         if (setupFee > 0)
         {
-            lineItems.Add(new InvoiceLineDraft($"{package.PackageName} one-time setup fee", setupFee));
+            lineItems.Add(new InvoiceLineDraft(promoSetupLabel ?? $"{package.PackageName} one-time setup fee", setupFee));
+        }
+        else if (promoSetupLabel != null)
+        {
+            lineItems.Add(new InvoiceLineDraft(promoSetupLabel, 0));
         }
 
         if (lineItems.Count == 0)

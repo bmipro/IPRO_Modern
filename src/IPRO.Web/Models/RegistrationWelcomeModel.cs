@@ -7,6 +7,6 @@ public class RegistrationWelcomeModel
     public string UserName { get; set; } = string.Empty;
     public string TemporaryPassword { get; set; } = string.Empty;
     public string SetupDomain { get; set; } = string.Empty;
-    public string TrainingEmail { get; set; } = "training@IProAdvisers.com";
+    public string TrainingEmail { get; set; } = "training@iProAdvisers.com";
     public string WebsiteUrl { get; set; } = "www.iProAdvisers.com";
 }
