@@ -50,7 +50,7 @@ professional-service firms. This policy explains what we do with personal inform
 else { @orgAddress }<br/>
 Privacy questions and requests:
 @if (string.IsNullOrWhiteSpace(privacyEmail)) { <span class="lg-todo">PRIVACY EMAIL</span> }
-else { <a href="mailto:@privacyEmail">@privacyEmail</a> }</p>
+else { <a href="mailto:@privacyEmail">@IPRO.Email.BrandText.WithCapitals(privacyEmail)</a> }</p>
 <p>If you are a client of one of our subscribers and you want your information corrected or removed,
 contact the adviser or firm you deal with &mdash; the information is theirs, and they decide. If you cannot
 reach them, write to us and we will help you get to the right place.</p>
@@ -207,7 +207,7 @@ PIPEDA requires</strong>, and give you what you need to notify your own clients.
 and <strong>withdraw consent</strong> to optional features. Most of this you can do yourself in the portal; for
 anything else, write to
 @if (string.IsNullOrWhiteSpace(privacyEmail)) { <span class="lg-todo">PRIVACY EMAIL</span> }
-else { <a href="mailto:@privacyEmail">@privacyEmail</a> }
+else { <a href="mailto:@privacyEmail">@IPRO.Email.BrandText.WithCapitals(privacyEmail)</a> }
 and we will respond within <strong>30 days</strong>. We may need to verify who you are first. Withdrawing consent to
 something the subscription depends on may mean we can no longer provide it.</p>
 @* Bahman's wording, 15 Aug 2026. I had retained a sentence pointing to the Office of the Privacy

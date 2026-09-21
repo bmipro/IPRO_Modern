@@ -3213,7 +3213,7 @@ public class PayPalBillingService : IBillingService
             <div style="background:#102a5c;color:#ffffff;padding:26px 30px;">
               <h1 style="margin:0;font-size:24px;">{WebUtility.HtmlEncode(companyName)}</h1>
               <p style="margin:8px 0 0;color:#dbeafe;">Invoice paid</p>
-              <p style="margin:8px 0 0;color:#dbeafe;font-size:13px;">{WebUtility.HtmlEncode(companyWebsite)} &nbsp; | &nbsp; {WebUtility.HtmlEncode(companyEmail)}</p>
+              <p style="margin:8px 0 0;color:#dbeafe;font-size:13px;">{WebUtility.HtmlEncode(BrandText.WithCapitals(companyWebsite))} &nbsp; | &nbsp; {WebUtility.HtmlEncode(BrandText.WithCapitals(companyEmail))}</p>
               {(string.IsNullOrWhiteSpace(taxNumber) ? "" : $"<p style=\"margin:6px 0 0;color:#dbeafe;font-size:12px;\">Tax registration: {WebUtility.HtmlEncode(taxNumber)}</p>")}
             </div>
             <div style="padding:30px;color:#1f2937;">

@@ -228,7 +228,7 @@ platform, and replace the previous Online Subscription Agreement and any earlier
 representations.</p>
 <p><strong>Contact.</strong> Questions about these Terms:
 @if (string.IsNullOrWhiteSpace(supportEmail)) { <span class="lg-todo">SUPPORT EMAIL</span> }
-else { <a href="mailto:@supportEmail">@supportEmail</a> }
+else { <a href="mailto:@supportEmail">@IPRO.Email.BrandText.WithCapitals(supportEmail)</a> }
 &nbsp;&middot;&nbsp; iPro Advisers Inc.,
 @if (string.IsNullOrWhiteSpace(orgAddress)) { <span class="lg-todo">REGISTERED ADDRESS</span><text>, Ontario, Canada.</text> }
 else { @orgAddress<text>.</text> }</p>
