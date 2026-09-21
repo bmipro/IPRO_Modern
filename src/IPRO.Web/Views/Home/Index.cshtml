@@ -8,9 +8,12 @@
     // carry a full SEO head (_PublicSeoHead.cshtml). Canonical comes from App:BaseUrl so test
     // hosts pointed at this app (e.g. 4ipro.com) defer to the real front door instead of
     // competing with it; the placeholder guard mirrors Program.cs's base-URL fallback.
+    // 507: the address this page is KNOWN by is the owner's choice, www.iproadvisers.com, once that
+    // name serves the page (App:AliasHosts "name=/"); until then, and everywhere else, HomeBase is
+    // the platform address, as before.
     var configuredBase = HomeSeoConfig["App:BaseUrl"];
     var seoOrigin = !string.IsNullOrWhiteSpace(configuredBase) && !configuredBase.Contains("yourdomain", StringComparison.OrdinalIgnoreCase)
-        ? configuredBase.TrimEnd('/')
+        ? IPRO.Web.Infrastructure.PlatformAliasHosts.HomeBase(HomeSeoConfig)
         : $"{Context.Request.Scheme}://{Context.Request.Host}";
     var seoDescription = "Website, client records, follow-ups and newsletters for Canadian insurance, financial, accounting and mortgage professionals — one system, one login, one bill.";
 }

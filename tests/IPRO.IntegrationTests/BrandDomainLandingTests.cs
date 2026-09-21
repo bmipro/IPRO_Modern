@@ -158,13 +158,15 @@ public class BrandDomainLandingTests
     [Fact]
     public void The_landing_pages_link_the_platform_homes_sections_absolutely()
     {
+        // 507: absolute still, but to the address the home page is known by (PlatformAliasHosts.HomeBase:
+        // www.iproadvisers.com once it serves the home page, the platform address until then).
         var footer = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Home\_LandingFooter.cshtml"));
         foreach (var anchor in new[] { "#i2-platform", "#i2-start", "#i2-trust", "#i2-contact" })
-            Assert.Contains("href=\"@platformBase/" + anchor + "\"", footer);
+            Assert.Contains("href=\"@homeBase/" + anchor + "\"", footer);
         Assert.DoesNotContain("href=\"/#i2-", footer);
 
         var pricing = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Home\_LandingPricing.cshtml"));
-        Assert.Contains("href=\"@platformBase/#i2-pricing\"", pricing);
+        Assert.Contains("href=\"@homeBase/#i2-pricing\"", pricing);
         Assert.DoesNotContain("href=\"/#i2-", pricing);
     }
 

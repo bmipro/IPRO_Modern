@@ -21,6 +21,16 @@ namespace IPRO.Web.Infrastructure;
 // the rest of the site live there. A name WITHOUT a landing path (the iproadvisers.com pair) is the
 // platform's own brand and keeps redirecting to the home. The page's canonical tag still names the
 // platform address, so search keeps one authority; the brand name is the door.
+//
+// 507 (2026-09-21): the evening the four names went live the owner typed www.iproadvisers.com,
+// watched it become app.iproadvisers.com, and asked for the same as 484: the name stays. So an entry
+// written "name=/" is a brand domain whose own page is the HOME page (served in place, with its files;
+// everything else still goes to the platform), while a bare "name" keeps only forwarding. The first
+// such name is also the address the home page is known by (HomeBase): its canonical tag, og:url and
+// the landing pages' links to its sections -- the owner's choice, www.iproadvisers.com.
+//   App:AliasHosts = "www.iproadvisers.com=/,iproadvisers.com=/,www.iproaccountants.com=/accountants,..."
+// And a forward now says how long it may be remembered: a 301 with no cache lifetime can sit in a
+// browser indefinitely, which is why visitors from the first evening kept landing on app. after this.
 public static class PlatformAliasHosts
 {
     public const string ConfigKey = "App:AliasHosts";
@@ -29,6 +39,15 @@ public static class PlatformAliasHosts
 
     public static string PlatformBase(IConfiguration configuration) =>
         (configuration["App:BaseUrl"] ?? "https://app.iproadvisers.com").Trim().TrimEnd('/');
+
+    // The address the home page is known by: the first alias whose own page is the home ("name=/"),
+    // over https; the platform address when there is none (every local and test configuration).
+    public static string HomeBase(IConfiguration configuration)
+    {
+        foreach (var alias in All(configuration))
+            if (alias.OwnPage && alias.Path == "/") return "https://" + alias.Host.ToLowerInvariant();
+        return PlatformBase(configuration);
+    }
 
     // The absolute target for the root of this host: the platform base plus the host's own landing
     // path ("/" when none is configured, or the host is not an alias).
@@ -70,34 +89,48 @@ public static class PlatformAliasHosts
         var alias = Find(configuration, request.Host.Host);
         if (alias == null) return false;
 
-        if (alias.Path != "/" && ServesInPlace(request.Path))
+        if (alias.OwnPage && ServesInPlace(request.Path))
         {
             request.Host = HostString.FromUriComponent(new Uri(PlatformBase(configuration)).Authority);
             if (!request.Path.HasValue || request.Path == "/") request.Path = alias.Path;
             return false;
         }
 
+        // Permanent, but not for ever: without a lifetime a browser may keep a 301 indefinitely, and a
+        // name that forwards today may serve its own page tomorrow (507 is that story).
+        context.Response.Headers.CacheControl = RedirectLifetime;
         context.Response.Redirect(RedirectTarget(configuration, alias.Host, request.Path, request.QueryString), permanent: true);
         return true;
     }
 
-    private sealed record Alias(string Host, string Path);
+    public const string RedirectLifetime = "public, max-age=3600";
+
+    // OwnPage: the entry was written with "=", so the name serves a page under its own name ("/" is
+    // the home page). Without it the name only forwards.
+    private sealed record Alias(string Host, string Path, bool OwnPage);
 
     private static Alias? Find(IConfiguration configuration, string? host)
     {
         if (string.IsNullOrWhiteSpace(host)) return null;
-        var configured = configuration[ConfigKey];
-        if (string.IsNullOrWhiteSpace(configured)) return null;
         var wanted = host.Trim().TrimEnd('.');
+        foreach (var alias in All(configuration))
+            if (string.Equals(alias.Host, wanted, StringComparison.OrdinalIgnoreCase)) return alias;
+        return null;
+    }
+
+    private static IEnumerable<Alias> All(IConfiguration configuration)
+    {
+        var configured = configuration[ConfigKey];
+        if (string.IsNullOrWhiteSpace(configured)) yield break;
         foreach (var raw in configured.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
         {
             var entry = raw.Trim();
             if (entry.Length == 0) continue;
             var eq = entry.IndexOf('=');
             var name = (eq < 0 ? entry : entry[..eq]).Trim().TrimEnd('.');
+            if (name.Length == 0) continue;
             var path = eq < 0 ? "/" : "/" + entry[(eq + 1)..].Trim().Trim('/');
-            if (string.Equals(name, wanted, StringComparison.OrdinalIgnoreCase)) return new Alias(name, path.Length == 0 ? "/" : path);
+            yield return new Alias(name, path.Length == 0 ? "/" : path, OwnPage: eq >= 0);
         }
-        return null;
     }
 }
