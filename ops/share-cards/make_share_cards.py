@@ -8,8 +8,9 @@ Segoe UI, with Arial as the fallback). The designer can replace the three PNGs u
 the pages name them in their og:image tags (Views/Home/Index, Accountants, Mortgage), and
 PublicFrontDoor509Tests checks each is a 1200x627 PNG.
 
-The owner's rule for anything a person reads: the brand domains are written iProAdvisers.com,
-iProAccountants.com, iProMortgages.com -- the capitals separate the words (2026-09-21).
+The owner's rule for anything a person reads: the brand domains are written with the capitals that
+separate the words, and the www. stays -- www.iProAdvisers.com, www.iProAccountants.com,
+www.iProMortgages.com (2026-09-21; the first redo dropped the www., which he had not meant).
 """
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -105,12 +106,12 @@ def card(filename, headline, sub, domain):
 card("ipro-advisers.png",
      "Website, client records, follow-ups and newsletters",
      "One system, one login, one bill for Canadian insurance, financial, accounting and mortgage professionals",
-     "iProAdvisers.com")
+     "www.iProAdvisers.com")
 card("ipro-accountants.png",
      "Websites and client management for accountants in Canada",
      "A professional website, follow-ups and newsletters for Canadian accountants and bookkeepers",
-     "iProAccountants.com")
+     "www.iProAccountants.com")
 card("ipro-mortgages.png",
      "Websites and client management for mortgage advisers in Canada",
      "A professional website, follow-ups and newsletters for Canadian mortgage advisers and brokers",
-     "iProMortgages.com")
+     "www.iProMortgages.com")

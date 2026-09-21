@@ -44,10 +44,11 @@
   the invoice: the line reads "IPro Gold subscription adjustment" (polish item 8, now the first
   document every free-month customer sees; offered to the owner, his call). He cleans up the test
   account himself (cancel, then delete with the financial tick).
-- **The owner's rule for brand domains in anything a person reads:** `iProAdvisers.com`,
-  `iProAccountants.com`, `iProMortgages.com` -- the capitals separate the words (TODO 504, item 14,
-  lists the three places that do not follow it yet). The share cards were redone that way before
-  509 shipped.
+- **The owner's rule for brand domains in anything a person reads:** `www.iProAdvisers.com`,
+  `www.iProAccountants.com`, `www.iProMortgages.com` -- the capitals separate the words and the `www.`
+  stays (TODO 504, item 14, lists the three places that do not follow it yet). The share cards were
+  redone with the capitals before 509 shipped -- and once more right after it, because that redo had
+  dropped the `www.`, which he had not meant.
 
 ## Pushed today
 
