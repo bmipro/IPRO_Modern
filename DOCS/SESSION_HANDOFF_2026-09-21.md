@@ -77,6 +77,34 @@
 | `52f4abf` | **510** a sitemap per site; promotion wording on the first invoice; the brand domain's capitals | 1093/1093 |
 | `f0cfea8` | **511** brand email addresses shown with the capitals, sent from as configured | 1111/1111 |
 
+## Close-out 2026-09-21
+
+Final build on both hosts before this close-out: `9e0004a`. Tree clean and pushed; nothing half-built and
+nothing waiting for a deploy. Launch day: five items shipped (507-511), each red first, each behind a
+full gate (1014, 1027, 1074, 1093 after one failed run, 1111), each verified on both hosts.
+
+**State left:** PayPal live; all four public names and the mortgage pair on the new site with
+self-renewing certificates; `App__AliasHosts` writes the advisers pair as `name=/`; two accounts in
+the database, both the owner's; FREETEST used up (1 of 1) and its test account erased; the owner was
+in Search Console adding `ipromortgages.com` and `iproaccountants.com` as their own properties (a TXT
+record each) and resubmitting the advisers sitemap -- ask how that went.
+
+**Drafted for TODO 512, for the owner and his lawyer -- NOT in the policy yet.** A new short section in
+the Privacy Policy, after "From visitors to your public website":
+
+> **From visitors to our own website.** On our own public pages -- iProAdvisers.com,
+> iProAccountants.com, iProMortgages.com and the registration page -- we count page views the same
+> way: the page visited, the referring site, any campaign tag in the link that brought the visitor
+> (for example from a social media post), and the date. Visitors are counted with a one-way hashed
+> identifier; the count keeps no raw address and sets no cookie. If a visitor goes on to open an
+> account, we note which page or campaign they came from.
+
+The last sentence is the one that matters legally: it ties an origin to an identified account.
+
+Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
+and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; no local app, emulator or test
+process running; MySQL is the Windows service and needs nothing. Reboot-ready.
+
 ## Do this first tomorrow
 
 1. Both health endpoints, the Job Scheduler, Email Activity, PayPal's webhook event log for any real
