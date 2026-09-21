@@ -54,6 +54,18 @@
   With it, at the owner's word: the first invoice says what a promotion code did and names it (no more
   "subscription adjustment" on a free month), and the three places that wrote the brand domain
   without its capitals. Asked and still open: whether displayed email addresses follow the capitals.
+- **511, the same rule for email addresses:** asked in 510's report, answered "yes". Shown with the
+  capitals (`billing@iProAdvisers.com` on the invoice and its email, `support@` on the home page,
+  the legal pages' addresses), through one helper, `BrandText.WithCapitals`; the addresses mail is
+  SENT from and every `mailto:` keep the configured value, and a test pins that.
+- **The free-month test account is gone** (the owner's click, 2:35 p.m.): Freetest deleted with the
+  financial records, 107 rows across 16 tables, the PayPal subscription cancelled by the delete; PayPal
+  told the payer so by email ("canceled your automatic payments": CA$67.80 from 21 October, trial
+  CA$0.00 from 21 September). Invoice number 000028 is therefore a gap, like 000027. Two accounts
+  remain, both the owner's.
+- **510's first full gate failed (1092 of 1093) and nothing was deployed from it:** a source pin on
+  the first invoice's call site, in a suite I had not run. Fixed by leaving the pinned line alone;
+  the second gate passed. Since then the tests are searched for every rewritten line BEFORE a gate.
 
 ## Pushed today
 
@@ -63,11 +75,16 @@
 | `bdd4cf1` | **508** a promotion code can be limited to monthly or to annual billing | 1027/1027 |
 | `35da4fe` | **509** the public front door after the owner's independent review | 1074/1074 |
 | `52f4abf` | **510** a sitemap per site; promotion wording on the first invoice; the brand domain's capitals | 1093/1093 |
+| _see log 511_ | **511** brand email addresses shown with the capitals, sent from as configured | whole tree |
 
 ## Do this first tomorrow
 
 1. Both health endpoints, the Job Scheduler, Email Activity, PayPal's webhook event log for any real
    sign-up (each event **Success**).
+1a. **Build TODO 512**, the SuperAdmin Visitors report the owner approved on launch day: start with the
+   Privacy Policy sentence for him (and his lawyer), then the recorder for the platform's public pages
+   with `utm_` tags, the report, and sign-ups by origin. If he asks for launch-day numbers before it
+   exists, pull them from the web app's raw HTTP logs (3 days kept), in aggregate only.
 2. **Calendar:** TODO 505 or the hand renewal before 5 October (certificates expire 19 October); clear
    `Email__TrackingSigningKeyPrevious` around 17 October; Microsoft quota mid-October; .NET 10 in October.
 3. **Open:** TODO 504 (the polish list), 506 (an adviser's domain with CAA records); the truth sweep's
@@ -75,4 +92,4 @@
    first; SOC 2 after launch; whether the vertical pages, Terms and Privacy should also live under
    `www.iproadvisers.com` (507 moved the home page only).
 
-Related: `DOCS/TODO.md` 507-510; `DOCS/SESSION_HANDOFF_2026-09-20.md`; `DOCS/DOMAIN_SWITCH_RUNBOOK.md`.
+Related: `DOCS/TODO.md` 507-511; `DOCS/SESSION_HANDOFF_2026-09-20.md`; `DOCS/DOMAIN_SWITCH_RUNBOOK.md`.
