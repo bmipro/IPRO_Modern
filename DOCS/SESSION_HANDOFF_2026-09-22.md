@@ -13,8 +13,15 @@
   All three sitemaps read **Success**: advisers 3 pages, accountants 1, mortgages 1 -- 510 did what it
   was for; the "2 errors" rows are gone.
 - **512, the Visitors report, built and shipped** (TODO 512 says what it records and where). The
-  Privacy Policy's new section is still only drafted (09-21 handoff): the owner was asked whether to
-  include it in this deploy or hold it for his lawyer, and had not answered when 512 shipped.
+  Privacy Policy: shown the before and after, the owner decided **no addition** ("it has been clearly
+  described as why and how we already track and collect"). Settled. After the deploy one real visit
+  from the assistant's own browser, tagged `utm_source=claude&utm_medium=check&utm_campaign=512`, was
+  made to `www.iproaccountants.com` so the report's first row is a known one.
+- **The owner's first real promotion code, `TAX50OFF`** (Platinum, 50% off for 4 cycles, monthly billing
+  only, expires 1 November, for an accountants group from LinkedIn): checked from outside through the
+  registration page's own code check -- accepted on Platinum monthly with the right sentence, refused
+  on annual with the right sentence, refused on Gold. He was told the code carries no setup-fee discount,
+  so a member signing up after 30 September pays Platinum's $400 unless he adds one.
 - **The health check the owner asked for (3:30 p.m.), all read-only:** both hosts Healthy on `e46a5a9`;
   zero 5xx in 24 hours on either app (10,010 web requests, 1,904 admin); average response 0.12 s; the
   seven public pages 200 in 0.11-0.19 s; `http://` forwards; the six brand names' certificates 171-179
@@ -47,6 +54,23 @@
 | `3d025d2` | **513** the platform's pages have an icon; advisers' sites left as they were | 1157/1157 |
 | `2147d6a` | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | 1184/1184 |
 | `2147d6a` | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | 1184/1184 |
+
+## Close-out 2026-09-22
+
+Final build on both hosts before this close-out: `81d000b`. Tree clean and pushed; nothing half-built and
+nothing waiting for a deploy. The day's items are in the table above (512 with one real tagged visit as
+its proof; 513 with the icon fetched from outside; 514 and 515 with the stylesheet and logo fetched from
+outside, the pages themselves behind sign-in for the owner's eyes), each red first and behind a full gate.
+
+**State left:** PayPal live; the three brand domains and the platform on the new site with self-renewing
+certificates; all three sitemaps accepted by Search Console; two accounts in the database, both the
+owner's; his first real code `TAX50OFF` active and unused; the Visitors report counting since 3:08 p.m.;
+**Company Details empty until the owner fills it** (invoices print the settings' values meanwhile, and no
+GST/HST number).
+
+Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
+and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; no local app, emulator or test
+process running; MySQL is the Windows service and needs nothing. Reboot-ready.
 
 ## Do this first tomorrow
 
