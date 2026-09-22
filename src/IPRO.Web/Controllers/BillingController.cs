@@ -116,10 +116,14 @@ public class BillingController : Controller
         ViewBag.Package = invoice.Billing == null
             ? null
             : await _uow.BillingRules.GetByIdAsync(invoice.Billing.BillingRuleId);
-        ViewBag.CompanyName = _configuration["BillingCompany:Name"] ?? "IPRO Advisers";
-        ViewBag.CompanyEmail = _configuration["BillingCompany:Email"] ?? "billing@iproadvisers.com";
-        ViewBag.CompanyWebsite = _configuration["BillingCompany:Website"] ?? "www.iProAdvisers.com";
-        ViewBag.CompanyTaxNumber = _configuration["BillingCompany:TaxRegistrationNumber"] ?? "";
+        // 514: the supplier's details come from SuperAdmin -> Company Details (BillingCompanyProfiles),
+        // each blank field falling back to the setting that served before; nothing is hardcoded here.
+        var company = await BillingCompanyDetails.LoadAsync(_db, key => _configuration[key]);
+        ViewBag.CompanyName = company.Name;
+        ViewBag.CompanyEmail = company.Email;
+        ViewBag.CompanyWebsite = company.Website;
+        ViewBag.CompanyTaxNumber = company.TaxRegistrationNumber;
+        ViewBag.CompanyAddressLines = company.AddressLines;
 
         return View(invoice);
     }

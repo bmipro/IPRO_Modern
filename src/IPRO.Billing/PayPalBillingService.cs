@@ -3147,7 +3147,9 @@ public class PayPalBillingService : IBillingService
         }
 
         var packageName = package?.PackageName ?? "IPRO package";
-        var html = BuildPaidInvoiceEmailHtml(invoice, lineItems, agent, fullName, packageName);
+        // 514: the supplier's details come from SuperAdmin -> Company Details, the settings as the fallback.
+        var company = await BillingCompanyDetails.LoadAsync(_db, key => _configuration[key]);
+        var html = BuildPaidInvoiceEmailHtml(invoice, lineItems, agent, fullName, packageName, company);
         var text = BuildPaidInvoiceEmailText(invoice, lineItems, fullName, packageName);
         var sendResult = await _email.SendDetailedAsync(agent.Email, fullName, $"IPRO invoice {invoice.InvoiceNumber}", html, text);
         if (!sendResult.Success)
@@ -3176,14 +3178,15 @@ public class PayPalBillingService : IBillingService
         return PaidInvoiceEmailResult.Sent();
     }
 
-    private string BuildPaidInvoiceEmailHtml(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, AgentUser agent, string fullName, string packageName)
+    private string BuildPaidInvoiceEmailHtml(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, AgentUser agent, string fullName, string packageName, BillingCompanyDetails company)
     {
         var billingUrl = GetPortalBillingUrl();
         var invoiceUrl = GetPortalInvoiceUrl(invoice.Id);
-        var companyName = _configuration["BillingCompany:Name"] ?? "IPRO Advisers";
-        var companyEmail = _configuration["BillingCompany:Email"] ?? "billing@iproadvisers.com";
-        var companyWebsite = _configuration["BillingCompany:Website"] ?? "www.iProAdvisers.com";
-        var taxNumber = _configuration["BillingCompany:TaxRegistrationNumber"] ?? string.Empty;
+        var companyName = company.Name;
+        var companyEmail = company.Email;
+        var companyWebsite = company.Website;
+        var taxNumber = company.TaxRegistrationNumber;
+        var companyAddress = string.Join(", ", company.AddressLines);
         var itemList = lineItems.ToList();
         var rows = itemList.Any()
             ? string.Join("", itemList.Select(item => $"""
@@ -3214,7 +3217,8 @@ public class PayPalBillingService : IBillingService
               <h1 style="margin:0;font-size:24px;">{WebUtility.HtmlEncode(companyName)}</h1>
               <p style="margin:8px 0 0;color:#dbeafe;">Invoice paid</p>
               <p style="margin:8px 0 0;color:#dbeafe;font-size:13px;">{WebUtility.HtmlEncode(BrandText.WithCapitals(companyWebsite))} &nbsp; | &nbsp; {WebUtility.HtmlEncode(BrandText.WithCapitals(companyEmail))}</p>
-              {(string.IsNullOrWhiteSpace(taxNumber) ? "" : $"<p style=\"margin:6px 0 0;color:#dbeafe;font-size:12px;\">Tax registration: {WebUtility.HtmlEncode(taxNumber)}</p>")}
+              {(companyAddress.Length == 0 ? "" : $"<p style=\"margin:6px 0 0;color:#dbeafe;font-size:12px;\">{WebUtility.HtmlEncode(companyAddress)}</p>")}
+              {(string.IsNullOrWhiteSpace(taxNumber) ? "" : $"<p style=\"margin:6px 0 0;color:#dbeafe;font-size:12px;\">GST/HST registration no. {WebUtility.HtmlEncode(taxNumber)}</p>")}
             </div>
             <div style="padding:30px;color:#1f2937;">
               <p>Hello {WebUtility.HtmlEncode(fullName)},</p>

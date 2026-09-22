@@ -1399,6 +1399,28 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 514: the supplier as invoices show it (BillingCompanyProfile), one row edited in SuperAdmin ->
+    // Company Details. Matches the EF model column for column.
+    public static async Task EnsureBillingCompanyProfileSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `BillingCompanyProfiles` (
+        `Id` int NOT NULL,
+        `Name` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `AddressLine1` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `AddressLine2` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `City` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Province` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `PostalCode` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Country` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `TaxRegistrationNumber` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Email` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Website` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

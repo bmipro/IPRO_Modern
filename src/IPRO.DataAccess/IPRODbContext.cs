@@ -65,6 +65,7 @@ public class IPRODbContext : DbContext
     public DbSet<PromotionCodePeriodLimit> PromotionCodePeriodLimits => Set<PromotionCodePeriodLimit>();
     public DbSet<PlatformPageView> PlatformPageViews => Set<PlatformPageView>();
     public DbSet<PlatformSignupOrigin> PlatformSignupOrigins => Set<PlatformSignupOrigin>();
+    public DbSet<BillingCompanyProfile> BillingCompanyProfiles => Set<BillingCompanyProfile>();
     public DbSet<TrialInviteCode> TrialInviteCodes => Set<TrialInviteCode>();
     public DbSet<TrialInviteCodeRedemption> TrialInviteCodeRedemptions => Set<TrialInviteCodeRedemption>();
     public DbSet<TrialSettings> TrialSettings => Set<TrialSettings>();
@@ -445,6 +446,15 @@ public class IPRODbContext : DbContext
             e.Property(o => o.Medium).HasMaxLength(100);
             e.Property(o => o.Campaign).HasMaxLength(100);
             e.HasOne(o => o.AgentUser).WithOne().HasForeignKey<PlatformSignupOrigin>(o => o.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 514: the supplier as it appears on invoices, one row (Id = 1), edited in SuperAdmin.
+        modelBuilder.Entity<BillingCompanyProfile>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Id).ValueGeneratedNever();
+            foreach (var name in new[] { nameof(BillingCompanyProfile.Name), nameof(BillingCompanyProfile.AddressLine1), nameof(BillingCompanyProfile.AddressLine2), nameof(BillingCompanyProfile.City), nameof(BillingCompanyProfile.Province), nameof(BillingCompanyProfile.PostalCode), nameof(BillingCompanyProfile.Country), nameof(BillingCompanyProfile.TaxRegistrationNumber), nameof(BillingCompanyProfile.Email), nameof(BillingCompanyProfile.Website) })
+                e.Property<string>(name).HasMaxLength(255);
         });
 
         // 508: the one billing period a promotion code works with; no row = both. Keyed by the code.

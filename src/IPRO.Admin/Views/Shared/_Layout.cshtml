@@ -168,6 +168,9 @@
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "TaxRates" ? "active" : "")" href="/TaxRates">
               <i class="fas fa-percent"></i>Tax Rates
           </a>
+          <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "CompanyDetails" ? "active" : "")" href="/CompanyDetails">
+              <i class="fas fa-building"></i>Company Details
+          </a>
           <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "PayPalSetup" ? "active" : "")" href="/PayPalSetup">
               <i class="fab fa-paypal"></i>PayPal Setup
           </a>

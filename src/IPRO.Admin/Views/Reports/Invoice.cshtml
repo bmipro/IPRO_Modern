@@ -8,6 +8,7 @@
     var addressLines = (Model.BillToAddress ?? string.Empty)
         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     var issuedLocal = AgentLocalTime.FromUtc(Model.IssuedAt, agent?.TimeZone);
+    var company = ViewBag.Company as BillingCompanyDetails ?? BillingCompanyDetails.From(null, _ => null);
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
@@ -30,8 +31,11 @@
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
       <div>
-        <h4 class="fw-bold mb-1">IPRO Advisers</h4>
-        <div class="text-muted small">Professional agent portal billing</div>
+        @* 514: the supplier as SuperAdmin -> Company Details has it (the settings as the fallback). *@
+        <h4 class="fw-bold mb-1">@company.Name</h4>
+        @foreach (var line in company.AddressLines) { <div class="small">@line</div> }
+        @if (!string.IsNullOrWhiteSpace(company.TaxRegistrationNumber)) { <div class="small">GST/HST registration no. @company.TaxRegistrationNumber</div> }
+        <div class="text-muted small">@IPRO.Email.BrandText.WithCapitals(company.Website) &nbsp;|&nbsp; @IPRO.Email.BrandText.WithCapitals(company.Email)</div>
       </div>
       <div class="text-end">
         <h5 class="mb-1">Invoice</h5>

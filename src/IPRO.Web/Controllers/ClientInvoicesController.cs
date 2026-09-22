@@ -301,6 +301,8 @@ public class ClientInvoicesController : Controller
         if (invoice == null) return NotFound();
 
         ViewBag.Agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+        // 515: the adviser's website logo brands the document, when they have one.
+        ViewBag.LogoUrl = await _db.AgentWebsites.AsNoTracking().Where(w => w.AgentUserId == AgentId).Select(w => w.LogoUrl).FirstOrDefaultAsync();
         ViewBag.PublicUrl = BuildPublicDocumentUrl(invoice.ViewToken);
         // 452: what happened to each email this invoice generated, newest first.
         ViewBag.EmailHistory = await _db.ClientInvoiceEmails.AsNoTracking()

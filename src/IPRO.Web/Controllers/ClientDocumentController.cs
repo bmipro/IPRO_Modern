@@ -35,6 +35,8 @@ public class ClientDocumentController : Controller
         }
 
         ViewBag.Agent = invoice.AgentUser;
+        // 515: the adviser's website logo brands the document, when they have one.
+        ViewBag.LogoUrl = await _db.AgentWebsites.AsNoTracking().Where(w => w.AgentUserId == invoice.AgentUserId).Select(w => w.LogoUrl).FirstOrDefaultAsync();
         ViewBag.IsPublicView = true;
         ViewBag.PaymentLink = PayPalMeLinkHelper.WithAmount(invoice.AgentUser.DefaultPaymentLink, invoice.Total, invoice.Currency);
         return View(invoice);

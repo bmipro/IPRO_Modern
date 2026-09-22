@@ -1,3 +1,4 @@
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -98,6 +99,9 @@ public class ReportsController : Controller
         var billing = await _uow.Billings.GetByIdAsync(invoice.BillingId);
         ViewBag.Agent = agent; // null when the agent has been deleted -- the snapshot carries the bill-to
         ViewBag.Package = billing == null ? null : await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
+        // 514: the supplier block reads SuperAdmin -> Company Details, the settings as the fallback.
+        var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        ViewBag.Company = await BillingCompanyDetails.LoadAsync(_uow.Context, key => configuration[key]);
         return View(invoice);
     }
 
