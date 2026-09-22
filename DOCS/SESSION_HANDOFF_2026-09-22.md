@@ -45,8 +45,8 @@
 |---|---|---|
 | `db3d6ef` | **512** SuperAdmin's Visitors report: visits to the platform's own pages and where they came from | 1141/1141 |
 | `3d025d2` | **513** the platform's pages have an icon; advisers' sites left as they were | 1157/1157 |
-| _see log 514_ | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | whole tree |
-| _see log 515_ | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | whole tree |
+| `2147d6a` | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | 1184/1184 |
+| `2147d6a` | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | 1184/1184 |
 
 ## Do this first tomorrow
 
