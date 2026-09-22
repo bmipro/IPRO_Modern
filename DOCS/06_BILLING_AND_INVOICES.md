@@ -58,11 +58,11 @@ Scheduled jobs and PayPal webhooks reconcile recurring subscription status.
 
 1. Open **Billing**.
 2. Open the invoice.
-3. Review package, setup fee, subtotal, tax, total, payment status, and PayPal transaction.
-4. Use the browser print command.
+3. Review the package and billing cycle, the bill-to details, each line with its tax, the tax summary, subtotal, tax, total, payment received and balance due, the status (Paid, Unpaid or Payment failed) and the PayPal transaction.
+4. Select **Print / Save PDF** (or use the browser print command).
 5. Select **Save as PDF** for a PDF copy.
 
-Invoices are formatted to fit one printed page. Invoice numbers use the `IPRO-YYYY-000001` pattern.
+Invoices are formatted to fit one Letter-size page. Invoice numbers use the `IPRO-YYYY-000001` pattern. The supplier block (company name, address, GST/HST registration number, billing email and website) is what SuperAdmin -> Company Details holds; the bill-to block is frozen at the time the invoice was issued.
 
 ## Tax Calculation
 

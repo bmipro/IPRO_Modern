@@ -13,14 +13,14 @@ The original Azure-application-settings admin credential is automatically create
 1. Select **Admin Users** (Super Admin only).
 2. **New Admin** creates an account with a username, full name, temporary password, and role.
 3. Two roles exist:
-   - **Super Admin** — full access, including Packages, Tax Rates, PayPal Setup, Email Setup, Website Templates, Newsletter Templates, and Admin Users itself.
+   - **Super Admin** — full access, including Packages, Tax Rates, Company Details, PayPal Setup, Email Setup, Website Templates, Newsletter Templates, and Admin Users itself.
    - **Support** — day-to-day operations: Agents, Domains, Starter Content, Website Leads, and Reports. Billing/platform configuration screens are not accessible and return "Access Denied."
 4. **Edit** an account to change its full name, role, or active status. An admin cannot deactivate their own account.
 5. **Reset Password** sets a new password for an account; share it with that admin securely.
 
 ## View the Audit Log
 
-Select **Audit Log** (Super Admin only, under **System**) to see every logged action across the portal, newest first — login success/failure, admin-account changes, and every meaningful change made on Agents, Packages, Promotion Codes, Tax Rates, Domains, Newsletter Templates, Website Templates, Starter Content, and Support Tickets. Each entry shows when it happened, which admin did it, a short action code, and a human-readable detail.
+Select **Audit Log** (Super Admin only, under **System**) to see every logged action across the portal, newest first — login success/failure, admin-account changes, and every meaningful change made on Agents, Packages, Promotion Codes, Tax Rates, Company Details, Domains, Newsletter Templates, Website Templates, Starter Content, and Support Tickets. Each entry shows when it happened, which admin did it, a short action code, and a human-readable detail.
 
 Filter by acting admin, search action/detail text, or set a date range. Results are paginated 50 per page.
 
@@ -158,6 +158,16 @@ The sender address must be verified in SendGrid. Deferred email usually indicate
 3. Save.
 
 Tax changes apply to future invoice calculations.
+
+## Company Details
+
+Select **Company Details** (Super Admin only, under **Billing**) to set the supplier as it appears on every invoice to an adviser, on the paid-invoice email and on the Revenue print view: company name, address, GST/HST registration number, billing email and website.
+
+1. Fill the fields and save. The card beside the form shows exactly what invoices print now.
+2. A field left blank keeps the value the application settings supply (name, email, website and the one-line registered address). The GST/HST number has no setting: until it is saved here, no invoice prints one.
+3. Saved values apply at once to every invoice, including invoices already issued. The customer's bill-to block is the snapshot frozen when the invoice was issued.
+
+Every save is written to the Audit Log with the values before and after.
 
 ## Manage Website Templates
 

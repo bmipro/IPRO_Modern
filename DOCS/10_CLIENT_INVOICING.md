@@ -23,7 +23,7 @@ A document number (`EST-####` for estimates, `INV-####` for invoices) is assigne
 
 ## What the Client Sees
 
-- A read-only, printable page showing the agent's business details, the client's bill-to information, line items, tax, and total.
+- A read-only, printable page in the agent's branding: their company name, address, phone and email, and their website logo when they have one; the client's bill-to information; each line with quantity, unit price, tax and amount; the tax summary, subtotal, tax and total; for an invoice, the due date, payment received and balance due, and once paid, the date and method. The status reads in words (Awaiting payment, Awaiting your reply, Paid, Approved, Declined, Void).
 - For an **estimate**: **Approve** and **Decline** buttons. Approving does not charge anything — it just flags the estimate as approved.
 - For an **invoice**: a **Pay Now** button, shown only if the agent has set a payment link on their Profile page (see below). The client can also arrange payment another way (cheque, e-transfer, cash) directly with the agent.
 

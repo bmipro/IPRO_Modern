@@ -30,6 +30,14 @@
 - **Microsoft's closing note on the ACS quota case (2608310040012537):** routine, sent because the
   ticket was confirmed closed; the plan of record is to ask again in mid-October with a month of real
   sending history (the calendar item). Nothing to do now; the case number is worth quoting then.
+- **514 and 515, the invoices redesigned, one deploy:** the marketing designer's package arrived in the
+  morning ("if you like it we could implement it today"); rebuilt for our invoice to advisers and for
+  advisers' invoices and estimates to their clients, with the supplier's details moved out of the
+  settings into SuperAdmin -> **Company Details** at the owner's word ("can u not hardcode the elements
+  needed i.e. GST/HST and addresses so we could populate it from superadmin"). TODO 514 and 515 say what
+  is shown and what was deliberately not invented. **Owner:** fill Company Details after the deploy;
+  until then invoices print the settings' name, email, website and one-line address, and no GST/HST
+  number (it is in no setting). The invoice pages are behind sign-in, so the proof of the look is his.
 
 ## Pushed today
 
@@ -37,17 +45,20 @@
 |---|---|---|
 | `db3d6ef` | **512** SuperAdmin's Visitors report: visits to the platform's own pages and where they came from | 1141/1141 |
 | `3d025d2` | **513** the platform's pages have an icon; advisers' sites left as they were | 1157/1157 |
+| _see log 514_ | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | whole tree |
+| _see log 515_ | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | whole tree |
 
 ## Do this first tomorrow
 
 1. Both health endpoints, the Job Scheduler, Email Activity; PayPal's webhook event log for any real
    sign-up (each event **Success**); and now **Reports -> Visitors** -- the first real day of counts.
-2. **The Privacy Policy section for 512** if the owner has answered (the text is in the 09-21 handoff;
-   `_LegalPrivacy.cshtml`, after "From visitors to your public website"). The report is live without it.
+2. **Company Details** (SuperAdmin -> Billing): the owner fills the name, the address and the GST/HST
+   number, then opens one of our invoices, a client invoice and an estimate and looks; screenshots
+   welcome. (The Privacy Policy question is settled: no addition.)
 3. **Calendar:** TODO 505 or the hand renewal before 5 October (certificates expire 19 October); clear
    `Email__TrackingSigningKeyPrevious` around 17 October; Microsoft quota mid-October; .NET 10 in October.
 4. **Open:** TODO 504 (the polish list), 506 (an adviser's domain with CAA records); retention for the
    two page-view tables; the truth sweep's open items; Google Calendar sync reads a follow-up's date as
    UTC; a site-language option, French first; SOC 2 after launch.
 
-Related: `DOCS/TODO.md` 512-513; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
+Related: `DOCS/TODO.md` 512-515; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
