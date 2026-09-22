@@ -350,6 +350,8 @@ using (var scope = app.Services.CreateScope())
     // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit); after the
     // promotion code tables it points at.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync", () => StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync(db), db, app.Logger);
+    // 512: visits to the platform's own public pages and sign-up origins (PlatformPageView, PlatformSignupOrigin).
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePlatformVisitorSchemaAsync", () => StartupSchemaRepair.EnsurePlatformVisitorSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Same shared call as IPRO.Web/Program.cs -- see the note there. Admin needs it too because

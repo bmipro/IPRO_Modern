@@ -165,6 +165,7 @@ public static class AgentDataEraser
         // is what the SuperAdmin erasure preview counts and what still works if a cascade is ever dropped
         // (AgentDataEraserCoverageTests caught its absence in the 498 gate, which is what it is for).
         ("AgentFollowUpReminders",      "AgentUserId = @agentId"),
+        ("PlatformSignupOrigins",       "AgentUserId = @agentId"),
         ("OperateLogs",                 "AgentUserId = @agentId"),
 
         // The agent row itself, last, and by raw SQL like everything else. Deleting it through EF

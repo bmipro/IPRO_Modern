@@ -221,6 +221,8 @@ public class AccountController : Controller
     {
         SetRegistrationVerifyCode();
         await LoadActivePackagesAsync();
+        // 512: the registration page is one of the four public pages whose visits are counted.
+        await PlatformVisitRecorder.RecordAsync(HttpContext, _db, "/Account/Register");
 
         if (!string.IsNullOrWhiteSpace(trialCode))
         {
@@ -402,6 +404,10 @@ public class AccountController : Controller
             ModelState.AddModelError("", "We could not complete the registration. Please check the form and try again.");
             return await RerenderRegisterAsync(model);
         }
+
+        // 512: where this sign-up came from -- the most recent counted visit by the same hashed
+        // visitor within the month. Never fails a registration.
+        await PlatformVisitRecorder.RecordSignupAsync(HttpContext, _db, agent.Id);
 
         if (trialInvite != null)
         {

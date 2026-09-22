@@ -30,6 +30,8 @@ public class HomeController : Controller
         }
 
         var ordered = await LoadPublicPackagesAsync();
+        // 512: a visit to the front door, counted without cookies (PlatformVisitRecorder).
+        await PlatformVisitRecorder.RecordAsync(HttpContext, _db, "/");
 
         // The hero's canned HeroInsight went with the hand-built portal mock: the panels are
         // real screenshots now (mkt-shots 2026-08-30), so nothing on this page invents data.
@@ -57,6 +59,7 @@ public class HomeController : Controller
     public async Task<IActionResult> Accountants()
     {
         ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
+        await PlatformVisitRecorder.RecordAsync(HttpContext, _db, "/accountants");
         return View(await LoadPublicPackagesAsync());
     }
 
@@ -72,6 +75,7 @@ public class HomeController : Controller
     public async Task<IActionResult> Mortgage()
     {
         ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
+        await PlatformVisitRecorder.RecordAsync(HttpContext, _db, "/mortgage");
         return View(await LoadPublicPackagesAsync());
     }
 

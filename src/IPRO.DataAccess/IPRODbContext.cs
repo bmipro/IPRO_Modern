@@ -63,6 +63,8 @@ public class IPRODbContext : DbContext
     public DbSet<PromotionCode> PromotionCodes => Set<PromotionCode>();
     public DbSet<PromotionCodeRedemption> PromotionCodeRedemptions => Set<PromotionCodeRedemption>();
     public DbSet<PromotionCodePeriodLimit> PromotionCodePeriodLimits => Set<PromotionCodePeriodLimit>();
+    public DbSet<PlatformPageView> PlatformPageViews => Set<PlatformPageView>();
+    public DbSet<PlatformSignupOrigin> PlatformSignupOrigins => Set<PlatformSignupOrigin>();
     public DbSet<TrialInviteCode> TrialInviteCodes => Set<TrialInviteCode>();
     public DbSet<TrialInviteCodeRedemption> TrialInviteCodeRedemptions => Set<TrialInviteCodeRedemption>();
     public DbSet<TrialSettings> TrialSettings => Set<TrialSettings>();
@@ -416,6 +418,33 @@ public class IPRODbContext : DbContext
             e.Property(r => r.AgentUserId).ValueGeneratedNever();
             e.Property(r => r.IsEnabled).HasDefaultValue(true);
             e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentFollowUpReminder>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 512: views of the platform's own public pages, and where a self-registered adviser came from.
+        modelBuilder.Entity<PlatformPageView>(e =>
+        {
+            e.HasIndex(v => v.CreatedAt);
+            e.HasIndex(v => new { v.VisitorHash, v.CreatedAt });
+            e.Property(v => v.Host).HasMaxLength(255).IsRequired();
+            e.Property(v => v.Path).HasMaxLength(200).IsRequired();
+            e.Property(v => v.ReferrerHost).HasMaxLength(255);
+            e.Property(v => v.Source).HasMaxLength(100);
+            e.Property(v => v.Medium).HasMaxLength(100);
+            e.Property(v => v.Campaign).HasMaxLength(100);
+            e.Property(v => v.VisitorHash).HasMaxLength(64).IsRequired();
+        });
+        modelBuilder.Entity<PlatformSignupOrigin>(e =>
+        {
+            e.HasKey(o => o.AgentUserId);
+            e.Property(o => o.AgentUserId).ValueGeneratedNever();
+            e.HasIndex(o => o.RecordedAt);
+            e.Property(o => o.Host).HasMaxLength(255);
+            e.Property(o => o.Path).HasMaxLength(200);
+            e.Property(o => o.ReferrerHost).HasMaxLength(255);
+            e.Property(o => o.Source).HasMaxLength(100);
+            e.Property(o => o.Medium).HasMaxLength(100);
+            e.Property(o => o.Campaign).HasMaxLength(100);
+            e.HasOne(o => o.AgentUser).WithOne().HasForeignKey<PlatformSignupOrigin>(o => o.AgentUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // 508: the one billing period a promotion code works with; no row = both. Keyed by the code.

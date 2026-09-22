@@ -198,6 +198,9 @@
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "Subscriptions" ? "active" : "")" href="/Reports/Subscriptions">
             <i class="fas fa-credit-card"></i>Subscriptions
         </a>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Visitors" ? "active" : "")" href="/Reports/Visitors">
+            <i class="fas fa-chart-line"></i>Visitors
+        </a>
     </nav>
     <div class="admin-sidebar-footer">
         <div class="portal-color-row">

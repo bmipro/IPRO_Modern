@@ -1363,6 +1363,42 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 512: visits to the platform's own public pages, and where a self-registered adviser came from
+    // (PlatformPageView, PlatformSignupOrigin). Matches the EF model column for column.
+    public static async Task EnsurePlatformVisitorSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `PlatformPageViews` (
+        `Id` bigint NOT NULL AUTO_INCREMENT,
+        `Host` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+        `Path` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+        `ReferrerHost` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Source` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Medium` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Campaign` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `VisitorHash` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_PlatformPageViews_CreatedAt` (`CreatedAt`),
+        KEY `IX_PlatformPageViews_VisitorHash_CreatedAt` (`VisitorHash`,`CreatedAt`)
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `PlatformSignupOrigins` (
+        `AgentUserId` int NOT NULL,
+        `Host` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Path` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `ReferrerHost` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Source` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Medium` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Campaign` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `FirstSeenAt` datetime(6) NULL,
+        `RecordedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        KEY `IX_PlatformSignupOrigins_RecordedAt` (`RecordedAt`),
+        CONSTRAINT `FK_PlatformSignupOrigins_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"
