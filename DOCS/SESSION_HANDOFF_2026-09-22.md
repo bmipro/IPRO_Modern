@@ -20,7 +20,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 512_ | **512** SuperAdmin's Visitors report: visits to the platform's own pages and where they came from | whole tree |
+| `db3d6ef` | **512** SuperAdmin's Visitors report: visits to the platform's own pages and where they came from | 1141/1141 |
 
 ## Do this first tomorrow
 
