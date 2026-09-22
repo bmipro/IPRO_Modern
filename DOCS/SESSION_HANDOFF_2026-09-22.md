@@ -36,7 +36,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `db3d6ef` | **512** SuperAdmin's Visitors report: visits to the platform's own pages and where they came from | 1141/1141 |
-| _see log 513_ | **513** the platform's pages have an icon; advisers' sites left as they were | whole tree |
+| `3d025d2` | **513** the platform's pages have an icon; advisers' sites left as they were | 1157/1157 |
 
 ## Do this first tomorrow
 
