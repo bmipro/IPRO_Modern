@@ -15,12 +15,28 @@
 - **512, the Visitors report, built and shipped** (TODO 512 says what it records and where). The
   Privacy Policy's new section is still only drafted (09-21 handoff): the owner was asked whether to
   include it in this deploy or hold it for his lawyer, and had not answered when 512 shipped.
+- **The health check the owner asked for (3:30 p.m.), all read-only:** both hosts Healthy on `e46a5a9`;
+  zero 5xx in 24 hours on either app (10,010 web requests, 1,904 admin); average response 0.12 s; the
+  seven public pages 200 in 0.11-0.19 s; `http://` forwards; the six brand names' certificates 171-179
+  days, **`app.` and `admin.` 26-27 days (renew before 5 October: TODO 505 or the hand renewal)**; DNS
+  and both mail routes right; the 7:05 email both mornings delivered. The one number to explain:
+  3,458 of the day's requests were 404 -- in bursts of a few hundred (scanners probing for files that
+  do not exist; harmless, no error on our side) plus one per real visit for the missing `/favicon.ico`.
+  Linux App Service keeps no per-request log, so the 404s cannot be listed by path; streaming request
+  logs to a workspace is a setting change (owner's go) if he ever wants that. The application log had
+  only the certificate watchdog's deliberate warning and the deploy's container start-up noise.
+- **513, the favicon,** from that check: the owner supplied the icon; the platform's pages name it,
+  advisers' sites are left as they were (TODO 513 says why).
+- **Microsoft's closing note on the ACS quota case (2608310040012537):** routine, sent because the
+  ticket was confirmed closed; the plan of record is to ask again in mid-October with a month of real
+  sending history (the calendar item). Nothing to do now; the case number is worth quoting then.
 
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `db3d6ef` | **512** SuperAdmin's Visitors report: visits to the platform's own pages and where they came from | 1141/1141 |
+| _see log 513_ | **513** the platform's pages have an icon; advisers' sites left as they were | whole tree |
 
 ## Do this first tomorrow
 
@@ -34,4 +50,4 @@
    two page-view tables; the truth sweep's open items; Google Calendar sync reads a follow-up's date as
    UTC; a site-language option, French first; SOC 2 after launch.
 
-Related: `DOCS/TODO.md` 512; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
+Related: `DOCS/TODO.md` 512-513; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
