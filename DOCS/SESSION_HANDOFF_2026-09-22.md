@@ -65,7 +65,7 @@
 | `2147d6a` | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | 1184/1184 |
 | `2147d6a` | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | 1184/1184 |
 | `2c790e2` | **516** the first real invoice's three fixes: the tax shown once, one city line, the PayPal reference in two rows | 1200/1200 |
-| _see log 517_ | **517** the Visitors report's days are the platform's own days, not UTC | whole tree |
+| `cf9904f` | **517** the Visitors report's days are the platform's own days, not UTC | 1202/1202 |
 
 ## Close-out 2026-09-22
 
