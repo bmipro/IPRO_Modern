@@ -51,6 +51,10 @@
   "Inc.." seen beside them (TODO 516). One of his client invoices read "No tax": the client had no
   country or province on file, and the tax on a client document follows the client's province (DOCS/10);
   not a defect, he was told to complete the client and redo the document.
+- **517, the Visitors report's day boundary (8:42 p.m.):** the owner's By-day list had started "Wed, Sep 23"
+  while it was still Tuesday evening in Toronto -- the days were the server's UTC days. Now the platform's
+  own days (`Admin:TimeZone`, Eastern when unset), the same clock the header shows. Polish item 9 (the
+  follow-up list's and the dashboard's "today") is the same defect elsewhere and stays on the list.
 
 ## Pushed today
 
@@ -61,6 +65,7 @@
 | `2147d6a` | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | 1184/1184 |
 | `2147d6a` | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | 1184/1184 |
 | `2c790e2` | **516** the first real invoice's three fixes: the tax shown once, one city line, the PayPal reference in two rows | 1200/1200 |
+| _see log 517_ | **517** the Visitors report's days are the platform's own days, not UTC | whole tree |
 
 ## Close-out 2026-09-22
 
@@ -92,4 +97,4 @@ process running; MySQL is the Windows service and needs nothing. Reboot-ready.
    two page-view tables; the truth sweep's open items; Google Calendar sync reads a follow-up's date as
    UTC; a site-language option, French first; SOC 2 after launch.
 
-Related: `DOCS/TODO.md` 512-516; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
+Related: `DOCS/TODO.md` 512-517; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
