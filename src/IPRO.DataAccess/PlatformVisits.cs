@@ -139,7 +139,7 @@ ON DUPLICATE KEY UPDATE `Host` = VALUES(`Host`), `Path` = VALUES(`Path`), `Refer
         }
     }
 
-    public static async Task<PlatformVisitorReport> ReportAsync(IPRODbContext db, int days, DateTime nowUtc)
+    public static async Task<PlatformVisitorReport> ReportAsync(IPRODbContext db, int days, DateTime nowUtc, string? zone = null)
     {
         var cutoff = nowUtc.AddDays(-days);
         var previousCutoff = cutoff.AddDays(-days);
@@ -150,12 +150,15 @@ ON DUPLICATE KEY UPDATE `Host` = VALUES(`Host`), `Path` = VALUES(`Path`), `Refer
         var previousViews = await db.PlatformPageViews.AsNoTracking()
             .CountAsync(v => v.CreatedAt >= previousCutoff && v.CreatedAt < cutoff);
 
-        var daily = (await period
-                .GroupBy(v => v.CreatedAt.Date)
-                .Select(g => new { Date = g.Key, Views = g.Count(), Visitors = g.Select(v => v.VisitorHash).Distinct().Count() })
-                .OrderBy(d => d.Date)
-                .ToListAsync())
-            .Select(d => new PlatformVisitorDay(d.Date, d.Views, d.Visitors))
+        // 517: a day is the platform's own day (Admin:TimeZone, Eastern when unset -- the clock the
+        // SuperAdmin header shows), not the server's UTC day: at 8:42 p.m. in Toronto the report had
+        // already started "Wed, Sep 23". Grouped here, after the rows are read, because the zone
+        // conversion is not SQL.
+        var stamps = await period.Select(v => new { v.CreatedAt, v.VisitorHash }).ToListAsync();
+        var daily = stamps
+            .GroupBy(v => AgentLocalTime.FromUtc(v.CreatedAt, zone).Date)
+            .Select(g => new PlatformVisitorDay(g.Key, g.Count(), g.Select(v => v.VisitorHash).Distinct().Count()))
+            .OrderBy(d => d.Date)
             .ToList();
 
         // One projection for the three origin-shaped breakdowns: the campaign label is computed, so
