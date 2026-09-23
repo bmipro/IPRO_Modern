@@ -12,8 +12,8 @@ visible, and retroactive. That is why there is a watchdog.
 
 | Domain | Issuer | Renewal | Notes |
 |---|---|---|---|
-| `app.iproadvisers.com` | Let's Encrypt | **Manual, ours** | Newsletter images resolve here on real sends |
-| `admin.iproadvisers.com` | Let's Encrypt | **Manual, ours** | SuperAdmin only |
+| `app.iproadvisers.com` | DigiCert (App Service managed) | **Automatic** | Since 2026-09-23 (TODO 505); newsletter images resolve here on real sends |
+| `admin.iproadvisers.com` | DigiCert (App Service managed) | **Automatic** | Since 2026-09-23 (TODO 505); SuperAdmin only |
 | `*.247advisers.com` | Sectigo | Managed by the host | Agent custom domains; not our responsibility |
 | `www.iproadvisers.com`, `iproadvisers.com`, `www.iproaccountants.com`, `iproaccountants.com` | DigiCert (App Service managed) | **Automatic** | All four bound 2026-09-20, valid to 20 March 2027 (`DOCS/DOMAIN_SWITCH_RUNBOOK.md`). They need the zone's `CAA 0 issue "digicert.com"` record to renew: do not delete it |
 | `ipromortgages.com`, `www.ipromortgages.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-12 (the rehearsal) |
@@ -28,6 +28,11 @@ managed certificates come from DigiCert, which had to refuse; Let's Encrypt was 
 why lego worked. The owner added `CAA 0 issue "digicert.com"` that day and a managed certificate for
 `www.iproadvisers.com` issued in about 13 minutes. So `app.` and `admin.` CAN now move to managed
 certificates and stop needing a hand renewal -- TODO 505, before 5 October.
+
+**Done 2026-09-23:** both moved to managed certificates (issued in about four minutes each, bound SNI,
+proved from outside: DigiCert, expiry 2027-03-23). No host needs the hand renewal any more; the
+section below is kept for the day a managed certificate fails to renew. The lego certificate
+resources stay in Azure, unbound, until they lapse on 19 October.
 
 ## The watchdog in Azure (primary)
 
@@ -128,3 +133,5 @@ deliberate follow-up, not something to bolt on mid-incident.
   OneDrive-redirected), and the script printed "ALERT WRITTEN" without checking whether the write
   had succeeded. A watchdog that reports having warned you when it did not is worse than no
   watchdog, and neither bug would have surfaced until October.
+- **2026-09-23** -- `app.` and `admin.` moved to App Service managed certificates (TODO 505, on the
+  owner's go); the lego renewal is no longer needed for any host.
