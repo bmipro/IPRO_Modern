@@ -95,7 +95,7 @@ public class InvoiceDesign514Tests
         Assert.Equal("Free test", view.BillToName);
         Assert.Equal("Abcd Inc.", view.BillToCompany);
         Assert.Equal("etest@iproadvisers.com", view.BillToEmail);
-        Assert.Equal(new[] { "3230 Yonge Street Suite 2005", "Toronto", "Ontario M5R 1R9", "Canada" }, view.BillToAddressLines);
+        Assert.Equal(new[] { "3230 Yonge Street Suite 2005", "Toronto, Ontario M5R 1R9", "Canada" }, view.BillToAddressLines);   // 516: one city line
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class InvoiceDesign514Tests
         Assert.Equal("Michael Tran", view.BillToName);
         Assert.Equal("Tran Financial Group", view.BillToCompany);
         Assert.Equal("michaeltran@alladvisers.com", view.BillToEmail);
-        Assert.Equal(new[] { "1 King St W", "Toronto Ontario M5H 1A1", "Canada" }, view.BillToAddressLines);
+        Assert.Equal(new[] { "1 King St W", "Toronto, Ontario M5H 1A1", "Canada" }, view.BillToAddressLines);   // 516: one city line
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public class InvoiceDesign514Tests
 
         Assert.Equal("iPro Advisers Inc.", details.Name);
         Assert.Equal("822383303 RT0001", details.TaxRegistrationNumber);
-        Assert.Equal(new[] { "3230 Yonge Street", "Suite 2005", "Toronto, ON  M4N 3P6", "Canada" }, details.AddressLines);
+        Assert.Equal(new[] { "3230 Yonge Street", "Suite 2005", "Toronto, ON M4N 3P6", "Canada" }, details.AddressLines);
         Assert.Equal("billing@iproadvisers.com", details.Email);      // blank in the profile: the setting serves
         Assert.Equal("www.iProAdvisers.com", details.Website);
     }

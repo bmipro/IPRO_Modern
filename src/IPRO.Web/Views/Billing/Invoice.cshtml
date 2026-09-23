@@ -110,6 +110,10 @@
           <dl>
             <div><dt>Status</dt><dd>@view.StatusText</dd></div>
             <div><dt>Method</dt><dd>@view.Method</dd></div>
+            @if (!string.IsNullOrWhiteSpace(view.SubscriptionId))
+            {
+              <div><dt>PayPal subscription</dt><dd class="wrap">@view.SubscriptionId</dd></div>
+            }
             @if (!string.IsNullOrWhiteSpace(view.TransactionId))
             {
               <div><dt>PayPal transaction</dt><dd class="wrap">@view.TransactionId</dd></div>
@@ -175,7 +179,7 @@
       </section>
 
       <footer class="invoice-footer">
-        <p>Thank you for choosing @companyName.</p>
+        <p>Thank you for choosing @(companyName)@(companyName.EndsWith(".") ? "" : ".")</p>
         @* 511: the owner's capitals wherever a person reads a brand domain -- display only. *@
         <p>Questions about this invoice? <a href="mailto:@companyEmail">@IPRO.Email.BrandText.WithCapitals(companyEmail)</a> &nbsp;|&nbsp; <a href="@websiteHref">@IPRO.Email.BrandText.WithCapitals(companyWebsite)</a></p>
         <p class="record-note">Please retain this invoice for your records. This invoice was generated electronically.</p>

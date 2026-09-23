@@ -45,15 +45,14 @@ public sealed record BillingCompanyDetails(
             lines);
     }
 
-    // Street, second line, "City, Province  PostalCode", country -- each only when given.
+    // Street, second line, "City, Province PostalCode", country -- each only when given.
     public static IReadOnlyList<string> AddressLinesOf(BillingCompanyProfile? row)
     {
         if (row == null) return Array.Empty<string>();
         var lines = new List<string>();
         if (!string.IsNullOrWhiteSpace(row.AddressLine1)) lines.Add(row.AddressLine1.Trim());
         if (!string.IsNullOrWhiteSpace(row.AddressLine2)) lines.Add(row.AddressLine2.Trim());
-        var city = string.Join(", ", new[] { row.City, row.Province }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()));
-        var cityLine = string.Join("  ", new[] { city, row.PostalCode?.Trim() ?? string.Empty }.Where(s => s.Length > 0));
+        var cityLine = AddressText.CityLine(row.City, row.Province, row.PostalCode);   // 516: one way everywhere
         if (cityLine.Length > 0) lines.Add(cityLine);
         if (!string.IsNullOrWhiteSpace(row.Country)) lines.Add(row.Country.Trim());
         return lines;

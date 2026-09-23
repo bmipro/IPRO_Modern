@@ -47,7 +47,7 @@ public class ClientDocumentDesign515Tests
         Assert.Equal("Awaiting payment", view.StatusText);
         Assert.Equal("open", view.StatusClass);
         Assert.Equal("Tran Financial Group", view.SupplierName);
-        Assert.Equal(new[] { "1 King St W", "Toronto Ontario M5H 1A1", "Canada" }, view.SupplierAddressLines);
+        Assert.Equal(new[] { "1 King St W", "Toronto, Ontario M5H 1A1", "Canada" }, view.SupplierAddressLines);   // 516: one city line
         Assert.Equal("416-555-0100", view.SupplierPhone);
         Assert.Equal("michaeltran@alladvisers.com", view.SupplierEmail);
         Assert.Equal("/media/logos/tran.png", view.LogoUrl);
@@ -57,7 +57,7 @@ public class ClientDocumentDesign515Tests
         Assert.Equal("Ava Chen", view.BillToName);
         Assert.Equal("Chen Dental", view.BillToCompany);
         Assert.Equal("ava@example.test", view.BillToEmail);
-        Assert.Equal(new[] { "22 Bay St", "Toronto ON M5J 2T3", "Canada" }, view.BillToAddressLines);
+        Assert.Equal(new[] { "22 Bay St", "Toronto, ON M5J 2T3", "Canada" }, view.BillToAddressLines);   // 516: one city line
         Assert.Equal("ON HST 13%", view.TaxLabel);
         var line = Assert.Single(view.Lines);
         Assert.Equal(("Financial plan review", 2m, 125m, "ON HST 13%", 250m), (line.Description, line.Quantity, line.UnitPrice, line.TaxLabel, line.Amount));

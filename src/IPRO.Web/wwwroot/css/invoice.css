@@ -282,7 +282,7 @@ dd {
 }
 
 dd.wrap {
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .party-grid {
@@ -309,12 +309,15 @@ dd.wrap {
 }
 
 .payment-summary dt {
+  flex: 0 0 auto;
   margin: 0;
   text-transform: none;
   font-weight: 600;
 }
 
 .payment-summary dd {
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: right;
 }
 

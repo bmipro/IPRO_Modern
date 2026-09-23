@@ -2877,8 +2877,9 @@ public class PayPalBillingService : IBillingService
         var agent = await _uow.AgentUsers.GetByIdAsync(userId);
         var billToName = agent == null ? string.Empty : $"{agent.FirstName} {agent.LastName}".Trim();
         if (string.IsNullOrWhiteSpace(billToName)) billToName = agent?.UserName ?? string.Empty;
-        var provincePostal = agent == null ? string.Empty : $"{agent.Province} {agent.PostalCode}".Trim();
-        var addressLines = new[] { agent?.CompanyAddress, agent?.City, provincePostal, agent?.Country }
+        // 516: the city line is frozen as it is printed -- "City, Province PostalCode", one line.
+        var cityLine = agent == null ? string.Empty : AddressText.CityLine(agent.City, agent.Province, agent.PostalCode);
+        var addressLines = new[] { agent?.CompanyAddress, cityLine, agent?.Country }
             .Where(line => !string.IsNullOrWhiteSpace(line));
 
         var invoice = new IPRO.Entities.Invoice
@@ -3187,7 +3188,8 @@ public class PayPalBillingService : IBillingService
         var companyWebsite = company.Website;
         var taxNumber = company.TaxRegistrationNumber;
         var companyAddress = string.Join(", ", company.AddressLines);
-        var itemList = lineItems.ToList();
+        var reference = PayPalReference.Split(invoice.PayPalTransactionId);           // 516: the subscription and the transaction, two lines
+        var itemList = InvoiceLines.Charges(lineItems, invoice.TaxAmount).ToList();  // 516: the tax is shown once, in the totals
         var rows = itemList.Any()
             ? string.Join("", itemList.Select(item => $"""
                 <tr>
@@ -3235,7 +3237,8 @@ public class PayPalBillingService : IBillingService
                   <div><strong>Invoice #:</strong> {WebUtility.HtmlEncode(invoice.InvoiceNumber)}</div>
                   <div><strong>Date:</strong> {IPRO.DataAccess.AgentLocalTime.FromUtc(invoice.IssuedAt, agent.TimeZone):MMMM d, yyyy}</div>
                   <div><strong>Status:</strong> Paid</div>
-                  {(string.IsNullOrWhiteSpace(invoice.PayPalTransactionId) ? "" : $"<div><strong>PayPal transaction:</strong> {WebUtility.HtmlEncode(invoice.PayPalTransactionId)}</div>")}
+                  {(reference.SubscriptionId.Length == 0 ? "" : $"<div><strong>PayPal subscription:</strong> {WebUtility.HtmlEncode(reference.SubscriptionId)}</div>")}
+                  {(reference.TransactionIds.Count == 0 ? "" : $"<div><strong>PayPal transaction:</strong> {WebUtility.HtmlEncode(string.Join(", ", reference.TransactionIds))}</div>")}
                 </div>
               </div>
               <table style="width:100%;border-collapse:collapse;margin-top:10px;">
@@ -3275,8 +3278,9 @@ public class PayPalBillingService : IBillingService
 
     private string BuildPaidInvoiceEmailText(IPRO.Entities.Invoice invoice, IEnumerable<InvoiceLineItem> lineItems, string fullName, string packageName)
     {
-        var itemLines = lineItems.Any()
-            ? string.Join("\n", lineItems.Select(i => $"- {i.Description}: ${i.Amount:N2} {invoice.Currency}"))
+        var charges = InvoiceLines.Charges(lineItems, invoice.TaxAmount).ToList();   // 516: the tax is shown once, below
+        var itemLines = charges.Any()
+            ? string.Join("\n", charges.Select(i => $"- {i.Description}: ${i.Amount:N2} {invoice.Currency}"))
             : $"- {packageName} billing charge: ${invoice.SubTotal:N2} {invoice.Currency}";
 
         return $"""
@@ -3303,10 +3307,8 @@ public class PayPalBillingService : IBillingService
         if (!string.IsNullOrWhiteSpace(agent.CompanyName)) lines.Add(agent.CompanyName);
         if (!string.IsNullOrWhiteSpace(agent.Email)) lines.Add(agent.Email);
         if (!string.IsNullOrWhiteSpace(agent.CompanyAddress)) lines.Add(agent.CompanyAddress);
-        if (!string.IsNullOrWhiteSpace(agent.City)) lines.Add(agent.City);
-
-        var provincePostal = $"{agent.Province} {agent.PostalCode}".Trim();
-        if (!string.IsNullOrWhiteSpace(provincePostal)) lines.Add(provincePostal);
+        var cityLine = AddressText.CityLine(agent.City, agent.Province, agent.PostalCode);   // 516: one city line
+        if (!string.IsNullOrWhiteSpace(cityLine)) lines.Add(cityLine);
         if (!string.IsNullOrWhiteSpace(agent.Country)) lines.Add(agent.Country);
 
         return lines.Count == 0

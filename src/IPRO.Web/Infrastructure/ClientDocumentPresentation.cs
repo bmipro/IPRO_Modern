@@ -60,7 +60,7 @@ public sealed class ClientDocumentPresentation
             .ToList();
 
         var billToName = $"{client?.FirstName} {client?.LastName}".Trim();
-        var cityLine = string.Join(" ", new[] { client?.City, client?.Province, client?.PostalCode }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()));
+        var cityLine = AddressText.CityLine(client?.City, client?.Province, client?.PostalCode);   // 516: one way everywhere
         var billToLines = InvoiceText.WithoutCountryOnly(
             new[] { client?.Address?.Trim(), cityLine, client?.Country?.Trim() }.Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => l!).ToList(),
             client?.Country);
@@ -75,7 +75,7 @@ public sealed class ClientDocumentPresentation
             StatusText = statusText,
             StatusClass = statusClass,
             SupplierName = string.IsNullOrWhiteSpace(agent?.CompanyName) ? "Your Business" : agent!.CompanyName.Trim(),
-            SupplierAddressLines = InvoiceText.WithoutCountryOnly(agent?.GetFormattedAddressLines() ?? new List<string>(), agent?.Country),
+            SupplierAddressLines = InvoiceText.WithoutCountryOnly(InvoiceText.AgentAddressLines(agent), agent?.Country),
             SupplierPhone = agent?.Phone?.Trim() ?? string.Empty,
             SupplierEmail = agent?.Email?.Trim() ?? string.Empty,
             LogoUrl = logoUrl?.Trim() ?? string.Empty,

@@ -1,12 +1,15 @@
 @model IPRO.Entities.Invoice
 @using IPRO.DataAccess
+@using IPRO.Entities
 @{
     ViewData["Title"] = Model.InvoiceNumber;
     var agent = ViewBag.Agent as IPRO.Entities.AgentUser;
     var package = ViewBag.Package as IPRO.Entities.BillingRule;
     var billToName = string.IsNullOrWhiteSpace(Model.BillToName) ? (agent?.UserName ?? "(unknown)") : Model.BillToName;
-    var addressLines = (Model.BillToAddress ?? string.Empty)
-        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    // 516: a city line frozen as "City" / "Province PostalCode" is joined on display; the reference is read apart.
+    var addressLines = AddressText.JoinCityAndProvinceLines((Model.BillToAddress ?? string.Empty)
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    var reference = PayPalReference.Split(Model.PayPalTransactionId);
     var issuedLocal = AgentLocalTime.FromUtc(Model.IssuedAt, agent?.TimeZone);
     var company = ViewBag.Company as BillingCompanyDetails ?? BillingCompanyDetails.From(null, _ => null);
 }
@@ -56,7 +59,9 @@
         <div><strong>Invoice #:</strong> @Model.InvoiceNumber</div>
         <div><strong>Date:</strong> @issuedLocal.ToString("MMMM d, yyyy")</div>
         @if (package != null) { <div><strong>Package:</strong> @package.PackageName</div> }
-        @if (!string.IsNullOrWhiteSpace(Model.PayPalTransactionId)) { <div class="text-break"><strong>PayPal transaction:</strong> @Model.PayPalTransactionId</div> }
+        @if (reference.SubscriptionId.Length > 0) { <div class="text-break"><strong>PayPal subscription:</strong> @reference.SubscriptionId</div> }
+        @if (reference.TransactionIds.Count > 0) { <div class="text-break"><strong>PayPal transaction:</strong> @string.Join(", ", reference.TransactionIds)</div> }
+        @if (reference.FailedIds.Count > 0) { <div class="text-break text-danger"><strong>Failed attempt(s):</strong> @string.Join(", ", reference.FailedIds)</div> }
       </div>
     </div>
 
@@ -68,7 +73,7 @@
         </tr>
       </thead>
       <tbody>
-        @foreach (var line in Model.LineItems)
+        @foreach (var line in InvoiceLines.Charges(Model.LineItems, Model.TaxAmount))
         {
           <tr>
             <td>@line.Description</td>
