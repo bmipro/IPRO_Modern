@@ -1,7 +1,8 @@
 @model IEnumerable<IPRO.Entities.ClientFollowUp>
 @{
     ViewData["Title"] = "Follow-up Calendar";
-    var monthStart = (DateTime)(ViewBag.MonthStart ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1));
+    var today = ViewBag.Today as DateTime? ?? DateTime.UtcNow.Date;   // 518: the agent's day, from the controller
+    var monthStart = (DateTime)(ViewBag.MonthStart ?? new DateTime(today.Year, today.Month, 1));
     var previousMonth = (DateTime)(ViewBag.PreviousMonth ?? monthStart.AddMonths(-1));
     var nextMonth = (DateTime)(ViewBag.NextMonth ?? monthStart.AddMonths(1));
     var firstVisibleDay = monthStart.AddDays(-(int)monthStart.DayOfWeek);
@@ -18,15 +19,15 @@
     {
         var classes = new List<string> { "calendar-day" };
         if (day.Month != monthStart.Month) classes.Add("is-muted");
-        if (day.Date == DateTime.Today) classes.Add("is-today");
+        if (day.Date == today) classes.Add("is-today");
         return string.Join(" ", classes);
     }
 
     string FollowUpClass(IPRO.Entities.ClientFollowUp followUp)
     {
         if (followUp.IsCompleted) return "calendar-event is-completed";
-        if (followUp.DueAt.Date < DateTime.Today) return "calendar-event is-overdue";
-        if (followUp.DueAt.Date == DateTime.Today) return "calendar-event is-due-today";
+        if (followUp.DueAt.Date < today) return "calendar-event is-overdue";
+        if (followUp.DueAt.Date == today) return "calendar-event is-due-today";
         return "calendar-event";
     }
 }

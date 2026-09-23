@@ -97,6 +97,7 @@ public class ClientsController : Controller
             .Include(c => c.LifeEvents)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
+        ViewBag.Today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId)).Date;   // 518: the agent's day
         var comments = (await _clients.GetCommentsAsync(id)).ToList();
         ViewBag.Comments = comments;
         ViewBag.Timeline = BuildClientTimeline(client, comments);
@@ -308,13 +309,15 @@ public class ClientsController : Controller
             .FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
         if (client == null) return NotFound();
 
+        var today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId)).Date;   // 518: the agent's day
+        ViewBag.Today = today;
         var query = _db.ClientFollowUps
             .Where(f => f.ClientId == id);
 
         query = status switch
         {
             "completed" => query.Where(f => f.IsCompleted),
-            "overdue" => query.Where(f => !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+            "overdue" => query.Where(f => !f.IsCompleted && f.DueAt.Date < today),
             "all" => query,
             _ => query.Where(f => !f.IsCompleted)
         };
@@ -352,7 +355,8 @@ public class ClientsController : Controller
         page = Math.Max(page, 1);
         status = string.IsNullOrWhiteSpace(status) ? "open" : status.Trim().ToLowerInvariant();
 
-        var today = DateTime.Today;
+        var today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId)).Date;   // 518: the agent's day
+        ViewBag.Today = today;
         var nextWeek = today.AddDays(7);
         var query = _db.ClientFollowUps
             .Include(f => f.Client)
@@ -403,7 +407,8 @@ public class ClientsController : Controller
             return RedirectToAction("Index", "Billing");
         }
 
-        var today = DateTime.Today;
+        var today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId)).Date;   // 518: the agent's day
+        ViewBag.Today = today;
         var selectedMonth = new DateTime(
             year.GetValueOrDefault(today.Year),
             month.GetValueOrDefault(today.Month),

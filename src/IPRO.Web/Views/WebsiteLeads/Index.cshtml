@@ -100,12 +100,7 @@
                     <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                         @if (!lead.IsRead) { <span class="badge bg-primary">Unread</span> }
                         <span class="badge @StatusClass(lead.Status)">@lead.Status</span>
-                        <span class="badge bg-info-subtle text-info-emphasis">@(lead.SubmissionType switch {
-                            IPRO.Entities.WebsiteLeadTypes.Newsletter => "Newsletter signup",
-                            IPRO.Entities.WebsiteLeadTypes.LeadMagnet => "Lead magnet download",
-                            IPRO.Entities.WebsiteLeadTypes.CustomForm => "Form submission",
-                            _ => "Contact request"
-                        })</span>
+                        <span class="badge bg-info-subtle text-info-emphasis">@IPRO.Entities.WebsiteLeadText.KindLabel(lead.SubmissionType, lead.SourcePage, lead.WebsitePage?.Title)</span>
                     </div>
                     <h5 class="fw-bold mb-1">@lead.FirstName @lead.LastName</h5>
                     <div class="d-flex gap-3 flex-wrap small">

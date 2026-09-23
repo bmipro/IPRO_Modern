@@ -1,5 +1,6 @@
 @model IEnumerable<IPRO.Entities.ClientFollowUp>
 @{
+    var today = ViewBag.Today as DateTime? ?? DateTime.UtcNow.Date;   // 518: the agent's day, from the controller
     ViewData["Title"] = "Follow-up Queue";
     var status = (ViewBag.Status as string) ?? "open";
     var page = (int)(ViewBag.Page ?? 1);
@@ -10,8 +11,8 @@
 
     string StatusUrl(string selectedStatus, int selectedPage = 1) => $"/portal/Clients/FollowUps?status={selectedStatus}&page={selectedPage}";
     string ActiveClass(string selectedStatus) => string.Equals(status, selectedStatus, StringComparison.OrdinalIgnoreCase) ? "active" : "";
-    string DueBadgeClass(DateTime dueAt) => dueAt.Date < DateTime.Today ? "bg-danger-subtle text-danger" : dueAt.Date == DateTime.Today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
-    string DueLabel(DateTime dueAt) => dueAt.Date < DateTime.Today ? "Overdue" : dueAt.Date == DateTime.Today ? "Today" : dueAt.ToString("MMM d, yyyy");
+    string DueBadgeClass(DateTime dueAt) => dueAt.Date < today ? "bg-danger-subtle text-danger" : dueAt.Date == today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
+    string DueLabel(DateTime dueAt) => dueAt.Date < today ? "Overdue" : dueAt.Date == today ? "Today" : dueAt.ToString("MMM d, yyyy");
     string Heading = status switch
     {
         "overdue" => "Overdue Follow-ups",

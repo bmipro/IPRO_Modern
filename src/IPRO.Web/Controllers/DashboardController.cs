@@ -27,6 +27,9 @@ public class DashboardController : Controller
     public async Task<IActionResult> Index()
     {
         var agentId = AgentId;
+        // 518: "today" is the agent's day (their time zone), not the server's UTC day (INVARIANTS rule 10).
+        var agentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, agentId);
+        var today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, agentTimeZone).Date;
         ViewBag.ClientCount     = await _clients.GetCountAsync(agentId);
         ViewBag.NewsletterCount = (await _newsletters.GetByAgentAsync(agentId)).Count();
         ViewBag.Website         = await _websites.GetByAgentIdAsync(agentId);
@@ -42,7 +45,7 @@ public class DashboardController : Controller
                 stillActionable = dailyInsight.SuggestedActionType switch
                 {
                     AgentDailyInsightActionTypes.OverdueFollowUp => await _db.ClientFollowUps.AnyAsync(f =>
-                        f.Id == dailyInsight.RelatedEntityId && f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+                        f.Id == dailyInsight.RelatedEntityId && f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < today),
                     AgentDailyInsightActionTypes.StaleLead => await _db.WebsiteLeads.AnyAsync(l =>
                         l.Id == dailyInsight.RelatedEntityId && l.AgentUserId == agentId && l.Status == WebsiteLeadStatuses.New),
                     AgentDailyInsightActionTypes.NoFollowUp => await _db.Clients.AnyAsync(c =>
@@ -58,7 +61,7 @@ public class DashboardController : Controller
                 stillActionable = dailyInsight.SuggestedActionType switch
                 {
                     AgentDailyInsightActionTypes.OverdueFollowUp => await _db.ClientFollowUps.AnyAsync(f =>
-                        f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today),
+                        f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < today),
                     AgentDailyInsightActionTypes.StaleLead => await _db.WebsiteLeads.AnyAsync(l =>
                         l.AgentUserId == agentId && l.Status == WebsiteLeadStatuses.New && l.CreatedAt < staleCutoff),
                     AgentDailyInsightActionTypes.NoFollowUp => await _db.Clients.AnyAsync(c =>
@@ -79,11 +82,11 @@ public class DashboardController : Controller
         if (dailyInsight != null) dailyInsight.SuggestedActionUrl = IPRO.Utility.PortalPaths.Normalize(dailyInsight.SuggestedActionUrl);
         ViewBag.DailyInsight = dailyInsight;
         ViewBag.OverdueFollowUpCount = await _db.ClientFollowUps
-            .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < DateTime.Today);
+            .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date < today);
         ViewBag.TodayFollowUpCount = await _db.ClientFollowUps
-            .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date == DateTime.Today);
+            .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date == today);
         ViewBag.UpcomingFollowUpCount = await _db.ClientFollowUps
-            .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date > DateTime.Today);
+            .CountAsync(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt.Date > today);
         ViewBag.FollowUps = await _db.ClientFollowUps
             .Include(f => f.Client)
             .Where(f => f.Client.AgentUserId == agentId && !f.IsCompleted)
@@ -101,7 +104,8 @@ public class DashboardController : Controller
             .OrderByDescending(x => x.CreatedAt)
             .Take(5)
             .ToListAsync();
-        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, agentId);
+        ViewBag.AgentTimeZone = agentTimeZone;
+        ViewBag.Today = today;
         return View();
     }
 

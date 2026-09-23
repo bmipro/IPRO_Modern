@@ -44,7 +44,7 @@ public class PayPalSetupController : Controller
             HasWebhookId = !string.IsNullOrWhiteSpace(webhookId),
             ReturnUrl = returnUrl,
             CancelUrl = cancelUrl,
-            ExpectedWebhookUrl = BuildWebhookUrl(returnUrl, cancelUrl),
+            ExpectedWebhookUrl = BuildWebhookUrl(returnUrl, cancelUrl, _configuration["App:PortalBaseUrl"]),
             EnvironmentName = _environment.EnvironmentName,
             Packages = packages
         };
@@ -110,12 +110,20 @@ public class PayPalSetupController : Controller
         }
     ];
 
-    private static string BuildWebhookUrl(string returnUrl, string cancelUrl)
+    // 518: the configured return URL's host, else the portal's public address (App:PortalBaseUrl,
+    // the same setting the trial-invite links use), else the platform host as a last resort --
+    // the hint read azurewebsites.net in production (TODO 504 item 7).
+    internal static string BuildWebhookUrl(string returnUrl, string cancelUrl, string? portalBaseUrl)
     {
-        var source = string.IsNullOrWhiteSpace(returnUrl) ? cancelUrl : returnUrl;
-        return Uri.TryCreate(source, UriKind.Absolute, out var uri)
-            ? $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? string.Empty : ":" + uri.Port)}/Billing/Webhook"
-            : "https://ipro-prod-web.azurewebsites.net/Billing/Webhook";
+        foreach (var candidate in new[] { returnUrl, cancelUrl, portalBaseUrl })
+        {
+            if (!string.IsNullOrWhiteSpace(candidate) && !candidate.Contains("YOUR_", StringComparison.OrdinalIgnoreCase)
+                && Uri.TryCreate(candidate, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
+            {
+                return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? string.Empty : ":" + uri.Port)}/Billing/Webhook";
+            }
+        }
+        return "https://ipro-prod-web.azurewebsites.net/Billing/Webhook";
     }
 
     private static string Mask(string value)

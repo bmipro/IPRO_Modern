@@ -70,7 +70,7 @@ else if (isAccessGated)
     </div>
   </div>
 }
-else if (paidThrough != null)
+else if (paidThrough != null && subscription == null)
 {
   @* AUDIT H2: cancelled but still paid through. This branch MUST come before the trial one -- a
      cancelled subscriber was previously shown their long-expired signup trial date as if it were
@@ -120,7 +120,15 @@ else if (subscription == null && trialEndsAt.HasValue && trialEndsAt.Value > Dat
           var nextCharge = ViewBag.NextCharge as IPRO.Billing.NextCharge;
           var nextChargeAmount = nextCharge?.Amount ?? subscription.Amount;
       }
-      <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@nextChargeAmount.ToString("N2") @subscription.Currency plus applicable taxes</small>
+      @* 518: a comped plan has no next billing (TODO 504 item 5): say so instead of a date and $0.00. *@
+      @if (string.IsNullOrWhiteSpace(subscription.PayPalSubscriptionId) && nextChargeAmount == 0)
+      {
+        <small>Complimentary plan &mdash; nothing is billed.</small>
+      }
+      else
+      {
+        <small>Next billing: @(subscription.NextBillingDate?.ToString("MMMM d, yyyy") ?? "-") - $@nextChargeAmount.ToString("N2") @subscription.Currency plus applicable taxes</small>
+      }
       @if (nextCharge is { DiscountedCyclesLeft: > 0, RegularAmount: not null })
       {
         <small class="d-block mt-1">Promotional price: @nextCharge.DiscountedCyclesLeft more billing @(nextCharge.DiscountedCyclesLeft == 1 ? "cycle" : "cycles") at this price, then $@nextCharge.RegularAmount.Value.ToString("N2") @subscription.Currency plus applicable taxes.</small>
@@ -178,7 +186,8 @@ else if (subscription == null && trialEndsAt.HasValue && trialEndsAt.Value > Dat
     }
   </div>
 }
-else if (subscription == null)
+@* 518: not under the cancelled-but-paid-through banner (TODO 504 items 3 and 4). *@
+else if (subscription == null && paidThrough == null)
 {
   <div class="alert alert-warning border-0 shadow-sm mb-4">
     <i class="fas fa-exclamation-triangle me-2"></i>

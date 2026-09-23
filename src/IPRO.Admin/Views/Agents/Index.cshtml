@@ -1,6 +1,9 @@
 @using IPRO.Utility
 @model PagedResult<IPRO.Entities.AgentUser>
-@{ ViewData["Title"] = "Agents"; }
+@{
+    ViewData["Title"] = "Agents";
+    var packageNames = ViewBag.PackageNames as Dictionary<int, string> ?? new Dictionary<int, string>();
+}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="fas fa-users me-2 text-primary"></i>Agents <span class="text-muted fs-6 fw-normal">(@ViewBag.TotalCount total)</span></h4>
@@ -55,7 +58,7 @@
                         <small class="text-muted">@(string.IsNullOrWhiteSpace(a.City) ? "" : a.City)@(string.IsNullOrWhiteSpace(a.Province) ? "" : $", {a.Province}")</small>
                     </td>
                     <td><small class="text-primary">@(string.IsNullOrWhiteSpace(a.DomainName) ? "-" : a.DomainName)</small></td>
-                    <td><span class="badge bg-light text-dark">Package @a.PackageId</span></td>
+                    <td><span class="badge bg-light text-dark">@(packageNames.TryGetValue(a.PackageId, out var packageName) ? packageName : $"Package {a.PackageId}")</span></td>
                     <td><small>@a.CreatedAt.ToString("MMM d, yyyy")</small></td>
                     <td><small class="text-muted">@(a.LastLoginAt.HasValue ? a.LastLoginAt.Value.ToString("MMM d") : "Never")</small></td>
                     <td>

@@ -1,5 +1,11 @@
 @model IPRO.Entities.AgentUser
-@{ ViewData["Title"] = $"Agent: {Model.UserName}"; }
+@{
+    ViewData["Title"] = $"Agent: {Model.UserName}";
+    // 518: every time on this page in the platform's zone (Admin:TimeZone), the clock the header shows.
+    var zone = ViewBag.Zone as string;
+    string LocalDate(DateTime utc) => IPRO.DataAccess.AgentLocalTime.FromUtc(utc, zone).ToString("MMM d, yyyy");
+    string LocalTime(DateTime utc) => IPRO.Admin.Infrastructure.AdminClock.Format(utc, zone);
+}
 
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
     <div>
@@ -91,7 +97,7 @@
             l.Description.StartsWith($"Invoice:{invoice.Id}:", StringComparison.OrdinalIgnoreCase));
         if (failed != null)
         {
-            return ("Email failed", "bg-danger", failed.CreatedAt.ToString("MMM d h:mm tt"));
+            return ("Email failed", "bg-danger", LocalTime(failed.CreatedAt));
         }
 
         var sent = paidInvoiceEmailLogs.FirstOrDefault(l =>
@@ -99,7 +105,7 @@
             l.Description == $"Invoice:{invoice.Id}");
         if (sent != null)
         {
-            return ("Emailed", "bg-success", sent.CreatedAt.ToString("MMM d h:mm tt"));
+            return ("Emailed", "bg-success", LocalTime(sent.CreatedAt));
         }
 
         return ("Not emailed", "bg-secondary", "");
@@ -165,8 +171,8 @@
                     <dt class="col-5 text-muted">Package</dt><dd class="col-7">Package @Model.PackageId</dd>
                     <dt class="col-5 text-muted">Password Change</dt><dd class="col-7">@(Model.MustChangePassword ? "Required" : "Not required")</dd>
                     <dt class="col-5 text-muted">Promotion</dt><dd class="col-7">@(string.IsNullOrWhiteSpace(Model.PromotionCode) ? "-" : Model.PromotionCode)</dd>
-                    <dt class="col-5 text-muted">Joined</dt><dd class="col-7">@Model.CreatedAt.ToString("MMM d, yyyy")</dd>
-                    <dt class="col-5 text-muted">Last Login</dt><dd class="col-7">@(Model.LastLoginAt.HasValue ? Model.LastLoginAt.Value.ToString("MMM d, yyyy") : "Never")</dd>
+                    <dt class="col-5 text-muted">Joined</dt><dd class="col-7">@LocalDate(Model.CreatedAt)</dd>
+                    <dt class="col-5 text-muted">Last Login</dt><dd class="col-7">@(Model.LastLoginAt.HasValue ? LocalTime(Model.LastLoginAt.Value) : "Never")</dd>
                 </dl>
             </div>
         </div>
@@ -216,7 +222,7 @@
                         <div class="fw-bold mb-1">Failed payment attention needed</div>
                         @foreach (var failed in failedPayments.Take(3))
                         {
-                            <div class="small">@failed.InvoiceNumber - $@failed.Total.ToString("N2") @failed.Currency - @failed.IssuedAt.ToString("MMM d, yyyy")</div>
+                            <div class="small">@failed.InvoiceNumber - $@failed.Total.ToString("N2") @failed.Currency - @LocalDate(failed.IssuedAt)</div>
                         }
                     </div>
                 }
@@ -233,7 +239,7 @@
                     <dt class="col-md-3 text-muted">Business Phone</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.Phone) ? "-" : Model.Phone)</dd>
                     <dt class="col-md-3 text-muted">Fax</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.BusinessFax) ? "-" : Model.BusinessFax)</dd>
                     <dt class="col-md-3 text-muted">Mobile Phone</dt><dd class="col-md-9">@(string.IsNullOrWhiteSpace(Model.CellPhone) ? "-" : Model.CellPhone)</dd>
-                    <dt class="col-md-3 text-muted">Terms Accepted</dt><dd class="col-md-9">@(Model.TermsAcceptedAt.HasValue ? Model.TermsAcceptedAt.Value.ToString("MMM d, yyyy h:mm tt") : "-")</dd>
+                    <dt class="col-md-3 text-muted">Terms Accepted</dt><dd class="col-md-9">@(Model.TermsAcceptedAt.HasValue ? LocalTime(Model.TermsAcceptedAt.Value) : "-")</dd>
                     <dt class="col-md-3 text-muted">Registration IP</dt>
                     <dd class="col-md-9">
                         @if (string.IsNullOrWhiteSpace(Model.RegistrationIpAddress))
@@ -266,7 +272,7 @@
                             var emailStatus = GetInvoiceEmailStatus(inv);
                             <tr>
                                 <td class="small">@inv.InvoiceNumber</td>
-                                <td class="small text-muted">@inv.IssuedAt.ToString("MMM d, yyyy")</td>
+                                <td class="small text-muted">@LocalDate(inv.IssuedAt)</td>
                                 <td class="fw-semibold text-success">$@inv.Total.ToString("N2")</td>
                                 <td><span class="badge @(inv.IsPaid ? "bg-success" : inv.Billing?.Status == IPRO.Entities.BillingStatus.Failed ? "bg-danger" : "bg-warning text-dark")">@(inv.IsPaid ? "Paid" : inv.Billing?.Status == IPRO.Entities.BillingStatus.Failed ? "Failed" : "Unpaid")</span></td>
                                 <td>
@@ -315,7 +321,7 @@
                                     <td>@billing.Period</td>
                                     <td>$@billing.Amount.ToString("N2") @billing.Currency</td>
                                     <td class="small">@billing.StartDate.ToString("MMM d, yyyy")</td>
-                                    <td class="small text-muted">@(billing.CancelledAt?.ToString("MMM d, yyyy") ?? billing.NextBillingDate?.ToString("MMM d, yyyy") ?? "-")</td>
+                                    <td class="small text-muted">@(billing.CancelledAt.HasValue ? LocalDate(billing.CancelledAt.Value) : (billing.NextBillingDate?.ToString("MMM d, yyyy") ?? "-"))</td>
                                     <td class="small font-monospace text-muted">@(string.IsNullOrWhiteSpace(billing.PayPalSubscriptionId) ? "-" : billing.PayPalSubscriptionId)</td>
                                 </tr>
                             }
@@ -345,7 +351,7 @@
                                     <td>@requestedName</td>
                                     <td>$@change.AmountDue.ToString("N2") @change.Currency</td>
                                     <td class="small">@change.EffectiveDate.ToString("MMM d, yyyy")</td>
-                                    <td class="small text-muted">@change.CreatedAt.ToString("MMM d, yyyy h:mm tt")</td>
+                                    <td class="small text-muted">@LocalTime(change.CreatedAt)</td>
                                 </tr>
                             }
                             </tbody>
@@ -369,7 +375,7 @@
                             {
                                 var isFailure = log.Action.Contains("Failed", StringComparison.OrdinalIgnoreCase) || log.Description.Contains("PAYPAL_FAILED", StringComparison.OrdinalIgnoreCase);
                                 <tr>
-                                    <td class="small text-muted">@log.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</td>
+                                    <td class="small text-muted">@LocalTime(log.CreatedAt)</td>
                                     <td><span class="badge @(isFailure ? "bg-danger" : "bg-success")">@log.Action</span></td>
                                     <td class="small text-muted">@log.Description</td>
                                 </tr>
@@ -395,7 +401,7 @@
                     @foreach (var log in logs)
                     {
                         <div class="d-flex gap-3 py-2 border-bottom">
-                            <div class="text-muted" style="font-size:.75rem;white-space:nowrap;min-width:80px;">@log.CreatedAt.ToString("MMM d HH:mm")</div>
+                            <div class="text-muted" style="font-size:.75rem;white-space:nowrap;min-width:80px;">@IPRO.DataAccess.AgentLocalTime.FromUtc(log.CreatedAt, zone).ToString("MMM d HH:mm")</div>
                             <div>
                                 <span class="badge bg-light text-dark me-1">@log.Module</span>
                                 <span style="font-size:.85rem">@log.Description</span>

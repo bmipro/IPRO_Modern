@@ -3624,7 +3624,8 @@ public class PayPalBillingService : IBillingService
 
         var promo = await _uow.PromotionCodes.FirstOrDefaultAsync(p => p.Code.ToLower() == code.ToLower());
         if (promo == null || !promo.IsActive) return null;
-        if (promo.ExpiresAt.HasValue && promo.ExpiresAt.Value < DateTime.UtcNow) return null;
+        // 518: the Expires date is the last day the code works, in the platform's zone (TODO 504 item 13).
+        if (PlatformDay.HasExpired(promo.ExpiresAt, DateTime.UtcNow, _configuration["Admin:TimeZone"])) return null;
         if (promo.MaxRedemptions.HasValue && promo.RedemptionCount >= promo.MaxRedemptions.Value) return null;
         // A package restriction binds whenever it is set, whatever the code discounts. Enforcing it
         // only for recurring discounts meant a "100% off setup fee -- Silver only" code also waived

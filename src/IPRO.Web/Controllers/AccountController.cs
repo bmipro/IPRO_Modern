@@ -523,7 +523,8 @@ public class AccountController : Controller
         var invite = await _uow.TrialInviteCodes.FirstOrDefaultAsync(c => c.Code == code);
         if (invite == null) return (null, null, "This invitation link is not valid.");
         if (!invite.IsActive) return (null, null, "This invitation is no longer active.");
-        if (invite.ExpiresAt.HasValue && invite.ExpiresAt.Value < DateTime.UtcNow) return (null, null, "This invitation has expired.");
+        // 518: the Expires date is the last day the invitation works, in the platform's zone.
+        if (PlatformDay.HasExpired(invite.ExpiresAt, DateTime.UtcNow, _configuration["Admin:TimeZone"])) return (null, null, "This invitation has expired.");
         if (invite.MaxRedemptions.HasValue && invite.RedemptionCount >= invite.MaxRedemptions.Value) return (null, null, "This invitation has already been used the maximum number of times.");
 
         var package = await _uow.BillingRules.GetByIdAsync(invite.BillingRuleId);

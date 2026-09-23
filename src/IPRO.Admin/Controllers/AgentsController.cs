@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IPRO.Business.Interfaces;
+using IPRO.Admin.Infrastructure;
 using IPRO.Admin.Models;
 using IPRO.Billing;
 using IPRO.DataAccess.Repositories;
@@ -55,6 +56,7 @@ public class AgentsController : Controller
         if (status == "active")   all = all.Where(a => a.IsActive);
         if (status == "inactive") all = all.Where(a => !a.IsActive);
 
+        ViewBag.PackageNames = (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id, p => p.PackageName);   // 518: the name, not "Package 3"
         ViewBag.Search     = search;
         ViewBag.Status     = status;
         ViewBag.TotalCount = all.Count();
@@ -65,6 +67,8 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+        // 518: times on this page in the platform's zone, as the support screens since 502.
+        ViewBag.Zone = AdminClock.Zone(HttpContext.RequestServices.GetRequiredService<IConfiguration>());
 
         var warnings = new List<string>();
         ViewBag.Website = await LoadDetailsPanelAsync(

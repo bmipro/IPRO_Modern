@@ -72,13 +72,7 @@ public class WebsiteLeadsController : Controller
                 CsvEscape(lead.Email),
                 CsvEscape(lead.Phone),
                 CsvEscape(lead.Status),
-                CsvEscape(lead.SubmissionType switch
-                {
-                    WebsiteLeadTypes.Newsletter => "Newsletter signup",
-                    WebsiteLeadTypes.LeadMagnet => "Lead magnet download",
-                    WebsiteLeadTypes.CustomForm => "Form submission",
-                    _ => "Contact request"
-                }),
+                CsvEscape(WebsiteLeadText.KindLabel(lead.SubmissionType, lead.SourcePage, lead.WebsitePage?.Title)),
                 CsvEscape(lead.SourceDomain),
                 CsvEscape(lead.WebsitePage?.Title ?? string.Empty),
                 CsvEscape(lead.Message)));
