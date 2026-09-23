@@ -69,16 +69,16 @@
 
 ## Close-out 2026-09-22
 
-Final build on both hosts before this close-out: `81d000b`. Tree clean and pushed; nothing half-built and
+Final build on both hosts before this close-out: `46470ae` (the section was first written at `81d000b`; 516 and 517 shipped after it, the same evening). Tree clean and pushed; nothing half-built and
 nothing waiting for a deploy. The day's items are in the table above (512 with one real tagged visit as
 its proof; 513 with the icon fetched from outside; 514 and 515 with the stylesheet and logo fetched from
-outside, the pages themselves behind sign-in for the owner's eyes), each red first and behind a full gate.
+outside, the pages themselves behind sign-in for the owner's eyes; 516 and 517, his three fixes from the first
+real invoice and the Visitors report's day boundary, the same evening), each red first and behind a full gate.
 
 **State left:** PayPal live; the three brand domains and the platform on the new site with self-renewing
 certificates; all three sitemaps accepted by Search Console; two accounts in the database, both the
 owner's; his first real code `TAX50OFF` active and unused; the Visitors report counting since 3:08 p.m.;
-**Company Details empty until the owner fills it** (invoices print the settings' values meanwhile, and no
-GST/HST number).
+Company Details filled by the owner the same evening (name, address, GST/HST number).
 
 Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
 and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; no local app, emulator or test
