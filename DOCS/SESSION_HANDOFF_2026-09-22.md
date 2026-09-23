@@ -45,6 +45,12 @@
   is shown and what was deliberately not invented. **Owner:** fill Company Details after the deploy;
   until then invoices print the settings' name, email, website and one-line address, and no GST/HST
   number (it is in no setting). The invoice pages are behind sign-in, so the proof of the look is his.
+- **516, the owner's first look at a real invoice (7 p.m.):** he had filled Company Details within the hour
+  of the deploy and sent the invoice back with three asks -- the tax line listed as a charge, the city and
+  the province on two lines, the PayPal reference broken mid-token -- fixed the same evening, with the
+  "Inc.." seen beside them (TODO 516). One of his client invoices read "No tax": the client had no
+  country or province on file, and the tax on a client document follows the client's province (DOCS/10);
+  not a defect, he was told to complete the client and redo the document.
 
 ## Pushed today
 
@@ -54,6 +60,7 @@
 | `3d025d2` | **513** the platform's pages have an icon; advisers' sites left as they were | 1157/1157 |
 | `2147d6a` | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | 1184/1184 |
 | `2147d6a` | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | 1184/1184 |
+| _see log 516_ | **516** the first real invoice's three fixes: the tax shown once, one city line, the PayPal reference in two rows | whole tree |
 
 ## Close-out 2026-09-22
 
@@ -76,13 +83,13 @@ process running; MySQL is the Windows service and needs nothing. Reboot-ready.
 
 1. Both health endpoints, the Job Scheduler, Email Activity; PayPal's webhook event log for any real
    sign-up (each event **Success**); and now **Reports -> Visitors** -- the first real day of counts.
-2. **Company Details** (SuperAdmin -> Billing): the owner fills the name, the address and the GST/HST
-   number, then opens one of our invoices, a client invoice and an estimate and looks; screenshots
-   welcome. (The Privacy Policy question is settled: no addition.)
+2. **The invoices after 516:** Company Details is filled and the owner's three screenshots are answered.
+   Tomorrow: one look at a client invoice for a client WITH a province (the tax follows the client's
+   province) and at the paid-invoice email's item list. (The Privacy Policy question is settled.)
 3. **Calendar:** TODO 505 or the hand renewal before 5 October (certificates expire 19 October); clear
    `Email__TrackingSigningKeyPrevious` around 17 October; Microsoft quota mid-October; .NET 10 in October.
 4. **Open:** TODO 504 (the polish list), 506 (an adviser's domain with CAA records); retention for the
    two page-view tables; the truth sweep's open items; Google Calendar sync reads a follow-up's date as
    UTC; a site-language option, French first; SOC 2 after launch.
 
-Related: `DOCS/TODO.md` 512-515; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
+Related: `DOCS/TODO.md` 512-516; `DOCS/SESSION_HANDOFF_2026-09-21.md`.
