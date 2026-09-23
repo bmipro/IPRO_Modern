@@ -21,6 +21,20 @@
 |---|---|---|
 | `0bd4e57` | **518** nine polish items (TODO 504) and the invoices' print layout | 1227/1227 |
 
+## Close-out 2026-09-23
+
+Final build on both hosts before this close-out: `a8fc2b2`. Tree clean and pushed; nothing half-built and
+nothing waiting for a deploy. The day's items: 505 (the certificates, proved from outside) and 518 (nine
+polish items and the print layout, red first and behind a full gate).
+
+**State left:** PayPal live; all six public names and the platform's two hosts on certificates that renew
+themselves; Company Details filled; the owner's two accounts comped Active on `OLD_DEMO`; `TAX50OFF`
+active; the Visitors report counting in the platform's own days.
+
+Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
+and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; no local app, emulator or test
+process running; MySQL is the Windows service and needs nothing. Reboot-ready.
+
 ## Do this first tomorrow
 
 1. Both health endpoints, the Job Scheduler (the certificate job passes from now on; its four old failed
