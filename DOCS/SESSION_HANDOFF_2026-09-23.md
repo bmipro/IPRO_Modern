@@ -19,7 +19,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 518_ | **518** nine polish items (TODO 504) and the invoices' print layout | whole tree |
+| `0bd4e57` | **518** nine polish items (TODO 504) and the invoices' print layout | 1227/1227 |
 
 ## Do this first tomorrow
 
