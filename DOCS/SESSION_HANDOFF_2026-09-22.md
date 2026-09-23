@@ -60,7 +60,7 @@
 | `3d025d2` | **513** the platform's pages have an icon; advisers' sites left as they were | 1157/1157 |
 | `2147d6a` | **514** our invoice on the designer's design; the supplier from SuperAdmin -> Company Details | 1184/1184 |
 | `2147d6a` | **515** advisers' invoices and estimates on the same design, branded for the adviser (same commit as 514) | 1184/1184 |
-| _see log 516_ | **516** the first real invoice's three fixes: the tax shown once, one city line, the PayPal reference in two rows | whole tree |
+| `2c790e2` | **516** the first real invoice's three fixes: the tax shown once, one city line, the PayPal reference in two rows | 1200/1200 |
 
 ## Close-out 2026-09-22
 
