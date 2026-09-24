@@ -19,26 +19,33 @@
   which led to TODO 519.
 - **TODO 519 added:** a dealer-compliance mode (archive, approval publishing mode, dealer profile), off by
   default so nothing changes for anyone else; the owner: "we will revisit it hopefully soon".
+- **TODO 520 added, to decide tomorrow:** a bring-your-own-website package (the portal without the
+  website screens, hosted forms and a client-login link for a site they keep elsewhere) -- about a week
+  in two halves; the dangers and their guards are in the row. The owner: "I need to revisit this
+  tomorrow with a fresh head and decide".
 - Docs only today; no code deployed.
 
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
-| _docs only_ | TODO 519; this handoff | -- |
+| _docs only_ | TODO 519, TODO 520; this handoff | -- |
 
 ## Do this first tomorrow
 
 1. Both health endpoints, the Job Scheduler (the certificate job passes now; its old failed entries may be
    deleted), Email Activity, Reports -> Visitors.
-2. **The builder review:** push the two commits on `feature/builder-ux-refresh` when the owner says so; on
-   his go, pull one export ZIP and validate a real export with assets (the one path the fixtures leave
-   untested).
-3. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an adviser's
+2. **The builder review:** the owner relayed it himself ("almost all with a few exceptions are done"); the
+   two local commits on `feature/builder-ux-refresh` stay unpushed -- rebase or drop them when the
+   developer's branch moves. On his go, pull one export ZIP and validate a real export with assets (the
+   one path the fixtures leave untested).
+3. **Decide:** TODO 520 (bring-your-own-website package) -- name, price, setup fee, whether the unpublished
+   site stays; then the build order in the row.
+4. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an adviser's
    own icon and logo; the client-invoice email's look; the comped plans' renewal date (8 July 2027); 519
    when the owner returns to it; the Girard demo if he wants it.
-4. **Calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; Microsoft quota mid-October;
+5. **Calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; Microsoft quota mid-October;
    .NET 10 in October.
 
-Related: `DOCS/TODO.md` 467, 519; `DOCS/SESSION_HANDOFF_2026-09-23.md`; the builder repo's
+Related: `DOCS/TODO.md` 467, 519, 520; `DOCS/SESSION_HANDOFF_2026-09-23.md`; the builder repo's
 `HOST_REVIEW_2026-09-24.md`.
