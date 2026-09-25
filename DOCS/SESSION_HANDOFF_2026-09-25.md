@@ -17,7 +17,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 521_ | **521** the certificate watchdog's message, email and doc for managed certificates; every platform name watched | whole tree |
+| `9a1232d` | **521** the certificate watchdog's message, email and doc for managed certificates; every platform name watched | 1231/1231 |
 
 ## Do this first tomorrow
 
