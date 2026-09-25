@@ -18,9 +18,11 @@ visible, and retroactive. That is why there is a watchdog.
 | `www.iproadvisers.com`, `iproadvisers.com`, `www.iproaccountants.com`, `iproaccountants.com` | DigiCert (App Service managed) | **Automatic** | All four bound 2026-09-20, valid to 20 March 2027 (`DOCS/DOMAIN_SWITCH_RUNBOOK.md`). They need the zone's `CAA 0 issue "digicert.com"` record to renew: do not delete it |
 | `ipromortgages.com`, `www.ipromortgages.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-12 (the rehearsal) |
 
-Azure's free managed certificate was tried for the two `iproadvisers.com` hosts in July 2026 and
-never issued correctly, which is why these are Let's Encrypt via [lego](https://go-acme.github.io/lego/)
-instead. Do not assume the managed option now works without re-testing it.
+Every platform name carries an App Service managed certificate, which Azure renews on its own about
+45 days before expiry. The one thing they need from us is the zone's `CAA 0 issue "digicert.com"`
+record; the watchdog below is there for the day a renewal fails anyway. Until 2026-09-23 the two
+`iproadvisers.com` hosts were Let's Encrypt via [lego](https://go-acme.github.io/lego/), because
+Azure's managed certificate was tried in July 2026 and never issued:
 
 **Why it never issued, found 2026-09-20:** the `iproadvisers.com` zone carries CAA records (the legacy
 host's, for its AutoSSL) that named Sectigo, Google, GlobalSign and Let's Encrypt only. App Service's
@@ -41,7 +43,9 @@ visible in SuperAdmin under **Job Scheduler** (`admin.iproadvisers.com/hangfire`
 recurring jobs.
 
 - Reads each certificate over a raw TLS handshake, so it reports even when the site is down
-- Under 30 days: emails the operations address, then **deliberately throws**
+- Inside 30 days, or unreadable: emails the operations address, then **deliberately throws**. Since
+  521 (2026-09-25) the red row and the email say what to check (the CAA record, the binding; see
+  "When a managed certificate does not renew" below), not to run the retired lego script
 - The throw is what makes a due certificate a red row on the Job Scheduler dashboard. Hangfire has no
   "warning" state, so failing the job is the only way to surface this there. `AutomaticRetry(Attempts
   = 0)` stops it re-running and re-sending
@@ -51,7 +55,7 @@ Configuration (all optional; defaults are in the job):
 
 | Key | Default |
 |---|---|
-| `Certificates:Watch` | `app.iproadvisers.com`, `admin.iproadvisers.com` |
+| `Certificates:Watch` | every platform name (since 521): `app.` and `admin.iproadvisers.com`, `www.` and bare `iproadvisers.com`, `iproaccountants.com`, `ipromortgages.com` |
 | `Certificates:WarnDays` | `30` |
 | `Certificates:AlertEmail` | falls back to `Email:NotificationEmail`, then `Email:FromEmail` |
 
@@ -86,7 +90,31 @@ logged out, re-register the task elevated with `-LogonType S4U`.
 
 **Adding a domain:** append it to `$Domains` at the top of the script. Nothing else changes.
 
-## Renewing (needs a person)
+## When a managed certificate does not renew
+
+Azure renews an App Service managed certificate on its own, about 45 days before it expires, and
+needs nothing from us as long as two things hold. When the watchdog fires (a red `certificate-expiry`
+row on the Job Scheduler and an email to the operations address), check them in this order:
+
+1. **The zone's CAA record still allows DigiCert** -- `0 issue "digicert.com"` on `iproadvisers.com`,
+   `iproaccountants.com` and `ipromortgages.com` (`bash ops/domain-switch/dns-check.sh <zone>` prints
+   it). This is the record the July 2026 attempt lacked: without it DigiCert must refuse, and Azure
+   reports nothing.
+2. **The certificate is still bound to the app and its resource is healthy** -- in the Azure portal,
+   the web app's Custom domains page (each name and its binding) and its Certificates page (each
+   managed certificate's status and expiry); `az webapp config ssl show` reads the same, read-only.
+   Re-issuing is `az webapp config ssl create`, then `bind`, exactly as on 2026-09-23 -- on the
+   owner's go, since it touches the production bindings.
+3. **A host that could not be read at all** is a different problem: the site itself is down or
+   mid-deploy. Check `/health/version` first.
+
+The hand renewal below is retired; it is the last resort only if DigiCert itself could not issue.
+
+## Renewing by hand with lego (retired 2026-09-23; kept for history)
+
+Not part of any routine since TODO 505. The lego account, the scripts and the PFX password are still
+on the maintenance machine, and the two unbound Let's Encrypt certificate resources lapse in Azure on
+19 October 2026 with nothing to do.
 
 ```bash
 powershell -File C:\Users\admin\lego\Renew-Certs.ps1
@@ -114,7 +142,7 @@ to 25 minutes). Nothing else needs a human.
 - A PFX older than an hour is rejected. Uploading a stale file from the previous renewal would
   succeed and change nothing, leaving a cert that looks renewed and is not.
 
-## Making it fully unattended
+## Making the lego route unattended (moot since 2026-09-23)
 
 DNS for `iproadvisers.com` is on `ns1/ns2.websiteservername.com` -- the cPanel host, not GoDaddy's
 nameservers, so GoDaddy's API is not the route. lego has a cPanel DNS provider; switching
@@ -135,3 +163,6 @@ deliberate follow-up, not something to bolt on mid-incident.
   watchdog, and neither bug would have surfaced until October.
 - **2026-09-23** -- `app.` and `admin.` moved to App Service managed certificates (TODO 505, on the
   owner's go); the lego renewal is no longer needed for any host.
+- **2026-09-25** -- The watchdog's red row and email rewritten for the managed world (TODO 521): they
+  now say what to check (the CAA record, the binding) instead of pointing at the lego script, and
+  every platform name is watched, not only the two once renewed by hand.
