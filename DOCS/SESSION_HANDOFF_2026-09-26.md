@@ -31,7 +31,7 @@
 |---|---|---|
 | `e7fff2e` | **522** the SuperAdmin agent page: the package's name, and a sign-up counts as a login | 1233/1233 |
 | `80a981e` | **523 slice 1** the money at a glance on the invoices page and the dashboard | 1240/1240 |
-| _see log 523b_ | **523 slice 2** who owes what, with a one-click reminder; the Overdue filter | whole tree |
+| `1dea9a4` | **523 slice 2** who owes what, with a one-click reminder; the Overdue filter | 1248/1248 |
 
 ## Do this first tomorrow
 
