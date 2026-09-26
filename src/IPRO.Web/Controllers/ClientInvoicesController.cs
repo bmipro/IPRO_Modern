@@ -150,6 +150,140 @@ public class ClientInvoicesController : Controller
         ViewBag.Company = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.CompanyName).FirstOrDefaultAsync() ?? string.Empty;
     }
 
+    // 523 (slice 4): the statement for the adviser's accountant -- a month or a quarter, in the
+    // adviser's own day: invoiced (by issue date), tax by rate, received (by the day the payment
+    // was recorded), and what was still owed at the period's end.
+    public async Task<IActionResult> Statement(int? year = null, int? month = null, int? quarter = null)
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        var (zone, today) = await AgentDayAsync();
+        var period = StatementPeriod(year, month, quarter, today);
+        ViewBag.Year = period.From.Year;
+        ViewBag.Month = period.Quarter.HasValue ? null : (int?)period.From.Month;
+        ViewBag.Quarter = period.Quarter;
+        ViewBag.PeriodLabel = period.Label;
+        ViewBag.Company = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.CompanyName).FirstOrDefaultAsync() ?? string.Empty;
+        return View(ClientInvoiceStatement.From(await StatementInvoicesAsync(), period.From, period.To, zone));
+    }
+
+    // The statement's rows as a file, one invoice per row.
+    public async Task<IActionResult> ExportStatement(int? year = null, int? month = null, int? quarter = null)
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        var (zone, today) = await AgentDayAsync();
+        var period = StatementPeriod(year, month, quarter, today);
+        var statement = ClientInvoiceStatement.From(await StatementInvoicesAsync(), period.From, period.To, zone);
+
+        var csv = new StringBuilder();
+        csv.AppendLine("Document #,Client,Issue Date,Due Date,Status,Subtotal,Tax Region,Tax Rate,Tax,Total,Currency,Paid On,Paid Method");
+        foreach (var row in statement.Invoiced)
+        {
+            csv.AppendLine(string.Join(",",
+                CsvEscape(row.DocumentNumber),
+                CsvEscape(row.ClientName),
+                CsvEscape(row.IssueDate.ToString("yyyy-MM-dd")),
+                CsvEscape(row.DueDate?.ToString("yyyy-MM-dd") ?? string.Empty),
+                CsvEscape(row.Status.ToString()),
+                CsvEscape(row.Subtotal.ToString("0.00")),
+                CsvEscape(row.TaxRegion),
+                CsvEscape($"{row.TaxRate * 100:0.000}%"),
+                CsvEscape(row.Tax.ToString("0.00")),
+                CsvEscape(row.Total.ToString("0.00")),
+                CsvEscape(statement.Currency),
+                CsvEscape(row.PaidOn?.ToString("yyyy-MM-dd") ?? string.Empty),
+                CsvEscape(row.PaidMethod?.ToString() ?? string.Empty)));
+        }
+        return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", $"statement-{period.FileStem}.csv");
+    }
+
+    // Xero's sales-invoice import layout (Business > Invoices > Import), one row per line item, for
+    // the invoices issued in the period. The tax type and the account code are Xero's own names:
+    // the wizard lets the adviser map them on the first import.
+    public async Task<IActionResult> ExportXero(int? year = null, int? month = null, int? quarter = null)
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        var (_, today) = await AgentDayAsync();
+        var period = StatementPeriod(year, month, quarter, today);
+        var dayAfter = period.To.AddDays(1);
+        var invoices = await _db.ClientInvoices.AsNoTracking()
+            .Include(i => i.Client)
+            .Include(i => i.LineItems)
+            .Where(i => i.AgentUserId == AgentId
+                        && i.DocumentType == ClientInvoiceDocumentType.Invoice
+                        && (i.Status == ClientInvoiceStatus.Sent || i.Status == ClientInvoiceStatus.Approved || i.Status == ClientInvoiceStatus.Paid)
+                        && i.IssueDate >= period.From && i.IssueDate < dayAfter)
+            .OrderBy(i => i.IssueDate).ThenBy(i => i.DocumentNumber)
+            .ToListAsync();
+
+        var csv = new StringBuilder();
+        csv.AppendLine("*ContactName,EmailAddress,POAddressLine1,POAddressLine2,POAddressLine3,POAddressLine4,POCity,PORegion,POPostalCode,POCountry,*InvoiceNumber,Reference,*InvoiceDate,*DueDate,Total,InventoryItemCode,*Description,*Quantity,*UnitAmount,Discount,*AccountCode,*TaxType,TaxAmount,TrackingName1,TrackingOption1,TrackingName2,TrackingOption2,Currency,BrandingTheme");
+        foreach (var invoice in invoices)
+        {
+            var contact = $"{invoice.Client?.FirstName} {invoice.Client?.LastName}".Trim();
+            var taxType = invoice.TaxRate == 0 ? "Tax Exempt" : $"{invoice.TaxRegion} {invoice.TaxRate * 100:0.###}%".Trim();
+            var lines = invoice.LineItems.OrderBy(l => l.SortOrder).ToList();
+            if (lines.Count == 0)
+            {
+                lines.Add(new ClientInvoiceLineItem { Description = "Services", Quantity = 1, UnitPrice = invoice.SubTotal, Amount = invoice.SubTotal });
+            }
+            foreach (var line in lines)
+            {
+                var lineTax = Math.Round(line.Amount * invoice.TaxRate, 2);
+                csv.AppendLine(string.Join(",",
+                    CsvEscape(contact),
+                    CsvEscape(invoice.Client?.Email ?? string.Empty),
+                    string.Empty, string.Empty, string.Empty, string.Empty,
+                    CsvEscape(invoice.Client?.City ?? string.Empty),
+                    CsvEscape(invoice.Client?.Province ?? string.Empty),
+                    CsvEscape(invoice.Client?.PostalCode ?? string.Empty),
+                    CsvEscape(invoice.Client?.Country ?? string.Empty),
+                    CsvEscape(invoice.DocumentNumber),
+                    string.Empty,
+                    CsvEscape(invoice.IssueDate.ToString("yyyy-MM-dd")),
+                    CsvEscape((invoice.DueDate ?? invoice.IssueDate).ToString("yyyy-MM-dd")),
+                    CsvEscape(invoice.Total.ToString("0.00")),
+                    string.Empty,
+                    CsvEscape(string.IsNullOrWhiteSpace(line.Description) ? "Services" : line.Description),
+                    CsvEscape(line.Quantity.ToString("0.##")),
+                    CsvEscape(line.UnitPrice.ToString("0.##")),
+                    string.Empty,
+                    "200",
+                    CsvEscape(taxType),
+                    CsvEscape(lineTax.ToString("0.00")),
+                    string.Empty, string.Empty, string.Empty, string.Empty,
+                    CsvEscape(invoice.Currency),
+                    string.Empty));
+            }
+        }
+        return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", $"xero-invoices-{period.FileStem}.csv");
+    }
+
+    // A month by default (this one, in the adviser's day); a quarter when one is asked for.
+    private static (DateTime From, DateTime To, int? Quarter, string Label, string FileStem) StatementPeriod(int? year, int? month, int? quarter, DateTime today)
+    {
+        var y = Math.Clamp(year ?? today.Year, 2000, 2100);
+        if (quarter is >= 1 and <= 4)
+        {
+            var (from, to) = ClientInvoiceStatement.Quarter(y, quarter.Value);
+            return (from, to, quarter, $"Q{quarter} {y} ({from:MMMM d} to {to:MMMM d, yyyy})", $"{y}-q{quarter}");
+        }
+        var m = Math.Clamp(month ?? today.Month, 1, 12);
+        var (monthFrom, monthTo) = ClientInvoiceStatement.Month(y, m);
+        return (monthFrom, monthTo, null, monthFrom.ToString("MMMM yyyy"), $"{y}-{m:00}");
+    }
+
+    private async Task<List<ClientInvoice>> StatementInvoicesAsync() =>
+        await _db.ClientInvoices.AsNoTracking()
+            .Include(i => i.Client)
+            .Where(i => i.AgentUserId == AgentId && i.DocumentType == ClientInvoiceDocumentType.Invoice)
+            .ToListAsync();
+
     public async Task<IActionResult> Index(string documentType = "all", string status = "all", int? clientId = null, string? search = null, int page = 1)
     {
         var gate = await RequireClientInvoicingAccessAsync();
