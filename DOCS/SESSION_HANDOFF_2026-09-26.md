@@ -23,7 +23,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 522_ | **522** the SuperAdmin agent page: the package's name, and a sign-up counts as a login | whole tree |
+| `e7fff2e` | **522** the SuperAdmin agent page: the package's name, and a sign-up counts as a login | 1233/1233 |
 
 ## Do this first tomorrow
 
