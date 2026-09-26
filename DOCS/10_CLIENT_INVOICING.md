@@ -99,6 +99,16 @@ If the link is a PayPal.me link, IPRO automatically appends the invoice's exact 
 3. Each time the schedule runs, a new **Draft** invoice is created automatically — it is never sent to the client automatically. Review it and click **Send to Client** yourself.
 4. Use **Pause**/**Resume** to temporarily stop or restart a schedule, or **Delete** to remove it.
 
+## For Your Accountant
+
+**For your accountant** (a button on the Client Invoices page) is a statement for one month or one
+quarter: what you invoiced (by invoice date), the tax you collected by rate, what came in (by the day
+you recorded each payment), and what was still owed on the period's last day, all in your own time
+zone. Drafts, void documents and estimates are not included. Print it or save it as a PDF, download
+the rows as a CSV, or download the period's invoices in Xero's sales-invoice import layout (one row
+per line item; check the tax type and the account code on your first import, Xero's wizard lets you
+map them). Your accountant decides which basis your return uses.
+
 ## Exporting
 
 Click **Export CSV** on the Client Invoices list to download every document matching the current filters (document number, type, status, client, dates, and totals).

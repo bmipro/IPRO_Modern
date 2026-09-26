@@ -24,6 +24,10 @@
   stages, three wordings, a preview), with the daily job as its engine in the adviser's own day and
   the job moved to 9:00 a.m. Eastern. Two new small tables (settings, stages sent), created at
   start-up in both apps. Not looked at in a browser: behind the adviser's sign-in.
+- **523 slice 4 built and deployed, and 523 is done:** "For your accountant", a statement for a month or
+  a quarter (invoiced, tax by rate, received, owed at the end), printable, with a CSV and Xero's import
+  file. No Sage file: neither Sage template was to hand to check against (the TODO row says so).
+  Not looked at in a browser: behind the adviser's sign-in.
 - **Two product questions answered and decided** while the 522 gate ran: invoicing analytics,
   adviser-controlled reminders and an accountant's statement go first (TODO 523, four slices, ~8-10
   days); voice dictation is parked as TODO 524 with the owner's three conditions (stated in the privacy
@@ -37,6 +41,7 @@
 | `80a981e` | **523 slice 1** the money at a glance on the invoices page and the dashboard | 1240/1240 |
 | `1dea9a4` | **523 slice 2** who owes what, with a one-click reminder; the Overdue filter | 1248/1248 |
 | `b70bf63` | **523 slice 3** the reminder schedule the adviser controls, with the daily job as its engine | 1258/1258 |
+| _see log 523d_ | **523 slice 4** the statement for the accountant, with a CSV and Xero's import file | whole tree |
 
 ## Do this first tomorrow
 
@@ -44,12 +49,10 @@
    names), Email Activity, Reports -> Visitors.
 2. **The new customer:** his first renewal is 25 October; PayPal's PAYMENT.SALE.COMPLETED notice settles
    it on its own (the path that appended the sale id on the 25th). Nothing to do until then.
-3. **523, slice 4:** the "for your accountant" statement by month or quarter (revenue, GST/HST
-   collected by rate, outstanding) with the export extended to the Xero and Sage shapes. Slices 1-3
-   are live: the owner should glance at Dashboard, Client Invoices, "Who owes what" and "Invoice
-   reminders", signed in, for the look; the reminder job now runs at 9:00 a.m. Eastern with the
-   adviser's own schedule (its first run under the new rules is Sunday morning). 524 (dictation)
-   waits for the owner's word.
+3. **523 is complete.** The owner should glance, signed in, at Dashboard, Client Invoices, "Who owes
+   what", "Invoice reminders" and "For your accountant" for the look, since none of the five could be
+   seen from outside; the reminder job's first run under the new rules is Sunday 9:00 a.m. Eastern.
+   524 (dictation) waits for the owner's word, with his three conditions in its row.
 4. **Decide:** TODO 520 (bring-your-own-website package) -- name, price, setup fee, whether the
    unpublished site stays; then the build order in the row.
 5. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an
