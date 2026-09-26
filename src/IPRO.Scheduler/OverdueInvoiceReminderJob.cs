@@ -55,17 +55,9 @@ public class OverdueInvoiceReminderJob
                 if (string.IsNullOrWhiteSpace(invoice.Client?.Email)) continue;
 
                 var url = BuildInvoiceUrl(invoice.ViewToken);
-                var companyName = invoice.AgentUser.CompanyName;
-                var html = $"""
-                    <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
-                      <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:24px">{System.Net.WebUtility.HtmlEncode(companyName)}</h1></div>
-                      <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                        <p>This is a reminder that invoice <strong>{System.Net.WebUtility.HtmlEncode(invoice.DocumentNumber)}</strong> for <strong>${invoice.Total:N2} {invoice.Currency}</strong> is now overdue.</p>
-                        <p><a href="{url}" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">View Invoice</a></p>
-                      </div>
-                    </div>
-                    """;
-                var subject = $"Reminder: Invoice {invoice.DocumentNumber} is overdue";
+                // 523 (slice 2): the words live in ClientInvoiceReminderEmail, shared with the
+                // "Send reminder" button on the adviser's aging page.
+                var (subject, html) = ClientInvoiceReminderEmail.Build(invoice, url);
                 var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html);
 
                 // 452: every reminder is recorded on the invoice like the original send. A permanent

@@ -35,13 +35,90 @@ public class ClientInvoicesController : Controller
 
     private string BuildPublicDocumentUrl(string token) => $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/invoice/{token}";
 
+    // 523: the adviser's own zone and day (INVARIANTS rule 10), for the glance, the aging page and
+    // the "overdue" filter alike.
+    private async Task<(string? Zone, DateTime Today)> AgentDayAsync()
+    {
+        var zone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
+        return (zone, AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, zone).Date);
+    }
+
+    // 523 (slice 2): who owes what and for how long -- the unpaid invoices by client, bucketed by
+    // days past due in the adviser's day.
+    public async Task<IActionResult> Aging()
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        var (zone, today) = await AgentDayAsync();
+        var unpaid = await _db.ClientInvoices.AsNoTracking()
+            .Include(i => i.Client)
+            .Where(i => i.AgentUserId == AgentId
+                        && i.DocumentType == ClientInvoiceDocumentType.Invoice
+                        && (i.Status == ClientInvoiceStatus.Sent || i.Status == ClientInvoiceStatus.Approved))
+            .ToListAsync();
+        ViewBag.Today = today;
+        ViewBag.Zone = zone;
+        return View(ClientInvoiceAging.From(unpaid, today));
+    }
+
+    // 523 (slice 2): the aging page's one-click reminder -- the nightly job's email, sent now, with
+    // the same record on the invoice and the same marker, and never twice in a day.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Remind(int id, string? returnTo = null)
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        var invoice = await _db.ClientInvoices.Include(i => i.Client).Include(i => i.AgentUser).FirstOrDefaultAsync(i => i.Id == id && i.AgentUserId == AgentId);
+        if (invoice == null) return NotFound();
+        IActionResult Back() => returnTo == "aging" ? RedirectToAction(nameof(Aging)) : RedirectToAction(nameof(Details), new { id });
+
+        var (zone, today) = await AgentDayAsync();
+        var overdue = invoice.DocumentType == ClientInvoiceDocumentType.Invoice
+                      && invoice.Status is ClientInvoiceStatus.Sent or ClientInvoiceStatus.Approved
+                      && invoice.DueDate.HasValue && invoice.DueDate.Value.Date < today;
+        if (!overdue)
+        {
+            TempData["Error"] = $"Invoice {invoice.DocumentNumber} is not overdue, so there is nothing to remind about.";
+            return Back();
+        }
+        if (string.IsNullOrWhiteSpace(invoice.Client?.Email))
+        {
+            TempData["Error"] = "This client has no email address on file.";
+            return Back();
+        }
+        if (invoice.LastReminderSentAt.HasValue && invoice.LastReminderSentAt.Value > DateTime.UtcNow.AddHours(-24))
+        {
+            var when = AgentTimeZoneHelper.FromUtc(invoice.LastReminderSentAt.Value, zone);
+            TempData["Error"] = $"A reminder for {invoice.DocumentNumber} already went to {invoice.Client.Email} at {when:h:mm tt} on {when:MMM d}. Give it a day.";
+            return Back();
+        }
+
+        var (subject, html) = IPRO.Scheduler.ClientInvoiceReminderEmail.Build(invoice, BuildPublicDocumentUrl(invoice.ViewToken));
+        var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html);
+        await ClientInvoiceEmailLog.RecordAsync(_db, invoice, ClientInvoiceEmailKind.Reminder, invoice.Client.Email, subject, result.Success, result.ProviderMessageId, result.Message);
+        if (!result.Success)
+        {
+            TempData["Error"] = $"The reminder for {invoice.DocumentNumber} could not be sent to {invoice.Client.Email}: {result.Message}";
+            return Back();
+        }
+
+        invoice.LastReminderSentAt = DateTime.UtcNow;
+        invoice.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"Reminder for {invoice.DocumentNumber} sent to {invoice.Client.Email}.";
+        return Back();
+    }
+
     public async Task<IActionResult> Index(string documentType = "all", string status = "all", int? clientId = null, string? search = null, int page = 1)
     {
         var gate = await RequireClientInvoicingAccessAsync();
         if (gate != null) return gate;
 
         page = Math.Max(1, page);
-        var query = BuildFilteredQuery(documentType, status, clientId, search);
+        var (glanceZone, glanceToday) = await AgentDayAsync();
+        var query = BuildFilteredQuery(documentType, status, clientId, search, glanceToday);
 
         var totalCount = await query.CountAsync();
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
@@ -57,8 +134,6 @@ public class ClientInvoicesController : Controller
 
         // 523: the adviser's money at a glance -- every invoice of theirs, read in their own day
         // (INVARIANTS rule 10), whatever filter the list below is showing.
-        var glanceZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
-        var glanceToday = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, glanceZone).Date;
         var glanceInvoices = await _db.ClientInvoices.AsNoTracking()
             .Where(i => i.AgentUserId == AgentId && i.DocumentType == ClientInvoiceDocumentType.Invoice)
             .ToListAsync();
@@ -87,7 +162,7 @@ public class ClientInvoicesController : Controller
         var gate = await RequireClientInvoicingAccessAsync();
         if (gate != null) return gate;
 
-        var invoices = await BuildFilteredQuery(documentType, status, clientId, search)
+        var invoices = await BuildFilteredQuery(documentType, status, clientId, search, (await AgentDayAsync()).Today)
             .OrderByDescending(i => i.IssueDate)
             .ToListAsync();
 
@@ -126,7 +201,7 @@ public class ClientInvoicesController : Controller
         var gate = await RequireClientInvoicingAccessAsync();
         if (gate != null) return gate;
 
-        var invoices = await BuildFilteredQuery("invoice", status, clientId, search)
+        var invoices = await BuildFilteredQuery("invoice", status, clientId, search, (await AgentDayAsync()).Today)
             .Include(i => i.LineItems)
             .OrderByDescending(i => i.IssueDate)
             .ToListAsync();
@@ -515,7 +590,7 @@ public class ClientInvoicesController : Controller
         invoice.Total = invoice.SubTotal + invoice.TaxAmount;
     }
 
-    private IQueryable<ClientInvoice> BuildFilteredQuery(string documentType, string status, int? clientId, string? search)
+    private IQueryable<ClientInvoice> BuildFilteredQuery(string documentType, string status, int? clientId, string? search, DateTime today)
     {
         var query = _db.ClientInvoices
             .AsNoTracking()
@@ -537,6 +612,10 @@ public class ClientInvoicesController : Controller
             "declined" => query.Where(i => i.Status == ClientInvoiceStatus.Declined),
             "paid" => query.Where(i => i.Status == ClientInvoiceStatus.Paid),
             "void" => query.Where(i => i.Status == ClientInvoiceStatus.Void),
+            // 523 (slice 2): what is owed and past its due date, in the adviser's own day.
+            "overdue" => query.Where(i => i.DocumentType == ClientInvoiceDocumentType.Invoice
+                                          && (i.Status == ClientInvoiceStatus.Sent || i.Status == ClientInvoiceStatus.Approved)
+                                          && i.DueDate != null && i.DueDate < today),
             _ => query
         };
 
