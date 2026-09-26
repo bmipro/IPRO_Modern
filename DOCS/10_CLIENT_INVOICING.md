@@ -54,9 +54,35 @@ A hard bounce automatically stops all email to that client until you resubscribe
 2. Click **Mark Paid** and choose how it was paid (Online, Cheque, Cash, EFT, or Other).
 3. The invoice status updates to Paid and the payment date/method is recorded.
 
-## Automatic Overdue Reminders
+## Your Money at a Glance, and Who Owes What
 
-Once an invoice is sent and its due date passes without being marked Paid, IPRO automatically emails the client a reminder roughly once a week for as long as it stays overdue — no setup needed. The reminder links to the same document page the client already has (`/invoice/{link}`), and stops on its own as soon as the invoice is marked Paid, Void, or otherwise leaves Sent status. This only applies to invoices, not estimates.
+The **Client Invoices** page opens with four cards: what is outstanding, what is overdue (with a link to
+exactly those invoices), what was paid this month against last month, and the average number of days
+your clients take to pay. The dashboard shows the same four numbers when your package includes
+invoicing. Only invoices count as money: estimates, drafts and void documents are left out, and a
+payment counts in the month it was received in your own time zone.
+
+**Who owes what** (a button on the Client Invoices page) lists every unpaid invoice by client and by
+how long it is past due: current, 1-30, 31-60, 61-90 and over 90 days. Each overdue invoice has a
+**Send reminder** button, which sends the same reminder email the schedule below sends, records it on
+the invoice, and will not send a second one within a day. The status filter on the invoices list also
+has **Overdue**.
+
+## Invoice Reminders You Control
+
+**Invoice reminders** (a button on the Client Invoices page) is the schedule your clients are reminded
+on. Six stages, each a switch: a set number of days before the due date, on the due date, the day
+after, then 7, 14 and 30 days overdue. Until you change anything, nothing goes before or on the due
+date and every overdue stage is on. Three wordings (before, on the day, overdue) can be yours; leave a
+box empty for the stock words, and use `{invoice}`, `{amount}`, `{due}`, `{days}`, `{client}` and
+`{company}` where you want them filled in. The page previews each email as a sample invoice would
+read it.
+
+Reminders go out each morning (9:00 a.m. Eastern), only for invoices that are sent and unpaid. Each
+stage is sent once per invoice, no two reminders go within five days of each other (your own Send
+reminder button counts), and after 30 days the automatic reminders stop; "Who owes what" keeps the
+button for anything older. Every reminder links to the invoice and is recorded on it, so **Knowing
+Whether the Client Received It** covers reminders too.
 
 ## Setting a Payment Link
 
