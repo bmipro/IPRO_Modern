@@ -41,7 +41,7 @@
 | `80a981e` | **523 slice 1** the money at a glance on the invoices page and the dashboard | 1240/1240 |
 | `1dea9a4` | **523 slice 2** who owes what, with a one-click reminder; the Overdue filter | 1248/1248 |
 | `b70bf63` | **523 slice 3** the reminder schedule the adviser controls, with the daily job as its engine | 1258/1258 |
-| _see log 523d_ | **523 slice 4** the statement for the accountant, with a CSV and Xero's import file | whole tree |
+| `b81d173` | **523 slice 4** the statement for the accountant, with a CSV and Xero's import file | 1265/1265 |
 
 ## Do this first tomorrow
 
