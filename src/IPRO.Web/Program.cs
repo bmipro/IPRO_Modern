@@ -465,7 +465,9 @@ RecurringJob.AddOrUpdate<DomainAutomationJob>("domain-automation", job => job.Ru
 RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<GoogleCalendarSyncJob>("google-calendar-sync", job => job.RunAsync(), "*/15 * * * *");
 RecurringJob.AddOrUpdate<ClientLifeEventReminderJob>("client-life-event-reminders", job => job.RunAsync(), Cron.Daily);
-RecurringJob.AddOrUpdate<OverdueInvoiceReminderJob>("overdue-invoice-reminders", job => job.RunAsync(), Cron.Daily);
+// 523 (slice 3): 13:00 UTC is 9:00 a.m. Eastern. The adviser's schedule has "due today" and "N days
+// before" stages, and those are morning words, not midnight-UTC (8 p.m. Eastern) ones.
+RecurringJob.AddOrUpdate<OverdueInvoiceReminderJob>("overdue-invoice-reminders", job => job.RunAsync(), "0 13 * * *");
 // 498 (2026-09-18): the morning follow-ups email. Hourly because "morning" is a different UTC hour
 // in each time zone and because the next pass is the retry when the send gate defers; at five past,
 // clear of the jobs that start on the hour.
@@ -648,6 +650,9 @@ using (var scope = app.Services.CreateScope())
     // 512: visits to the platform's own public pages and sign-up origins (PlatformPageView, PlatformSignupOrigin).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePlatformVisitorSchemaAsync", () => StartupSchemaRepair.EnsurePlatformVisitorSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureBillingCompanyProfileSchemaAsync", () => StartupSchemaRepair.EnsureBillingCompanyProfileSchemaAsync(db), db, app.Logger);
+    // 523 (slice 3): the adviser's invoice-reminder schedule and the stages sent (ClientInvoiceReminderSettings,
+    // ClientInvoiceReminderSends); after the client invoice tables they point at.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientInvoiceReminderSchemaAsync", () => StartupSchemaRepair.EnsureClientInvoiceReminderSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Must run AFTER the three CREATE TABLE passes above (E-Card, E-Letter, Poll) -- it adds the

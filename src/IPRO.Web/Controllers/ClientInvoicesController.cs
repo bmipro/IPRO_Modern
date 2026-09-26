@@ -95,7 +95,9 @@ public class ClientInvoicesController : Controller
             return Back();
         }
 
-        var (subject, html) = IPRO.Scheduler.ClientInvoiceReminderEmail.Build(invoice, BuildPublicDocumentUrl(invoice.ViewToken));
+        // 523 (slice 3): the adviser's own overdue wording, the same the daily job sends.
+        var reminderSettings = await ClientInvoiceReminderSchedule.LoadAsync(_db, AgentId);
+        var (subject, html) = IPRO.Scheduler.ClientInvoiceReminderEmail.Build(invoice, BuildPublicDocumentUrl(invoice.ViewToken), reminderSettings, today);
         var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html);
         await ClientInvoiceEmailLog.RecordAsync(_db, invoice, ClientInvoiceEmailKind.Reminder, invoice.Client.Email, subject, result.Success, result.ProviderMessageId, result.Message);
         if (!result.Success)
@@ -109,6 +111,43 @@ public class ClientInvoicesController : Controller
         await _db.SaveChangesAsync();
         TempData["Success"] = $"Reminder for {invoice.DocumentNumber} sent to {invoice.Client.Email}.";
         return Back();
+    }
+
+    // 523 (slice 3): the reminder schedule the adviser controls -- which stages are on and what each
+    // says -- with a preview of every wording as a sample invoice would read it.
+    public async Task<IActionResult> Reminders()
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        var saved = await ClientInvoiceReminderSchedule.LoadAsync(_db, AgentId);
+        await FillReminderPreviewAsync(saved);
+        return View(IPRO.Web.Models.ClientInvoiceReminderForm.From(saved));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reminders(IPRO.Web.Models.ClientInvoiceReminderForm form)
+    {
+        var gate = await RequireClientInvoicingAccessAsync();
+        if (gate != null) return gate;
+
+        if (!ModelState.IsValid)
+        {
+            await FillReminderPreviewAsync(await ClientInvoiceReminderSchedule.LoadAsync(_db, AgentId));
+            return View(form);
+        }
+
+        await ClientInvoiceReminderSchedule.SaveAsync(_db, form.ToSettings(AgentId));
+        TempData["Success"] = "Reminder schedule saved.";
+        return RedirectToAction(nameof(Reminders));
+    }
+
+    private async Task FillReminderPreviewAsync(ClientInvoiceReminderSettings saved)
+    {
+        var (_, today) = await AgentDayAsync();
+        ViewBag.Saved = saved;
+        ViewBag.Today = today;
+        ViewBag.Company = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.CompanyName).FirstOrDefaultAsync() ?? string.Empty;
     }
 
     public async Task<IActionResult> Index(string documentType = "all", string status = "all", int? clientId = null, string? search = null, int page = 1)

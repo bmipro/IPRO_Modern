@@ -34,6 +34,9 @@ public class IPRODbContext : DbContext
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<NumberSequence> NumberSequences => Set<NumberSequence>();
     public DbSet<AgentFollowUpReminder> AgentFollowUpReminders => Set<AgentFollowUpReminder>();
+    // 523 (slice 3): the adviser's invoice-reminder schedule, and the stages sent per invoice.
+    public DbSet<ClientInvoiceReminderSettings> ClientInvoiceReminderSettings => Set<ClientInvoiceReminderSettings>();
+    public DbSet<ClientInvoiceReminderSend> ClientInvoiceReminderSends => Set<ClientInvoiceReminderSend>();
     public DbSet<ClientRecycleBinItem> ClientRecycleBinItems => Set<ClientRecycleBinItem>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
@@ -419,6 +422,24 @@ public class IPRODbContext : DbContext
             e.Property(r => r.AgentUserId).ValueGeneratedNever();
             e.Property(r => r.IsEnabled).HasDefaultValue(true);
             e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentFollowUpReminder>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 523 (slice 3): the adviser's invoice-reminder schedule (one row per adviser) and the stages
+        // sent per invoice; both their own tables, for AgentFollowUpReminder's reason above.
+        modelBuilder.Entity<ClientInvoiceReminderSettings>(e =>
+        {
+            e.HasKey(r => r.AgentUserId);
+            e.Property(r => r.AgentUserId).ValueGeneratedNever();
+            e.Property(r => r.BeforeDueMessage).HasMaxLength(1000);
+            e.Property(r => r.OnDueMessage).HasMaxLength(1000);
+            e.Property(r => r.OverdueMessage).HasMaxLength(1000);
+            e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<ClientInvoiceReminderSettings>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ClientInvoiceReminderSend>(e =>
+        {
+            e.Property(r => r.Stage).HasMaxLength(20);
+            e.HasIndex(r => new { r.ClientInvoiceId, r.Stage }).IsUnique();
+            e.HasOne(r => r.ClientInvoice).WithMany().HasForeignKey(r => r.ClientInvoiceId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // 512: views of the platform's own public pages, and where a self-registered adviser came from.

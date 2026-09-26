@@ -353,6 +353,9 @@ using (var scope = app.Services.CreateScope())
     // 512: visits to the platform's own public pages and sign-up origins (PlatformPageView, PlatformSignupOrigin).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePlatformVisitorSchemaAsync", () => StartupSchemaRepair.EnsurePlatformVisitorSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureBillingCompanyProfileSchemaAsync", () => StartupSchemaRepair.EnsureBillingCompanyProfileSchemaAsync(db), db, app.Logger);
+    // 523 (slice 3): the adviser's invoice-reminder schedule and the stages sent (ClientInvoiceReminderSettings,
+    // ClientInvoiceReminderSends); after the client invoice tables they point at.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientInvoiceReminderSchemaAsync", () => StartupSchemaRepair.EnsureClientInvoiceReminderSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Same shared call as IPRO.Web/Program.cs -- see the note there. Admin needs it too because

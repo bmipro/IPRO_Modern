@@ -1421,6 +1421,41 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 523 (slice 3): the adviser's invoice-reminder schedule (ClientInvoiceReminderSettings) and the
+    // stages sent per invoice (ClientInvoiceReminderSends). Tables of their own and NOT columns on
+    // AgentUsers or ClientInvoices -- the entities say why. Match the EF model column for column.
+    public static async Task EnsureClientInvoiceReminderSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ClientInvoiceReminderSettings` (
+        `AgentUserId` int NOT NULL,
+        `BeforeDueEnabled` tinyint(1) NOT NULL DEFAULT 0,
+        `BeforeDueDays` int NOT NULL DEFAULT 3,
+        `OnDueEnabled` tinyint(1) NOT NULL DEFAULT 0,
+        `OverdueFirstEnabled` tinyint(1) NOT NULL DEFAULT 1,
+        `Overdue7Enabled` tinyint(1) NOT NULL DEFAULT 1,
+        `Overdue14Enabled` tinyint(1) NOT NULL DEFAULT 1,
+        `Overdue30Enabled` tinyint(1) NOT NULL DEFAULT 1,
+        `BeforeDueMessage` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `OnDueMessage` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `OverdueMessage` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        CONSTRAINT `FK_ClientInvoiceReminderSettings_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ClientInvoiceReminderSends` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `ClientInvoiceId` int NOT NULL,
+        `AgentUserId` int NOT NULL,
+        `Stage` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `SentAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_ClientInvoiceReminderSends_ClientInvoiceId_Stage` (`ClientInvoiceId`, `Stage`),
+        CONSTRAINT `FK_ClientInvoiceReminderSends_ClientInvoices_ClientInvoiceId` FOREIGN KEY (`ClientInvoiceId`) REFERENCES `ClientInvoices` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

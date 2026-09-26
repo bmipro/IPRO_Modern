@@ -1,0 +1,141 @@
+@model IPRO.Web.Models.ClientInvoiceReminderForm
+@{
+    ViewData["Title"] = "Invoice reminders";
+    var company = ViewBag.Company as string ?? string.Empty;
+    var today = ViewBag.Today as DateTime? ?? DateTime.UtcNow.Date;
+    var saved = ViewBag.Saved as IPRO.Entities.ClientInvoiceReminderSettings ?? new IPRO.Entities.ClientInvoiceReminderSettings();
+
+    // A sample invoice for the previews: what a client would read, with the wording saved today.
+    IPRO.Entities.ClientInvoice Sample(int daysFromDue) => new()
+    {
+        DocumentNumber = "INV-1001", Total = 250m, Currency = "CAD", DueDate = today.AddDays(-daysFromDue),
+        Client = new IPRO.Entities.Client { FirstName = "Alex", LastName = "Client" },
+        AgentUser = new IPRO.Entities.AgentUser { CompanyName = company }
+    };
+    (string Subject, string Body) Preview(string stage, int daysFromDue)
+    {
+        var sample = Sample(daysFromDue);
+        return (IPRO.DataAccess.ClientInvoiceReminderSchedule.SubjectFor(stage, sample.DocumentNumber, daysFromDue),
+                IPRO.DataAccess.ClientInvoiceReminderSchedule.Fill(IPRO.DataAccess.ClientInvoiceReminderSchedule.MessageFor(saved, stage), sample, daysFromDue));
+    }
+    var beforePreview = Preview(IPRO.DataAccess.ClientInvoiceReminderStages.BeforeDue, -Math.Clamp(saved.BeforeDueDays, 1, 30));
+    var duePreview = Preview(IPRO.DataAccess.ClientInvoiceReminderStages.OnDue, 0);
+    var overduePreview = Preview(IPRO.DataAccess.ClientInvoiceReminderStages.Overdue7, 7);
+}
+
+@* 523 (slice 3): the reminder schedule the adviser controls -- which stages are on and what each
+   says -- with a preview of every wording as a client would read it. The daily job is the engine. *@
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-bell me-2 text-primary"></i>Invoice reminders</h2>
+    <div class="text-muted">When your clients are reminded about an unpaid invoice, and what the reminder says.</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="/portal/ClientInvoices"><i class="fas fa-arrow-left me-1"></i>All invoices</a>
+    <a class="btn btn-outline-primary" href="/portal/ClientInvoices/Aging"><i class="fas fa-hourglass-half me-1"></i>Who owes what</a>
+  </div>
+</div>
+
+<form method="post" action="/portal/ClientInvoices/Reminders">
+  @Html.AntiForgeryToken()
+  @if (!ViewData.ModelState.IsValid)
+  {
+    <div class="alert alert-danger">@Html.ValidationSummary(false)</div>
+  }
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-0 pt-4 px-4"><h5 class="fw-bold mb-0">When to remind</h5></div>
+        <div class="card-body px-4 pb-4">
+          <p class="text-muted small">Reminders go out each morning, only for invoices that are sent and unpaid. Each stage is sent once per invoice, and no two reminders go within five days of each other, your own "Send reminder" button included.</p>
+
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="BeforeDueEnabled" name="BeforeDueEnabled" value="true" checked="@Model.BeforeDueEnabled" />
+            <label class="form-check-label" for="BeforeDueEnabled">
+              Before the due date:
+              <input type="number" class="form-control form-control-sm d-inline-block ms-1 me-1" style="width:5em" name="BeforeDueDays" value="@Model.BeforeDueDays" min="1" max="30" />
+              days before
+            </label>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="OnDueEnabled" name="OnDueEnabled" value="true" checked="@Model.OnDueEnabled" />
+            <label class="form-check-label" for="OnDueEnabled">On the due date</label>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="OverdueFirstEnabled" name="OverdueFirstEnabled" value="true" checked="@Model.OverdueFirstEnabled" />
+            <label class="form-check-label" for="OverdueFirstEnabled">The day after the due date</label>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="Overdue7Enabled" name="Overdue7Enabled" value="true" checked="@Model.Overdue7Enabled" />
+            <label class="form-check-label" for="Overdue7Enabled">7 days overdue</label>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="Overdue14Enabled" name="Overdue14Enabled" value="true" checked="@Model.Overdue14Enabled" />
+            <label class="form-check-label" for="Overdue14Enabled">14 days overdue</label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" role="switch" id="Overdue30Enabled" name="Overdue30Enabled" value="true" checked="@Model.Overdue30Enabled" />
+            <label class="form-check-label" for="Overdue30Enabled">30 days overdue</label>
+          </div>
+          <p class="text-muted small mb-0">After 30 days the reminders stop; "Who owes what" keeps the button for anything older.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-0 pt-4 px-4"><h5 class="fw-bold mb-0">What each reminder says</h5></div>
+        <div class="card-body px-4 pb-4">
+          <p class="text-muted small">Leave a box empty to keep the stock wording. You can use <code>{invoice}</code>, <code>{amount}</code>, <code>{due}</code>, <code>{days}</code>, <code>{client}</code> and <code>{company}</code>; the "View invoice" button is always added below your words.</p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="BeforeDueMessage">Before the due date</label>
+            <textarea class="form-control" id="BeforeDueMessage" name="BeforeDueMessage" rows="3" maxlength="@IPRO.DataAccess.ClientInvoiceReminderSchedule.MessageMaxLength" placeholder="@IPRO.DataAccess.ClientInvoiceReminderSchedule.DefaultBeforeDueMessage">@Model.BeforeDueMessage</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="OnDueMessage">On the due date</label>
+            <textarea class="form-control" id="OnDueMessage" name="OnDueMessage" rows="3" maxlength="@IPRO.DataAccess.ClientInvoiceReminderSchedule.MessageMaxLength" placeholder="@IPRO.DataAccess.ClientInvoiceReminderSchedule.DefaultOnDueMessage">@Model.OnDueMessage</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold" for="OverdueMessage">Overdue (every overdue stage, and the button)</label>
+            <textarea class="form-control" id="OverdueMessage" name="OverdueMessage" rows="3" maxlength="@IPRO.DataAccess.ClientInvoiceReminderSchedule.MessageMaxLength" placeholder="@IPRO.DataAccess.ClientInvoiceReminderSchedule.DefaultOverdueMessage">@Model.OverdueMessage</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 mt-4">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save reminders</button>
+  </div>
+</form>
+
+<div class="card border-0 shadow-sm mt-4" id="reminder-previews">
+  <div class="card-header bg-white border-0 pt-4 px-4"><h5 class="fw-bold mb-0">What your clients will read</h5></div>
+  <div class="card-body px-4 pb-4">
+    <p class="text-muted small">A sample invoice, INV-1001 for $250.00 CAD, with the wording saved above. Save first to see a change here.</p>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="border rounded p-3 h-100">
+          <div class="small text-muted text-uppercase">Before the due date</div>
+          <div class="fw-semibold mb-2">@beforePreview.Subject</div>
+          <div>@Html.Raw(beforePreview.Body)</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded p-3 h-100">
+          <div class="small text-muted text-uppercase">On the due date</div>
+          <div class="fw-semibold mb-2">@duePreview.Subject</div>
+          <div>@Html.Raw(duePreview.Body)</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded p-3 h-100">
+          <div class="small text-muted text-uppercase">Overdue</div>
+          <div class="fw-semibold mb-2">@overduePreview.Subject</div>
+          <div>@Html.Raw(overduePreview.Body)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
