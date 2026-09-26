@@ -36,7 +36,7 @@
 | `e7fff2e` | **522** the SuperAdmin agent page: the package's name, and a sign-up counts as a login | 1233/1233 |
 | `80a981e` | **523 slice 1** the money at a glance on the invoices page and the dashboard | 1240/1240 |
 | `1dea9a4` | **523 slice 2** who owes what, with a one-click reminder; the Overdue filter | 1248/1248 |
-| _see log 523c_ | **523 slice 3** the reminder schedule the adviser controls, with the daily job as its engine | whole tree |
+| `b70bf63` | **523 slice 3** the reminder schedule the adviser controls, with the daily job as its engine | 1258/1258 |
 
 ## Do this first tomorrow
 
