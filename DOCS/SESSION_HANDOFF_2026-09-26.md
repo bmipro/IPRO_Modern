@@ -14,6 +14,9 @@
   "Package 3" instead of the name, and "Last Login: Never" for a customer who had been in the portal.
 - The owner deleted the five old failed certificate rows on the Job Scheduler (Failed: 0); the
   `certificate-expiry` job ran green at 3:00 a.m. over the eight names (521).
+- **523 slice 1 built and deployed:** the money at a glance on the invoices page and the dashboard
+  (outstanding, overdue, paid this month against last month, average days to pay; the TODO row has
+  the detail). Not looked at in a browser: both pages sit behind the adviser's sign-in.
 - **Two product questions answered and decided** while the 522 gate ran: invoicing analytics,
   adviser-controlled reminders and an accountant's statement go first (TODO 523, four slices, ~8-10
   days); voice dictation is parked as TODO 524 with the owner's three conditions (stated in the privacy
@@ -24,6 +27,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `e7fff2e` | **522** the SuperAdmin agent page: the package's name, and a sign-up counts as a login | 1233/1233 |
+| _see log 523a_ | **523 slice 1** the money at a glance on the invoices page and the dashboard | whole tree |
 
 ## Do this first tomorrow
 
@@ -31,9 +35,9 @@
    names), Email Activity, Reports -> Visitors.
 2. **The new customer:** his first renewal is 25 October; PayPal's PAYMENT.SALE.COMPLETED notice settles
    it on its own (the path that appended the sale id on the 25th). Nothing to do until then.
-3. **523, slice 1:** the "at a glance" strip on the invoices page and the dashboard (outstanding,
-   overdue with count, paid this month against last month, average days to pay), red first, its own
-   gate; then slices 2-4 in the row's order. 524 (dictation) waits for the owner's word.
+3. **523, slice 2:** the aging view per client (0-30, 31-60, 61-90, over 90 days) with a one-click
+   reminder; then slices 3 and 4 in the row's order. Slice 1 is live: the owner should glance at
+   Dashboard and Client Invoices, signed in, for the look. 524 (dictation) waits for the owner's word.
 4. **Decide:** TODO 520 (bring-your-own-website package) -- name, price, setup fee, whether the
    unpublished site stays; then the build order in the row.
 5. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an
