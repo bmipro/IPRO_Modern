@@ -168,7 +168,8 @@
                     <dt class="col-5 text-muted">Name</dt><dd class="col-7">@Model.FirstName @Model.LastName</dd>
                     <dt class="col-5 text-muted">Designation</dt><dd class="col-7">@(string.IsNullOrWhiteSpace(Model.Designation) ? "-" : Model.Designation)</dd>
                     <dt class="col-5 text-muted">Domain</dt><dd class="col-7"><span class="text-primary">@(string.IsNullOrWhiteSpace(Model.DomainName) ? "-" : Model.DomainName)</span></dd>
-                    <dt class="col-5 text-muted">Package</dt><dd class="col-7">Package @Model.PackageId</dd>
+                    @* 522: the package's name, as the Agents list has said since 518; "Package 3" told the owner nothing. *@
+                    <dt class="col-5 text-muted">Package</dt><dd class="col-7">@(packageLookup.TryGetValue(Model.PackageId, out var profilePackage) ? profilePackage.PackageName : $"Package {Model.PackageId}")</dd>
                     <dt class="col-5 text-muted">Password Change</dt><dd class="col-7">@(Model.MustChangePassword ? "Required" : "Not required")</dd>
                     <dt class="col-5 text-muted">Promotion</dt><dd class="col-7">@(string.IsNullOrWhiteSpace(Model.PromotionCode) ? "-" : Model.PromotionCode)</dd>
                     <dt class="col-5 text-muted">Joined</dt><dd class="col-7">@LocalDate(Model.CreatedAt)</dd>

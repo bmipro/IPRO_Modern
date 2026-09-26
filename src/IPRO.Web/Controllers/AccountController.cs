@@ -461,6 +461,10 @@ public class AccountController : Controller
         // the customer had to sign in, change a temp password, and pick their package a third time
         // on /Billing before PayPal ever appeared. Now: sign them in and go straight to payment.
         await SignInAgentAsync(agent, new AuthenticationProperties { IsPersistent = false });
+        // 522 (2026-09-26): that sign-in IS the adviser's first login. Only the Login page wrote
+        // LastLoginAt, so the SuperAdmin page read "Last Login: Never" for the first real customer
+        // the morning after he had been in the portal.
+        await _agents.UpdateLastLoginAsync(agent.Id);
 
         if (trialInvite != null)
         {
