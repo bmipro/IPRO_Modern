@@ -36,6 +36,17 @@ public class DashboardController : Controller
         ViewBag.Subscription    = await _billing.GetActiveSubscriptionAsync(agentId);
         ViewBag.AgentName       = User.FindFirstValue("FullName");
         ViewBag.FeatureAccess = await LoadFeatureAccessAsync(agentId);
+
+        // 523: the adviser's money at a glance, only where the package includes client invoicing;
+        // the card is absent otherwise, not an upsell.
+        var featureAccess = (Dictionary<string, PackageFeatureAccess>)ViewBag.FeatureAccess;
+        if (featureAccess.TryGetValue(PackageFeatureCodes.ClientInvoicing, out var invoicing) && invoicing.IsIncluded)
+        {
+            var glanceInvoices = await _db.ClientInvoices.AsNoTracking()
+                .Where(i => i.AgentUserId == agentId && i.DocumentType == ClientInvoiceDocumentType.Invoice)
+                .ToListAsync();
+            ViewBag.Glance = ClientInvoiceGlance.From(glanceInvoices, today, agentTimeZone);
+        }
         var dailyInsight = await _db.AgentDailyInsights.AsNoTracking().FirstOrDefaultAsync(i => i.AgentUserId == agentId);
         if (dailyInsight != null && dailyInsight.SuggestedActionType != AgentDailyInsightActionTypes.None)
         {
@@ -116,7 +127,8 @@ public class DashboardController : Controller
             PackageFeatureCodes.CalendarScheduler,
             PackageFeatureCodes.Newsletters,
             PackageFeatureCodes.InstantWebsite,
-            PackageFeatureCodes.AiDailyAssistant
+            PackageFeatureCodes.AiDailyAssistant,
+            PackageFeatureCodes.ClientInvoicing     // 523: the invoicing glance shows only where it is included
         };
 
         var access = new Dictionary<string, PackageFeatureAccess>();

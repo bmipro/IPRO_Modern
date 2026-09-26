@@ -54,6 +54,15 @@ public class ClientInvoicesController : Controller
         ViewBag.Page = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalCount = totalCount;
+
+        // 523: the adviser's money at a glance -- every invoice of theirs, read in their own day
+        // (INVARIANTS rule 10), whatever filter the list below is showing.
+        var glanceZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
+        var glanceToday = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, glanceZone).Date;
+        var glanceInvoices = await _db.ClientInvoices.AsNoTracking()
+            .Where(i => i.AgentUserId == AgentId && i.DocumentType == ClientInvoiceDocumentType.Invoice)
+            .ToListAsync();
+        ViewBag.Glance = ClientInvoiceGlance.From(glanceInvoices, glanceToday, glanceZone);
         ViewBag.Clients = await _db.Clients.AsNoTracking().Where(c => c.AgentUserId == AgentId).OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync();
 
         var invoices = await query

@@ -12,6 +12,7 @@
     var dailyInsight = ViewBag.DailyInsight as IPRO.Entities.AgentDailyInsight;
     var aiAccess = featureAccess.TryGetValue(IPRO.Entities.PackageFeatureCodes.AiDailyAssistant, out var aia) ? aia : null;
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
+    var glance = ViewBag.Glance as IPRO.DataAccess.ClientInvoiceGlance;   // 523: null when the package has no invoicing
     var today = IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, agentTimeZone).Date;   // 518: the agent's day, not the server's
 
     string DueBadgeClass(DateTime dueAt) => dueAt.Date < today ? "bg-danger-subtle text-danger" : dueAt.Date == today ? "bg-warning-subtle text-warning" : "bg-primary-subtle text-primary";
@@ -116,6 +117,44 @@
     </div>
   </div>
 </div>
+
+@if (glance != null)
+{
+  @* 523: invoicing at a glance, only where the package includes it (the controller decides). *@
+  <div class="card border-0 shadow-sm mb-4" id="invoice-glance">
+    <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center gap-2">
+      <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Invoicing at a glance</h5>
+      <a href="/portal/ClientInvoices" class="btn btn-outline-primary btn-sm">Open invoices</a>
+    </div>
+    <div class="card-body px-4 pb-4">
+      @if (!glance.HasInvoices)
+      {
+        <div class="text-muted">No invoices yet. <a href="/portal/ClientInvoices/Create?documentType=Invoice">Create your first invoice</a> and the numbers appear here.</div>
+      }
+      else
+      {
+        <div class="row g-3 text-center">
+          <div class="col-6 col-md-3">
+            <div class="fs-4 fw-bold">$@glance.Outstanding.ToString("N2")</div>
+            <div class="small text-muted">Outstanding (@glance.OutstandingCount)</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="fs-4 fw-bold @(glance.OverdueCount > 0 ? "text-danger" : "text-success")">$@glance.Overdue.ToString("N2")</div>
+            <div class="small text-muted">Overdue (@glance.OverdueCount)</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="fs-4 fw-bold">$@glance.PaidThisMonth.ToString("N2")</div>
+            <div class="small text-muted">Paid this month &middot; last month $@glance.PaidLastMonth.ToString("N2")</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="fs-4 fw-bold">@(glance.AverageDaysToPay?.ToString() ?? "-")</div>
+            <div class="small text-muted">Average days to pay</div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}
 
 <div class="row g-4">
   <div class="col-lg-8">
