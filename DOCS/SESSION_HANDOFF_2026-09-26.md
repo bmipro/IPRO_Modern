@@ -27,7 +27,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `e7fff2e` | **522** the SuperAdmin agent page: the package's name, and a sign-up counts as a login | 1233/1233 |
-| _see log 523a_ | **523 slice 1** the money at a glance on the invoices page and the dashboard | whole tree |
+| `80a981e` | **523 slice 1** the money at a glance on the invoices page and the dashboard | 1240/1240 |
 
 ## Do this first tomorrow
 
