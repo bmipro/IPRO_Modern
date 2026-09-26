@@ -43,6 +43,26 @@
 | `b70bf63` | **523 slice 3** the reminder schedule the adviser controls, with the daily job as its engine | 1258/1258 |
 | `b81d173` | **523 slice 4** the statement for the accountant, with a CSV and Xero's import file | 1265/1265 |
 
+## Close-out 2026-09-26
+
+Final build on both hosts before this close-out: `33cdf92`. Tree clean and pushed; nothing half-built and
+nothing waiting for a deploy. The day's items: 522 (the SuperAdmin agent page, after the first real
+customer's sign-up was checked from every side) and 523 in four slices, each red first and behind its
+own full gate (1240, 1248, 1258, 1265): the money at a glance; "Who owes what" with the one-click
+reminder and the Overdue filter; the reminder schedule the adviser controls with the daily job as its
+engine (now 9:00 a.m. Eastern; two new tables, created at start-up in both apps, the logs clean); and
+"For your accountant" with a CSV and Xero's import file. 524 (dictation) is parked with the owner's
+three conditions; 520 waits for his decision.
+
+**State left:** the first real customer (Saeed Masoudian, Platinum at Gold's price under SAEED) active,
+his first renewal 25 October; the reminder job's first run under the new rules Sunday 9:00 a.m.
+Eastern; the certificate watchdog green over eight names; the five old failed rows deleted by the
+owner; both apps on managed certificates to March 2027.
+
+Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
+and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; no local app, emulator or test
+process running; MySQL is the Windows service and needs nothing. Reboot-ready.
+
 ## Do this first tomorrow
 
 1. Both health endpoints, the Job Scheduler (`certificate-expiry` green at 3:00 a.m. Eastern over eight
