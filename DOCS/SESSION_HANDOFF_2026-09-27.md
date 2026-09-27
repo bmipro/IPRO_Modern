@@ -25,7 +25,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `b9fc44f` | **525** "SSL included", "Powered by iPro" on sites and documents, "Sent with iPro" on the emails | 1269/1269 |
-| _see log 526_ | **526** the client portal and the newsletter footer carry the line too | whole tree |
+| `3526329` | **526** the client portal and the newsletter footer carry the line too | 1271/1271 |
 
 ## Do this first tomorrow
 
