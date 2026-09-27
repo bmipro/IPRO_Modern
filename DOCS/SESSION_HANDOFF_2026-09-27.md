@@ -20,6 +20,11 @@
   `PoweredBy` seam, after the owner asked that none of it be hard-coded for the day white-labelling
   comes: one class, and a switch there closes every spot at once.
 
+- **TODO 527 written, on the owner's word to start:** advisers collect payment from their clients through
+  their own processor (Stripe first, then PayPal, then Square), from a Squarespace "Payment Processors"
+  panel the owner showed. The Squarespace template tour (the public demos, one by one) was paused after
+  the first template, Common Tongue.
+
 ## Pushed today
 
 | Code | Item | Gate |
@@ -34,8 +39,9 @@
 2. **The owner's glance:** the SSL line under SuperAdmin -> Packages (tick or untick per package, move it up
    into the landing cards if wanted); the footer of any adviser site; the foot of a client invoice.
 3. **The new customer:** his first renewal is 25 October; PayPal's payment notice settles it on its own.
-4. **Decide:** TODO 520 (bring-your-own-website package); 524 (dictation, with the owner's three
-   conditions in its row).
+4. **Decide:** 527 (payments through the adviser's own processor: the Stripe platform account is the
+   first thing needed, the PayPal partner application the first thing to send); TODO 520
+   (bring-your-own-website package); 524 (dictation, with the owner's three conditions in its row).
 5. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an
    adviser's own icon and logo; the client-invoice email's look; the comped plans' renewal date (8 July
    2027); 519 when the owner returns to it; the Girard demo if he wants it; the client Details page's
