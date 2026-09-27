@@ -592,6 +592,7 @@ public class ClientInvoicesController : Controller
               <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
                 <p>{System.Net.WebUtility.HtmlEncode(senderName)} sent you {(invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "an" : "an")} {docLabel} <strong>{System.Net.WebUtility.HtmlEncode(invoice.DocumentNumber)}</strong> for <strong>${invoice.Total:N2} {invoice.Currency}</strong>.</p>
                 <p><a href="{publicUrl}" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">View {docLabel}</a></p>
+                <p style="margin:22px 0 0;font-size:12px;color:#8a94a6">Sent with <a href="{IPRO.Entities.PoweredBy.BrandUrl(invoice.AgentUser?.BusinessType)}" style="color:#8a94a6;font-weight:600;text-decoration:none">iPro</a></p>
               </div>
             </div>
             """;

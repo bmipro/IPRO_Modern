@@ -48,4 +48,8 @@ public static class PackageFeatureCodes
     public const string CustomForms = "custom_forms";
     public const string TeamMembers = "team_members";
     public const string SocialLinksBlock = "social_links_block";
+    // 525 (2026-09-27): a catalogue line, not an entitlement anything gates on -- every hosted domain
+    // gets an Azure managed certificate that renews itself, whatever the package; the owner wanted
+    // the packages to say so.
+    public const string SslCertificate = "ssl_certificate";
 }

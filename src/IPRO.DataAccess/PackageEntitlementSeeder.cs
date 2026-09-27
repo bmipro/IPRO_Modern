@@ -411,6 +411,9 @@ public static class PackageEntitlementSeeder
             Feature(120, PackageFeatureCodes.SupportTraining, "Support by phone, email and portal tickets", all, all, all, all),
             Feature(150, PackageFeatureCodes.FileUploadCapacity, "File upload capacity", new FeatureValue(true, 50, "50 MB"), new FeatureValue(true, 500, "500 MB"), new FeatureValue(true, 1000, "1000 MB"), new FeatureValue(true, 1000, "1000 MB/per user")),
             Feature(170, PackageFeatureCodes.MultiDomainSupport, "Multi domain support", new FeatureValue(true, 2, "2"), unlimited, unlimited, unlimited),
+            // 525 (2026-09-27): true on every package -- each hosted domain gets an Azure managed certificate
+            // that renews itself. A catalogue line the owner asked for, not something the code gates on.
+            Feature(175, PackageFeatureCodes.SslCertificate, "SSL certificate for every domain we host, renewed automatically", all, all, all, all),
             Feature(200, PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link", all, all, all, all),
             Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO and sitemap", all, all, all, all),
             Feature(250, PackageFeatureCodes.MeetingRequestForm, "Request meeting form with email function", all, all, all, all),

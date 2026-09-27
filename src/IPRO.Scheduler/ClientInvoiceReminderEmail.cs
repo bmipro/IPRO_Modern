@@ -20,6 +20,7 @@ public static class ClientInvoiceReminderEmail
               <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
                 <p>{paragraph}</p>
                 <p><a href="{url}" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">View Invoice</a></p>
+                <p style="margin:22px 0 0;font-size:12px;color:#8a94a6">Sent with <a href="{PoweredBy.BrandUrl(invoice.AgentUser?.BusinessType)}" style="color:#8a94a6;font-weight:600;text-decoration:none">iPro</a></p>
               </div>
             </div>
             """;

@@ -48,3 +48,10 @@
 {
   <div class="public-footer__disclaimer">@footer.DisclaimerText</div>
 }
+@* 525: the platform's line, last and tiny; the link goes to the brand for this adviser's business. *@
+<div class="public-footer__powered">Powered by <a href="@IPRO.Entities.PoweredBy.BrandUrl(agent.BusinessType)" title="@IPRO.Entities.PoweredBy.BrandName(agent.BusinessType)">@IPRO.Entities.PoweredBy.Label</a></div>
+<style>
+  .public-footer__powered { margin-top: 10px; font-size: 11px; letter-spacing: .02em; color: var(--muted, #8a94a6); opacity: .85; }
+  .public-footer__powered a { color: inherit; text-decoration: none; font-weight: 600; }
+  .public-footer__powered a:hover { text-decoration: underline; }
+</style>
