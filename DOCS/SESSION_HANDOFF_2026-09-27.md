@@ -15,11 +15,17 @@
   "Sent with iPro" on the document emails (the TODO row has the detail). Seen in the local preview on a
   document and a site.
 
+- **526 built and deployed:** the two spots 525 left out -- "Powered by iPro" under every client-portal
+  page and "Sent with iPro" in the newsletter footer (drip emails share it) -- through the same
+  `PoweredBy` seam, after the owner asked that none of it be hard-coded for the day white-labelling
+  comes: one class, and a switch there closes every spot at once.
+
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `b9fc44f` | **525** "SSL included", "Powered by iPro" on sites and documents, "Sent with iPro" on the emails | 1269/1269 |
+| _see log 526_ | **526** the client portal and the newsletter footer carry the line too | whole tree |
 
 ## Do this first tomorrow
 
@@ -33,9 +39,9 @@
 5. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an
    adviser's own icon and logo; the client-invoice email's look; the comped plans' renewal date (8 July
    2027); 519 when the owner returns to it; the Girard demo if he wants it; the client Details page's
-   three-collection query (`AsSplitQuery`); "Powered by iPro" on the client portal pages and the
-   newsletter footer (not in 525's pass); a Sage file for the accountant's statement the day an adviser
-   brings a real template.
+   three-collection query (`AsSplitQuery`); a Sage file for the accountant's statement the day an adviser
+   brings a real template; e-cards and e-letters share a different footer (`EmailUnsubscribeFooter`) that
+   does not carry the line yet.
 6. **The builder review:** the two local commits on `feature/builder-ux-refresh` stay unpushed; on the
    owner's go, pull one export ZIP and validate a real export with assets.
 7. **Calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; the two unbound Let's
