@@ -1,3 +1,5 @@
+@using Microsoft.EntityFrameworkCore
+@inject IPRO.DataAccess.IPRODbContext Db
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,6 +49,22 @@
     }
     @RenderBody()
 </div>
+@{
+    // 526: the platform's line under every client-portal page; the link goes to the brand for the
+    // client's adviser's business. Read here, once per page, so the seven portal controllers need
+    // nothing. A visitor without a client claim (never the case behind this layout) gets the default.
+    string? portalBusinessType = null;
+    if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var portalClientId))
+    {
+        portalBusinessType = await Db.Clients.AsNoTracking()
+            .Where(c => c.Id == portalClientId)
+            .Select(c => c.AgentUser.BusinessType)
+            .FirstOrDefaultAsync();
+    }
+}
+<footer id="portal-footer" class="container-fluid pb-4 text-muted" style="font-size:11px;opacity:.85">
+    Powered by <a href="@IPRO.Entities.PoweredBy.BrandUrl(portalBusinessType)" title="@IPRO.Entities.PoweredBy.BrandName(portalBusinessType)" class="fw-semibold text-reset text-decoration-none">@IPRO.Entities.PoweredBy.Label</a>
+</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script nonce="@Context.GetCspNonce()">
 // Same shared confirm-before-submit as the agent portal's _Layout: buttons with

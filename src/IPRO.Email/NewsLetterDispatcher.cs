@@ -179,15 +179,15 @@ public class NewsLetterDispatcher
                 // minted here. A resumed send keeps the token its Queued rows already carry.
                 if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = EmailTrackingLinks.NewToken();
                 var htmlBody = EmailTrackingLinks.IsEnabled(_configuration)
-                    ? EmailTrackingLinks.Instrument(AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl), "newsletter",
+                    ? EmailTrackingLinks.Instrument(AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl, sendingAgent?.BusinessType), "newsletter",
                         recipient.TrackingToken, GetBaseUrl(), EmailTrackingLinks.SigningKey(_configuration))
-                    : AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl);
+                    : AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl, sendingAgent?.BusinessType);
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
                     newsletter.Subject,
                     htmlBody,
-                    AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl),
+                    AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl, sendingAgent?.BusinessType),
                     new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "newsletter",
@@ -338,21 +338,28 @@ public class NewsLetterDispatcher
         return $"{GetBaseUrl()}/Newsletter/Unsubscribe?token={WebUtility.UrlEncode(token)}";
     }
 
-    private static string AppendUnsubscribeHtml(string htmlBody, string unsubscribeUrl)
+    // 526 (2026-09-27): "Sent with iPro" under the unsubscribe line, linked to the brand for the
+    // adviser's business (PoweredBy, the one seam a white-label switch will later close). Internal
+    // so a test reads the footer without sending anything. Newsletters and drip campaign emails
+    // share this footer.
+    internal static string AppendUnsubscribeHtml(string htmlBody, string unsubscribeUrl, string? businessType)
     {
         var encodedUrl = WebUtility.HtmlEncode(unsubscribeUrl);
+        var brandUrl = PoweredBy.BrandUrl(businessType);
         var footer = $"""
             <div style="margin-top:32px;padding-top:16px;border-top:1px solid #dbe4f0;color:#64748b;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;">
               You are receiving this email because you are subscribed to updates from your IPRO adviser.
               <br>
               <a href="{encodedUrl}" style="color:#2563eb;">Unsubscribe from future newsletters</a>
+              <br>
+              <span style="display:inline-block;margin-top:10px;">Sent with <a href="{brandUrl}" style="color:#64748b;font-weight:600;text-decoration:none;">{PoweredBy.Label}</a></span>
             </div>
             """;
 
         return $"{htmlBody}{Environment.NewLine}{footer}";
     }
 
-    private static string AppendUnsubscribeText(string? textBody, string unsubscribeUrl)
+    internal static string AppendUnsubscribeText(string? textBody, string unsubscribeUrl, string? businessType)
     {
         return $"""
             {textBody ?? string.Empty}
@@ -361,6 +368,8 @@ public class NewsLetterDispatcher
             You are receiving this email because you are subscribed to updates from your IPRO adviser.
             Unsubscribe from future newsletters:
             {unsubscribeUrl}
+
+            Sent with {PoweredBy.Label}: {PoweredBy.BrandUrl(businessType)}
             """;
     }
 
@@ -471,7 +480,7 @@ public class NewsLetterDispatcher
         else
         {
             var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, Track(AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl)), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName, listUnsubscribeUrl: unsubscribeUrl);
+            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, Track(AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl, sendingAgent?.BusinessType)), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName, listUnsubscribeUrl: unsubscribeUrl);
         }
 
         if (result.IsDeferred)
