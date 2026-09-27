@@ -19,7 +19,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 525_ | **525** "SSL included", "Powered by iPro" on sites and documents, "Sent with iPro" on the emails | whole tree |
+| `b9fc44f` | **525** "SSL included", "Powered by iPro" on sites and documents, "Sent with iPro" on the emails | 1269/1269 |
 
 ## Do this first tomorrow
 
