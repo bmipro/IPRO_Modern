@@ -43,7 +43,7 @@
 |---|---|---|
 | `b9fc44f` | **525** "SSL included", "Powered by iPro" on sites and documents, "Sent with iPro" on the emails | 1269/1269 |
 | `3526329` | **526** the client portal and the newsletter footer carry the line too | 1271/1271 |
-| _see log 527a_ | **527a** Stripe: the tables, the Payments page, the connection, the webhook receiver | whole tree |
+| `1b90e49` | **527a** Stripe: the tables, the Payments page, the connection, the webhook receiver | 1280/1280 |
 
 ## Do this first tomorrow
 
