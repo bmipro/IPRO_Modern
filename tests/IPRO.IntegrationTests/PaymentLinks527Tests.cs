@@ -48,6 +48,8 @@ public class PaymentLinks527Tests
         var document = Read(@"src\IPRO.Web\Views\ClientInvoices\_ClientInvoiceDocument.cshtml");
         Assert.Contains("ViewBag.PayOptions", document);
         Assert.DoesNotContain("ViewBag.PaymentLink", document);
+        // The line above the buttons, in the owner's words (2026-09-28): the adviser's own business, never iPro.
+        Assert.Contains("Pay online now, or contact @companyName to pay another way.", document);
         Assert.Contains(".pay-instruction", Read(@"src\IPRO.Web\wwwroot\css\invoice.css"));
 
         // The Profile's old single link points at the Payments page now; the profile form no longer writes it.
