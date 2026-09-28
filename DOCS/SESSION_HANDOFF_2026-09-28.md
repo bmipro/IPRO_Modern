@@ -20,7 +20,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 527b_ | **527b** payment methods by link or code; a Pay button per method on the invoice | whole tree |
+| `f1a9887` | **527b** payment methods by link or code; a Pay button per method on the invoice | 1285/1285 |
 
 ## Do this first tomorrow
 
