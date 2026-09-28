@@ -38,7 +38,10 @@ public class ClientDocumentController : Controller
         // 515: the adviser's website logo brands the document, when they have one.
         ViewBag.LogoUrl = await _db.AgentWebsites.AsNoTracking().Where(w => w.AgentUserId == invoice.AgentUserId).Select(w => w.LogoUrl).FirstOrDefaultAsync();
         ViewBag.IsPublicView = true;
-        ViewBag.PaymentLink = PayPalMeLinkHelper.WithAmount(invoice.AgentUser.DefaultPaymentLink, invoice.Total, invoice.Currency);
+        // 527 (2026-09-28): a Pay button per method the adviser entered on the Payments page; with none,
+        // the Profile's single link from before, exactly as it always showed.
+        var methods = await _db.AgentPaymentMethods.AsNoTracking().Where(m => m.AgentUserId == invoice.AgentUserId).ToListAsync();
+        ViewBag.PayOptions = PaymentMethodLinks.OptionsFor(methods, invoice.AgentUser.DefaultPaymentLink, invoice);
         return View(invoice);
     }
 

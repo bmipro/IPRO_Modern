@@ -141,8 +141,8 @@ public class ClientDocumentDesign515Tests
         Assert.Contains("size: Letter", File.ReadAllText(FindRepoFile(@"src\IPRO.Web\wwwroot\css\invoice.css")));
         Assert.Contains("window.print()", razor);
         Assert.Contains("Context.GetCspNonce()", razor);
-        // the agent's tools and the client's actions, exactly as before
-        foreach (var action in new[] { "ClientInvoices/Send/", "ClientInvoices/MarkPaid/", "ClientInvoices/ConvertToInvoice/", "ClientInvoices/Duplicate/", "ClientInvoices/Void/", "/decline", "/approve", "Pay Now", "Resend", "Not viewed yet", "Viewed" })
+        // the agent's tools and the client's actions, exactly as before (527: the one Pay Now became a Pay button per method, PayOptions)
+        foreach (var action in new[] { "ClientInvoices/Send/", "ClientInvoices/MarkPaid/", "ClientInvoices/ConvertToInvoice/", "ClientInvoices/Duplicate/", "ClientInvoices/Void/", "/decline", "/approve", "PayOptions", "Resend", "Not viewed yet", "Viewed" })
             Assert.Contains(action, razor);
     }
 

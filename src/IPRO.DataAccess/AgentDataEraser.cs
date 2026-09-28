@@ -171,6 +171,7 @@ public static class AgentDataEraser
         // 527: the adviser's payment processors and the payments they reported.
         ("AgentPaymentConnections",     "AgentUserId = @agentId"),
         ("ClientInvoicePayments",       "AgentUserId = @agentId"),
+        ("AgentPaymentMethods",         "AgentUserId = @agentId"),
         ("PlatformSignupOrigins",       "AgentUserId = @agentId"),
         ("OperateLogs",                 "AgentUserId = @agentId"),
 

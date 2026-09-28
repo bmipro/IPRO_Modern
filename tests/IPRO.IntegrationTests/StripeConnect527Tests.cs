@@ -63,13 +63,13 @@ public class StripeConnect527Tests
         Assert.Contains("(\"AgentPaymentConnections\"", eraser);
         Assert.Contains("(\"ClientInvoicePayments\"", eraser);
 
-        // The page: a connect card per processor, Stripe live, the other two named and waiting.
+        // The page (rewritten 2026-09-28): a card per method by link or code; the Stripe Connect card stays, dormant.
         var view = Read(@"src\IPRO.Web\Views\Payments\Index.cshtml");
         Assert.Contains("/portal/Payments/StripeConnect", view);
         Assert.Contains("/portal/Payments/StripeDisconnect", view);
         Assert.Contains("js-confirm-submit", view);
-        Assert.Contains("Connect PayPal", view);
-        Assert.Contains("Connect Square", view);
+        Assert.Contains("asp-for=\"Form.PayPal\"", view);
+        Assert.Contains("asp-for=\"Form.SquareLink\"", view);
         Assert.Contains("/portal/Payments", Read(@"src\IPRO.Web\Views\ClientInvoices\Index.cshtml"));
         Assert.Contains("\"Stripe\"", Read(@"src\IPRO.Web\appsettings.json"));
     }

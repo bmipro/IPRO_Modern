@@ -1496,6 +1496,20 @@ public static class StartupSchemaRepair
         KEY `IX_ClientInvoicePayments_ClientInvoiceId` (`ClientInvoiceId`),
         CONSTRAINT `FK_ClientInvoicePayments_ClientInvoices_ClientInvoiceId` FOREIGN KEY (`ClientInvoiceId`) REFERENCES `ClientInvoices` (`Id`) ON DELETE CASCADE
     ) CHARACTER SET=utf8mb4;");
+        // 527 (2026-09-28): the payment methods the adviser entered by link or code.
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AgentPaymentMethods` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `Method` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `Value` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Note` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `CreatedAt` datetime(6) NOT NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_AgentPaymentMethods_AgentUserId_Method` (`AgentUserId`, `Method`),
+        CONSTRAINT `FK_AgentPaymentMethods_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
     }
 
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)

@@ -40,6 +40,7 @@ public class IPRODbContext : DbContext
     // 527: the adviser's payment processors, and the payments they report on invoices.
     public DbSet<AgentPaymentConnection> AgentPaymentConnections => Set<AgentPaymentConnection>();
     public DbSet<ClientInvoicePayment> ClientInvoicePayments => Set<ClientInvoicePayment>();
+    public DbSet<AgentPaymentMethod> AgentPaymentMethods => Set<AgentPaymentMethod>();   // 527: the links and the e-Transfer email the adviser entered
     public DbSet<ClientRecycleBinItem> ClientRecycleBinItems => Set<ClientRecycleBinItem>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
@@ -455,6 +456,15 @@ public class IPRODbContext : DbContext
             e.Property(c => c.EncryptedTokens).HasMaxLength(4000);
             e.HasIndex(c => new { c.AgentUserId, c.Provider }).IsUnique();
             e.HasOne(c => c.AgentUser).WithMany().HasForeignKey(c => c.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // 527 (2026-09-28): the adviser's payment methods by link or code -- one row per adviser and method.
+        modelBuilder.Entity<AgentPaymentMethod>(e =>
+        {
+            e.Property(m => m.Method).HasMaxLength(20);
+            e.Property(m => m.Value).HasMaxLength(500);
+            e.Property(m => m.Note).HasMaxLength(200);
+            e.HasIndex(m => new { m.AgentUserId, m.Method }).IsUnique();
+            e.HasOne(m => m.AgentUser).WithMany().HasForeignKey(m => m.AgentUserId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<ClientInvoicePayment>(e =>
         {

@@ -844,3 +844,6 @@ td span {
     text-decoration: none;
   }
 }
+
+/* 527: the Interac e-Transfer line under the Pay buttons */
+.pay-instruction { margin-top: 10px; font-size: 14px; line-height: 1.5; }

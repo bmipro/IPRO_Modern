@@ -12,10 +12,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Web.Controllers;
 
-// 527 (2026-09-27): the adviser's payment processors. Stripe first: the connection is Stripe's own
-// sign-in and consent (Connect, Standard accounts); we keep the connected account's id and act for
-// it with iPro's key, so nothing secret of the adviser's is stored and the money goes straight to
-// them. Behind the client-invoicing entitlement, like the invoices themselves.
+// 527 (2026-09-28): the adviser's payment methods. The adviser enters what each service gave them
+// -- a PayPal.me name, a Stripe Payment Link, a Square link, an Interac e-Transfer email, any other
+// link -- and every invoice they send shows a Pay button per method. No account on iPro's side.
+// The Stripe Connect actions (slice 1, 2026-09-27) stay for the day the platform has keys; until
+// then their card is not shown. Behind the client-invoicing entitlement, like the invoices.
 [Authorize]
 public class PaymentsController : Controller
 {
@@ -39,8 +40,49 @@ public class PaymentsController : Controller
     {
         var gate = await RequireAccessAsync();
         if (gate != null) return gate;
-        return View(await BuildModelAsync());
+        return View(await BuildModelAsync(null));
     }
+
+    // Every method is checked before anything is written: one bad entry sends the whole form back
+    // with the message beside that field and nothing changed.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Save(PaymentsForm form)
+    {
+        var gate = await RequireAccessAsync();
+        if (gate != null) return gate;
+
+        var values = new Dictionary<string, string>();
+        Check(PaymentMethodKinds.PayPal, form.PayPal, "Form.PayPal", values);
+        Check(PaymentMethodKinds.Stripe, form.StripeLink, "Form.StripeLink", values);
+        Check(PaymentMethodKinds.Square, form.SquareLink, "Form.SquareLink", values);
+        Check(PaymentMethodKinds.ETransfer, form.ETransferEmail, "Form.ETransferEmail", values);
+        Check(PaymentMethodKinds.Other, form.OtherLink, "Form.OtherLink", values);
+        var note = (form.ETransferNote ?? string.Empty).Trim();
+        if (note.Length > PaymentMethodLinks.NoteMaxLength)
+        {
+            ModelState.AddModelError("Form.ETransferNote", $"Keep the note under {PaymentMethodLinks.NoteMaxLength} characters.");
+        }
+        if (!ModelState.IsValid) return View("Index", await BuildModelAsync(form));
+
+        foreach (var method in PaymentMethodKinds.All)
+        {
+            var value = values[method];
+            if (value.Length == 0) await DeleteAsync(method);
+            else await UpsertAsync(method, value, method == PaymentMethodKinds.ETransfer ? note : string.Empty);
+        }
+
+        // The Profile's single link from before 527 is retired for this adviser: this page is the one place now.
+        var agentId = AgentId;
+        var empty = string.Empty;
+        await _db.AgentUsers.Where(a => a.Id == agentId).ExecuteUpdateAsync(u => u.SetProperty(a => a.DefaultPaymentLink, empty));
+
+        TempData["Success"] = values.Values.Any(v => v.Length > 0)
+            ? "Saved. Your invoices now show a Pay button for each method you entered."
+            : "Saved. Your invoices offer no payment method until you enter one here.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // -- Stripe Connect (slice 1, 2026-09-27): dormant until the platform has keys -------------------
 
     // Stripe only redirects back to an address registered in the platform's Connect settings, so
     // the request first bounces to the canonical host (the Google Calendar precedent), then goes to
@@ -153,16 +195,92 @@ public class PaymentsController : Controller
         connection.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        TempData["Success"] = "Stripe disconnected. Invoices go back to your Pay Now link, if you have one.";
+        TempData["Success"] = "Stripe disconnected. Invoices go back to the payment methods you entered on this page.";
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task<PaymentsViewModel> BuildModelAsync()
+    // -- helpers -------------------------------------------------------------------------------------
+
+    private void Check(string method, string? raw, string field, Dictionary<string, string> values)
     {
+        if (PaymentMethodLinks.TryNormalize(method, raw, out var value, out var error))
+        {
+            values[method] = value;
+            return;
+        }
+        values[method] = string.Empty;
+        ModelState.AddModelError(field, error);
+    }
+
+    // Set-based, like the reminder settings (523): an update when the row exists, else an insert
+    // that a concurrent second save turns into an update.
+    private async Task UpsertAsync(string method, string value, string note)
+    {
+        var agentId = AgentId;
+        var now = DateTime.UtcNow;
+        var updated = await _db.AgentPaymentMethods
+            .Where(m => m.AgentUserId == agentId && m.Method == method)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(m => m.Value, value)
+                .SetProperty(m => m.Note, note)
+                .SetProperty(m => m.UpdatedAt, now));
+        if (updated > 0) return;
+
+        await _db.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO `AgentPaymentMethods`
+            (`AgentUserId`, `Method`, `Value`, `Note`, `CreatedAt`, `UpdatedAt`)
+            VALUES ({agentId}, {method}, {value}, {note}, {now}, {now})
+            ON DUPLICATE KEY UPDATE `Value` = {value}, `Note` = {note}, `UpdatedAt` = {now}");
+    }
+
+    private async Task DeleteAsync(string method)
+    {
+        var agentId = AgentId;
+        await _db.AgentPaymentMethods.Where(m => m.AgentUserId == agentId && m.Method == method).ExecuteDeleteAsync();
+    }
+
+    private async Task<PaymentsViewModel> BuildModelAsync(PaymentsForm? posted)
+    {
+        var agentId = AgentId;
+        var saved = await _db.AgentPaymentMethods.AsNoTracking().Where(m => m.AgentUserId == agentId).ToListAsync();
+        var legacy = saved.Count == 0
+            ? await _db.AgentUsers.AsNoTracking().Where(a => a.Id == agentId).Select(a => a.DefaultPaymentLink).FirstOrDefaultAsync()
+            : null;
+        legacy = string.IsNullOrWhiteSpace(legacy) ? null : legacy.Trim();
         var stripe = await _db.AgentPaymentConnections.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.AgentUserId == AgentId && c.Provider == PaymentProviders.Stripe && c.IsActive);
-        var paymentLink = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.DefaultPaymentLink).FirstOrDefaultAsync();
-        return new PaymentsViewModel { StripeConfigured = _stripe.IsConfigured, Stripe = stripe, PaymentLink = paymentLink };
+            .FirstOrDefaultAsync(c => c.AgentUserId == agentId && c.Provider == PaymentProviders.Stripe && c.IsActive);
+        return new PaymentsViewModel
+        {
+            Form = posted ?? FormFrom(saved, legacy),
+            HasSavedMethods = saved.Count > 0,
+            LegacyLink = legacy,
+            StripeConfigured = _stripe.IsConfigured,
+            Stripe = stripe
+        };
+    }
+
+    private static PaymentsForm FormFrom(List<AgentPaymentMethod> saved, string? legacy)
+    {
+        string? Of(string method) => saved.FirstOrDefault(m => m.Method == method)?.Value;
+        var form = new PaymentsForm
+        {
+            PayPal = Of(PaymentMethodKinds.PayPal),
+            StripeLink = Of(PaymentMethodKinds.Stripe),
+            SquareLink = Of(PaymentMethodKinds.Square),
+            ETransferEmail = Of(PaymentMethodKinds.ETransfer),
+            ETransferNote = saved.FirstOrDefault(m => m.Method == PaymentMethodKinds.ETransfer)?.Note,
+            OtherLink = Of(PaymentMethodKinds.Other)
+        };
+        if (saved.Count == 0 && PaymentMethodLinks.FromLegacyLink(legacy) is { } legacyEntry)
+        {
+            switch (legacyEntry.Method)
+            {
+                case PaymentMethodKinds.PayPal: form.PayPal = legacyEntry.Value; break;
+                case PaymentMethodKinds.Stripe: form.StripeLink = legacyEntry.Value; break;
+                case PaymentMethodKinds.Square: form.SquareLink = legacyEntry.Value; break;
+                default: form.OtherLink = legacyEntry.Value; break;
+            }
+        }
+        return form;
     }
 
     private async Task<IActionResult?> RequireAccessAsync()

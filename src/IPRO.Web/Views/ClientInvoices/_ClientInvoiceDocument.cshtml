@@ -12,7 +12,7 @@
     var isPublicView = ViewBag.IsPublicView as bool? ?? false;
     var canEdit = ViewBag.CanEdit as bool? ?? false;
     var publicUrl = ViewBag.PublicUrl as string;
-    var paymentLink = ViewBag.PaymentLink as string;
+    var payOptions = ViewBag.PayOptions as IReadOnlyList<PayOption> ?? Array.Empty<PayOption>();   // 527: a Pay button per method
     var companyName = view.SupplierName;
     var currency = Model.Currency;
     string Cell(decimal amount) => (amount < 0 ? "-$" : "$") + Math.Abs(amount).ToString("N2");
@@ -160,12 +160,24 @@
       </div>
     </div>
   }
-  else if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Invoice && Model.Status == IPRO.Entities.ClientInvoiceStatus.Sent && !string.IsNullOrWhiteSpace(paymentLink))
+  else if (Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Invoice && Model.Status == IPRO.Entities.ClientInvoiceStatus.Sent && payOptions.Count > 0)
   {
     <div class="action-panel">
       <div class="action-card">
-        <div class="muted">You can pay online now, or arrange payment another way with @companyName.</div>
-        <a class="btn btn-success" href="@paymentLink" target="_blank" rel="noopener">Pay Now</a>
+        <div class="muted">You can pay now, or arrange payment another way with @companyName.</div>
+        @if (payOptions.Any(o => o.Url != null))
+        {
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @foreach (var option in payOptions.Where(o => o.Url != null))
+            {
+              <a class="btn btn-success" href="@option.Url" target="_blank" rel="noopener">@option.Label</a>
+            }
+          </div>
+        }
+        @foreach (var option in payOptions.Where(o => o.Instruction != null))
+        {
+          <div class="pay-instruction"><strong>@option.Label:</strong> @option.Instruction @option.Note</div>
+        }
       </div>
     </div>
   }

@@ -1,90 +1,197 @@
 @model IPRO.Web.Models.PaymentsViewModel
+@using IPRO.Entities
+@using IPRO.Web.Infrastructure
 @{
     ViewData["Title"] = "Payments";
     var stripe = Model.Stripe;
+
+    // What the client would see for a sample invoice, from what is in the form right now.
+    string? Preview(string method, string? raw)
+    {
+        if (!PaymentMethodLinks.TryNormalize(method, raw, out var value, out _) || value.Length == 0) return null;
+        return method == PaymentMethodKinds.ETransfer
+            ? PaymentMethodLinks.Instruction(method, value, 100m, "CAD")
+            : PaymentMethodLinks.PayUrl(method, value, 100m, "CAD", "INV-1001", null);
+    }
+    var previewPayPal = Preview(PaymentMethodKinds.PayPal, Model.Form.PayPal);
+    var previewStripe = Preview(PaymentMethodKinds.Stripe, Model.Form.StripeLink);
+    var previewSquare = Preview(PaymentMethodKinds.Square, Model.Form.SquareLink);
+    var previewETransfer = Preview(PaymentMethodKinds.ETransfer, Model.Form.ETransferEmail);
+    var previewOther = Preview(PaymentMethodKinds.Other, Model.Form.OtherLink);
 }
 
-@* 527: the adviser's payment processors. Connecting is the processor's own sign-in and consent;
-   the money goes straight to the adviser's own account, and a paid invoice marks itself paid. *@
+@* 527 (2026-09-28): how the adviser's clients pay the invoices they send. The adviser enters what
+   each service gives them; every invoice shows a Pay button per method; the money goes straight to
+   the adviser's own account with that service. No account on iPro's side. *@
 <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
   <div>
     <h2 class="fw-bold mb-1"><i class="fas fa-credit-card me-2 text-primary"></i>Payments</h2>
-    <div class="text-muted">Let your clients pay invoices by card. Connect a processor you have an account with; the money goes to your own account, and the invoice marks itself paid.</div>
+    <div class="text-muted">How your clients pay the invoices you send. Enter what each service you use gives you; every invoice shows a Pay button per method, and the money goes straight to your own account.</div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
     <a class="btn btn-outline-secondary" href="/portal/ClientInvoices"><i class="fas fa-arrow-left me-1"></i>Client invoices</a>
   </div>
 </div>
 
-<div class="row g-4">
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm h-100" id="processor-stripe">
-      <div class="card-body p-4 d-flex flex-column">
-        <h5 class="fw-bold mb-2">Stripe</h5>
-        <p class="text-muted small">Visa, Mastercard, American Express, Apple Pay and Google Pay, in Canadian dollars, paid out to your Canadian bank account.</p>
-        @if (stripe != null)
-        {
-          <div class="mb-3">
-            <span class="badge bg-success-subtle text-success">Connected</span>
-            @if (!stripe.IsLive)
-            {
-              <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Test mode</span>
-            }
-            <div class="mt-2 fw-semibold">@(string.IsNullOrWhiteSpace(stripe.DisplayName) ? "Your Stripe account" : stripe.DisplayName)</div>
-            <div class="small text-muted">Account @stripe.ExternalAccountId &middot; connected @stripe.ConnectedAt.ToString("MMM d, yyyy")</div>
+@if (Model.LegacyLink != null)
+{
+  <div class="alert alert-info" id="legacy-link-note">
+    Your Pay Now link from the Profile page (<code>@Model.LegacyLink</code>) is filled in below. Save once to keep it here; this page is now the one place for payment methods.
+  </div>
+}
+
+<form method="post" action="/portal/Payments/Save" id="payment-methods-form">
+  @Html.AntiForgeryToken()
+  <div class="row g-4">
+
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100" id="method-paypal">
+        <div class="card-body p-4 d-flex flex-column">
+          <h5 class="fw-bold mb-2"><i class="fab fa-paypal me-2 text-primary"></i>PayPal</h5>
+          <p class="text-muted small mb-2">Your client pays from a PayPal balance or by card through PayPal. The exact invoice total and currency are filled in for them.</p>
+          <ol class="small text-muted ps-3 mb-3">
+            <li>Sign in at PayPal and open <a href="https://www.paypal.com/paypalme/" target="_blank" rel="noopener">paypal.com/paypalme</a>.</li>
+            <li>Create your PayPal.me link, or copy the one you have.</li>
+            <li>Enter the name that follows <code>paypal.me/</code> here.</li>
+          </ol>
+          <label class="form-label fw-semibold" for="Form_PayPal">Your PayPal.me name</label>
+          <div class="input-group">
+            <span class="input-group-text">paypal.me/</span>
+            <input asp-for="Form.PayPal" id="Form_PayPal" class="form-control" maxlength="500" placeholder="yourname" autocomplete="off" />
           </div>
-          <form method="post" action="/portal/Payments/StripeDisconnect" class="mt-auto">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Disconnect Stripe? Invoices go back to your Pay Now link, if you have one.">Disconnect</button>
-          </form>
-        }
-        else if (Model.StripeConfigured)
-        {
-          <a class="btn btn-dark mt-auto" href="/portal/Payments/StripeConnect"><i class="fab fa-stripe-s me-1"></i>Connect Stripe</a>
-          <div class="form-text mt-2">You will sign in at Stripe, or open an account there in a few minutes, and come straight back.</div>
-        }
-        else
-        {
-          <button type="button" class="btn btn-dark mt-auto" disabled>Connect Stripe</button>
-          <div class="form-text mt-2">Being set up on the platform; check back soon.</div>
-        }
+          <span asp-validation-for="Form.PayPal" class="text-danger small"></span>
+          @if (previewPayPal != null)
+          {
+            <div class="form-text mt-2">On a $100.00 CAD invoice: <strong>Pay with PayPal</strong> opens <code>@previewPayPal</code></div>
+          }
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm h-100" id="processor-paypal">
-      <div class="card-body p-4 d-flex flex-column">
-        <h5 class="fw-bold mb-2">PayPal</h5>
-        <p class="text-muted small">Cards and PayPal balances through PayPal's checkout, paid out to your Canadian bank account.</p>
-        <button type="button" class="btn btn-dark mt-auto" disabled>Connect PayPal</button>
-        <div class="form-text mt-2">Coming soon: awaiting PayPal's approval of iPro as a partner. Until then, a PayPal.me link works as your Pay Now link.</div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100" id="method-stripe">
+        <div class="card-body p-4 d-flex flex-column">
+          <h5 class="fw-bold mb-2"><i class="fab fa-stripe-s me-2 text-primary"></i>Stripe</h5>
+          <p class="text-muted small mb-2">Your client pays by card (Visa, Mastercard, American Express, Apple Pay, Google Pay) on Stripe's checkout page. The invoice number is passed along, so the payment shows under it in your Stripe dashboard.</p>
+          <ol class="small text-muted ps-3 mb-3">
+            <li>In your Stripe dashboard open <a href="https://dashboard.stripe.com/payment-links" target="_blank" rel="noopener">Payment Links</a>.</li>
+            <li>Create a link with <em>Customers choose what to pay</em>, so any invoice total works, or one link per amount you bill.</li>
+            <li>Paste the link here.</li>
+          </ol>
+          <label class="form-label fw-semibold" for="Form_StripeLink">Your Stripe Payment Link</label>
+          <input asp-for="Form.StripeLink" id="Form_StripeLink" class="form-control" maxlength="500" placeholder="https://buy.stripe.com/..." autocomplete="off" />
+          <span asp-validation-for="Form.StripeLink" class="text-danger small"></span>
+          @if (previewStripe != null)
+          {
+            <div class="form-text mt-2">On invoice INV-1001: <strong>Pay by card</strong> opens <code>@previewStripe</code></div>
+          }
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm h-100" id="processor-square">
-      <div class="card-body p-4 d-flex flex-column">
-        <h5 class="fw-bold mb-2">Square</h5>
-        <p class="text-muted small">All major cards online, and in person with a Square reader.</p>
-        <button type="button" class="btn btn-dark mt-auto" disabled>Connect Square</button>
-        <div class="form-text mt-2">Coming soon.</div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100" id="method-square">
+        <div class="card-body p-4 d-flex flex-column">
+          <h5 class="fw-bold mb-2"><i class="fas fa-square me-2 text-primary"></i>Square</h5>
+          <p class="text-muted small mb-2">Your client pays by card on Square's checkout page.</p>
+          <ol class="small text-muted ps-3 mb-3">
+            <li>In your <a href="https://squareup.com/dashboard" target="_blank" rel="noopener">Square dashboard</a> open Payment Links.</li>
+            <li>Create a link; choose a custom amount if you bill different totals.</li>
+            <li>Paste the link here.</li>
+          </ol>
+          <label class="form-label fw-semibold" for="Form_SquareLink">Your Square payment link</label>
+          <input asp-for="Form.SquareLink" id="Form_SquareLink" class="form-control" maxlength="500" placeholder="https://square.link/u/..." autocomplete="off" />
+          <span asp-validation-for="Form.SquareLink" class="text-danger small"></span>
+          @if (previewSquare != null)
+          {
+            <div class="form-text mt-2"><strong>Pay with Square</strong> opens <code>@previewSquare</code></div>
+          }
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-body p-4">
-    <h6 class="fw-bold mb-2">Your Pay Now link</h6>
-    @if (string.IsNullOrWhiteSpace(Model.PaymentLink))
-    {
-      <div class="text-muted small">None set. Without a connected processor, you can paste a PayPal.me or other payment link on your <a href="/portal/Account/Profile">Profile</a>; it shows as Pay Now on your invoices, and you mark them paid yourself.</div>
-    }
-    else
-    {
-      <div class="text-muted small">Set on your <a href="/portal/Account/Profile">Profile</a>: <code>@Model.PaymentLink</code>. It shows as Pay Now on your invoices when no processor is connected, and you mark them paid yourself.</div>
-    }
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100" id="method-etransfer">
+        <div class="card-body p-4 d-flex flex-column">
+          <h5 class="fw-bold mb-2"><i class="fas fa-university me-2 text-primary"></i>Interac e-Transfer</h5>
+          <p class="text-muted small mb-2">The invoice tells your client to send an e-Transfer of the exact total to this email. No fees, and most Canadian clients already use it.</p>
+          <ol class="small text-muted ps-3 mb-3">
+            <li>In your online banking, turn on Auto-deposit for this email, so no security question is needed.</li>
+            <li>Enter the email here, and a line for your client if you like.</li>
+          </ol>
+          <label class="form-label fw-semibold" for="Form_ETransferEmail">Email your e-Transfers go to</label>
+          <input asp-for="Form.ETransferEmail" id="Form_ETransferEmail" class="form-control" maxlength="500" placeholder="payments@yourbusiness.ca" autocomplete="off" />
+          <span asp-validation-for="Form.ETransferEmail" class="text-danger small"></span>
+          <label class="form-label fw-semibold mt-3" for="Form_ETransferNote">A line for your client <span class="fw-normal text-muted">(optional)</span></label>
+          <input asp-for="Form.ETransferNote" id="Form_ETransferNote" class="form-control" maxlength="200" placeholder="Auto-deposit is on; no security question needed." autocomplete="off" />
+          <span asp-validation-for="Form.ETransferNote" class="text-danger small"></span>
+          @if (previewETransfer != null)
+          {
+            <div class="form-text mt-2">On a $100.00 CAD invoice: <strong>Interac e-Transfer:</strong> @previewETransfer @Model.Form.ETransferNote</div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100" id="method-other">
+        <div class="card-body p-4 d-flex flex-column">
+          <h5 class="fw-bold mb-2"><i class="fas fa-link me-2 text-primary"></i>Another payment page</h5>
+          <p class="text-muted small mb-3">Any other payment page with an https:// address, shown as <strong>Pay Now</strong>. It opens as it is; the client enters the amount there.</p>
+          <label class="form-label fw-semibold" for="Form_OtherLink">The link</label>
+          <input asp-for="Form.OtherLink" id="Form_OtherLink" class="form-control" maxlength="500" placeholder="https://" autocomplete="off" />
+          <span asp-validation-for="Form.OtherLink" class="text-danger small"></span>
+          @if (previewOther != null)
+          {
+            <div class="form-text mt-2"><strong>Pay Now</strong> opens <code>@previewOther</code></div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100 bg-light" id="method-save">
+        <div class="card-body p-4 d-flex flex-column">
+          <h5 class="fw-bold mb-2">What your clients see</h5>
+          <p class="text-muted small mb-3">Every invoice you send from now on shows a button for each method you entered, in this order: PayPal, card, Square, then the e-Transfer line, then your own link. Leave the ones you do not use empty. When a client pays, mark the invoice paid as before; the money is already in your account with that service.</p>
+          <div class="mt-auto d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save payment methods</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
-</div>
+</form>
+
+@if (Model.StripeConfigured || stripe != null)
+{
+  @* Slice 1 (2026-09-27), dormant until the platform has Stripe keys: the connection that lets an invoice settle itself. *@
+  <div class="card border-0 shadow-sm mt-4" id="processor-stripe">
+    <div class="card-body p-4">
+      <h5 class="fw-bold mb-2">Automatic settlement with Stripe</h5>
+      <p class="text-muted small">Connect your Stripe account and a card payment marks the invoice paid on its own; the money still goes straight to your account.</p>
+      @if (stripe != null)
+      {
+        <div class="mb-3">
+          <span class="badge bg-success-subtle text-success">Connected</span>
+          @if (!stripe.IsLive)
+          {
+            <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Test mode</span>
+          }
+          <div class="mt-2 fw-semibold">@(string.IsNullOrWhiteSpace(stripe.DisplayName) ? "Your Stripe account" : stripe.DisplayName)</div>
+          <div class="small text-muted">Account @stripe.ExternalAccountId &middot; connected @stripe.ConnectedAt.ToString("MMM d, yyyy")</div>
+        </div>
+        <form method="post" action="/portal/Payments/StripeDisconnect">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Disconnect Stripe? Invoices go back to the payment methods you entered above.">Disconnect</button>
+        </form>
+      }
+      else
+      {
+        <a class="btn btn-dark" href="/portal/Payments/StripeConnect"><i class="fab fa-stripe-s me-1"></i>Connect Stripe</a>
+        <div class="form-text mt-2">You will sign in at Stripe, or open an account there in a few minutes, and come straight back.</div>
+      }
+    </div>
+  </div>
+}

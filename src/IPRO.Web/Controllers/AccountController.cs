@@ -685,7 +685,9 @@ public class AccountController : Controller
         agent.BusinessType = model.BusinessType;
         // 492 (audit BILLING-12): the promotion code is recorded at sign-up and shown read-only here;
         // an agent may not rewrite it from the profile form.
-        agent.DefaultPaymentLink = model.DefaultPaymentLink;
+        // 527 (2026-09-28): the payment link moved to the Payments page (a method per service); the
+        // profile form no longer carries it, and the old value stays as the invoices' fallback until
+        // that page is saved once.
 
         await _agents.UpdateAsync(agent);
         // 498: the morning follow-ups email's switch lives in its own table, not on the adviser's row.
@@ -1184,13 +1186,5 @@ public class AccountController : Controller
         model.CellPhone = model.CellPhone?.Trim() ?? "";
         model.BusinessType = model.BusinessType?.Trim() ?? "";
         model.PromotionCode = model.PromotionCode?.Trim() ?? "";
-        model.DefaultPaymentLink = NormalizePaymentLink(model.DefaultPaymentLink);
-    }
-
-    private static string? NormalizePaymentLink(string? value)
-    {
-        value = value?.Trim();
-        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-        return value.Contains("://") ? value : $"https://{value}";
     }
 }

@@ -37,7 +37,7 @@ public static class HelpLinks
         ["PortalRequests"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("client-portal", "Help: portal requests", "portal-requests-appointments") },
         ["ClientInvoices"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("client-invoicing", "Help: client invoicing") },
         ["RecurringInvoices"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("client-invoicing", "Help: recurring invoices", "recurring-invoices") },
-        ["Payments"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("client-invoicing", "Help: payments", "connecting-your-payment-processor") },   // 527
+        ["Payments"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("client-invoicing", "Help: payments", "getting-paid-by-your-clients") },   // 527
         ["Documents"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("agent-document-library", "Help: documents") },
 
         ["Newsletter"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("newsletters-campaigns", "Help: newsletters", "create-a-newsletter") },
