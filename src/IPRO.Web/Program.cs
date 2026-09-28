@@ -124,6 +124,10 @@ builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.G
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
+// 527: Stripe Connect -- the adviser's own processor. The keys are App Service settings; empty
+// means "not set up", and the Payments page says so instead of failing.
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
+builder.Services.AddScoped<IStripeConnectService, StripeConnectService>();
 builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ai"));
 builder.Services.AddScoped<IAiSuggestionService, AnthropicAiSuggestionService>();
 builder.Services.AddHttpClient();
@@ -653,6 +657,9 @@ using (var scope = app.Services.CreateScope())
     // 523 (slice 3): the adviser's invoice-reminder schedule and the stages sent (ClientInvoiceReminderSettings,
     // ClientInvoiceReminderSends); after the client invoice tables they point at.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientInvoiceReminderSchemaAsync", () => StartupSchemaRepair.EnsureClientInvoiceReminderSchemaAsync(db), db, app.Logger);
+    // 527: the adviser's payment processors and the payments they report (AgentPaymentConnections,
+    // ClientInvoicePayments); after the client invoice tables they point at.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePaymentConnectionSchemaAsync", () => StartupSchemaRepair.EnsurePaymentConnectionSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Must run AFTER the three CREATE TABLE passes above (E-Card, E-Letter, Poll) -- it adds the

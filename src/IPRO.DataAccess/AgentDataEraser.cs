@@ -168,6 +168,9 @@ public static class AgentDataEraser
         // 523 (slice 3): the adviser's invoice-reminder schedule and the stages sent per invoice.
         ("ClientInvoiceReminderSettings", "AgentUserId = @agentId"),
         ("ClientInvoiceReminderSends",  "AgentUserId = @agentId"),
+        // 527: the adviser's payment processors and the payments they reported.
+        ("AgentPaymentConnections",     "AgentUserId = @agentId"),
+        ("ClientInvoicePayments",       "AgentUserId = @agentId"),
         ("PlatformSignupOrigins",       "AgentUserId = @agentId"),
         ("OperateLogs",                 "AgentUserId = @agentId"),
 

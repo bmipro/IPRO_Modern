@@ -1,0 +1,90 @@
+@model IPRO.Web.Models.PaymentsViewModel
+@{
+    ViewData["Title"] = "Payments";
+    var stripe = Model.Stripe;
+}
+
+@* 527: the adviser's payment processors. Connecting is the processor's own sign-in and consent;
+   the money goes straight to the adviser's own account, and a paid invoice marks itself paid. *@
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-credit-card me-2 text-primary"></i>Payments</h2>
+    <div class="text-muted">Let your clients pay invoices by card. Connect a processor you have an account with; the money goes to your own account, and the invoice marks itself paid.</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="/portal/ClientInvoices"><i class="fas fa-arrow-left me-1"></i>Client invoices</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100" id="processor-stripe">
+      <div class="card-body p-4 d-flex flex-column">
+        <h5 class="fw-bold mb-2">Stripe</h5>
+        <p class="text-muted small">Visa, Mastercard, American Express, Apple Pay and Google Pay, in Canadian dollars, paid out to your Canadian bank account.</p>
+        @if (stripe != null)
+        {
+          <div class="mb-3">
+            <span class="badge bg-success-subtle text-success">Connected</span>
+            @if (!stripe.IsLive)
+            {
+              <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Test mode</span>
+            }
+            <div class="mt-2 fw-semibold">@(string.IsNullOrWhiteSpace(stripe.DisplayName) ? "Your Stripe account" : stripe.DisplayName)</div>
+            <div class="small text-muted">Account @stripe.ExternalAccountId &middot; connected @stripe.ConnectedAt.ToString("MMM d, yyyy")</div>
+          </div>
+          <form method="post" action="/portal/Payments/StripeDisconnect" class="mt-auto">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-danger btn-sm js-confirm-submit" data-confirm-message="Disconnect Stripe? Invoices go back to your Pay Now link, if you have one.">Disconnect</button>
+          </form>
+        }
+        else if (Model.StripeConfigured)
+        {
+          <a class="btn btn-dark mt-auto" href="/portal/Payments/StripeConnect"><i class="fab fa-stripe-s me-1"></i>Connect Stripe</a>
+          <div class="form-text mt-2">You will sign in at Stripe, or open an account there in a few minutes, and come straight back.</div>
+        }
+        else
+        {
+          <button type="button" class="btn btn-dark mt-auto" disabled>Connect Stripe</button>
+          <div class="form-text mt-2">Being set up on the platform; check back soon.</div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100" id="processor-paypal">
+      <div class="card-body p-4 d-flex flex-column">
+        <h5 class="fw-bold mb-2">PayPal</h5>
+        <p class="text-muted small">Cards and PayPal balances through PayPal's checkout, paid out to your Canadian bank account.</p>
+        <button type="button" class="btn btn-dark mt-auto" disabled>Connect PayPal</button>
+        <div class="form-text mt-2">Coming soon: awaiting PayPal's approval of iPro as a partner. Until then, a PayPal.me link works as your Pay Now link.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100" id="processor-square">
+      <div class="card-body p-4 d-flex flex-column">
+        <h5 class="fw-bold mb-2">Square</h5>
+        <p class="text-muted small">All major cards online, and in person with a Square reader.</p>
+        <button type="button" class="btn btn-dark mt-auto" disabled>Connect Square</button>
+        <div class="form-text mt-2">Coming soon.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-body p-4">
+    <h6 class="fw-bold mb-2">Your Pay Now link</h6>
+    @if (string.IsNullOrWhiteSpace(Model.PaymentLink))
+    {
+      <div class="text-muted small">None set. Without a connected processor, you can paste a PayPal.me or other payment link on your <a href="/portal/Account/Profile">Profile</a>; it shows as Pay Now on your invoices, and you mark them paid yourself.</div>
+    }
+    else
+    {
+      <div class="text-muted small">Set on your <a href="/portal/Account/Profile">Profile</a>: <code>@Model.PaymentLink</code>. It shows as Pay Now on your invoices when no processor is connected, and you mark them paid yourself.</div>
+    }
+  </div>
+</div>

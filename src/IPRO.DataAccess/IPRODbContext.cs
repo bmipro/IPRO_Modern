@@ -37,6 +37,9 @@ public class IPRODbContext : DbContext
     // 523 (slice 3): the adviser's invoice-reminder schedule, and the stages sent per invoice.
     public DbSet<ClientInvoiceReminderSettings> ClientInvoiceReminderSettings => Set<ClientInvoiceReminderSettings>();
     public DbSet<ClientInvoiceReminderSend> ClientInvoiceReminderSends => Set<ClientInvoiceReminderSend>();
+    // 527: the adviser's payment processors, and the payments they report on invoices.
+    public DbSet<AgentPaymentConnection> AgentPaymentConnections => Set<AgentPaymentConnection>();
+    public DbSet<ClientInvoicePayment> ClientInvoicePayments => Set<ClientInvoicePayment>();
     public DbSet<ClientRecycleBinItem> ClientRecycleBinItems => Set<ClientRecycleBinItem>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
@@ -440,6 +443,30 @@ public class IPRODbContext : DbContext
             e.Property(r => r.Stage).HasMaxLength(20);
             e.HasIndex(r => new { r.ClientInvoiceId, r.Stage }).IsUnique();
             e.HasOne(r => r.ClientInvoice).WithMany().HasForeignKey(r => r.ClientInvoiceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 527: the adviser's payment processors (one row per adviser and provider) and the payments
+        // they report (one row per processor event, the replay guard); own tables, 498's reason.
+        modelBuilder.Entity<AgentPaymentConnection>(e =>
+        {
+            e.Property(c => c.Provider).HasMaxLength(20);
+            e.Property(c => c.ExternalAccountId).HasMaxLength(100);
+            e.Property(c => c.DisplayName).HasMaxLength(200);
+            e.Property(c => c.EncryptedTokens).HasMaxLength(4000);
+            e.HasIndex(c => new { c.AgentUserId, c.Provider }).IsUnique();
+            e.HasOne(c => c.AgentUser).WithMany().HasForeignKey(c => c.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ClientInvoicePayment>(e =>
+        {
+            e.Property(p => p.Provider).HasMaxLength(20);
+            e.Property(p => p.ProviderEventId).HasMaxLength(100);
+            e.Property(p => p.ProviderPaymentId).HasMaxLength(100);
+            e.Property(p => p.Currency).HasMaxLength(10);
+            e.Property(p => p.Amount).HasColumnType("decimal(18,2)");
+            e.Property(p => p.Fee).HasColumnType("decimal(18,2)");
+            e.HasIndex(p => new { p.Provider, p.ProviderEventId }).IsUnique();
+            e.HasIndex(p => p.ClientInvoiceId);
+            e.HasOne(p => p.ClientInvoice).WithMany().HasForeignKey(p => p.ClientInvoiceId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // 512: views of the platform's own public pages, and where a self-registered adviser came from.

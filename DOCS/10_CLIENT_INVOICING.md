@@ -92,6 +92,14 @@ Whether the Client Received It** covers reminders too.
 
 If the link is a PayPal.me link, IPRO automatically appends the invoice's exact total and currency to the URL (PayPal.me's own supported format, e.g. `paypal.me/yourname/113.00CAD`), so the amount is pre-filled for the client and they don't have to type it in themselves. Other payment links (Stripe, etc.) open as-is, since there's no equivalent standard for passing an amount in the URL.
 
+## Connecting Your Payment Processor
+
+1. Select **Client Invoices**, then **Payments**.
+2. Under **Stripe**, click **Connect Stripe**. You sign in at Stripe (or open an account there), agree to let IPRO create payments on your behalf, and come back connected. IPRO keeps only your Stripe account's id — never your Stripe password or keys — and the money goes straight to your own Stripe account, paid out to your bank on Stripe's schedule.
+3. **Disconnect** at any time from the same page. IPRO's access is revoked at Stripe, and your invoices go back to your Pay Now link, if you have one.
+
+PayPal and Square connections are coming: PayPal once PayPal approves IPRO as a partner, Square after that. Until then, a PayPal.me link on your Profile still works as **Pay Now** (see **Setting a Payment Link**). With Stripe connected, the next release adds a **Pay** button to your invoices that takes a card for the exact total and marks the invoice paid on its own.
+
 ## Recurring Invoices
 
 1. Select **Client Invoices**, then **Recurring Schedules**.

@@ -1456,6 +1456,48 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 527: the adviser's payment processors (AgentPaymentConnections) and the payments they report on
+    // invoices (ClientInvoicePayments). Tables of their own -- the entities say why. Match the EF model
+    // column for column.
+    public static async Task EnsurePaymentConnectionSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AgentPaymentConnections` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `Provider` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `ExternalAccountId` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `DisplayName` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `IsLive` tinyint(1) NOT NULL DEFAULT 0,
+        `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+        `EncryptedTokens` varchar(4000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `ConnectedAt` datetime(6) NOT NULL,
+        `DisconnectedAt` datetime(6) NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_AgentPaymentConnections_AgentUserId_Provider` (`AgentUserId`, `Provider`),
+        CONSTRAINT `FK_AgentPaymentConnections_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ClientInvoicePayments` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `ClientInvoiceId` int NOT NULL,
+        `AgentUserId` int NOT NULL,
+        `Provider` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `ProviderEventId` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+        `ProviderPaymentId` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Amount` decimal(18,2) NOT NULL,
+        `Currency` varchar(10) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'CAD',
+        `Fee` decimal(18,2) NULL,
+        `ReceivedAt` datetime(6) NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_ClientInvoicePayments_Provider_ProviderEventId` (`Provider`, `ProviderEventId`),
+        KEY `IX_ClientInvoicePayments_ClientInvoiceId` (`ClientInvoiceId`),
+        CONSTRAINT `FK_ClientInvoicePayments_ClientInvoices_ClientInvoiceId` FOREIGN KEY (`ClientInvoiceId`) REFERENCES `ClientInvoices` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsureNumberSequenceSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

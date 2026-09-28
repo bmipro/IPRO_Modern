@@ -136,6 +136,11 @@ public static class PortalUrlHelper
     public static string GoogleCalendarRedirectUri(IConfiguration configuration) =>
         GetAgentPortalBaseUrl(configuration) + "/GoogleCalendar/Callback";
 
+    // 527: Stripe Connect only redirects to an address registered in the platform's Connect settings;
+    // this literal path (an explicit route on PaymentsController) is that address.
+    public static string StripeRedirectUri(IConfiguration configuration) =>
+        GetAgentPortalBaseUrl(configuration) + "/Payments/StripeCallback";
+
     public static string? CanonicalRedirectUrlIfNeeded(HttpRequest request, IConfiguration configuration)
     {
         var canonicalBaseUrl = GetAgentPortalBaseUrl(configuration);
