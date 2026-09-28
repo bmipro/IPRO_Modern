@@ -16,11 +16,17 @@
   fallback until the page is saved once, pre-filled on the page the first time. Seen in the local preview
   on a sent invoice.
 
+- **527c, the owner's wording:** the line above the Pay buttons now reads "Pay online now, or contact
+  <the adviser's business> to pay another way." -- the business named is always the sending adviser's own
+  company, never iPro. He had first looked at a draft: the buttons show on sent invoices only, as the old
+  Pay Now did; on a sent one he saw Pay with PayPal.
+
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `f1a9887` | **527b** payment methods by link or code; a Pay button per method on the invoice | 1285/1285 |
+| _see log 527c_ | **527c** the line above the Pay buttons, in the owner's words | whole tree |
 
 ## Do this first tomorrow
 
