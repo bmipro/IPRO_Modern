@@ -37,6 +37,12 @@
   (newsletter sign-up through the lead path we have, or buttons; layouts; display and timing), from two
   Squarespace panels he showed. The rows carry the shape, the package question and the estimates.
 
+- **Close-out in the evening, a reboot coming:** everything is pushed and on both hosts (`5a79fdc`, then this
+  handoff); backups of the pushed HEAD in OneDrive and Documents; build servers down; MySQL is a Windows
+  service and needs nothing. After the reboot: start MySQL before any gate (`DOCS/16_LOCAL_DEV.md`), and
+  `ops\Start-LocalEnv.ps1` only when a local preview is wanted. The owner's last words of the day were the
+  Stripe-account question in item 4 below -- start there.
+
 ## Pushed today
 
 | Code | Item | Gate |
@@ -52,7 +58,18 @@
 2. **The owner's glance:** the SSL line under SuperAdmin -> Packages (tick or untick per package, move it up
    into the landing cards if wanted); the footer of any adviser site; the foot of a client invoice.
 3. **The new customer:** his first renewal is 25 October; PayPal's payment notice settles it on its own.
-4. **527, before slice 2 (the owner):** open iPro's Stripe account and turn on Connect; register the redirect
+4. **527, talk first:** at the end of the day the owner asked why iPro needs a Stripe account at all ("I dont
+   understand why we have to have stripe account"). The short answer for that talk: the adviser's clients pay
+   the adviser's own Stripe account, and that does not change; but for our software to open a checkout for
+   an invoice and hear back that it was paid, Stripe requires the software maker to be registered as a
+   "platform" (Connect). The platform account is iPro's identity toward Stripe: it holds the keys the app
+   uses, the client id behind the adviser's Connect Stripe button, and the webhook Stripe calls. It holds no
+   money (each charge lands directly in the adviser's account), has no monthly fee (Stripe's per-transaction
+   fee is charged to the adviser), and Squarespace's own Connect Stripe button is the same arrangement. The
+   only way round it is each adviser pasting a secret key of their own into iPro and registering our webhook
+   in their dashboard by hand -- the security shape TODO 527 rules out. PayPal's "partner" application is
+   the same idea. Opening the account is about an hour of business details and verification on his side.
+   **If he agrees, his steps before slice 2:** open iPro's Stripe account and turn on Connect; register the redirect
    URI `https://app.iproadvisers.com/Payments/StripeCallback` and the Connect webhook endpoint
    `https://app.iproadvisers.com/payments/stripe/webhook` (event `checkout.session.completed`); paste the
    test keys into the local `appsettings.Development.json` (`DOCS/16_LOCAL_DEV.md` has the block) and, on
