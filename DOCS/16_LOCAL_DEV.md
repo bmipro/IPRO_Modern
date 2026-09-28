@@ -39,8 +39,15 @@ Service configuration). The local overrides live in `appsettings.Development.jso
 - `App:PlatformDomains` → `localhost` and `127.0.0.1` prepended, otherwise the middleware treats
   localhost as an agent's custom domain and routes everything to the public-site slug lookup.
 - `AzureDomainAutomation:Enabled` → false.
+- `Stripe` (527) → the platform's **test** keys, or empty strings (empty is *not configured*: the Payments
+  page says so and the connect button stays off). `SecretKey` = `sk_test_…`, `ClientId` = `ca_…` (the
+  Connect settings), `WebhookSecret` = the `whsec_…` that
+  `stripe listen --forward-to localhost:5100/payments/stripe/webhook` prints. Register
+  `http://localhost:5100/Payments/StripeCallback` as a redirect URI in the Connect settings as well, or a
+  local connect ends in `redirect_uri_mismatch`. Test keys only here; the live keys are App Service
+  settings, the owner's.
 
-To recreate the file, copy `appsettings.json`, apply the five changes above, and set
+To recreate the file, copy `appsettings.json`, apply the six changes above, and set
 `Admin:Username`/`Admin:Password` + `AdminPreview:SharedSecret` to any local-only values (keep them
 identical across the two apps).
 

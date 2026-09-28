@@ -25,12 +25,25 @@
   panel the owner showed. The Squarespace template tour (the public demos, one by one) was paused after
   the first template, Common Tongue.
 
+- **527 slice 1 built and deployed (Stripe Connect):** the two tables, the Payments page with its three
+  connect cards (Stripe live; PayPal awaiting the partner approval; Square next week, the owner's word),
+  the Stripe connection itself (Stripe's own sign-in and consent; the account id is all we keep, iPro's
+  key acts for the account), the disconnect, and the webhook receiver that settles an invoice once
+  whatever Stripe resends. Nothing charges yet: the Pay button and the receipt are slice 2, which needs
+  the owner's Stripe account first (item 4 below, and the TODO 527 row).
+
+- **TODO 528 and 529 written, for after the template builder (the owner's word):** an announcement bar
+  across the top of every page of an adviser's site, and a promotional pop-up when a visitor opens it
+  (newsletter sign-up through the lead path we have, or buttons; layouts; display and timing), from two
+  Squarespace panels he showed. The rows carry the shape, the package question and the estimates.
+
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `b9fc44f` | **525** "SSL included", "Powered by iPro" on sites and documents, "Sent with iPro" on the emails | 1269/1269 |
 | `3526329` | **526** the client portal and the newsletter footer carry the line too | 1271/1271 |
+| _see log 527a_ | **527a** Stripe: the tables, the Payments page, the connection, the webhook receiver | whole tree |
 
 ## Do this first tomorrow
 
@@ -39,18 +52,24 @@
 2. **The owner's glance:** the SSL line under SuperAdmin -> Packages (tick or untick per package, move it up
    into the landing cards if wanted); the footer of any adviser site; the foot of a client invoice.
 3. **The new customer:** his first renewal is 25 October; PayPal's payment notice settles it on its own.
-4. **Decide:** 527 (payments through the adviser's own processor: the Stripe platform account is the
-   first thing needed, the PayPal partner application the first thing to send); TODO 520
-   (bring-your-own-website package); 524 (dictation, with the owner's three conditions in its row).
-5. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an
+4. **527, before slice 2 (the owner):** open iPro's Stripe account and turn on Connect; register the redirect
+   URI `https://app.iproadvisers.com/Payments/StripeCallback` and the Connect webhook endpoint
+   `https://app.iproadvisers.com/payments/stripe/webhook` (event `checkout.session.completed`); paste the
+   test keys into the local `appsettings.Development.json` (`DOCS/16_LOCAL_DEV.md` has the block) and, on
+   his go, the live keys as App Service settings `Stripe__SecretKey`, `Stripe__ClientId`,
+   `Stripe__WebhookSecret` (verified by name and length, never shown); send the PayPal partner application.
+   Then the Pay button and the receipt get built.
+5. **Decide:** TODO 520 (bring-your-own-website package); 524 (dictation, with the owner's three
+   conditions in its row).
+6. **Open:** 506 (an adviser's domain with CAA records); retention for the two page-view tables; an
    adviser's own icon and logo; the client-invoice email's look; the comped plans' renewal date (8 July
    2027); 519 when the owner returns to it; the Girard demo if he wants it; the client Details page's
    three-collection query (`AsSplitQuery`); a Sage file for the accountant's statement the day an adviser
    brings a real template; e-cards and e-letters share a different footer (`EmailUnsubscribeFooter`) that
    does not carry the line yet.
-6. **The builder review:** the two local commits on `feature/builder-ux-refresh` stay unpushed; on the
+7. **The builder review:** the two local commits on `feature/builder-ux-refresh` stay unpushed; on the
    owner's go, pull one export ZIP and validate a real export with assets.
-7. **Calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; the two unbound Let's
+8. **Calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; the two unbound Let's
    Encrypt certificate resources lapse 19 October (nothing to do); Microsoft quota mid-October;
    .NET 10 in October.
 
