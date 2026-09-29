@@ -24,7 +24,7 @@ public static class ClientInvoiceReminderEmail
               </div>
             </div>
             """;
-        return (ClientInvoiceReminderSchedule.SubjectFor(stage, invoice.DocumentNumber, daysFromDue), html);
+        return (ClientInvoiceReminderSchedule.SubjectFor(stage, invoice.DocumentNumber, daysFromDue, AdviserSender.BusinessName(invoice.AgentUser)), html);
     }
 
     // The button's form: the overdue wording, in the adviser's day.

@@ -44,7 +44,6 @@ public class ELetterDispatcher
             return;
         }
 
-        var replyToName = $"{agent.FirstName} {agent.LastName}".Trim();
 
         var recipients = await _db.ELetterRecipients
             .Where(r => r.ELetterId == letter.Id && r.Status == ELetterRecipientStatuses.Queued)
@@ -112,7 +111,7 @@ public class ELetterDispatcher
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
-                    subject,
+                    AdviserSender.Subject(agent, subject),   // 530: the business leads the subject
                     // Visible unsubscribe line -- see the note in ECardDispatcher.
                     trackedHtml,
                     // Plain-text alternative -- see the note in ECardDispatcher.
@@ -125,8 +124,8 @@ public class ELetterDispatcher
                         ["client_id"] = recipient.ClientId.ToString(),
                         ["agent_user_id"] = letter.AgentUserId.ToString()
                     },
-                    replyToEmail: agent.Email,
-                    replyToName: replyToName,
+                    replyToEmail: AdviserSender.ReplyToEmail(agent),
+                    replyToName: AdviserSender.ReplyToName(agent),
                     listUnsubscribeUrl: preferencesUrl);
 
                 // 491: "not right now" -- a throttle (429), a 5xx, a timeout -- is not this recipient's

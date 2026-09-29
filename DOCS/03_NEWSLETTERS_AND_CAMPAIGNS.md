@@ -48,6 +48,10 @@ The newsletter is reusable. Each send creates a separate send record with its ow
 3. Check the agent's current profile email, including spam or junk folders.
 4. Correct any formatting or links before sending to clients.
 
+## What Your Clients See in Their Inbox
+
+Every newsletter and drip campaign email goes out with your business name at the start of the subject line, for example **Global Business Solution: October market update**, so your clients know it is from you before they open it. If your subject already includes your business name, it is left exactly as you wrote it. When a client replies, the reply comes to your own email address. The test send shows the subject exactly as your clients will see it.
+
 ## Choose the Audience
 
 Click **Send** and choose one audience:

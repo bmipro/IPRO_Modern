@@ -47,6 +47,8 @@ If the login fails, verify the username and password. Super Admin can reset the 
 
 Profile data is also used on the public website, invoices, lead notifications, and billing tax calculations.
 
+Your company name is how your clients recognize your emails. It leads the subject of every email IPRO sends to your clients (invoices, reminders, newsletters, drip campaigns, e-cards, e-letters, polls, appointment and portal emails), and when a client replies, the reply comes to your profile email. With no company name on file, your own name is used.
+
 ## Personalize the Agent Portal Color
 
 Click the small palette icon beside the "IPRO Agent Portal" logo (top-left of every page) to pick one of 6 colors for your own portal's top bar — Ocean Blue, Sunset Orange, Forest Green, Slate Gray, Burgundy, or Royal Purple. This only changes how your own portal looks to you; it's separate from your public website's theme color (set under My Website).

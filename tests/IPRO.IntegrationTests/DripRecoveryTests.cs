@@ -169,7 +169,7 @@ public class DripRecoveryTests
         db.ChangeTracker.Clear();
 
         Assert.Equal(1, recorder.SendCount);
-        Assert.Equal(new[] { "Step 3" }, recorder.SentSubjects);
+        Assert.Equal(new[] { "Drip Recovery: Step 3" }, recorder.SentSubjects);   // 530: the adviser (no company on file, so the name) leads the subject
         var after = await db.DripCampaignEnrollments.AsNoTracking().SingleAsync(e => e.Id == seed.EnrollmentId);
         Assert.Equal(DripCampaignEnrollmentStatus.Completed, after.Status);
     }

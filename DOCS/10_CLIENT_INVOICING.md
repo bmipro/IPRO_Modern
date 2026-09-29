@@ -19,6 +19,8 @@ Tax is calculated automatically from the client's own province/country (not the 
 2. Click **Send to Client**.
 3. The client receives an email with a link to view the document — no account or login required.
 
+The email's subject names your business, for example **Invoice INV-1010 from Global Business Solution**, and reminders do the same. When your client replies to the email, the reply comes to your own email address.
+
 A document number (`EST-####` for estimates, `INV-####` for invoices) is assigned once and does not change, even if the document is later edited while still a draft.
 
 ## What the Client Sees

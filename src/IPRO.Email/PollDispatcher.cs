@@ -47,6 +47,9 @@ public class PollDispatcher
         survey.Status = PollSurveyStatus.Sending;
         await _db.SaveChangesAsync();
 
+        // 530: the adviser names the subject and receives the replies.
+        var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == send.AgentUserId);
+
         // RESUME GATE, and it sits ABOVE the audience query on purpose. Re-resolving the audience on
         // a resumed claim would (a) add recipients for anyone added to the target category since the
         // first pass, and (b) let the audience-failure branch below stamp Failed on a send that had
@@ -182,7 +185,7 @@ public class PollDispatcher
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
-                    survey.Subject,
+                    AdviserSender.Subject(adviser, survey.Subject),   // 530: the business leads the subject
                     trackedHtml,
                     BuildEmailText(survey, voteUrl),
                     new Dictionary<string, string>
@@ -194,6 +197,8 @@ public class PollDispatcher
                         ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
                         ["agent_user_id"] = send.AgentUserId.ToString()
                     },
+                    replyToEmail: AdviserSender.ReplyToEmail(adviser),
+                    replyToName: AdviserSender.ReplyToName(adviser),
                     listUnsubscribeUrl: preferencesUrl);
 
                 // 491: "not right now" -- a throttle (429), a 5xx, a timeout -- is not this recipient's

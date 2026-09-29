@@ -41,7 +41,7 @@ public class AppointmentEmailPortalLinkTests
         await controller.Schedule(requestId, new DateTime(2026, 9, 9, 12, 0, 0));
 
         var sent = Assert.Single(email.Sent);
-        Assert.Equal("Your appointment has been scheduled", sent.Subject);
+        Assert.Equal("Your appointment with Appt Co is scheduled", sent.Subject);   // 530: the business names the email
         Assert.Contains("https://www.example-adviser.test/ClientPortalAccount/Login", sent.Body);
         Assert.Contains("about the business of hosting", sent.Body);
         Assert.DoesNotContain("app.example.test", sent.Body);
@@ -77,7 +77,7 @@ public class AppointmentEmailPortalLinkTests
         await controller.Decline(requestId);
 
         var sent = Assert.Single(email.Sent);
-        Assert.Equal("Your appointment request was declined", sent.Subject);
+        Assert.Equal("Your appointment request with Appt Co was declined", sent.Subject);   // 530: the business names the email
         Assert.Contains("https://www.declined.test/ClientPortalAccount/Login", sent.Body);
     }
 

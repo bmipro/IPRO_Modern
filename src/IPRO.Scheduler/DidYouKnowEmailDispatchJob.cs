@@ -152,7 +152,7 @@ public class DidYouKnowEmailDispatchJob
                 var result = await _email.SendDetailedAsync(
                     client.Email,
                     string.IsNullOrWhiteSpace(clientName) ? client.Email : clientName,
-                    article.Title,
+                    AdviserSender.Subject(agent, article.Title),   // 530: the business leads the subject
                     html,
                     // Tagging so the SendGrid event webhook can attribute delivered/open/click/bounce
                     // back to this queue item. Every other sender in the system already did this;
@@ -166,8 +166,8 @@ public class DidYouKnowEmailDispatchJob
                         ["client_id"] = client.Id.ToString(),
                         ["agent_user_id"] = client.AgentUserId.ToString()
                     },
-                    replyToEmail: agent?.Email,
-                    replyToName: companyName,
+                    replyToEmail: AdviserSender.ReplyToEmail(agent),
+                    replyToName: AdviserSender.ReplyToName(agent),
                     listUnsubscribeUrl: _consent.BuildPreferencesUrl(
                         await _consent.GetOrCreateTokenAsync(
                             await _db.Clients.FirstAsync(c => c.Id == client.Id))));

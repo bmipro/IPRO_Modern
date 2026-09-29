@@ -72,7 +72,6 @@ public class NewsLetterDispatcher
         }
 
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(newsletter.AgentUserId);
-        var newsletterReplyToName = sendingAgent == null ? null : $"{sendingAgent.FirstName} {sendingAgent.LastName}".Trim();
         var articles = await _uow.NewsLetterArticles.FindAsync(a => a.NewsLetterId == newsletter.Id);
         var sidebarCtas = NewsLetterSidebarCtas.FromJson(newsletter.SidebarCtasJson);
         var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl(), articles, sidebarCtas);
@@ -185,7 +184,7 @@ public class NewsLetterDispatcher
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
-                    newsletter.Subject,
+                    AdviserSender.Subject(sendingAgent, newsletter.Subject),   // 530: the business leads the subject
                     htmlBody,
                     AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl, sendingAgent?.BusinessType),
                     new Dictionary<string, string>
@@ -197,8 +196,8 @@ public class NewsLetterDispatcher
                         ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
                         ["agent_user_id"] = send.AgentUserId.ToString()
                     },
-                    replyToEmail: sendingAgent?.Email,
-                    replyToName: newsletterReplyToName,
+                    replyToEmail: AdviserSender.ReplyToEmail(sendingAgent),
+                    replyToName: AdviserSender.ReplyToName(sendingAgent),
                     listUnsubscribeUrl: unsubscribeUrl);
 
                 // 491: "not right now" -- a throttle (429), a 5xx, a timeout -- is not this recipient's
@@ -437,7 +436,6 @@ public class NewsLetterDispatcher
         if (campaign == null || !campaign.IsActive) return null;
 
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(campaign.AgentUserId);
-        var replyToName = sendingAgent == null ? null : $"{sendingAgent.FirstName} {sendingAgent.LastName}".Trim();
 
         var steps = (await _uow.DripCampaignSteps.FindAsync(s => s.DripCampaignId == campaignId))
             .OrderBy(s => s.SortOrder).ToList();
@@ -475,12 +473,12 @@ public class NewsLetterDispatcher
         EmailSendResult result;
         if (string.IsNullOrWhiteSpace(unsubscribeToken))
         {
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, Track(sanitizedHtmlBody), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName);
+            result = await _email.SendDetailedAsync(toEmail, toName, AdviserSender.Subject(sendingAgent, step.Subject), Track(sanitizedHtmlBody), customArgs: customArgs, replyToEmail: AdviserSender.ReplyToEmail(sendingAgent), replyToName: AdviserSender.ReplyToName(sendingAgent));
         }
         else
         {
             var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
-            result = await _email.SendDetailedAsync(toEmail, toName, step.Subject, Track(AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl, sendingAgent?.BusinessType)), customArgs: customArgs, replyToEmail: sendingAgent?.Email, replyToName: replyToName, listUnsubscribeUrl: unsubscribeUrl);
+            result = await _email.SendDetailedAsync(toEmail, toName, AdviserSender.Subject(sendingAgent, step.Subject), Track(AppendUnsubscribeHtml(sanitizedHtmlBody, unsubscribeUrl, sendingAgent?.BusinessType)), customArgs: customArgs, replyToEmail: AdviserSender.ReplyToEmail(sendingAgent), replyToName: AdviserSender.ReplyToName(sendingAgent), listUnsubscribeUrl: unsubscribeUrl);
         }
 
         if (result.IsDeferred)

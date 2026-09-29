@@ -237,7 +237,7 @@ public class NewsletterController : Controller
         var result = await _email.SendDetailedAsync(
             agent.Email,
             $"{agent.FirstName} {agent.LastName}".Trim(),
-            $"[TEST] {nl.Subject}",
+            $"[TEST] {AdviserSender.Subject(agent, nl.Subject)}",   // 530: the subject the clients will see
             htmlBody,
             nl.TextBody);
 

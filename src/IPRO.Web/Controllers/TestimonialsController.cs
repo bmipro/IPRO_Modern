@@ -180,7 +180,7 @@ public class TestimonialsController : Controller
         await _db.SaveChangesAsync();
 
         var requestUrl = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/testimonial/{submission.RequestToken}";
-        var companyName = client.AgentUser.CompanyName;
+        var companyName = AdviserSender.BusinessName(client.AgentUser);   // 530: the person when no business is on file
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
               <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:24px">{System.Net.WebUtility.HtmlEncode(companyName)}</h1></div>
@@ -193,7 +193,7 @@ public class TestimonialsController : Controller
         // JOBS-10: the request now carries the standard List-Unsubscribe header like every other
         // client-facing sender, so "this is spam" has a working alternative.
         var unsubscribeUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
-        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, listUnsubscribeUrl: unsubscribeUrl);
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
         if (!result.Success)
         {
             // 454: no "sent" banner for a request that never left.

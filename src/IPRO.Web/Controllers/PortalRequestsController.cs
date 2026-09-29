@@ -111,7 +111,11 @@ public class PortalRequestsController : Controller
                        (string.IsNullOrWhiteSpace(request.Notes) ? "" : $"<p>Notes: {WebUtility.HtmlEncode(request.Notes)}</p>") +
                        $"<p>You can review this anytime from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a></p>";
             // 454: the appointment is scheduled either way; a failed confirmation is said out loud.
-            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, "Your appointment has been scheduled", html);
+            // 530: the adviser's business names the email, and replies go to the adviser.
+            var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+            var business = AdviserSender.BusinessName(adviser);
+            var subject = business.Length == 0 ? "Your appointment has been scheduled" : $"Your appointment with {business} is scheduled";
+            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
             if (!result.Success)
             {
                 TempData["Error"] = $"Appointment scheduled, but the confirmation could not be emailed to {request.Client.Email}: {result.Message} Let {request.Client.FirstName} know another way.";
@@ -144,7 +148,11 @@ public class PortalRequestsController : Controller
             var html = "<p>Hi " + WebUtility.HtmlEncode(request.Client.FirstName) + ",</p>" +
                        "<p>Unfortunately your appointment request could not be scheduled at this time. Please reach out to your advisor directly or submit a new request with an alternate time.</p>" +
                        $"<p>You can submit a new request from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a></p>";
-            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, "Your appointment request was declined", html);
+            // 530: the adviser's business names the email, and replies go to the adviser.
+            var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+            var business = AdviserSender.BusinessName(adviser);
+            var subject = business.Length == 0 ? "Your appointment request was declined" : $"Your appointment request with {business} was declined";
+            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
             if (!result.Success)
             {
                 TempData["Error"] = $"Request declined, but {request.Client.Email} could not be emailed: {result.Message} Let {request.Client.FirstName} know another way.";

@@ -156,7 +156,7 @@ public class ClientsController : Controller
         // 457: on the agent's own domain (custom when serving, else the free subdomain), never the
         // platform host -- the client is this agent's client, and the portal is branded as theirs.
         var activateUrl = ClientPortalUrls.ActivateUrl(await ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration), client.PortalInviteToken);
-        var companyName = client.AgentUser.CompanyName;
+        var companyName = AdviserSender.BusinessName(client.AgentUser);   // 530: the person when no business is on file
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
               <div style="padding:22px;background:#0f7a52;color:white"><h1 style="margin:0;font-size:24px">{System.Net.WebUtility.HtmlEncode(companyName)} Client Portal</h1></div>
@@ -168,7 +168,7 @@ public class ClientsController : Controller
             """;
         // 454: the provider's answer is kept and remembered. The token stays either way -- the
         // activation link on the profile is the manual fallback when the email cannot be delivered.
-        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html);
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html, replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser));
         client.PortalInviteEmailedAt = result.Success ? DateTime.UtcNow : null;
         client.PortalInviteEmailError = result.Success ? null : Clip(result.Message, 500);
         await _db.SaveChangesAsync();

@@ -68,7 +68,6 @@ public class ECardDispatcher
         // Card artwork lives in the web app's wwwroot, so the email needs absolute URLs.
         var baseUrl = IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
         var html = ECardHtmlComposer.Wrap(card, agent, design, baseUrl);
-        var replyToName = $"{agent.FirstName} {agent.LastName}".Trim();
 
         var recipients = await _db.ECardRecipients
             .Where(r => r.ECardId == card.Id && r.Status == ECardRecipientStatuses.Queued)
@@ -133,7 +132,7 @@ public class ECardDispatcher
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
-                    card.Subject,
+                    AdviserSender.Subject(agent, card.Subject),   // 530: the business leads the subject
                     // The visible unsubscribe line. The List-Unsubscribe header alone is not enough:
                     // mail clients show their own button at their discretion, so without this a
                     // recipient can open a card and have nothing to click.
@@ -151,8 +150,8 @@ public class ECardDispatcher
                         ["client_id"] = recipient.ClientId.ToString(),
                         ["agent_user_id"] = card.AgentUserId.ToString()
                     },
-                    replyToEmail: agent.Email,
-                    replyToName: replyToName,
+                    replyToEmail: AdviserSender.ReplyToEmail(agent),
+                    replyToName: AdviserSender.ReplyToName(agent),
                     listUnsubscribeUrl: preferencesUrl);
 
                 // 491: "not right now" -- a throttle (429), a 5xx, a timeout -- is not this recipient's

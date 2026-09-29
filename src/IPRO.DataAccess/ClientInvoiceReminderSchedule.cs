@@ -67,14 +67,17 @@ public static class ClientInvoiceReminderSchedule
         _ => Or(settings.OverdueMessage, DefaultOverdueMessage)
     };
 
-    public static string SubjectFor(string stage, string documentNumber, int daysFromDue)
+    // 530: "from <the adviser's business>" when there is one, so the client knows whose invoice it
+    // is before opening it; without one, the wording is exactly as before.
+    public static string SubjectFor(string stage, string documentNumber, int daysFromDue, string? business = null)
     {
         var days = Math.Abs(daysFromDue);
+        var from = string.IsNullOrWhiteSpace(business) ? string.Empty : $" from {business.Trim()}";
         return stage switch
         {
-            ClientInvoiceReminderStages.BeforeDue => $"Invoice {documentNumber} is due in {days} {(days == 1 ? "day" : "days")}",
-            ClientInvoiceReminderStages.OnDue => $"Invoice {documentNumber} is due today",
-            _ => $"Reminder: Invoice {documentNumber} is overdue"
+            ClientInvoiceReminderStages.BeforeDue => $"Invoice {documentNumber}{from} is due in {days} {(days == 1 ? "day" : "days")}",
+            ClientInvoiceReminderStages.OnDue => $"Invoice {documentNumber}{from} is due today",
+            _ => $"Reminder: Invoice {documentNumber}{from} is overdue"
         };
     }
 
