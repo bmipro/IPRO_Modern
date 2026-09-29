@@ -21,7 +21,7 @@
 
 | Code | Item | Gate |
 |---|---|---|
-| _see log 530a_ | **530a** client emails name the adviser's business and reply to the adviser | whole tree |
+| `245d08f` | **530a** client emails name the adviser's business and reply to the adviser | 1289/1289 |
 
 ## Do this first tomorrow
 
