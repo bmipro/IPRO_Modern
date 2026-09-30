@@ -33,6 +33,11 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="[8.0.2]" />
     <PackageVersion Include="PayPalCheckoutSdk" Version="[1.0.4]" />
     <PackageVersion Include="Markdig" Version="[0.37.0]" />
+    <!-- 535: gallery photos resized and stripped of their metadata on upload. SkiaSharp is MIT-licensed
+         (Microsoft); the Linux native library comes from the NoDependencies package, since App Service's
+         .NET image has no fontconfig and the gallery draws no text. -->
+    <PackageVersion Include="SkiaSharp" Version="[4.153.1]" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="[4.153.1]" />
     <PackageVersion Include="Microsoft.ApplicationInsights.AspNetCore" Version="[2.22.0]" />
     <!-- Explicit pins below patch known transitive advisories flagged in the security audit
          (DOCS/SECURITY_AUDIT_2026-07-24.md). DEP-AngleSharp CLOSED 2026-08-20: HtmlSanitizer

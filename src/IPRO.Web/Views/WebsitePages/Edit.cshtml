@@ -316,6 +316,8 @@
                 {
                   <option value="grid" selected="@(block.LayoutVariant == "grid" ? "selected" : null)">Grid</option>
                   <option value="carousel" selected="@(block.LayoutVariant == "carousel" ? "selected" : null)">Carousel (scrolling row)</option>
+                  <option value="masonry" selected="@(block.LayoutVariant == "masonry" ? "selected" : null)">Masonry (each photo keeps its shape)</option>
+                  <option value="slideshow" selected="@(block.LayoutVariant == "slideshow" ? "selected" : null)">Slideshow (one large photo at a time)</option>
                 }
               </select>
               <div class="form-text">Changes how this block's items are arranged. Leave as default to match your template's usual style.@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Text ? " Only affects blocks with an image selected." : "")@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm ? " Only affects approved testimonials shown below the form." : "")</div>
@@ -596,33 +598,62 @@
           </div>
           @if (gallerySettings.Images.Any())
           {
-            <div class="row g-3 mb-3">
-              @foreach (var galleryImage in gallerySettings.Images)
+            var captionFormId = $"gallery-captions-{block.Id}";
+            var photoCount = gallerySettings.Images.Count;
+            @* 535: one form holds every caption (its inputs sit in the cards through form=""), so the arrow
+               and Remove forms beside them are never nested inside it. *@
+            <form method="post" action="/portal/WebsitePages/SaveGalleryCaptions" id="@captionFormId">
+              @Html.AntiForgeryToken()
+              <input type="hidden" name="blockId" value="@block.Id" />
+            </form>
+            <div class="row g-3 mb-2">
+              @for (var photoIndex = 0; photoIndex < photoCount; photoIndex++)
               {
-                <div class="col-6 col-md-3 col-xl-2">
-                  <div class="border rounded p-2 h-100">
-                    <img src="@galleryImage.Url" alt="" class="w-100 rounded mb-2" style="aspect-ratio:4/3;object-fit:cover" />
-                    <form method="post" action="/portal/WebsitePages/DeleteGalleryImage">
-                      @Html.AntiForgeryToken()
-                      <input type="hidden" name="blockId" value="@block.Id" />
-                      <input type="hidden" name="url" value="@galleryImage.Url" />
-                      <button class="js-confirm-submit btn btn-sm btn-outline-danger w-100" data-confirm-message="Remove this photo from the gallery?"><i class="fas fa-trash me-1"></i>Remove</button>
-                    </form>
+                var galleryImage = gallerySettings.Images[photoIndex];
+                <div class="col-6 col-md-4 col-xl-3">
+                  <div class="border rounded p-2 h-100 d-flex flex-column gap-2">
+                    <img src="@galleryImage.TileUrl" alt="" class="w-100 rounded" style="aspect-ratio:4/3;object-fit:cover" />
+                    <input type="hidden" name="urls" value="@galleryImage.Url" form="@captionFormId" />
+                    <input type="text" name="captions" value="@galleryImage.Caption" maxlength="@IPRO.Entities.WebsiteGalleryImage.CaptionMaxLength" class="form-control form-control-sm" placeholder="Caption (optional)" aria-label="Caption for photo @(photoIndex + 1)" form="@captionFormId" />
+                    <div class="d-flex gap-1 mt-auto">
+                      <form method="post" action="/portal/WebsitePages/MoveGalleryImage">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="blockId" value="@block.Id" />
+                        <input type="hidden" name="url" value="@galleryImage.Url" />
+                        <input type="hidden" name="direction" value="-1" />
+                        <button class="btn btn-sm btn-outline-secondary" title="Move earlier" aria-label="Move photo @(photoIndex + 1) earlier" disabled="@(photoIndex == 0 ? "disabled" : null)"><i class="fas fa-arrow-left"></i></button>
+                      </form>
+                      <form method="post" action="/portal/WebsitePages/MoveGalleryImage">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="blockId" value="@block.Id" />
+                        <input type="hidden" name="url" value="@galleryImage.Url" />
+                        <input type="hidden" name="direction" value="1" />
+                        <button class="btn btn-sm btn-outline-secondary" title="Move later" aria-label="Move photo @(photoIndex + 1) later" disabled="@(photoIndex == photoCount - 1 ? "disabled" : null)"><i class="fas fa-arrow-right"></i></button>
+                      </form>
+                      <form method="post" action="/portal/WebsitePages/DeleteGalleryImage" class="flex-fill">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="blockId" value="@block.Id" />
+                        <input type="hidden" name="url" value="@galleryImage.Url" />
+                        <button class="js-confirm-submit btn btn-sm btn-outline-danger w-100" data-confirm-message="Remove this photo from the gallery?"><i class="fas fa-trash me-1"></i>Remove</button>
+                      </form>
+                    </div>
                   </div>
                 </div>
               }
             </div>
+            <button type="submit" form="@captionFormId" class="btn btn-sm btn-outline-primary mb-3"><i class="fas fa-save me-1"></i>Save captions</button>
           }
           else
           {
             <div class="border rounded p-4 text-center text-muted mb-3"><i class="fas fa-images me-2"></i>No photos in this gallery yet.</div>
           }
-          <form method="post" action="/portal/WebsitePages/UploadGalleryImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
+          <form method="post" action="/portal/WebsitePages/UploadGalleryImages" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2 js-gallery-upload">
             @Html.AntiForgeryToken()
             <input type="hidden" name="blockId" value="@block.Id" />
-            <div><label class="form-label small fw-semibold mb-1">Add a photo (JPG, PNG, GIF, or WebP, maximum 8 MB)</label><input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
-            <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Add Photo</button>
+            <div><label class="form-label small fw-semibold mb-1">Add photos: up to @IPRO.Web.Controllers.WebsitePagesController.GalleryBatchMax at a time (JPG, PNG, GIF, or WebP, 15 MB each)</label><input type="file" name="images" multiple class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
+            <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Add Photos</button>
           </form>
+          <div class="form-text">Each photo is resized for the web (1600 pixels on its long side, with a smaller copy for the grid), and its camera details, location included, are removed. The original file is not kept.</div>
         </div>
       }
     </section>
@@ -802,6 +833,26 @@ document.querySelectorAll('.uploaded-image-choice').forEach(button => {
 
     setStatusLabelMessage(status, button.dataset.imageName, 'is being saved to the selected block.');
     void submitBlockImage('uploadedImageTarget', button.dataset.imageUrl || '', button);
+  });
+});
+
+// 535: the server takes at most @IPRO.Web.Controllers.WebsitePagesController.GalleryBatchMax photos and 100 MB in one upload; say so
+// before a long upload is refused at the end of it.
+document.querySelectorAll('form.js-gallery-upload').forEach(form => {
+  form.addEventListener('submit', event => {
+    const input = form.querySelector('input[type="file"]');
+    const files = input && input.files ? Array.from(input.files) : [];
+    const total = files.reduce((sum, file) => sum + file.size, 0);
+    if (total > @IPRO.Web.Controllers.WebsitePagesController.GalleryBatchMaxBytes) {
+      event.preventDefault();
+      alert('These photos add up to more than 100 MB. Add them in smaller groups.');
+      return;
+    }
+    const button = form.querySelector('button');
+    if (button) {
+      button.disabled = true;
+      button.textContent = files.length > 1 ? `Uploading ${files.length} photos...` : 'Uploading...';
+    }
   });
 });
 </script>

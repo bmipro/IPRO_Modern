@@ -271,7 +271,14 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 
 **Video** embeds a YouTube video on your page. Paste any YouTube video, watch, or share link when you add the block — nothing shows on your live site until the link is recognized as a valid YouTube video. Available on every package — no upgrade required.
 
-**Photo Gallery** shows a set of photos in a grid or a horizontally-scrolling carousel. Add the block, then upload photos to it directly from the page editor (JPG, PNG, GIF, or WebP, 8 MB per photo) — there's no separate step to attach existing files. Gallery photos share the same storage limit as your [Documents](12_AGENT_DOCUMENT_LIBRARY.md) library (visible as a usage bar on the block itself once you add your first photo); delete unused documents or gallery photos to free up space if you're close to the limit.
+**Photo Gallery** shows a set of photos in one of four layouts (see *Change a Block's Layout* below). Add the block, then upload photos to it directly from the page editor: choose up to 20 at a time (JPG, PNG, GIF, or WebP, 15 MB each) — there's no separate step to attach existing files.
+
+- **Each photo is prepared for the web as it uploads:** it's resized to 1600 pixels on its long side, with a smaller copy for the grid, so the page loads quickly on a phone. Its camera details, including the location where it was taken, are removed, and the original file isn't kept. A photo with a see-through background stays a PNG; an animated GIF stays exactly as you uploaded it.
+- **Captions:** type one under any photo and click **Save captions**. The caption shows under the photo in the grid and masonry layouts, under the large photo in the slideshow, and in the full-screen view. It also describes the photo to screen readers and to Google.
+- **Order:** use the arrows under each photo to move it earlier or later.
+- **Full-screen view:** visitors click (or tap) any photo to see it large. The arrows, the left and right keys, or a swipe on a phone move through the rest of that gallery, with "3 / 12" at the top; Escape or × closes it.
+
+Gallery photos share the same storage limit as your [Documents](12_AGENT_DOCUMENT_LIBRARY.md) library (visible as a usage bar on the block itself once you add your first photo); delete unused documents or gallery photos to free up space if you're close to the limit.
 
 ## Change a Block's Layout
 
@@ -282,7 +289,7 @@ Services, Call to Action, Text, Review Badge, Testimonial Submission Form, and P
 - **Text**: Image on the left or Image on the right — only takes effect when the block has an image selected.
 - **Review Badge**: Badge (a centered card) or Banner (a full-width, colored strip matching your Call to Action banner style).
 - **Testimonial Submission Form**: List or Grid — changes how the approved testimonials below the form are arranged.
-- **Photo Gallery**: Grid or Carousel (a horizontally-scrolling row).
+- **Photo Gallery**: **Grid** (even tiles, three across), **Carousel** (a horizontally-scrolling row), **Masonry** (each photo keeps its own shape, stacked in columns), or **Slideshow** (one large photo at a time, with arrows and a counter).
 
 Leave **Match template default** to use the arrangement your selected template normally uses for that block type. Changing the layout only affects that one block; other blocks and pages are unaffected. Save the block after changing its layout.
 

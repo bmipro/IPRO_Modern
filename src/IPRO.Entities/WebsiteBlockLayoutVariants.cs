@@ -8,7 +8,8 @@ public static class WebsiteBlockLayoutVariants
     public static readonly string[] Reviews = { "badge", "banner" };
     public static readonly string[] TestimonialForm = { "list", "grid" };
     public static readonly string[] Maps = { "full", "narrow" };
-    public static readonly string[] Gallery = { "grid", "carousel" };
+    // 535: masonry keeps each photo's own shape; slideshow shows one large photo at a time.
+    public static readonly string[] Gallery = { "grid", "carousel", "masonry", "slideshow" };
 
     public static string[] AllowedFor(string blockType) => blockType switch
     {

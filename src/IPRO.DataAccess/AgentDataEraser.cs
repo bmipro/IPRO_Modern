@@ -444,9 +444,14 @@ public static class AgentDataEraser
                 if (!doc.RootElement.TryGetProperty("Images", out var images)) continue;
                 foreach (var image in images.EnumerateArray())
                 {
-                    if (image.TryGetProperty("Url", out var url) && url.GetString() is { Length: > 0 } value)
+                    // 535: each photo is a full view (Url) and, usually, a small copy for the tiles (ThumbUrl).
+                    foreach (var property in new[] { "Url", "ThumbUrl" })
                     {
-                        urls.Add(value);
+                        if (image.TryGetProperty(property, out var url) && url.ValueKind == System.Text.Json.JsonValueKind.String
+                            && url.GetString() is { Length: > 0 } value)
+                        {
+                            urls.Add(value);
+                        }
                     }
                 }
             }

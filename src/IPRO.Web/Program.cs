@@ -73,6 +73,8 @@ if (!recurringJobsDisabled)
         o.WorkerCount = 5;
         o.Queues = new[] { "newsletters", "drip", "reminders", "default" };
     });
+    // 535: gives gallery photos from before 535 their small copy, once, two minutes after start.
+    builder.Services.AddHostedService<IPRO.Web.Infrastructure.GalleryTileBackfillService>();
 }
 
 // Liveness only -- no database or storage checks, deliberately. Azure's health check restarts an
@@ -453,6 +455,15 @@ app.MapGet("/health/version", () =>
     // "1.0.0+abc123..." -> "abc123..."
     var plus = informational.IndexOf('+');
     return Results.Text(plus >= 0 ? informational[(plus + 1)..] : informational);
+});
+
+// 535: whether this server can resize gallery photos. The image library (SkiaSharp) is native code, so a
+// server that cannot load it only shows up as galleries keeping originals; this says so outright, and
+// the deploy check reads it. Resizes a 64 x 48 test image in memory; nothing is stored.
+app.MapGet("/health/imaging", () =>
+{
+    var problem = IPRO.Web.Infrastructure.GalleryImages.SelfCheck();
+    return problem == null ? Results.Text("ok") : Results.Text("failed: " + problem, statusCode: 503);
 });
 
 app.MapControllerRoute("portal", "portal/{controller=Dashboard}/{action=Index}/{id?}");

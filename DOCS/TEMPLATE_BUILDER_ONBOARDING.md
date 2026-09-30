@@ -36,6 +36,10 @@ part you care about is the website system:
 - There are **20 block types** today: Hero, Text, Services, CallToAction, ContactForm,
   NewsletterSignup, TestimonialForm, PollResults, LeadMagnet, Reviews, AgentInfo, Maps, Form,
   DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex, Blog.
+- **Gallery** (2026-09-30, TODO 535) has four `LayoutVariant` values: `grid`, `carousel`, `masonry`
+  (each photo keeps its own shape, in columns) and `slideshow` (one large photo at a time). Each photo
+  carries a caption, a full view and a small tile copy; the shells render all four layouts and a shared
+  full-screen viewer. A design that places a gallery should name one of the four.
 - Several block types are **dynamic**: forms write leads into the CRM with spam/consent checks,
   Blog lists the agent's published articles, PollResults show live results, some blocks are
   gated by the agent's subscription package. **A static HTML export cannot reproduce these** —

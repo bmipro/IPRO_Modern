@@ -1,0 +1,61 @@
+@model IPRO.Entities.WebsiteContentBlock
+@*
+  535: one gallery, four layouts, for all three shells. The shell passes its class prefix (mp / cp / ep)
+  so its own rules still style the tiles; the shared rules and the viewer live in _GalleryViewer.cshtml.
+  Every photo is a button (keyboard users can open it too) carrying the full view in data-full; the tile
+  shows the small copy. Photos from before 535 have no small copy yet and show the original until the
+  backfill makes one (TileUrl falls back to Url).
+*@
+@{
+    var prefix = ViewData["GalleryPrefix"] as string ?? "mp";
+    var gallery = IPRO.Entities.WebsiteGallerySettings.FromJson(Model.SettingsJson);
+    var layout = IPRO.Entities.WebsiteBlockLayoutVariants.Normalize(IPRO.Entities.WebsiteBlockTypes.Gallery, Model.LayoutVariant);
+    if (layout.Length == 0) layout = "grid";
+    var count = gallery.Images.Count;
+    var showCaptions = layout is "grid" or "masonry";
+    string OpenLabel(int index, IPRO.Entities.WebsiteGalleryImage image) =>
+        $"Open photo {index + 1} of {count}" + (string.IsNullOrWhiteSpace(image.Caption) ? string.Empty : ": " + image.Caption);
+}
+@if (layout == "slideshow")
+{
+  <div class="@prefix-gallery-slideshow site-slideshow" data-gallery>
+    <div class="site-slideshow__stage">
+      @for (var i = 0; i < count; i++)
+      {
+        var image = gallery.Images[i];
+        <figure class="site-slideshow__slide@(i == 0 ? " is-current" : string.Empty)">
+          <button type="button" class="site-gallery__item" data-full="@image.Url" data-caption="@image.Caption" aria-label="@OpenLabel(i, image)"><img src="@image.Url" alt="@image.Caption" loading="@(i == 0 ? "eager" : "lazy")" width="@(image.Width > 0 ? (int?)image.Width : null)" height="@(image.Height > 0 ? (int?)image.Height : null)" /></button>
+          @if (!string.IsNullOrWhiteSpace(image.Caption))
+          {
+            <figcaption>@image.Caption</figcaption>
+          }
+        </figure>
+      }
+      @if (count > 1)
+      {
+        <button type="button" class="site-slideshow__prev" aria-label="Previous photo">&#8249;</button>
+        <button type="button" class="site-slideshow__next" aria-label="Next photo">&#8250;</button>
+      }
+    </div>
+    @if (count > 1)
+    {
+      <div class="site-slideshow__count" aria-live="polite">1 / @count</div>
+    }
+  </div>
+}
+else
+{
+  <div class="@prefix-gallery-@layout site-gallery site-gallery--@layout" data-gallery>
+    @for (var i = 0; i < count; i++)
+    {
+      var image = gallery.Images[i];
+      <figure class="site-gallery__cell">
+        <button type="button" class="site-gallery__item" data-full="@image.Url" data-caption="@image.Caption" aria-label="@OpenLabel(i, image)"><img src="@image.TileUrl" alt="@image.Caption" loading="lazy" width="@(image.Width > 0 ? (int?)image.Width : null)" height="@(image.Height > 0 ? (int?)image.Height : null)" /></button>
+        @if (showCaptions && !string.IsNullOrWhiteSpace(image.Caption))
+        {
+          <figcaption>@image.Caption</figcaption>
+        }
+      </figure>
+    }
+  </div>
+}

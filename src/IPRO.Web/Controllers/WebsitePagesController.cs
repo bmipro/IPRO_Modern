@@ -518,94 +518,219 @@ public class WebsitePagesController : Controller
         return RedirectToAction(nameof(Edit), new { id = pageId });
     }
 
+    // 535: photos arrive up to 20 at a time, 15 MB each (the original is never kept, so a large phone
+    // photo costs only its resized copies), in one request of at most 100 MB.
+    public const int GalleryBatchMax = 20;
+    public const long GalleryPhotoMaxBytes = 15L * 1024 * 1024;
+    public const long GalleryBatchMaxBytes = 100L * 1024 * 1024;
+
     [HttpPost, ValidateAntiForgeryToken]
-    [RequestSizeLimit(8 * 1024 * 1024)]
-    public async Task<IActionResult> UploadGalleryImage(int blockId, IFormFile? image)
+    [RequestSizeLimit(GalleryBatchMaxBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = GalleryBatchMaxBytes)]
+    public async Task<IActionResult> UploadGalleryImages(int blockId, List<IFormFile>? images)
     {
-        var block = await _db.WebsiteContentBlocks
-            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
-            .FirstOrDefaultAsync(b => b.Id == blockId && b.BlockType == WebsiteBlockTypes.Gallery && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
+        var block = await GalleryBlockAsync(blockId);
         if (block == null) return NotFound();
 
-        if (image == null || image.Length == 0)
+        var files = (images ?? new List<IFormFile>()).Where(f => f != null && f.Length > 0).ToList();
+        if (files.Count == 0)
         {
-            TempData["Error"] = "Choose an image to upload.";
+            TempData["Error"] = "Choose one or more photos to upload.";
             return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
         }
-        if (image.Length > 8 * 1024 * 1024)
-        {
-            TempData["Error"] = "Images must be 8 MB or smaller.";
-            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
-        }
-
-        var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-        var expectedContentType = extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => string.Empty
-        };
-        if (string.IsNullOrEmpty(expectedContentType) ||
-            !string.Equals(image.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
-        {
-            TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed.";
-            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
-        }
-
-        await using var stream = image.OpenReadStream();
-        if (!await HasValidImageSignatureAsync(stream, extension))
-        {
-            TempData["Error"] = "That file does not contain a valid supported image.";
-            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
-        }
-        stream.Position = 0;
+        var overBatch = files.Count > GalleryBatchMax;
+        files = files.Take(GalleryBatchMax).ToList();
 
         // Gallery photos share the same per-package storage pool as Agent Documents, rather than
         // getting a separate quota to configure -- see the "gallery images" section of the file
-        // upload capacity feature in DOCS.
+        // upload capacity feature in DOCS. 535: what counts is what is stored, the resized copies.
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.FileUploadCapacity);
         var limitBytes = IPRO.Web.Infrastructure.AgentStorageUsage.LimitBytes(access.LimitValue);
         var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId);
-        if (limitBytes > 0 && usedBytes + image.Length > limitBytes)
+
+        var gallerySettings = WebsiteGallerySettings.FromJson(block.SettingsJson);
+        var added = 0;
+        var skipped = new List<string>();
+        var storageFull = false;
+        foreach (var file in files)
+        {
+            var name = Path.GetFileName(file.FileName);
+            if (storageFull) { skipped.Add($"{name} (storage full)"); continue; }
+            if (file.Length > GalleryPhotoMaxBytes) { skipped.Add($"{name} (larger than 15 MB)"); continue; }
+
+            var extension = Path.GetExtension(name).ToLowerInvariant();
+            var expectedContentType = extension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                _ => string.Empty
+            };
+            if (string.IsNullOrEmpty(expectedContentType) ||
+                !string.Equals(file.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
+            {
+                skipped.Add($"{name} (not a JPG, PNG, GIF or WebP photo)");
+                continue;
+            }
+
+            byte[] original;
+            await using (var stream = file.OpenReadStream())
+            {
+                if (!await HasValidImageSignatureAsync(stream, extension))
+                {
+                    skipped.Add($"{name} (not a readable image)");
+                    continue;
+                }
+                stream.Position = 0;
+                using var copy = new MemoryStream();
+                await stream.CopyToAsync(copy);
+                original = copy.ToArray();
+            }
+
+            IPRO.Web.Infrastructure.GalleryImages.Photo? photo;
+            try
+            {
+                photo = IPRO.Web.Infrastructure.GalleryImages.Process(original);
+            }
+            catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException or EntryPointNotFoundException)
+            {
+                // The image library is native code; a server that cannot load it keeps the photo as it
+                // came (the pre-535 behaviour) rather than refusing every upload. /health/imaging says so.
+                photo = new IPRO.Web.Infrastructure.GalleryImages.Photo(
+                    new IPRO.Web.Infrastructure.GalleryImages.Rendition(original, expectedContentType, extension, 0, 0), null, 0, 0);
+            }
+            if (photo == null)
+            {
+                skipped.Add($"{name} (not a readable image)");
+                continue;
+            }
+
+            if (limitBytes > 0 && usedBytes + photo.TotalBytes > limitBytes)
+            {
+                storageFull = true;
+                skipped.Add($"{name} (storage full)");
+                continue;
+            }
+
+            var baseName = Path.GetFileNameWithoutExtension(name);
+            var url = await UploadRenditionAsync(photo.Full, baseName + photo.Full.Extension);
+            var thumbUrl = photo.Tile == null ? string.Empty : await UploadRenditionAsync(photo.Tile, baseName + "-tile" + photo.Tile.Extension);
+            gallerySettings.Images.Add(new WebsiteGalleryImage
+            {
+                Url = url,
+                ThumbUrl = thumbUrl,
+                Width = photo.Full.Width,
+                Height = photo.Full.Height,
+                FileSizeBytes = photo.TotalBytes
+            });
+            usedBytes += photo.TotalBytes;
+            added++;
+        }
+
+        if (added > 0)
+        {
+            block.SettingsJson = gallerySettings.ToJson();
+            block.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
+        var notes = new List<string>();
+        if (skipped.Count > 0) notes.Add("Not added: " + string.Join(", ", skipped) + ".");
+        if (overBatch) notes.Add($"Photos are added {GalleryBatchMax} at a time; add the rest in another go.");
+        if (storageFull)
         {
             var usedMb = IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(usedBytes);
             var limitMb = IPRO.Web.Infrastructure.AgentStorageUsage.DisplayLimitMb(access.LimitValue);   // M10
-            TempData["Error"] = $"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used). Delete unused documents or gallery photos to free up space, or contact us to increase your storage.";
-            return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+            notes.Add($"That upload would exceed your storage limit ({usedMb} MB of {limitMb} MB used). Delete unused documents or gallery photos to free up space, or contact us to increase your storage.");
         }
+        if (added > 0)
+            TempData["Success"] = string.Join(" ", new[] { added == 1 ? "1 photo added." : $"{added} photos added." }.Concat(notes));
+        else
+            TempData["Error"] = string.Join(" ", notes.DefaultIfEmpty("No photos were added."));
+        return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+    }
 
-        var url = await _blob.UploadAsync(stream, image.FileName, "website-gallery", expectedContentType, isPrivate: false);
+    private async Task<string> UploadRenditionAsync(IPRO.Web.Infrastructure.GalleryImages.Rendition rendition, string fileName)
+    {
+        using var stream = new MemoryStream(rendition.Bytes);
+        return await _blob.UploadAsync(stream, fileName, "website-gallery", rendition.ContentType, isPrivate: false);
+    }
+
+    private Task<WebsiteContentBlock?> GalleryBlockAsync(int blockId) =>
+        _db.WebsiteContentBlocks
+            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
+            .FirstOrDefaultAsync(b => b.Id == blockId && b.BlockType == WebsiteBlockTypes.Gallery && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
+
+    // 535: every caption in one save, matched by photo, trimmed and capped; a photo the form does not
+    // name keeps its caption.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveGalleryCaptions(int blockId, List<string>? urls, List<string>? captions)
+    {
+        var block = await GalleryBlockAsync(blockId);
+        if (block == null) return NotFound();
+
         var gallerySettings = WebsiteGallerySettings.FromJson(block.SettingsJson);
-        gallerySettings.Images.Add(new WebsiteGalleryImage { Url = url, FileSizeBytes = image.Length });
+        urls ??= new List<string>();
+        captions ??= new List<string>();
+        for (var i = 0; i < urls.Count && i < captions.Count; i++)
+        {
+            var image = gallerySettings.Images.FirstOrDefault(p => p.Url == urls[i]);
+            if (image == null) continue;
+            var caption = (captions[i] ?? string.Empty).Trim();
+            image.Caption = caption.Length > WebsiteGalleryImage.CaptionMaxLength ? caption[..WebsiteGalleryImage.CaptionMaxLength] : caption;
+        }
         block.SettingsJson = gallerySettings.ToJson();
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        TempData["Success"] = "Photo added to gallery.";
+        TempData["Success"] = "Captions saved.";
+        return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
+    }
+
+    // 535: the arrows under each photo, like the arrows that order the blocks. direction -1 moves it
+    // earlier, +1 later; the ends stay put.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> MoveGalleryImage(int blockId, string url, int direction)
+    {
+        var block = await GalleryBlockAsync(blockId);
+        if (block == null) return NotFound();
+
+        var gallerySettings = WebsiteGallerySettings.FromJson(block.SettingsJson);
+        var index = gallerySettings.Images.FindIndex(p => p.Url == url);
+        var target = index + Math.Sign(direction);
+        if (index >= 0 && target >= 0 && target < gallerySettings.Images.Count && target != index)
+        {
+            (gallerySettings.Images[index], gallerySettings.Images[target]) = (gallerySettings.Images[target], gallerySettings.Images[index]);
+            block.SettingsJson = gallerySettings.ToJson();
+            block.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
         return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteGalleryImage(int blockId, string url)
     {
-        var block = await _db.WebsiteContentBlocks
-            .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
-            .FirstOrDefaultAsync(b => b.Id == blockId && b.BlockType == WebsiteBlockTypes.Gallery && b.WebsitePage.AgentWebsite.AgentUserId == AgentId);
+        var block = await GalleryBlockAsync(blockId);
         if (block == null) return NotFound();
 
         var gallerySettings = WebsiteGallerySettings.FromJson(block.SettingsJson);
-        if (gallerySettings.Images.RemoveAll(i => i.Url == url) > 0)
+        var removed = gallerySettings.Images.Where(i => i.Url == url).ToList();
+        if (removed.Count > 0)
         {
+            gallerySettings.Images.RemoveAll(i => i.Url == url);
             block.SettingsJson = gallerySettings.ToJson();
             block.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             // Row first, file second (the old order destroyed the file even when the save failed),
-            // and only when no other gallery/article/newsletter still references it.
-            if (!await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, url))
+            // and only when no other gallery/article/newsletter still references it. 535: the tile too.
+            foreach (var file in removed.SelectMany(i => new[] { i.Url, i.ThumbUrl }).Where(u => !string.IsNullOrWhiteSpace(u)).Distinct())
             {
-                await _blob.DeleteAsync(url);
+                if (!await IPRO.DataAccess.BlobReferences.IsReferencedAsync(_db, file))
+                {
+                    await _blob.DeleteAsync(file);
+                }
             }
             TempData["Success"] = "Photo removed from gallery.";
         }
@@ -1005,7 +1130,8 @@ public class WebsitePagesController : Controller
                 VideoUrl = videoUrl?.Trim() ?? string.Empty
             }.ToJson();
         }
-        // Gallery's SettingsJson (the image list) is managed entirely by UploadGalleryImage/DeleteGalleryImage --
+        // Gallery's SettingsJson (the image list) is managed entirely by UploadGalleryImages, SaveGalleryCaptions,
+        // MoveGalleryImage and DeleteGalleryImage (535) --
         // deliberately not touched here so that saving the block's Heading/Subheading/Body never clobbers it.
     }
 
