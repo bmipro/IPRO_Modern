@@ -47,4 +47,54 @@ public class EmailSettings
     // 90 seconds covers the minute window (at most 60) and stays well under Azure's 230-second
     // request cut-off; the hour window, which can be most of an hour, is never waited out in place.
     public int MaxSlotWaitSeconds { get; set; } = 90;
+
+    // 531 (2026-09-30): Amazon SES, for the email an adviser sends to their own clients. App Service
+    // settings Email__Ses__*; off until Streams names a stream.
+    public SesSettings Ses { get; set; } = new();
+}
+
+// 531: Amazon SES in Canada (Central). Production access granted 2026-09-30 (50,000 a day, 14 a
+// second). The router (RoutingEmailService) sends an adviser's client email through SES when its
+// stream is listed in Streams and the keys are present; everything else stays on Provider. So the
+// move is two setting changes, and so is the way back: clear Streams.
+public class SesSettings
+{
+    public string Region { get; set; } = "ca-central-1";
+    // For the ARNs a tenant is associated with; not a secret.
+    public string AccountId { get; set; } = string.Empty;
+    // The limited IAM login iPro sends with. Secrets: App Service settings only, never the repo.
+    public string AccessKeyId { get; set; } = string.Empty;
+    public string SecretAccessKey { get; set; } = string.Empty;
+    // "" (off), "notify", "news" or "notify,news".
+    public string Streams { get; set; } = string.Empty;
+    // A pilot: while this lists adviser ids ("42" or "42,57"), only their mail on a switched-on stream
+    // moves; empty means every adviser's.
+    public string PilotAgentIds { get; set; } = string.Empty;
+    public string NotifyDomain { get; set; } = "notify.iproadvisers.com";
+    public string NewsDomain { get; set; } = "news.iproadvisers.com";
+    // The mailbox part of the From address; replies go to the adviser (Reply-To), never here.
+    public string SenderLocalPart { get; set; } = "mail";
+    public string NotifyConfigurationSet { get; set; } = "ipro-notify";
+    public string NewsConfigurationSet { get; set; } = "ipro-news";
+    // One SES tenant per adviser, so SES can pause one adviser's mail without touching anyone else's.
+    public bool UseTenants { get; set; } = true;
+    // The account's maximum send rate; sends are paced to it.
+    public int SendsPerSecond { get; set; } = 14;
+    // SES bounce, complaint and delivery reports arrive through this SNS topic, at a URL carrying this
+    // secret. Both must match before a report is read.
+    public string EventTopicArn { get; set; } = string.Empty;
+    public string EventSecret { get; set; } = string.Empty;
+
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(AccessKeyId) && !string.IsNullOrWhiteSpace(SecretAccessKey) && !string.IsNullOrWhiteSpace(Region);
+
+    public bool StreamEnabled(string? stream) =>
+        !string.IsNullOrWhiteSpace(stream)
+        && (Streams ?? string.Empty).Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(s => string.Equals(s, stream.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    public string DomainFor(string stream) => string.Equals(stream, "news", StringComparison.OrdinalIgnoreCase) ? NewsDomain : NotifyDomain;
+
+    public string ConfigurationSetFor(string stream) =>
+        string.Equals(stream, "news", StringComparison.OrdinalIgnoreCase) ? NewsConfigurationSet : NotifyConfigurationSet;
 }

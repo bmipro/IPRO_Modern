@@ -168,7 +168,7 @@ public class ClientsController : Controller
             """;
         // 454: the provider's answer is kept and remembered. The token stays either way -- the
         // activation link on the profile is the manual fallback when the email cannot be delivered.
-        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html, replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser));
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser));
         client.PortalInviteEmailedAt = result.Success ? DateTime.UtcNow : null;
         client.PortalInviteEmailError = result.Success ? null : Clip(result.Message, 500);
         await _db.SaveChangesAsync();

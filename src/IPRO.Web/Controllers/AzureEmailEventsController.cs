@@ -4,6 +4,7 @@ using System.Text.Json;
 using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
 using IPRO.DataAccess;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -36,10 +37,9 @@ namespace IPRO.Web.Controllers;
 [AllowAnonymous]
 public class AzureEmailEventsController : Controller
 {
-    private readonly IPRODbContext _db;
-    private readonly INewsLetterService _newsletters;
-    private readonly IEmailDeliveryTracker _deliveryTracker;
-    private readonly IEmailConsentService _consent;
+    // 531: the message-id correlation, the recording and the hard-bounce suppression are shared with
+    // the Amazon SES endpoint (EmailEventCorrelation), so both providers' reports land the same way.
+    private readonly EmailEventCorrelation _correlation;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AzureEmailEventsController> _logger;
 
@@ -51,10 +51,7 @@ public class AzureEmailEventsController : Controller
         IConfiguration configuration,
         ILogger<AzureEmailEventsController> logger)
     {
-        _db = db;
-        _newsletters = newsletters;
-        _deliveryTracker = deliveryTracker;
-        _consent = consent;
+        _correlation = new EmailEventCorrelation(db, newsletters, deliveryTracker, consent, logger);
         _configuration = configuration;
         _logger = logger;
     }
@@ -163,7 +160,7 @@ public class AzureEmailEventsController : Controller
                     // something Microsoft adds later would mark good mail as failed.
                     if (mapped is null) continue;
 
-                    var match = await ResolveByMessageIdAsync(messageId);
+                    var match = await _correlation.ResolveByMessageIdAsync(messageId);
                     if (match is null)
                     {
                         // Normal and harmless: transactional mail (receipts, reminders, lead
@@ -171,11 +168,11 @@ public class AzureEmailEventsController : Controller
                         continue;
                     }
 
-                    await RecordAsync(match.Value, mapped, messageId, reason, occurredAt);
+                    await _correlation.RecordAsync(match.Value, mapped, messageId, reason, occurredAt);
 
                     if (isDelivery && ShouldSuppressOnStatus(ReadString(data, "status")))
                     {
-                        await SuppressForHardBounceAsync(match.Value, messageId);
+                        await _correlation.SuppressForHardBounceAsync(match.Value, messageId, "acs");
                     }
                 }
                 catch (Exception ex)
@@ -248,93 +245,6 @@ public class AzureEmailEventsController : Controller
             return doc.RootElement.TryGetProperty("validationCode", out var v) ? v.GetString() : null;
         }
         catch (JsonException) { return null; }
-    }
-
-    // ---- correlation --------------------------------------------------------------------------
-
-    public enum TrackedKind { Newsletter, DripStep, ECard, ELetter, Poll, DidYouKnow, Invoice }
-    public readonly record struct TrackedMatch(TrackedKind Kind, int Id, int? ClientId);
-
-    // ACS gives only its message id, so every table whose dispatcher persists ProviderMessageId has
-    // to be searched. Ordered cheapest-first by expected volume; the first hit wins because a
-    // message id belongs to exactly one send.
-    private async Task<TrackedMatch?> ResolveByMessageIdAsync(string messageId)
-    {
-        var newsletter = await _db.NewsLetterRecipients.AsNoTracking()
-            .Where(r => r.SendGridMessageId == messageId)
-            .Select(r => new { r.Id, r.ClientId }).FirstOrDefaultAsync();
-        if (newsletter != null) return new TrackedMatch(TrackedKind.Newsletter, newsletter.Id, newsletter.ClientId);
-
-        // A drip send has no ClientId of its own -- it reaches the person through the enrollment,
-        // so the client is joined in. Without this join a hard bounce on a drip step would record
-        // the status and suppress nobody.
-        var drip = await _db.DripCampaignStepSends.AsNoTracking()
-            .Where(r => r.SendGridMessageId == messageId)
-            .Join(_db.DripCampaignEnrollments.AsNoTracking(),
-                  send => send.DripCampaignEnrollmentId,
-                  enrollment => enrollment.Id,
-                  (send, enrollment) => new { send.Id, enrollment.ClientId })
-            .FirstOrDefaultAsync();
-        if (drip != null) return new TrackedMatch(TrackedKind.DripStep, drip.Id, drip.ClientId);
-
-        var ecard = await _db.ECardRecipients.AsNoTracking()
-            .Where(r => r.SendGridMessageId == messageId)
-            .Select(r => new { r.Id, r.ClientId }).FirstOrDefaultAsync();
-        if (ecard != null) return new TrackedMatch(TrackedKind.ECard, ecard.Id, ecard.ClientId);
-
-        var eletter = await _db.ELetterRecipients.AsNoTracking()
-            .Where(r => r.SendGridMessageId == messageId)
-            .Select(r => new { r.Id, r.ClientId }).FirstOrDefaultAsync();
-        if (eletter != null) return new TrackedMatch(TrackedKind.ELetter, eletter.Id, eletter.ClientId);
-
-        var poll = await _db.PollRecipients.AsNoTracking()
-            .Where(r => r.SendGridMessageId == messageId)
-            .Select(r => new { r.Id, r.ClientId }).FirstOrDefaultAsync();
-        if (poll != null) return new TrackedMatch(TrackedKind.Poll, poll.Id, poll.ClientId);
-
-        var dyk = await _db.DidYouKnowEmailQueueItems.AsNoTracking()
-            .Where(r => r.SendGridMessageId == messageId)
-            .Select(r => new { r.Id, r.ClientId }).FirstOrDefaultAsync();
-        if (dyk != null) return new TrackedMatch(TrackedKind.DidYouKnow, dyk.Id, dyk.ClientId);
-
-        // 452: invoice emails -- the send, a resend, or an overdue reminder.
-        var invoiceEmail = await _db.ClientInvoiceEmails.AsNoTracking()
-            .Where(e => e.ProviderMessageId == messageId)
-            .Select(e => new { e.Id, e.ClientId }).FirstOrDefaultAsync();
-        if (invoiceEmail != null) return new TrackedMatch(TrackedKind.Invoice, invoiceEmail.Id, invoiceEmail.ClientId);
-
-        return null;
-    }
-
-    // The SAME three consumers the SendGrid webhook feeds -- nothing here re-implements recording.
-    private Task RecordAsync(TrackedMatch match, string mappedEvent, string messageId, string reason, DateTime occurredAt) =>
-        match.Kind switch
-        {
-            TrackedKind.Newsletter => _newsletters.RecordRecipientEventAsync(match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.DripStep => _newsletters.RecordDripStepEventAsync(match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.ECard => _deliveryTracker.RecordAsync("ecard", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.ELetter => _deliveryTracker.RecordAsync("eletter", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.Poll => _deliveryTracker.RecordAsync("poll", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.DidYouKnow => _deliveryTracker.RecordAsync("didyouknow", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.Invoice => _deliveryTracker.RecordAsync("invoice", match.Id, mappedEvent, messageId, reason, occurredAt),
-            _ => Task.CompletedTask
-        };
-
-    private async Task SuppressForHardBounceAsync(TrackedMatch match, string messageId)
-    {
-        if (match.ClientId is not int clientId) return;
-
-        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId);
-        if (client is null) return;
-
-        var result = await _consent.SuppressAllAsync(client, $"acs:bounced:{match.Kind.ToString().ToLowerInvariant()}");
-        if (!result.WasAlreadySuppressed)
-        {
-            _logger.LogWarning(
-                "ACS reported a HARD BOUNCE for client {ClientId} (message {MessageId}); suppressed across every " +
-                "channel. The address does not exist -- continuing to mail it is what ends a sending account.",
-                clientId, messageId);
-        }
     }
 
     // ---- helpers -------------------------------------------------------------------------------

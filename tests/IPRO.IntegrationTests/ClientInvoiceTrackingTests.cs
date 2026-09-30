@@ -273,7 +273,8 @@ public class ClientInvoiceTrackingTests
         var tracker = File.ReadAllText(FindRepoFile(@"src\IPRO.Business\Services\EmailDeliveryTracker.cs"));
         Assert.Contains("case \"invoice\":", tracker);
 
-        var resolver = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Controllers\AzureEmailEventsController.cs"));
+        // 531: the resolver is EmailEventCorrelation, shared by the ACS and Amazon SES endpoints.
+        var resolver = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Infrastructure\EmailEventCorrelation.cs"));
         Assert.Contains("ClientInvoiceEmails", resolver);
         Assert.Contains("TrackedKind.Invoice", resolver);
     }

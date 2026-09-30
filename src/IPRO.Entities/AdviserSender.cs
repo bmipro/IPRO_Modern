@@ -53,4 +53,34 @@ public static class AdviserSender
 
     // Whether the street line is on file; the marketing send pages ask for it while it is missing.
     public static bool HasStreetAddress(AgentUser? agent) => !string.IsNullOrWhiteSpace(agent?.CompanyAddress);
+
+    // 531 (2026-09-30): the email move to Amazon SES. Every email to an adviser's client carries these
+    // two tags: which stream it travels on, and whose it is (the SES tenant). The router sends a
+    // tagged email through SES once its stream is switched on; anything untagged -- iPro's own mail to
+    // advisers -- stays on the current provider. SES echoes the tags in its bounce and complaint reports.
+    public const string StreamTag = "ipro_stream";
+    public const string AdviserTag = "agent_user_id";
+
+    public static Dictionary<string, string> Tags(AgentUser? agent, string stream, IDictionary<string, string>? tags = null)
+    {
+        var result = tags == null ? new Dictionary<string, string>() : new Dictionary<string, string>(tags);
+        result[StreamTag] = stream;
+        if (agent != null && agent.Id > 0) result[AdviserTag] = agent.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return result;
+    }
+
+    // 530 step two: the sender name an adviser's email carries through SES -- "Global Business
+    // Solution via iPro". The platform's own name comes through PoweredBy, the white-label seam.
+    public static string SenderName(string? business) =>
+        string.IsNullOrWhiteSpace(business) ? PoweredBy.Label : $"{business.Trim()} via {PoweredBy.Label}";
+}
+
+// 531: the two SES streams, each its own subdomain and configuration set, so a complaint about a
+// newsletter can never hurt the delivery of an invoice.
+public static class EmailStreams
+{
+    // Invoices, estimates, reminders, portal invitations, appointment emails, testimonial requests.
+    public const string Notify = "notify";
+    // Newsletters, drip campaigns, e-cards, e-letters, polls, Did You Know.
+    public const string News = "news";
 }

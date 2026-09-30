@@ -90,7 +90,7 @@ public class OverdueInvoiceReminderJob
 
                 var url = BuildInvoiceUrl(invoice.ViewToken);
                 var (subject, html) = ClientInvoiceReminderEmail.Build(invoice, url, stage, settings, today);
-                var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html, replyToEmail: AdviserSender.ReplyToEmail(invoice.AgentUser), replyToName: AdviserSender.ReplyToName(invoice.AgentUser));
+                var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html, customArgs: AdviserSender.Tags(invoice.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(invoice.AgentUser), replyToName: AdviserSender.ReplyToName(invoice.AgentUser));
 
                 // 452: every reminder is recorded on the invoice like the original send. A permanent
                 // rejection still stamps the marker and the stage -- retrying a dead address every run

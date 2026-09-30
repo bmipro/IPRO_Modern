@@ -191,7 +191,7 @@ public class PollDispatcher
                     AdviserSender.Subject(adviser, survey.Subject),   // 530: the business leads the subject
                     trackedHtml,
                     $"{BuildEmailText(survey, voteUrl)}\n\n{SenderFooter.Text(adviser, preferencesUrl, SenderFooterKind.Client)}",
-                    new Dictionary<string, string>
+                    AdviserSender.Tags(adviser, EmailStreams.News, new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "poll",
                         ["poll_id"] = survey.Id.ToString(),
@@ -199,7 +199,7 @@ public class PollDispatcher
                         ["poll_recipient_id"] = recipient.Id.ToString(),
                         ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
                         ["agent_user_id"] = send.AgentUserId.ToString()
-                    },
+                    }),
                     replyToEmail: AdviserSender.ReplyToEmail(adviser),
                     replyToName: AdviserSender.ReplyToName(adviser),
                     listUnsubscribeUrl: preferencesUrl);

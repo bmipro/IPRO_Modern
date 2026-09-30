@@ -165,14 +165,14 @@ public class DidYouKnowEmailDispatchJob
                     // back to this queue item. Every other sender in the system already did this;
                     // Did You Know was the one that did not, which made its mail invisible on the
                     // Email Activity screen.
-                    customArgs: new Dictionary<string, string>
+                    customArgs: AdviserSender.Tags(agent, EmailStreams.News, new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "didyouknow",
                         ["dyk_queue_item_id"] = item.Id.ToString(),
                         ["article_id"] = article.Id.ToString(),
                         ["client_id"] = client.Id.ToString(),
                         ["agent_user_id"] = client.AgentUserId.ToString()
-                    },
+                    }),
                     replyToEmail: AdviserSender.ReplyToEmail(agent),
                     replyToName: AdviserSender.ReplyToName(agent),
                     listUnsubscribeUrl: preferencesUrl);

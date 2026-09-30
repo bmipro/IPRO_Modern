@@ -107,14 +107,29 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 // a provider incident is a config flip (Email__Provider), not a deploy.
 // 491: one gate per process paces every Azure send to the subscription's limits (EmailSettings).
 builder.Services.AddSingleton<EmailSendGate>();
-if (string.Equals(builder.Configuration["Email:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
+// 531 (2026-09-30): Amazon SES for email an adviser sends to their clients, stream by stream
+// (Email__Ses__Streams). RoutingEmailService sits in front of the current provider: a tagged client
+// email on a switched-on stream goes through SES, everything else exactly as before.
+builder.Services.AddSingleton<SesPacer>();
+builder.Services.AddSingleton<SesTenants>();
+builder.Services.AddSingleton<SesEmailService>();
+var emailViaAzure = string.Equals(builder.Configuration["Email:Provider"], "Azure", StringComparison.OrdinalIgnoreCase);
+if (emailViaAzure)
 {
-    builder.Services.AddScoped<IEmailService, AzureEmailService>();
+    builder.Services.AddScoped<AzureEmailService>();
 }
 else
 {
-    builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+    builder.Services.AddScoped<SendGridEmailService>();
 }
+builder.Services.AddScoped<IEmailService>(sp => new RoutingEmailService(
+    emailViaAzure ? sp.GetRequiredService<AzureEmailService>() : sp.GetRequiredService<SendGridEmailService>(),
+    sp.GetRequiredService<SesEmailService>(),
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EmailSettings>>(),
+    sp.GetRequiredService<ILogger<RoutingEmailService>>()));
+// 531: Amazon's delivery reports arrive through SNS; nothing in them is believed until it is signed.
+builder.Services.AddSingleton<IPRO.Web.Infrastructure.ISnsTrust>(sp =>
+    new IPRO.Web.Infrastructure.SnsTrust(sp.GetRequiredService<IHttpClientFactory>()));
 builder.Services.AddScoped<NewsLetterDispatcher>();
 builder.Services.AddScoped<ECardDispatcher>();
 builder.Services.AddScoped<ELetterDispatcher>();

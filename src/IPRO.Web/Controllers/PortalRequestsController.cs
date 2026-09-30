@@ -115,7 +115,7 @@ public class PortalRequestsController : Controller
             var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
             var business = AdviserSender.BusinessName(adviser);
             var subject = business.Length == 0 ? "Your appointment has been scheduled" : $"Your appointment with {business} is scheduled";
-            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
+            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, customArgs: AdviserSender.Tags(adviser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
             if (!result.Success)
             {
                 TempData["Error"] = $"Appointment scheduled, but the confirmation could not be emailed to {request.Client.Email}: {result.Message} Let {request.Client.FirstName} know another way.";
@@ -152,7 +152,7 @@ public class PortalRequestsController : Controller
             var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
             var business = AdviserSender.BusinessName(adviser);
             var subject = business.Length == 0 ? "Your appointment request was declined" : $"Your appointment request with {business} was declined";
-            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
+            var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, customArgs: AdviserSender.Tags(adviser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
             if (!result.Success)
             {
                 TempData["Error"] = $"Request declined, but {request.Client.Email} could not be emailed: {result.Message} Let {request.Client.FirstName} know another way.";

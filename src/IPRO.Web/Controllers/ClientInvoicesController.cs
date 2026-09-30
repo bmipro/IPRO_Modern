@@ -98,7 +98,7 @@ public class ClientInvoicesController : Controller
         // 523 (slice 3): the adviser's own overdue wording, the same the daily job sends.
         var reminderSettings = await ClientInvoiceReminderSchedule.LoadAsync(_db, AgentId);
         var (subject, html) = IPRO.Scheduler.ClientInvoiceReminderEmail.Build(invoice, BuildPublicDocumentUrl(invoice.ViewToken), reminderSettings, today);
-        var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html, replyToEmail: AdviserSender.ReplyToEmail(invoice.AgentUser), replyToName: AdviserSender.ReplyToName(invoice.AgentUser));
+        var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html, customArgs: AdviserSender.Tags(invoice.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(invoice.AgentUser), replyToName: AdviserSender.ReplyToName(invoice.AgentUser));
         await ClientInvoiceEmailLog.RecordAsync(_db, invoice, ClientInvoiceEmailKind.Reminder, invoice.Client.Email, subject, result.Success, result.ProviderMessageId, result.Message);
         if (!result.Success)
         {
@@ -606,7 +606,7 @@ public class ClientInvoicesController : Controller
         // answer was thrown away, so a rejected address or a quota refusal still showed "Invoice
         // sent to x" -- and the agent had no way to know. Every attempt is recorded, with the
         // provider's message id so the delivery pipeline can report Delivered / Bounced on it.
-        var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html, replyToEmail: AdviserSender.ReplyToEmail(invoice.AgentUser), replyToName: AdviserSender.ReplyToName(invoice.AgentUser));
+        var result = await _email.SendDetailedAsync(invoice.Client.Email, $"{invoice.Client.FirstName} {invoice.Client.LastName}".Trim(), subject, html, customArgs: AdviserSender.Tags(invoice.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(invoice.AgentUser), replyToName: AdviserSender.ReplyToName(invoice.AgentUser));
         await ClientInvoiceEmailLog.RecordAsync(_db, invoice, ClientInvoiceEmailKind.Send, invoice.Client.Email, subject, result.Success, result.ProviderMessageId, result.Message);
         if (!result.Success)
         {

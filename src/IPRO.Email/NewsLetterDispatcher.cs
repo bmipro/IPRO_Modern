@@ -187,7 +187,7 @@ public class NewsLetterDispatcher
                     AdviserSender.Subject(sendingAgent, newsletter.Subject),   // 530: the business leads the subject
                     htmlBody,
                     AppendUnsubscribeText(newsletter.TextBody, unsubscribeUrl, sendingAgent),
-                    new Dictionary<string, string>
+                    AdviserSender.Tags(sendingAgent, EmailStreams.News, new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "newsletter",
                         ["newsletter_id"] = newsletter.Id.ToString(),
@@ -195,7 +195,7 @@ public class NewsLetterDispatcher
                         ["newsletter_recipient_id"] = recipient.Id.ToString(),
                         ["client_id"] = recipient.ClientId?.ToString() ?? string.Empty,
                         ["agent_user_id"] = send.AgentUserId.ToString()
-                    },
+                    }),
                     replyToEmail: AdviserSender.ReplyToEmail(sendingAgent),
                     replyToName: AdviserSender.ReplyToName(sendingAgent),
                     listUnsubscribeUrl: unsubscribeUrl);
@@ -432,13 +432,13 @@ public class NewsLetterDispatcher
         _db.DripCampaignStepSends.Add(stepSend);
         await _db.SaveChangesAsync();
 
-        var customArgs = new Dictionary<string, string>
+        var customArgs = AdviserSender.Tags(sendingAgent, EmailStreams.News, new Dictionary<string, string>
         {
             ["ipro_entity"] = "drip_step",
             ["drip_step_send_id"] = stepSend.Id.ToString(),
             ["drip_campaign_id"] = campaignId.ToString(),
             ["enrollment_id"] = enrollmentId.ToString()
-        };
+        });
 
         var sanitizedHtmlBody = IPRO.Business.Services.HtmlContentSanitizer.Sanitize(step.HtmlBody);
         // 488: instrumented AFTER sanitising and after the footer, so nothing re-processes the redirect links.

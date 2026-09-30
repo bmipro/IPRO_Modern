@@ -116,14 +116,14 @@ public class ELetterDispatcher
                     trackedHtml,
                     // Plain-text alternative -- see the note in ECardDispatcher.
                     ELetterHtmlComposer.WrapText(letter, agent, client, preferencesUrl),
-                    customArgs: new Dictionary<string, string>
+                    customArgs: AdviserSender.Tags(agent, EmailStreams.News, new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "eletter",
                         ["eletter_id"] = letter.Id.ToString(),
                         ["eletter_recipient_id"] = recipient.Id.ToString(),
                         ["client_id"] = recipient.ClientId.ToString(),
                         ["agent_user_id"] = letter.AgentUserId.ToString()
-                    },
+                    }),
                     replyToEmail: AdviserSender.ReplyToEmail(agent),
                     replyToName: AdviserSender.ReplyToName(agent),
                     listUnsubscribeUrl: preferencesUrl);

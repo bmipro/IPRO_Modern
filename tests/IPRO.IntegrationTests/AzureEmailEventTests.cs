@@ -132,7 +132,9 @@ public class AzureEmailEventTests
         // dispatcher persists ProviderMessageId. Missing one means that sender's events are
         // silently discarded -- exactly the bug that left Card and Letter "Delivered" columns
         // blank for their entire existence before 2026-08-08.
-        var src = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Controllers\AzureEmailEventsController.cs"));
+        // 531: the correlation moved into EmailEventCorrelation, shared with the Amazon SES endpoint.
+        var src = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Infrastructure\EmailEventCorrelation.cs"));
+        Assert.Contains("EmailEventCorrelation", File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Controllers\AzureEmailEventsController.cs")));
         foreach (var table in new[]
                  {
                      "NewsLetterRecipients", "DripCampaignStepSends", "ECardRecipients",

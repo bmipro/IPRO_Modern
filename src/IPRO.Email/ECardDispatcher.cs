@@ -142,14 +142,14 @@ public class ECardDispatcher
                     // 2026-08-08: every e-card to a SpamAssassin host arrived tagged ***SPAM***
                     // while text-based e-letters to the same mailbox reached the inbox.
                     ECardHtmlComposer.WrapText(card, agent, design, preferencesUrl),
-                    customArgs: new Dictionary<string, string>
+                    customArgs: AdviserSender.Tags(agent, EmailStreams.News, new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "ecard",
                         ["ecard_id"] = card.Id.ToString(),
                         ["ecard_recipient_id"] = recipient.Id.ToString(),
                         ["client_id"] = recipient.ClientId.ToString(),
                         ["agent_user_id"] = card.AgentUserId.ToString()
-                    },
+                    }),
                     replyToEmail: AdviserSender.ReplyToEmail(agent),
                     replyToName: AdviserSender.ReplyToName(agent),
                     listUnsubscribeUrl: preferencesUrl);

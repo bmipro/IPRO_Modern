@@ -196,7 +196,7 @@ public class TestimonialsController : Controller
         // 533: and the visible footer every marketing email closes with -- the business, its mailing
         // address, the way out, and iPro sending on its behalf.
         html = SenderFooter.AppendHtml(html, client.AgentUser, unsubscribeUrl, SenderFooterKind.Client);
-        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
         if (!result.Success)
         {
             // 454: no "sent" banner for a request that never left.
