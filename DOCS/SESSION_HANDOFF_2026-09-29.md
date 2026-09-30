@@ -35,7 +35,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `245d08f` | **530a** client emails name the adviser's business and reply to the adviser | 1289/1289 |
-| _see log 533_ | **533** every marketing email closes with the business, its mailing address, a way out and "Sent with iPro on behalf of" | whole tree |
+| `fc33138` | **533** every marketing email closes with the business, its mailing address, a way out and "Sent with iPro on behalf of" | 1295/1295 |
 
 ## Do this first tomorrow
 
