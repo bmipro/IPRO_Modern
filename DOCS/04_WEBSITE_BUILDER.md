@@ -197,7 +197,7 @@ staying correct as you add, rename, or reorder those pages.
 5. Add an optional header button and link.
 6. Click **Save Header**.
 
-A small arrow icon linking to the agent portal sign-in page always appears in the footer, beside the social media icons, on every page — regardless of header settings and regardless of whether any social links are configured.
+A small arrow icon linking to the agent portal sign-in page always appears in the footer, right after **Powered by iPro**, on every page — regardless of header settings and social links.
 
 ## Configure the Footer
 

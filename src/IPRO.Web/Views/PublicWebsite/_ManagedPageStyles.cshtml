@@ -112,6 +112,11 @@
   @@media (min-width: 801px) {
     .public-site-nav__item:hover .public-site-nav__children { display: block; }
     .public-site-nav__item--mega:hover .public-site-nav__mega { display: block; }
+    /* 534: the mega panel hangs from the header's bottom edge, about 12px below the centred menu row,
+       and :hover alone dropped it in that strip. The script in _PublicNavigation.cshtml holds .is-hover
+       for a moment after the pointer leaves the item, long enough to reach the panel. */
+    .public-site-nav__item.is-hover .public-site-nav__children { display: block; }
+    .public-site-nav__item--mega.is-hover .public-site-nav__mega { display: block; }
   }
   @@media (min-width: 901px) {
     body.header-sidebar { padding-left: 240px; }

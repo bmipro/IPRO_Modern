@@ -119,8 +119,9 @@
 </header>
 <script nonce="@Context.GetCspNonce()">
 (function () {
-  // Mobile only. Desktop reveals submenus purely on :hover (see _ManagedPageStyles.cshtml), so these
-  // classes are inert above 800px -- the CSS that reads them is inside the mobile media query.
+  // The menu button and the tap-to-open toggles are mobile only: the CSS that reads .is-open is inside
+  // the mobile media query, so these classes are inert above 800px. Desktop opens submenus on :hover,
+  // held open briefly by the handlers at the end (534).
   var navToggle = document.getElementById('publicSiteNavToggle');
   var nav = document.getElementById('publicSiteNav');
   if (!navToggle || !nav) return;
@@ -142,6 +143,32 @@
       var open = !item.classList.contains('is-open');
       item.classList.toggle('is-open', open);
       setExpanded(button, open);
+    });
+  });
+
+  // 534, desktop only: :hover alone closed a submenu the moment the pointer left its item, and the
+  // mega panel starts below a strip of header, so it closed on the way down. Keep a submenu open for a
+  // moment after the pointer leaves (it re-enters through the panel, which sits inside the item);
+  // opening another submenu closes this one at once.
+  var desktop = window.matchMedia('(min-width: 801px)');
+  var openItem = null;
+  var closeTimer = null;
+  nav.querySelectorAll('.public-site-nav__item').forEach(function (item) {
+    if (!item.querySelector('.public-site-nav__mega, .public-site-nav__children')) return;
+    item.addEventListener('mouseenter', function () {
+      if (!desktop.matches) return;
+      clearTimeout(closeTimer);
+      if (openItem && openItem !== item) openItem.classList.remove('is-hover');
+      item.classList.add('is-hover');
+      openItem = item;
+    });
+    item.addEventListener('mouseleave', function () {
+      if (!desktop.matches) return;
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(function () {
+        item.classList.remove('is-hover');
+        if (openItem === item) openItem = null;
+      }, 300);
     });
   });
 })();
