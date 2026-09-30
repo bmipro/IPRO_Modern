@@ -176,18 +176,21 @@ public class PollDispatcher
                 // minted here (a resumed send keeps the one its Queued rows already carry). The vote
                 // link carries its own token and is left exactly as built.
                 if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = IPRO.Business.Services.EmailTrackingLinks.NewToken();
+                // 533: a poll carried only the List-Unsubscribe header -- no visible way out, no address.
+                // It closes with the same footer as every other marketing email, before the tracking pass.
+                var pollHtml = SenderFooter.AppendHtml(BuildEmailHtml(survey, voteUrl), adviser, preferencesUrl, SenderFooterKind.Client);
                 var trackedHtml = IPRO.Business.Services.EmailTrackingLinks.IsEnabled(_configuration)
-                    ? IPRO.Business.Services.EmailTrackingLinks.Instrument(BuildEmailHtml(survey, voteUrl), "poll",
+                    ? IPRO.Business.Services.EmailTrackingLinks.Instrument(pollHtml, "poll",
                         recipient.TrackingToken, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration),
                         IPRO.Business.Services.EmailTrackingLinks.SigningKey(_configuration))
-                    : BuildEmailHtml(survey, voteUrl);
+                    : pollHtml;
 
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,
                     recipient.RecipientName,
                     AdviserSender.Subject(adviser, survey.Subject),   // 530: the business leads the subject
                     trackedHtml,
-                    BuildEmailText(survey, voteUrl),
+                    $"{BuildEmailText(survey, voteUrl)}\n\n{SenderFooter.Text(adviser, preferencesUrl, SenderFooterKind.Client)}",
                     new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "poll",

@@ -39,4 +39,18 @@ public static class AdviserSender
         var business = BusinessName(agent);
         return business.Length == 0 ? null : business;
     }
+
+    // 533: the mailing address Canada's anti-spam law asks every commercial email to carry -- the
+    // Profile's company address, city, province, postal code and country on one line. Empty when the
+    // Profile holds no street, city or postal code: the country alone (it defaults to Canada) is not
+    // an address anyone could write to.
+    public static string MailingAddress(AgentUser? agent)
+    {
+        if (agent == null) return string.Empty;
+        var located = new[] { agent.CompanyAddress, agent.City, agent.PostalCode }.Any(part => !string.IsNullOrWhiteSpace(part));
+        return located ? agent.GetSingleLineAddress().Trim() : string.Empty;
+    }
+
+    // Whether the street line is on file; the marketing send pages ask for it while it is missing.
+    public static bool HasStreetAddress(AgentUser? agent) => !string.IsNullOrWhiteSpace(agent?.CompanyAddress);
 }

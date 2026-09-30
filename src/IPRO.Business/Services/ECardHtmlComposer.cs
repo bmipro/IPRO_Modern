@@ -42,12 +42,10 @@ public static class ECardHtmlComposer
         if (!string.IsNullOrWhiteSpace(agent.Email)) lines.Add(agent.Email);
         if (!string.IsNullOrWhiteSpace(agent.DomainName)) lines.Add(agent.DomainName);
 
-        if (!string.IsNullOrWhiteSpace(unsubscribeUrl))
-        {
-            lines.Add(string.Empty);
-            lines.Add("To stop receiving these emails, visit:");
-            lines.Add(unsubscribeUrl);
-        }
+        // 533: the same closing lines as the HTML footer -- the business, its mailing address, the
+        // way out, and iPro sending on its behalf.
+        lines.Add(string.Empty);
+        lines.Add(SenderFooter.Text(agent, unsubscribeUrl, SenderFooterKind.Client));
 
         return string.Join("\n", lines);
     }

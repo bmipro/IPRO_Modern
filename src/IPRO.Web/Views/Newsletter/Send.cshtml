@@ -25,6 +25,8 @@
   <a href="/portal/Newsletter/Preview/@Model.NewsLetterId" class="btn btn-outline-secondary">Back to Preview</a>
 </div>
 
+@await Component.InvokeAsync("MailingAddressNotice")
+
 <form asp-action="Send" method="post">
   @Html.AntiForgeryToken()
   <input type="hidden" asp-for="NewsLetterId" />

@@ -17,15 +17,17 @@ public class PoweredBy526Tests
         Assert.Contains("id=\"portal-footer\"", layout);
         Assert.Contains("PoweredBy.BrandUrl(", layout);
 
-        var dispatcher = Read(@"src\IPRO.Email\NewsLetterDispatcher.cs");
-        Assert.Contains("Sent with", dispatcher);
-        Assert.Contains("PoweredBy.BrandUrl(", dispatcher);
+        // 533: the newsletter's footer is SenderFooter's now; the brand line lives there.
+        Assert.Contains("SenderFooter.", Read(@"src\IPRO.Email\NewsLetterDispatcher.cs"));
+        var footer = Read(@"src\IPRO.Entities\SenderFooter.cs");
+        Assert.Contains("Sent with", footer);
+        Assert.Contains("PoweredBy.BrandUrl(", footer);
     }
 
     [Fact]
     public void The_newsletter_footer_keeps_its_unsubscribe_line_and_adds_the_brand()
     {
-        var html = NewsLetterDispatcher.AppendUnsubscribeHtml("<p>Body</p>", "https://x.test/Newsletter/Unsubscribe?token=a&b", "Accountants");
+        var html = NewsLetterDispatcher.AppendUnsubscribeHtml("<p>Body</p>", "https://x.test/Newsletter/Unsubscribe?token=a&b", new IPRO.Entities.AgentUser { BusinessType = "Accountants" });
 
         Assert.StartsWith("<p>Body</p>", html);
         Assert.Contains("Unsubscribe from future newsletters", html);
@@ -36,7 +38,8 @@ public class PoweredBy526Tests
         var generic = NewsLetterDispatcher.AppendUnsubscribeHtml("<p>Body</p>", "https://x.test/u", null);
         Assert.Contains("https://www.iproadvisers.com/", generic);
 
-        var text = NewsLetterDispatcher.AppendUnsubscribeText("Hello", "https://x.test/u", "Mortgage");
+        // No business on file: iPro still says it sent it, and names no one it sent it for.
+        var text = NewsLetterDispatcher.AppendUnsubscribeText("Hello", "https://x.test/u", new IPRO.Entities.AgentUser { BusinessType = "Mortgage" });
         Assert.Contains("Unsubscribe from future newsletters:", text);
         Assert.Contains("Sent with iPro: https://www.ipromortgages.com/", text);
     }

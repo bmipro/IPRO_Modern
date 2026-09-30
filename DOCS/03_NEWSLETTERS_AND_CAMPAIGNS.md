@@ -52,6 +52,8 @@ The newsletter is reusable. Each send creates a separate send record with its ow
 
 Every newsletter and drip campaign email goes out with your business name at the start of the subject line, for example **Global Business Solution: October market update**, so your clients know it is from you before they open it. If your subject already includes your business name, it is left exactly as you wrote it. When a client replies, the reply comes to your own email address. The test send shows the subject exactly as your clients will see it.
 
+At the foot of every newsletter and drip campaign email your clients see why they are receiving it, your company name and mailing address (from **My Profile**), an unsubscribe link, and "Sent with iPro on behalf of" your company. That is what Canada's anti-spam law asks of a commercial email. E-cards, e-letters, polls, Did You Know emails and testimonial requests close with the same lines.
+
 ## Choose the Audience
 
 Click **Send** and choose one audience:
@@ -124,7 +126,7 @@ Each campaign's **Performance** section shows sent, delivered, opened, and click
 
 Campaign access is controlled by package features.
 
-Every drip campaign email includes an unsubscribe link scoped to that specific campaign. If a client clicks it, only their enrollment in that one campaign is cancelled (their status changes to **Cancelled** and future steps stop) — it does not affect their newsletter subscription or any other campaign they may be enrolled in.
+Every drip campaign email includes an unsubscribe link. A client who clicks it is asking to stop hearing from you, so it stops every marketing email from you to that client: the campaign enrollment is cancelled (its status changes to **Cancelled** and future steps stop), and your newsletters and other marketing emails stop too, except birthday or anniversary greetings the client has asked to keep receiving. Invoices and other transactional emails still arrive.
 
 ### When Each Step Goes Out
 

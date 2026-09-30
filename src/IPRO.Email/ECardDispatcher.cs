@@ -125,9 +125,9 @@ public class ECardDispatcher
                 // composed once for the whole card above; only this per-recipient layer differs.
                 if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = EmailTrackingLinks.NewToken();
                 var trackedHtml = EmailTrackingLinks.IsEnabled(_configuration)
-                    ? EmailTrackingLinks.Instrument(EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl), "ecard",
+                    ? EmailTrackingLinks.Instrument(EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl, agent), "ecard",
                         recipient.TrackingToken, baseUrl, EmailTrackingLinks.SigningKey(_configuration))
-                    : EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl);
+                    : EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl, agent);
 
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,

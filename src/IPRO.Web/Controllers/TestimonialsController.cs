@@ -193,6 +193,9 @@ public class TestimonialsController : Controller
         // JOBS-10: the request now carries the standard List-Unsubscribe header like every other
         // client-facing sender, so "this is spam" has a working alternative.
         var unsubscribeUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
+        // 533: and the visible footer every marketing email closes with -- the business, its mailing
+        // address, the way out, and iPro sending on its behalf.
+        html = SenderFooter.AppendHtml(html, client.AgentUser, unsubscribeUrl, SenderFooterKind.Client);
         var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
         if (!result.Success)
         {

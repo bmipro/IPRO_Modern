@@ -131,6 +131,10 @@ public class DidYouKnowEmailDispatchJob
                     ? $"{agent?.FirstName} {agent?.LastName}".Trim()
                     : agent.CompanyName;
 
+                var preferencesUrl = _consent.BuildPreferencesUrl(
+                    await _consent.GetOrCreateTokenAsync(
+                        await _db.Clients.FirstAsync(c => c.Id == client.Id)));
+
                 var html = $"""
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
                       <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:22px">Did You Know?</h1></div>
@@ -140,6 +144,9 @@ public class DidYouKnowEmailDispatchJob
                       </div>
                     </div>
                     """;
+                // 533: the article carried only the List-Unsubscribe header -- no visible way out, no
+                // address. It closes with the same footer as every other marketing email, before tracking.
+                html = SenderFooter.AppendHtml(html, agent, preferencesUrl, SenderFooterKind.Client);
 
                 if (IPRO.Business.Services.EmailTrackingLinks.IsEnabled(_configuration))
                 {
@@ -168,9 +175,7 @@ public class DidYouKnowEmailDispatchJob
                     },
                     replyToEmail: AdviserSender.ReplyToEmail(agent),
                     replyToName: AdviserSender.ReplyToName(agent),
-                    listUnsubscribeUrl: _consent.BuildPreferencesUrl(
-                        await _consent.GetOrCreateTokenAsync(
-                            await _db.Clients.FirstAsync(c => c.Id == client.Id))));
+                    listUnsubscribeUrl: preferencesUrl);
 
                 // SendGridEmailService catches everything and RETURNS a failure rather than throwing,
                 // so the catch below never sees a rejected send. The result was previously discarded

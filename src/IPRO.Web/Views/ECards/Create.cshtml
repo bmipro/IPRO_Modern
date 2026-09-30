@@ -17,6 +17,8 @@
   </div>
 </div>
 
+@await Component.InvokeAsync("MailingAddressNotice")
+
 <form asp-action="Create" method="post">
   @Html.AntiForgeryToken()
   <div class="row g-4">

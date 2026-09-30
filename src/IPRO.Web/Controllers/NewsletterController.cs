@@ -265,6 +265,7 @@ public class NewsletterController : Controller
             recipient.UpdatedAt = DateTime.UtcNow;
             _uow.NewsLetterRecipients.Update(recipient);
 
+            var business = string.Empty;
             if (recipient.ClientId.HasValue)
             {
                 var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
@@ -274,6 +275,7 @@ public class NewsletterController : Controller
                     // the cards and letters instead". This used to set IsNewsletterSubscribed only,
                     // which is what made the promise in Client.cs untrue.
                     await _consent.SuppressAllAsync(client, "newsletter-footer-link");
+                    business = AdviserSender.BusinessName(await _uow.AgentUsers.GetByIdAsync(client.AgentUserId));
                 }
             }
 
@@ -281,6 +283,7 @@ public class NewsletterController : Controller
             ViewBag.Success = true;
             ViewBag.Email = recipient.Email;
             ViewBag.Channel = "newsletter";
+            ViewBag.Business = business;   // 533: the page names the adviser's business, not "IPRO"
             return View();
         }
 
@@ -300,6 +303,7 @@ public class NewsletterController : Controller
             ViewBag.Success = true;
             ViewBag.Email = client?.Email ?? string.Empty;
             ViewBag.Channel = "series";
+            ViewBag.Business = AdviserSender.BusinessName(await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == enrollment.AgentUserId));
             return View();
         }
 

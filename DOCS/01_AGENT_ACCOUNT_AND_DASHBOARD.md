@@ -49,6 +49,8 @@ Profile data is also used on the public website, invoices, lead notifications, a
 
 Your company name is how your clients recognize your emails. It leads the subject of every email IPRO sends to your clients (invoices, reminders, newsletters, drip campaigns, e-cards, e-letters, polls, appointment and portal emails), and when a client replies, the reply comes to your profile email. With no company name on file, your own name is used.
 
+Your company address closes every marketing email you send (newsletters, drip campaigns, e-cards, e-letters, polls, Did You Know emails and testimonial requests), together with your company name, an unsubscribe link and the line "Sent with iPro on behalf of" your company. Canada's anti-spam law asks every commercial email for a mailing address, so keep the street address filled in on your profile. While it is missing, the send pages remind you, and your emails show only your city, province and postal code.
+
 ## Personalize the Agent Portal Color
 
 Click the small palette icon beside the "IPRO Agent Portal" logo (top-left of every page) to pick one of 6 colors for your own portal's top bar — Ocean Blue, Sunset Orange, Forest Green, Slate Gray, Burgundy, or Royal Purple. This only changes how your own portal looks to you; it's separate from your public website's theme color (set under My Website).

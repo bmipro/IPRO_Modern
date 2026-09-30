@@ -1,4 +1,4 @@
-using System.Net;
+using IPRO.Entities;
 
 namespace IPRO.Business.Services;
 
@@ -11,26 +11,17 @@ namespace IPRO.Business.Services;
 // 2026-08-08: the header shipped, the owner opened a delivered card, and there was nothing to click.
 //
 // Shared by e-cards and e-letters so the wording and the styling cannot drift apart. Newsletters
-// keep their own copy (NewsLetterDispatcher.AppendUnsubscribeHtml) because their footer also carries
-// subscription context this one does not.
+// keep their own call (NewsLetterDispatcher.AppendUnsubscribeHtml) because their footer speaks to
+// subscribers rather than clients. 533: both are SenderFooter's now, which adds what Canada's
+// anti-spam law asks for: the adviser's business and mailing address, and iPro sending on its behalf.
 public static class EmailUnsubscribeFooter
 {
     // Sits BELOW the message shell, on the page background rather than inside the card, so it stays
     // legible whether the design above it is light or dark -- e-card designs are frequently dark and
     // a footer inheriting those colours would be invisible.
-    public static string AppendHtml(string htmlBody, string? unsubscribeUrl)
+    public static string AppendHtml(string htmlBody, string? unsubscribeUrl, AgentUser? agent)
     {
         if (string.IsNullOrWhiteSpace(unsubscribeUrl)) return htmlBody;
-
-        var encoded = WebUtility.HtmlEncode(unsubscribeUrl);
-        var footer = $"""
-            <div style="max-width:620px;margin:20px auto 0;padding:16px 12px 0;border-top:1px solid #dbe4f0;color:#64748b;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;text-align:center;">
-              You received this because you are a client of the sender.
-              <br>
-              <a href="{encoded}" style="color:#2563eb;text-decoration:underline;">Unsubscribe or change what you receive</a>
-            </div>
-            """;
-
-        return $"{htmlBody}{Environment.NewLine}{footer}";
+        return SenderFooter.AppendHtml(htmlBody, agent, unsubscribeUrl, SenderFooterKind.Client, centered: true);
     }
 }

@@ -103,10 +103,10 @@ public class ELetterDispatcher
                 // minted here (a resumed send keeps the one its Queued rows already carry).
                 if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = EmailTrackingLinks.NewToken();
                 var trackedHtml = EmailTrackingLinks.IsEnabled(_configuration)
-                    ? EmailTrackingLinks.Instrument(EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl), "eletter",
+                    ? EmailTrackingLinks.Instrument(EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl, agent), "eletter",
                         recipient.TrackingToken, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration),
                         EmailTrackingLinks.SigningKey(_configuration))
-                    : EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl);
+                    : EmailUnsubscribeFooter.AppendHtml(html, preferencesUrl, agent);
 
                 var result = await _email.SendDetailedAsync(
                     recipient.Email,

@@ -19,6 +19,8 @@
   </div>
 </div>
 
+@await Component.InvokeAsync("MailingAddressNotice")
+
 <form asp-action="Create" method="post">
   @Html.AntiForgeryToken()
   <input type="hidden" name="templateKey" id="templateKey" value="@(selected?.Key)" />
