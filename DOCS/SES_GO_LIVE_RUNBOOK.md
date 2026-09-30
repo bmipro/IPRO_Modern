@@ -5,6 +5,10 @@ through Azure Communication Services exactly as before. This is the order for sw
 way back. The owner does every console step and pastes every secret himself; nothing secret goes into
 chat, a file or the repo.*
 
+**Status, 2026-09-30:** steps 1 to 6 done with the owner; step 7's pilot on since about 1:40 p.m. Eastern
+(adviser 12, `notify`): INV-1003 went From "Global Business Solution via iPro", and Amazon's delivery report
+landed on the invoice a minute later. Left: the simulator's bounce and complaint, then step 8.
+
 **What exists in AWS already.** Account 354245663230, region Canada (Central) `ca-central-1`, Business
 Support+. Production access granted 2026-09-30: 50,000 emails a day, 14 a second. Two verified identities:
 `notify.iproadvisers.com` (transactional) and `news.iproadvisers.com` (marketing), Easy DKIM 2048-bit,
@@ -29,7 +33,8 @@ notices), stays on ACS.
 
 SES -> Configuration -> Configuration sets -> Create set:
 
-- Name `ipro-notify`. Leave the defaults (reputation metrics on; suppression: account level).
+- Name `ipro-notify`. Tick **Reputation metrics** (the console leaves it off; about a dollar a month for both
+  sets); leave the rest at the defaults (suppression: account level).
 - Name `ipro-news`. Same.
 
 No open or click tracking: iPro counts those itself.
@@ -51,6 +56,9 @@ Edit its access policy to let SES publish to it (add this statement to the defau
   "Condition": { "StringEquals": { "AWS:SourceAccount": "354245663230" } }
 }
 ```
+
+The console's default statement came with an empty `Resource` on 2026-09-30; set it to the topic's ARN as
+well. Leave encryption off: SES cannot publish to a topic locked with the AWS-managed key.
 
 Do **not** create the subscription yet: iPro confirms it automatically, but only once step 5's settings
 are in place.
@@ -94,6 +102,10 @@ DNS, touch billing or create other logins.
 
 Then Security credentials -> Create access key -> "Application running outside AWS". **Copy the two
 values straight into step 5's settings**; never into chat, a file or an email. AWS shows the secret once.
+The description tag takes letters, digits, spaces and `_ . : / = + - @` only (no brackets). In the desktop
+app's browser pane Amazon's copy icons do nothing (the pane blocks websites from writing to the clipboard):
+select each value and press Ctrl+C, and keep the page open until both are pasted. A key closed before it was
+pasted is deactivated, deleted and made again; nobody holds its secret.
 
 ## 5. App Service settings (Azure portal, `ipro-prod-web` only; saving restarts the app)
 
@@ -119,8 +131,9 @@ stays "Pending confirmation", the log names the reason (secret, topic ARN or sig
 
 ## 7. A pilot on the owner's own account, with Amazon's test mailboxes
 
-Settings: `Email__Ses__Streams` = `notify`, `Email__Ses__PilotAgentIds` = the owner's adviser id
-(restart). In his adviser account, three test clients:
+Settings: `Email__Ses__PilotAgentIds` = the owner's adviser id (12, the grey "#12" in the admin app's
+Agents list) **first**, then `Email__Ses__Streams` = `notify`. Each save restarts the app; in the other order,
+every adviser's mail would move for the minute between the two. In his adviser account, three test clients:
 
 | Client email | Send them | Expect |
 |---|---|---|
