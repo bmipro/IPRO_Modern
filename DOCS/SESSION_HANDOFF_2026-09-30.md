@@ -32,14 +32,20 @@
   reputation policy, both identities and both configuration sets assigned.
 - **Left with the owner, his choice:** he is sending a few emails to different addresses himself and will report
   back; then the two simulator checks.
+- **534 built and deployed after the close-out** (the owner: "there is no way that we could do mouse over
+  Resources menu and be able to click anything"): on the live adviser sites the Resources panel closed in the
+  12px strip between the menu row and the panel. On a desktop a submenu now stays open for 0.3 s after the
+  pointer leaves its item; the agent-login arrow moved after "Powered by iPro" (his second ask).
 
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
 | `a10f87d` | **531a** Amazon SES for the email an adviser sends to their clients, built and switched off | 1320/1320 |
+| `27e30b6` | **534** the Resources menu stays open on the way into its panel; the agent-login arrow follows "Powered by iPro" | 1322/1322 |
 
-Docs: `9c3051f` (531a and the runbook), `3305034` (531a's check-mark), and this close-out.
+Docs: `9c3051f` (531a and the runbook), `3305034` (531a's check-mark), the close-out (`3157e7d`), and 534's
+check-mark.
 
 ## Do this first when the owner is back
 
@@ -60,5 +66,7 @@ Docs: `9c3051f` (531a and the runbook), `3305034` (531a's check-mark), and this 
    keeps working; .NET 10 in October; the new customer's first renewal 25 October).
 6. **Optional:** HostPapa forwarders from `mail@notify.iproadvisers.com` and `mail@news.iproadvisers.com` to
    support@, for the rare reply that ignores Reply-To.
+7. **534, a glance:** on saeedmasoudian.247advisers.com or bahmanmotamed.247advisers.com, hover **Resources**,
+   move down to any column and click a link; at the foot, the arrow sits after "Powered by iPro".
 
-Related: `DOCS/TODO.md` 531; `DOCS/SES_GO_LIVE_RUNBOOK.md`; `DOCS/SESSION_HANDOFF_2026-09-29.md`.
+Related: `DOCS/TODO.md` 531 and 534; `DOCS/SES_GO_LIVE_RUNBOOK.md`; `DOCS/SESSION_HANDOFF_2026-09-29.md`.
