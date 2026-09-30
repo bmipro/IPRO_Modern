@@ -39,6 +39,17 @@
     </div>
     @if (count > 1)
     {
+      @* 535a: the row of thumbnails under the photo (the owner's bakery example): each picks its photo; the
+         current one is outlined and aria-current. The small copy keeps the row light. *@
+      <div class="site-slideshow__thumbs">
+        <div class="site-slideshow__thumbs-row">
+          @for (var i = 0; i < count; i++)
+          {
+            var image = gallery.Images[i];
+            <button type="button" class="site-slideshow__thumb@(i == 0 ? " is-current" : string.Empty)" aria-label="Show photo @(i + 1) of @count" aria-current="@(i == 0 ? "true" : null)"><img src="@image.TileUrl" alt="" loading="lazy" /></button>
+          }
+        </div>
+      </div>
       <div class="site-slideshow__count" aria-live="polite">1 / @count</div>
     }
   </div>
