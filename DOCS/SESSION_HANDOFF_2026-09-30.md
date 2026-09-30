@@ -42,6 +42,13 @@
   slideshow beside grid and carousel, a shared full-screen viewer (arrows, keys, swipe), and every upload resized
   to a 1600 px view and an 800 px tile with its camera and location data removed. Seen on the local build in all
   three site styles at desktop and phone width. Deployed 2026-09-30 in `9da83bd`; /health/imaging "ok" on the live app.
+  The owner tested it all ("they all worked fine"); the one-time backfill measured the 5 older gallery photos.
+- **535a built** from his two notes on the slideshow: a row of thumbnails under the photo that picks the photo
+  (his example: lavenuebakery.com/gallery), and no black bands beside a narrow photo ("and why is back black?").
+- **The owner's package changes in SuperAdmin (his, not code):** File Upload Capacity on Platinum set to 5000 MB
+  (his Documents page reads "4 MB of 5000 MB", so the enforced Limit Value matches the label; the public table
+  shows the Limit Label, which is only words); Silver 50 MB, Gold 500 MB. The setup-fee waiver: Platinum's
+  extended; Gold's ($200) left to lapse at its September 30 date ("we shall see it expire tomorrow").
 
 ## Pushed today
 
@@ -75,10 +82,12 @@ check-mark.
    support@, for the rare reply that ignores Reply-To.
 7. **534, a glance:** on saeedmasoudian.247advisers.com or bahmanmotamed.247advisers.com, hover **Resources**,
    move down to any column and click a link; at the foot, the arrow sits after "Powered by iPro".
-8. **535 (deployed 2026-09-30):** the tree holds 535 and the 534 check-mark, unpushed. When he says go: the
-   gate result stands if nothing changed since it (else re-gate), commit, push, both hosts, then
-   `https://app.iproadvisers.com/health/imaging` must answer "ok" (SkiaSharp loaded on Linux); a gallery upload
-   in his own account shows the new editor; two minutes after start the web log shows the backfill's
-   "Gallery backfill:" line if any old photos exist.
+8. **535 (deployed 2026-09-30):** `https://app.iproadvisers.com/health/imaging` answered "ok" (SkiaSharp loads on
+   Linux); the backfill logged "0 tiles made, 5 photos measured, 0 unreadable"; the owner tested everything.
+9. **535a on the owner's word only:** gated, not pushed. When he says go, `chain_535a.sh` (scratchpad) commits,
+   pushes, checks both hosts and /health/imaging, ticks and backs up. Then his glance: a Slideshow gallery shows
+   the thumbnail row, a click picks the photo, and a narrow photo sits on the page's background (no dark bands).
+10. **Gold's waiver lapsed:** the pricing table should show Gold's $200 setup fee (no strike-through) and
+   Platinum's waiver still on; registration charges what the table shows (`BillingRule.EffectiveSetupFee`).
 
-Related: `DOCS/TODO.md` 531, 534 and 535; `DOCS/SES_GO_LIVE_RUNBOOK.md`; `DOCS/SESSION_HANDOFF_2026-09-29.md`.
+Related: `DOCS/TODO.md` 531, 534, 535 and 535a; `DOCS/SES_GO_LIVE_RUNBOOK.md`; `DOCS/SESSION_HANDOFF_2026-09-29.md`.
