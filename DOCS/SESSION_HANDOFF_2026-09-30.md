@@ -37,11 +37,11 @@
   12px strip between the menu row and the panel. On a desktop a submenu now stays open for 0.3 s after the
   pointer leaves its item; the agent-login arrow moved after "Powered by iPro" (his second ask). Its
   check-mark and this handoff were committed locally and held with 535 (a docs push redeploys the site).
-- **535 built, tested and HELD** (the owner: "I may have to demo and I dont want any glitches ... I will let you
+- **535 built, tested, held, then deployed on the owner's word** (the owner: "I may have to demo and I dont want any glitches ... I will let you
   know when to deploy 535"): the Photo Gallery with captions, reordering, up to 20 photos per upload, masonry and
   slideshow beside grid and carousel, a shared full-screen viewer (arrows, keys, swipe), and every upload resized
   to a 1600 px view and an 800 px tile with its camera and location data removed. Seen on the local build in all
-  three site styles at desktop and phone width. Not pushed: it waits for his word.
+  three site styles at desktop and phone width. Deployed 2026-09-30 in `9da83bd`; /health/imaging "ok" on the live app.
 
 ## Pushed today
 
@@ -49,6 +49,7 @@
 |---|---|---|
 | `a10f87d` | **531a** Amazon SES for the email an adviser sends to their clients, built and switched off | 1320/1320 |
 | `27e30b6` | **534** the Resources menu stays open on the way into its panel; the agent-login arrow follows "Powered by iPro" | 1322/1322 |
+| `9da83bd` | **535** the Photo Gallery: captions, order, 20 at a time, masonry and slideshow, a real viewer, photos resized without their location data | 1333/1333 |
 
 Docs: `9c3051f` (531a and the runbook), `3305034` (531a's check-mark), the close-out (`3157e7d`), and 534's
 check-mark.
@@ -74,7 +75,7 @@ check-mark.
    support@, for the rare reply that ignores Reply-To.
 7. **534, a glance:** on saeedmasoudian.247advisers.com or bahmanmotamed.247advisers.com, hover **Resources**,
    move down to any column and click a link; at the foot, the arrow sits after "Powered by iPro".
-8. **535 on the owner's word only:** the tree holds 535 and the 534 check-mark, unpushed. When he says go: the
+8. **535 (deployed 2026-09-30):** the tree holds 535 and the 534 check-mark, unpushed. When he says go: the
    gate result stands if nothing changed since it (else re-gate), commit, push, both hosts, then
    `https://app.iproadvisers.com/health/imaging` must answer "ok" (SkiaSharp loaded on Linux); a gallery upload
    in his own account shows the new editor; two minutes after start the web log shows the backfill's
