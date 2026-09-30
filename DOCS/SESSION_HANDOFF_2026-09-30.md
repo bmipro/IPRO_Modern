@@ -43,7 +43,7 @@
   to a 1600 px view and an 800 px tile with its camera and location data removed. Seen on the local build in all
   three site styles at desktop and phone width. Deployed 2026-09-30 in `9da83bd`; /health/imaging "ok" on the live app.
   The owner tested it all ("they all worked fine"); the one-time backfill measured the 5 older gallery photos.
-- **535a built** from his two notes on the slideshow: a row of thumbnails under the photo that picks the photo
+- **535a built and deployed (2026-09-30, `a71d123`)** from his two notes on the slideshow: a row of thumbnails under the photo that picks the photo
   (his example: lavenuebakery.com/gallery), and no black bands beside a narrow photo ("and why is back black?").
 - **The owner's package changes in SuperAdmin (his, not code):** File Upload Capacity on Platinum set to 5000 MB
   (his Documents page reads "4 MB of 5000 MB", so the enforced Limit Value matches the label; the public table
@@ -57,6 +57,7 @@
 | `a10f87d` | **531a** Amazon SES for the email an adviser sends to their clients, built and switched off | 1320/1320 |
 | `27e30b6` | **534** the Resources menu stays open on the way into its panel; the agent-login arrow follows "Powered by iPro" | 1322/1322 |
 | `9da83bd` | **535** the Photo Gallery: captions, order, 20 at a time, masonry and slideshow, a real viewer, photos resized without their location data | 1333/1333 |
+| `a71d123` | **535a** the slideshow: a row of thumbnails that picks the photo; no black bands beside a narrow photo | 1334/1334 |
 
 Docs: `9c3051f` (531a and the runbook), `3305034` (531a's check-mark), the close-out (`3157e7d`), and 534's
 check-mark.
@@ -84,7 +85,7 @@ check-mark.
    move down to any column and click a link; at the foot, the arrow sits after "Powered by iPro".
 8. **535 (deployed 2026-09-30):** `https://app.iproadvisers.com/health/imaging` answered "ok" (SkiaSharp loads on
    Linux); the backfill logged "0 tiles made, 5 photos measured, 0 unreadable"; the owner tested everything.
-9. **535a on the owner's word only:** gated, not pushed. When he says go, `chain_535a.sh` (scratchpad) commits,
+9. **535a (deployed 2026-09-30 in `a71d123`):** was held for his word. When he says go, `chain_535a.sh` (scratchpad) commits,
    pushes, checks both hosts and /health/imaging, ticks and backs up. Then his glance: a Slideshow gallery shows
    the thumbnail row, a click picks the photo, and a narrow photo sits on the page's background (no dark bands).
 10. **Gold's waiver lapsed:** the pricing table should show Gold's $200 setup fee (no strike-through) and
