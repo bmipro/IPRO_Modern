@@ -35,7 +35,13 @@
 - **534 built and deployed after the close-out** (the owner: "there is no way that we could do mouse over
   Resources menu and be able to click anything"): on the live adviser sites the Resources panel closed in the
   12px strip between the menu row and the panel. On a desktop a submenu now stays open for 0.3 s after the
-  pointer leaves its item; the agent-login arrow moved after "Powered by iPro" (his second ask).
+  pointer leaves its item; the agent-login arrow moved after "Powered by iPro" (his second ask). Its
+  check-mark and this handoff were committed locally and held with 535 (a docs push redeploys the site).
+- **535 built, tested and HELD** (the owner: "I may have to demo and I dont want any glitches ... I will let you
+  know when to deploy 535"): the Photo Gallery with captions, reordering, up to 20 photos per upload, masonry and
+  slideshow beside grid and carousel, a shared full-screen viewer (arrows, keys, swipe), and every upload resized
+  to a 1600 px view and an 800 px tile with its camera and location data removed. Seen on the local build in all
+  three site styles at desktop and phone width. Not pushed: it waits for his word.
 
 ## Pushed today
 
@@ -68,5 +74,10 @@ check-mark.
    support@, for the rare reply that ignores Reply-To.
 7. **534, a glance:** on saeedmasoudian.247advisers.com or bahmanmotamed.247advisers.com, hover **Resources**,
    move down to any column and click a link; at the foot, the arrow sits after "Powered by iPro".
+8. **535 on the owner's word only:** the tree holds 535 and the 534 check-mark, unpushed. When he says go: the
+   gate result stands if nothing changed since it (else re-gate), commit, push, both hosts, then
+   `https://app.iproadvisers.com/health/imaging` must answer "ok" (SkiaSharp loaded on Linux); a gallery upload
+   in his own account shows the new editor; two minutes after start the web log shows the backfill's
+   "Gallery backfill:" line if any old photos exist.
 
-Related: `DOCS/TODO.md` 531 and 534; `DOCS/SES_GO_LIVE_RUNBOOK.md`; `DOCS/SESSION_HANDOFF_2026-09-29.md`.
+Related: `DOCS/TODO.md` 531, 534 and 535; `DOCS/SES_GO_LIVE_RUNBOOK.md`; `DOCS/SESSION_HANDOFF_2026-09-29.md`.
