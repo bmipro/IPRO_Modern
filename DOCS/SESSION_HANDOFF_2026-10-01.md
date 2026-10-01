@@ -1,0 +1,49 @@
+# Session handoff — 2026-10-01
+
+## What happened
+
+- **Gold's setup-fee waiver lapsed overnight, as the owner intended.** The public pricing table reads Gold
+  "+ $200 one-time setup" and Platinum "waived until October 30"; the owner: "looks good as expected".
+- **The morning follow-up email "stopped" on 23 September: it was the rule, not a fault** (the owner: "am i
+  suppose to get follow-ups for today email everyday? it seems like Sept 23 was the last email i got"). The email
+  goes on a morning when a follow-up is due that day or fell due within the last 7 days. His four open
+  follow-ups were due Sep 4, 9, 16 and 16; the newest reached the one-week mark on Sep 23 and nothing has been
+  due since. No errors from the job in the web log for Sep 28 to 30.
+- **536 built, pending deploy:** of three options (leave it; a weekly reminder; a daily mail while anything is
+  overdue) he chose the second ("obvious #2 thx for suggestion"). On the adviser's own Monday a mail goes while
+  anything is still overdue, however old; the daily rule is unchanged. The email's foot, the My Profile help
+  line and guide 02 say when it comes.
+- **537 built, pending deploy** (the owner, with "linkedin / organic_social / ipro_relaunch -- 1" under Sign-ups
+  by origin: "we know someone did but we dont know who it was. Can we have the number of signups to be clickable
+  that will show who had signed up"): in SuperAdmin -> Reports -> Visitors each count opens the names, newest
+  first: the adviser (linked to their record), company, email, package, when they signed up and the page they
+  landed on.
+- **One push for both**, as he asked ("fix and push /depoly at the same time").
+
+## Pushed today
+
+| Code | Item | Gate |
+|---|---|---|
+
+## Do this first when the owner is back
+
+1. **537, his glance:** SuperAdmin -> Reports -> Visitors -> **Sign-ups by origin** -> click the number beside
+   "linkedin / organic_social / ipro_relaunch": the adviser who signed up from LinkedIn is named, and the name
+   opens their record. The card has not been seen signed in (SuperAdmin is his sign-in): it was looked at on its
+   own with sample people, so his glance is the first sight of it with real data.
+2. **536, Monday 2026-10-05:** around 7 a.m. Eastern his mail should arrive, "4 follow-ups overdue", listing
+   the four from September, unless he completes them first (then no mail, correctly). If it does not come:
+   the web container log for `FollowUpReminderJob`, and `AgentFollowUpReminders.LastDecidedOn` for adviser 12.
+3. **The Amazon SES pilot (carried from 09-30, his to run):** his own test sends should each show "delivered"
+   in the document's email list; then the two simulator checks (`bounce@simulator.amazonses.com`,
+   `complaint@simulator.amazonses.com`); then everyone (runbook step 8) on his go. The way back, any time:
+   clear `Email__Ses__Streams` (restart). `DOCS/SES_GO_LIVE_RUNBOOK.md`.
+4. **Carried:** the builder retest when the developer's fixes arrive; 532 (Refer a Friend) after 531; decisions
+   on 520, 524, 528 and 529; the open list (506, the page-view tables' retention, an adviser's icon and logo,
+   the comped plans' renewal date, 519, `AsSplitQuery` on the client Details page); optional HostPapa forwarders
+   from `mail@notify.iproadvisers.com` and `mail@news.iproadvisers.com` to support@.
+5. **The calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; ACS closes to new customers
+   23 October (ours keeps working); the new customer's first renewal 25 October; **Platinum's setup-fee waiver
+   ends 30 October** (the owner extended it; Gold's lapsed 30 September); .NET 10 in October.
+
+Related: `DOCS/TODO.md` 536 and 537; `DOCS/SESSION_HANDOFF_2026-09-30.md`.
