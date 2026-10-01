@@ -11,7 +11,10 @@ namespace IPRO.DataAccess;
 
 public sealed record PlatformVisitorBreakdown(string Label, int Views, int Visitors);
 public sealed record PlatformVisitorDay(DateTime Date, int Views, int Visitors);
-public sealed record PlatformSignupCount(string Label, int SignUps);
+// 537: who a sign-up was. SignedUpAt is on the report's clock (the platform's zone, like its days);
+// LandedOn is the name and page of the view that placed them (empty when none matched).
+public sealed record PlatformSignup(int AgentUserId, string Name, string Company, string Email, string Package, DateTime SignedUpAt, string LandedOn);
+public sealed record PlatformSignupCount(string Label, int SignUps, IReadOnlyList<PlatformSignup> Who);
 
 public sealed class PlatformVisitorReport
 {
@@ -179,13 +182,36 @@ ON DUPLICATE KEY UPDATE `Host` = VALUES(`Host`), `Path` = VALUES(`Path`), `Refer
         var byReferrer = Group(rows.Select(r => (r.ReferrerHost.Length == 0 ? DirectLabel : r.ReferrerHost, r.VisitorHash)));
         var byCampaign = Group(rows.Select(r => (OriginLabel(r.Source, r.Medium, r.Campaign, r.ReferrerHost), r.VisitorHash)));
 
-        var signups = await db.PlatformSignupOrigins.AsNoTracking()
-            .Where(o => o.RecordedAt >= cutoff && o.RecordedAt <= nowUtc)
-            .Select(o => new { o.Source, o.Medium, o.Campaign, o.ReferrerHost })
-            .ToListAsync();
+        // 537: the origin is stored against the adviser who signed up, so the report can say WHO, not
+        // only how many (the owner: "we know someone did but we dont know who it was"). The join to the
+        // adviser drops no row, so the counts are what they were: an origin row cannot outlive its
+        // adviser (the foreign key cascades, and AgentDataEraser removes it with the account). The
+        // package is a left join, so an adviser whose plan row is gone is still named.
+        var signups = await (
+            from o in db.PlatformSignupOrigins.AsNoTracking()
+            where o.RecordedAt >= cutoff && o.RecordedAt <= nowUtc
+            join a in db.AgentUsers.AsNoTracking() on o.AgentUserId equals a.Id
+            join p in db.BillingRules.AsNoTracking() on a.PackageId equals p.Id into packages
+            from p in packages.DefaultIfEmpty()
+            select new
+            {
+                o.AgentUserId, o.Source, o.Medium, o.Campaign, o.ReferrerHost, o.Host, o.Path, o.RecordedAt,
+                a.FirstName, a.LastName, Company = a.CompanyName, a.Email,
+                Package = p == null ? null : p.PackageName
+            }).ToListAsync();
         var signupsByOrigin = signups
             .GroupBy(o => OriginLabel(o.Source, o.Medium, o.Campaign, o.ReferrerHost))
-            .Select(g => new PlatformSignupCount(g.Key, g.Count()))
+            .Select(g => new PlatformSignupCount(g.Key, g.Count(), g
+                .OrderByDescending(o => o.RecordedAt)
+                .Select(o => new PlatformSignup(
+                    o.AgentUserId,
+                    $"{o.FirstName} {o.LastName}".Trim(),
+                    (o.Company ?? string.Empty).Trim(),
+                    (o.Email ?? string.Empty).Trim(),
+                    o.Package ?? string.Empty,
+                    AgentLocalTime.FromUtc(o.RecordedAt, zone),
+                    o.Host.Length == 0 ? string.Empty : o.Host + o.Path))
+                .ToList()))
             .OrderByDescending(s => s.SignUps).ThenBy(s => s.Label, StringComparer.Ordinal)
             .ToList();
 

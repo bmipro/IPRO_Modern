@@ -25,6 +25,9 @@ public class VisitorsController : Controller
     {
         days = days is 7 or 30 or 90 ? days : 30;
         // 517: the days of the report are the platform's own days, the clock the header shows.
-        return View(await PlatformVisits.ReportAsync(_db, days, DateTime.UtcNow, AdminClock.Zone(_configuration)));
+        // 537: and so is the time each sign-up shows, labelled with that zone.
+        var zone = AdminClock.Zone(_configuration);
+        ViewBag.Zone = zone;
+        return View(await PlatformVisits.ReportAsync(_db, days, DateTime.UtcNow, zone));
     }
 }

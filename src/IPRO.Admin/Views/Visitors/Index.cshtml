@@ -5,6 +5,8 @@
     ? (Model.TotalViews == 0 ? 0m : 100m)
     : Math.Round((Model.TotalViews - Model.PreviousViews) * 100m / Model.PreviousViews, 1);
   var maxDay = Model.Daily.Count == 0 ? 0 : Model.Daily.Max(d => d.Views);
+  // 537: a sign-up's time is on the report's clock; the label says which one, as the header does.
+  var zoneLabel = IPRO.Admin.Infrastructure.AdminClock.Label(ViewBag.Zone as string);
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -64,9 +66,46 @@
           <table class="table align-middle mb-0">
             <thead><tr><th>Origin</th><th class="text-end">Sign-ups</th></tr></thead>
             <tbody>
+            @* 537: the count opens the names -- who signed up from this origin, newest first, each linked
+               to the adviser's record. The origin was always stored against the adviser (512). A native
+               details element, like Website Templates' "Advanced template metadata": it opens with no
+               script, by mouse or keyboard. *@
             @foreach (var row in Model.SignUpsByOrigin)
             {
-              <tr><td class="fw-semibold text-break">@row.Label</td><td class="text-end">@row.SignUps.ToString("N0")</td></tr>
+              <tr>
+                <td colspan="2" class="p-0">
+                  <details>
+                    <summary class="d-flex justify-content-between align-items-center gap-3 p-2" style="cursor:pointer" title="Show who signed up">
+                      <span class="fw-semibold text-break">@row.Label</span>
+                      <span class="fw-bold text-primary text-decoration-underline flex-shrink-0">@row.SignUps.ToString("N0")</span>
+                    </summary>
+                    <ul class="list-unstyled mb-0 px-3 py-2 bg-light small border-top">
+                      @foreach (var who in row.Who.Take(50))
+                      {
+                        <li class="py-1">
+                          @* The name; the email when there is no name; the account number when there is neither. *@
+                          <a class="fw-semibold" href="/Agents/Details/@who.AgentUserId">@(who.Name.Length > 0 ? who.Name : who.Email.Length > 0 ? who.Email : $"Adviser {who.AgentUserId}")</a>
+                          @if (who.Company.Length > 0) { <span>&middot; @who.Company</span> }
+                          @* The email once: it is already the link when there is no name. *@
+                          @if (who.Name.Length > 0 && who.Email.Length > 0) { <span class="text-muted">&middot; @who.Email</span> }
+                          @if (who.Package.Length > 0) { <span class="text-muted">&middot; @who.Package</span> }
+                          <div class="text-muted">
+                            Signed up @who.SignedUpAt.ToString("MMM d, yyyy h:mm tt") @zoneLabel
+                            @if (who.LandedOn.Length > 0)
+                            {
+                              <span>&middot; landed on @who.LandedOn</span>
+                            }
+                          </div>
+                        </li>
+                      }
+                      @if (row.Who.Count > 50)
+                      {
+                        <li class="py-1 text-muted">...and @(row.Who.Count - 50) more.</li>
+                      }
+                    </ul>
+                  </details>
+                </td>
+              </tr>
             }
             @if (Model.SignUpsByOrigin.Count == 0)
             {
@@ -76,7 +115,7 @@
           </table>
         </div>
       </div>
-      <div class="card-footer bg-white small text-muted">A sign-up is placed by the most recent visit, within the month, by the same visitor that came from a campaign or a referring site.</div>
+      <div class="card-footer bg-white small text-muted">A sign-up is placed by the most recent visit, within the month, by the same visitor that came from a campaign or a referring site. Click a number to see who signed up.</div>
     </div>
   </div>
 </div>
