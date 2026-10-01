@@ -19,6 +19,8 @@
   first: the adviser (linked to their record), company, email, package, when they signed up and the page they
   landed on.
 - **One push for both, verified on both hosts (build 9e924a6)**, as he asked ("fix and push /depoly at the same time").
+- **The owner looked at 537 with real data: "clicked and it looks good".** One thing on his screen, the package
+  name broken in two ("IPro" / "Platinum"), became **537a, built and held: "fix it with the next push"**.
 
 ## Pushed today
 
@@ -32,22 +34,27 @@
 1. **537, seen by the owner with real data (2026-10-01: "clicked and it looks good"):** SuperAdmin -> Reports ->
    Visitors -> **Sign-ups by origin** -> the number beside "linkedin / organic_social / ipro_relaunch" opened the
    one sign-up: the Platinum customer of 25 September, named and linked, with company, email, package, "Signed up
-   Sep 25, 2026 6:24 PM ET" and "landed on www.iproadvisers.com/". Nothing left to check. One cosmetic thing for
-   the next time that view is touched: the package name can wrap in the middle ("IPro" / "Platinum"). This note
-   was committed locally and held: a docs-only push restarts the site, so it goes out with the next push.
-2. **536, Monday 2026-10-05:** around 7 a.m. Eastern his mail should arrive, "4 follow-ups overdue", listing
+   Sep 25, 2026 6:24 PM ET" and "landed on www.iproadvisers.com/". Nothing left to check on 537 itself.
+2. **537a, HELD FOR THE NEXT PUSH (the owner: "fix it with the next push"):** on his screen the package name
+   broke in the middle ("IPro" / "Platinum"); it now stays on one line (`text-nowrap` on that span). The change
+   is in the working tree, NOT committed and NOT gated: `src/IPRO.Admin/Views/Visitors/Index.cshtml` and its pin
+   in `tests/IPRO.IntegrationTests/SignupsByOrigin537Tests.cs` (the Visitors tests pass, 60/60). The next push's
+   gate must run over a tree that includes them, and its chain commits them as 537a and ticks TODO 537a. The
+   local docs commit `82576b0` (his confirmation of 537) is held the same way: a docs-only push restarts the
+   site. So `main` is ahead of `origin/main` on purpose until that push.
+3. **536, Monday 2026-10-05:** around 7 a.m. Eastern his mail should arrive, "4 follow-ups overdue", listing
    the four from September, unless he completes them first (then no mail, correctly). If it does not come:
    the web container log for `FollowUpReminderJob`, and `AgentFollowUpReminders.LastDecidedOn` for adviser 12.
-3. **The Amazon SES pilot (carried from 09-30, his to run):** his own test sends should each show "delivered"
+4. **The Amazon SES pilot (carried from 09-30, his to run):** his own test sends should each show "delivered"
    in the document's email list; then the two simulator checks (`bounce@simulator.amazonses.com`,
    `complaint@simulator.amazonses.com`); then everyone (runbook step 8) on his go. The way back, any time:
    clear `Email__Ses__Streams` (restart). `DOCS/SES_GO_LIVE_RUNBOOK.md`.
-4. **Carried:** the builder retest when the developer's fixes arrive; 532 (Refer a Friend) after 531; decisions
+5. **Carried:** the builder retest when the developer's fixes arrive; 532 (Refer a Friend) after 531; decisions
    on 520, 524, 528 and 529; the open list (506, the page-view tables' retention, an adviser's icon and logo,
    the comped plans' renewal date, 519, `AsSplitQuery` on the client Details page); optional HostPapa forwarders
    from `mail@notify.iproadvisers.com` and `mail@news.iproadvisers.com` to support@.
-5. **The calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; ACS closes to new customers
+6. **The calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; ACS closes to new customers
    23 October (ours keeps working); the new customer's first renewal 25 October; **Platinum's setup-fee waiver
    ends 30 October** (the owner extended it; Gold's lapsed 30 September); .NET 10 in October.
 
-Related: `DOCS/TODO.md` 536 and 537; `DOCS/SESSION_HANDOFF_2026-09-30.md`.
+Related: `DOCS/TODO.md` 536, 537 and 537a; `DOCS/SESSION_HANDOFF_2026-09-30.md`.
