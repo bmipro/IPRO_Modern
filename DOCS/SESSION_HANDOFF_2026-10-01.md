@@ -29,10 +29,12 @@
 
 ## Do this first when the owner is back
 
-1. **537, his glance:** SuperAdmin -> Reports -> Visitors -> **Sign-ups by origin** -> click the number beside
-   "linkedin / organic_social / ipro_relaunch": the adviser who signed up from LinkedIn is named, and the name
-   opens their record. The card has not been seen signed in (SuperAdmin is his sign-in): it was looked at on its
-   own with sample people, so his glance is the first sight of it with real data.
+1. **537, seen by the owner with real data (2026-10-01: "clicked and it looks good"):** SuperAdmin -> Reports ->
+   Visitors -> **Sign-ups by origin** -> the number beside "linkedin / organic_social / ipro_relaunch" opened the
+   one sign-up: the Platinum customer of 25 September, named and linked, with company, email, package, "Signed up
+   Sep 25, 2026 6:24 PM ET" and "landed on www.iproadvisers.com/". Nothing left to check. One cosmetic thing for
+   the next time that view is touched: the package name can wrap in the middle ("IPro" / "Platinum"). This note
+   was committed locally and held: a docs-only push restarts the site, so it goes out with the next push.
 2. **536, Monday 2026-10-05:** around 7 a.m. Eastern his mail should arrive, "4 follow-ups overdue", listing
    the four from September, unless he completes them first (then no mail, correctly). If it does not come:
    the web container log for `FollowUpReminderJob`, and `AgentFollowUpReminders.LastDecidedOn` for adviser 12.
