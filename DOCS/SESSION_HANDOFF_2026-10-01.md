@@ -20,7 +20,8 @@
   landed on.
 - **One push for both, verified on both hosts (build 9e924a6)**, as he asked ("fix and push /depoly at the same time").
 - **The owner looked at 537 with real data: "clicked and it looks good".** One thing on his screen, the package
-  name broken in two ("IPro" / "Platinum"), became **537a, built and held: "fix it with the next push"**.
+  name broken in two ("IPro" / "Platinum"), became **537a, built, held ("fix it with the next push") and deployed that evening (2026-10-01, `e425fce`) on his
+  "let me know when it is fully out"**.
 
 ## Pushed today
 
@@ -28,6 +29,7 @@
 |---|---|---|
 | `7b92979` | **536** the morning follow-up email also goes every Monday while anything is still overdue | 1338/1338 |
 | `066c730` | **537** SuperAdmin Visitors: the sign-up count opens the names of who signed up | 1338/1338 |
+| `e425fce` | **537a** the package name stays on one line in the names under Sign-ups by origin | 1338/1338 |
 
 ## Do this first when the owner is back
 
@@ -35,13 +37,12 @@
    Visitors -> **Sign-ups by origin** -> the number beside "linkedin / organic_social / ipro_relaunch" opened the
    one sign-up: the Platinum customer of 25 September, named and linked, with company, email, package, "Signed up
    Sep 25, 2026 6:24 PM ET" and "landed on www.iproadvisers.com/". Nothing left to check on 537 itself.
-2. **537a, HELD FOR THE NEXT PUSH (the owner: "fix it with the next push"):** on his screen the package name
-   broke in the middle ("IPro" / "Platinum"); it now stays on one line (`text-nowrap` on that span). The change
-   is in the working tree, NOT committed and NOT gated: `src/IPRO.Admin/Views/Visitors/Index.cshtml` and its pin
-   in `tests/IPRO.IntegrationTests/SignupsByOrigin537Tests.cs` (the Visitors tests pass, 60/60). The next push's
-   gate must run over a tree that includes them, and its chain commits them as 537a and ticks TODO 537a. The
-   local docs commit `82576b0` (his confirmation of 537) is held the same way: a docs-only push restarts the
-   site. So `main` is ahead of `origin/main` on purpose until that push.
+2. **537a (deployed 2026-10-01 in `e425fce`, both hosts on build e425fce):** on his screen the package name broke in the
+   middle ("IPro" / "Platinum"); it now stays on one line (`text-nowrap` on that span). Held on his "fix it
+   with the next push", sent on his "let me know when it is fully out". His glance: SuperAdmin -> Reports ->
+   Visitors -> the number beside the LinkedIn origin; "IPro Platinum" reads whole. The check-mark commit for
+   537a is held locally (a docs-only push restarts the site) and goes out with the next push or the close-out,
+   so `main` is one commit ahead of `origin/main` on purpose.
 3. **536, Monday 2026-10-05:** around 7 a.m. Eastern his mail should arrive, "4 follow-ups overdue", listing
    the four from September, unless he completes them first (then no mail, correctly). If it does not come:
    the web container log for `FollowUpReminderJob`, and `AgentFollowUpReminders.LastDecidedOn` for adviser 12.
