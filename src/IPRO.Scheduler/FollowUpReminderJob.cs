@@ -20,10 +20,16 @@ namespace IPRO.Scheduler;
 //
 // WHEN IT GOES. Between 7 a.m. and noon in the adviser's time zone, once a day, and only when
 // something is due today or fell due within the last week. An item nobody ever ticks off is
-// reminded for a week and then left alone -- it is still LISTED whenever a mail goes, it just stops
-// causing one -- so an account carrying years of imported, never-completed follow-ups is not mailed
-// every morning for ever. After noon nothing goes: a "good morning" at five in the afternoon (the
-// first pass after a deploy, or a long deferral) is worse than no mail.
+// reminded daily for a week and then stops causing a daily mail -- it is still LISTED whenever a mail
+// goes -- so an account carrying years of imported, never-completed follow-ups is not mailed every
+// morning for ever. After noon nothing goes: a "good morning" at five in the afternoon (the first
+// pass after a deploy, or a long deferral) is worse than no mail.
+//
+// AND ON MONDAYS (536, 2026-10-01). The owner's own mail stopped on 23 September: his four open
+// follow-ups were all more than a week overdue, nothing new had come due, and the silence read as
+// "it broke". His choice: every Monday (the adviser's own Monday) a mail goes while ANYTHING is still
+// overdue, however old. Once a week keeps old items from being forgotten without bringing back the
+// every-morning mail the one-week rule exists to prevent.
 //
 // WHY HOURLY. "Morning" is a different UTC hour in each of the six Canadian time zones; an hourly
 // pass is its own retry when the send gate defers (the subscription is capped at 100 sends an hour --
@@ -57,6 +63,8 @@ public class FollowUpReminderJob
     public const int SendFromLocalHour = 7;
     public const int SendUntilLocalHour = 12;
     public const int RemindForDays = 7;
+    // 536: the day of the weekly reminder for what is still overdue past RemindForDays.
+    public const DayOfWeek WeeklyReminderDay = DayOfWeek.Monday;
     public const int MaxListed = 15;
     public const string BulkEntity = "follow_up_reminder";
 
@@ -142,8 +150,10 @@ public class FollowUpReminderJob
                 var open = _db.ClientFollowUps.AsNoTracking()
                     .Where(f => f.Client.AgentUserId == agent.Id && !f.IsCompleted && f.DueAt < tomorrow);
 
-                // Nothing due today and nothing newly overdue: today is decided, and no mail goes.
-                if (!await open.AnyAsync(f => f.DueAt >= remindFrom)) continue;
+                // Nothing due today and nothing newly overdue: today is decided, and no mail goes --
+                // unless it is the adviser's Monday and something, however old, is still overdue (536).
+                if (!await open.AnyAsync(f => f.DueAt >= remindFrom)
+                    && !(today.DayOfWeek == WeeklyReminderDay && await open.AnyAsync(f => f.DueAt < today))) continue;
 
                 var dueToday = await open.CountAsync(f => f.DueAt >= today);
                 var overdue = await open.CountAsync(f => f.DueAt < today);
@@ -268,7 +278,7 @@ public class FollowUpReminderJob
                 {Section("Due today", todayItems, dueToday, late: false)}
                 {Section("Overdue", overdueItems, overdue, late: true)}
                 <p style="margin-top:24px"><a href="{FollowUpListUrl()}" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">Open your follow-up list</a></p>
-                <p style="color:#64748b;font-size:13px;margin-top:24px">This email goes out on mornings when a follow-up is due or newly overdue. To stop it, untick "Email me my follow-ups each morning" on <a href="{ProfileUrl()}" style="color:#1457d9">your profile</a>.</p>
+                <p style="color:#64748b;font-size:13px;margin-top:24px">This email goes out on mornings when a follow-up is due or newly overdue, and every Monday while anything is still overdue. To stop it, untick "Email me my follow-ups each morning" on <a href="{ProfileUrl()}" style="color:#1457d9">your profile</a>.</p>
               </div>
             </div>
             """;
@@ -293,6 +303,7 @@ public class FollowUpReminderJob
         }
         lines.Add(string.Empty);
         lines.Add($"Open your follow-up list: {FollowUpListUrl()}");
+        lines.Add("This email goes out on mornings when a follow-up is due or newly overdue, and every Monday while anything is still overdue.");
         lines.Add($"To stop this email, untick it on your profile: {ProfileUrl()}");
         return string.Join("\n", lines);
     }

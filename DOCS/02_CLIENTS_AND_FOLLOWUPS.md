@@ -95,6 +95,16 @@ Use either:
 
 Follow-up history uses pagination when the list becomes long.
 
+## The Morning Follow-up Email
+
+IPRO emails you your follow-ups so nothing depends on remembering to look:
+
+- **When it comes:** around 7 a.m. in your own time zone (never after noon), one email a day at most.
+- **On which days:** any morning when a follow-up is due that day or became overdue within the last week, and every Monday while anything is still overdue, however old. A follow-up nobody completes is in your inbox daily for a week and then once a week, so it is not forgotten and does not become a daily email for ever.
+- **What it lists:** what is due today first, then what is overdue (the most recently overdue first), with a button that opens your follow-up list. Your notes are never included.
+- **Nothing to do, no email:** a morning with nothing due and nothing newly overdue sends nothing, unless it is a Monday with something still open.
+- **To stop it or start it again:** **My Profile** → untick or tick **Email me my follow-ups each morning**. Completing a follow-up (the check icon) takes it off the list.
+
 ## Complete or Delete a Follow-up
 
 1. Open the follow-up queue, calendar, dashboard, or client record.

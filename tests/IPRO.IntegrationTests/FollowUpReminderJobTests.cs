@@ -21,7 +21,7 @@ namespace IPRO.IntegrationTests;
 // answer the same afternoon was to build the real thing at once. FollowUpReminderJob: one email in
 // the adviser's own morning listing what is due today and what is overdue. Hourly, so it is its own
 // retry when the send gate defers; each adviser's day is claimed before the mail is sent; an item
-// nobody completes is reminded for a week and then left alone; lapsed accounts, plans without the
+// nobody completes is reminded daily for a week and then on Mondays (536); lapsed accounts, plans without the
 // feature and advisers who turned it off get nothing; and the mail queues behind the transactional
 // reserve, so a morning's reminders can never crowd out a password reset.
 public class FollowUpReminderJobTests
@@ -143,8 +143,11 @@ public class FollowUpReminderJobTests
         Assert.False(await db.AgentFollowUpReminders.AsNoTracking().AnyAsync(r => r.AgentUserId == late.Id));
     }
 
+    // Tuesday 2026-09-22, 07:30 in Toronto: not a Monday, so 536's weekly reminder stays out of it.
+    private static readonly DateTime TuesdayMorning = MondayMorning.AddDays(1);
+
     [Fact]
-    public async Task An_item_nobody_completes_is_reminded_for_a_week_and_then_left_alone()
+    public async Task An_item_nobody_completes_is_reminded_daily_for_a_week_and_then_not_on_an_ordinary_morning()
     {
         await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
         await using var db = testDb.CreateContext();
@@ -155,10 +158,45 @@ public class FollowUpReminderJobTests
         var staleClient = await SeedClientAsync(db, stale.Id, "Stale", "Client");
         var mixedClient = await SeedClientAsync(db, mixed.Id, "Mixed", "Client");
         db.AddRange(
-            new ClientFollowUp { ClientId = recentClient.Id, Title = "Three days late", DueAt = MondayMorning.AddDays(-3) },
+            new ClientFollowUp { ClientId = recentClient.Id, Title = "Three days late", DueAt = TuesdayMorning.AddDays(-3) },
+            new ClientFollowUp { ClientId = staleClient.Id, Title = "Imported years ago", DueAt = TuesdayMorning.AddDays(-400) },
+            new ClientFollowUp { ClientId = mixedClient.Id, Title = "Old but still open", DueAt = TuesdayMorning.AddDays(-400) },
+            new ClientFollowUp { ClientId = mixedClient.Id, Title = "Due this afternoon", DueAt = TuesdayMorning.AddHours(6) });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var email = new RecordingEmailService();
+        var job = NewJob(db, email, new StubEntitlements());
+        job.Clock = () => TuesdayMorning;
+        await job.RunAsync();
+
+        Assert.Equal(2, email.Sent.Count);
+        Assert.Contains(email.Sent, m => m.To == recent.Email && m.Subject == "1 follow-up overdue");
+        Assert.DoesNotContain(email.Sent, m => m.To == stale.Email);
+        // The old item no longer CAUSES a daily mail, but it is still listed when one goes.
+        var both = email.Sent.Single(m => m.To == mixed.Email);
+        Assert.Equal("1 follow-up due today, 1 overdue", both.Subject);
+        Assert.Contains("Old but still open", both.Html);
+        // And "no mail" was today's decision for the stale account, made once.
+        Assert.Equal(new DateTime(2026, 9, 22), (await db.AgentFollowUpReminders.AsNoTracking().SingleAsync(r => r.AgentUserId == stale.Id)).LastDecidedOn);
+    }
+
+    // 536 (2026-10-01). The owner's last morning email was 23 September: his four open follow-ups were all
+    // more than a week overdue by then, nothing new had come due, and the mail (correctly) stopped -- which
+    // read as "it broke". His choice of three options: a reminder every Monday while anything is still
+    // overdue, however old; the daily rule stays as it was.
+    [Fact]
+    public async Task On_a_Monday_whatever_is_still_overdue_is_mailed_however_old_and_only_on_Mondays()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var stale = await SeedAgentAsync(db, AgentLocalTime.DefaultTimeZone);
+        var clean = await SeedAgentAsync(db, AgentLocalTime.DefaultTimeZone);
+        var staleClient = await SeedClientAsync(db, stale.Id, "Stale", "Client");
+        var cleanClient = await SeedClientAsync(db, clean.Id, "Clean", "Client");
+        db.AddRange(
             new ClientFollowUp { ClientId = staleClient.Id, Title = "Imported years ago", DueAt = MondayMorning.AddDays(-400) },
-            new ClientFollowUp { ClientId = mixedClient.Id, Title = "Old but still open", DueAt = MondayMorning.AddDays(-400) },
-            new ClientFollowUp { ClientId = mixedClient.Id, Title = "Due this afternoon", DueAt = MondayMorning.AddHours(6) });
+            new ClientFollowUp { ClientId = cleanClient.Id, Title = "Done long ago", DueAt = MondayMorning.AddDays(-400), IsCompleted = true });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
@@ -167,15 +205,31 @@ public class FollowUpReminderJobTests
         job.Clock = () => MondayMorning;
         await job.RunAsync();
 
+        var mail = Assert.Single(email.Sent);
+        Assert.Equal(stale.Email, mail.To);
+        Assert.Equal("1 follow-up overdue", mail.Subject);
+        Assert.Contains("Imported years ago", mail.Html);
+        Assert.Contains("every Monday while anything is still overdue", mail.Html);
+        Assert.Contains("every Monday while anything is still overdue", mail.Text);
+
+        // Once that Monday, and not on the days between...
+        job.Clock = () => MondayMorning.AddHours(1);
+        await job.RunAsync();
+        for (var day = 1; day <= 6; day++)
+        {
+            job.Clock = () => MondayMorning.AddDays(day);
+            await job.RunAsync();
+        }
+        Assert.Single(email.Sent);
+
+        // ...again the next Monday; and never once the item is done.
+        job.Clock = () => MondayMorning.AddDays(7);
+        await job.RunAsync();
         Assert.Equal(2, email.Sent.Count);
-        Assert.Contains(email.Sent, m => m.To == recent.Email && m.Subject == "1 follow-up overdue");
-        Assert.DoesNotContain(email.Sent, m => m.To == stale.Email);
-        // The old item no longer CAUSES a mail, but it is still listed when one goes.
-        var both = email.Sent.Single(m => m.To == mixed.Email);
-        Assert.Equal("1 follow-up due today, 1 overdue", both.Subject);
-        Assert.Contains("Old but still open", both.Html);
-        // And "no mail" was today's decision for the stale account, made once.
-        Assert.Equal(new DateTime(2026, 9, 21), (await db.AgentFollowUpReminders.AsNoTracking().SingleAsync(r => r.AgentUserId == stale.Id)).LastDecidedOn);
+        await db.ClientFollowUps.Where(f => f.Title == "Imported years ago").ExecuteUpdateAsync(u => u.SetProperty(f => f.IsCompleted, true));
+        job.Clock = () => MondayMorning.AddDays(14);
+        await job.RunAsync();
+        Assert.Equal(2, email.Sent.Count);
     }
 
     [Fact]
@@ -393,6 +447,8 @@ public class FollowUpReminderJobTests
         var profile = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Account\Profile.cshtml"));
         Assert.Contains("asp-for=\"FollowUpReminderEmails\"", profile);
         Assert.Contains("Email me my follow-ups each morning", profile);
+        Assert.Contains("and every Monday while anything is still overdue", profile);   // 536
+        Assert.Contains("every Monday while anything is still overdue", File.ReadAllText(FindRepoFile(@"DOCS\02_CLIENTS_AND_FOLLOWUPS.md")));
         // And the follow-up list says the email exists and where its switch is.
         Assert.Contains("A morning email lists what is due and overdue.", File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Clients\FollowUpQueue.cshtml")));
         var controller = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Controllers\AccountController.cs"));
