@@ -104,6 +104,8 @@ public class SignupsByOrigin537Tests
         // The email is the link when there is no name, so it is not repeated beside itself.
         Assert.Contains("@(who.Name.Length > 0 ? who.Name : who.Email.Length > 0 ? who.Email : $\"Adviser {who.AgentUserId}\")", view);
         Assert.Contains("@if (who.Name.Length > 0 && who.Email.Length > 0) { <span class=\"text-muted\">&middot; @who.Email</span> }", view);
+        // 537a: on the owner's screen "IPro Platinum" broke after "IPro"; the package name stays on one line.
+        Assert.Contains("@if (who.Package.Length > 0) { <span class=\"text-muted text-nowrap\">&middot; @who.Package</span> }", view);
         Assert.Contains("who.LandedOn", view);
         // The time is on the platform's clock and says which one, like the header.
         Assert.Contains("who.SignedUpAt.ToString(\"MMM d, yyyy h:mm tt\") @zoneLabel", view);

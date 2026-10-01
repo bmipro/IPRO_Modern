@@ -88,7 +88,8 @@
                           @if (who.Company.Length > 0) { <span>&middot; @who.Company</span> }
                           @* The email once: it is already the link when there is no name. *@
                           @if (who.Name.Length > 0 && who.Email.Length > 0) { <span class="text-muted">&middot; @who.Email</span> }
-                          @if (who.Package.Length > 0) { <span class="text-muted">&middot; @who.Package</span> }
+                          @* 537a: the package name stays on one line ("IPro" / "Platinum" broke in two on the owner's screen). *@
+                          @if (who.Package.Length > 0) { <span class="text-muted text-nowrap">&middot; @who.Package</span> }
                           <div class="text-muted">
                             Signed up @who.SignedUpAt.ToString("MMM d, yyyy h:mm tt") @zoneLabel
                             @if (who.LandedOn.Length > 0)
