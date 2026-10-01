@@ -9,21 +9,23 @@
   goes on a morning when a follow-up is due that day or fell due within the last 7 days. His four open
   follow-ups were due Sep 4, 9, 16 and 16; the newest reached the one-week mark on Sep 23 and nothing has been
   due since. No errors from the job in the web log for Sep 28 to 30.
-- **536 built, pending deploy:** of three options (leave it; a weekly reminder; a daily mail while anything is
+- **536 built and deployed (2026-10-01, `7b92979`):** of three options (leave it; a weekly reminder; a daily mail while anything is
   overdue) he chose the second ("obvious #2 thx for suggestion"). On the adviser's own Monday a mail goes while
   anything is still overdue, however old; the daily rule is unchanged. The email's foot, the My Profile help
   line and guide 02 say when it comes.
-- **537 built, pending deploy** (the owner, with "linkedin / organic_social / ipro_relaunch -- 1" under Sign-ups
+- **537 built and deployed (2026-10-01, `066c730`)** (the owner, with "linkedin / organic_social / ipro_relaunch -- 1" under Sign-ups
   by origin: "we know someone did but we dont know who it was. Can we have the number of signups to be clickable
   that will show who had signed up"): in SuperAdmin -> Reports -> Visitors each count opens the names, newest
   first: the adviser (linked to their record), company, email, package, when they signed up and the page they
   landed on.
-- **One push for both**, as he asked ("fix and push /depoly at the same time").
+- **One push for both, verified on both hosts (build 9e924a6)**, as he asked ("fix and push /depoly at the same time").
 
 ## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
+| `7b92979` | **536** the morning follow-up email also goes every Monday while anything is still overdue | 1338/1338 |
+| `066c730` | **537** SuperAdmin Visitors: the sign-up count opens the names of who signed up | 1338/1338 |
 
 ## Do this first when the owner is back
 
