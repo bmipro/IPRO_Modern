@@ -8,6 +8,8 @@ chat, a file or the repo.*
 **Status, 2026-09-30:** steps 1 to 6 done with the owner; step 7's pilot on since about 1:40 p.m. Eastern
 (adviser 12, `notify`): INV-1003 went From "Global Business Solution via iPro", and Amazon's delivery report
 landed on the invoice a minute later. Left: the simulator's bounce and complaint, then step 8.
+**2026-10-02:** the owner asked for a few tests on his own account to decide when everyone moves; they are
+section 7a (the test sheet), which also puts the marketing stream's trial on his account BEFORE step 8.
 
 **What exists in AWS already.** Account 354245663230, region Canada (Central) `ca-central-1`, Business
 Support+. Production access granted 2026-09-30: 50,000 emails a day, 14 a second. Two verified identities:
@@ -144,6 +146,49 @@ every adviser's mail would move for the minute between the two. In his adviser a
 Then one invoice to his own mailbox: From "Global Business Solution via iPro", replying goes to him, the
 headers show DKIM `pass` for `notify.iproadvisers.com`. The mailbox simulator doesn't count against the
 quota or the reputation.
+
+## 7a. The pilot test sheet (2026-10-02; the owner: "set up few tests with my bahmanmotamed account and aws so we could decide when to port it to aws for the rest of the system")
+
+Everything here happens in the owner's own adviser account (12); no other adviser's mail moves. He clicks
+(the account is his sign-in) and reports or screenshots; the server side is read from the web container log
+(only warnings and errors are logged, so "no line" means "no failure") and the settings' names and lengths.
+
+**Starting point, read 2026-10-02:** `Email__Ses__PilotAgentIds` holds 2 characters and `Email__Ses__Streams`
+6 (what `12` and `notify` measure); the five keys are present; the web log since the pilot began (09-30,
+17:40 UTC) has no failed SES send, no bounce and no complaint. Its only SES lines are three refused event
+calls on 09-30: 13:48 and 13:54 UTC, before the settings existed, and 18:07 UTC, the close-out's own check
+that a call without the secret is refused.
+
+### Part 1: the invoice-type mail (`notify`), no setting changes
+
+| # | What he does | What must be true |
+|---|---|---|
+| 1 | Three test clients (`success@`, `bounce@`, `complaint@simulator.amazonses.com`), one small invoice **Sent to Client** each | `success@`: the invoice reads "delivered" within a minute or two. `bounce@`: it reads "bounced (reason)", the client shows the red **Unsubscribed** badge, and the log carries "SES reported a HARD BOUNCE ... suppressed". `complaint@`: the client shows **Unsubscribed**. The simulator costs no quota and no reputation. |
+| 2 | One invoice to each mailbox he owns (Gmail, Yahoo, Outlook/Hotmail, his business mailbox) | In the Inbox, not Spam/Junk. From "Global Business Solution via iPro". **Reply** addresses his own adviser email. The link opens the invoice. The invoice reads "delivered". In Gmail, **Show original**: SPF, DKIM and DMARC all PASS. |
+| 3 | The other client emails, once each, to one of his mailboxes: an estimate; **Send reminder** on an invoice past its due date; **Invite to Portal**; **Request Testimonial** | Each arrives with the same sender name and replies to him. (Appointment scheduled/declined needs a request made from the client portal: optional.) |
+| 4 | Nothing: his normal client mail keeps going through Amazon for a few days | No SES failure in the log; SES -> Reputation metrics: bounces under 2%, complaints under 0.05%. |
+
+### Part 2: the marketing mail (`news`), on his account only
+
+The pilot list limits BOTH streams, so marketing mail can be tried on his account only while
+`Email__Ses__PilotAgentIds` is still set. Once it is cleared, adding `news` moves every adviser's at once.
+So this comes before step 8: `Email__Ses__Streams` = `notify,news` (his change; a restart), then:
+
+| # | What he does | What must be true |
+|---|---|---|
+| 5 | A newsletter to an account type holding only his own mailboxes | From "Global Business Solution via iPro" at `mail@news.iproadvisers.com`; Inbox; the foot names his business and mailing address; the **Unsubscribe** link in the email works (re-subscribe from the same page afterwards); Email Activity shows Delivered, then Opened. |
+| 6 | An e-card (or e-letter) to one of his mailboxes | Arrives; Email Activity shows it. |
+| 7 | Two NEW test clients, `bounce+news@simulator.amazonses.com` and `complaint+news@simulator.amazonses.com` (test 1's two are unsubscribed for good, and only the client can undo that; Amazon's test mailboxes accept a `+label`), in an account type of their own; a newsletter to it | Email Activity shows the first Failed with Amazon's reason; both clients end **Unsubscribed**; the log carries the hard-bounce line and no error. |
+
+### The decision
+
+- **Everyone's invoice-type mail (step 8.1)** when 1 to 3 pass and the log has stayed clean for a few days.
+  If Part 2 ran first: set `Email__Ses__Streams` back to `notify` (restart), THEN clear
+  `Email__Ses__PilotAgentIds` (restart); the other order moves every adviser's marketing mail for a minute.
+- **Everyone's marketing mail (step 8.2)** a week later, when 5 to 7 passed and the reputation figures hold.
+- **Not part of this switch:** iPro's own mail to advisers (sign-in, password resets, billing, the morning
+  follow-up email, support). It is untagged and stays on ACS; moving it is a build item of its own, due well
+  before ACS retires on 2028-09-30.
 
 ## 8. Everyone, stream by stream
 
