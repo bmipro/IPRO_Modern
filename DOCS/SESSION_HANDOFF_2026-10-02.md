@@ -18,10 +18,10 @@
   the web log clean since 09-30.
 - **Test 1, run by him about 2:30 p.m.:** delivered, bounced, complaint, both clients suppressed, both notices to
   him, the log's hard-bounce line. It passed, and it found 538.
-- **538 built, pending deploy:** a bounce, a spam complaint and an unsubscribe each say what they are (the
+- **538 built and deployed (2026-10-02, `9a3e7c1`):** a bounce, a spam complaint and an unsubscribe each say what they are (the
   invoice, the client record, the notice to the adviser); a bounced address can be corrected by the adviser and
   email resumes; Amazon's "delivery delay" no longer marks an email failed for good.
-- **539 built, pending deploy** ("can u also push these images for shared use among the agents", a folder of
+- **539 built and deployed (2026-10-02, `cef28f0`)** ("can u also push these images for shared use among the agents", a folder of
   34): 27 are in the shared banner gallery, cut to its strip shape, in two new groups and three old ones. Seven
   are not; two of those are held for his word on the rights (below).
 - **The tool that runs long jobs changed its limits:** a background command is now stopped at ten minutes even
@@ -34,10 +34,16 @@
 
 | Code | Item | Gate |
 |---|---|---|
+| `9a3e7c1` | **538** a bounce, a spam complaint and an unsubscribe each say what they are; a bounced address can be corrected; a delay is not a failure | 1361/1361 |
+| `cef28f0` | **539** 27 of the owner's images in the shared banner gallery, in two new groups | 1361/1361 |
 
 ## Do this first when the owner is back
 
-1. **538 and 539:** built and gated; the push carries the two held docs commits as well.
+1. **538 and 539 (deployed 2026-10-02, both hosts on build 1409dca):** one push, which also carried the two docs commits held
+   since 10-01. The check-mark commit is held locally (a docs-only push restarts the site) and goes out with
+   the next push or the close-out, so `main` is one commit ahead of `origin/main` on purpose. His glance: the
+   page editor's **Browse shared starter banners** and the newsletter's **Banner Image** show the two new
+   groups; a client's record reads **Email bounced** or **Reported spam** for a suppression made from now on.
 2. **The pilot, his next steps (one at a time, as he prefers):**
    - Test 2: for the two invoices to his own mailboxes (INV-1014, INV-1015, both "Viewed"): which mailbox each
      went to, whether it landed in the Inbox, whether the sender reads "Global Business Solution via iPro" and
