@@ -26,7 +26,7 @@ Hero blocks also have layout, height, focal-point and overlay controls for the i
 
 ## Starter Banners
 
-**Browse shared starter banners** offers ready-made images by category. Pick a destination block and click **Use this banner** to apply one the same way as an uploaded image.
+**Browse shared starter banners** offers ready-made images by category: Family and lifestyle, Business, Insurance, Adviser, General, Nature and landscapes, and Cities and places. They are shared by every adviser, cost you no storage, and are the same gallery the newsletter's **Banner Image** uses. Pick a destination block and click **Use this banner** to apply one the same way as an uploaded image.
 
 ## Remove an Image
 

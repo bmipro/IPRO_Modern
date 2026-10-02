@@ -303,6 +303,8 @@ Leave **Match template default** to use the arrangement your selected template n
 
 Selecting a banner saves it to the destination block immediately; there is no separate save step for the image itself. Any other unsaved changes in that block's other fields (heading, body, buttons, hero settings) still require clicking **Save Block**.
 
+The gallery is shared by every adviser and grouped: Family and lifestyle, Business, Insurance, Adviser, General, Nature and landscapes (mountains, a beach, Niagara Falls, the Grand Canyon, skies) and Cities and places (Toronto's skyline, rooftops, a harbour). Every banner is a wide strip, so it suits a hero or a page-top image more than a square photo spot.
+
 ## Upload and Use an Image
 
 1. Edit a page.
