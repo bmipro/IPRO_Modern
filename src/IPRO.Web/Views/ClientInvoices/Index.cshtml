@@ -180,6 +180,11 @@
               {
                 <span class="badge bg-danger-subtle text-danger">Bounced</span>
               }
+              else if (latest.Status == IPRO.Entities.ClientInvoiceEmailStatus.Failed && latest.LastEvent == "spamreport")
+              {
+                @* 538: delivered, then reported as spam by the recipient -- not a send that failed. *@
+                <span class="badge bg-danger-subtle text-danger">Spam complaint</span>
+              }
               else if (latest.Status == IPRO.Entities.ClientInvoiceEmailStatus.Failed)
               {
                 <span class="badge bg-danger-subtle text-danger">Send failed</span>

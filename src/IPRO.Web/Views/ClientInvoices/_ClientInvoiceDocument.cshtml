@@ -79,6 +79,12 @@
                   {
                     <span style="color:#b91c1c">bounced@(string.IsNullOrWhiteSpace(e.FailureReason) ? string.Empty : $" ({e.FailureReason})")</span>
                   }
+                  else if (e.Status == IPRO.Entities.ClientInvoiceEmailStatus.Failed && e.LastEvent == "spamreport")
+                  {
+                    @* 538: it arrived, and the recipient reported it as spam. "could not be sent" was
+                       false, and it invited a resend (the owner resent his test nine minutes later). *@
+                    <span style="color:#b91c1c">@(e.DeliveredAt != null ? $"delivered {When(e.DeliveredAt)}, then " : string.Empty)reported as spam by the recipient</span>
+                  }
                   else if (e.Status == IPRO.Entities.ClientInvoiceEmailStatus.Failed)
                   {
                     <span style="color:#b91c1c">could not be sent@(string.IsNullOrWhiteSpace(e.FailureReason) ? string.Empty : $" ({e.FailureReason})")</span>

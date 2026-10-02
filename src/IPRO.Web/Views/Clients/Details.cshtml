@@ -53,22 +53,50 @@
              agent seeing "Newsletter subscriber" on someone who has opted out would be misleading. *@
           @if (Model.EmailOptOutAt.HasValue)
           {
+            @* 538: one flag, three causes, and the adviser can do something about only one of them.
+               A bounce is about the address and ends when it is corrected; an unsubscribe or a spam
+               complaint is the person's own instruction. *@
+            var optOutReason = IPRO.Entities.EmailOptOut.ReasonOf(Model);
             <div class="mt-1">
-              <span class="badge bg-danger-subtle text-danger">
-                <i class="fas fa-ban me-1"></i>Unsubscribed
-              </span>
-              @if (Model.GreetingsOptInAt.HasValue)
+              @if (optOutReason == IPRO.Entities.EmailOptOutReason.Bounced)
               {
-                <span class="badge bg-info-subtle text-info">
-                  <i class="fas fa-cake-candles me-1"></i>Greetings only
+                <span class="badge bg-danger-subtle text-danger">
+                  <i class="fas fa-triangle-exclamation me-1"></i>Email bounced
                 </span>
+                <div class="text-muted small mt-1">
+                  @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy") &middot;
+                  An email to this address bounced, so your marketing emails to them are on hold.
+                  <a href="/portal/Clients/Edit/@Model.Id">Correct the address</a> and they resume.
+                </div>
               }
-              <div class="text-muted small mt-1">
-                @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy") &middot;
-                @(Model.GreetingsOptInAt.HasValue
-                    ? "Birthday and anniversary cards still reach them; nothing else does."
-                    : "No marketing emails reach them. You can still contact them directly.")
-              </div>
+              else if (optOutReason == IPRO.Entities.EmailOptOutReason.Complaint)
+              {
+                <span class="badge bg-danger-subtle text-danger">
+                  <i class="fas fa-flag me-1"></i>Reported spam
+                </span>
+                <div class="text-muted small mt-1">
+                  @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy") &middot;
+                  They marked one of your emails as spam. No marketing emails reach them. You can still contact them directly.
+                </div>
+              }
+              else
+              {
+                <span class="badge bg-danger-subtle text-danger">
+                  <i class="fas fa-ban me-1"></i>Unsubscribed
+                </span>
+                if (Model.GreetingsOptInAt.HasValue)
+                {
+                  <span class="badge bg-info-subtle text-info">
+                    <i class="fas fa-cake-candles me-1"></i>Greetings only
+                  </span>
+                }
+                <div class="text-muted small mt-1">
+                  @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy") &middot;
+                  @(Model.GreetingsOptInAt.HasValue
+                      ? "Birthday and anniversary cards still reach them; nothing else does."
+                      : "No marketing emails reach them. You can still contact them directly.")
+                </div>
+              }
             </div>
           }
           else if (Model.IsNewsletterSubscribed)

@@ -119,7 +119,13 @@ public class SesEmailEventsController : Controller
         "Bounce" => IsPermanent(bounceType) ? "bounce" : "deferred",
         "Complaint" => "spamreport",
         "Reject" or "RenderingFailure" => "dropped",
-        "DeliveryDelay" => "deferred",
+        // 538: a DeliveryDelay is not an outcome. Amazon keeps trying until the event's expirationTime
+        // and then reports a Delivery or a (transient) Bounce of its own. It used to map to "deferred",
+        // which the recorders for invoices, cards, letters, polls and Did You Know treat as a final
+        // failure: an email delayed by a busy mail server and delivered ten minutes later would have
+        // read "could not be sent" for good. Skipped, so the row stays "report pending" until the
+        // real outcome arrives.
+        "DeliveryDelay" => null,
         "Send" => "processed",
         _ => null
     };

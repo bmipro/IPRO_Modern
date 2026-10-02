@@ -11,9 +11,14 @@ namespace IPRO.Web.Controllers;
 public class ClientPortalProfileController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly IPRO.Business.Services.IEmailConsentService _consent;
     private int ClientId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientPortalProfileController(IPRODbContext db) => _db = db;
+    public ClientPortalProfileController(IPRODbContext db, IPRO.Business.Services.IEmailConsentService consent)
+    {
+        _db = db;
+        _consent = consent;
+    }
 
     public async Task<IActionResult> Index()
     {
@@ -48,7 +53,12 @@ public class ClientPortalProfileController : Controller
 
         client.FirstName = model.FirstName.Trim();
         client.LastName = model.LastName.Trim();
-        client.Email = model.Email.Trim().ToLowerInvariant();
+        // 538: the client replacing their own address ends a bounce on the old one (and nothing else:
+        // an unsubscribe or a spam complaint stays; they undo those on their preferences page).
+        var newEmail = model.Email.Trim().ToLowerInvariant();
+        if (IPRO.Utility.CanonicalEmail.Canonical(client.Email) != IPRO.Utility.CanonicalEmail.Canonical(newEmail))
+            _consent.LiftBounceSuppression(client);
+        client.Email = newEmail;
         client.Phone = model.Phone?.Trim() ?? string.Empty;
         client.CellPhone = model.CellPhone?.Trim() ?? string.Empty;
         client.Address = model.Address?.Trim() ?? string.Empty;

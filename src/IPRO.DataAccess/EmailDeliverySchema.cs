@@ -58,6 +58,8 @@ public static class EmailDeliverySchema
         ("Clients", "EmailOptOutAt",         "datetime(6) NULL"),
         ("Clients", "GreetingsOptInAt",      "datetime(6) NULL"),
         ("Clients", "EmailPreferencesToken", "varchar(80) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''"),
+        // 538: why the client is suppressed (a bounce, a complaint, their own unsubscribe); see Client.cs.
+        ("Clients", "EmailOptOutSource",     "varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''"),
         // Default 0: an unsubscribe stops everything unless SuperAdmin ticks the box per design.
         ("ECardDesigns", "SendAfterUnsubscribe", "tinyint(1) NOT NULL DEFAULT 0")
     };

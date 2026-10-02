@@ -141,7 +141,7 @@ public class ClientFacingSendResultTests
     {
         var controller = new IPRO.Web.Controllers.ClientsController(
             null!, null!, null!, db, new GrantAll(), email, null!, null!,
-            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(), Config());
+            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(), Config(), null!);
         Wire(controller, agentId);
         return controller;
     }
@@ -209,6 +209,7 @@ public class ClientFacingSendResultTests
         public bool IsSuppressed(Client client, IPRO.Business.Services.EmailChannel channel, bool designSurvivesOptOut = false) => false;
         public Task<IPRO.Business.Services.SuppressionResult> SuppressAllAsync(Client client, string source) => throw new NotSupportedException();
         public Task ResubscribeAsync(Client client) => throw new NotSupportedException();
+        public bool LiftBounceSuppression(Client client) => throw new NotSupportedException();
         public Task<int> CancelSuppressedDripEnrollmentsAsync(int batchLimit = 500) => Task.FromResult(0);
         public Task<string> GetOrCreateTokenAsync(Client client) => Task.FromResult("tok");
         public string BuildPreferencesUrl(string token) => $"https://example.test/prefs/{token}";

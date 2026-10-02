@@ -156,7 +156,7 @@ public class GoogleCalendarDisconnectTests
     private static IPRO.Web.Controllers.ClientsController NewClientsController(IPRODbContext db, IDataProtectionProvider provider, int agentId)
     {
         var controller = new IPRO.Web.Controllers.ClientsController(
-            null!, null!, null!, db, new GrantAll(), null!, null!, new StubGoogle(), provider, new ConfigurationBuilder().Build());
+            null!, null!, null!, db, new GrantAll(), null!, null!, new StubGoogle(), provider, new ConfigurationBuilder().Build(), null!);
         Wire(controller, agentId);
         return controller;
     }

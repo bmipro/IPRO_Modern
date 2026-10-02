@@ -98,7 +98,7 @@ public class ClientPortalAddressTests
         var email = new RecordingEmail();
         var controller = new IPRO.Web.Controllers.ClientsController(
             null!, null!, null!, db, new GrantAll(), email, null!, null!,
-            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(), Config());
+            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(), Config(), null!);
         var ctx = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, agentId.ToString()) }, "test"))

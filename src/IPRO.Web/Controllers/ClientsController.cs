@@ -27,14 +27,16 @@ public class ClientsController : Controller
     private readonly IGoogleCalendarService _googleCalendar;
     private readonly IDataProtector _googleTokenProtector;
     private readonly IConfiguration _configuration;
+    private readonly IPRO.Business.Services.IEmailConsentService _consent;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IBlobStorageService blob, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, IConfiguration configuration)
+    public ClientsController(IClientService clients, IContactImporter importer, IUnitOfWork uow, IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IBlobStorageService blob, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, IConfiguration configuration, IPRO.Business.Services.IEmailConsentService consent)
     {
         _clients = clients; _importer = importer; _uow = uow; _db = db; _entitlements = entitlements; _email = email; _blob = blob;
         _googleCalendar = googleCalendar;
         _googleTokenProtector = dataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1");
         _configuration = configuration;
+        _consent = consent;
     }
 
     public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter)
@@ -516,13 +518,23 @@ public class ClientsController : Controller
             return View(model);
         }
 
+        // 538: a bounce is about the address. If this save replaces the address that bounced, the
+        // suppression goes with it -- before the fields are applied, so the newsletter box on this
+        // same form is honoured. An unsubscribe or a spam complaint is the person's own instruction
+        // and no edit here touches it. Compared on the canonical form (443): respelling one Gmail
+        // mailbox with a dot is not a new address.
+        var addressReplaced = CanonicalEmail.Canonical(client.Email) != CanonicalEmail.Canonical(model.Email);
+        var bounceLifted = addressReplaced && _consent.LiftBounceSuppression(client);
+
         ApplyClientFields(client, model);
         client.UpdatedAt = DateTime.UtcNow;
         client.Categories.Clear();
         await ApplyCategoriesAsync(client, categoryIds);
         await _db.SaveChangesAsync();
 
-        TempData["Success"] = "Client updated.";
+        TempData["Success"] = bounceLifted
+            ? "Client updated. The address that bounced has been replaced, so email to this client is switched back on."
+            : "Client updated.";
         return RedirectToAction(nameof(Index));
     }
 

@@ -296,6 +296,7 @@ public class NarrowAuditFixTests
         public bool IsSuppressed(Client client, EmailChannel channel, bool designSurvivesOptOut = false) => false;
         public Task<SuppressionResult> SuppressAllAsync(Client client, string source) => throw new NotSupportedException();
         public Task ResubscribeAsync(Client client) => throw new NotSupportedException();
+        public bool LiftBounceSuppression(Client client) => throw new NotSupportedException();
         public Task<int> CancelSuppressedDripEnrollmentsAsync(int batchLimit = 500) => Task.FromResult(0);
         public Task<string> GetOrCreateTokenAsync(Client client) => Task.FromResult("tok");
         public string BuildPreferencesUrl(string token) => $"https://example.test/prefs/{token}";

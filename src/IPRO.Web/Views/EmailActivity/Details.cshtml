@@ -17,6 +17,8 @@
     // already clicked a link would be needlessly pessimistic.
     (string Label, string Css) Progress(IPRO.Web.Controllers.EmailRecipientRow r)
     {
+        // 538: a complaint is the recipient's act on an email that arrived, not a send that failed.
+        if ((r.Issue ?? string.Empty).StartsWith("complaint", StringComparison.OrdinalIgnoreCase)) return ("Reported spam", "bg-danger-subtle text-danger");
         if (!string.IsNullOrWhiteSpace(r.Issue)) return ("Failed", "bg-danger-subtle text-danger");
         if (r.ClickedAt.HasValue) return ("Clicked", "bg-primary-subtle text-primary");
         if (r.OpenedAt.HasValue) return ("Opened", "bg-success-subtle text-success");

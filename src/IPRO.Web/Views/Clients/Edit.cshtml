@@ -99,8 +99,21 @@
       @if (Model.EmailOptOutAt.HasValue)
       {
         @* 492 (owner): the switch cannot turn a person back on who unsubscribed from everything; say so
-           instead of accepting a tick that silently does nothing. *@
-        <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>This client unsubscribed from all email on @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy"). Turning the newsletter back on here has no effect; only they can, from the preferences link in any message or from their portal.</div>
+           instead of accepting a tick that silently does nothing.
+           538: unless what stopped the mail was the ADDRESS -- a bounce -- and the address is on this form. *@
+        var optOutReason = IPRO.Entities.EmailOptOut.ReasonOf(Model);
+        if (optOutReason == IPRO.Entities.EmailOptOutReason.Bounced)
+        {
+          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>An email to this client's address bounced on @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy"), so marketing emails to them are on hold. Correct the address above and save: email to them is switched back on, and this switch works again.</div>
+        }
+        else if (optOutReason == IPRO.Entities.EmailOptOutReason.Complaint)
+        {
+          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>This client reported one of your emails as spam on @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy") and is unsubscribed from all email. Turning the newsletter back on here has no effect; only they can, from the preferences link in any message or from their portal.</div>
+        }
+        else
+        {
+          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>This client unsubscribed from all email on @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy"). Turning the newsletter back on here has no effect; only they can, from the preferences link in any message or from their portal.</div>
+        }
       }
     </div>
     <div class="col-12">

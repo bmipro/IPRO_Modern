@@ -313,7 +313,7 @@ public class Ses531Tests
     [InlineData("Complaint", null, "spamreport", false)]
     [InlineData("Reject", null, "dropped", false)]
     [InlineData("RenderingFailure", null, "dropped", false)]
-    [InlineData("DeliveryDelay", null, "deferred", false)]
+    [InlineData("DeliveryDelay", null, null, false)]   // 538: Amazon is still trying; the outcome is its own event
     [InlineData("Send", null, "processed", false)]
     [InlineData("Open", null, null, false)]
     [InlineData("SomethingNew", null, null, false)]

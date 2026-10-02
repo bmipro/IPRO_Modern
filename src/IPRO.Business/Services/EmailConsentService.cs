@@ -62,6 +62,14 @@ public interface IEmailConsentService
     // The deliberate reverse, made by a person looking at the preferences page.
     Task ResubscribeAsync(Client client);
 
+    // 538: the other reverse, and a narrow one. A hard bounce is about an ADDRESS, not a decision by
+    // the person, so when that address is replaced -- the adviser corrects a typo, the client changes
+    // it in their portal -- the suppression goes with it. Only a bounce: an unsubscribe or a spam
+    // complaint is the person's own instruction and survives any change of address. True when it
+    // lifted. It does NOT save: the caller writes the new address in the same unit of work, and a
+    // lift saved without it would reopen mail to the address that bounced.
+    bool LiftBounceSuppression(Client client);
+
     // JOBS-1's truth sweep: cancel every ACTIVE drip enrollment whose client is suppressed.
     // SuppressAllAsync already cancels enrollments at the moment of a NEW opt-out; this covers the
     // rows that predate that (clients who opted out before 2026-08-17) and any writer that slips
@@ -161,14 +169,34 @@ public class EmailConsentService : IEmailConsentService
     {
         if (client == null) return new SuppressionResult(true, 0, 0);
 
+        // 538: the reason is kept on the row, clipped to its column: a long source must never be the
+        // thing that stops a suppression.
+        var keptSource = (source ?? string.Empty).Trim();
+        if (keptSource.Length > EmailOptOut.SourceMaxLength) keptSource = keptSource[..EmailOptOut.SourceMaxLength];
+
         if (client.EmailOptOutAt.HasValue)
         {
             // Already suppressed. Do not repeat the sweeps or the notification -- but DO make sure
             // the newsletter flag agrees, because the two mechanisms drifting apart is the exact
             // inconsistency Client.EmailOptOutAt was introduced to end.
+            var changed = false;
             if (client.IsNewsletterSubscribed)
             {
                 client.IsNewsletterSubscribed = false;
+                changed = true;
+            }
+            // 538: and the person's own instruction outranks an address problem. Someone suppressed
+            // for a bounce who then unsubscribes or reports spam -- about mail delivered before the
+            // bounce; a complaint report can lag by days -- has said "stop", and that has to survive
+            // the adviser correcting the address (LiftBounceSuppression). Never the other way round:
+            // a bounce reported about someone who unsubscribed does not turn it into an address problem.
+            if (EmailOptOut.ReasonOf(client) == EmailOptOutReason.Bounced && EmailOptOut.ReasonOf(keptSource) != EmailOptOutReason.Bounced)
+            {
+                client.EmailOptOutSource = keptSource;
+                changed = true;
+            }
+            if (changed)
+            {
                 client.UpdatedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync();
             }
@@ -212,6 +240,7 @@ public class EmailConsentService : IEmailConsentService
         foreach (var row in rows)
         {
             row.EmailOptOutAt = now;
+            row.EmailOptOutSource = keptSource;
             row.GreetingsOptInAt = null;
             row.IsNewsletterSubscribed = false;
             row.UpdatedAt = now;
@@ -300,12 +329,29 @@ public class EmailConsentService : IEmailConsentService
         if (client == null) return;
 
         client.EmailOptOutAt = null;
+        client.EmailOptOutSource = string.Empty;
         client.GreetingsOptInAt = null;
         client.IsNewsletterSubscribed = true;
         client.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("Client {ClientId} resubscribed to email from the preferences page.", client.Id);
+    }
+
+    // 538. The newsletter flag is left alone on purpose: SuppressAllAsync cleared it, and whether this
+    // person gets the newsletter again is the adviser's tick box on the same form, not ours to restore.
+    // Retired queue items and cancelled enrollments stay retired, as with a resubscribe.
+    public bool LiftBounceSuppression(Client client)
+    {
+        if (client == null || !client.EmailOptOutAt.HasValue) return false;
+        if (EmailOptOut.ReasonOf(client) != EmailOptOutReason.Bounced) return false;
+
+        client.EmailOptOutAt = null;
+        client.EmailOptOutSource = string.Empty;
+        client.UpdatedAt = DateTime.UtcNow;
+
+        _logger.LogInformation("Client {ClientId}: the address that bounced was replaced, so the bounce suppression was lifted.", client.Id);
+        return true;
     }
 
     public async Task<string> GetOrCreateTokenAsync(Client client)

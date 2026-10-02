@@ -28,6 +28,16 @@ The email address is normalized to lowercase and must be unique for that agent. 
 
 To delete a client, click the trash icon and confirm. The client moves to **Recently Deleted** for 30 days (see below); nothing is destroyed straight away.
 
+## When an Email Bounces or Is Reported as Spam
+
+Three different things stop your marketing emails to a client, and the client's record says which:
+
+- **Unsubscribed**: the client asked to stop, from a link in an email or from their portal. Only they can turn it back on.
+- **Reported spam**: the client marked one of your emails as spam. That counts as asking to stop, and only they can undo it.
+- **Email bounced**: an email to their address came back because the address does not exist or cannot receive mail. Nobody asked for anything; the address is wrong. Open the client, click **Edit**, correct the email address and save. Email to them is switched back on, and the **Newsletter subscribed** switch works again.
+
+Each time one of these happens you get an email saying which it was. You can always contact the client directly; only the newsletters, campaigns, e-cards, e-letters, polls and Did You Know emails sent from your portal are affected.
+
 ## Recently Deleted
 
 Deleting a client no longer destroys anything immediately. The client and everything that belonged to them (notes, follow-ups, life events, account-type links, portal documents, invoices and estimates with their lines, queued e-cards and e-letters, testimonial submissions) move to **Recently Deleted**, reachable from the button at the top of **Clients**. They stay there for 30 days.

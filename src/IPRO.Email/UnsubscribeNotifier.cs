@@ -35,16 +35,53 @@ public class UnsubscribeNotifier : IUnsubscribeNotifier
         var clientName = $"{client.FirstName} {client.LastName}".Trim();
         if (string.IsNullOrWhiteSpace(clientName)) clientName = client.Email;
 
-        var html = $"""
+        // 538: the same suppression has three causes, and until now the adviser was told one. The
+        // owner's pilot of Amazon SES: an estimate to a mailbox that bounces and an invoice to one
+        // that reports spam, and two notices saying each client "has unsubscribed from your emails".
+        // The reason is on the row by the time a notifier runs (SuppressAllAsync saves first).
+        var (subject, html) = EmailOptOut.ReasonOf(client) switch
+        {
+            EmailOptOutReason.Bounced => BouncedNotice(clientName, client.Email),
+            EmailOptOutReason.Complaint => ComplaintNotice(clientName),
+            _ => UnsubscribedNotice(clientName)
+        };
+
+        await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(), subject, html);
+    }
+
+    private static (string Subject, string Html) UnsubscribedNotice(string clientName) =>
+        ($"{clientName} unsubscribed from your emails",
+         $"""
             <p>{System.Net.WebUtility.HtmlEncode(clientName)} has unsubscribed from your emails.</p>
             <p style="color:#475569;">They will no longer receive your newsletter, e-letters, polls
             or website follow-ups. If they chose to keep receiving birthday and anniversary
             greetings, those will still go out.</p>
             <p style="color:#475569;">You can still contact them directly — this only affects the
             marketing emails sent from your IPRO portal.</p>
-            """;
+            """);
 
-        await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
-            $"{clientName} unsubscribed from your emails", html);
-    }
+    // Nobody decided anything: the address is wrong. What the adviser can do about it is the point.
+    private static (string Subject, string Html) BouncedNotice(string clientName, string address) =>
+        ($"An email to {clientName} bounced",
+         $"""
+            <p>An email to {System.Net.WebUtility.HtmlEncode(clientName)} at
+            <strong>{System.Net.WebUtility.HtmlEncode(address)}</strong> bounced:
+            the address does not exist or cannot receive mail.</p>
+            <p style="color:#475569;">Your newsletter, e-letters, cards, polls and campaigns to this
+            client are on hold, because mail to an address that bounces harms the delivery of all
+            your other email.</p>
+            <p style="color:#475569;">If the address is mistyped, open the client in your IPRO portal
+            and correct it. Saving the corrected address switches their email back on.</p>
+            """);
+
+    private static (string Subject, string Html) ComplaintNotice(string clientName) =>
+        ($"{clientName} reported one of your emails as spam",
+         $"""
+            <p>{System.Net.WebUtility.HtmlEncode(clientName)} marked one of your emails as spam.</p>
+            <p style="color:#475569;">That is treated as a request to stop: they will no longer
+            receive your newsletter, e-letters, cards, polls or campaigns, and only they can change
+            that.</p>
+            <p style="color:#475569;">You can still contact them directly — this only affects the
+            marketing emails sent from your IPRO portal.</p>
+            """);
 }
