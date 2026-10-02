@@ -75,6 +75,8 @@ if (!recurringJobsDisabled)
     });
     // 535: gives gallery photos from before 535 their small copy, once, two minutes after start.
     builder.Services.AddHostedService<IPRO.Web.Infrastructure.GalleryTileBackfillService>();
+    // 540: gives the suppressions made before 538 their reason, where the email history shows it.
+    builder.Services.AddHostedService<IPRO.Web.Infrastructure.EmailOptOutBackfillService>();
 }
 
 // Liveness only -- no database or storage checks, deliberately. Azure's health check restarts an
