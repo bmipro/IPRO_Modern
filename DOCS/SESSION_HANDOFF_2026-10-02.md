@@ -24,6 +24,18 @@
 - **539 built and deployed (2026-10-02, `cef28f0`)** ("can u also push these images for shared use among the agents", a folder of
   34): 27 are in the shared banner gallery, cut to its strip shape, in two new groups and three old ones. Seven
   are not; two of those are held for his word on the rights (below).
+- **The owner tried 538 live, about 5:10 to 6 p.m.:** a complaint reads "delivered Oct 2, 5:12 PM, then reported
+  as spam by the recipient" (INV-1010); a brand-new client sent to the bounce mailbox (INV-1016) reads Bounced,
+  and its Edit form carries the new note ("An email to this client's address bounced on Oct 2, 2026 ..."). The
+  web log had no error after the deploy. His two earlier test clients, suppressed before 538, stayed
+  "Unsubscribed" when he changed their addresses.
+- **540 built, pending deploy** (offered because of that; his word: "go"): the suppressions made before 538
+  get their reason from the email history, once, three minutes after the web app starts; an address the
+  adviser had already corrected is switched back on. HELD for the next push, as offered.
+- **541, the e-card design brief for the outside designer** (his ask, so the designer can work while we do
+  "more important stuff"): written, with a sample of two current cards. His copy is
+  `Documents\iPro_ECard_Design_Brief_2026-10-02\` (a PDF to forward, the text, the sample picture); the same
+  brief is a Claude doc; `DOCS/ECARD_DESIGN_BRIEF.md` has it with the build notes.
 - **The tool that runs long jobs changed its limits:** a background command is now stopped at ten minutes even
   while the session is working, so a 47-minute gate cannot run as one job. The gate for 538 + 539 ran as one
   build and three test runs that together cover every test once.
@@ -56,18 +68,25 @@
      bounced**, and correcting its address should switch email back on.
    - Part 2 (marketing mail) needs his setting change (`Email__Ses__Streams` = `notify,news`, a restart).
    - The decision: runbook 7a, "The decision".
-3. **539, his two to decide:** `friends_group.jpg` (identifiable people) and `wall.JPG` (a painted mural) are
+3. **540 is in the working tree's history as a local commit, gated, NOT pushed:** it goes out with the next push
+   or the close-out. About three minutes after that start the web log should carry "Suppression reasons from
+   before 538: ..."; his complaint test client should then read **Reported spam**, and his first bounce test
+   client **Email bounced** (still on hold: the address he replaced it with bounced too).
+4. **539, his two to decide:** `friends_group.jpg` (identifiable people) and `wall.JPG` (a painted mural) are
    out until he says he has the rights. And one for him to confirm: several of the images look like purchased
    stock graphics (the eyes and globes, the silhouettes, the globe, the marble); sharing them with every adviser
    is fine only if iPro's licence allows passing them on. To add or drop one: `make_banners_539.py` in the
    session scratchpad cuts them, then a line in `WebsiteStarterBannerCatalog` and in `SharedBanners539Tests`.
-4. **536, Monday 2026-10-05:** his follow-ups mail, "4 follow-ups overdue", around 7 a.m. Eastern unless he
+5. **541, his five points before the brief goes to the designer:** the occasions and the count (40 across 20
+   proposed), the dates, the fee, the rights wording, French greetings or not. A comment on the doc asks him
+   about the first.
+6. **536, Monday 2026-10-05:** his follow-ups mail, "4 follow-ups overdue", around 7 a.m. Eastern unless he
    completes them first.
-5. **Carried:** the builder retest when the developer's fixes arrive; 532 (Refer a Friend) after 531; decisions
+7. **Carried:** the builder retest when the developer's fixes arrive; 532 (Refer a Friend) after 531; decisions
    on 520, 524, 528 and 529; the open list (506, the page-view tables' retention, an adviser's icon and logo,
    the comped plans' renewal date, 519, `AsSplitQuery` on the client Details page); optional HostPapa forwarders.
-6. **The calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; ACS closes to new customers
+8. **The calendar:** clear `Email__TrackingSigningKeyPrevious` around 17 October; ACS closes to new customers
    23 October; the new customer's first renewal 25 October; Platinum's setup-fee waiver ends 30 October; .NET 10
    in October.
 
-Related: `DOCS/TODO.md` 538 and 539; `DOCS/SES_GO_LIVE_RUNBOOK.md` 7a; `DOCS/SESSION_HANDOFF_2026-10-01.md`.
+Related: `DOCS/TODO.md` 538 to 541; `DOCS/ECARD_DESIGN_BRIEF.md`; `DOCS/SES_GO_LIVE_RUNBOOK.md` 7a; `DOCS/SESSION_HANDOFF_2026-10-01.md`.
