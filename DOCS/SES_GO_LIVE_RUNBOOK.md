@@ -168,6 +168,17 @@ that a call without the secret is refused.
 | 3 | The other client emails, once each, to one of his mailboxes: an estimate; **Send reminder** on an invoice past its due date; **Invite to Portal**; **Request Testimonial** | Each arrives with the same sender name and replies to him. (Appointment scheduled/declined needs a request made from the client portal: optional.) |
 | 4 | Nothing: his normal client mail keeps going through Amazon for a few days | No SES failure in the log; SES -> Reputation metrics: bounces under 2%, complaints under 0.05%. |
 
+**Test 1, run by the owner 2026-10-02, about 2:30 p.m. Eastern: passed, and it found TODO 538.** `success@`: the
+invoice read Delivered. `bounce@` (an estimate): Bounced, the client suppressed, the log's hard-bounce line at
+18:31:06 UTC, the notice to him a minute later. `complaint@`: the complaint recorded ("complaint: abuse"), the
+client suppressed, the notice to him. What iPro SAID about the last two was wrong (the complaint read "could not
+be sent" and "Send failed", and both notices said "unsubscribed"); that, a bounced address the adviser could
+not correct, and a delivery delay shown as a final failure are 538. Two invoices to his own mailboxes read
+Viewed; which mailbox, the Inbox, the sender name and the reply address are still his to report (test 2).
+After 538: a complaint reads "delivered ..., then reported as spam by the recipient" / "Spam complaint", and
+the notices say "An email to <client> bounced" and "<client> reported one of your emails as spam". His two
+test clients were suppressed before 538 kept the reason, so they still read Unsubscribed.
+
 ### Part 2: the marketing mail (`news`), on his account only
 
 The pilot list limits BOTH streams, so marketing mail can be tried on his account only while
