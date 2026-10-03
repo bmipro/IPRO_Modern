@@ -25,6 +25,10 @@
   and let me know when it is fully out so we could test it together"): every email gets
   a plain-text part, and the client emails read as a letter from the adviser (TODO 542). A sample rendered from
   the built code looks right (greeting, details, button, sign-off with phone, email and address).
+- **542 tested with him** (about 12:50): INV-1018 in his Gmail Inbox in the browser and in his iPro mailbox on
+  his phone, then the portal invitation -- all read as the letter ("looking good"). His Profile email is now
+  his business address (the sign-off showed it). Found: "Mr." stranded on the line under his name, the
+  mistake `AgentNameFormatter` exists to prevent -> **542a**, the sign-off asks it ("Mr. Bahman Motamed").
 
 ## Pushed today
 
@@ -40,7 +44,8 @@ The same push carried the docs commits held since the morning (541's answers, pi
 1. **542 is live** (`f8a0e39`, build `83600c6`). The test with him: one invoice to his Gmail test client reads as the
    letter, and Gmail's Show original lists a text/plain part. The check-mark commit is held locally (a
    docs-only push restarts the site), so `main` is one commit ahead of `origin/main` on purpose.
-2. **His Profile email:** if it still shows the Yahoo address, his clients' replies and iPro's notices go there.
+2. **542a** (the designation in the sign-off) built and gated after 542 went out; see its TODO row for where
+   it stands. His Profile email is now his business address (done 10-03).
 3. **The pilot:** test 3's other three (**Send reminder** on an overdue invoice, **Invite to Portal**, **Request
    Testimonial**) to his Gmail test client -- Bob Moore holds the Yahoo address since the estimate test, so it
    goes back to the Gmail one first. Then Part 2 (his setting change, `Email__Ses__Streams` = `notify,news`) and
