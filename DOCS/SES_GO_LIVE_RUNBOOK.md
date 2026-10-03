@@ -180,11 +180,17 @@ the notices say "An email to <client> bounced" and "<client> reported one of you
 test clients, suppressed before 538 kept a reason, read Unsubscribed until 540 (deployed 10-02) found their
 reasons in the email history: Reported spam and Email bounced.
 
-**Test 2, first results (reported by the owner 2026-10-03, with screenshots):** INV-1014 (sent 10-02, 2:48 p.m.)
-reached his Gmail Inbox from "Global Business Solution via iPro" <mail@notify.iproadvisers.com>. INV-1015
-(3:02 p.m.) reached his business mailbox, read in Thunderbird: the same sender, and Reply-To is him. Both read
-Viewed in iPro, so the link opened the invoice. Still open: Gmail's **Show original** (SPF, DKIM and DMARC
-all PASS), the business mailbox's folder (Inbox or Junk), and Yahoo and Outlook.com if he has them.
+**Test 2 (reported by the owner 2026-10-03, with screenshots and Gmail's raw headers):** INV-1014 (sent 10-02,
+2:48 p.m.) reached his Gmail Inbox from "Global Business Solution via iPro" <mail@notify.iproadvisers.com>,
+delivered in 0 seconds from Amazon's Canada Central servers over TLS 1.3. Gmail's **Show original**: SPF PASS
+(the return path is `bounce.notify.iproadvisers.com`), DKIM PASS for `notify.iproadvisers.com` (Amazon signs a
+second time as `amazonses.com`), DMARC PASS; Reply-To is the adviser's own address under his business name.
+The DMARC record is monitor-only (`p=none`, `sp=none`): enough for Gmail's and Yahoo's sender rules; tightening
+it is a later step, after every service that sends as iproadvisers.com is checked. INV-1015 (3:02 p.m.) reached
+his business mailbox, read in Thunderbird: the same sender, and Reply-To is him. Both read Viewed in iPro, so
+the link opened the invoice. Invoice mail carries no List-Unsubscribe header (it is not marketing); the news
+stream adds the one-click pair, to be seen in Part 2. Still open: the business mailbox's folder (Inbox or
+Junk), and Yahoo (his adviser address is a Yahoo one) and Outlook.com.
 
 ### Part 2: the marketing mail (`news`), on his account only
 

@@ -81,10 +81,10 @@ process running; MySQL is the Windows service and needs nothing. Reboot-ready.
    the two new groups; a client's record reads **Email bounced** or **Reported spam**, now also for the
    suppressions from before 538 that the email history could explain.
 2. **The pilot, his next steps (one at a time, as he prefers):**
-   - Test 2, partly reported 10-03: INV-1014 reached his Gmail Inbox from "Global Business Solution via iPro";
-     INV-1015 reached his business mailbox with the same sender and Reply-To him; both read Viewed. Still
-     open: Gmail's Show original (SPF, DKIM and DMARC all PASS), the business mailbox's folder (Inbox or
-     Junk), and Yahoo and Outlook.com if he has them (runbook 7a).
+   - Test 2, reported 10-03: INV-1014 reached his Gmail Inbox from "Global Business Solution via iPro", with
+     SPF, DKIM and DMARC all PASS and Reply-To his own address; INV-1015 reached his business mailbox with the
+     same sender and Reply-To; both read Viewed. Still open: INV-1015's folder (Inbox or Junk), and Yahoo and
+     Outlook.com (runbook 7a).
    - Test 3: an estimate (done, to the bounce mailbox), a **Send reminder** on an overdue invoice, **Invite to
      Portal**, **Request Testimonial**, each once to one of his mailboxes.
    - Done on 10-02 after 538 went live: the complaint on a new client (INV-1010) reads "delivered ..., then
