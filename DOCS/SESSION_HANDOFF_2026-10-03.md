@@ -35,6 +35,7 @@
 | Code | Item | Gate |
 |---|---|---|
 | `f8a0e39` | **542** client emails read as a letter from the adviser; every email carries a plain-text part | 1386/1386 |
+| `cbd6ac2` | **542a** the letters' sign-off places the designation as every template does | 1389/1389 |
 
 The same push carried the docs commits held since the morning (541's answers, pilot tests 2 and 3). Build
 `83600c6` on both hosts.
@@ -44,8 +45,8 @@ The same push carried the docs commits held since the morning (541's answers, pi
 1. **542 is live** (`f8a0e39`, build `83600c6`). The test with him: one invoice to his Gmail test client reads as the
    letter, and Gmail's Show original lists a text/plain part. The check-mark commit is held locally (a
    docs-only push restarts the site), so `main` is one commit ahead of `origin/main` on purpose.
-2. **542a** (the designation in the sign-off) built and gated after 542 went out; see its TODO row for where
-   it stands. His Profile email is now his business address (done 10-03).
+2. **542a is live** (`cbd6ac2`, build `e5f18e4`): the sign-off reads "Mr. Bahman Motamed". His Profile email is now his
+   business address (done 10-03).
 3. **The pilot:** test 3's other three (**Send reminder** on an overdue invoice, **Invite to Portal**, **Request
    Testimonial**) to his Gmail test client -- Bob Moore holds the Yahoo address since the estimate test, so it
    goes back to the Gmail one first. Then Part 2 (his setting change, `Email__Ses__Streams` = `notify,news`) and
