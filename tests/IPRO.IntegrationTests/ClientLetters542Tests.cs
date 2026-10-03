@@ -119,6 +119,21 @@ public class ClientLetters542Tests
             EmailPlainText.FromHtml(html));
     }
 
+    // 542a (2026-10-03): the owner's first letter read "Bahman Motamed" with "Mr." stranded on the line below
+    // -- the very mistake AgentNameFormatter exists to prevent. The sign-off asks it, as every template does.
+    [Theory]
+    [InlineData("Mr.", "Mr. Bahman Motamed")]
+    [InlineData("CFP", "Bahman Motamed, CFP")]
+    [InlineData("", "Bahman Motamed")]
+    public void The_sign_off_places_the_designation_as_every_template_does(string designation, string nameLine)
+    {
+        var agent = Adviser();
+        agent.Designation = designation;
+        var text = EmailPlainText.FromHtml(ClientLetter.Html(agent, "Bob", new[] { "Body." }));
+
+        Assert.Contains($"Best regards,\n{nameLine}\nGlobal Business Solution\n", text);
+    }
+
     [Fact]
     public void What_a_person_typed_never_becomes_markup()
     {

@@ -65,15 +65,15 @@ public static class ClientLetter
         return name.Length == 0 ? "Hello," : $"Hi {WebUtility.HtmlEncode(name)},";
     }
 
-    // The adviser's name, their title, the business, phone and email, and the mailing address -- whichever
-    // are on file, one to a line.
+    // The adviser's name, the business, phone and email, and the mailing address -- whichever are on file,
+    // one to a line. 542a: the designation goes where every template puts it (AgentNameFormatter): "Mr.
+    // Bahman Motamed", "Bahman Motamed, CFP" -- never stranded on the line below, as the first letters had it.
     private static string SignOff(AgentUser? agent, bool withAddress)
     {
         if (agent == null) return string.Empty;
         var lines = new List<string>();
         var person = $"{agent.FirstName} {agent.LastName}".Trim();
-        if (person.Length > 0) lines.Add(WebUtility.HtmlEncode(person));
-        if (!string.IsNullOrWhiteSpace(agent.Designation)) lines.Add(WebUtility.HtmlEncode(agent.Designation.Trim()));
+        if (person.Length > 0) lines.Add(WebUtility.HtmlEncode(AgentNameFormatter.FullName(agent)));
         var business = AdviserSender.BusinessName(agent);
         if (business.Length > 0 && business != person) lines.Add(WebUtility.HtmlEncode(business));
         var reach = new[] { agent.Phone, agent.Email }.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => WebUtility.HtmlEncode(v!.Trim())).ToList();
