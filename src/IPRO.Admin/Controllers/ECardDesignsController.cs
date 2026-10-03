@@ -84,6 +84,9 @@ public class ECardDesignsController : Controller
         model.Emoji = model.Emoji?.Trim() ?? string.Empty;
         model.Key = NormaliseKey(model.Key, model.Occasion, model.Name);
         if (!ECardArtKinds.All.Contains(model.Kind)) model.Kind = ECardArtKinds.Image;
+        // 546: a Simple card has no picture to hold any words.
+        if (!ECardGreetingStyles.All.Contains(model.GreetingStyle) || model.Kind != ECardArtKinds.Image)
+            model.GreetingStyle = ECardGreetingStyles.Below;
 
         if (string.IsNullOrWhiteSpace(model.Name))
             ModelState.AddModelError(nameof(model.Name), "Design name is required.");
@@ -146,6 +149,7 @@ public class ECardDesignsController : Controller
             existing.IsDark = model.IsDark;
             existing.IsActive = model.IsActive;
             existing.SendAfterUnsubscribe = model.SendAfterUnsubscribe;
+            existing.GreetingStyle = model.GreetingStyle;
             existing.SortOrder = model.SortOrder;
             if (uploadedUrl != null)
             {

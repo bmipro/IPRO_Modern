@@ -601,6 +601,8 @@ using (var scope = app.Services.CreateScope())
         await NewsLetterTemplateSeeder.SeedAsync(db, seedLogger);
         await ECardDesignSeeder.SeedAsync(db, seedLogger);
         await ELetterTemplateSeeder.SeedAsync(db, seedLogger);
+        // 546: the 2026 collection, added to the library once; never touches an existing design.
+        await ECardCollectionSeeder.SeedAsync(db, seedLogger);
     }
     catch (Exception ex)
     {

@@ -271,6 +271,8 @@ using (var scope = app.Services.CreateScope())
         await NewsLetterTemplateSeeder.SeedAsync(db, seedLogger);
         await ECardDesignSeeder.SeedAsync(db, seedLogger);
         await ELetterTemplateSeeder.SeedAsync(db, seedLogger);
+        // 546: the 2026 collection -- same call as IPRO.Web; SeedGuard lets only one app insert.
+        await ECardCollectionSeeder.SeedAsync(db, seedLogger);
     }
     catch (Exception ex)
     {

@@ -64,6 +64,14 @@ public static class EmailDeliverySchema
         ("ECardDesigns", "SendAfterUnsubscribe", "tinyint(1) NOT NULL DEFAULT 0")
     };
 
+    // 546: card-design columns the seeders write. Here for the same reason as SendAfterUnsubscribe
+    // above: both apps call this before the starter-content seeders, so a fresh database has the
+    // column before ECardCollectionSeeder inserts into it. Every existing design is 'below'.
+    private static readonly (string Table, string Column, string Definition)[] DesignColumns =
+    {
+        ("ECardDesigns", "GreetingStyle", "varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'below'")
+    };
+
     // The atomic-claim marker on the four SEND tables (not the recipient tables above).
     //
     // Status alone cannot arbitrate a race: two dispatch jobs can both read Scheduled, both write
@@ -114,7 +122,7 @@ public static class EmailDeliverySchema
         if (ownsConnection) await db.Database.OpenConnectionAsync();
         try
         {
-            foreach (var (table, column, definition) in ConsentColumns)
+            foreach (var (table, column, definition) in ConsentColumns.Concat(DesignColumns))
             {
                 if (!await TableExistsAsync(db, table)) continue;
                 if (await ColumnExistsAsync(db, table, column)) continue;

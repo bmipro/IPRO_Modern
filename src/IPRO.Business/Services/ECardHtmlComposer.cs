@@ -13,9 +13,23 @@ namespace IPRO.Business.Services;
 // (rgba, background-size) is exactly what Outlook's Word rendering engine drops. Giving the
 // greeting its own solid band costs a little of the original's layered look and buys text that is
 // legible in every client, at every message length, on every design.
+//
+// 546: the exception is artwork that already carries its words (ECardGreetingStyles). There the
+// picture is the text, designed and approved as such, and a band below would print it twice.
 public static class ECardHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
+
+    // The widest a card is drawn; larger art is scaled down to it.
+    private const int MaxCardWidth = 620;
+
+    // 546: art narrower than this (the supplied Norooz goldfish is 361 px) keeps its own size --
+    // enlarging it would blur it -- and sits matted on the card's ground, in a card at least
+    // MinMattedCardWidth wide so the contact block and photo still fit beside each other. The
+    // narrowest art before 2026 (the anniversary roses, 467 px) is above the line and unchanged.
+    private const int MattedBelow = 460;
+    private const int MinMattedCardWidth = 480;
+    private const int MatMargin = 24;
 
     // The plain-text alternative part.
     //
@@ -30,8 +44,7 @@ public static class ECardHtmlComposer
     // also what a screen reader and a text-only client get.
     public static string WrapText(ECard card, AgentUser agent, ECardDesign template, string? unsubscribeUrl = null)
     {
-        var header = string.IsNullOrWhiteSpace(card.Subject) ? template.DefaultHeaderText : card.Subject;
-        var message = string.IsNullOrWhiteSpace(card.Message) ? template.DefaultMessage : card.Message;
+        var (header, message) = Greeting(card, template);
         var name = $"{agent.FirstName} {agent.LastName}".Trim();
 
         var lines = new List<string> { header, string.Empty, message, string.Empty, "--" };
@@ -56,25 +69,36 @@ public static class ECardHtmlComposer
     {
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
 
-        var header = string.IsNullOrWhiteSpace(card.Subject) ? template.DefaultHeaderText : card.Subject;
-        var message = string.IsNullOrWhiteSpace(card.Message) ? template.DefaultMessage : card.Message;
+        var (header, message) = Greeting(card, template);
 
         var dark = template.IsDark;
         var shellBg = dark ? "#111111" : "#ffffff";
         var textColor = dark ? "#ffffff" : "#1f2937";
         var mutedColor = dark ? "#cfd4da" : "#5b6472";
-        var width = template.IsArtwork ? Math.Min(template.Width, 620) : 600;
+
+        // A design uploaded before 546 never recorded its picture's size (Width 0), which drew the
+        // picture zero pixels wide; an unknown size now takes the full card width.
+        var artWidth = template.IsArtwork && template.Width > 0 ? Math.Min(template.Width, MaxCardWidth) : MaxCardWidth;
+        var matted = template.IsArtwork && template.Width > 0 && template.Width < MattedBelow;
+        var width = !template.IsArtwork ? 600
+            : matted ? Math.Max(artWidth + 2 * MatMargin, MinMattedCardWidth)
+            : artWidth;
 
         var face = template.IsArtwork
-            ? BuildArtworkFace(template.AbsoluteImageUrl(baseUrl), width, template)
+            ? BuildArtworkFace(template.AbsoluteImageUrl(baseUrl), artWidth, matted, ArtAltText(template))
             : BuildGeneratedFace(template, accent);
+
+        // The greeting band: the title and the message below the picture, the message alone under
+        // lettering art, nothing under a picture that carries the whole greeting.
+        var greeting = template.MessageIsInPicture ? string.Empty
+            : BuildGreeting(template.TitleIsInPicture ? null : header, message, textColor, mutedColor);
 
         return $"""
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
               <tr><td align="center">
                 <table cellpadding="0" cellspacing="0" border="0" width="{width}" style="max-width:{width}px;background:{shellBg};border-radius:10px;overflow:hidden;">
                   {face}
-                  {BuildGreeting(header, message, textColor, mutedColor)}
+                  {greeting}
                   <tr><td style="height:20px;line-height:20px;font-size:0;">&nbsp;</td></tr>
                   <tr><td style="padding:0 34px 30px;">
                     {BuildContactBlock(agent, accent, textColor, mutedColor, dark)}
@@ -85,13 +109,44 @@ public static class ECardHtmlComposer
             """;
     }
 
-    private static string BuildArtworkFace(string artUrl, int width, ECardDesign template) =>
-        $"""
-        <tr><td style="padding:0;line-height:0;font-size:0;">
-          <img src="{WebUtility.HtmlEncode(artUrl)}" width="{width}" alt="{WebUtility.HtmlEncode(template.Name)}"
-               style="display:block;width:100%;max-width:{width}px;height:auto;border:0;" />
-        </td></tr>
-        """;
+    // 546: what the card says. The agent's subject is the title and their message the message, each
+    // falling back to the design's own -- except where the picture already holds the words: lettering
+    // art's title is the design's title, and a greeting printed inside the picture is the design's
+    // whole greeting, whatever was typed (agents cannot change text inside a picture). The plain-text
+    // part and the alt text then say what the picture says.
+    private static (string Header, string Message) Greeting(ECard card, ECardDesign template)
+    {
+        var header = template.TitleIsInPicture || string.IsNullOrWhiteSpace(card.Subject) ? template.DefaultHeaderText : card.Subject;
+        var message = template.MessageIsInPicture || string.IsNullOrWhiteSpace(card.Message) ? template.DefaultMessage : card.Message;
+        return (header, message);
+    }
+
+    // The design's name describes a text-free picture. Where the picture holds words, those words
+    // are its content: the alt text is what a reader with images blocked, or a screen reader, gets.
+    private static string ArtAltText(ECardDesign template)
+    {
+        if (!template.TitleIsInPicture) return template.Name;
+        var title = template.DefaultHeaderText.Trim();
+        if (!template.MessageIsInPicture) return title;
+        // "Thank You. With sincere appreciation..." -- a title without its own stop gets one.
+        var stop = title.Length == 0 || ".!?".Contains(title[^1]) ? " " : ". ";
+        return (title + stop + template.DefaultMessage.Trim()).Trim();
+    }
+
+    private static string BuildArtworkFace(string artUrl, int width, bool matted, string alt) =>
+        matted
+            ? $"""
+              <tr><td align="center" style="padding:{MatMargin}px {MatMargin}px 0;line-height:0;font-size:0;">
+                <img src="{WebUtility.HtmlEncode(artUrl)}" width="{width}" alt="{WebUtility.HtmlEncode(alt)}"
+                     style="display:block;margin:0 auto;width:100%;max-width:{width}px;height:auto;border:0;" />
+              </td></tr>
+              """
+            : $"""
+              <tr><td style="padding:0;line-height:0;font-size:0;">
+                <img src="{WebUtility.HtmlEncode(artUrl)}" width="{width}" alt="{WebUtility.HtmlEncode(alt)}"
+                     style="display:block;width:100%;max-width:{width}px;height:auto;border:0;" />
+              </td></tr>
+              """;
 
     // The simple cards: a gradient from the agent's own accent to the card's, with the emoji as
     // the whole face. Outlook ignores the gradient and falls back to the flat accent, which is fine.
@@ -105,12 +160,13 @@ public static class ECardHtmlComposer
         </tr>
         """;
 
-    // The greeting always gets its own band on the card's solid ground -- never over the art.
-    private static string BuildGreeting(string header, string message, string textColor, string mutedColor) =>
+    // The greeting always gets its own band on the card's solid ground -- never over the art. A null
+    // header is lettering art's: the title is in the picture just above, so only the message is set.
+    private static string BuildGreeting(string? header, string message, string textColor, string mutedColor) =>
         $"""
         <tr><td style="padding:30px 34px 0;text-align:center;">
-          <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:26px;line-height:1.25;color:{textColor};">{WebUtility.HtmlEncode(header)}</div>
-          <div style="margin-top:12px;font-size:15px;line-height:1.65;color:{mutedColor};">{WebUtility.HtmlEncode(message).Replace("\n", "<br>")}</div>
+          {(header == null ? "" : $"""<div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:26px;line-height:1.25;color:{textColor};margin-bottom:12px;">{WebUtility.HtmlEncode(header)}</div>""")}
+          <div style="font-size:15px;line-height:1.65;color:{mutedColor};">{WebUtility.HtmlEncode(message).Replace("\n", "<br>")}</div>
         </td></tr>
         """;
 

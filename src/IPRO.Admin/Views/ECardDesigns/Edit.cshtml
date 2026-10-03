@@ -108,6 +108,21 @@
           <input type="file" name="artwork" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
           <div class="form-text">JPG, PNG, GIF or WebP, up to 8 MB. Upload a new file to replace what's there.</div>
           <span class="text-danger small">@Html.ValidationMessage("artwork")</span>
+
+          @* 546: where the greeting goes -- see ECardGreetingStyles. *@
+          <div class="mt-4">
+            <label asp-for="GreetingStyle" class="form-label fw-semibold">Words in the picture</label>
+            <select asp-for="GreetingStyle" class="form-select">
+              <option value="below">None &mdash; the greeting goes below the picture</option>
+              <option value="title-in-picture">The title is lettered in &mdash; only the message goes below</option>
+              <option value="in-picture">The whole greeting is in the picture &mdash; nothing goes below</option>
+            </select>
+            <div class="form-text">
+              So nothing is printed twice. With the whole greeting in the picture, agents can't change
+              its wording and their message box is switched off; the default greeting below is then
+              the card's alt text and plain-text version, so keep it matching the picture.
+            </div>
+          </div>
         </div>
       </div>
 
@@ -156,9 +171,9 @@
             <label asp-for="IsDark" class="form-check-label">Dark</label>
           </div>
           <div class="form-text mt-2">
-            The greeting sits below the card face on its own solid ground, never over the picture.
-            Match this to the artwork — dark for a night scene, light for pale artwork — so the card
-            reads as one object.
+            The greeting sits below the card face on its own solid ground, never over the picture
+            (unless the picture carries its own words). Match this to the artwork — dark for a night
+            scene, light for pale artwork — so the card reads as one object.
           </div>
         </div>
       </div>
@@ -189,5 +204,27 @@
   image.addEventListener('change', sync);
   generated.addEventListener('change', sync);
   sync();
+
+  // 546: the picture's size goes with the upload. Cards are drawn at the art's own width (620 px at
+  // most) and a small picture is matted rather than enlarged; before this, every uploaded design
+  // was saved as 0 x 0.
+  var fileInput = document.querySelector('input[name="artwork"]');
+  var widthInput = document.querySelector('input[name="Width"]');
+  var heightInput = document.querySelector('input[name="Height"]');
+  if (fileInput && widthInput && heightInput) {
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      var url = URL.createObjectURL(file);
+      var picture = new Image();
+      picture.onload = function () {
+        widthInput.value = picture.naturalWidth;
+        heightInput.value = picture.naturalHeight;
+        URL.revokeObjectURL(url);
+      };
+      picture.onerror = function () { URL.revokeObjectURL(url); };
+      picture.src = url;
+    });
+  }
 })();
 </script>

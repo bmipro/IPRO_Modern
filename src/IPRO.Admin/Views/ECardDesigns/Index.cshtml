@@ -49,7 +49,7 @@ else
               <div class="d-flex align-items-center gap-2">
                 @if (design.IsArtwork && !string.IsNullOrWhiteSpace(design.ImageUrl))
                 {
-                  <img src="@design.AbsoluteImageUrl(webBaseUrl)" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:4px;" />
+                  <img src="@design.AbsolutePickerImageUrl(webBaseUrl)" alt="" loading="lazy" style="width:64px;height:48px;object-fit:contain;border-radius:4px;background:@(design.IsDark ? "#111111" : "#f1f5f9");" />
                 }
                 else
                 {
@@ -62,7 +62,17 @@ else
               </div>
             </td>
             <td>@design.Occasion</td>
-            <td class="small text-muted" style="max-width:280px;">@design.DefaultHeaderText</td>
+            <td class="small text-muted" style="max-width:280px;">
+              @design.DefaultHeaderText
+              @if (design.MessageIsInPicture)
+              {
+                <div><span class="badge bg-light text-dark border">greeting in the picture</span></div>
+              }
+              else if (design.TitleIsInPicture)
+              {
+                <div><span class="badge bg-light text-dark border">title in the picture</span></div>
+              }
+            </td>
             <td>@design.SortOrder</td>
             <td><span class="badge @(design.IsActive ? "bg-success" : "bg-secondary")">@(design.IsActive ? "Active" : "Retired")</span></td>
             <td class="text-end text-nowrap">
