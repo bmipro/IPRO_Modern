@@ -342,7 +342,8 @@ public class NarrowAuditFixTests
         var recipient = new ECardRecipient
         {
             ECardId = card.Id, ClientId = client.Id, Email = client.Email, RecipientName = "Card Reader",
-            Status = ECardRecipientStatuses.Sent, SentAt = DateTime.UtcNow, TrackingToken = Guid.NewGuid().ToString("N")
+            Status = ECardRecipientStatuses.Sent, SentAt = DateTime.UtcNow.AddMinutes(-10),   // 545: a reader's open, not the arrival check
+            TrackingToken = Guid.NewGuid().ToString("N")
         };
         db.Add(recipient);
         await db.SaveChangesAsync();

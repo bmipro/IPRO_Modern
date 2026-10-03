@@ -270,7 +270,7 @@ public class EmailTrackingTests
             Email = "reader@example.test",
             RecipientName = "Reader",
             Status = NewsLetterRecipientStatus.Sent,
-            SentAt = DateTime.UtcNow,
+            SentAt = DateTime.UtcNow.AddMinutes(-10),   // 545: a reader's open, not the arrival check
             UnsubscribeToken = Guid.NewGuid().ToString("N"),
             TrackingToken = token
         };
@@ -406,7 +406,7 @@ public class EmailTrackingTests
             Email = client.Email,
             RecipientName = "Card Reader",
             Status = ECardRecipientStatuses.Sent,
-            SentAt = DateTime.UtcNow,
+            SentAt = DateTime.UtcNow.AddMinutes(-10),   // 545: a reader's open, not the arrival check
             TrackingToken = token
         };
         db.Add(recipient);

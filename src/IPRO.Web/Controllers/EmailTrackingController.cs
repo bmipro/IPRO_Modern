@@ -123,8 +123,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.NewsLetterRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
-                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _newsletters.RecordRecipientEventAsync(row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -132,8 +132,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.DripCampaignStepSends.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
-                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _newsletters.RecordDripStepEventAsync(row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -141,8 +141,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.ECardRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
-                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("ecard", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -150,8 +150,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.ELetterRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
-                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("eletter", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -159,8 +159,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.PollRecipients.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
-                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("poll", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -168,8 +168,8 @@ public class EmailTrackingController : Controller
             {
                 var row = await _db.DidYouKnowEmailQueueItems.AsNoTracking()
                     .Where(r => r.TrackingToken == token)
-                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt }).FirstOrDefaultAsync();
-                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt))
+                    .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAtUtc }).FirstOrDefaultAsync();
+                if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("didyouknow", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
                 break;
             }
@@ -184,4 +184,16 @@ public class EmailTrackingController : Controller
         eventName == "click" ? clickedAt != null : openedAt != null;
 
     private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    // 545 (2026-10-03): an image load in the first minute after the send is the receiving mail system
+    // checking the email as it arrives, not a person reading it. On the Amazon pilot the owner's two
+    // birthday cards each read "Opened" two seconds after they were sent -- a load from a server in San
+    // Francisco, before anyone had looked -- and since an open is write-once, his own opens a minute
+    // later (through Gmail's image servers) never showed: "I could delete the email without reading it
+    // ... but the agent thinks it was read." Such a load is not recorded; the reader's later load is.
+    // Only opens are held back, and only by the pixel: a click is recorded whenever it comes.
+    public static readonly TimeSpan ArrivalCheckWindow = TimeSpan.FromSeconds(60);
+
+    private static bool IsArrivalCheck(string eventName, DateTime? sentAt, DateTime now) =>
+        eventName == "open" && sentAt.HasValue && now - sentAt.Value < ArrivalCheckWindow;
 }

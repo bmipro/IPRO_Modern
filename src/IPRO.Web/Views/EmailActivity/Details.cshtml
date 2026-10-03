@@ -152,7 +152,8 @@ else
     Delivered is reported back by the mail provider. Opened is recorded when the recipient's mail app
     loads the message's images, and Clicked when a link in it is followed; both can take a minute or
     two to appear. Opens rely on images loading, so the real open rate is usually a little higher
-    than the number shown.
+    than the number shown. Images loaded in the first minute after sending are not counted: that is the
+    receiving mail system checking the email, not a person reading it.
     @if (!tracking)
     {
       <span><br /><strong>Open and click tracking is not switched on for this kind of mail</strong>, so Opened and Clicked stay empty. Delivered is unaffected.</span>
