@@ -38,7 +38,8 @@
   recorded at 4:22. Each read "Opened" two seconds after it was sent, before he looked -- a load from San
   Francisco, the mail system checking the card on arrival; he: "I could delete the email without reading it
   ... but the agent thinks it was read" -> **545**, a load in the first minute after the send is not an open.
-- **543, 544 and 545 built and gated together, HELD for the next push** (his word: "go, fix it with the next push").
+- **543, 544 and 545 built, gated together and deployed (2026-10-03, build `fa871e3`)** (his words: "go, fix it with the next
+  push", then "push it and let me know when it is fully out").
 
 ## Pushed today
 
@@ -46,6 +47,9 @@
 |---|---|---|
 | `f8a0e39` | **542** client emails read as a letter from the adviser; every email carries a plain-text part | 1386/1386 |
 | `cbd6ac2` | **542a** the letters' sign-off places the designation as every template does | 1389/1389 |
+| `40c5a31` | **543** a newsletter's unsubscribe link lands on the preferences page, with the way back | 1398/1398 |
+| `4063179` | **544** a card or letter recipient skipped for an unsubscribe says so on the row | 1398/1398 |
+| `c98b714` | **545** an image load in the first minute after the send is not an open | 1398/1398 |
 
 The same push carried the docs commits held since the morning (541's answers, pilot tests 2 and 3). Build
 `83600c6` on both hosts.
@@ -57,7 +61,7 @@ The same push carried the docs commits held since the morning (541's answers, pi
    docs-only push restarts the site), so `main` is one commit ahead of `origin/main` on purpose.
 2. **542a is live** (`cbd6ac2`, build `e5f18e4`): the sign-off reads "Mr. Bahman Motamed". His Profile email is now his
    business address (done 10-03).
-3. **543, 544 and 545 go out with the next push.** Then a newsletter's unsubscribe link lands on the preferences
+3. **543, 544 and 545 are live** (build `fa871e3`). Since then a newsletter's unsubscribe link lands on the preferences
    page, a card skipped for an unsubscribe reads "Recipient has unsubscribed from these emails." on its row, and
    an email reads Opened only when it was opened after its first minute. Test 7 (two new simulator clients, a
    newsletter to them) is the pilot's last before the decision.
