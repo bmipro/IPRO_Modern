@@ -205,6 +205,14 @@ business mailbox he reads, which removes the free-mail Reply-To from his own mai
 "delivered Oct 3, 10:38 AM" (Yahoo's server accepted it: Delivered does not mean the Inbox, and no provider
 reports a spam-folder placement), then viewed three times and Approved from the public link.
 
+**Test 3 passed (2026-10-03, after 542 and 542a went out; his screenshots):** INV-1018 to his Gmail (Inbox, in
+the browser) and to a second mailbox read on his phone; the overdue reminder for INV-1019 (Gmail Inbox, Email
+Activity: Delivered); the portal invitation (Gmail Inbox; he activated the portal); the testimonial request
+(Gmail Inbox, 2:27 p.m., with 533's footer). Every one reads as the letter from the adviser: greeted by name,
+what it is about, the button, the questions line with his phone, the sign-off "Mr. Bahman Motamed" with the
+business, phone, email and address. Opened and Clicked read "not tracked" for invoice mail by design (488):
+the invoice page records its own views.
+
 ### Part 2: the marketing mail (`news`), on his account only
 
 The pilot list limits BOTH streams, so marketing mail can be tried on his account only while

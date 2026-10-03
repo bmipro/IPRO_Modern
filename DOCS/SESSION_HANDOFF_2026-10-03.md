@@ -47,10 +47,9 @@ The same push carried the docs commits held since the morning (541's answers, pi
    docs-only push restarts the site), so `main` is one commit ahead of `origin/main` on purpose.
 2. **542a is live** (`cbd6ac2`, build `e5f18e4`): the sign-off reads "Mr. Bahman Motamed". His Profile email is now his
    business address (done 10-03).
-3. **The pilot:** test 3's other three (**Send reminder** on an overdue invoice, **Invite to Portal**, **Request
-   Testimonial**) to his Gmail test client -- Bob Moore holds the Yahoo address since the estimate test, so it
-   goes back to the Gmail one first. Then Part 2 (his setting change, `Email__Ses__Streams` = `notify,news`) and
-   the decision (runbook 7a).
+3. **The pilot:** test 3 passed on 10-03 (an invoice, the overdue reminder, the portal invitation and the
+   testimonial request, all in his Gmail Inbox as the letter; he: "well done"). Next: Part 2 (his setting
+   change, `Email__Ses__Streams` = `notify,news`, a restart), tests 5 to 7, then the decision (runbook 7a).
 4. **541:** ready to send; the fee is his to agree with the designer. Part 1 is due 15 November: load it the week
    it arrives.
 5. **539, his two to decide** (`friends_group.jpg`, `wall.JPG`) and the stock-image licences, as in 10-02's list.
