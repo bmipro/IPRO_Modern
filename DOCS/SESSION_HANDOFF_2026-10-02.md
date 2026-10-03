@@ -29,13 +29,18 @@
   and its Edit form carries the new note ("An email to this client's address bounced on Oct 2, 2026 ..."). The
   web log had no error after the deploy. His two earlier test clients, suppressed before 538, stayed
   "Unsubscribed" when he changed their addresses.
-- **540 built, pending deploy** (offered because of that; his word: "go"): the suppressions made before 538
+- **540 built and deployed (2026-10-02, `fab66d8`)** (offered because of that; his word: "go"): the suppressions made before 538
   get their reason from the email history, once, three minutes after the web app starts; an address the
-  adviser had already corrected is switched back on. HELD for the next push, as offered.
+  adviser had already corrected is switched back on. Held, then pushed at his word ("push it and let me know
+  when it is fully out") at 22:56 with the docs commits held since the afternoon; both hosts on `149b3ff` at
+  23:03. Its first run, 11:02 p.m. Eastern: 3 clients had no reason recorded; the email history found 1 bounce
+  and 1 spam complaint; none was switched back on; 1 stays Unsubscribed.
 - **541, the e-card design brief for the outside designer** (his ask, so the designer can work while we do
   "more important stuff"): written, with a sample of two current cards. His copy is
   `Documents\iPro_ECard_Design_Brief_2026-10-02\` (a PDF to forward, the text, the sample picture); the same
   brief is a Claude doc; `DOCS/ECARD_DESIGN_BRIEF.md` has it with the build notes.
+- **The accountants brief** (`DOCS/VERTICAL_PAGE_BRIEF_ACCOUNTANTS.md`, the package contract for outside work)
+  carried its brand-domains paragraph four times (484's docs step, 09-12); it is there once now (`149b3ff`).
 - **The tool that runs long jobs changed its limits:** a background command is now stopped at ten minutes even
   while the session is working, so a 47-minute gate cannot run as one job. The gate for 538 + 539 ran as one
   build and three test runs that together cover every test once.
@@ -48,30 +53,48 @@
 |---|---|---|
 | `9a3e7c1` | **538** a bounce, a spam complaint and an unsubscribe each say what they are; a bounced address can be corrected; a delay is not a failure | 1361/1361 |
 | `cef28f0` | **539** 27 of the owner's images in the shared banner gallery, in two new groups | 1361/1361 |
+| `fab66d8` | **540** clients blocked before 538 get their reason from the email history; an address already corrected is switched back on | 1367/1367 |
 
-## Do this first when the owner is back
+## Close-out 2026-10-02
 
-1. **538 and 539 (deployed 2026-10-02, both hosts on build 1409dca):** one push, which also carried the two docs commits held
-   since 10-01. The check-mark commit is held locally (a docs-only push restarts the site) and goes out with
-   the next push or the close-out, so `main` is one commit ahead of `origin/main` on purpose. His glance: the
-   page editor's **Browse shared starter banners** and the newsletter's **Banner Image** show the two new
-   groups; a client's record reads **Email bounced** or **Reported spam** for a suppression made from now on.
+Final build on both hosts before this close-out: `149b3ff` (23:03); this section's own docs commit follows it.
+The day's code: 538 (`9a3e7c1`) and 539 (`cef28f0`) behind one full gate (1361), 540 (`fab66d8`) behind its
+own (1367), each red first; a gate now runs as a build and four test parts that cover every test once (the
+tool's new ten-minute limit). Outside the code: the SES pilot's test sheet and test 1 (runbook 7a), the answer
+on Google Translate's fee, and 541, the e-card brief, which waits for his five points.
+
+**State left:** the SES pilot unchanged (`Email__Ses__PilotAgentIds` and `Email__Ses__Streams` not touched
+today); the web log has 540's line at 03:02:47 UTC and no error from the app since one Hangfire database
+timeout on 10-01 at 10:38 a.m. Eastern. 540's backfill runs again at every web start and only ever looks at
+clients still without a reason (today, the one left Unsubscribed), so it is harmless; a later release can
+drop it.
+
+Backups of the pushed HEAD: `IPRO_Modern_backup_<stamp>.zip` in `C:\Users\admin\OneDrive\Codex_Code_Bkup`
+and `C:\Users\admin\Documents\IPRO_Backups`. Build servers shut down; no local app, emulator or test
+process running; MySQL is the Windows service and needs nothing. Reboot-ready.
+
+## Do this first tomorrow
+
+1. **538, 539 and 540 are live** (`9a3e7c1`, `cef28f0`, `fab66d8`; nothing held, `main` equals `origin/main`).
+   His glance: the page editor's **Browse shared starter banners** and the newsletter's **Banner Image** show
+   the two new groups; a client's record reads **Email bounced** or **Reported spam**, now also for the
+   suppressions from before 538 that the email history could explain.
 2. **The pilot, his next steps (one at a time, as he prefers):**
    - Test 2: for the two invoices to his own mailboxes (INV-1014, INV-1015, both "Viewed"): which mailbox each
      went to, whether it landed in the Inbox, whether the sender reads "Global Business Solution via iPro" and
      whether Reply addresses him. Then the same to any mailbox provider not yet tried (Gmail, Yahoo, Outlook).
    - Test 3: an estimate (done, to the bounce mailbox), a **Send reminder** on an overdue invoice, **Invite to
      Portal**, **Request Testimonial**, each once to one of his mailboxes.
-   - After 538 is live, a second complaint test on a NEW client (`complaint+two@simulator.amazonses.com`; the
-     first one is suppressed) should read "delivered ..., then reported as spam by the recipient" and the notice
-     "<client> reported one of your emails as spam"; a new bounce client (`bounce+two@...`) should show **Email
-     bounced**, and correcting its address should switch email back on.
+   - Done on 10-02 after 538 went live: the complaint on a new client (INV-1010) reads "delivered ..., then
+     reported as spam by the recipient"; the new bounce client (INV-1016) shows **Bounced** and its Edit form's
+     note. Not yet seen: correcting that client's address and saving, which should switch its email back on.
    - Part 2 (marketing mail) needs his setting change (`Email__Ses__Streams` = `notify,news`, a restart).
    - The decision: runbook 7a, "The decision".
-3. **540 is in the working tree's history as a local commit, gated, NOT pushed:** it goes out with the next push
-   or the close-out. About three minutes after that start the web log should carry "Suppression reasons from
-   before 538: ..."; his complaint test client should then read **Reported spam**, and his first bounce test
-   client **Email bounced** (still on hold: the address he replaced it with bounced too).
+3. **540's first run** (11:02 p.m. Eastern, 10-02): 3 clients from before 538 had no reason; the email history
+   found 1 bounce and 1 spam complaint; none was switched back on; 1 stays **Unsubscribed** (no bounce or
+   complaint on record near its time). His glance: his complaint test client reads **Reported spam**, his
+   first bounce test client **Email bounced** (the address he replaced it with bounced too; a real address
+   switches it back on).
 4. **539, his two to decide:** `friends_group.jpg` (identifiable people) and `wall.JPG` (a painted mural) are
    out until he says he has the rights. And one for him to confirm: several of the images look like purchased
    stock graphics (the eyes and globes, the silhouettes, the globe, the marble); sharing them with every adviser
