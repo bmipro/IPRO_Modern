@@ -1,9 +1,10 @@
 # iPro E-card Design Brief
 
-*Written 2026-10-02 for an outside graphic designer (TODO 541). The owner: "can u come up with the requirement and
-the contract so I could pass it on to the other graphic/template designer for our ecards, so we could focus on more
-important stuff", and "include a current sample that we have so he could visualize it better". Everything from
-"What we need" to "How the work flows" is the text the designer receives; the last two sections are ours.*
+*Written 2026-10-02 for an outside graphic designer (TODO 541) and updated 2026-10-03 with the owner's answers.
+The owner: "can u come up with the requirement and the contract so I could pass it on to the other
+graphic/template designer for our ecards, so we could focus on more important stuff", and "include a current
+sample that we have so he could visualize it better". Everything from "What we need" to "How the work flows" is
+the text the designer receives; the last two sections are ours.*
 
 ## What we need
 
@@ -35,7 +36,7 @@ The library today holds 10 illustrated designs, all older and smaller than the n
 
 ## What to design
 
-The proposed first set is 40 designs across 20 occasions. Bahman confirms the list before work starts.
+The first set is 40 designs across 20 occasions, delivered in two parts (see "Dates" below).
 
 | Occasion | When advisers send it | Designs |
 | --- | --- | --- |
@@ -69,6 +70,17 @@ The sender is a professional writing to a client, and the client may be 30 or 80
 - For a religious or cultural occasion, use its own well-known symbols respectfully. Season's greetings stays free of them.
 
 Not wanted in any picture: brand names, logos or trademarks (cars, teams, cartoon characters), recognisable real people, flags other than Canada's, alcohol, money shown as cash, or anything political.
+
+## Dates
+
+The set comes in two parts, and each part goes through the steps under "How the work flows": roughs, approval, then the finished package.
+
+| Part | Designs | Finished package by |
+| --- | --- | --- |
+| 1: December | Season's greetings 4, Christmas 2, New Year 2, Hanukkah 1 (9 designs) | 15 November 2026 |
+| 2: The rest | The other 31 designs | A date agreed with Bahman |
+
+The date for part 1 is fixed: advisers send these cards in early December, and iPro needs time to load and test them first. Send part 1's roughs early enough for approval and finishing, and propose your dates for its roughs and for part 2 when you accept the work.
 
 ## Artwork specification
 
@@ -105,6 +117,8 @@ Each picture comes with six facts, which iPro types into the product exactly as 
 
 The title and message are only the starting wording. The adviser can change both before sending, so write them to suit any client.
 
+Write them in English. An adviser who writes to a client in another language changes them before sending.
+
 ## Rights
 
 iPro must be free to use every delivered picture in its product for good, for all of its customers, with no fee per use and no credit line.
@@ -113,11 +127,12 @@ iPro must be free to use every delivered picture in its product for good, for al
 - A standard stock licence usually does not allow this: the cards are handed to every iPro adviser to send as their own. If you use a stock element, its licence must cover use in templates or products for resale, and a copy goes in the package.
 - Say in the package if any part was made with an AI image tool, and which one. Use only tools whose terms give you commercial rights to the result.
 - No brand names, logos, trademarks or recognisable real people, as listed above.
-- On payment the rights in the delivered artwork pass to iPro. The exact wording, an assignment or an exclusive licence, is agreed with Bahman before work starts.
+- On payment, you assign to iPro your copyright in the delivered artwork and its master files, and you waive your moral rights in them, including the right to be named as the author. In Canada moral rights cannot be assigned, only waived; the waiver is what lets iPro crop, resize or adjust a picture and use it with no credit line.
+- Both are set out in a written agreement, signed before work starts.
 
 ## Handover package
 
-The deliverable is one zip, named `ecards-set-1`, holding five things. It maps one-to-one onto the product's design list, so nothing has to be reworked on our side.
+Each part is delivered as one zip, named `ecards-set-1-part-1` and `ecards-set-1-part-2`, holding five things. It maps one-to-one onto the product's design list, so nothing has to be reworked on our side.
 
 1. **`art/`**: one JPEG per design, named by its key (`birthday-balloons.jpg`), 1240 x 930, 300 KB or less.
 2. **`designs.csv`**: one row per design with the six facts, saved as UTF-8. The first row is the header shown below.
@@ -135,7 +150,7 @@ Not accepted: words or lettering in a picture; a border, frame, shadow or waterm
 
 ## Check before handover
 
-Run this list before sending the package; Bahman runs it again on arrival.
+Run this list before sending each package; Bahman runs it again on arrival.
 
 - [ ] Every file in `art/` is 1240 x 930, JPEG, sRGB, and 300 KB or less.
 - [ ] No picture contains words, a logo or a recognisable person.
@@ -149,25 +164,29 @@ Run this list before sending the package; Bahman runs it again on arrival.
 
 The designer never touches iPro's code, servers or accounts. Questions go through Bahman.
 
-1. You send a contact sheet of roughs for the whole set, one per design, with the ground marked on each.
+1. For each part, you send a contact sheet of roughs, one per design, with the ground marked on each.
 2. Bahman approves each one or asks for changes.
 3. You finish the artwork and deliver the package.
 4. iPro loads the designs, sends itself a test card of each, and they appear in every adviser's card picker.
 
 A correction after delivery is a new file with the same key; it replaces the old picture on every card sent from then on. A key is never reused for a different picture, because cards already sent find their artwork by it.
 
-## For Bahman to settle before sending
+## Settled with Bahman (2026-10-03)
 
-Five points are open, and none of them is in the designer's copy.
+His answers: "40 ok, December first by Nov 15, assignment + waiver, English only".
 
-- The occasions and the number of designs. The proposed set is 40.
-- The dates: roughs, and the final package.
-- The fee and how it is paid.
-- The rights wording: an assignment to iPro or an exclusive licence.
-- Whether the starting greetings are wanted in French as well as English.
+- **The set:** the 40 designs across 20 occasions, as listed.
+- **Dates:** part 1, the 9 December designs, as a finished package by 15 November 2026; part 2, the other 31, on
+  a date agreed with the designer.
+- **Rights:** an assignment of copyright plus a waiver of moral rights (in Canada moral rights can only be
+  waived, never assigned), in a written agreement signed before work starts. A lawyer should check its wording.
+- **Greetings:** English only.
+- **The fee** is not in the brief; Bahman agrees it with the designer directly.
 
 ## When the package arrives (build notes, not for the designer)
 
+- **Part 1 must be live before December:** load it the week it arrives (the check below, the insert by key, a test
+  card of each), so advisers have the December cards in time.
 - **Where the brief is:** the owner's copy is `Documents\iPro_ECard_Design_Brief_2026-10-02\` (the PDF he forwards, this
   text, and `ecard-current-sample.jpg`); the same brief is a Claude doc he can edit and comment on, https://claude.ai/code/artifact/eb534620-59c6-412b-a884-311150fc9fb1.
   `make_sample.py` and `make_brief_pdf.py` in the session scratchpad made the sample and the PDF.

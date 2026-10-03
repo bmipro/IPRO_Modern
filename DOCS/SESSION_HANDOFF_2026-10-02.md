@@ -75,14 +75,16 @@ process running; MySQL is the Windows service and needs nothing. Reboot-ready.
 
 ## Do this first tomorrow
 
-1. **538, 539 and 540 are live** (`9a3e7c1`, `cef28f0`, `fab66d8`; nothing held, `main` equals `origin/main`).
+1. **538, 539 and 540 are live** (`9a3e7c1`, `cef28f0`, `fab66d8`; nothing was held at the close-out; 541's
+   answers, 10-03, are one docs commit held for the next push).
    His glance: the page editor's **Browse shared starter banners** and the newsletter's **Banner Image** show
    the two new groups; a client's record reads **Email bounced** or **Reported spam**, now also for the
    suppressions from before 538 that the email history could explain.
 2. **The pilot, his next steps (one at a time, as he prefers):**
-   - Test 2: for the two invoices to his own mailboxes (INV-1014, INV-1015, both "Viewed"): which mailbox each
-     went to, whether it landed in the Inbox, whether the sender reads "Global Business Solution via iPro" and
-     whether Reply addresses him. Then the same to any mailbox provider not yet tried (Gmail, Yahoo, Outlook).
+   - Test 2, partly reported 10-03: INV-1014 reached his Gmail Inbox from "Global Business Solution via iPro";
+     INV-1015 reached his business mailbox with the same sender and Reply-To him; both read Viewed. Still
+     open: Gmail's Show original (SPF, DKIM and DMARC all PASS), the business mailbox's folder (Inbox or
+     Junk), and Yahoo and Outlook.com if he has them (runbook 7a).
    - Test 3: an estimate (done, to the bounce mailbox), a **Send reminder** on an overdue invoice, **Invite to
      Portal**, **Request Testimonial**, each once to one of his mailboxes.
    - Done on 10-02 after 538 went live: the complaint on a new client (INV-1010) reads "delivered ..., then
@@ -100,9 +102,10 @@ process running; MySQL is the Windows service and needs nothing. Reboot-ready.
    stock graphics (the eyes and globes, the silhouettes, the globe, the marble); sharing them with every adviser
    is fine only if iPro's licence allows passing them on. To add or drop one: `make_banners_539.py` in the
    session scratchpad cuts them, then a line in `WebsiteStarterBannerCatalog` and in `SharedBanners539Tests`.
-5. **541, his five points before the brief goes to the designer:** the occasions and the count (40 across 20
-   proposed), the dates, the fee, the rights wording, French greetings or not. A comment on the doc asks him
-   about the first.
+5. **541 is ready to send** (his answers on 10-03: "40 ok, December first by Nov 15, assignment + waiver,
+   English only"). The PDF in `Documents\iPro_ECard_Design_Brief_2026-10-02\` carries them; the fee stays out
+   of the brief, his to agree with the designer. Part 1 (the 9 December designs) is due 15 November: load it
+   the week it arrives, so advisers have it for December.
 6. **536, Monday 2026-10-05:** his follow-ups mail, "4 follow-ups overdue", around 7 a.m. Eastern unless he
    completes them first.
 7. **Carried:** the builder retest when the developer's fixes arrive; 532 (Refer a Friend) after 531; decisions

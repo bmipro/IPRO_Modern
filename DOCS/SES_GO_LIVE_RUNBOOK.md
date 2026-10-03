@@ -177,7 +177,14 @@ not correct, and a delivery delay shown as a final failure are 538. Two invoices
 Viewed; which mailbox, the Inbox, the sender name and the reply address are still his to report (test 2).
 After 538: a complaint reads "delivered ..., then reported as spam by the recipient" / "Spam complaint", and
 the notices say "An email to <client> bounced" and "<client> reported one of your emails as spam". His two
-test clients were suppressed before 538 kept the reason, so they still read Unsubscribed.
+test clients, suppressed before 538 kept a reason, read Unsubscribed until 540 (deployed 10-02) found their
+reasons in the email history: Reported spam and Email bounced.
+
+**Test 2, first results (reported by the owner 2026-10-03, with screenshots):** INV-1014 (sent 10-02, 2:48 p.m.)
+reached his Gmail Inbox from "Global Business Solution via iPro" <mail@notify.iproadvisers.com>. INV-1015
+(3:02 p.m.) reached his business mailbox, read in Thunderbird: the same sender, and Reply-To is him. Both read
+Viewed in iPro, so the link opened the invoice. Still open: Gmail's **Show original** (SPF, DKIM and DMARC
+all PASS), the business mailbox's folder (Inbox or Junk), and Yahoo and Outlook.com if he has them.
 
 ### Part 2: the marketing mail (`news`), on his account only
 
