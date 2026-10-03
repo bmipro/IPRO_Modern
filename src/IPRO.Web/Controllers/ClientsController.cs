@@ -159,15 +159,15 @@ public class ClientsController : Controller
         // platform host -- the client is this agent's client, and the portal is branded as theirs.
         var activateUrl = ClientPortalUrls.ActivateUrl(await ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration), client.PortalInviteToken);
         var companyName = AdviserSender.BusinessName(client.AgentUser);   // 530: the person when no business is on file
-        var html = $"""
-            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
-              <div style="padding:22px;background:#0f7a52;color:white"><h1 style="margin:0;font-size:24px">{System.Net.WebUtility.HtmlEncode(companyName)} Client Portal</h1></div>
-              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                <p>{System.Net.WebUtility.HtmlEncode(companyName)} has invited you to their client portal, where you can message your advisor, view documents and invoices, and request appointments.</p>
-                <p><a href="{activateUrl}" style="display:inline-block;padding:11px 18px;background:#0f7a52;color:white;text-decoration:none;border-radius:6px">Activate My Account</a></p>
-              </div>
-            </div>
-            """;
+        // 542: a letter from the adviser -- greeted, signed, with the phone to call -- not a bare button.
+        var html = ClientLetter.Html(client.AgentUser, client.FirstName,
+            new[]
+            {
+                $"{System.Net.WebUtility.HtmlEncode(companyName)} has invited you to their client portal, where you can message your advisor, view documents and invoices, and request appointments.",
+                "The button below sets up your account. It works for 7 days."
+            },
+            "Activate My Account", activateUrl, ClientLetter.QuestionsLine(client.AgentUser),
+            heading: $"{companyName} Client Portal", accent: ClientLetter.Green);
         // 454: the provider's answer is kept and remembered. The token stays either way -- the
         // activation link on the profile is the manual fallback when the email cannot be delivered.
         var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser));

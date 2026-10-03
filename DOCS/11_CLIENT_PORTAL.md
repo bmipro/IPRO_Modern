@@ -6,7 +6,7 @@ The Client Portal is a secure, separate login for an agent's own clients — dis
 
 1. Open the client's profile from **Clients**.
 2. Under **Client Portal**, click **Invite to Portal**.
-3. The client receives an email with a link to set their own password and activate their account.
+3. The client receives an email from you with a link to set their own password and activate their account. The link works for 7 days.
 4. The status updates to "Invited, pending activation" until they complete setup, then to "Active since &lt;date&gt;".
 
 If a client loses their invite email, click **Resend Invite** — this generates a fresh activation link and clears any half-finished setup.

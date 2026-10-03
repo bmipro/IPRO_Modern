@@ -106,13 +106,16 @@ public class PortalRequestsController : Controller
             // one is attached, otherwise the platform (ClientPortalUrls, the same rule as the invite).
             var loginUrl = IPRO.Web.Infrastructure.ClientPortalUrls.LoginUrl(
                 await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration));
-            var html = $"<p>Hi {WebUtility.HtmlEncode(request.Client.FirstName)},</p>" +
-                       $"<p>Your appointment request has been scheduled for <strong>{scheduledAt:dddd, MMMM d, yyyy 'at' h:mm tt}</strong>.</p>" +
-                       (string.IsNullOrWhiteSpace(request.Notes) ? "" : $"<p>Notes: {WebUtility.HtmlEncode(request.Notes)}</p>") +
-                       $"<p>You can review this anytime from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a></p>";
+            var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+            // 542: a letter from the adviser -- greeted, signed, with the phone to call.
+            var html = ClientLetter.Html(adviser, request.Client.FirstName, new[]
+            {
+                $"Your appointment request has been scheduled for <strong>{scheduledAt:dddd, MMMM d, yyyy 'at' h:mm tt}</strong>.",
+                string.IsNullOrWhiteSpace(request.Notes) ? "" : $"Notes: {WebUtility.HtmlEncode(request.Notes)}",
+                $"You can review this anytime from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a>"
+            }, closing: ClientLetter.QuestionsLine(adviser));
             // 454: the appointment is scheduled either way; a failed confirmation is said out loud.
             // 530: the adviser's business names the email, and replies go to the adviser.
-            var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
             var business = AdviserSender.BusinessName(adviser);
             var subject = business.Length == 0 ? "Your appointment has been scheduled" : $"Your appointment with {business} is scheduled";
             var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, customArgs: AdviserSender.Tags(adviser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
@@ -145,11 +148,14 @@ public class PortalRequestsController : Controller
         {
             var loginUrl = IPRO.Web.Infrastructure.ClientPortalUrls.LoginUrl(
                 await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration));
-            var html = "<p>Hi " + WebUtility.HtmlEncode(request.Client.FirstName) + ",</p>" +
-                       "<p>Unfortunately your appointment request could not be scheduled at this time. Please reach out to your advisor directly or submit a new request with an alternate time.</p>" +
-                       $"<p>You can submit a new request from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a></p>";
-            // 530: the adviser's business names the email, and replies go to the adviser.
             var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+            // 542: a letter from the adviser -- greeted, signed, with the phone to call.
+            var html = ClientLetter.Html(adviser, request.Client.FirstName, new[]
+            {
+                "Unfortunately your appointment request could not be scheduled at this time. Please reach out to your advisor directly or submit a new request with an alternate time.",
+                $"You can submit a new request from your client portal: <a href=\"{loginUrl}\">{loginUrl}</a>"
+            }, closing: ClientLetter.QuestionsLine(adviser));
+            // 530: the adviser's business names the email, and replies go to the adviser.
             var business = AdviserSender.BusinessName(adviser);
             var subject = business.Length == 0 ? "Your appointment request was declined" : $"Your appointment request with {business} was declined";
             var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html, customArgs: AdviserSender.Tags(adviser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));

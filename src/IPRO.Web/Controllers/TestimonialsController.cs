@@ -181,15 +181,11 @@ public class TestimonialsController : Controller
 
         var requestUrl = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/testimonial/{submission.RequestToken}";
         var companyName = AdviserSender.BusinessName(client.AgentUser);   // 530: the person when no business is on file
-        var html = $"""
-            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
-              <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:24px">{System.Net.WebUtility.HtmlEncode(companyName)}</h1></div>
-              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                <p>{System.Net.WebUtility.HtmlEncode(companyName)} would love to hear about your experience. Would you mind sharing a quick testimonial?</p>
-                <p><a href="{requestUrl}" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">Share Your Feedback</a></p>
-              </div>
-            </div>
-            """;
+        // 542: a letter from the adviser, greeted and signed. The footer below gives the address and
+        // "Sent with iPro", so the letter leaves both to it.
+        var html = ClientLetter.Html(client.AgentUser, client.FirstName,
+            new[] { $"{System.Net.WebUtility.HtmlEncode(companyName)} would love to hear about your experience. Would you mind sharing a quick testimonial? It takes a minute or two." },
+            "Share Your Feedback", requestUrl, "Thank you for your time.", withAddress: false, sentWith: false);
         // JOBS-10: the request now carries the standard List-Unsubscribe header like every other
         // client-facing sender, so "this is spam" has a working alternative.
         var unsubscribeUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));

@@ -209,7 +209,8 @@ public class AzureEmailService : IEmailService
 
     private EmailMessage BuildMessage(IEnumerable<EmailRecipient> recipients, string subject, string htmlBody, string? textBody)
     {
-        var content = new EmailContent(subject) { Html = htmlBody, PlainText = textBody ?? string.Empty };
+        // 542: a plain-text part beside the HTML -- the caller's, or one read out of the HTML.
+        var content = new EmailContent(subject) { Html = htmlBody, PlainText = IPRO.Entities.EmailPlainText.Ensure(textBody, htmlBody) };
         var to = recipients.Select(r => new EmailAddress(r.Email, r.Name)).ToList();
         return new EmailMessage(_settings.FromEmail, new EmailRecipients(to), content);
     }

@@ -575,7 +575,8 @@ public class ClientInvoicesController : Controller
         var gate = await RequireClientInvoicingAccessAsync();
         if (gate != null) return gate;
 
-        var invoice = await _db.ClientInvoices.Include(i => i.Client).Include(i => i.AgentUser).FirstOrDefaultAsync(i => i.Id == id && i.AgentUserId == AgentId);
+        // 542: the line items name what the invoice is for in the email.
+        var invoice = await _db.ClientInvoices.Include(i => i.Client).Include(i => i.AgentUser).Include(i => i.LineItems).FirstOrDefaultAsync(i => i.Id == id && i.AgentUserId == AgentId);
         if (invoice == null) return NotFound();
         if (string.IsNullOrWhiteSpace(invoice.Client?.Email))
         {
@@ -583,19 +584,9 @@ public class ClientInvoicesController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var publicUrl = BuildPublicDocumentUrl(invoice.ViewToken);
-        var docLabel = invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "estimate" : "invoice";
-        var senderName = $"{invoice.AgentUser.FirstName} {invoice.AgentUser.LastName}".Trim();
-        var html = $"""
-            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
-              <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:24px">{System.Net.WebUtility.HtmlEncode(invoice.AgentUser.CompanyName)}</h1></div>
-              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                <p>{System.Net.WebUtility.HtmlEncode(senderName)} sent you {(invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "an" : "an")} {docLabel} <strong>{System.Net.WebUtility.HtmlEncode(invoice.DocumentNumber)}</strong> for <strong>${invoice.Total:N2} {invoice.Currency}</strong>.</p>
-                <p><a href="{publicUrl}" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">View {docLabel}</a></p>
-                <p style="margin:22px 0 0;font-size:12px;color:#8a94a6">Sent with <a href="{IPRO.Entities.PoweredBy.BrandUrl(invoice.AgentUser?.BusinessType)}" style="color:#8a94a6;font-weight:600;text-decoration:none">iPro</a></p>
-              </div>
-            </div>
-            """;
+        // 542: a letter from the adviser, not a bare button (the owner's estimate in that shape went to
+        // Yahoo's Spam): the greeting, the number, amount, dates and items, and the adviser's sign-off.
+        var html = IPRO.Scheduler.ClientInvoiceEmail.Html(invoice, BuildPublicDocumentUrl(invoice.ViewToken));
         var docLabelCap = invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "Estimate" : "Invoice";
         // 530: the business names the email, so the client knows whose invoice it is before opening it.
         var business = AdviserSender.BusinessName(invoice.AgentUser);

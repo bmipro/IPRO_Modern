@@ -54,7 +54,7 @@ public class SendGridEmailService : IEmailService
             var msg = MailHelper.CreateSingleEmail(
                 new EmailAddress(_settings.FromEmail, _settings.FromName),
                 new EmailAddress(toEmail, toName),
-                subject, textBody ?? string.Empty, htmlBody);
+                subject, IPRO.Entities.EmailPlainText.Ensure(textBody, htmlBody), htmlBody);   // 542: a text part, the caller's or read out of the HTML
             // Same rule as AzureEmailService: the caller's Reply-To (the adviser's own address) as given,
             // the support address only when none is given (480). Email:Provider can flip back to
             // SendGrid at any time, so the two seams must not drift.
@@ -128,7 +128,7 @@ public class SendGridEmailService : IEmailService
             var from = new EmailAddress(_settings.FromEmail, _settings.FromName);
             var tos = recipients.Select(r => new EmailAddress(r.Email, r.Name)).ToList();
             var msg = MailHelper.CreateSingleEmailToMultipleRecipients(
-                from, tos, subject, textBody ?? string.Empty, htmlBody);
+                from, tos, subject, IPRO.Entities.EmailPlainText.Ensure(textBody, htmlBody), htmlBody);   // 542
             var response = await client.SendEmailAsync(msg);
             if (!response.IsSuccessStatusCode)
             {

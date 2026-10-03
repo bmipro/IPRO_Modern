@@ -17,9 +17,11 @@ Tax is calculated automatically from the client's own province/country (not the 
 
 1. Open the draft from **Client Invoices**.
 2. Click **Send to Client**.
-3. The client receives an email with a link to view the document — no account or login required.
+3. The client receives a short email from you: it greets them by name, gives the document's number, amount, date (and due date, for an invoice) and what it is for, and has a button to view the document — no account or login required. An estimate's email tells them they can approve it online.
 
 The email's subject names your business, for example **Invoice INV-1010 from Global Business Solution**, and reminders do the same. When your client replies to the email, the reply comes to your own email address.
+
+Every email your clients receive about their business with you (documents, payment reminders, portal invitations, testimonial requests, appointment replies) closes with your name, business, phone, email and address, taken from your **Profile**. Keep them current there: the email address on your Profile is also where your clients' replies go.
 
 A document number (`EST-####` for estimates, `INV-####` for invoices) is assigned once and does not change, even if the document is later edited while still a draft.
 

@@ -122,7 +122,7 @@ public class Ses531Tests
         var news = stub.Sent[1];
         Assert.Equal("\"Global Business Solution via iPro\" <mail@news.iproadvisers.com>", news.FromEmailAddress);
         Assert.Equal("ipro-news", news.ConfigurationSetName);
-        Assert.Null(news.Content.Simple.Body.Text);                           // no empty text part
+        Assert.Equal("x", news.Content.Simple.Body.Text?.Data);               // 542: a text part read out of the HTML
         Assert.True(news.Content.Simple.Headers == null || news.Content.Simple.Headers.Count == 0);
     }
 

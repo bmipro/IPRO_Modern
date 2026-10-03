@@ -93,6 +93,8 @@ public class SesEmailService
         string? textBody, IDictionary<string, string>? tags, string? replyToEmail, string? replyToName, string? businessName,
         string? listUnsubscribeUrl, string? tenant)
     {
+        // 542: a plain-text part beside the HTML -- the caller's, or one read out of the HTML.
+        var text = EmailPlainText.Ensure(textBody, htmlBody);
         var headers = new List<MessageHeader>();
         if (!string.IsNullOrWhiteSpace(listUnsubscribeUrl))
         {
@@ -114,7 +116,7 @@ public class SesEmailService
                     Body = new Body
                     {
                         Html = new Content { Data = htmlBody ?? string.Empty, Charset = "UTF-8" },
-                        Text = string.IsNullOrWhiteSpace(textBody) ? null : new Content { Data = textBody, Charset = "UTF-8" }
+                        Text = string.IsNullOrWhiteSpace(text) ? null : new Content { Data = text, Charset = "UTF-8" }
                     },
                     Headers = headers.Count == 0 ? null : headers
                 }

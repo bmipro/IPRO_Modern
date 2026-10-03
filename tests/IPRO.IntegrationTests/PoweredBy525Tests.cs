@@ -29,12 +29,13 @@ public class PoweredBy525Tests
         Assert.Contains("PoweredBy.BrandUrl(", document);
         Assert.Contains(".powered-by", Read(@"src\IPRO.Web\wwwroot\css\invoice.css"));
 
-        var controller = Read(@"src\IPRO.Web\Controllers\ClientInvoicesController.cs");
-        Assert.Contains("Sent with", controller);
-        Assert.Contains("PoweredBy.BrandUrl(", controller);
-        var reminder = Read(@"src\IPRO.Scheduler\ClientInvoiceReminderEmail.cs");
-        Assert.Contains("Sent with", reminder);
-        Assert.Contains("PoweredBy.BrandUrl(", reminder);
+        // 542: the invoice and reminder emails are letters now, and the letter carries the line.
+        var letter = Read(@"src\IPRO.Entities\ClientLetter.cs");
+        Assert.Contains("Sent with", letter);
+        Assert.Contains("PoweredBy.BrandUrl(", letter);
+        Assert.Contains("ClientInvoiceEmail.Html(", Read(@"src\IPRO.Web\Controllers\ClientInvoicesController.cs"));
+        Assert.Contains("ClientLetter.Html(", Read(@"src\IPRO.Scheduler\ClientInvoiceEmail.cs"));
+        Assert.Contains("ClientLetter.Html(", Read(@"src\IPRO.Scheduler\ClientInvoiceReminderEmail.cs"));
     }
 
     [Fact]
