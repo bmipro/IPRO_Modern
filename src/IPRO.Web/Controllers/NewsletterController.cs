@@ -266,6 +266,7 @@ public class NewsletterController : Controller
             _uow.NewsLetterRecipients.Update(recipient);
 
             var business = string.Empty;
+            Client? unsubscribed = null;
             if (recipient.ClientId.HasValue)
             {
                 var client = await _uow.Clients.GetByIdAsync(recipient.ClientId.Value);
@@ -276,10 +277,13 @@ public class NewsletterController : Controller
                     // which is what made the promise in Client.cs untrue.
                     await _consent.SuppressAllAsync(client, "newsletter-footer-link");
                     business = AdviserSender.BusinessName(await _uow.AgentUsers.GetByIdAsync(client.AgentUserId));
+                    unsubscribed = client;
                 }
             }
 
             await _uow.SaveChangesAsync();
+            var preferences = await PreferencesPageAsync(unsubscribed);
+            if (preferences != null) return preferences;
             ViewBag.Success = true;
             ViewBag.Email = recipient.Email;
             ViewBag.Channel = "newsletter";
@@ -299,6 +303,8 @@ public class NewsletterController : Controller
             // drip email is asking to stop hearing from this adviser, not to be moved onto their
             // newsletter -- the same reading the one-click header path already takes.
             if (client != null) await _consent.SuppressAllAsync(client, "drip-footer-link");
+            var preferences = await PreferencesPageAsync(client);
+            if (preferences != null) return preferences;
 
             ViewBag.Success = true;
             ViewBag.Email = client?.Email ?? string.Empty;
@@ -309,6 +315,19 @@ public class NewsletterController : Controller
 
         ViewBag.Success = false;
         return View();
+    }
+
+    // 543 (2026-10-03): a person who clicks a newsletter's or a series' unsubscribe link lands on the
+    // email preferences page -- the page every other client email links to -- which confirms the
+    // unsubscribe and offers the way back: birthday and anniversary greetings only, or resubscribe to
+    // everything. This page offered neither, so a client who clicked by mistake was stuck (the owner,
+    // testing his own newsletter). The unsubscribe has already taken full effect above, and the
+    // preferences page never suppresses a client who is already suppressed. Only a person's GET is
+    // sent on: a mail provider's one-click POST keeps its plain 200.
+    private async Task<IActionResult?> PreferencesPageAsync(Client? client)
+    {
+        if (client == null || !Microsoft.AspNetCore.Http.HttpMethods.IsGet(Request.Method)) return null;
+        return Redirect(_consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client)));
     }
 
     public async Task<IActionResult> Send(int id)

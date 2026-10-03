@@ -54,6 +54,8 @@ Every newsletter and drip campaign email goes out with your business name at the
 
 At the foot of every newsletter and drip campaign email your clients see why they are receiving it, your company name and mailing address (from **My Profile**), an unsubscribe link, and "Sent with iPro on behalf of" your company. That is what Canada's anti-spam law asks of a commercial email. E-cards, e-letters, polls, Did You Know emails and testimonial requests close with the same lines.
 
+A client who clicks the unsubscribe link lands on their email preferences page. It confirms they are unsubscribed and offers two choices: keep receiving birthday and anniversary greetings only, or **Resubscribe to everything** if they clicked by mistake. Only the client can make either choice; you cannot resubscribe them yourself.
+
 ## Choose the Audience
 
 Click **Send** and choose one audience:
