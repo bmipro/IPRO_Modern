@@ -189,8 +189,10 @@ The DMARC record is monitor-only (`p=none`, `sp=none`): enough for Gmail's and Y
 it is a later step, after every service that sends as iproadvisers.com is checked. INV-1015 (3:02 p.m.) reached
 his business mailbox, read in Thunderbird: the same sender, and Reply-To is him. Both read Viewed in iPro, so
 the link opened the invoice. Invoice mail carries no List-Unsubscribe header (it is not marketing); the news
-stream adds the one-click pair, to be seen in Part 2. Still open: the business mailbox's folder (Inbox or
-Junk), and Yahoo (his adviser address is a Yahoo one) and Outlook.com.
+stream adds the one-click pair, to be seen in Part 2. Test 2 passed: INV-1015 was not in Junk, and both
+invoices were also read on his Android phone. Yahoo and Outlook.com were not tried: he has no such mailbox to
+test with (his adviser address, the Reply-To, is a Yahoo one). Test 3 includes an estimate to a real
+mailbox: test 1's went to Amazon's bounce mailbox and was never seen in an inbox.
 
 ### Part 2: the marketing mail (`news`), on his account only
 
