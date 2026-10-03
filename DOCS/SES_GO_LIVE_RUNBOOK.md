@@ -201,7 +201,9 @@ mailbox proves little. Not a verdict on its own, but the likely factors apply to
 From with a free-mail Reply-To (an adviser whose own address is Yahoo, Gmail or Hotmail), a body that is one
 "View estimate" button, HTML with no plain-text part, and a sending domain days old. Gmail took the same
 pattern (INV-1014) into the Inbox; Yahoo is stricter. He was told to change his Profile email to the
-business mailbox he reads, which removes the free-mail Reply-To from his own mail.
+business mailbox he reads, which removes the free-mail Reply-To from his own mail. iPro showed the estimate
+"delivered Oct 3, 10:38 AM" (Yahoo's server accepted it: Delivered does not mean the Inbox, and no provider
+reports a spam-folder placement), then viewed three times and Approved from the public link.
 
 ### Part 2: the marketing mail (`news`), on his account only
 
