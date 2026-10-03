@@ -21,18 +21,25 @@
   links disabled; iPro showed it delivered, then viewed three times and approved. He marked it Not spam. Not a
   verdict alone (his own address, now trained), but the likely factors are real for clients: a free-mail
   Reply-To under a business From, a body that was one button, HTML with no text part, a days-old domain.
-- **542 built and gated, HELD for the next push** (his word: "go, fix it with the next push"): every email gets
+- **542 built, gated and deployed (2026-10-03, `f8a0e39`)** (his words: "go, fix it with the next push", then "push it
+  and let me know when it is fully out so we could test it together"): every email gets
   a plain-text part, and the client emails read as a letter from the adviser (TODO 542). A sample rendered from
   the built code looks right (greeting, details, button, sign-off with phone, email and address).
 
 ## Pushed today
 
-Nothing yet. Held locally for the next push: the 541 and pilot docs commits, and 542.
+| Code | Item | Gate |
+|---|---|---|
+| `f8a0e39` | **542** client emails read as a letter from the adviser; every email carries a plain-text part | 1386/1386 |
+
+The same push carried the docs commits held since the morning (541's answers, pilot tests 2 and 3). Build
+`83600c6` on both hosts.
 
 ## Do this first when the owner is back
 
-1. **542 goes out with the next push** (with the held docs commits). After the deploy: one invoice to his Gmail
-   test client should read as the letter, and Gmail's Show original should list a text/plain part.
+1. **542 is live** (`f8a0e39`, build `83600c6`). The test with him: one invoice to his Gmail test client reads as the
+   letter, and Gmail's Show original lists a text/plain part. The check-mark commit is held locally (a
+   docs-only push restarts the site), so `main` is one commit ahead of `origin/main` on purpose.
 2. **His Profile email:** if it still shows the Yahoo address, his clients' replies and iPro's notices go there.
 3. **The pilot:** test 3's other three (**Send reminder** on an overdue invoice, **Invite to Portal**, **Request
    Testimonial**) to his Gmail test client -- Bob Moore holds the Yahoo address since the estimate test, so it
