@@ -40,6 +40,13 @@
   ... but the agent thinks it was read" -> **545**, a load in the first minute after the send is not an open.
 - **543, 544 and 545 built, gated together and deployed (2026-10-03, build `fa871e3`)** (his words: "go, fix it with the next
   push", then "push it and let me know when it is fully out").
+- **fortressconsys.com** (an adviser's domain, his "can u check this domain"): once propagated, www bound with its own
+  certificate and answers 200; the bare name redirects to www.
+- **Refer a Friend** was never built (TODO 532); he: "leave the refer a friend for later (to do list)".
+- **546 built and gated, HELD for his word:** the 2026 e-card collection from the designer's approved package (49
+  designs, 21 occasions; TODO 546). The nine pictures he supplied arrive switched off until their licences are
+  confirmed, and the four cards with the greeting printed in the picture keep the approved wording -- the two
+  defaults he was told of. Found on the way: a SuperAdmin upload never recorded the picture's size (fixed).
 
 ## Pushed today
 
@@ -66,12 +73,21 @@ The same push carried the docs commits held since the morning (541's answers, pi
    an email reads Opened only when it was opened after its first minute. Test 7 (two new simulator clients, a
    newsletter to them) is the pilot's last before the decision.
 4. **The pilot:** test 3 passed on 10-03 (an invoice, the overdue reminder, the portal invitation and the
-   testimonial request, all in his Gmail Inbox as the letter; he: "well done"). Next: Part 2 (his setting
-   change, `Email__Ses__Streams` = `notify,news`, a restart), tests 5 to 7, then the decision (runbook 7a).
-5. **541:** ready to send; the fee is his to agree with the designer. Part 1 is due 15 November: load it the week
-   it arrives.
-6. **539, his two to decide** (`friends_group.jpg`, `wall.JPG`) and the stock-image licences, as in 10-02's list.
-7. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
-8. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-02.md`, items 7 and 8.
+   testimonial request, all in his Gmail Inbox as the letter; he: "well done"). Part 2 is done (his setting,
+   `Email__Ses__Streams` = `notify,news`; tests 5 and 6 passed and surfaced 543 to 545). Next: test 7, then the
+   decision (runbook 7a).
+5. **546, the e-card collection:** gated and held; it goes out on his word ("push it"). After the deploy he sends
+   samples to himself: a picture card (birthday balloons), a lettering card (the THANK YOU), the songbird thank-you
+   (greeting in the picture) and, once licensed and switched on, the Norooz goldfish (animated). In SuperAdmin ->
+   E-Card Designs he offers each of the nine supplied cards (the eye icon) as its licence is confirmed, and ticks
+   "Personal greeting" on any birthday or anniversary design that should still reach clients who kept greetings.
+   Open, his to decide: cards are a fixed width (620 px) as they always were, so a phone shrinks them to fit;
+   making them reflow on phones changes every card and wants testing on his phone first.
+6. **541:** ready to send; the fee is his to agree with the designer. Part 1 is due 15 November: load it the week
+   it arrives. Asked of him on 10-03: is the outside designer still wanted now that his own approved collection
+   (546, December cards included) has arrived?
+7. **539, his two to decide** (`friends_group.jpg`, `wall.JPG`) and the stock-image licences, as in 10-02's list.
+8. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
+9. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-02.md`, items 7 and 8.
 
 Related: `DOCS/TODO.md` 541 and 542; `DOCS/SES_GO_LIVE_RUNBOOK.md` 7a (tests 2 and 3); `DOCS/SESSION_HANDOFF_2026-10-02.md`.
