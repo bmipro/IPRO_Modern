@@ -194,6 +194,15 @@ invoices were also read on his Android phone. Yahoo and Outlook.com were not tri
 test with (his adviser address, the Reply-To, is a Yahoo one). Test 3 includes an estimate to a real
 mailbox: test 1's went to Amazon's bounce mailbox and was never seen in an inbox.
 
+**Test 3, first send (2026-10-03, 10:38 a.m.):** EST-1003 to a test client at his own Yahoo address -- the
+same address the Reply-To names -- landed in Yahoo's **Spam**, links disabled ("For your security we disabled
+links in this email"). He marked it Not spam, which now trains Yahoo for this sender, so a resend to that
+mailbox proves little. Not a verdict on its own, but the likely factors apply to real clients: a business
+From with a free-mail Reply-To (an adviser whose own address is Yahoo, Gmail or Hotmail), a body that is one
+"View estimate" button, HTML with no plain-text part, and a sending domain days old. Gmail took the same
+pattern (INV-1014) into the Inbox; Yahoo is stricter. He was told to change his Profile email to the
+business mailbox he reads, which removes the free-mail Reply-To from his own mail.
+
 ### Part 2: the marketing mail (`news`), on his account only
 
 The pilot list limits BOTH streams, so marketing mail can be tried on his account only while
