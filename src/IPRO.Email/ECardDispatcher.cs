@@ -112,6 +112,10 @@ public class ECardDispatcher
                     recipient.FailureReason = "Recipient has unsubscribed from these emails.";
                     recipient.UpdatedAt = DateTime.UtcNow;
                     suppressedCount++;
+                    // 544: saved here, because `continue` skips the save at the bottom of the loop. The
+                    // last recipient skipped this way used to stay Queued under a Failed card, with no
+                    // reason anywhere (the owner's birthday card, sent 76 seconds before he resubscribed).
+                    await _db.SaveChangesAsync();
                     continue;
                 }
 

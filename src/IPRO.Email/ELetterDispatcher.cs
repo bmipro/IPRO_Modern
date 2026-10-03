@@ -80,6 +80,7 @@ public class ELetterDispatcher
                     recipient.Status = ELetterRecipientStatuses.Failed;
                     recipient.FailureReason = "Client no longer exists.";
                     recipient.UpdatedAt = DateTime.UtcNow;
+                    await _db.SaveChangesAsync();   // 544: `continue` skips the save at the bottom
                     continue;
                 }
 
@@ -91,6 +92,9 @@ public class ELetterDispatcher
                     recipient.FailureReason = "Recipient has unsubscribed from these emails.";
                     recipient.UpdatedAt = DateTime.UtcNow;
                     suppressedCount++;
+                    // 544: saved here, because `continue` skips the save at the bottom of the loop; the
+                    // last recipient skipped used to stay Queued under a Failed letter.
+                    await _db.SaveChangesAsync();
                     continue;
                 }
 
