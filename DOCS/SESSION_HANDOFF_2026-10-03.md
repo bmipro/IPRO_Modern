@@ -29,6 +29,16 @@
   his phone, then the portal invitation -- all read as the letter ("looking good"). His Profile email is now
   his business address (the sign-off showed it). Found: "Mr." stranded on the line under his name, the
   mistake `AgentNameFormatter` exists to prevent -> **542a**, the sign-off asks it ("Mr. Bahman Motamed").
+- **The pilot, Part 2:** he set `Email__Ses__Streams` to `notify,news` (checked by length: 11; the pilot list still
+  2); test 5's newsletter reached his Gmail from `mail@news.iproadvisers.com`. Its unsubscribe link left no way
+  back (he resubscribed Bob through an older testimonial email) -> **543**. A birthday card to Bob read Failed with
+  Bob Queued: sent 76 seconds before the resubscribe, held back correctly, but the skip's mark was never saved
+  -> **544** (e-letters had the same flaw).
+- **Test 6 (an e-card):** two cards to Bob, delivered through Amazon from the news address, opened, and his click
+  recorded at 4:22. Each read "Opened" two seconds after it was sent, before he looked -- a load from San
+  Francisco, the mail system checking the card on arrival; he: "I could delete the email without reading it
+  ... but the agent thinks it was read" -> **545**, a load in the first minute after the send is not an open.
+- **543, 544 and 545 built and gated together, HELD for the next push** (his word: "go, fix it with the next push").
 
 ## Pushed today
 
@@ -47,13 +57,17 @@ The same push carried the docs commits held since the morning (541's answers, pi
    docs-only push restarts the site), so `main` is one commit ahead of `origin/main` on purpose.
 2. **542a is live** (`cbd6ac2`, build `e5f18e4`): the sign-off reads "Mr. Bahman Motamed". His Profile email is now his
    business address (done 10-03).
-3. **The pilot:** test 3 passed on 10-03 (an invoice, the overdue reminder, the portal invitation and the
+3. **543, 544 and 545 go out with the next push.** Then a newsletter's unsubscribe link lands on the preferences
+   page, a card skipped for an unsubscribe reads "Recipient has unsubscribed from these emails." on its row, and
+   an email reads Opened only when it was opened after its first minute. Test 7 (two new simulator clients, a
+   newsletter to them) is the pilot's last before the decision.
+4. **The pilot:** test 3 passed on 10-03 (an invoice, the overdue reminder, the portal invitation and the
    testimonial request, all in his Gmail Inbox as the letter; he: "well done"). Next: Part 2 (his setting
    change, `Email__Ses__Streams` = `notify,news`, a restart), tests 5 to 7, then the decision (runbook 7a).
-4. **541:** ready to send; the fee is his to agree with the designer. Part 1 is due 15 November: load it the week
+5. **541:** ready to send; the fee is his to agree with the designer. Part 1 is due 15 November: load it the week
    it arrives.
-5. **539, his two to decide** (`friends_group.jpg`, `wall.JPG`) and the stock-image licences, as in 10-02's list.
-6. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
-7. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-02.md`, items 7 and 8.
+6. **539, his two to decide** (`friends_group.jpg`, `wall.JPG`) and the stock-image licences, as in 10-02's list.
+7. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
+8. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-02.md`, items 7 and 8.
 
 Related: `DOCS/TODO.md` 541 and 542; `DOCS/SES_GO_LIVE_RUNBOOK.md` 7a (tests 2 and 3); `DOCS/SESSION_HANDOFF_2026-10-02.md`.
