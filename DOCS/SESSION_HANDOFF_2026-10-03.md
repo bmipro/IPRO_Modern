@@ -77,7 +77,9 @@ The same push carried the docs commits held since the morning (541's answers, pi
    testimonial request, all in his Gmail Inbox as the letter; he: "well done"). Part 2 is done (his setting,
    `Email__Ses__Streams` = `notify,news`; tests 5 and 6 passed and surfaced 543 to 545). Next: test 7, then the
    decision (runbook 7a).
-5. **546, the e-card collection, is live** (build `da038dc`). The test with him: he sends
+5. **546, the e-card collection, is live** (build `da038dc`, pushed on his "push it" 2026-10-04). The admin site
+   restarted first this time and its start-up added the 49 designs at 10:10:32 a.m. (its container log: "E-card
+   collection 2026: added 49 design(s)."); the web app found them present. The test with him: he sends
    samples to himself: a picture card (birthday balloons), a lettering card (the THANK YOU), the songbird thank-you
    (greeting in the picture) and, once licensed and switched on, the Norooz goldfish (animated). In SuperAdmin ->
    E-Card Designs he offers each of the nine supplied cards (the eye icon) as its licence is confirmed, and ticks
