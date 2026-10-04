@@ -10,9 +10,13 @@ public static class WebsiteBlockLayoutVariants
     public static readonly string[] Maps = { "full", "narrow" };
     // 535: masonry keeps each photo's own shape; slideshow shows one large photo at a time.
     public static readonly string[] Gallery = { "grid", "carousel", "masonry", "slideshow" };
+    // 549: list = a classic menu (name, dotted line, price); cards = photo cards; compact = two columns
+    // of name and price for a long list (drinks, a fee schedule). Empty means list.
+    public static readonly string[] PriceList = { "list", "cards", "compact" };
 
     public static string[] AllowedFor(string blockType) => blockType switch
     {
+        WebsiteBlockTypes.PriceList => PriceList,
         WebsiteBlockTypes.Services => Services,
         WebsiteBlockTypes.CallToAction => CallToAction,
         WebsiteBlockTypes.Text => Text,

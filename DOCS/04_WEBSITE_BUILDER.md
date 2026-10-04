@@ -246,6 +246,7 @@ Available block types include:
 - Article Page
 - Video
 - Photo Gallery
+- Price List / Menu
 
 Use the arrows to reorder blocks and the trash icon to remove one — this is also how you place an Agent Info Card wherever you want it on the page, since it's an ordinary block like any other.
 
@@ -280,9 +281,19 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 
 Gallery photos share the same storage limit as your [Documents](12_AGENT_DOCUMENT_LIBRARY.md) library (visible as a usage bar on the block itself once you add your first photo); delete unused documents or gallery photos to free up space if you're close to the limit.
 
+**Price List / Menu** shows what you sell and what it costs, in sections: a bakery's Breads and Drinks, an accountant's fees. Add the block, then fill in its list on the page editor:
+
+- **Sections:** each has a title, an optional note shown under it (for example "Prices include HST", or "Add a drink to any pizza for $1") and an optional photo. **Add a section** adds another; the arrows move a section up or down and the trash icon removes it.
+- **Items:** each has a name, a price, an optional badge (such as "New", "Vegan" or "Most popular"), an optional photo and an optional short description. Write the price the way you say it — "$4.25", "$3.50 / $3.75 / $4.10" for three sizes, "$12 a dozen", "from $150" — or leave it empty to show the item without one. Untick **Available** to show an item as not available right now instead of removing it.
+- **Photos** come from your uploaded images: upload them in the page editor's image library first, then choose them from the list beside each item or section.
+- **What it lists:** choose **Food and drink (a menu)** or **Products or services**. It does not change how the list looks; it tells search engines what kind of list it is. Either way the list is real text on your page, which search engines read — a picture or a PDF of a menu they cannot.
+- **Button:** add one under the list, such as **Call to order** linked to `tel:` and your phone number, `mailto:` and your email address, a page of your site such as `/contact`, or your ordering service's web address.
+
+The block appears on your site once it has at least one item.
+
 ## Change a Block's Layout
 
-Services, Call to Action, Text, Review Badge, Testimonial Submission Form, and Photo Gallery blocks offer a **Layout** dropdown independent of your selected template:
+Services, Call to Action, Text, Review Badge, Testimonial Submission Form, Photo Gallery, and Price List / Menu blocks offer a **Layout** dropdown independent of your selected template:
 
 - **Services**: Cards, List, or Icons.
 - **Call to Action**: Banner, Card, or Split.
@@ -290,6 +301,8 @@ Services, Call to Action, Text, Review Badge, Testimonial Submission Form, and P
 - **Review Badge**: Badge (a centered card) or Banner (a full-width, colored strip matching your Call to Action banner style).
 - **Testimonial Submission Form**: List or Grid — changes how the approved testimonials below the form are arranged.
 - **Photo Gallery**: **Grid** (even tiles, three across), **Carousel** (a horizontally-scrolling row), **Masonry** (each photo keeps its own shape, stacked in columns), or **Slideshow** (one large photo at a time on your page's own background, with arrows, a counter, and a row of thumbnails underneath: click any thumbnail to jump to that photo).
+
+- **Price List / Menu**: **List** (each item's name, a dotted line and its price, with the description underneath — a classic menu; also what **Match template default** shows), **Cards** (a card for each item with its photo on top — good when every item has a photo), or **Compact** (two columns of names and prices — for a long list such as drinks or a fee schedule; one column on a phone).
 
 Leave **Match template default** to use the arrangement your selected template normally uses for that block type. Changing the layout only affects that one block; other blocks and pages are unaffected. Save the block after changing its layout.
 

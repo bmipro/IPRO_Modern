@@ -29,10 +29,13 @@ public static class WebsiteBlockTypes
     // post needs; only an index of them did not exist, so showing ten posts meant ten pages
     // linked by hand.
     public const string Blog = "Blog";
+    // 549: sections of items with prices -- a bakery's menu, an accountant's fee schedule. See
+    // WebsitePriceListSettings.
+    public const string PriceList = "PriceList";
 
     public static readonly string[] All =
     {
-        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, PollVote, LeadMagnet, Reviews, SocialLinks, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex, Blog
+        Hero, Text, Services, CallToAction, ContactForm, NewsletterSignup, TestimonialForm, PollResults, PollVote, LeadMagnet, Reviews, SocialLinks, AgentInfo, Maps, Form, DidYouKnow, ArticleContent, Video, Gallery, Calculator, SectionIndex, Blog, PriceList
     };
 
     public static string DisplayName(string type) => type switch
@@ -52,6 +55,7 @@ public static class WebsiteBlockTypes
         Calculator => "Calculator",
         SectionIndex => "Sub-Page Links",
         Blog => "Blog",
+        PriceList => "Price List / Menu",
         _ => System.Text.RegularExpressions.Regex.Replace(type, "([a-z])([A-Z])", "$1 $2")
     };
 }

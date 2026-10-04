@@ -1,0 +1,141 @@
+@model IPRO.Entities.WebsiteContentBlock
+@{
+    // 549: a price list or a menu, the same partial in all three templates, in the site's own colours
+    // (the --site-theme variables every template sets). The block's heading, supporting line and
+    // introduction are the template's; this draws the sections, the items and the button.
+    //
+    // Three layouts: list (a classic menu -- name, dotted line, price, the description under it), cards
+    // (photo cards) and compact (two columns of name and price, for a long list of drinks or fees).
+    var settings = IPRO.Entities.WebsitePriceListSettings.FromJson(Model.SettingsJson);
+    var layout = string.IsNullOrEmpty(Model.LayoutVariant) ? "list" : Model.LayoutVariant;
+    // Search engines: a schema.org Menu of MenuSections and MenuItems for food and drink, an OfferCatalog
+    // of Offers for products and services. The page's words are the list either way.
+    var isMenu = settings.Kind == IPRO.Entities.PriceListKinds.Menu;
+    var listType = isMenu ? "https://schema.org/Menu" : "https://schema.org/OfferCatalog";
+    var sectionType = isMenu ? "https://schema.org/MenuSection" : "https://schema.org/OfferCatalog";
+    var sectionProp = isMenu ? "hasMenuSection" : "itemListElement";
+    var itemType = isMenu ? "https://schema.org/MenuItem" : "https://schema.org/Offer";
+    var itemProp = isMenu ? "hasMenuItem" : "itemListElement";
+    var firstOnPage = !Context.Items.ContainsKey("price-list-styles");
+    Context.Items["price-list-styles"] = true;
+}
+<div class="pl pl-@layout" itemscope itemtype="@listType">
+  @if (!string.IsNullOrWhiteSpace(Model.Heading))
+  {
+    <meta itemprop="name" content="@Model.Heading" />
+  }
+  @foreach (var listSection in settings.Sections)
+  {
+    <div class="pl-section" itemprop="@sectionProp" itemscope itemtype="@sectionType">
+      @if (!string.IsNullOrWhiteSpace(listSection.ImageUrl))
+      {
+        <img class="pl-section-image" src="@listSection.ImageUrl" alt="" loading="lazy" />
+      }
+      @if (!string.IsNullOrWhiteSpace(listSection.Title))
+      {
+        <h3 class="pl-section-title" itemprop="name">@listSection.Title</h3>
+      }
+      <div class="pl-items">
+        @foreach (var item in listSection.Items)
+        {
+          // A plain single amount ("$4.25", "4", "$12.50") goes to the search engines as a number in
+          // Canadian dollars; "from $25" or three sizes stay words on the page only.
+          var amount = IPRO.Entities.PriceListText.SingleAmount(item.Price);
+          var hasPhoto = !string.IsNullOrWhiteSpace(item.ImageUrl);
+          <div class="pl-item@(item.Available ? "" : " is-unavailable")" itemprop="@itemProp" itemscope itemtype="@itemType">
+            @if (hasPhoto && layout == "cards")
+            {
+              <img class="pl-item-image" src="@item.ImageUrl" alt="@item.Name" loading="lazy" />
+            }
+            else if (hasPhoto && layout == "list")
+            {
+              <img class="pl-item-thumb" src="@item.ImageUrl" alt="@item.Name" loading="lazy" />
+            }
+            <div class="pl-item-body">
+              <div class="pl-item-line">
+                <span class="pl-item-name" itemprop="name">@item.Name</span>
+                @if (!string.IsNullOrWhiteSpace(item.Badge))
+                {
+                  <span class="pl-badge">@item.Badge</span>
+                }
+                <span class="pl-leader" aria-hidden="true"></span>
+                @if (!string.IsNullOrWhiteSpace(item.Price))
+                {
+                  <span class="pl-price">@item.Price</span>
+                }
+              </div>
+              @if (!string.IsNullOrWhiteSpace(item.Description))
+              {
+                <div class="pl-item-description" itemprop="description">@item.Description</div>
+              }
+              @if (!item.Available)
+              {
+                <div class="pl-unavailable">Not available right now</div>
+              }
+              @if (amount != null)
+              {
+                if (isMenu)
+                {
+                  <div itemprop="offers" itemscope itemtype="https://schema.org/Offer"><meta itemprop="price" content="@amount" /><meta itemprop="priceCurrency" content="CAD" /></div>
+                }
+                else
+                {
+                  <meta itemprop="price" content="@amount" /><meta itemprop="priceCurrency" content="CAD" />
+                }
+              }
+            </div>
+          </div>
+        }
+      </div>
+      @if (!string.IsNullOrWhiteSpace(listSection.Note))
+      {
+        <p class="pl-note">@listSection.Note</p>
+      }
+    </div>
+  }
+  @if (!string.IsNullOrWhiteSpace(Model.ButtonText) && !string.IsNullOrWhiteSpace(Model.ButtonUrl))
+  {
+    <div class="pl-actions"><a class="pl-button" href="@Model.ButtonUrl">@Model.ButtonText</a></div>
+  }
+</div>
+@if (firstOnPage)
+{
+<style>
+  .pl { --pl-accent: var(--site-theme, #1457d9); --pl-line: var(--line, #dfe5ee); display: grid; gap: 30px; margin-top: 22px; text-align: left; }
+  .pl-section-image { display: block; width: 100%; max-height: 240px; object-fit: cover; border-radius: 10px; margin-bottom: 14px; }
+  .pl-section-title { margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--pl-accent); font-size: 1.3rem; font-weight: 800; }
+  .pl-items { display: grid; gap: 14px; }
+  .pl-item-body { flex: 1; min-width: 0; }
+  .pl-item-line { display: flex; align-items: baseline; gap: 8px; }
+  .pl-item-name { font-weight: 700; overflow-wrap: anywhere; }
+  .pl-badge { flex: none; padding: 2px 9px; border-radius: 999px; background: var(--site-theme-soft, #eef4ff); color: var(--pl-accent); font-size: .72rem; font-weight: 800; letter-spacing: .02em; }
+  .pl-leader { flex: 1; min-width: 18px; border-bottom: 2px dotted var(--pl-line); transform: translateY(-4px); }
+  .pl-price { flex: none; max-width: 55%; text-align: right; font-weight: 800; }
+  .pl-item-description { margin-top: 3px; color: #5b6472; font-size: .93rem; line-height: 1.5; }
+  .pl-unavailable { margin-top: 3px; color: #b42318; font-size: .8rem; font-weight: 700; }
+  .pl-item.is-unavailable .pl-item-name, .pl-item.is-unavailable .pl-price { color: #94a3b8; }
+  .pl-note { margin: 12px 0 0; color: #64748b; font-size: .9rem; font-style: italic; }
+  .pl-actions { margin-top: -6px; }
+  .pl-button { display: inline-flex; align-items: center; min-height: 46px; padding: 0 22px; border-radius: var(--button-radius, 8px); background: var(--pl-accent); color: #fff; font-weight: 800; text-decoration: none; }
+  .pl-button:hover { color: #fff; filter: brightness(.95); }
+
+  .pl-list .pl-item { display: flex; gap: 14px; align-items: flex-start; }
+  .pl-list .pl-item-thumb { flex: none; width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
+
+  .pl-compact .pl-items { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 40px; row-gap: 10px; }
+  .pl-compact .pl-item-description { font-size: .84rem; }
+
+  .pl-cards .pl-items { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .pl-cards .pl-item { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--pl-line); border-radius: 12px; background: #fff; }
+  .pl-cards .pl-item-image { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+  .pl-cards .pl-item-body { display: flex; flex-direction: column; padding: 14px 16px 16px; }
+  .pl-cards .pl-item-line { flex-wrap: wrap; }
+  .pl-cards .pl-leader { display: none; }
+  .pl-cards .pl-price { margin-left: auto; color: var(--pl-accent); }
+
+  @@media (max-width: 640px) {
+    .pl-compact .pl-items { grid-template-columns: 1fr; }
+    .pl-price { max-width: 50%; }
+  }
+</style>
+}

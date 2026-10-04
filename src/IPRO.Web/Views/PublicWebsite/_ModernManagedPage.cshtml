@@ -360,6 +360,16 @@
       </div></section>
     }
   }
+  else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList)
+  {
+    // 549: shown once it has an item, as a gallery is once it has a photo.
+    if (IPRO.Entities.WebsitePriceListSettings.FromJson(block.SettingsJson).HasItems)
+    {
+      <section class="mp-section"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}
+        @await Html.PartialAsync("_PriceList", block)
+      </div></section>
+    }
+  }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Calculator)
   {
     var mpCalcSettings = IPRO.Entities.WebsiteCalculatorSettings.FromJson(block.SettingsJson);

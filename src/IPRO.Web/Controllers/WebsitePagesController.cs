@@ -354,7 +354,8 @@ public class WebsitePagesController : Controller
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
         bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
         int blogPostCount = 6, bool blogShowImages = true,
-        string videoUrl = "", string calculatorKind = "")
+        string videoUrl = "", string calculatorKind = "",
+        string priceListKind = "", string priceListJson = "")
     {
         var ownedPageId = await _db.WebsiteContentBlocks
             .Where(b => b.Id == id && b.WebsitePage.AgentWebsite.AgentUserId == AgentId)
@@ -378,7 +379,7 @@ public class WebsitePagesController : Controller
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
             mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId,
-            blogPostCount, blogShowImages, videoUrl, calculatorKind);
+            blogPostCount, blogShowImages, videoUrl, calculatorKind, priceListKind, priceListJson);
 
         var model = await BuildPreviewViewModelAsync(page);
         ViewBag.IsTemplatePreview = true;
@@ -974,7 +975,8 @@ public class WebsitePagesController : Controller
         bool showAgentPhoto = true, bool showAgentDesignation = true, bool showAgentAddress = true, bool showAgentPhone = true, bool showAgentEmail = true,
         bool showContactPhoto = true, string mapAddress = "", string mapHeight = "standard", int websiteFormId = 0, int[]? articleIds = null, string layoutStyle = "auto", int articleId = 0,
         int blogPostCount = 6, bool blogShowImages = true,
-        string videoUrl = "", string calculatorKind = "")
+        string videoUrl = "", string calculatorKind = "",
+        string priceListKind = "", string priceListJson = "")
     {
         var block = await _db.WebsiteContentBlocks
             .Include(b => b.WebsitePage).ThenInclude(p => p.AgentWebsite)
@@ -986,7 +988,7 @@ public class WebsitePagesController : Controller
             pollSurveyId, agentDocumentId, reviewPlatform, reviewUrl, reviewRating, reviewCount,
             showAgentPhoto, showAgentDesignation, showAgentAddress, showAgentPhone, showAgentEmail, showContactPhoto,
             mapAddress, mapHeight, websiteFormId, articleIds, layoutStyle, articleId,
-            blogPostCount, blogShowImages, videoUrl, calculatorKind);
+            blogPostCount, blogShowImages, videoUrl, calculatorKind, priceListKind, priceListJson);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Content block saved.";
@@ -1004,7 +1006,8 @@ public class WebsitePagesController : Controller
         bool showAgentPhoto, bool showAgentDesignation, bool showAgentAddress, bool showAgentPhone, bool showAgentEmail,
         bool showContactPhoto, string mapAddress, string mapHeight, int websiteFormId, int[]? articleIds, string layoutStyle = "auto", int articleId = 0,
         int blogPostCount = 6, bool blogShowImages = true,
-        string videoUrl = "", string calculatorKind = "")
+        string videoUrl = "", string calculatorKind = "",
+        string priceListKind = "", string priceListJson = "")
     {
         block.Heading = heading?.Trim() ?? string.Empty;
         block.Subheading = subheading?.Trim() ?? string.Empty;
@@ -1129,6 +1132,24 @@ public class WebsitePagesController : Controller
             {
                 VideoUrl = videoUrl?.Trim() ?? string.Empty
             }.ToJson();
+        }
+        else if (block.BlockType == WebsiteBlockTypes.PriceList)
+        {
+            // 549: the editor posts the whole list as JSON (its script writes it into one hidden field,
+            // which the page also fills on load, so a save without the script still carries the list).
+            // A post with no list, or one that is not a list, keeps what is stored: a save must never
+            // empty an agent's menu because the field arrived broken.
+            if (WebsitePriceListSettings.TryParse(priceListJson, out var posted))
+            {
+                posted.Kind = priceListKind;
+                block.SettingsJson = WebsitePriceListSettings.Clean(posted, NormalizeUrl).ToJson();
+            }
+            else
+            {
+                var stored = WebsitePriceListSettings.FromJson(block.SettingsJson);
+                stored.Kind = PriceListKinds.Normalize(priceListKind);
+                block.SettingsJson = stored.ToJson();
+            }
         }
         // Gallery's SettingsJson (the image list) is managed entirely by UploadGalleryImages, SaveGalleryCaptions,
         // MoveGalleryImage and DeleteGalleryImage (535) --
@@ -1357,10 +1378,18 @@ public class WebsitePagesController : Controller
             WebsiteBlockTypes.Video => "Watch Our Video",
             WebsiteBlockTypes.Gallery => "Photo Gallery",
             WebsiteBlockTypes.Calculator => "Try Our Calculator",
+            WebsiteBlockTypes.PriceList => "Our prices",
             _ => "New content section"
         },
         Subheading = "Add a short supporting message.",
-        Body = type == WebsiteBlockTypes.Services ? "Service one\nService two\nService three" : "Add your content here.",
+        // 549: a price list's introduction is optional and the starter list says what to do.
+        Body = type switch
+        {
+            WebsiteBlockTypes.Services => "Service one\nService two\nService three",
+            WebsiteBlockTypes.PriceList => string.Empty,
+            _ => "Add your content here."
+        },
+        SettingsJson = type == WebsiteBlockTypes.PriceList ? WebsitePriceListSettings.Starter().ToJson() : "{}",
         ButtonText = type switch
         {
             WebsiteBlockTypes.Hero or WebsiteBlockTypes.CallToAction => "Learn more",
@@ -1408,6 +1437,14 @@ public class WebsitePagesController : Controller
     {
         value = value?.Trim() ?? string.Empty;
         if (value.StartsWith('/')) return value;
+        // 549: "Call to order" on a bakery's menu -- a button may dial a number or start an email. Only
+        // these two schemes and only plain numbers and addresses; anything else is still dropped.
+        if (PhoneLink.IsMatch(value) || MailLink.IsMatch(value)) return value;
         return NormalizeUrl(value);
     }
+
+    private static readonly System.Text.RegularExpressions.Regex PhoneLink =
+        new(@"^tel:\+?[0-9][0-9 ().-]{2,30}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    private static readonly System.Text.RegularExpressions.Regex MailLink =
+        new(@"^mailto:[^\s@<>""'()]+@[^\s@<>""'()]+\.[^\s@<>""'()]+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 }

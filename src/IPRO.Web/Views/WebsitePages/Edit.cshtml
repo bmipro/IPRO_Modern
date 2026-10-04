@@ -231,7 +231,7 @@
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div>
           <div class="col-md-6"><label class="form-label fw-semibold">Supporting Line</label><input name="subheading" value="@block.Subheading" class="form-control" /></div>
-          <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services ? "Items (one per line)" : "Body")</label><textarea name="body" class="form-control" rows="4">@block.Body</textarea></div>
+          <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services ? "Items (one per line)" : block.BlockType is IPRO.Entities.WebsiteBlockTypes.PriceList ? "Introduction (optional)" : "Body")</label><textarea name="body" class="form-control" rows="@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.PriceList ? 2 : 4)">@block.Body</textarea></div>
           @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Hero or IPRO.Entities.WebsiteBlockTypes.Text)
           {
           <div class="col-md-6">
@@ -264,12 +264,12 @@
             <img src="@block.ImageUrl" alt="" class="rounded mt-2 block-image-preview @(string.IsNullOrWhiteSpace(block.ImageUrl) ? "d-none" : "")" style="width:180px;height:74px;object-fit:cover" />
           </div>
           }
-          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Hero or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.Text)
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Hero or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.PriceList)
           {
-          <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" /></div>
-          <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="/contact" /></div>
+          <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" placeholder="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList ? "Call to order" : null)" /></div>
+          <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList ? "tel:4165551234" : "/contact")" />@if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList){<div class="form-text">A page (/contact), a web address, tel: and a number to call, or mailto: and an email address.</div>}</div>
           }
-          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm or IPRO.Entities.WebsiteBlockTypes.Maps or IPRO.Entities.WebsiteBlockTypes.Gallery or IPRO.Entities.WebsiteBlockTypes.SocialLinks)
+          @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm or IPRO.Entities.WebsiteBlockTypes.Maps or IPRO.Entities.WebsiteBlockTypes.Gallery or IPRO.Entities.WebsiteBlockTypes.SocialLinks or IPRO.Entities.WebsiteBlockTypes.PriceList)
           {
             <div class="col-md-4">
               <label class="form-label fw-semibold">Layout</label>
@@ -318,6 +318,12 @@
                   <option value="carousel" selected="@(block.LayoutVariant == "carousel" ? "selected" : null)">Carousel (scrolling row)</option>
                   <option value="masonry" selected="@(block.LayoutVariant == "masonry" ? "selected" : null)">Masonry (each photo keeps its shape)</option>
                   <option value="slideshow" selected="@(block.LayoutVariant == "slideshow" ? "selected" : null)">Slideshow (one large photo at a time)</option>
+                }
+                else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList)
+                {
+                  <option value="list" selected="@(block.LayoutVariant == "list" ? "selected" : null)">List (name, dotted line, price)</option>
+                  <option value="cards" selected="@(block.LayoutVariant == "cards" ? "selected" : null)">Cards (a photo for each item)</option>
+                  <option value="compact" selected="@(block.LayoutVariant == "compact" ? "selected" : null)">Compact (two columns, for long lists)</option>
                 }
               </select>
               <div class="form-text">Changes how this block's items are arranged. Leave as default to match your template's usual style.@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Text ? " Only affects blocks with an image selected." : "")@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm ? " Only affects approved testimonials shown below the form." : "")</div>
@@ -560,6 +566,29 @@
               <div class="form-text">Visitors enter their own numbers and calculate on the page — nothing is sent to you. Estimates only, not financial advice.</div>
             </div>
           }
+          @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList)
+          {
+            var priceList = IPRO.Entities.WebsitePriceListSettings.FromJson(block.SettingsJson);
+            var priceListImages = Model.MediaAssets.Select(a => new { url = a.BlobUrl, name = a.OriginalFileName });
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">What it lists</label>
+              <select name="priceListKind" class="form-select">
+                <option value="prices" selected="@(priceList.Kind != IPRO.Entities.PriceListKinds.Menu ? "selected" : null)">Products or services</option>
+                <option value="menu" selected="@(priceList.Kind == IPRO.Entities.PriceListKinds.Menu ? "selected" : null)">Food and drink (a menu)</option>
+              </select>
+              <div class="form-text">Tells search engines what kind of list this is. It does not change how the list looks.</div>
+            </div>
+            <div class="col-12">
+              @* 549: the list. The script below draws the sections and items from priceListJson and writes them
+                 back into it as you type, so Save and Preview post exactly what you see. *@
+              <div class="price-list-editor" data-price-list data-images="@System.Text.Json.JsonSerializer.Serialize(priceListImages)">
+                <input type="hidden" name="priceListJson" value="@priceList.ToJson()" />
+                <div class="pl-sections"></div>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-pl-add-section><i class="fas fa-plus me-1"></i>Add a section</button>
+                <div class="form-text mt-2">Write prices the way you say them: "$4.25", "$3.50 / $3.75 / $4.10", "$12 a dozen", "from $150". An item without a price shows without one. Photos come from your uploaded images (Images, above). Untick "Available" to show an item as not available right now instead of removing it.</div>
+              </div>
+            </div>
+          }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Maps)
           {
             var mapSettings = IPRO.Entities.WebsiteMapSettings.FromJson(block.SettingsJson);
@@ -676,6 +705,9 @@
 .starter-banner-use{position:absolute;right:8px;bottom:7px;color:#0d6efd;font-size:11px;font-weight:700}
 .starter-banner-choice.is-selected .starter-banner-use{color:#198754}
 @@media(max-width:800px){.image-library-toolbar,.starter-banner-toolbar{grid-template-columns:1fr}.starter-banner-grid{grid-template-columns:1fr}.starter-banner-caption{font-size:11px}}
+.pl-edit-section{margin-bottom:12px;padding:14px;border:1px solid #d8e3f0;border-radius:8px;background:#f7faff}
+.pl-edit-section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.pl-edit-item{margin-top:10px;padding-top:10px;border-top:1px dashed #cdd9ea}
 </style>
 <script nonce="@Context.GetCspNonce()">
 document.querySelectorAll('select[name="imageUrl"]').forEach(select => {
@@ -854,5 +886,146 @@ document.querySelectorAll('form.js-gallery-upload').forEach(form => {
       button.textContent = files.length > 1 ? `Uploading ${files.length} photos...` : 'Uploading...';
     }
   });
+});
+
+// 549: the price list editor. The list lives in the hidden priceListJson field; its sections and items
+// are drawn from it on load and written back into it on every change, so Save and Preview post exactly
+// what the agent sees. Text goes in through .value and textContent only, never as HTML.
+document.querySelectorAll('[data-price-list]').forEach(root => {
+  const field = root.querySelector('input[name="priceListJson"]');
+  const holder = root.querySelector('.pl-sections');
+  let images = [];
+  try { images = JSON.parse(root.dataset.images || '[]'); } catch (e) { images = []; }
+  let data = {};
+  try { data = JSON.parse(field.value || '{}'); } catch (e) { data = {}; }
+
+  const make = (tag, className) => { const el = document.createElement(tag); if (className) el.className = className; return el; };
+  const cell = (className, ...children) => { const div = make('div', className); div.append(...children); return div; };
+
+  function textInput(name, value, label, placeholder, maxLength) {
+    const input = make('input', 'form-control form-control-sm');
+    input.dataset.plField = name;
+    input.value = value || '';
+    input.placeholder = placeholder;
+    input.maxLength = maxLength;
+    input.setAttribute('aria-label', label);
+    return input;
+  }
+
+  function photoSelect(current, label) {
+    const select = make('select', 'form-select form-select-sm');
+    select.dataset.plField = 'ImageUrl';
+    select.setAttribute('aria-label', label);
+    select.add(new Option('No photo', ''));
+    images.forEach(image => select.add(new Option(image.name, image.url)));
+    if (current && !images.some(image => image.url === current)) select.add(new Option('Current photo', current));
+    select.value = current || '';
+    return select;
+  }
+
+  function iconButton(icon, title, action) {
+    const button = make('button', 'btn btn-sm btn-outline-secondary');
+    button.type = 'button';
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.dataset.plAction = action;
+    button.append(make('i', 'fas ' + icon));
+    return button;
+  }
+
+  function itemRow(item) {
+    item = item || {};
+    const available = make('input', 'form-check-input m-0');
+    available.type = 'checkbox';
+    available.dataset.plField = 'Available';
+    available.checked = item.Available !== false;
+    const availableLabel = make('label', 'small d-inline-flex align-items-center gap-1 mb-0');
+    availableLabel.append(available, document.createTextNode('Available'));
+    const buttons = cell('btn-group', iconButton('fa-arrow-up', 'Move item up', 'item-up'), iconButton('fa-arrow-down', 'Move item down', 'item-down'), iconButton('fa-trash', 'Remove item', 'item-remove'));
+    return cell('pl-edit-item row g-2 align-items-center',
+      cell('col-md-4', textInput('Name', item.Name, 'Item name', 'Item name, e.g. Baguette', 120)),
+      cell('col-md-2', textInput('Price', item.Price, 'Price', 'Price, e.g. $4.25', 60)),
+      cell('col-md-2', textInput('Badge', item.Badge, 'Badge', 'Badge (optional)', 30)),
+      cell('col-md-4', photoSelect(item.ImageUrl, 'Item photo')),
+      cell('col-md-8', textInput('Description', item.Description, 'Description', 'A short description (optional)', 300)),
+      cell('col-md-2', availableLabel),
+      cell('col-md-2 text-md-end', buttons));
+  }
+
+  function sectionCard(section) {
+    section = section || {};
+    const head = cell('pl-edit-section-head',
+      cell('small fw-semibold text-muted', document.createTextNode('Section')),
+      cell('btn-group', iconButton('fa-arrow-up', 'Move section up', 'section-up'), iconButton('fa-arrow-down', 'Move section down', 'section-down'), iconButton('fa-trash', 'Remove section', 'section-remove')));
+    const fields = cell('pl-edit-section-fields row g-2',
+      cell('col-md-4', textInput('Title', section.Title, 'Section title', 'Section title, e.g. Breads', 100)),
+      cell('col-md-5', textInput('Note', section.Note, 'Section note', 'A note under the section (optional)', 300)),
+      cell('col-md-3', photoSelect(section.ImageUrl, 'Section photo')));
+    const items = make('div', 'pl-edit-items');
+    (Array.isArray(section.Items) ? section.Items : []).forEach(item => items.append(itemRow(item)));
+    const addItem = make('button', 'btn btn-sm btn-link px-0 mt-2');
+    addItem.type = 'button';
+    addItem.dataset.plAction = 'add-item';
+    addItem.append(make('i', 'fas fa-plus me-1'), document.createTextNode('Add an item'));
+    return cell('pl-edit-section', head, fields, items, addItem);
+  }
+
+  function write() {
+    const sections = [];
+    holder.querySelectorAll(':scope > .pl-edit-section').forEach(card => {
+      const fields = card.querySelector(':scope > .pl-edit-section-fields');
+      const sectionValue = name => fields.querySelector('[data-pl-field="' + name + '"]').value;
+      const items = [];
+      card.querySelectorAll(':scope > .pl-edit-items > .pl-edit-item').forEach(row => {
+        const itemValue = name => row.querySelector('[data-pl-field="' + name + '"]').value;
+        items.push({
+          Name: itemValue('Name'), Price: itemValue('Price'), Description: itemValue('Description'),
+          Badge: itemValue('Badge'), ImageUrl: itemValue('ImageUrl'),
+          Available: row.querySelector('[data-pl-field="Available"]').checked
+        });
+      });
+      sections.push({ Title: sectionValue('Title'), Note: sectionValue('Note'), ImageUrl: sectionValue('ImageUrl'), Items: items });
+    });
+    field.value = JSON.stringify({ Kind: data.Kind || 'prices', Sections: sections });
+  }
+
+  (Array.isArray(data.Sections) ? data.Sections : []).forEach(section => holder.append(sectionCard(section)));
+
+  root.addEventListener('click', event => {
+    const button = event.target.closest('[data-pl-action], [data-pl-add-section]');
+    if (!button || !root.contains(button)) return;
+    if (button.hasAttribute('data-pl-add-section')) {
+      const card = sectionCard({ Items: [{}] });
+      holder.append(card);
+      card.querySelector('[data-pl-field="Title"]').focus();
+      write();
+      return;
+    }
+    const action = button.dataset.plAction;
+    const row = button.closest('.pl-edit-item');
+    const card = button.closest('.pl-edit-section');
+    if (action === 'add-item') {
+      const added = itemRow({});
+      card.querySelector('.pl-edit-items').append(added);
+      added.querySelector('[data-pl-field="Name"]').focus();
+    } else if (action === 'item-up' && row.previousElementSibling) {
+      row.parentElement.insertBefore(row, row.previousElementSibling);
+    } else if (action === 'item-down' && row.nextElementSibling) {
+      row.parentElement.insertBefore(row.nextElementSibling, row);
+    } else if (action === 'item-remove') {
+      row.remove();
+    } else if (action === 'section-up' && card.previousElementSibling) {
+      holder.insertBefore(card, card.previousElementSibling);
+    } else if (action === 'section-down' && card.nextElementSibling) {
+      holder.insertBefore(card.nextElementSibling, card);
+    } else if (action === 'section-remove' && confirm('Remove this section and all its items?')) {
+      card.remove();
+    }
+    write();
+  });
+  root.addEventListener('input', write);
+  root.addEventListener('change', write);
+  const form = root.closest('form');
+  if (form) form.addEventListener('submit', write);
 });
 </script>
