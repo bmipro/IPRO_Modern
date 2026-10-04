@@ -12,6 +12,12 @@ landed on the invoice a minute later. Left: the simulator's bounce and complaint
 section 7a (the test sheet), which also puts the marketing stream's trial on his account BEFORE step 8.
 **2026-10-04:** every test on the sheet has passed (1 to 3 and 5 to 7; 4 is the watch, clean). Step 8 is his
 decision: 8.1 (everyone's invoice-type mail) can go now, 8.2 (marketing mail) a week after it.
+**Step 8.1 DONE, 2026-10-04 (the owner):** `Email__Ses__Streams` = `notify` (length 6) at 20:03 UTC, then
+`Email__Ses__PilotAgentIds` deleted at 21:02 UTC (checked absent by name; the first try was not Applied).
+Every adviser's invoice-type mail goes through SES since 5:02 p.m. Eastern; his marketing mail is back on ACS
+with everyone else's. The web log after the restart: no warning, no failure. Amazon's Reputation metrics that
+afternoon: Healthy, bounce 0.00%, complaint 0.00%. **Next: 8.2 about 2026-10-11** (`notify,news`), if the
+figures hold; then 8.3's alarms.
 
 **What exists in AWS already.** Account 354245663230, region Canada (Central) `ca-central-1`, Business
 Support+. Production access granted 2026-09-30: 50,000 emails a day, 14 a second. Two verified identities:

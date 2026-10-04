@@ -51,7 +51,11 @@
    Email Activity's Failed tile leaves it out. Step 8.1 of the SES runbook is his whenever he likes (all tests
    passed, the figures healthy): Streams to `notify` (restart), THEN clear the pilot list (restart); then I
    check both settings by name and length and watch the first sends.
-5. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
-6. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-03.md`, items 7 to 9.
+5. **SES step 8.1 DONE (his, 10-04):** Streams `notify` at 4:03 p.m., the pilot list deleted at 5:02 p.m. (the
+   first delete was not Applied; checked by name). Every adviser's invoice-type mail now goes through Amazon;
+   the log after the restart is clean. Watch the week (web log, his Reputation metrics); **8.2 about 10-11**
+   (`notify,news`, his change), then the CloudWatch alarms (8.3).
+6. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
+7. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-03.md`, items 7 to 9.
 
 Related: `DOCS/TODO.md` 546 to 549; `DOCS/SESSION_HANDOFF_2026-10-03.md`.
