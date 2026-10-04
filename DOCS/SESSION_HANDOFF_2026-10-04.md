@@ -11,7 +11,11 @@
   preview that cut the card off: "can u make it 4 so we could see the live preview in whole" -> **547**.
 - **Told him:** the old "Luxury car" birthday design has "Happy Birthday" lettered into its picture, so the title
   shows twice; the fix is his click in SuperAdmin -> E-Card Designs -> Luxury car -> Words in the picture: "The title
-  is lettered in".
+  is lettered in". **Done by him** (his screenshot, afternoon).
+- **The nine supplied e-card pictures:** he switched most of them on himself (his licences): "There only a few that
+  are not turned on. I approved the others."
+- **His verdict on 547 to 549:** "It was an amazing experience. Everything fit like a glove and honestly I could not
+  find anything I dont like."
 - **A menu for a bakery he hopes to sign** (La Venue Bakery, lavenuebakery.com, two menus: Drinks and Breads): he
   liked a generic **Price list / Menu** block over a bakery-only one ("looks as good for a bakery and accountant")
   and the three layouts -> **549**, now live.
@@ -34,7 +38,11 @@
 2. **549, the Price List / Menu block, is live** (build `eb787ea`). Next the bakery's menus can be built on its site: Bread & Pastries (List) and Drinks and Meals (Compact, with a
    "Call to order" button on tel:). The block was seen on the real app locally in all three layouts; the editor
    itself is behind sign-in, so his first look at it is the first one with his data.
-3. **The pilot:** test 7, then the decision (runbook 7a), as in 10-03's item 4.
+3. **The pilot:** test 7's steps sent to him on 10-04 (an account type "SES test 7", two clients at
+   `bounce+news@` and `complaint+news@simulator.amazonses.com`, a newsletter to it). It is the last test he runs;
+   test 4 is the watch: the web log of 10-03 and 10-04 has no SES failure, bounce or complaint, and Amazon's
+   Reputation metrics are his to read in the SES console. Then the decision (runbook 7a): everyone's invoice-type
+   mail (Streams back to `notify`, THEN clear the pilot list), and everyone's marketing mail a week later.
 4. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
 5. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-03.md`, items 7 to 9.
 
