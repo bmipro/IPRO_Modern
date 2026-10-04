@@ -29,33 +29,39 @@
 
 | Code | Item | Gate |
 |---|---|---|
+| `6142ff0` | **546** the 2026 e-card collection: 49 approved designs across 21 occasions (built 10-03, pushed 10:08 a.m.) | 1407/1407 |
 | `38048b5` | **547** the e-card picker shows the whole card in its preview, four designs a row | 1414/1414 |
 | `38be1d0` | **548** e-cards and e-letters fill a phone's width instead of being shrunk to fit | 1414/1414 |
 | `e10bd93` | **549** a Price List / Menu block for agents' websites | 1435/1435 |
 | `0ef88cb` | **550** a spam report reads Reported spam on the newsletter's page, and is not a failure | 1443/1443 |
 
-## Do this first when the owner is back
+## Close-out 2026-10-04
 
-1. **547 and 548 are live** (build `ec9ad9a`). The test with him: he sends himself a card and a letter and reads them on his
-   phone (Gmail app and his business mailbox) and in Thunderbird: the words at full size, the photo under the
-   details on the phone, side by side on the computer. Outlook on Windows was not seen here.
-2. **549, the Price List / Menu block, is live** (build `eb787ea`). Next the bakery's menus can be built on its site: Bread & Pastries (List) and Drinks and Meals (Compact, with a
-   "Call to order" button on tel:). The block was seen on the real app locally in all three layouts; the editor
-   itself is behind sign-in, so his first look at it is the first one with his data.
-3. **The pilot: test 7 PASSED (10-04, 3:39 p.m.; runbook 7a has 5 to 7), the last test on the sheet.** Test 7's steps were sent to him on 10-04 (an account type "SES test 7", two clients at
-   `bounce+news@` and `complaint+news@simulator.amazonses.com`, a newsletter to it). It is the last test he runs;
-   test 4 is the watch: the web log of 10-03 and 10-04 has no SES failure, bounce or complaint, and Amazon's
-   Reputation metrics are his to read in the SES console. Then the decision (runbook 7a): everyone's invoice-type
-   mail (Streams back to `notify`, THEN clear the pilot list), and everyone's marketing mail a week later.
-4. **550 is live** (build `b2fb6dd`): a spam report reads Reported spam on the newsletter's page, and
-   Email Activity's Failed tile leaves it out. Step 8.1 of the SES runbook is his whenever he likes (all tests
-   passed, the figures healthy): Streams to `notify` (restart), THEN clear the pilot list (restart); then I
-   check both settings by name and length and watch the first sends.
-5. **SES step 8.1 DONE (his, 10-04):** Streams `notify` at 4:03 p.m., the pilot list deleted at 5:02 p.m. (the
-   first delete was not Applied; checked by name). Every adviser's invoice-type mail now goes through Amazon;
-   the log after the restart is clean. Watch the week (web log, his Reputation metrics); **8.2 about 10-11**
-   (`notify,news`, his change), then the CloudWatch alarms (8.3).
-6. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
-7. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-03.md`, items 7 to 9.
+- **Code today:** 546 (build `da038dc`), 547 and 548 (`ec9ad9a`), 549 (`eb787ea`), 550 (`b2fb6dd`), each gated in
+  full first, each verified at /health/version on both hosts with live checks. This close-out's docs push follows
+  (it carries the check-marks of 547 to 550 and the SES notes); its SHA is what both hosts show after it.
+- **Outside the code, his:** SES step 8.1 (every adviser's invoice-type mail through Amazon since 5:02 p.m.; the
+  stream setting `notify`, the pilot list deleted; checked by name and length, the log clean after the restart);
+  pilot test 7 passed and Amazon's figures read Healthy (0.00% / 0.00%); most of the nine supplied e-card pictures
+  switched on; the Luxury car design set to "title lettered in"; 541 dropped.
+- **Local machine:** the build servers shut down; no dotnet or test host of this session left; Azurite (the blob
+  emulator started for 549's local look) ends with the reboot; MySQL is the IPROLocalMySQL service, nothing to do.
 
-Related: `DOCS/TODO.md` 546 to 549; `DOCS/SESSION_HANDOFF_2026-10-03.md`.
+## Do this first tomorrow
+
+1. **536, Monday 2026-10-05, about 7 a.m. Eastern:** his follow-ups mail goes out (iPro's own mail stays on ACS:
+   the SendMail metric shows it).
+2. **SES 8.1's first week:** other advisers' invoices, reminders, portal invitations and testimonial requests now go
+   through Amazon -- the web log (no SES failure, bounces and complaints handled), Email Activity, and his
+   Reputation metrics mid-week. **8.2 about 10-11** (`Email__Ses__Streams` = `notify,news`, his change), then 8.3's
+   CloudWatch alarms. The way back at any time: clear `Email__Ses__Streams`.
+3. **The bakery (L'Avenue Boulangerie), once he signs it:** two pages with the Price List / Menu block -- Bread &
+   Pastries as List, Drinks and Meals as Compact with "Call to order" on `tel:`; "What it lists" = Food and drink.
+4. **Still to see with him:** a card and a letter on his phone after 548 (full-size words, the photo under the
+   details); the Price List editor's first use with real data (549).
+5. **His, when ready:** the few supplied e-card pictures still off (as licences are confirmed).
+6. **Carried, and the calendar:** 539's two images and the stock-image licences; 532 Refer a Friend (later, his
+   word); the calendar as in `DOCS/SESSION_HANDOFF_2026-10-02.md`, items 7 and 8 (TrackingSigningKeyPrevious
+   about 17 Oct, ACS closed to new customers 23 Oct, the renewal 25 Oct, the Platinum waiver 30 Oct, .NET 10).
+
+Related: `DOCS/TODO.md` 546 to 550; `DOCS/SES_GO_LIVE_RUNBOOK.md` (8.1 done); `DOCS/SESSION_HANDOFF_2026-10-03.md`.
