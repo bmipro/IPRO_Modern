@@ -43,7 +43,7 @@
 - **fortressconsys.com** (an adviser's domain, his "can u check this domain"): once propagated, www bound with its own
   certificate and answers 200; the bare name redirects to www.
 - **Refer a Friend** was never built (TODO 532); he: "leave the refer a friend for later (to do list)".
-- **546 built and gated, HELD for his word:** the 2026 e-card collection from the designer's approved package (49
+- **546 built, gated and deployed (2026-10-04, build `da038dc`):** the 2026 e-card collection from the designer's approved package (49
   designs, 21 occasions; TODO 546). The nine pictures he supplied arrive switched off until their licences are
   confirmed, and the four cards with the greeting printed in the picture keep the approved wording -- the two
   defaults he was told of. Found on the way: a SuperAdmin upload never recorded the picture's size (fixed).
@@ -57,6 +57,7 @@
 | `40c5a31` | **543** a newsletter's unsubscribe link lands on the preferences page, with the way back | 1398/1398 |
 | `4063179` | **544** a card or letter recipient skipped for an unsubscribe says so on the row | 1398/1398 |
 | `c98b714` | **545** an image load in the first minute after the send is not an open | 1398/1398 |
+| `6142ff0` | **546** the 2026 e-card collection: 49 approved designs across 21 occasions | 1407/1407 |
 
 The same push carried the docs commits held since the morning (541's answers, pilot tests 2 and 3). Build
 `83600c6` on both hosts.
@@ -76,7 +77,7 @@ The same push carried the docs commits held since the morning (541's answers, pi
    testimonial request, all in his Gmail Inbox as the letter; he: "well done"). Part 2 is done (his setting,
    `Email__Ses__Streams` = `notify,news`; tests 5 and 6 passed and surfaced 543 to 545). Next: test 7, then the
    decision (runbook 7a).
-5. **546, the e-card collection:** gated and held; it goes out on his word ("push it"). After the deploy he sends
+5. **546, the e-card collection, is live** (build `da038dc`). The test with him: he sends
    samples to himself: a picture card (birthday balloons), a lettering card (the THANK YOU), the songbird thank-you
    (greeting in the picture) and, once licensed and switched on, the Norooz goldfish (animated). In SuperAdmin ->
    E-Card Designs he offers each of the nine supplied cards (the eye icon) as its licence is confirmed, and ticks
