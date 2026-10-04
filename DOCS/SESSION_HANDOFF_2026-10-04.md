@@ -23,7 +23,7 @@
   went first while 549's test run finished).
 - **Pilot test 7 passed** (3:39 p.m.); Amazon's Reputation metrics (his screenshot): Healthy, bounce 0.00%,
   complaint 0.00%, 4 emails in 24 hours. The newsletter's page read the complaint "Unsubscribed -- complaint:
-  abuse" beside the client's "Reported spam" -> **550** ("Yes please"), built and gated, HELD for his word.
+  abuse" beside the client's "Reported spam" -> **550** ("Yes please"), deployed 2026-10-04 (build `b2fb6dd`).
 
 ## Pushed today
 
@@ -32,6 +32,7 @@
 | `38048b5` | **547** the e-card picker shows the whole card in its preview, four designs a row | 1414/1414 |
 | `38be1d0` | **548** e-cards and e-letters fill a phone's width instead of being shrunk to fit | 1414/1414 |
 | `e10bd93` | **549** a Price List / Menu block for agents' websites | 1435/1435 |
+| `0ef88cb` | **550** a spam report reads Reported spam on the newsletter's page, and is not a failure | 1443/1443 |
 
 ## Do this first when the owner is back
 
@@ -46,7 +47,7 @@
    test 4 is the watch: the web log of 10-03 and 10-04 has no SES failure, bounce or complaint, and Amazon's
    Reputation metrics are his to read in the SES console. Then the decision (runbook 7a): everyone's invoice-type
    mail (Streams back to `notify`, THEN clear the pilot list), and everyone's marketing mail a week later.
-4. **550 goes out on his word** ("push it"): a spam report reads Reported spam on the newsletter's page, and
+4. **550 is live** (build `b2fb6dd`): a spam report reads Reported spam on the newsletter's page, and
    Email Activity's Failed tile leaves it out. Step 8.1 of the SES runbook is his whenever he likes (all tests
    passed, the figures healthy): Streams to `notify` (restart), THEN clear the pilot list (restart); then I
    check both settings by name and length and watch the first sends.
