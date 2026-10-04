@@ -24,7 +24,7 @@ Each row shows:
 ## Read One Send in Detail
 
 1. Click **Detail** on a row.
-2. The five tiles at the top show **Recipients, Delivered, Opened, Clicked, Failed**, each with a percentage.
+2. The five tiles at the top show **Recipients, Delivered, Opened, Clicked, Failed**, each with a percentage. A recipient who reported the email as spam is not counted as Failed: the email arrived.
 3. Below is one line per recipient: name, email, **Status** (the furthest point reached: Sent, Delivered, Opened, Clicked, or Failed), the time of each step, and **Issue**, which carries the mail provider's reason when something failed or bounced. A recipient who marked the email as spam reads **Reported spam**: the email arrived, and they are now unsubscribed from all your marketing email.
 4. **Back to Email Activity** returns to the list.
 

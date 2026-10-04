@@ -237,10 +237,19 @@
                 IPRO.Entities.NewsLetterRecipientStatus.Bounced or IPRO.Entities.NewsLetterRecipientStatus.Failed or IPRO.Entities.NewsLetterRecipientStatus.Dropped => "bg-danger",
                 _ => "bg-secondary"
             };
+            // 550: a spam report reads as the client's page and Email Activity read it. Its status is
+            // Unsubscribed (the complaint unsubscribed them), which this table used to show as if the
+            // client had clicked Unsubscribe; a real unsubscribe still reads Unsubscribed.
+            var statusLabel = effectiveStatus.ToString();
+            if (IPRO.Entities.EmailIssue.IsComplaint(recipient.FailureReason))
+            {
+                statusLabel = "Reported spam";
+                statusClass = "bg-danger-subtle text-danger";
+            }
             <tr>
               <td class="fw-semibold">@(string.IsNullOrWhiteSpace(recipient.RecipientName) ? "-" : recipient.RecipientName)</td>
               <td><a href="mailto:@recipient.Email">@recipient.Email</a></td>
-              <td><span class="badge @statusClass">@effectiveStatus</span></td>
+              <td><span class="badge @statusClass">@statusLabel</span></td>
               <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.SentAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>
               <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.DeliveredAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>
               <td class="small text-muted">@(IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(recipient.OpenedAt, agentTimeZone)?.ToString("MMM d, h:mm tt") ?? "-")</td>

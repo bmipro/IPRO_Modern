@@ -91,7 +91,9 @@ Open the newsletter preview and review the send history, which now shows open ra
 - Delivered, failed, deferred, bounced, or rejected (recipient-level detail below the send history table)
 - Provider response or issue
 
-SendGrid event webhooks update these results. Open tracking can be affected by privacy protection, image blocking, and email client behavior.
+A recipient who marked the newsletter as spam reads **Reported spam**: it arrived (it counts as delivered, not failed), and they are now unsubscribed from all your marketing email. A recipient who clicked the unsubscribe link reads **Unsubscribed**.
+
+The mail service's delivery reports update these results. Open tracking can be affected by privacy protection, image blocking, and email client behavior.
 
 ## Subscribers and Unsubscribe
 
