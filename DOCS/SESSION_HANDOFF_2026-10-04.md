@@ -14,16 +14,24 @@
   is lettered in".
 - **A menu for a bakery he hopes to sign** (La Venue Bakery, lavenuebakery.com, two menus: Drinks and Breads): he
   liked a generic **Price list / Menu** block over a bakery-only one ("looks as good for a bakery and accountant")
-  and the three layouts -> **549**, built and gated, HELD for his word.
-- **547 and 548 built and gated together, HELD for his word.**
+  and the three layouts -> **549**, now live.
+- **547 and 548 deployed (2026-10-04, build `ec9ad9a`), then 549 (build `eb787ea`)** on his word ("push it"; 547 and 548
+  went first while 549's test run finished).
+
+## Pushed today
+
+| Code | Item | Gate |
+|---|---|---|
+| `38048b5` | **547** the e-card picker shows the whole card in its preview, four designs a row | 1414/1414 |
+| `38be1d0` | **548** e-cards and e-letters fill a phone's width instead of being shrunk to fit | 1414/1414 |
+| `e10bd93` | **549** a Price List / Menu block for agents' websites | 1435/1435 |
 
 ## Do this first when the owner is back
 
-1. **547 and 548 go out on his word** ("push it"). Then he sends himself a card and a letter and reads them on his
+1. **547 and 548 are live** (build `ec9ad9a`). The test with him: he sends himself a card and a letter and reads them on his
    phone (Gmail app and his business mailbox) and in Thunderbird: the words at full size, the photo under the
    details on the phone, side by side on the computer. Outlook on Windows was not seen here.
-2. **549, the Price List / Menu block, goes out on his word** (it can go with 547 and 548 or after them). Then
-   the bakery's menus can be built on its site: Bread & Pastries (List) and Drinks and Meals (Compact, with a
+2. **549, the Price List / Menu block, is live** (build `eb787ea`). Next the bakery's menus can be built on its site: Bread & Pastries (List) and Drinks and Meals (Compact, with a
    "Call to order" button on tel:). The block was seen on the real app locally in all three layouts; the editor
    itself is behind sign-in, so his first look at it is the first one with his data.
 3. **The pilot:** test 7, then the decision (runbook 7a), as in 10-03's item 4.
