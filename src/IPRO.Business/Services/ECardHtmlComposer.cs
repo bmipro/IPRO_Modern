@@ -93,21 +93,32 @@ public static class ECardHtmlComposer
         var greeting = template.MessageIsInPicture ? string.Empty
             : BuildGreeting(template.TitleIsInPicture ? null : header, message, textColor, mutedColor);
 
+        // 548: the card fills a phone's width, up to its own, instead of being drawn at a fixed width
+        // that the phone then shrinks to fit: the picture scales and the words keep their size. Outlook
+        // on Windows ignores max-width, so a table only it reads (the [if mso] comments) holds the card
+        // at its width there, as before.
         return $"""
-            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
               <tr><td align="center">
-                <table cellpadding="0" cellspacing="0" border="0" width="{width}" style="max-width:{width}px;background:{shellBg};border-radius:10px;overflow:hidden;">
+                <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="{width}" align="center"><tr><td><![endif]-->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:{width}px;background:{shellBg};border-radius:10px;overflow:hidden;">
                   {face}
                   {greeting}
                   <tr><td style="height:20px;line-height:20px;font-size:0;">&nbsp;</td></tr>
-                  <tr><td style="padding:0 34px 30px;">
-                    {BuildContactBlock(agent, accent, textColor, mutedColor, dark)}
+                  <tr><td style="padding:0 {ContactPadding}px 30px;font-size:0;">
+                    {BuildContactBlock(agent, accent, textColor, mutedColor, dark, width - 2 * ContactPadding)}
                   </td></tr>
                 </table>
+                <!--[if mso]></td></tr></table><![endif]-->
               </td></tr>
             </table>
             """;
     }
+
+    private const int ContactPadding = 34;
+
+    // The photo's column beside the contact details: the 132 px photo and its 3 px frame.
+    private const int PhotoColumn = 140;
 
     // 546: what the card says. The agent's subject is the title and their message the message, each
     // falling back to the design's own -- except where the picture already holds the words: lettering
@@ -172,7 +183,13 @@ public static class ECardHtmlComposer
 
     // Mirrors the legacy signature block: name, title, company, tel/fax/cell, email and website,
     // with the agent's photo to the right at the original 132px.
-    private static string BuildContactBlock(AgentUser agent, string accent, string textColor, string mutedColor, bool dark)
+    //
+    // 548: the details and the photo are two inline blocks, side by side where the card has room and
+    // the photo under the details on a phone -- they wrap on their own, with no media query (Gmail
+    // drops a <style> in an email's body). Outlook on Windows ignores inline-block, so a table only it
+    // reads keeps the two side by side there. The cell around them has font-size 0, so the space
+    // between two inline blocks cannot push the photo onto the next line on a computer.
+    private static string BuildContactBlock(AgentUser agent, string accent, string textColor, string mutedColor, bool dark, int contentWidth)
     {
         // "Ms. Raniah Motamed" or "Raniah Motamed, CFP" -- see AgentNameFormatter.
         var agentName = AgentNameFormatter.FullName(agent);
@@ -180,6 +197,8 @@ public static class ECardHtmlComposer
         // nowrap keeps "web site:" on one line on the narrower artwork cards (467px).
         var labelStyle = $"font-style:italic;font-weight:bold;white-space:nowrap;color:{mutedColor};";
 
+        // A long address breaks rather than pushing the card wider than a phone.
+        const string wrap = "overflow-wrap:anywhere;word-break:break-word;";
         var lines = new List<string>();
         if (!string.IsNullOrWhiteSpace(agent.Phone))
             lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">tel:</td><td style="color:{textColor};">{WebUtility.HtmlEncode(agent.Phone)}</td></tr>""");
@@ -188,29 +207,26 @@ public static class ECardHtmlComposer
         if (!string.IsNullOrWhiteSpace(agent.CellPhone))
             lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">cell:</td><td style="color:{textColor};">{WebUtility.HtmlEncode(agent.CellPhone)}</td></tr>""");
         if (!string.IsNullOrWhiteSpace(agent.Email))
-            lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">email:</td><td><a href="mailto:{WebUtility.HtmlEncode(agent.Email)}" style="color:{linkColor};text-decoration:none;">{WebUtility.HtmlEncode(agent.Email)}</a></td></tr>""");
+            lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">email:</td><td style="{wrap}"><a href="mailto:{WebUtility.HtmlEncode(agent.Email)}" style="color:{linkColor};text-decoration:none;">{WebUtility.HtmlEncode(agent.Email)}</a></td></tr>""");
         if (!string.IsNullOrWhiteSpace(agent.DomainName))
-            lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">web site:</td><td><a href="https://{WebUtility.HtmlEncode(agent.DomainName)}" style="color:{linkColor};text-decoration:none;">{WebUtility.HtmlEncode(agent.DomainName)}</a></td></tr>""");
+            lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">web site:</td><td style="{wrap}"><a href="https://{WebUtility.HtmlEncode(agent.DomainName)}" style="color:{linkColor};text-decoration:none;">{WebUtility.HtmlEncode(agent.DomainName)}</a></td></tr>""");
 
-        var photoCell = string.IsNullOrWhiteSpace(agent.PhotoUrl)
-            ? ""
-            : $"""
-              <td width="140" align="right" style="vertical-align:top;">
-                <img src="{WebUtility.HtmlEncode(agent.PhotoUrl)}" width="132" alt="" style="display:block;width:132px;height:auto;border:3px solid #ffffff;" />
-              </td>
-              """;
+        var details = $"""
+            <div style="font-size:12px;line-height:1.9;text-align:left;">
+              <div><strong style="color:{textColor};font-size:14px;">{WebUtility.HtmlEncode(agentName)}</strong></div>
+              {(string.IsNullOrWhiteSpace(agent.CompanyName) ? "" : $"""<div style="color:{textColor};font-weight:bold;margin-bottom:6px;">{WebUtility.HtmlEncode(agent.CompanyName)}</div>""")}
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">{string.Concat(lines)}</table>
+            </div>
+            """;
+        if (string.IsNullOrWhiteSpace(agent.PhotoUrl)) return details;
 
+        // Two pixels of slack: a mail app that zooms can round the card a pixel narrower, and on a
+        // computer the photo must not drop under the details.
+        var detailsWidth = Math.Max(contentWidth - PhotoColumn - 2, 160);
         return $"""
-            <table cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="vertical-align:top;font-size:12px;line-height:1.9;">
-                  <div><strong style="color:{textColor};font-size:14px;">{WebUtility.HtmlEncode(agentName)}</strong></div>
-                  {(string.IsNullOrWhiteSpace(agent.CompanyName) ? "" : $"""<div style="color:{textColor};font-weight:bold;margin-bottom:6px;">{WebUtility.HtmlEncode(agent.CompanyName)}</div>""")}
-                  <table cellpadding="0" cellspacing="0" border="0">{string.Concat(lines)}</table>
-                </td>
-                {photoCell}
-              </tr>
-            </table>
+            <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td valign="top"><![endif]--><div style="display:inline-block;width:100%;max-width:{detailsWidth}px;vertical-align:top;">{details}</div><!--[if mso]></td><td width="{PhotoColumn}" align="right" valign="top"><![endif]--><div style="display:inline-block;width:{PhotoColumn}px;vertical-align:top;">
+              <img src="{WebUtility.HtmlEncode(agent.PhotoUrl)}" width="132" alt="" style="display:block;margin-left:auto;width:132px;height:auto;border:3px solid #ffffff;" />
+            </div><!--[if mso]></td></tr></table><![endif]-->
             """;
     }
 }

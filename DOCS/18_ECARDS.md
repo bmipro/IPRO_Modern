@@ -13,7 +13,7 @@ Two kinds of card to pick from:
 
 1. Select **E-Cards** in the Agent Portal menu (under Marketing).
 2. Click **Send an E-Card**.
-3. Pick a card design from the gallery — the live preview on the right updates as you choose. Use **Show** above the gallery to list one occasion's designs. Choosing a design fills in that card's stock greeting for you, replacing the previous card's stock greeting if you left it as it was; if you've typed your own wording it's left alone.
+3. Pick a card design from the gallery — the live preview on the right updates as you choose and shows the whole card, scaled down to fit beside the gallery. Use **Show** above the gallery to list one occasion's designs. Choosing a design fills in that card's stock greeting for you, replacing the previous card's stock greeting if you left it as it was; if you've typed your own wording it's left alone.
 4. Edit the email subject and message if you want. Both show directly on the card itself, so keep them brief. Some designs have their words in the picture, and the page says so when you pick one:
    - **Lettering cards** ("THANK YOU", "WELCOME", "happy birthday") have the title drawn into the picture, so your subject is only the email's subject line and your message shows below the picture.
    - **Four cards have the whole greeting printed in the picture** (the songbird thank-you, the red-rose anniversary, the city-lights congratulations and the Christmas sleigh). That wording can't be changed, so there is no message box for them.
@@ -25,7 +25,7 @@ Two kinds of card to pick from:
 
 The card face, then your greeting on the card's own background, then your contact block — details on one side, your photo on the other. The greeting is never printed over the picture: text on top of artwork is hard to read, and how hard depends on the design and on how much you typed, so it gets its own clear space instead. The exception is a design whose words are part of the picture, drawn as one piece: a lettering card shows only your message below it, and a card with the greeting printed in the picture shows nothing below it, so nothing is said twice.
 
-Every picture is shown whole, at most 620 pixels wide. A small picture keeps its own size and sits on the card's background with a margin rather than being enlarged. The animated Norooz goldfish plays in most mail apps; older Outlook versions on Windows show only its first frame, which is the whole picture.
+Every picture is shown whole, at most 620 pixels wide. On a phone the card fills the screen's width: the picture shrinks to fit, the words keep their full size, and your photo moves under your contact details. Outlook on Windows shows the card at its full width, as before. A small picture keeps its own size and sits on the card's background with a margin rather than being enlarged. The animated Norooz goldfish plays in most mail apps; older Outlook versions on Windows show only its first frame, which is the whole picture.
 
 Every card carries the platform's own open pixel, and its links pass through a short redirect on app.iproadvisers.com so Email Activity can show Opened and Clicked (488); the unsubscribe link is left exactly as issued. A reply goes straight to your inbox.
 

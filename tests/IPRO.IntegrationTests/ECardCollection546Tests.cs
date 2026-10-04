@@ -187,7 +187,7 @@ public class ECardCollection546Tests
         Assert.Contains("Many happy returns.", html);
         Assert.Contains("alt=\"Bright birthday balloons\"", html);
         Assert.Contains("src=\"https://app.test/images/ecard-art/birthday-balloons.jpg\" width=\"620\"", html);
-        Assert.Contains("width=\"620\" style=\"max-width:620px;background:#111111;", html);
+        Assert.Contains("width=\"100%\" style=\"width:100%;max-width:620px;background:#111111;", html);   // 548: fluid up to 620
     }
 
     [Fact]
@@ -232,18 +232,18 @@ public class ECardCollection546Tests
     public void A_small_picture_is_matted_at_its_own_size_and_the_old_library_draws_as_before()
     {
         var goldfish = ECardHtmlComposer.Wrap(new ECard(), Agent(), Design("norooz-goldfish"), "https://app.test");
-        Assert.Contains("width=\"480\" style=\"max-width:480px;", goldfish);              // room for the contact block
+        Assert.Contains("style=\"width:100%;max-width:480px;", goldfish);                 // room for the contact block
         Assert.Contains("src=\"https://app.test/images/ecard-art/norooz-goldfish.gif\" width=\"361\"", goldfish);
         Assert.Contains("max-width:361px", goldfish);                                      // never enlarged
         Assert.Contains("padding:24px 24px 0;", goldfish);
 
         var lettering = ECardHtmlComposer.Wrap(new ECard(), Agent(), Design("birthday-colourful-letters"), "https://app.test");
-        Assert.Contains("width=\"498\" style=\"max-width:498px;", lettering);              // 450 + the mat
+        Assert.Contains("style=\"width:100%;max-width:498px;", lettering);                 // 450 + the mat
 
         // The narrowest picture before 2026, the anniversary roses at 467 px, is unchanged: full bleed.
         var roses = ECardDesignSeeder.BuildDefaults().Single(d => d.Key == "anniversary-1");
         var html = ECardHtmlComposer.Wrap(new ECard(), Agent(), roses, "https://app.test");
-        Assert.Contains("width=\"467\" style=\"max-width:467px;", html);
+        Assert.Contains("style=\"width:100%;max-width:467px;", html);
         Assert.DoesNotContain("padding:24px 24px 0;", html);
         Assert.Contains("Happy anniversary", html);
 

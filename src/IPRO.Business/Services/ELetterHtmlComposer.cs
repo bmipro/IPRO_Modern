@@ -73,11 +73,15 @@ public static class ELetterHtmlComposer
         if (!string.IsNullOrWhiteSpace(agent.Email)) signatureDetails.Add($"""<a href="mailto:{WebUtility.HtmlEncode(agent.Email)}" style="color:{WebUtility.HtmlEncode(accent)};text-decoration:none;">{WebUtility.HtmlEncode(agent.Email)}</a>""");
         if (siteUrl != null) signatureDetails.Add($"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:{WebUtility.HtmlEncode(accent)};text-decoration:none;">{WebUtility.HtmlEncode(agent.DomainName)}</a>""");
 
+        // 548: the letter fills a phone's width, up to 620 px, instead of being drawn at 620 px and
+        // shrunk to fit -- the text keeps its 15 px. Outlook on Windows ignores max-width, so a table only
+        // it reads (the [if mso] comments) holds the letter at 620 px there, as before.
         return $"""
-            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f1f5f9;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f1f5f9;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
               <tr>
                 <td align="center">
-                  <table cellpadding="0" cellspacing="0" border="0" width="620" style="max-width:620px;background:#ffffff;">
+                  <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="620" align="center"><tr><td><![endif]-->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:620px;background:#ffffff;">
                     <tr><td style="height:5px;background:{WebUtility.HtmlEncode(accent)};line-height:0;font-size:0;">&nbsp;</td></tr>
                     <tr>
                       <td style="padding:28px 40px 20px;border-bottom:1px solid #e2e8f0;">
@@ -109,6 +113,7 @@ public static class ELetterHtmlComposer
                       </td>
                     </tr>
                   </table>
+                  <!--[if mso]></td></tr></table><![endif]-->
                 </td>
               </tr>
             </table>

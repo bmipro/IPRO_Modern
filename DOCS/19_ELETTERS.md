@@ -45,6 +45,8 @@ If a field has nothing to fill in (for example `[Company]` for a client with no 
 
 Your letter on a clean letterhead — a thin accent bar in your brand color, your company name and address at the top, the letter body, and a signature block with your name, designation, phone, cell, email, and website. Replies go straight to your inbox.
 
+On a phone the letter fills the screen's width and the text keeps its full size, so nobody has to zoom in to read it. Outlook on Windows shows it 620 pixels wide, as before.
+
 ## Notes
 
 - Your **accent color** (Agent Portal → **My Website** → **Portal Accent Color**) sets the letterhead bar. It's the same color used on Newsletter and E-Card emails.
