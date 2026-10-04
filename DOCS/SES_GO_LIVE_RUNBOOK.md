@@ -10,6 +10,8 @@ chat, a file or the repo.*
 landed on the invoice a minute later. Left: the simulator's bounce and complaint, then step 8.
 **2026-10-02:** the owner asked for a few tests on his own account to decide when everyone moves; they are
 section 7a (the test sheet), which also puts the marketing stream's trial on his account BEFORE step 8.
+**2026-10-04:** every test on the sheet has passed (1 to 3 and 5 to 7; 4 is the watch, clean). Step 8 is his
+decision: 8.1 (everyone's invoice-type mail) can go now, 8.2 (marketing mail) a week after it.
 
 **What exists in AWS already.** Account 354245663230, region Canada (Central) `ca-central-1`, Business
 Support+. Production access granted 2026-09-30: 50,000 emails a day, 14 a second. Two verified identities:
@@ -224,6 +226,21 @@ So this comes before step 8: `Email__Ses__Streams` = `notify,news` (his change; 
 | 5 | A newsletter to an account type holding only his own mailboxes | From "Global Business Solution via iPro" at `mail@news.iproadvisers.com`; Inbox; the foot names his business and mailing address; the **Unsubscribe** link in the email works (re-subscribe from the same page afterwards); Email Activity shows Delivered, then Opened. |
 | 6 | An e-card (or e-letter) to one of his mailboxes | Arrives; Email Activity shows it. |
 | 7 | Two NEW test clients, `bounce+news@simulator.amazonses.com` and `complaint+news@simulator.amazonses.com` (test 1's two are unsubscribed for good, and only the client can undo that; Amazon's test mailboxes accept a `+label`), in an account type of their own; a newsletter to it | Email Activity shows the first Failed with Amazon's reason; both clients end **Unsubscribed**; the log carries the hard-bounce line and no error. |
+
+**Test 5 (2026-10-03): passed.** A newsletter reached his Gmail from "Global Business Solution via iPro"
+<mail@news.iproadvisers.com>. It found TODO 543: the unsubscribe link left no way back (it now lands on the
+preferences page, with Resubscribe).
+
+**Test 6 (2026-10-03): passed.** Two birthday cards to a test client, delivered through Amazon from the news
+address, opened, his click recorded at 4:22 p.m. It found TODO 544 (a recipient skipped for an unsubscribe kept
+no mark on its row) and TODO 545 (the receiving mail system's check two seconds after the send read as an open).
+
+**Test 7 (2026-10-04, 3:39 p.m.): passed.** A newsletter to the account type "SES test 7" (two new clients):
+`bounce+news@` read **Bounced**, "smtp; 550 5.1.1 As requested: user unknown", and the log's hard-bounce line came
+at 19:39:38 UTC (the client suppressed on every channel); `complaint+news@` was delivered at 3:39 and then
+**Unsubscribed** with "complaint: abuse". His two notices were handed to ACS at 19:40 UTC (two SendMail 202);
+the log has no other warning or error. Test 4, the watch: the web log of 10-03 and 10-04 carries no SES
+failure; Amazon's Reputation metrics are his to read in the SES console before 8.1.
 
 ### The decision
 

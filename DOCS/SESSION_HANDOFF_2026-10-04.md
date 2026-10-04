@@ -38,7 +38,7 @@
 2. **549, the Price List / Menu block, is live** (build `eb787ea`). Next the bakery's menus can be built on its site: Bread & Pastries (List) and Drinks and Meals (Compact, with a
    "Call to order" button on tel:). The block was seen on the real app locally in all three layouts; the editor
    itself is behind sign-in, so his first look at it is the first one with his data.
-3. **The pilot:** test 7's steps sent to him on 10-04 (an account type "SES test 7", two clients at
+3. **The pilot: test 7 PASSED (10-04, 3:39 p.m.; runbook 7a has 5 to 7), the last test on the sheet.** Test 7's steps were sent to him on 10-04 (an account type "SES test 7", two clients at
    `bounce+news@` and `complaint+news@simulator.amazonses.com`, a newsletter to it). It is the last test he runs;
    test 4 is the watch: the web log of 10-03 and 10-04 has no SES failure, bounce or complaint, and Amazon's
    Reputation metrics are his to read in the SES console. Then the decision (runbook 7a): everyone's invoice-type
