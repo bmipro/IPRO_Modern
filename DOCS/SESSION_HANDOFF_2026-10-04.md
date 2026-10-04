@@ -21,6 +21,9 @@
   and the three layouts -> **549**, now live.
 - **547 and 548 deployed (2026-10-04, build `ec9ad9a`), then 549 (build `eb787ea`)** on his word ("push it"; 547 and 548
   went first while 549's test run finished).
+- **Pilot test 7 passed** (3:39 p.m.); Amazon's Reputation metrics (his screenshot): Healthy, bounce 0.00%,
+  complaint 0.00%, 4 emails in 24 hours. The newsletter's page read the complaint "Unsubscribed -- complaint:
+  abuse" beside the client's "Reported spam" -> **550** ("Yes please"), built and gated, HELD for his word.
 
 ## Pushed today
 
@@ -43,7 +46,11 @@
    test 4 is the watch: the web log of 10-03 and 10-04 has no SES failure, bounce or complaint, and Amazon's
    Reputation metrics are his to read in the SES console. Then the decision (runbook 7a): everyone's invoice-type
    mail (Streams back to `notify`, THEN clear the pilot list), and everyone's marketing mail a week later.
-4. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
-5. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-03.md`, items 7 to 9.
+4. **550 goes out on his word** ("push it"): a spam report reads Reported spam on the newsletter's page, and
+   Email Activity's Failed tile leaves it out. Step 8.1 of the SES runbook is his whenever he likes (all tests
+   passed, the figures healthy): Streams to `notify` (restart), THEN clear the pilot list (restart); then I
+   check both settings by name and length and watch the first sends.
+5. **536, Monday 2026-10-05:** his follow-ups mail around 7 a.m. Eastern.
+6. **Carried, and the calendar:** as in `DOCS/SESSION_HANDOFF_2026-10-03.md`, items 7 to 9.
 
 Related: `DOCS/TODO.md` 546 to 549; `DOCS/SESSION_HANDOFF_2026-10-03.md`.
