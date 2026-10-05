@@ -7,7 +7,8 @@
   system I did not get any email saying that someone has registered. I dont think we have that mechanism. If we
   dont. Lets do it so I/admin get an email." There was none -> **551**, built and gated, held for his word.
 - **Refer a Friend (532) is on:** "Also if you are doing that we might as well do the refere a friend system too"
-  -> under way, on the design he decided on 2026-09-29 (`DOCS/TODO.md` 532).
+  -> **built** on the design he decided on 2026-09-29 (`DOCS/TODO.md` 532), gated, held for his word. It ships OFF:
+  he switches it on in SuperAdmin -> Referrals. Not built: the automatic-refund switch ("manual ... for now").
 
 ## Pushed today
 
