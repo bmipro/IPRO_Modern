@@ -150,7 +150,8 @@ public class ECardsController : Controller
             Message = message ?? string.Empty,
         };
         // Relative art URLs are fine here -- the preview renders inside the portal, same origin.
-        var html = ECardHtmlComposer.Wrap(card, agent, design, string.Empty);
+        // 552: the preview shows the address the card will show (the live custom domain when there is one).
+        var html = ECardHtmlComposer.Wrap(card, agent, design, string.Empty, await AgentSiteAddress.HostAsync(_db, agent.Id, agent.DomainName));
         return Content(html, "text/html");
     }
 

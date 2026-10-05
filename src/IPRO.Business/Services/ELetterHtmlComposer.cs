@@ -13,7 +13,8 @@ public static class ELetterHtmlComposer
     // The plain-text alternative part -- see the note on ECardHtmlComposer.WrapText. A letter is
     // already mostly prose, so this is close to the HTML version with the markup removed, and it
     // costs nothing to send both.
-    public static string WrapText(ELetter letter, AgentUser agent, Client? client, string? unsubscribeUrl = null)
+    // 552: siteHost is the address the adviser's clients are shown (AgentSiteAddress); null keeps the free address.
+    public static string WrapText(ELetter letter, AgentUser agent, Client? client, string? unsubscribeUrl = null, string? siteHost = null)
     {
         var agentName = AgentNameFormatter.FullName(agent);
         var body = client == null
@@ -26,7 +27,8 @@ public static class ELetterHtmlComposer
         if (!string.IsNullOrWhiteSpace(agent.CompanyName)) lines.Add(agent.CompanyName);
         if (!string.IsNullOrWhiteSpace(agent.Phone)) lines.Add($"Tel: {agent.Phone}");
         if (!string.IsNullOrWhiteSpace(agent.Email)) lines.Add(agent.Email);
-        if (!string.IsNullOrWhiteSpace(agent.DomainName)) lines.Add($"https://{agent.DomainName}");
+        var site = ECardHtmlComposer.SiteHost(agent, siteHost);
+        if (site.Length > 0) lines.Add($"https://{site}");
 
         // 533: the same closing lines as the HTML footer -- the business, its mailing address, the
         // way out, and iPro sending on its behalf.
@@ -38,12 +40,13 @@ public static class ELetterHtmlComposer
 
     // client == null renders the letter with its merge tokens left visible, which is what the
     // editor's preview pane wants. A real send always passes the actual recipient.
-    public static string Wrap(ELetter letter, AgentUser agent, Client? client)
+    public static string Wrap(ELetter letter, AgentUser agent, Client? client, string? siteHost = null)
     {
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
         // "Ms. Raniah Motamed" or "Raniah Motamed, CFP" -- see AgentNameFormatter.
         var agentName = AgentNameFormatter.FullName(agent);
-        var siteUrl = string.IsNullOrWhiteSpace(agent.DomainName) ? null : $"https://{agent.DomainName}";
+        var site = ECardHtmlComposer.SiteHost(agent, siteHost);
+        var siteUrl = site.Length == 0 ? null : $"https://{site}";
 
         var resolvedBody = client == null
             ? WebUtility.HtmlEncode(letter.Body)
@@ -71,7 +74,7 @@ public static class ELetterHtmlComposer
         if (!string.IsNullOrWhiteSpace(agent.Phone)) signatureDetails.Add($"tel: {WebUtility.HtmlEncode(agent.Phone)}");
         if (!string.IsNullOrWhiteSpace(agent.CellPhone)) signatureDetails.Add($"cell: {WebUtility.HtmlEncode(agent.CellPhone)}");
         if (!string.IsNullOrWhiteSpace(agent.Email)) signatureDetails.Add($"""<a href="mailto:{WebUtility.HtmlEncode(agent.Email)}" style="color:{WebUtility.HtmlEncode(accent)};text-decoration:none;">{WebUtility.HtmlEncode(agent.Email)}</a>""");
-        if (siteUrl != null) signatureDetails.Add($"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:{WebUtility.HtmlEncode(accent)};text-decoration:none;">{WebUtility.HtmlEncode(agent.DomainName)}</a>""");
+        if (siteUrl != null) signatureDetails.Add($"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:{WebUtility.HtmlEncode(accent)};text-decoration:none;">{WebUtility.HtmlEncode(site)}</a>""");
 
         // 548: the letter fills a phone's width, up to 620 px, instead of being drawn at 620 px and
         // shrunk to fit -- the text keeps its 15 px. Outlook on Windows ignores max-width, so a table only

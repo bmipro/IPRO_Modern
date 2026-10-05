@@ -7,13 +7,15 @@ public static class NewsletterHtmlComposer
 {
     private const string DefaultAccent = "#1457d9";
 
-    public static string Wrap(NewsLetter newsletter, AgentUser agent, string baseUrl, IEnumerable<NewsLetterArticle>? articles = null, IEnumerable<NewsLetterCta>? sidebarCtas = null)
+    // 552: siteHost is the address the adviser's clients are shown (AgentSiteAddress); null keeps the free address.
+    public static string Wrap(NewsLetter newsletter, AgentUser agent, string baseUrl, IEnumerable<NewsLetterArticle>? articles = null, IEnumerable<NewsLetterCta>? sidebarCtas = null, string? siteHost = null)
     {
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
         var edition = string.IsNullOrWhiteSpace(newsletter.Edition)
             ? $"{DateTime.UtcNow:MMMM yyyy} Newsletter"
             : newsletter.Edition!;
-        var siteUrl = string.IsNullOrWhiteSpace(agent.DomainName) ? null : $"https://{agent.DomainName}";
+        var site = ECardHtmlComposer.SiteHost(agent, siteHost);
+        var siteUrl = site.Length == 0 ? null : $"https://{site}";
         // "Ms. Raniah Motamed" or "Raniah Motamed, CFP" -- see AgentNameFormatter.
         var agentName = AgentNameFormatter.FullName(agent);
 
@@ -26,12 +28,12 @@ public static class NewsletterHtmlComposer
 
         var siteLinkHtml = siteUrl == null
             ? ""
-            : $"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:#ffffff;text-decoration:none;font-size:13px;">{WebUtility.HtmlEncode(agent.DomainName)}</a>""";
+            : $"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:#ffffff;text-decoration:none;font-size:13px;">{WebUtility.HtmlEncode(site)}</a>""";
 
         var contactLines = new List<string>();
         if (!string.IsNullOrWhiteSpace(agent.Phone)) contactLines.Add(WebUtility.HtmlEncode(agent.Phone));
         if (!string.IsNullOrWhiteSpace(agent.Email)) contactLines.Add($"""<a href="mailto:{WebUtility.HtmlEncode(agent.Email)}" style="color:#2563eb;text-decoration:none;">{WebUtility.HtmlEncode(agent.Email)}</a>""");
-        if (siteUrl != null) contactLines.Add($"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:#2563eb;text-decoration:none;">{WebUtility.HtmlEncode(agent.DomainName)}</a>""");
+        if (siteUrl != null) contactLines.Add($"""<a href="{WebUtility.HtmlEncode(siteUrl)}" style="color:#2563eb;text-decoration:none;">{WebUtility.HtmlEncode(site)}</a>""");
         var contactLine = string.Join(" &nbsp;&bull;&nbsp; ", contactLines);
 
         var absolutePhotoUrl = ToAbsoluteUrl(agent.PhotoUrl, baseUrl);

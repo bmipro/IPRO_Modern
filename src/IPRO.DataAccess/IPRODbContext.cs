@@ -159,6 +159,9 @@ public class IPRODbContext : DbContext
              .WithMany(t => t.Websites)
              .HasForeignKey(w => w.TemplateId)
              .OnDelete(DeleteBehavior.Restrict);
+
+            // 552: the domain as the adviser writes it in their emails.
+            e.Property(w => w.CustomDomainDisplay).HasMaxLength(255);
         });
 
         modelBuilder.Entity<AgentDomain>(e =>

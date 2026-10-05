@@ -43,6 +43,8 @@ public class ELetterDispatcher
             await FailAndReleaseAsync(eletterId, heldAttempts.Value, "the sending agent record no longer exists");
             return;
         }
+        // 552: the adviser's live custom domain in the signature, not the free 247advisers.com address.
+        var siteHost = await AgentSiteAddress.HostAsync(_db, agent.Id, agent.DomainName);
 
 
         var recipients = await _db.ELetterRecipients
@@ -101,7 +103,7 @@ public class ELetterDispatcher
                 var preferencesUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
 
                 var subject = MergeFieldResolver.ResolveText(letter.Subject, client, agent);
-                var html = ELetterHtmlComposer.Wrap(letter, agent, client);
+                var html = ELetterHtmlComposer.Wrap(letter, agent, client, siteHost);
 
                 // 488: the platform's own open pixel and click redirect, keyed by a per-recipient token
                 // minted here (a resumed send keeps the one its Queued rows already carry).
@@ -119,7 +121,7 @@ public class ELetterDispatcher
                     // Visible unsubscribe line -- see the note in ECardDispatcher.
                     trackedHtml,
                     // Plain-text alternative -- see the note in ECardDispatcher.
-                    ELetterHtmlComposer.WrapText(letter, agent, client, preferencesUrl),
+                    ELetterHtmlComposer.WrapText(letter, agent, client, preferencesUrl, siteHost),
                     customArgs: AdviserSender.Tags(agent, EmailStreams.News, new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "eletter",

@@ -23,6 +23,15 @@ IPRO checks pending domains automatically. Agents can also click **Retry** besid
 
 Once the Connection status panel shows **Found**, **Connected**, **Secured** and **Forwarding OK**, the two registrar instruction cards fold away behind **Show the setup steps (for adding another domain)**. They come back on their own if anything stops being green.
 
+### The address on your emails
+
+Once your custom domain is live (connected and secured), your e-cards, e-letters and newsletters show it instead of
+the temporary domain, from the next one sent (552); their previews and the newsletter test send show it too. To have
+it written with your own capitals -- `www.4iPro.com` rather than `www.4ipro.com` -- type it in **Shown in your emails
+as**, next to **Custom Domain** on **My Website**, and save. It must be the same letters as your custom domain; only
+the capitals can differ. Until the domain is live, your emails keep showing the temporary domain, which always serves
+the same site.
+
 ## What to Tell a New Agent
 
 Wording that can be used directly in onboarding, support replies, or a help page. It matches the

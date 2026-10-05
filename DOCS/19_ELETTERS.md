@@ -45,6 +45,9 @@ If a field has nothing to fill in (for example `[Company]` for a client with no 
 
 Your letter on a clean letterhead — a thin accent bar in your brand color, your company name and address at the top, the letter body, and a signature block with your name, designation, phone, cell, email, and website. Replies go straight to your inbox.
 
+The website is your custom domain once it is live, written as you set it under **My Website** -> **Shown in your emails
+as**; until then, your temporary domain (552).
+
 On a phone the letter fills the screen's width and the text keeps its full size, so nobody has to zoom in to read it. Outlook on Windows shows it 620 pixels wide, as before.
 
 ## Notes

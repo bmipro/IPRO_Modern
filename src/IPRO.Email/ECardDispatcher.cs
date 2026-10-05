@@ -67,7 +67,9 @@ public class ECardDispatcher
 
         // Card artwork lives in the web app's wwwroot, so the email needs absolute URLs.
         var baseUrl = IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
-        var html = ECardHtmlComposer.Wrap(card, agent, design, baseUrl);
+        // 552: the adviser's live custom domain on the card ("web site:"), not the free 247advisers.com address.
+        var siteHost = await AgentSiteAddress.HostAsync(_db, agent.Id, agent.DomainName);
+        var html = ECardHtmlComposer.Wrap(card, agent, design, baseUrl, siteHost);
 
         var recipients = await _db.ECardRecipients
             .Where(r => r.ECardId == card.Id && r.Status == ECardRecipientStatuses.Queued)
@@ -145,7 +147,7 @@ public class ECardDispatcher
                     // heavy spam signal on its own; sending HTML only made it worse. Observed
                     // 2026-08-08: every e-card to a SpamAssassin host arrived tagged ***SPAM***
                     // while text-based e-letters to the same mailbox reached the inbox.
-                    ECardHtmlComposer.WrapText(card, agent, design, preferencesUrl),
+                    ECardHtmlComposer.WrapText(card, agent, design, preferencesUrl, siteHost),
                     customArgs: AdviserSender.Tags(agent, EmailStreams.News, new Dictionary<string, string>
                     {
                         ["ipro_entity"] = "ecard",

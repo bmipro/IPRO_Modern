@@ -143,7 +143,8 @@ public class ELettersController : Controller
             : null;
 
         var letter = new ELetter { Body = body ?? string.Empty };
-        var html = ELetterHtmlComposer.Wrap(letter, agent, sampleClient);
+        // 552: the preview shows the address the letter will show (the live custom domain when there is one).
+        var html = ELetterHtmlComposer.Wrap(letter, agent, sampleClient, await AgentSiteAddress.HostAsync(_db, agent.Id, agent.DomainName));
         return Content(html, "text/html");
     }
 

@@ -42,7 +42,9 @@ public static class ECardHtmlComposer
     // This does not "fix spam" on its own -- scoring is probabilistic and the image ratio is the
     // bigger term -- but a multipart/alternative message with real text is table stakes, and it is
     // also what a screen reader and a text-only client get.
-    public static string WrapText(ECard card, AgentUser agent, ECardDesign template, string? unsubscribeUrl = null)
+    // 552: siteHost is the address the adviser's clients are shown (AgentSiteAddress: their live custom domain, written
+    // their way); null keeps the free <name>.247advisers.com address.
+    public static string WrapText(ECard card, AgentUser agent, ECardDesign template, string? unsubscribeUrl = null, string? siteHost = null)
     {
         var (header, message) = Greeting(card, template);
         var name = $"{agent.FirstName} {agent.LastName}".Trim();
@@ -53,7 +55,8 @@ public static class ECardHtmlComposer
         if (!string.IsNullOrWhiteSpace(agent.CompanyName)) lines.Add(agent.CompanyName);
         if (!string.IsNullOrWhiteSpace(agent.Phone)) lines.Add($"Tel: {agent.Phone}");
         if (!string.IsNullOrWhiteSpace(agent.Email)) lines.Add(agent.Email);
-        if (!string.IsNullOrWhiteSpace(agent.DomainName)) lines.Add(agent.DomainName);
+        var site = SiteHost(agent, siteHost);
+        if (site.Length > 0) lines.Add(site);
 
         // 533: the same closing lines as the HTML footer -- the business, its mailing address, the
         // way out, and iPro sending on its behalf.
@@ -65,7 +68,7 @@ public static class ECardHtmlComposer
 
     // The design is passed in rather than looked up: the composer runs inside the dispatcher's
     // per-send loop and inside the preview action, both of which already have a DbContext open.
-    public static string Wrap(ECard card, AgentUser agent, ECardDesign template, string baseUrl)
+    public static string Wrap(ECard card, AgentUser agent, ECardDesign template, string baseUrl, string? siteHost = null)
     {
         var accent = string.IsNullOrWhiteSpace(agent.PortalAccentColor) ? DefaultAccent : agent.PortalAccentColor;
 
@@ -106,7 +109,7 @@ public static class ECardHtmlComposer
                   {greeting}
                   <tr><td style="height:20px;line-height:20px;font-size:0;">&nbsp;</td></tr>
                   <tr><td style="padding:0 {ContactPadding}px 30px;font-size:0;">
-                    {BuildContactBlock(agent, accent, textColor, mutedColor, dark, width - 2 * ContactPadding)}
+                    {BuildContactBlock(agent, accent, textColor, mutedColor, dark, width - 2 * ContactPadding, siteHost)}
                   </td></tr>
                 </table>
                 <!--[if mso]></td></tr></table><![endif]-->
@@ -181,6 +184,10 @@ public static class ECardHtmlComposer
         </td></tr>
         """;
 
+    // 552: the address shown for the adviser's site -- the caller's (AgentSiteAddress) or the free one.
+    internal static string SiteHost(AgentUser agent, string? siteHost) =>
+        string.IsNullOrWhiteSpace(siteHost) ? (agent.DomainName ?? string.Empty).Trim() : siteHost.Trim();
+
     // Mirrors the legacy signature block: name, title, company, tel/fax/cell, email and website,
     // with the agent's photo to the right at the original 132px.
     //
@@ -189,7 +196,7 @@ public static class ECardHtmlComposer
     // drops a <style> in an email's body). Outlook on Windows ignores inline-block, so a table only it
     // reads keeps the two side by side there. The cell around them has font-size 0, so the space
     // between two inline blocks cannot push the photo onto the next line on a computer.
-    private static string BuildContactBlock(AgentUser agent, string accent, string textColor, string mutedColor, bool dark, int contentWidth)
+    private static string BuildContactBlock(AgentUser agent, string accent, string textColor, string mutedColor, bool dark, int contentWidth, string? siteHost)
     {
         // "Ms. Raniah Motamed" or "Raniah Motamed, CFP" -- see AgentNameFormatter.
         var agentName = AgentNameFormatter.FullName(agent);
@@ -208,8 +215,9 @@ public static class ECardHtmlComposer
             lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">cell:</td><td style="color:{textColor};">{WebUtility.HtmlEncode(agent.CellPhone)}</td></tr>""");
         if (!string.IsNullOrWhiteSpace(agent.Email))
             lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">email:</td><td style="{wrap}"><a href="mailto:{WebUtility.HtmlEncode(agent.Email)}" style="color:{linkColor};text-decoration:none;">{WebUtility.HtmlEncode(agent.Email)}</a></td></tr>""");
-        if (!string.IsNullOrWhiteSpace(agent.DomainName))
-            lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">web site:</td><td style="{wrap}"><a href="https://{WebUtility.HtmlEncode(agent.DomainName)}" style="color:{linkColor};text-decoration:none;">{WebUtility.HtmlEncode(agent.DomainName)}</a></td></tr>""");
+        var site = SiteHost(agent, siteHost);
+        if (site.Length > 0)
+            lines.Add($"""<tr><td style="{labelStyle}padding-right:10px;">web site:</td><td style="{wrap}"><a href="https://{WebUtility.HtmlEncode(site)}" style="color:{linkColor};text-decoration:none;">{WebUtility.HtmlEncode(site)}</a></td></tr>""");
 
         var details = $"""
             <div style="font-size:12px;line-height:1.9;text-align:left;">

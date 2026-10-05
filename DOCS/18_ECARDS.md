@@ -32,6 +32,8 @@ Every card carries the platform's own open pixel, and its links pass through a s
 ## Notes
 
 - Your **photo, designation, company, phone, fax, cell, email, and domain** come from your Profile — update them there, not per e-card. A missing field is simply left out rather than shown blank.
+- The **web site** line shows your custom domain once it is live, written as you set it under **My Website** ->
+  **Shown in your emails as**; until then, your temporary domain (552, `05_DOMAINS_AND_LEADS.md`).
 - Your **accent color** (Agent Portal → **My Website** → **Portal Accent Color**) colours the Simple cards and tints the links in the contact block.
 - Illustrated artwork is served from the portal, so a recipient's mail client needs to load images to see it. Your greeting and contact details are real text, not part of the picture, so they still read if images are blocked. Where the words are part of the picture, the picture's description (what a mail app shows when images are blocked, and what a screen reader reads) is those words, and the plain-text version of the email carries them too.
 - Sending is per-recipient (like Newsletter), so one bounced or invalid address never blocks the rest of the list.

@@ -50,6 +50,9 @@ The newsletter is reusable. Each send creates a separate send record with its ow
 
 ## What Your Clients See in Their Inbox
 
+The web address in the newsletter's header and contact line is your custom domain once it is live, written as you set
+it under **My Website** -> **Shown in your emails as**; until then, your temporary domain (552).
+
 Every newsletter and drip campaign email goes out with your business name at the start of the subject line, for example **Global Business Solution: October market update**, so your clients know it is from you before they open it. If your subject already includes your business name, it is left exactly as you wrote it. When a client replies, the reply comes to your own email address. The test send shows the subject exactly as your clients will see it.
 
 At the foot of every newsletter and drip campaign email your clients see why they are receiving it, your company name and mailing address (from **My Profile**), an unsubscribe link, and "Sent with iPro on behalf of" your company. That is what Canada's anti-spam law asks of a commercial email. E-cards, e-letters, polls, Did You Know emails and testimonial requests close with the same lines.

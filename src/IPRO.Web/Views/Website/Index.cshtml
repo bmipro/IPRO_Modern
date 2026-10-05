@@ -252,6 +252,13 @@
               <div class="form-text">This is your primary custom domain. Add extra domains from the domain manager below.</div>
             </div>
             <div class="col-md-6">
+              @* 552: the address on e-cards, e-letters and newsletters is the custom domain once it is live; written here
+                 the adviser's way (www.4iPro.com) -- the same letters, only the capitals differ. *@
+              <label class="form-label fw-semibold" for="CustomDomainDisplay">Shown in your emails as</label>
+              <input id="CustomDomainDisplay" name="CustomDomainDisplay" class="form-control" maxlength="255" value="@(Model?.CustomDomainDisplay ?? "")" placeholder="@(hasCustomDomain ? customDomain : "www.YourDomain.com")" />
+              <div class="form-text">Once your custom domain is live, your e-cards, e-letters and newsletters show it instead of the temporary domain. Type it here with your own capitals (for example www.4iPro.com); leave it empty for small letters.</div>
+            </div>
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Logo</label>
               <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/gif,image/webp" />
               @if (!string.IsNullOrWhiteSpace(Model?.LogoUrl))

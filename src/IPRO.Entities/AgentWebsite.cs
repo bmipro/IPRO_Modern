@@ -6,6 +6,9 @@ public class AgentWebsite
     public int AgentUserId { get; set; }
     public int TemplateId { get; set; }
     public string CustomDomain { get; set; } = string.Empty;
+    // 552: the custom domain as the adviser writes it in their emails ("www.4iPro.com") -- the same letters as
+    // CustomDomain, only the capitals differ; empty = small letters. AgentSiteAddress reads it.
+    public string CustomDomainDisplay { get; set; } = string.Empty;
     public string SiteTitle { get; set; } = string.Empty;
     public string TagLine { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;

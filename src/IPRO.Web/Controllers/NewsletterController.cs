@@ -176,7 +176,9 @@ public class NewsletterController : Controller
         ViewBag.Articles = previewArticles;
         ViewBag.SidebarCtas = NewsLetterSidebarCtas.FromJson(nl.SidebarCtasJson);
         var previewAgent = await _uow.AgentUsers.GetByIdAsync(AgentId);
-        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent, GetBrowserPreviewBaseUrl(), previewArticles, (List<NewsLetterCta>)ViewBag.SidebarCtas);
+        // 552: the preview shows the address the newsletter will show (the live custom domain when there is one).
+        ViewBag.WrappedHtmlBody = previewAgent == null ? nl.HtmlBody : NewsletterHtmlComposer.Wrap(nl, previewAgent, GetBrowserPreviewBaseUrl(), previewArticles, (List<NewsLetterCta>)ViewBag.SidebarCtas,
+            await AgentSiteAddress.HostAsync(_db, previewAgent.Id, previewAgent.DomainName));
         var sends = (await _newsletters.GetSendsAsync(id)).OrderByDescending(s => s.ScheduledAt).ToList();
         ViewBag.Sends = sends;
         ViewBag.Recipients = sends.Any()
@@ -228,11 +230,12 @@ public class NewsletterController : Controller
 
         var testSendArticles = await _newsletters.GetArticlesAsync(id);
         var testSendCtas = NewsLetterSidebarCtas.FromJson(nl.SidebarCtasJson);
+        var testSendSiteHost = await AgentSiteAddress.HostAsync(_db, agent.Id, agent.DomainName);   // 552
         var htmlBody = $"""
             <div style="margin-bottom:16px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e3a8a;font-family:Arial,sans-serif;">
               <strong>Test send:</strong> This preview was sent only to you. No clients received it.
             </div>
-            {NewsletterHtmlComposer.Wrap(nl, agent, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration), testSendArticles, testSendCtas)}
+            {NewsletterHtmlComposer.Wrap(nl, agent, IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration), testSendArticles, testSendCtas, testSendSiteHost)}
             """;
         var result = await _email.SendDetailedAsync(
             agent.Email,

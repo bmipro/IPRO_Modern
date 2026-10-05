@@ -44,6 +44,8 @@ public static class StartupSchemaRepair
             await EnsureWebsiteTemplateColumnAsync(db, "IsDefault", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `IsDefault` tinyint(1) NOT NULL DEFAULT FALSE");
             await EnsureWebsiteTemplateColumnAsync(db, "TemplateKey", "ALTER TABLE `WebsiteTemplates` ADD COLUMN `TemplateKey` varchar(80) CHARACTER SET utf8mb4 NULL");
             await EnsureTableColumnAsync(db, "AgentWebsites", "HeaderSettingsJson", "ALTER TABLE `AgentWebsites` ADD COLUMN `HeaderSettingsJson` longtext CHARACTER SET utf8mb4 NULL");
+            // 552: the custom domain as the adviser writes it in their emails (AgentSiteAddress).
+            await EnsureTableColumnAsync(db, "AgentWebsites", "CustomDomainDisplay", "ALTER TABLE `AgentWebsites` ADD COLUMN `CustomDomainDisplay` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
             await db.Database.ExecuteSqlRawAsync(
                 "UPDATE `AgentWebsites` SET `HeaderSettingsJson` = {0} WHERE `HeaderSettingsJson` IS NULL OR `HeaderSettingsJson` = ''",
                 "{}");

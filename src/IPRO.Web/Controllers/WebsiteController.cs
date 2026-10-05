@@ -103,6 +103,16 @@ public class WebsiteController : Controller
         }
 
         model.CustomDomain = NormalizeDomain(model.CustomDomain);
+        // 552: the custom domain as it is written in the adviser's emails ("www.4iPro.com"): the same letters, only
+        // the capitals may differ -- a different address there would send clients somewhere else.
+        model.CustomDomainDisplay = (model.CustomDomainDisplay ?? string.Empty).Trim();
+        if (model.CustomDomainDisplay.Length > 0 && !string.Equals(model.CustomDomainDisplay, model.CustomDomain, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = string.IsNullOrEmpty(model.CustomDomain)
+                ? "\"Shown in your emails as\" needs your custom domain first."
+                : $"\"Shown in your emails as\" must be {model.CustomDomain} with your own capitals: the same letters, nothing added or left out.";
+            return RedirectToAction(nameof(Index));
+        }
         model.SiteTitle = model.SiteTitle?.Trim() ?? string.Empty;
         model.TagLine = model.TagLine?.Trim() ?? string.Empty;
         model.ThemeColor = applyTemplateDefaults || existing is null
@@ -181,6 +191,7 @@ public class WebsiteController : Controller
             existing.HeroStyleOverride = model.HeroStyleOverride;
             existing.TemplateId = model.TemplateId;
             existing.CustomDomain = model.CustomDomain;
+            existing.CustomDomainDisplay = model.CustomDomainDisplay;   // 552
             // Capture the logo being replaced so it can be removed after the new one is safely stored.
             // Without this every re-upload stranded the previous file forever: agent-logos was holding
             // more blobs than there are agents, including four copies of the same logo. The agent-photo

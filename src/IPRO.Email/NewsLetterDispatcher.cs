@@ -74,7 +74,9 @@ public class NewsLetterDispatcher
         var sendingAgent = await _uow.AgentUsers.GetByIdAsync(newsletter.AgentUserId);
         var articles = await _uow.NewsLetterArticles.FindAsync(a => a.NewsLetterId == newsletter.Id);
         var sidebarCtas = NewsLetterSidebarCtas.FromJson(newsletter.SidebarCtasJson);
-        var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl(), articles, sidebarCtas);
+        // 552: the adviser's live custom domain in the header and contact line, not the free 247advisers.com address.
+        var wrappedHtmlBody = sendingAgent == null ? newsletter.HtmlBody : NewsletterHtmlComposer.Wrap(newsletter, sendingAgent, GetBaseUrl(), articles, sidebarCtas,
+            await AgentSiteAddress.HostAsync(_db, sendingAgent.Id, sendingAgent.DomainName));
 
         // RESUME GATE, ABOVE the audience query. If recipient rows exist this send's audience was
         // settled by an earlier pass, and re-resolving it would do two harmful things: add rows for
