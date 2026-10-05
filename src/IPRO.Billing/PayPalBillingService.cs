@@ -654,6 +654,9 @@ public class PayPalBillingService : IBillingService
 
         var change = await _uow.SubscriptionChanges.FirstOrDefaultAsync(c =>
             c.BillingId == billing.Id && c.AgentUserId == userId && c.Status == SubscriptionChangeStatus.Pending);
+        // 551: a pending Subscribe applied here is a subscription STARTING -- the owner's second notice. Exactly
+        // once: the return page and the ACTIVATED webhook both arrive here, and the later one finds no pending change.
+        var startsSubscription551 = change?.ChangeType == SubscriptionChangeType.Subscribe;
         if (change != null)
         {
             change.Status = SubscriptionChangeStatus.Applied;
@@ -675,11 +678,40 @@ public class PayPalBillingService : IBillingService
             await SendPaidInvoiceEmailAsync(invoice.Id);
         }
 
+        if (startsSubscription551)
+        {
+            await NotifySubscriptionStartedAsync(userId, billing, invoice, paymentConfirmed, now);
+        }
+
         return new BillingChangeResult
         {
             Success = true,
             Message = message
         };
+    }
+
+    // 551: "Subscription started" to iPro's own mailbox (SignupNotice). noCost is the comped path's
+    // paymentConfirmed -- the only activation with nothing to pay. Never fails the activation.
+    private async Task NotifySubscriptionStartedAsync(int userId, IPRO.Entities.Billing billing, IPRO.Entities.Invoice? invoice, bool noCost, DateTime now)
+    {
+        try
+        {
+            var agent = await _uow.AgentUsers.GetByIdAsync(userId);
+            if (agent == null) return;
+            var package = await _uow.BillingRules.GetByIdAsync(billing.BillingRuleId);
+            var again = (await _uow.SubscriptionChanges.FindAsync(c =>
+                    c.AgentUserId == userId && c.BillingId != billing.Id && c.AppliedAt != null &&
+                    (c.ChangeType == SubscriptionChangeType.Subscribe || c.ChangeType == SubscriptionChangeType.Upgrade || c.ChangeType == SubscriptionChangeType.Downgrade)))
+                .Any();
+            await SignupNotice.SendAsync(_email, _configuration, _logger, SignupNotice.ForStart(new SignupNotice.Started(
+                agent.Id, agent.FirstName, agent.LastName, agent.CompanyName, agent.Email,
+                package?.PackageName ?? "(unknown package)", billing.Period == BillingPeriod.Annually ? "Annually" : "Monthly",
+                invoice?.Total ?? 0m, agent.PromotionCode, again, noCost, now), _configuration));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Subscription-started notice could not be prepared for agent {AgentId}", userId);
+        }
     }
 
     public async Task<BillingChangeResult> ResumePaymentAsync(int userId, int invoiceId, string returnUrl, string cancelUrl)

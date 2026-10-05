@@ -454,6 +454,9 @@ public class AccountController : Controller
             _logger.LogWarning("Registration welcome email was not sent to {Email}", agent.Email);
         }
 
+        // 551: iPro hears about the sign-up -- before PayPal, so a registrant who never pays is still news.
+        await SendSignupNoticeAsync(agent, submittedPackage, model, trialInvite);
+
         HttpContext.Session.Remove(RegistrationVerifyCodeSessionKey);
 
         // Signup v2 (2026-08-13): registration is the first half of CHECKOUT, not a destination.
@@ -503,6 +506,29 @@ public class AccountController : Controller
         _logger.LogWarning("Post-registration checkout could not start for agent {AgentId}: {Message}", agent.Id, checkout.Message);
         TempData["Error"] = "Your account was created, but the payment step could not start. Pick your plan below to finish — you will not be charged twice.";
         return Redirect("/Billing");
+    }
+
+    // 551: the owner's "someone has registered" email (SignupNotice). Never fails the registration: the
+    // send swallows its own failures, and the origin lookup is guarded the same way.
+    private async Task SendSignupNoticeAsync(AgentUser agent, BillingRule? package, AgentRegistrationViewModel model, TrialInviteCode? trialInvite)
+    {
+        try
+        {
+            var origin = await _db.PlatformSignupOrigins.AsNoTracking().FirstOrDefaultAsync(o => o.AgentUserId == agent.Id);
+            var annual = string.Equals(model.BillingPeriodChoice, "Annually", StringComparison.OrdinalIgnoreCase);
+            var now = DateTime.UtcNow;
+            await SignupNotice.SendAsync(_email, _configuration, _logger, SignupNotice.ForRegistration(new SignupNotice.Registration(
+                agent.Id, agent.FirstName, agent.LastName, agent.CompanyName, agent.BusinessType,
+                agent.Email, agent.Phone, agent.City, agent.Province,
+                package?.PackageName ?? "(unknown package)", annual ? "Annually" : "Monthly",
+                package == null ? 0m : (annual ? package.AnnualPrice : package.MonthlyPrice),
+                package?.EffectiveSetupFee(now) ?? 0m, agent.PromotionCode,
+                trialInvite?.Code, agent.TrialEndsAt, SignupNotice.CameFrom(origin), now), _configuration));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Sign-up notice could not be prepared for agent {AgentId}", agent.Id);
+        }
     }
 
     // One place to rebuild everything the Register view needs when validation sends the form back.

@@ -28,6 +28,13 @@ Filter by acting admin, search action/detail text, or set a date range. Results 
 
 The dashboard summarizes agents, active subscriptions, packages, revenue, and system activity. Use the sidebar to open operational areas.
 
+## New Sign-Up Emails
+
+iPro's mailbox gets an email for every self-registration, and a second when that adviser's subscription starts
+(551; what each says is in `08_PUBLIC_REGISTRATION.md`, "iPro Is Told About Every Sign-Up"). Each has an **Open
+in SuperAdmin** button to the adviser's page. They go to `Support:NotificationEmail` unless
+`Signups:NotificationEmail` is set in the Web app's Azure App Settings (`Signups__NotificationEmail`).
+
 ## Find an Agent
 
 1. Select **All Agents**.

@@ -68,3 +68,23 @@ The welcome email includes the same account information and temporary website li
 
 Super Admin can correct the email and reset the password later.
 
+## iPro Is Told About Every Sign-Up
+
+Two emails go to iPro's own mailbox (551, 2026-10-05):
+
+- **New sign-up**, the moment the form is submitted -- before PayPal, so a registrant who never pays is still
+  known: name, business, business type, the plan and its price as offered, the code typed (if any), email, phone,
+  city and province, where they came from (the same origin the Visitors page counts), and an **Open in
+  SuperAdmin** button to the adviser's page. A trial invitation says so instead, with its end date.
+- **Subscription started**, when PayPal approves the subscription (or a no-cost code activates it): the plan, the
+  first bill (tax included), and whether this adviser has had a subscription before ("restarted"). One per
+  subscription: the return page and PayPal's ACTIVATED message both arrive at the same place, and the second
+  finds nothing left to start.
+
+A first email with no second one means the registrant stopped before paying -- a phone call may finish the sale.
+
+The address is `Signups:NotificationEmail` when it is set in the Web app's settings (`Signups__NotificationEmail`
+in Azure), otherwise `Support:NotificationEmail` -- `support@iproadvisers.com`, where the support-ticket notices
+go. A notice never holds up or fails a sign-up or a payment; a failure is written to the log. Accounts created in
+SuperAdmin send no notice.
+
