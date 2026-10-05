@@ -117,6 +117,8 @@ public class DashboardController : Controller
             .ToListAsync();
         ViewBag.AgentTimeZone = agentTimeZone;
         ViewBag.Today = today;
+        // 532: Refer a Friend on the Dashboard too -- advisers rarely open Profile (the owner's design).
+        ViewBag.ReferralSummary = await ReferralProgram.SummaryAsync(_db, agentId);
         return View();
     }
 

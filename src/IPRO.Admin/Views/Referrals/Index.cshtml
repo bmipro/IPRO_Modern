@@ -1,0 +1,257 @@
+@model IPRO.Admin.Models.ReferralsIndexModel
+@using IPRO.Billing
+@using IPRO.Entities
+@{
+    ViewData["Title"] = "Referrals";
+    var s = Model.Settings;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    string Money(decimal amount) => ReferralProgram.Money(amount);
+    string StageBadge(string stage) => stage switch
+    {
+        ReferralStages.SignedUp => "bg-light text-dark border",
+        ReferralStages.Joined => "bg-info text-dark",
+        ReferralStages.Earned => "bg-warning text-dark",
+        ReferralStages.Paid => "bg-success",
+        _ => "bg-secondary"
+    };
+    string Link(int page) => $"/Referrals?q={Uri.EscapeDataString(Model.Query)}&stage={Uri.EscapeDataString(Model.Stage)}{(Model.ReferrerId.HasValue ? $"&referrer={Model.ReferrerId}" : "")}&page={page}";
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="fas fa-gift me-2 text-primary"></i>Referrals</h4>
+    <div class="text-muted">Refer a Friend: Give @Money(s.FriendGiftAmount), Get @Money(s.ReferrerRewardAmount). Earned rewards are refunded from <a href="/Refunds">Refunds</a>.</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="/Referrals/Csv?q=@Uri.EscapeDataString(Model.Query)&stage=@Uri.EscapeDataString(Model.Stage)@(Model.ReferrerId.HasValue ? $"&referrer={Model.ReferrerId}" : "")"><i class="fas fa-file-csv me-1"></i>Export CSV</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form asp-action="Settings" method="post" class="row g-3 align-items-end">
+      @Html.AntiForgeryToken()
+      <div class="col-md-3">
+        <div class="form-check form-switch fs-5">
+          <input class="form-check-input" type="checkbox" role="switch" id="enabled" name="enabled" value="true" @(s.Enabled ? "checked" : "") />
+          <label class="form-check-label" for="enabled">@(s.Enabled ? "On" : "Off")</label>
+        </div>
+        <div class="small text-muted">Off: new sign-ups get no gift; referrals already made keep going.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="friendGiftAmount">Friend's gift ($)</label>
+        <input class="form-control" type="number" min="1" max="500" step="0.01" id="friendGiftAmount" name="friendGiftAmount" value="@s.FriendGiftAmount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" required />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="referrerRewardAmount">Referrer's reward ($, before tax)</label>
+        <input class="form-control" type="number" min="1" max="500" step="0.01" id="referrerRewardAmount" name="referrerRewardAmount" value="@s.ReferrerRewardAmount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" required />
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">Save</button>
+      </div>
+      <div class="col-12 small text-muted">A change applies to new referrals; an amount already promised to a friend or a referrer stays as it was.</div>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  @foreach (var (title, t) in new[] { ("This month", Model.Month), ("All time", Model.AllTime) })
+  {
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3">@title</h6>
+          <div class="row text-center g-2">
+            <div class="col"><div class="fs-4 fw-bold">@t.SignedUp</div><div class="small text-muted">signed up</div></div>
+            <div class="col"><div class="fs-4 fw-bold">@t.Joined</div><div class="small text-muted">joined</div></div>
+            <div class="col"><div class="fs-4 fw-bold">@Money(t.GiftsGiven)</div><div class="small text-muted">gifts given</div></div>
+            <div class="col"><div class="fs-4 fw-bold">@Money(t.RewardsEarned)</div><div class="small text-muted">rewards earned</div></div>
+            <div class="col"><div class="fs-4 fw-bold">@Money(t.RewardsPaid)</div><div class="small text-muted">refunded (with tax)</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+@if (Model.NeedsAttention.Count > 0)
+{
+  <div class="card border-0 shadow-sm mb-4 border-start border-warning border-4">
+    <div class="card-body">
+      <h6 class="fw-bold mb-3"><i class="fas fa-triangle-exclamation text-warning me-2"></i>Needs attention (@Model.NeedsAttention.Count)</h6>
+      <ul class="list-unstyled mb-0">
+        @foreach (var r in Model.NeedsAttention)
+        {
+          var waiting = r.Stage == ReferralStages.Earned && string.IsNullOrEmpty(r.RefundPlan);
+          <li class="d-flex justify-content-between align-items-start flex-wrap gap-2 py-2 border-bottom">
+            <div>
+              <strong>@Model.AdviserName(r.AgentUserId)</strong> referred <strong>@r.FriendName</strong>
+              <span class="badge @StageBadge(r.Stage) ms-1">@ReferralStages.Label(r.Stage)</span>
+              <div class="small text-muted">
+                @if (waiting)
+                {
+                  <span>Earned @r.EarnedAt?.ToString("MMM d, yyyy"): nothing to refund it against yet -- the adviser's payments in PayPal's refund window are not enough for @Money(r.RewardAmount) plus tax. It is planned by itself when they pay.</span>
+                }
+                @if (!string.IsNullOrEmpty(r.Attention))
+                {
+                  <span>@r.Attention</span>
+                }
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              @if (!string.IsNullOrEmpty(r.Attention))
+              {
+                <form asp-action="LooksFine" method="post">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="id" value="@r.Id" />
+                  <input type="hidden" name="returnUrl" value="@returnUrl" />
+                  <button type="submit" class="btn btn-sm btn-outline-success">Looks fine</button>
+                </form>
+              }
+              <a class="btn btn-sm btn-outline-secondary" href="/Referrals?referrer=@r.AgentUserId">Open</a>
+            </div>
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+}
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Top referrers</h6>
+        @if (Model.TopReferrers.Count == 0)
+        {
+          <p class="text-muted small mb-0">No referrals yet.</p>
+        }
+        <ol class="ps-3 mb-0">
+          @foreach (var t in Model.TopReferrers)
+          {
+            <li class="mb-1"><a href="/Referrals?referrer=@t.AgentUserId">@Model.AdviserName(t.AgentUserId)</a> <span class="small text-muted">-- @t.Referred referred, @t.Joined joined, @Money(t.Earned) earned</span></li>
+          }
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-md-6">
+            <label class="form-label" for="q">Search</label>
+            <input class="form-control" id="q" name="q" value="@Model.Query" placeholder="Friend, adviser, email, business or code" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="stage">Stage</label>
+            <select class="form-select" id="stage" name="stage">
+              <option value="">All stages</option>
+              @foreach (var st in ReferralStages.All)
+              {
+                <option value="@st" selected="@(st == Model.Stage)">@ReferralStages.Label(st)</option>
+              }
+            </select>
+          </div>
+          @if (Model.ReferrerId.HasValue)
+          {
+            <input type="hidden" name="referrer" value="@Model.ReferrerId" />
+          }
+          <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Find</button></div>
+        </form>
+        @if (Model.ReferrerId.HasValue)
+        {
+          <div class="alert alert-light border mt-3 mb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              Referrals by <strong>@Model.AdviserName(Model.ReferrerId.Value)</strong>
+              @if (Model.ReferrerCode != null)
+              {
+                <span>-- code <code>@Model.ReferrerCode.Code</code> @(Model.ReferrerCode.IsPaused ? "(paused)" : "")</span>
+              }
+              else
+              {
+                <span class="text-muted">-- no code yet</span>
+              }
+              <a class="ms-2 small" href="/Referrals">Show everyone's</a>
+            </div>
+            @if (Model.ReferrerCode != null)
+            {
+              <form asp-action="Pause" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="agentUserId" value="@Model.ReferrerId" />
+                <input type="hidden" name="paused" value="@(Model.ReferrerCode.IsPaused ? "false" : "true")" />
+                <button type="submit" class="btn btn-sm @(Model.ReferrerCode.IsPaused ? "btn-success" : "btn-outline-warning")">@(Model.ReferrerCode.IsPaused ? "Resume their link" : "Pause their link")</button>
+              </form>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="d-flex justify-content-between px-3 pt-3"><h6 class="fw-bold">Referrals (@Model.TotalMatching)</h6><span class="small text-muted">Page @Model.Page of @Model.PageCount</span></div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th class="ps-3">Signed up</th><th>Referrer</th><th>Friend</th><th>Stage</th><th>Gift applied</th><th>Reward</th><th>Details</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var r in Model.Rows)
+        {
+          var giftApplied = r.GiftSetupDiscount + r.GiftCycle1Discount + r.GiftCycle2Discount;
+          <tr>
+            <td class="ps-3 text-nowrap">@r.SignedUpAt.ToString("MMM d, yyyy")</td>
+            <td><a href="/Referrals?referrer=@r.AgentUserId">@Model.AdviserName(r.AgentUserId)</a><div class="small text-muted"><code>@r.Code</code></div></td>
+            <td><a href="/Agents/Details/@r.FriendAgentUserId">@r.FriendName</a><div class="small text-muted">@r.FriendBusiness</div></td>
+            <td><span class="badge @StageBadge(r.Stage)">@ReferralStages.Label(r.Stage)</span></td>
+            <td class="small">@(giftApplied > 0 ? Money(giftApplied) : "-")<div class="text-muted">of @Money(r.GiftAmount)</div></td>
+            <td class="small text-nowrap">
+              @if (r.Stage == ReferralStages.Paid)
+              {
+                <span>@Money(r.RewardGross) refunded</span><div class="text-muted">@r.CreditNoteNumber</div>
+              }
+              else if (r.Stage == ReferralStages.Earned && r.RewardGross > 0)
+              {
+                <span>@Money(r.RewardGross) to refund</span>
+              }
+              else
+              {
+                <span>@Money(r.RewardAmount) + tax</span>
+              }
+            </td>
+            <td class="small text-muted">
+              @if (r.Stage == ReferralStages.Joined && r.ExpectedEarnAt.HasValue) { <span>Expected @r.ExpectedEarnAt.Value.ToString("MMM d, yyyy")</span> }
+              @if (r.Stage == ReferralStages.Earned) { <span>Earned @r.EarnedAt?.ToString("MMM d, yyyy")</span> }
+              @if (r.Stage == ReferralStages.Paid) { <span>Paid @r.PaidAt?.ToString("MMM d, yyyy"), PayPal @r.RefundTransactionId</span> }
+              @if (r.Stage is ReferralStages.NotEarned or ReferralStages.Voided) { <span>@r.ClosedReason @(string.IsNullOrEmpty(r.VoidedBy) ? "" : $"({r.VoidedBy})")</span> }
+              @if (!string.IsNullOrEmpty(r.Attention)) { <div class="text-warning">@r.Attention</div> }
+            </td>
+            <td class="text-end pe-3">
+              @if (r.Stage is not (ReferralStages.Paid or ReferralStages.Voided))
+              {
+                <form asp-action="Void" method="post" class="d-flex gap-1 justify-content-end">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="id" value="@r.Id" />
+                  <input type="hidden" name="returnUrl" value="@returnUrl" />
+                  <input type="text" name="reason" class="form-control form-control-sm" style="width:150px" placeholder="Reason" required />
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Void</button>
+                </form>
+              }
+            </td>
+          </tr>
+        }
+        @if (Model.Rows.Count == 0)
+        {
+          <tr><td colspan="8" class="text-center text-muted py-4">No referrals match.</td></tr>
+        }
+        </tbody>
+      </table>
+    </div>
+    @if (Model.PageCount > 1)
+    {
+      <nav class="p-3 d-flex gap-2 justify-content-end">
+        @if (Model.Page > 1) { <a class="btn btn-sm btn-outline-secondary" href="@Link(Model.Page - 1)">Previous</a> }
+        @if (Model.Page < Model.PageCount) { <a class="btn btn-sm btn-outline-secondary" href="@Link(Model.Page + 1)">Next</a> }
+      </nav>
+    }
+  </div>
+</div>

@@ -361,6 +361,8 @@ using (var scope = app.Services.CreateScope())
     // 527: the adviser's payment processors and the payments they report (AgentPaymentConnections,
     // ClientInvoicePayments); after the client invoice tables they point at.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePaymentConnectionSchemaAsync", () => StartupSchemaRepair.EnsurePaymentConnectionSchemaAsync(db), db, app.Logger);
+    // 532: Refer a Friend (ReferralProgramSettings, ReferralCodes, Referrals, ReferralPayPalPlans).
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureReferralSchemaAsync", () => StartupSchemaRepair.EnsureReferralSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Same shared call as IPRO.Web/Program.cs -- see the note there. Admin needs it too because

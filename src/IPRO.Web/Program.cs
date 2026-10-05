@@ -141,6 +141,8 @@ builder.Services.AddScoped<PollDispatcher>();
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
+// 532: Refer a Friend's same-PayPal-payer check (ReferralJob) asks PayPal through the billing service.
+builder.Services.AddScoped<IReferralPayerLookup, PayPalBillingService>();
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 // 527: Stripe Connect -- the adviser's own processor. The keys are App Service settings; empty
@@ -483,7 +485,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 18);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 19);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -504,6 +506,9 @@ RecurringJob.AddOrUpdate<OverdueInvoiceReminderJob>("overdue-invoice-reminders",
 // in each time zone and because the next pass is the retry when the send gate defers; at five past,
 // clear of the jobs that start on the hour.
 RecurringJob.AddOrUpdate<FollowUpReminderJob>("follow-up-reminders", job => job.RunAsync(), "5 * * * *");
+// 532 (2026-10-05): Refer a Friend's ledger -- joined, the same-payer block, the referrer's emails, earned, and each
+// earned reward's refund worked out for SuperAdmin -> Refunds. Hourly at twenty past, clear of the jobs on the hour.
+RecurringJob.AddOrUpdate<ReferralJob>("refer-a-friend", job => job.RunAsync(), "20 * * * *");
 // 472 (2026-09-10): recycle-bin snapshots past their 30 days are removed, then their files.
 RecurringJob.AddOrUpdate<ClientRecycleBinPurgeJob>("client-recycle-bin-purge", job => job.RunAsync(), Cron.Daily);
 RecurringJob.AddOrUpdate<AiDailyDigestJob>("ai-daily-digest", job => job.RunAsync(), Cron.Daily);
@@ -690,6 +695,8 @@ using (var scope = app.Services.CreateScope())
     // 527: the adviser's payment processors and the payments they report (AgentPaymentConnections,
     // ClientInvoicePayments); after the client invoice tables they point at.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePaymentConnectionSchemaAsync", () => StartupSchemaRepair.EnsurePaymentConnectionSchemaAsync(db), db, app.Logger);
+    // 532: Refer a Friend (ReferralProgramSettings, ReferralCodes, Referrals, ReferralPayPalPlans).
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureReferralSchemaAsync", () => StartupSchemaRepair.EnsureReferralSchemaAsync(db), db, app.Logger);
     // 481: after both send tables exist -- marks recipient rows left Queued under a finished letter or card.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync", () => StartupSchemaRepair.RepairRecipientsStrandedUnderFinishedSendsAsync(db), db, app.Logger);
     // Must run AFTER the three CREATE TABLE passes above (E-Card, E-Letter, Poll) -- it adds the

@@ -413,7 +413,9 @@ public class PrepaidValueTests
 
     private static IPRO.Admin.Controllers.RefundsController NewRefundsController(IPRODbContext db)
     {
-        var controller = new IPRO.Admin.Controllers.RefundsController(db, new NullAuditLog());
+        // 532 gave the queue the Refer a Friend rewards, whose "paid" email it sends.
+        var controller = new IPRO.Admin.Controllers.RefundsController(db, new NullAuditLog(), new StubEmailService2(),
+            new ConfigurationBuilder().Build(), NullLogger<IPRO.Admin.Controllers.RefundsController>.Instance);
         var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext
         {
             User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(

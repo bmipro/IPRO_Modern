@@ -70,6 +70,12 @@ public class PromotionCodesController : Controller
             {
                 ModelState.AddModelError(nameof(model.Code), "That code is already in use.");
             }
+            // 532: one field takes both kinds of code at sign-up, so a promotion code may never equal an
+            // adviser's Refer a Friend code.
+            else if (await _db.ReferralCodes.AnyAsync(r => r.Code == model.Code))
+            {
+                ModelState.AddModelError(nameof(model.Code), "That code is an adviser's Refer a Friend code. Choose another.");
+            }
         }
 
         if (model.RecurringDiscountType != PromoDiscountType.None && model.RestrictedBillingRuleId == null)

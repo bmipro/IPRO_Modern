@@ -73,6 +73,11 @@ public class IPRODbContext : DbContext
     public DbSet<PlatformPageView> PlatformPageViews => Set<PlatformPageView>();
     public DbSet<PlatformSignupOrigin> PlatformSignupOrigins => Set<PlatformSignupOrigin>();
     public DbSet<BillingCompanyProfile> BillingCompanyProfiles => Set<BillingCompanyProfile>();
+    // 532: Refer a Friend -- the program's settings, one code per adviser, the ledger, and the gift plans.
+    public DbSet<ReferralProgramSettings> ReferralProgramSettings => Set<ReferralProgramSettings>();
+    public DbSet<ReferralCode> ReferralCodes => Set<ReferralCode>();
+    public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<ReferralPayPalPlan> ReferralPayPalPlans => Set<ReferralPayPalPlan>();
     public DbSet<TrialInviteCode> TrialInviteCodes => Set<TrialInviteCode>();
     public DbSet<TrialInviteCodeRedemption> TrialInviteCodeRedemptions => Set<TrialInviteCodeRedemption>();
     public DbSet<TrialSettings> TrialSettings => Set<TrialSettings>();
@@ -513,6 +518,54 @@ public class IPRODbContext : DbContext
             e.Property(p => p.Id).ValueGeneratedNever();
             foreach (var name in new[] { nameof(BillingCompanyProfile.Name), nameof(BillingCompanyProfile.AddressLine1), nameof(BillingCompanyProfile.AddressLine2), nameof(BillingCompanyProfile.City), nameof(BillingCompanyProfile.Province), nameof(BillingCompanyProfile.PostalCode), nameof(BillingCompanyProfile.Country), nameof(BillingCompanyProfile.TaxRegistrationNumber), nameof(BillingCompanyProfile.Email), nameof(BillingCompanyProfile.Website) })
                 e.Property<string>(name).HasMaxLength(255);
+        });
+
+        // 532: Refer a Friend. The ledger (Referral) has no foreign keys on purpose: it is a money record kept with
+        // the invoices when either adviser is deleted (AgentDataEraser's FinancialMap), and copies the friend's
+        // name so the row stays readable. The code goes with its adviser.
+        modelBuilder.Entity<ReferralProgramSettings>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Id).ValueGeneratedNever();
+            e.Property(s => s.FriendGiftAmount).HasColumnType("decimal(10,2)");
+            e.Property(s => s.ReferrerRewardAmount).HasColumnType("decimal(10,2)");
+        });
+        modelBuilder.Entity<ReferralCode>(e =>
+        {
+            e.HasKey(c => c.AgentUserId);
+            e.Property(c => c.AgentUserId).ValueGeneratedNever();
+            e.Property(c => c.Code).HasMaxLength(20).IsRequired();
+            e.HasIndex(c => c.Code).IsUnique();
+            e.HasOne(c => c.AgentUser).WithOne().HasForeignKey<ReferralCode>(c => c.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Referral>(e =>
+        {
+            e.HasIndex(r => r.AgentUserId);
+            e.HasIndex(r => r.FriendAgentUserId).IsUnique();
+            e.HasIndex(r => r.Stage);
+            e.Property(r => r.Code).HasMaxLength(20);
+            e.Property(r => r.FriendName).HasMaxLength(200);
+            e.Property(r => r.FriendBusiness).HasMaxLength(255);
+            e.Property(r => r.FriendEmail).HasMaxLength(255);
+            e.Property(r => r.Stage).HasMaxLength(20);
+            e.Property(r => r.RewardTaxRegion).HasMaxLength(100);
+            e.Property(r => r.RefundPlan).HasMaxLength(500);
+            e.Property(r => r.RefundTransactionId).HasMaxLength(200);
+            e.Property(r => r.CreditNoteNumber).HasMaxLength(30);
+            e.Property(r => r.ClosedReason).HasMaxLength(500);
+            e.Property(r => r.VoidedBy).HasMaxLength(100);
+            e.Property(r => r.Attention).HasMaxLength(500);
+            foreach (var money in new[] { nameof(Referral.GiftAmount), nameof(Referral.RewardAmount), nameof(Referral.GiftSetupDiscount), nameof(Referral.GiftCycle1Discount), nameof(Referral.GiftCycle2Discount), nameof(Referral.RewardNet), nameof(Referral.RewardTax), nameof(Referral.RewardGross) })
+                e.Property<decimal>(money).HasColumnType("decimal(10,2)");
+            e.Property(r => r.RewardTaxRate).HasColumnType("decimal(9,5)");
+        });
+        modelBuilder.Entity<ReferralPayPalPlan>(e =>
+        {
+            e.Property(p => p.PayPalPlanId).HasMaxLength(100);
+            e.Property(p => p.Cycle1Price).HasColumnType("decimal(10,2)");
+            e.Property(p => p.Cycle2Price).HasColumnType("decimal(10,2)");
+            e.Property(p => p.RegularPrice).HasColumnType("decimal(10,2)");
+            e.HasIndex(p => new { p.BillingRuleId, p.Period, p.Cycle1Price, p.Cycle2Price, p.RegularPrice }).HasDatabaseName("IX_ReferralPayPalPlans_Shape");
         });
 
         // 508: the one billing period a promotion code works with; no row = both. Keyed by the code.

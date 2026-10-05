@@ -21,6 +21,84 @@
   should be converted to credit or waived with a reason instead.
 </div>
 
+@{
+    // 532: Refer a Friend rewards, worked out against the adviser's own payments (ReferralProgram.PlanRefundAsync).
+    var rewards = ViewBag.ReferralRewards as List<IPRO.Entities.Referral> ?? new List<IPRO.Entities.Referral>();
+    var rewardsPaid = ViewBag.ReferralRewardsPaid as List<IPRO.Entities.Referral> ?? new List<IPRO.Entities.Referral>();
+    var rewardAdvisers = ViewBag.ReferralAdvisers as Dictionary<int, IPRO.Entities.AgentUser> ?? new Dictionary<int, IPRO.Entities.AgentUser>();
+    string AdviserName(int id) => rewardAdvisers.TryGetValue(id, out var a) ? $"{a.FirstName} {a.LastName}".Trim() : $"Adviser #{id}";
+}
+<h6 class="fw-bold mb-2"><i class="fas fa-gift me-1 text-primary"></i>Referral rewards to refund (@rewards.Count)</h6>
+@if (rewards.Count == 0)
+{
+  <p class="text-muted">None waiting. A Refer a Friend reward appears here when it is earned (<a href="/Referrals">Referrals</a>).</p>
+}
+@foreach (var r in rewards)
+{
+  var planned = !string.IsNullOrEmpty(r.RefundPlan);
+  var rewardDaysLeft = r.RefundWindowEndsAt.HasValue ? (int)Math.Floor((r.RefundWindowEndsAt.Value - now).TotalDays) : (int?)null;
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between flex-wrap gap-2">
+        <div>
+          <h6 class="fw-bold mb-1">
+            <a asp-controller="Agents" asp-action="Details" asp-route-id="@r.AgentUserId">@AdviserName(r.AgentUserId)</a>
+            <span class="text-muted fw-normal">-- for referring @r.FriendName, earned @r.EarnedAt?.ToString("MMM d, yyyy")</span>
+          </h6>
+          @if (planned)
+          {
+            <div class="small">Refund it against the adviser's own PayPal payment@(IPRO.Billing.ReferralProgram.ParsePlan(r.RefundPlan).Count() > 1 ? "s (PayPal will not refund more than a payment was, so it is split)" : ""):</div>
+            <ul class="small mb-1">
+              @foreach (var part in IPRO.Billing.ReferralProgram.ParsePlan(r.RefundPlan))
+              {
+                <li><strong>$@part.Amount.ToString("N2")</strong> against PayPal txn <code>@part.Sale</code></li>
+              }
+            </ul>
+            @if (rewardDaysLeft.HasValue)
+            {
+              <span class="badge @(rewardDaysLeft.Value < 21 ? "bg-warning text-dark" : "bg-secondary")">window: @rewardDaysLeft.Value days left</span>
+            }
+          }
+          else
+          {
+            <div class="small text-warning">Nothing to refund it against yet: the adviser's payments inside PayPal's refund window are not enough. It is worked out by itself once they pay; it also shows under Referrals -> Needs attention.</div>
+          }
+        </div>
+        @if (planned)
+        {
+          <div class="text-end">
+            <div class="fs-5 fw-bold">$@r.RewardGross.ToString("N2") CAD</div>
+            <div class="small text-muted">net $@r.RewardNet.ToString("N2") + tax $@r.RewardTax.ToString("N2")@(string.IsNullOrEmpty(r.RewardTaxRegion) ? "" : $" ({r.RewardTaxRegion})")</div>
+          </div>
+        }
+      </div>
+      @if (planned)
+      {
+        <form asp-action="MarkReferralRefunded" asp-route-id="@r.Id" method="post" class="d-flex gap-2 flex-wrap mt-3">
+          @Html.AntiForgeryToken()
+          <input type="text" name="refundTransactionId" class="form-control form-control-sm" style="width:300px" placeholder="PayPal REFUND txn id(s), comma-separated" required />
+          <button type="submit" class="btn btn-success btn-sm">Mark Refunded (emails the adviser)</button>
+        </form>
+      }
+    </div>
+  </div>
+}
+@if (rewardsPaid.Count > 0)
+{
+  <details class="mb-4">
+    <summary class="small text-muted">Latest rewards paid (@rewardsPaid.Count)</summary>
+    <table class="table table-sm mt-2">
+      <thead><tr><th>Adviser</th><th>Referred</th><th>Gross</th><th>Paid</th><th>Credit note</th><th>PayPal refund</th></tr></thead>
+      <tbody>
+      @foreach (var r in rewardsPaid)
+      {
+        <tr><td>@AdviserName(r.AgentUserId)</td><td>@r.FriendName</td><td>$@r.RewardGross.ToString("N2")</td><td>@r.PaidAt?.ToString("MMM d, yyyy")</td><td>@r.CreditNoteNumber</td><td class="small">@r.RefundTransactionId</td></tr>
+      }
+      </tbody>
+    </table>
+  </details>
+}
+
 <h6 class="fw-bold mb-2">Pending (@pending.Count)</h6>
 @if (pending.Count == 0)
 {

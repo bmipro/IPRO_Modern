@@ -87,6 +87,29 @@ Use **Quick Actions** to:
 
 If a function is outside the active package, the link remains visible and displays an upgrade message.
 
+## Refer a Friend
+
+**Give $50, Get $50.** Anyone you know who could use iPro -- a colleague, another business, whatever edition they
+need -- gets $50 off when they sign up with your link, and you get $50 back once they stay. Open it from the
+**Refer a Friend** card on your Profile (just above Calendar Source) or on the Dashboard.
+
+1. **Share your link.** Copy it, or select **Share by email** to open your own email app with the link in a
+   ready-made note. iPro never emails your friend. Your code (for example `JANE-7K3Q`) works too: a friend can type
+   it in the sign-up's **Promotion Code** box.
+2. **Your friend's gift.** The sign-up page opens with "A $50 gift from you". The $50 comes off their setup fee at
+   checkout; when the setup fee is less (or waived), the rest comes off their first month, then their second. One
+   code per sign-up: a different promotion code typed instead means no gift.
+3. **When they join,** we email you to say so, and when your reward is earned: at their **second monthly payment**,
+   or **30 days after their first payment** on a yearly plan, if they are still subscribed.
+4. **When it is earned,** your $50 plus its tax is refunded to the card or PayPal account you pay iPro with, and we
+   email you the day it goes. PayPal shows it right away; a card can take a few business days. Each reward has a
+   **credit note** on the Refer a Friend page, to keep with your invoices.
+
+The page lists every referral and where it stands: signed up, joined (with the date your reward is expected),
+earned, paid. One that is never earned -- the friend left before their second payment -- reads **Not earned**.
+There is no limit: "You have referred N and earned $X" keeps count. If you do not pay iPro yourself yet, a reward
+waits until you do (a refund needs a payment of yours to go back to).
+
 ## Get Help or Contact Support
 
 

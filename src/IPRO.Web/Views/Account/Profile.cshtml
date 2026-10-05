@@ -229,6 +229,25 @@
 </form>
 
 @{
+    // 532: Refer a Friend, just above Calendar Source (the owner: "a button ... just above Calendar Source under
+    // agents profile called refer a friend"); it opens its own page.
+    var referralSummary = ViewBag.ReferralSummary as IPRO.Billing.ReferralProgram.Summary;
+}
+@if (referralSummary?.ShowCard == true)
+{
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h5 class="fw-bold mb-1"><i class="fas fa-gift me-2 text-primary"></i>Refer a Friend</h5>
+        <div class="text-muted small">Give @IPRO.Billing.ReferralProgram.Money(referralSummary.Gift), Get @IPRO.Billing.ReferralProgram.Money(referralSummary.Reward): anyone you refer gets @IPRO.Billing.ReferralProgram.Money(referralSummary.Gift) off when they sign up, and you get @IPRO.Billing.ReferralProgram.Money(referralSummary.Reward) back when they stay.</div>
+        <div class="small mt-1">You have referred @referralSummary.Referred and earned @IPRO.Billing.ReferralProgram.Money(referralSummary.Earned).</div>
+      </div>
+      <a href="/portal/ReferAFriend" class="btn btn-primary"><i class="fas fa-gift me-1"></i>Refer a Friend</a>
+    </div>
+  </div>
+}
+
+@{
     var googleAccess = ViewBag.GoogleCalendarAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
     var googleConnection = ViewBag.GoogleCalendarConnection as IPRO.Entities.GoogleCalendarConnection;
     var googleIncluded = googleAccess?.IsIncluded == true;

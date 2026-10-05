@@ -140,6 +140,39 @@ Editing a code's discount amount, duration, or restricted package after it has a
 
 Always verify a new promotion code against PayPal Sandbox before relying on it in live mode.
 
+## Refer a Friend (Referrals)
+
+**Give $50, Get $50** (532). Any adviser refers anyone; the friend gets $50 off at checkout, the adviser $50 plus its
+tax back once the friend stays. It ships **OFF**.
+
+1. Select **Referrals** (Billing section). Switch it **On** and keep or change the two amounts (the friend's gift; the
+   referrer's reward, before tax). Saving is audit-logged. A change applies to new referrals: an amount already
+   promised to a friend or a referrer stays as it was. Switched off, new sign-ups get no gift; referrals already made
+   keep going.
+2. **Codes are never Promotion Codes.** Each adviser gets one permanent code (`JANE-7K3Q`) the first time they open
+   Refer a Friend; their link is `https://www.iproadvisers.com/Account/Register?ref=CODE`. A promotion code can never
+   be saved with the same text. A closed account's code stops by itself; to stop one adviser's, open their
+   referrals and **Pause their link** (audit-logged).
+3. **The page shows** this month and all time (signed up, joined, gifts given, rewards earned, refunded), the top
+   referrers, **Needs attention** (below), and the ledger: search by friend, adviser, email, business or code; filter
+   by stage (Signed up, Joined, Earned, Paid, Not earned, Voided); 50 a page; **Export CSV**.
+4. **Needs attention** lists only the exceptions: a *possible self-referral* (the friend shares a phone number, the
+   sign-up network address or the business address with the referrer) -- **Looks fine** or **Void**; and an earned
+   reward with *nothing to refund against yet* (the adviser's own payments inside PayPal's window are not enough).
+   The dashboard shows the count. A friend who pays iPro from the referrer's own PayPal account is blocked
+   automatically (voided, "automatic").
+5. **Void** any referral that is not paid, with a reason (audit-logged). It earns nothing; the adviser's page reads
+   "Not earned" and says nothing more about the friend.
+6. **Paying a reward:** when the friend has stayed (their second monthly payment, or 30 days into a yearly plan) the
+   reward appears under **Refunds -> Referral rewards to refund**, already worked out: $50 plus tax at the rate the
+   adviser pays, against their own PayPal payments, newest first, split across two when one payment is smaller (PayPal
+   refunds no more than a payment was). Refund each amount at PayPal against the transaction shown, then enter the
+   refund id(s) and **Mark Refunded**: the reward is paid, its credit note (`CN-2026-0001`) is issued, and the adviser
+   gets the "paid" email. Nothing on these pages moves money.
+
+The adviser's side is in `01_AGENT_ACCOUNT_AND_DASHBOARD.md`, "Refer a Friend". Automatic refunds (a switch for the
+rewards alone) are not built yet: manual for now, the owner's choice.
+
 ## Manage Trial Packages and Invite Codes
 
 Trials are invitation-only and never appear in the normal public registration dropdown.

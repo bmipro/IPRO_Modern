@@ -22,6 +22,8 @@ public static class HelpLinks
         ["Account"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: your account", "edit-the-agent-profile") },
         ["Team"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("team-members", "Help: team member logins") },
         ["Billing"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("billing-invoices", "Help: packages and billing") },
+        // 532: Refer a Friend (its own page, opened from Profile and the Dashboard).
+        ["ReferAFriend"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: Refer a Friend", "refer-a-friend") },
 
         ["Clients"] = new(StringComparer.OrdinalIgnoreCase)
         {

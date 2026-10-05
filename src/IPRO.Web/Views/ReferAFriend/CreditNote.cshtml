@@ -1,0 +1,167 @@
+@model IPRO.Entities.Referral
+@using IPRO.Web.Infrastructure
+@{
+    Layout = null;
+    // 532: the credit note for a Refer a Friend reward -- the owner's "tracked properly": the reward and the tax on
+    // it, refunded to the adviser against their own iPro payments, on the invoice's design (invoice.css). The
+    // supplier comes from SuperAdmin -> Company Details, the bill-to from the adviser's account.
+    var agent = ViewBag.Agent as IPRO.Entities.AgentUser;
+    var company = ViewBag.Company as IPRO.DataAccess.BillingCompanyDetails;
+    var companyName = company?.Name ?? "IPRO Advisers";
+    var companyEmail = company?.Email ?? "billing@iproadvisers.com";
+    var companyWebsite = company?.Website ?? "www.iProAdvisers.com";
+    var taxNumber = company?.TaxRegistrationNumber ?? "";
+    var websiteHref = companyWebsite.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? companyWebsite : "https://" + companyWebsite;
+    var taxLabel = InvoiceText.TaxLabel(Model.RewardTaxRegion, Model.RewardTaxRate, Model.RewardTax);
+    var paidOn = Model.PaidAt?.ToString("MMMM d, yyyy") ?? "";
+    var refundedAgainst = string.Join(", ", IPRO.Billing.ReferralProgram.ParsePlan(Model.RefundPlan).Select(p => p.Sale));
+    string Money(decimal amount) => (amount < 0 ? "-$" : "$") + Math.Abs(amount).ToString("N2") + " CAD";
+}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Credit note @Model.CreditNoteNumber</title>
+  <link rel="stylesheet" href="~/css/invoice.css" asp-append-version="true" />
+</head>
+<body>
+  <main class="page-shell">
+    <nav class="invoice-actions" aria-label="Credit note actions">
+      <a class="button button-secondary" href="@(ViewBag.BackUrl as string ?? "/portal/ReferAFriend")">Back to Refer a Friend</a>
+      <button id="printButton" class="button button-primary" type="button">Print / Save PDF</button>
+    </nav>
+
+    <article class="invoice" aria-labelledby="credit-note-title">
+      <header class="invoice-header">
+        <div class="brand">
+          <div class="logo-plate">
+            <img src="/images/ipro-advisers-logo.png" alt="@companyName" />
+          </div>
+          <div class="supplier">
+            <p class="supplier-name">@companyName</p>
+            @foreach (var line in company?.AddressLines ?? Array.Empty<string>())
+            {
+              <p>@line</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(taxNumber))
+            {
+              <p>GST/HST registration no. @taxNumber</p>
+            }
+          </div>
+        </div>
+
+        <div class="invoice-heading">
+          <p class="eyebrow">Refer a Friend reward</p>
+          <h1 id="credit-note-title">Credit note</h1>
+          <span class="status status-paid">Refunded</span>
+        </div>
+      </header>
+
+      <div class="brand-rule" aria-hidden="true"></div>
+
+      <section class="invoice-summary" aria-label="Credit note summary">
+        <dl>
+          <div><dt>Credit note number</dt><dd>@Model.CreditNoteNumber</dd></div>
+          <div><dt>Date</dt><dd>@paidOn</dd></div>
+          <div><dt>For</dt><dd>Referring @Model.FriendName</dd></div>
+        </dl>
+      </section>
+
+      <section class="party-grid">
+        <div class="party">
+          <h2>Credit to</h2>
+          <p class="party-name">@(agent == null ? "" : $"{agent.FirstName} {agent.LastName}".Trim())</p>
+          @if (!string.IsNullOrWhiteSpace(agent?.CompanyName))
+          {
+            <p>@agent!.CompanyName</p>
+          }
+          @foreach (var line in agent?.GetFormattedAddressLines() ?? new List<string>())
+          {
+            <p>@line</p>
+          }
+          @if (!string.IsNullOrWhiteSpace(agent?.Email))
+          {
+            <p class="muted">@agent!.Email</p>
+          }
+        </div>
+
+        <div class="payment-summary">
+          <h2>Refund</h2>
+          <dl>
+            <div><dt>Status</dt><dd>Refunded @paidOn</dd></div>
+            <div><dt>Method</dt><dd>PayPal refund to the card or PayPal account used to pay iPro</dd></div>
+            @if (!string.IsNullOrWhiteSpace(refundedAgainst))
+            {
+              <div><dt>Against PayPal payment</dt><dd class="wrap">@refundedAgainst</dd></div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.RefundTransactionId))
+            {
+              <div><dt>PayPal refund</dt><dd class="wrap">@Model.RefundTransactionId</dd></div>
+            }
+            <div><dt>Currency</dt><dd>CAD</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="charges" aria-labelledby="credit-lines-title">
+        <h2 id="credit-lines-title" class="visually-hidden">Credit note lines</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Description</th>
+                <th scope="col">Tax</th>
+                <th scope="col">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="Description"><strong>Refer a Friend reward: @Model.FriendName joined iPro with your gift</strong></td>
+                <td data-label="Tax">@taxLabel</td>
+                <td data-label="Amount">@Money(-Model.RewardNet)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="totals-area">
+        <div class="tax-note">
+          <h2>Tax summary</h2>
+          @if (Model.RewardTax > 0)
+          {
+            <p><span>Amount credited before tax</span><strong>@Money(-Model.RewardNet)</strong></p>
+            <p><span>@taxLabel returned</span><strong>@Money(-Model.RewardTax)</strong></p>
+          }
+          else
+          {
+            <p><span>No tax was charged, so none is returned.</span></p>
+          }
+          @if (!string.IsNullOrWhiteSpace(taxNumber))
+          {
+            <p><span>GST/HST registration no.</span><strong>@taxNumber</strong></p>
+          }
+        </div>
+
+        <dl class="totals">
+          <div><dt>Subtotal</dt><dd>@Money(-Model.RewardNet)</dd></div>
+          <div><dt>@(Model.RewardTax > 0 ? taxLabel : "Tax")</dt><dd>@Money(-Model.RewardTax)</dd></div>
+          <div class="total"><dt>Total credited</dt><dd>@Money(-Model.RewardGross)</dd></div>
+          <div><dt>Refunded</dt><dd>@Money(Model.RewardGross)</dd></div>
+          <div class="balance"><dt>Balance</dt><dd>@Money(0m)</dd></div>
+        </dl>
+      </section>
+
+      <footer class="invoice-footer">
+        <p>Thank you for referring @Model.FriendName to @(companyName)@(companyName.EndsWith(".") ? "" : ".")</p>
+        <p>Questions about this credit note? <a href="mailto:@companyEmail">@IPRO.Email.BrandText.WithCapitals(companyEmail)</a> &nbsp;|&nbsp; <a href="@websiteHref">@IPRO.Email.BrandText.WithCapitals(companyWebsite)</a></p>
+        <p class="record-note">Please retain this credit note with your invoices. It was generated electronically.</p>
+      </footer>
+    </article>
+  </main>
+  <script nonce="@Context.GetCspNonce()">
+document.getElementById('printButton')?.addEventListener('click', () => window.print());
+  </script>
+</body>
+</html>

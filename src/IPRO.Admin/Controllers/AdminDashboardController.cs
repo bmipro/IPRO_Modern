@@ -1,3 +1,4 @@
+using IPRO.Billing;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
@@ -49,6 +50,11 @@ public class AdminDashboardController : Controller
 
         if (User.HasClaim("Role", AdminRoles.SuperAdmin))
         {
+            // 532: Refer a Friend -- the exceptions only (the owner's "Needs attention" count), and rewards ready
+            // to refund at PayPal.
+            ViewBag.ReferralsNeedingAttention = await ReferralProgram.NeedingAttention(_db).CountAsync();
+            ViewBag.ReferralRewardsToRefund = await _db.Referrals.CountAsync(r => r.Stage == ReferralStages.Earned && r.RefundPlan != "");
+
             var aiSettings = await _db.AiBillingSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Id == 1);
             if (aiSettings != null && aiSettings.TotalFundedUsd > 0)
             {

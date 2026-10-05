@@ -15,6 +15,8 @@
     // summary banner instead of being re-asked in a dropdown.
     var selectedPackage = ViewBag.SelectedPackage as IPRO.Entities.BillingRule;
     var planIsLocked = Model.PlanLocked && selectedPackage != null && trialPackage == null;
+    // 532: arrived through a friend's Refer a Friend link -- the page leads with the gift (the owner's idea).
+    var referralGift = ViewBag.ReferralGift as IPRO.Billing.ReferralProgram.UsableCode;
 }
 <!DOCTYPE html>
 <html>
@@ -128,6 +130,10 @@ textarea:focus{box-shadow:none;}
 
 .terms-check{display:flex;align-items:flex-start;gap:10px;margin-top:14px;font-size:14px;color:#344054;}
 
+.gift-banner{display:flex;gap:14px;align-items:flex-start;background:var(--gold-soft);border-color:#f0d58e;color:#4a3a10;}
+.gift-banner i{font-size:22px;color:#b7791f;margin-top:2px;}
+.gift-banner strong{display:block;font-size:16px;color:var(--navy);margin-bottom:4px;}
+.gift-banner span{display:block;}
 .plan-summary-row{grid-column:1/-1;}
 .plan-summary{border:1px solid var(--blue-soft-line);background:var(--blue-soft);border-radius:12px;padding:16px 18px;}
 .plan-summary-name{font-family:Georgia,Cambria,serif;font-size:20px;font-weight:700;color:var(--navy);}
@@ -200,12 +206,35 @@ textarea:focus{box-shadow:none;}
   {
     <div class="validation">@trialCodeError You can still register below by choosing one of our regular packages.</div>
   }
+  @if (referralGift != null)
+  {
+    <div class="validation gift-banner" role="status">
+      <i class="fas fa-gift" aria-hidden="true"></i>
+      <div>
+        <strong>@IPRO.Billing.ReferralProgram.GiftFrom(referralGift)</strong>
+        @if (trialPackage != null)
+        {
+          <span>It comes off your setup fee when you move to a paid plan (and off your first month when the setup fee is less).</span>
+        }
+        else
+        {
+          <span>It comes off your setup fee at checkout (and off your first month when the setup fee is less); the code is filled in below.</span>
+        }
+        <span>When you join, we will thank @referralGift.Referrer.FirstName for referring you.</span>
+      </div>
+    </div>
+  }
 
   <form asp-action="Register" method="post">
     @Html.AntiForgeryToken()
     @if (!string.IsNullOrWhiteSpace(Model.TrialCode))
     {
       <input type="hidden" asp-for="TrialCode" />
+    }
+    @if (trialPackage != null && referralGift != null)
+    {
+      @* 532: a trial has no promotion-code field; the friend's referral code still travels with the sign-up. *@
+      <input type="hidden" asp-for="PromotionCode" />
     }
 
     <div class="field-card">

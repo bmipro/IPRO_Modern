@@ -15,7 +15,7 @@ using Microsoft.Extensions.Options;
 
 namespace IPRO.Billing;
 
-public class PayPalBillingService : IBillingService
+public class PayPalBillingService : IBillingService, IReferralPayerLookup
 {
     private readonly IUnitOfWork _uow;
     private readonly IPRODbContext _db;
@@ -235,6 +235,41 @@ public class PayPalBillingService : IBillingService
                 }
             }
 
+            // 532: Refer a Friend. One code per sign-up, so a friend's referral code sits where a promotion code
+            // would, and no promotion is found for it; the friend's gift is priced here instead. It comes off the
+            // setup fee as it stands after the waiver, then the first billing period, then the second (a PayPal
+            // plan with discounted TRIAL cycles, made once per shape). Only their first subscription carries it.
+            ReferralProgram.CheckoutGift? referralGift = null;
+            if (promo == null)
+            {
+                var cycleAmount = GetAmount(requestedPackage, period);
+                referralGift = await ReferralProgram.ForCheckoutAsync(_db, userId, baseSetupFee, cycleAmount);
+                if (referralGift != null)
+                {
+                    var split = referralGift.Split;
+                    if (split.SetupDiscount > 0)
+                    {
+                        overrideSetupFee = baseSetupFee - split.SetupDiscount;
+                        promoSetupLabel = ReferralProgram.SetupLabel(requestedPackage.PackageName, split, baseSetupFee, referralGift.ReferrerName);
+                    }
+                    if (split.Cycle1Discount > 0)
+                    {
+                        overrideAmount = cycleAmount - split.Cycle1Discount;
+                        promoRecurringLabel = ReferralProgram.RecurringLabel(requestedPackage.PackageName, period, split, cycleAmount, referralGift.ReferrerName);
+                        try
+                        {
+                            overridePlanId = await GetOrCreateReferralPlanIdAsync(requestedPackage, period, cycleAmount - split.Cycle1Discount,
+                                split.Cycle2Discount > 0 ? cycleAmount - split.Cycle2Discount : null, cycleAmount);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            _logger.LogError(ex, "Refer a Friend: the gift plan for agent {AgentId} on package {PackageId} ({Period}) could not be made at PayPal.", userId, requestedPackage.Id, period);
+                            return BillingChangeResult.Failed("Your referral gift could not be set up with PayPal just now. Please try again in a few minutes, or contact support; no payment has been taken.");
+                        }
+                    }
+                }
+            }
+
             // An agent finishing a scheduled downgrade/term switch arrives here with no active
             // subscription -- that is the designed H-7 flow, not a new customer. They paid the
             // setup fee at their original signup; charging it again for completing a plan change
@@ -306,6 +341,15 @@ public class PayPalBillingService : IBillingService
             if (!checkoutResult.Success)
             {
                 await ReleasePromoSlotAsync(promo);
+            }
+            else if (referralGift != null && checkoutResult.InvoiceId.HasValue)
+            {
+                // 532: which checkout carries the gift (the latest attempt), for the referral's record.
+                var giftInvoice = await _uow.Invoices.GetByIdAsync(checkoutResult.InvoiceId.Value);
+                if (giftInvoice != null)
+                {
+                    await ReferralProgram.RecordCheckoutAsync(_db, referralGift.Referral.Id, giftInvoice.BillingId, referralGift.Split, DateTime.UtcNow);
+                }
             }
 
             return checkoutResult;
@@ -680,6 +724,15 @@ public class PayPalBillingService : IBillingService
 
         if (startsSubscription551)
         {
+            // 532: a referred friend's subscription started -- joined now, so the gift is spent.
+            try
+            {
+                await ReferralProgram.OnSubscriptionStartedAsync(_db, userId, billing, invoice?.Total ?? 0m, now);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Refer a Friend: could not mark agent {AgentId}'s referral joined; the hourly job will.", userId);
+            }
             await NotifySubscriptionStartedAsync(userId, billing, invoice, paymentConfirmed, now);
         }
 
@@ -4074,6 +4127,138 @@ public class PayPalBillingService : IBillingService
         }
 
         return (status, nextBillingTime);
+    }
+
+    // 532: the PayPal payer behind a subscription (subscriber.payer_id), for Refer a Friend's same-payer block.
+    // Not configured: nothing to compare. Unreachable or refused: not reached, asked again next hour.
+    public async Task<(bool Reached, string PayerId)> PayerAsync(string subscriptionId)
+    {
+        if (!HasPayPalSettings() || string.IsNullOrWhiteSpace(subscriptionId))
+        {
+            return (true, string.Empty);
+        }
+
+        try
+        {
+            var accessToken = await GetPayPalAccessTokenAsync();
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var response = await client.GetAsync($"{_settings.BaseUrl}/v1/billing/subscriptions/{subscriptionId}");
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, string.Empty);
+            }
+
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var payer = document.RootElement.TryGetProperty("subscriber", out var subscriber) && subscriber.ValueKind == JsonValueKind.Object
+                ? GetWebhookString(subscriber, "payer_id")
+                : string.Empty;
+            return (true, payer);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read the PayPal payer of subscription {SubscriptionId}; Refer a Friend asks again next hour.", subscriptionId);
+            return (false, string.Empty);
+        }
+    }
+
+    // 532: the plan a friend's gift needs -- one or two discounted TRIAL cycles, then the regular price -- made
+    // once per shape and kept (ReferralPayPalPlans). Prices are NET like every plan; the subscription's
+    // billing_cycles override grosses each one up by the friend's province (BuildTaxInclusiveCycleOverridesAsync).
+    private async Task<string> GetOrCreateReferralPlanIdAsync(BillingRule package, BillingPeriod period, decimal cycle1Price, decimal? cycle2Price, decimal regularPrice)
+    {
+        var cached = await _db.ReferralPayPalPlans.AsNoTracking().FirstOrDefaultAsync(p =>
+            p.BillingRuleId == package.Id && p.Period == period && p.Cycle1Price == cycle1Price &&
+            p.Cycle2Price == cycle2Price && p.RegularPrice == regularPrice && p.PayPalPlanId != "");
+        if (cached != null)
+        {
+            return cached.PayPalPlanId;
+        }
+
+        var productId = await CreatePayPalProductAsync(package);
+        var planId = await CreateReferralPayPalPlanAsync(productId, package, period, cycle1Price, cycle2Price, regularPrice);
+        _db.ReferralPayPalPlans.Add(new ReferralPayPalPlan
+        {
+            BillingRuleId = package.Id,
+            Period = period,
+            Cycle1Price = cycle1Price,
+            Cycle2Price = cycle2Price,
+            RegularPrice = regularPrice,
+            PayPalPlanId = planId,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+        return planId;
+    }
+
+    // A free cycle is a TRIAL with no pricing scheme -- PayPal's own shape for a free trial period.
+    internal static List<object> ReferralBillingCycles(BillingPeriod period, decimal cycle1Price, decimal? cycle2Price, decimal regularPrice)
+    {
+        var intervalUnit = period == BillingPeriod.Annually ? "YEAR" : "MONTH";
+        var cycles = new List<object>();
+        void Trial(int sequence, decimal price)
+        {
+            var cycle = new Dictionary<string, object>
+            {
+                ["frequency"] = new { interval_unit = intervalUnit, interval_count = 1 },
+                ["tenure_type"] = "TRIAL",
+                ["sequence"] = sequence,
+                ["total_cycles"] = 1
+            };
+            if (price > 0)
+            {
+                cycle["pricing_scheme"] = new { fixed_price = new { value = price.ToString("0.00", CultureInfo.InvariantCulture), currency_code = "CAD" } };
+            }
+            cycles.Add(cycle);
+        }
+
+        Trial(1, cycle1Price);
+        if (cycle2Price.HasValue) Trial(2, cycle2Price.Value);
+        cycles.Add(new Dictionary<string, object>
+        {
+            ["frequency"] = new { interval_unit = intervalUnit, interval_count = 1 },
+            ["tenure_type"] = "REGULAR",
+            ["sequence"] = cycle2Price.HasValue ? 3 : 2,
+            ["total_cycles"] = 0,
+            ["pricing_scheme"] = new { fixed_price = new { value = regularPrice.ToString("0.00", CultureInfo.InvariantCulture), currency_code = "CAD" } }
+        });
+        return cycles;
+    }
+
+    private async Task<string> CreateReferralPayPalPlanAsync(string productId, BillingRule package, BillingPeriod period, decimal cycle1Price, decimal? cycle2Price, decimal regularPrice)
+    {
+        var accessToken = await GetPayPalAccessTokenAsync();
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        client.DefaultRequestHeaders.Add("Prefer", "return=representation");
+
+        var periodName = period == BillingPeriod.Annually ? "Annual" : "Monthly";
+        var payload = new
+        {
+            product_id = productId,
+            name = $"{package.PackageName} {periodName} - Referral gift",
+            description = $"{package.PackageName} {periodName.ToLowerInvariant()} subscription with a Refer a Friend gift on its first billing",
+            status = "ACTIVE",
+            billing_cycles = ReferralBillingCycles(period, cycle1Price, cycle2Price, regularPrice),
+            payment_preferences = new
+            {
+                auto_bill_outstanding = true,
+                setup_fee_failure_action = "CONTINUE",
+                payment_failure_threshold = 3
+            }
+        };
+
+        using var response = await client.PostAsync(
+            $"{_settings.BaseUrl}/v1/billing/plans",
+            new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json"));
+        var json = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"PayPal referral plan creation failed: {json}");
+        }
+
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.GetProperty("id").GetString() ?? string.Empty;
     }
 
     // Returns true only when PayPal has actually stopped the subscription.

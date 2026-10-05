@@ -1421,6 +1421,90 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 532: Refer a Friend -- the program's settings (one row), one code per adviser, the ledger, and the PayPal
+    // plans a friend's gift needs. The ledger has no foreign keys on purpose (IPRODbContext says why). Match the
+    // EF model column for column.
+    public static async Task EnsureReferralSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ReferralProgramSettings` (
+        `Id` int NOT NULL,
+        `Enabled` tinyint(1) NOT NULL DEFAULT 0,
+        `FriendGiftAmount` decimal(10,2) NOT NULL DEFAULT 50.00,
+        `ReferrerRewardAmount` decimal(10,2) NOT NULL DEFAULT 50.00,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`)
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ReferralCodes` (
+        `AgentUserId` int NOT NULL,
+        `Code` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `IsPaused` tinyint(1) NOT NULL DEFAULT 0,
+        `PausedAt` datetime(6) NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        UNIQUE KEY `IX_ReferralCodes_Code` (`Code`),
+        CONSTRAINT `FK_ReferralCodes_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `Referrals` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `FriendAgentUserId` int NOT NULL,
+        `Code` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `FriendName` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `FriendBusiness` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `FriendEmail` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `GiftAmount` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `RewardAmount` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `Stage` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `SignedUpAt` datetime(6) NOT NULL,
+        `GiftBillingId` int NULL,
+        `GiftSetupDiscount` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `GiftCycle1Discount` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `GiftCycle2Discount` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `JoinedAt` datetime(6) NULL,
+        `FriendPeriod` int NULL,
+        `ExpectedEarnAt` datetime(6) NULL,
+        `JoinedEmailSentAt` datetime(6) NULL,
+        `PayerCheckedAt` datetime(6) NULL,
+        `EarnedAt` datetime(6) NULL,
+        `RewardNet` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `RewardTax` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `RewardGross` decimal(10,2) NOT NULL DEFAULT 0.00,
+        `RewardTaxRate` decimal(9,5) NOT NULL DEFAULT 0.00000,
+        `RewardTaxRegion` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `RefundPlan` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `RefundWindowEndsAt` datetime(6) NULL,
+        `RefundTransactionId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `PaidAt` datetime(6) NULL,
+        `PaidEmailSentAt` datetime(6) NULL,
+        `CreditNoteNumber` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `ClosedAt` datetime(6) NULL,
+        `ClosedReason` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `VoidedBy` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `Attention` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_Referrals_AgentUserId` (`AgentUserId`),
+        UNIQUE KEY `IX_Referrals_FriendAgentUserId` (`FriendAgentUserId`),
+        KEY `IX_Referrals_Stage` (`Stage`)
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ReferralPayPalPlans` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `BillingRuleId` int NOT NULL,
+        `Period` int NOT NULL,
+        `Cycle1Price` decimal(10,2) NOT NULL,
+        `Cycle2Price` decimal(10,2) NULL,
+        `RegularPrice` decimal(10,2) NOT NULL,
+        `PayPalPlanId` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `CreatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_ReferralPayPalPlans_Shape` (`BillingRuleId`, `Period`, `Cycle1Price`, `Cycle2Price`, `RegularPrice`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     // 523 (slice 3): the adviser's invoice-reminder schedule (ClientInvoiceReminderSettings) and the
     // stages sent per invoice (ClientInvoiceReminderSends). Tables of their own and NOT columns on
     // AgentUsers or ClientInvoices -- the entities say why. Match the EF model column for column.

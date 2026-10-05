@@ -69,6 +69,15 @@ flips: `Pending → Refunded (txn id)` / `ConvertedToCredit` / `Waived`. Rows ar
 records: retained by the eraser like invoices, audit-logged, and Refunded amounts appear as
 credit notes against the revenue/tax ledger.
 
+### Refer a Friend rewards (532)
+
+The same queue carries **Refer a Friend rewards** in their own section: each earned reward with its net, tax and gross
+and the adviser's own PayPal payment(s) to refund it against, worked out by the hourly job (a refund never exceeds the
+sale it is made against, so a reward bigger than the latest payment is split across the ones before it; money already
+promised back from a sale -- another reward, a cancellation refund -- is taken off what it can still return; only
+payments with at least 14 days left in PayPal's window count). The owner refunds at PayPal and marks the reward
+Refunded with the refund id(s); that issues the credit note (`CN-YYYY-NNNN`) and sends the adviser's "paid" email.
+
 ### The 180-day trap (Catch #2)
 
 PayPal will not refund against a transaction older than ~180 days. An annual payment is at day

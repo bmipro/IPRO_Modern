@@ -12,6 +12,32 @@
 }
 
 @{
+    // 532: Refer a Friend's exceptions and rewards to refund (SuperAdmin only; null for other admins).
+    var referralAttention = ViewBag.ReferralsNeedingAttention as int? ?? 0;
+    var referralToRefund = ViewBag.ReferralRewardsToRefund as int? ?? 0;
+}
+@if (referralAttention > 0 || referralToRefund > 0)
+{
+  <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+      <i class="fas fa-gift me-2"></i><strong>Refer a Friend:</strong>
+      @if (referralToRefund > 0)
+      {
+        <span>@referralToRefund @(referralToRefund == 1 ? "reward is" : "rewards are") ready to refund at PayPal.</span>
+      }
+      @if (referralAttention > 0)
+      {
+        <span>@referralAttention @(referralAttention == 1 ? "needs" : "need") attention.</span>
+      }
+    </div>
+    <div class="d-flex gap-2">
+      @if (referralToRefund > 0) { <a href="/Refunds" class="btn btn-sm btn-outline-dark">Refunds</a> }
+      @if (referralAttention > 0) { <a href="/Referrals" class="btn btn-sm btn-outline-dark">Referrals</a> }
+    </div>
+  </div>
+}
+
+@{
     // 453: support requests come before everything else on this page.
     var openTickets = ViewData["OpenTickets"] as System.Collections.Generic.List<IPRO.Entities.SupportTicket> ?? new System.Collections.Generic.List<IPRO.Entities.SupportTicket>();
     var openTicketCount = ViewData["OpenTicketCount"] is int oc ? oc : 0;

@@ -217,9 +217,13 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null, [FromQuery(Name = "package")] string? packageName = null)
+    public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null, [FromQuery(Name = "package")] string? packageName = null, [FromQuery(Name = "ref")] string? referralCode = null)
     {
         SetRegistrationVerifyCode();
+        // 532: a Refer a Friend link fills the promotion code (one code per sign-up) and the page leads with the gift.
+        // A code that is paused, closed or switched off is simply not filled: the friend signs up without the gift.
+        var referralGift = await ReferralProgram.FindUsableAsync(_db, referralCode);
+        ViewBag.ReferralGift = referralGift;
         await LoadActivePackagesAsync();
         // 512: the registration page is one of the four public pages whose visits are counted.
         await PlatformVisitRecorder.RecordAsync(HttpContext, _db, "/Account/Register");
@@ -260,7 +264,8 @@ public class AccountController : Controller
             CompanyName = companyName ?? string.Empty,
             BusinessType = businessType ?? string.Empty,
             PackageId = prefillPackageId,
-            PlanLocked = prefillPackageId > 0
+            PlanLocked = prefillPackageId > 0,
+            PromotionCode = referralGift?.Code
         });
     }
 
@@ -332,7 +337,11 @@ public class AccountController : Controller
             var promo = await _billing.ValidatePromotionCodeAsync(model.PromotionCode, model.PackageId);
             if (promo == null)
             {
-                ModelState.AddModelError("", "That promotion code is not valid for the selected package, or has expired/reached its redemption limit.");
+                // 532: one code per sign-up -- a Refer a Friend code is accepted in the same field.
+                if (await ReferralProgram.FindUsableAsync(_db, model.PromotionCode) == null)
+                {
+                    ModelState.AddModelError("", "That promotion code is not valid for the selected package, or has expired/reached its redemption limit.");
+                }
             }
             else
             {
@@ -408,6 +417,16 @@ public class AccountController : Controller
         // 512: where this sign-up came from -- the most recent counted visit by the same hashed
         // visitor within the month. Never fails a registration.
         await PlatformVisitRecorder.RecordSignupAsync(HttpContext, _db, agent.Id);
+
+        // 532: a friend who signed up with a Refer a Friend code joins the referrer's ledger. Never fails a sign-up.
+        try
+        {
+            await ReferralProgram.RecordSignupAsync(_db, agent, DateTime.UtcNow);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not record the Refer a Friend referral for new agent {AgentId}", agent.Id);
+        }
 
         if (trialInvite != null)
         {
@@ -515,6 +534,14 @@ public class AccountController : Controller
         try
         {
             var origin = await _db.PlatformSignupOrigins.AsNoTracking().FirstOrDefaultAsync(o => o.AgentUserId == agent.Id);
+            // 532: a Refer a Friend code says whose gift it is.
+            var codeText = agent.PromotionCode;
+            var referral = await _db.Referrals.AsNoTracking().FirstOrDefaultAsync(r => r.FriendAgentUserId == agent.Id);
+            if (referral != null)
+            {
+                var referrer = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == referral.AgentUserId);
+                codeText = $"{referral.Code} (Refer a Friend: a gift from {referrer?.FirstName} {referrer?.LastName})".Replace(" )", ")");
+            }
             var annual = string.Equals(model.BillingPeriodChoice, "Annually", StringComparison.OrdinalIgnoreCase);
             var now = DateTime.UtcNow;
             await SignupNotice.SendAsync(_email, _configuration, _logger, SignupNotice.ForRegistration(new SignupNotice.Registration(
@@ -522,7 +549,7 @@ public class AccountController : Controller
                 agent.Email, agent.Phone, agent.City, agent.Province,
                 package?.PackageName ?? "(unknown package)", annual ? "Annually" : "Monthly",
                 package == null ? 0m : (annual ? package.AnnualPrice : package.MonthlyPrice),
-                package?.EffectiveSetupFee(now) ?? 0m, agent.PromotionCode,
+                package?.EffectiveSetupFee(now) ?? 0m, codeText,
                 trialInvite?.Code, agent.TrialEndsAt, SignupNotice.CameFrom(origin), now), _configuration));
         }
         catch (Exception ex)
@@ -535,6 +562,7 @@ public class AccountController : Controller
     private async Task<IActionResult> RerenderRegisterAsync(AgentRegistrationViewModel model)
     {
         SetRegistrationVerifyCode();
+        ViewBag.ReferralGift = await ReferralProgram.FindUsableAsync(_db, model.PromotionCode);
         await LoadActivePackagesAsync();
         await RepopulateTrialViewBagAsync(model.TrialCode);
         if (model.PlanLocked && model.PackageId > 0 && ViewBag.Packages is IEnumerable<BillingRule> loaded)
@@ -597,6 +625,18 @@ public class AccountController : Controller
         var promo = await _billing.ValidatePromotionCodeAsync(code, packageId);
         if (promo == null)
         {
+            // 532: a Refer a Friend code answers with the gift it brings on this plan.
+            var referral = await ReferralProgram.FindUsableAsync(_db, code);
+            if (referral != null)
+            {
+                var referralPeriod = PromotionCodePeriod.Parse(period) ?? BillingPeriod.Monthly;
+                return Json(new
+                {
+                    valid = true,
+                    message = ReferralProgram.DescribeGift(referral, package.PackageName, referralPeriod, package.EffectiveSetupFee(DateTime.UtcNow),
+                        referralPeriod == BillingPeriod.Annually ? package.AnnualPrice : package.MonthlyPrice)
+                });
+            }
             return Json(new { valid = false, message = "That code is not valid for the selected package, or has expired/reached its redemption limit." });
         }
 
@@ -652,6 +692,9 @@ public class AccountController : Controller
 
         ViewBag.GoogleCalendarAccess = await _entitlements.GetAccessAsync(agent.Id, PackageFeatureCodes.GoogleCalendarSync);
         ViewBag.GoogleCalendarConnection = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.AgentUserId == agent.Id && c.IsActive);
+
+        // 532: the Refer a Friend card, just above Calendar Source (the owner's spot).
+        ViewBag.ReferralSummary = await ReferralProgram.SummaryAsync(_db, agent.Id);
 
         var profile = ToProfileViewModel(agent, package?.PackageName ?? "");
         profile.FollowUpReminderEmails = await FollowUpReminderPreference.IsEnabledAsync(_db, agent.Id);

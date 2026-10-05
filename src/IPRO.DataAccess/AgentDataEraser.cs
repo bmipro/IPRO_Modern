@@ -173,6 +173,8 @@ public static class AgentDataEraser
         ("ClientInvoicePayments",       "AgentUserId = @agentId"),
         ("AgentPaymentMethods",         "AgentUserId = @agentId"),
         ("PlatformSignupOrigins",       "AgentUserId = @agentId"),
+        // 532: the adviser's Refer a Friend code goes with them (the ledger is in FinancialMap).
+        ("ReferralCodes",               "AgentUserId = @agentId"),
         ("OperateLogs",                 "AgentUserId = @agentId"),
 
         // The agent row itself, last, and by raw SQL like everything else. Deleting it through EF
@@ -196,7 +198,10 @@ public static class AgentDataEraser
         ("InvoiceLineItems",            "InvoiceId IN (SELECT Id FROM Invoices WHERE AgentUserId = @agentId)"),
         ("Invoices",                    "AgentUserId = @agentId"),
         ("Billings",                    "AgentUserId = @agentId"),
-        ("SubscriptionChanges",         "AgentUserId = @agentId")
+        ("SubscriptionChanges",         "AgentUserId = @agentId"),
+        // 532: the Refer a Friend ledger is a money record (rewards refunded, credit notes): kept with the invoices.
+        // Keyed on the REFERRER; a deleted friend leaves the referrer's row as it is, the friend's name copied onto it.
+        ("Referrals",                   "AgentUserId = @agentId")
     };
 
     // Every table either map touches. Exposed solely so AgentDataEraserCoverageTests can compare it
