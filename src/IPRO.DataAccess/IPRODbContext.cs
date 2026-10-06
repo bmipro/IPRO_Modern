@@ -176,6 +176,8 @@ public class IPRODbContext : DbContext
             e.Property(d => d.AzureBindingStatus).HasMaxLength(40).IsRequired();
             e.Property(d => d.SslStatus).HasMaxLength(40).IsRequired();
             e.Property(d => d.LastError).HasMaxLength(1000);
+            e.Property(d => d.RootAzureBindingStatus).HasMaxLength(40).IsRequired();
+            e.Property(d => d.RootSslStatus).HasMaxLength(40).IsRequired();
 
             e.HasOne(d => d.AgentUser)
              .WithMany()
@@ -197,6 +199,7 @@ public class IPRODbContext : DbContext
             e.Property(p => p.NavigationLabel).HasMaxLength(100).IsRequired();
             e.Property(p => p.MetaTitle).HasMaxLength(180);
             e.Property(p => p.MetaDescription).HasMaxLength(320);
+            e.Property(p => p.OldAddresses).HasMaxLength(2000);
             e.HasOne(p => p.AgentWebsite)
              .WithMany(w => w.Pages)
              .HasForeignKey(p => p.AgentWebsiteId)

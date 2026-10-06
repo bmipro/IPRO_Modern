@@ -105,9 +105,22 @@
             {
               <div class="small text-muted">Temp: @item.TemporaryDomain</div>
             }
-            @if (!string.IsNullOrWhiteSpace(domain.RootDomain) && !string.Equals(domain.RootDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase))
+            @if (IPRO.Utility.ShortAddressState.HasShortAddress(domain))
             {
-              <div class="small mt-1">Root (@domain.RootDomain): <span class="badge @(domain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(domain.RootRedirectsToWww ? "Forwarding OK" : "Not forwarding")</span></div>
+              @* 553: the same words the agent sees (ShortAddressState), then how it is connected and
+                 what Azure holds for it, which only this screen shows. *@
+              var shortAddress = IPRO.Utility.ShortAddressState.Describe(domain);
+              <div class="small mt-1">
+                Root (@domain.RootDomain): <span class="badge @shortAddress.Badge">@shortAddress.Label</span>
+                @if (shortAddress.Direct)
+                {
+                  <span class="text-muted">A record to the platform &middot; binding @domain.RootAzureBindingStatus &middot; SSL @domain.RootSslStatus</span>
+                }
+              </div>
+              @if (shortAddress.Direct && !shortAddress.Working && !string.IsNullOrWhiteSpace(domain.RootLastError))
+              {
+                <div class="small text-muted">@domain.RootLastError</div>
+              }
             }
             @if (domain.AutoRetryExhausted)
             {

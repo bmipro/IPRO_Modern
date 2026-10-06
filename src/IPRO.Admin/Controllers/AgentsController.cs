@@ -554,7 +554,10 @@ public class AgentsController : Controller
         // logged and never block the rest; the dangling-binding cleanup is manual by design.
         foreach (var domain in _azureDomains == null ? new List<IPRO.Entities.AgentDomain>() : domainsToUnbind)
         {
-            foreach (var host in new[] { domain.DomainName, domain.WwwDomain }.Where(h => !string.IsNullOrWhiteSpace(h)).Distinct(StringComparer.OrdinalIgnoreCase))
+            // 553: a short address pointed straight at the platform has its own binding and
+            // certificate in Azure. Only when one was ever made: a forwarded name has nothing there.
+            var rootHost = domain.RootAzureBindingStatus != IPRO.Entities.AgentDomainStatus.NotConfigured ? domain.RootDomain : null;
+            foreach (var host in new[] { domain.DomainName, domain.WwwDomain, rootHost }.Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h!).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 try
                 {

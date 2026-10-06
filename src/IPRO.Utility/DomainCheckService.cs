@@ -37,9 +37,17 @@ public class DomainCheckService : IDomainCheckService
         return client;
     }
 
+    // 553 test seam (the PublicHostGuard.ResolveHook pattern): every name this service looks up.
+    internal static Func<string, CancellationToken, Task<IPAddress[]>> ResolveHook =
+        (host, cancellationToken) => Dns.GetHostAddressesAsync(host, cancellationToken);
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IAzureDomainAutomationService _azureDomains;
     private readonly ILogger<DomainCheckService> _logger;
+
+    // The platform's own addresses, per CNAME target, for the life of this check run: one job run
+    // checks up to fifty domains that all point at the same target.
+    private readonly Dictionary<string, IPAddress[]> _platformAddresses = new(StringComparer.OrdinalIgnoreCase);
 
     public DomainCheckService(
         IHttpClientFactory httpClientFactory,
@@ -100,7 +108,7 @@ public class DomainCheckService : IDomainCheckService
                 return;
             }
 
-            var addresses = await Dns.GetHostAddressesAsync(domain.DomainName, cancellationToken);
+            var addresses = await ResolveHook(domain.DomainName, cancellationToken);
             if (addresses.Length == 0)
             {
                 domain.DnsStatus = AgentDomainStatus.PendingDns;
@@ -202,12 +210,12 @@ public class DomainCheckService : IDomainCheckService
         domain.RootLastCheckedAt = DateTime.UtcNow;
         try
         {
-            var addresses = await Dns.GetHostAddressesAsync(domain.RootDomain, cancellationToken);
+            var addresses = await ResolveHook(domain.RootDomain, cancellationToken);
             if (addresses.Length == 0)
             {
                 domain.RootDnsStatus = AgentDomainStatus.NotConfigured;
                 domain.RootRedirectsToWww = false;
-                domain.RootLastError = "The root domain does not resolve yet. Ask your registrar to forward it to the www address.";
+                domain.RootLastError = "The root domain does not resolve yet. Point it at us or forward it to the www address (see the setup steps).";
                 return;
             }
 
@@ -219,6 +227,19 @@ public class DomainCheckService : IDomainCheckService
                 domain.RootRedirectsToWww = false;
                 domain.RootLastError = "The root domain points at a private or internal address, so it cannot be checked.";
                 _logger.LogWarning("Root domain {Domain} resolves to a non-public address; check refused.", domain.RootDomain);
+                return;
+            }
+
+            // 553: is the short address pointed straight at the platform (an A record) rather than
+            // through a registrar's forwarding? Then it is ours to bind and secure, like the www
+            // name, and the app itself sends it on to www with the page path kept -- which a
+            // registrar's forwarding does not do (GoDaddy's answers 404 for anything but the home
+            // address; measured 2026-10-06 on three domains).
+            var platform = await PlatformAddressesAsync(domain.DnsTarget, cancellationToken);
+            var here = addresses.Count(address => platform.Contains(address));
+            if (here > 0)
+            {
+                await CheckDirectRootAsync(domain, addresses.Length - here, cancellationToken);
                 return;
             }
 
@@ -284,5 +305,116 @@ public class DomainCheckService : IDomainCheckService
             domain.RootLastError = "Could not check the root domain yet.";
             _logger.LogInformation(ex, "Root domain check failed for {Domain}", domain.RootDomain);
         }
+    }
+
+    // 553: the short address resolves to the platform. RootDnsStatus = Bound records that; the two
+    // Azure statuses record what has been done about it. "Working" (RootRedirectsToWww, the flag
+    // every screen reads) waits for the certificate: until then https on the short address shows a
+    // browser warning, exactly as the www name does for its first few minutes.
+    private async Task CheckDirectRootAsync(AgentDomain domain, int otherAddresses, CancellationToken cancellationToken)
+    {
+        // "Failed" on this row means one thing: the adviser has something to do, and RootLastError
+        // says what (ShortAddressState shows it as Needs attention). A name that is already bound
+        // stays recorded as bound whatever happens next -- removing the domain must still know
+        // there is a binding to delete -- and anything that mends itself is left to the next check.
+        if (otherAddresses > 0)
+        {
+            // A leftover record beside ours: the name answers in turn from both hosts, so some
+            // visitors -- and the certificate authority's validation request -- still reach the old
+            // one. RootDnsStatus = Failed is that state: ours, but not ours alone.
+            domain.RootDnsStatus = AgentDomainStatus.Failed;
+            domain.RootRedirectsToWww = false;
+            domain.RootLastError = $"{domain.RootDomain} has more than one address. Remove the other A (and AAAA) records so that ours is the only one left, then click Check now.";
+            return;
+        }
+
+        domain.RootDnsStatus = AgentDomainStatus.Bound;
+
+        if (domain.RootAzureBindingStatus != AgentDomainStatus.Bound || domain.RootSslStatus != AgentDomainStatus.Bound)
+        {
+            var result = await _azureDomains.EnsureRootDomainAsync(domain.RootDomain, cancellationToken);
+            if (result.Success || result.BindingCreated)
+            {
+                // Bound. Success without SslBound is the certificate still being issued; a failure
+                // AFTER the binding is the certificate order refused for now (Azure's own DNS check
+                // still sees the name's previous record). Both are "securing": the every-run path
+                // of the job asks again in five minutes.
+                if (domain.RootAzureBindingStatus != AgentDomainStatus.Bound) domain.RootBoundAt = DateTime.UtcNow;
+                domain.RootAzureBindingStatus = AgentDomainStatus.Bound;
+                domain.RootSslStatus = result.Success && result.SslBound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending;
+                if (!result.Success)
+                {
+                    _logger.LogWarning("Short address {Root} is bound; its certificate order was not accepted yet: {Message}", domain.RootDomain, result.Message);
+                }
+            }
+            else
+            {
+                var (sentence, adviserCanFixIt) = DescribeRootFailure(domain.RootDomain, result.Message, _azureDomains.IsConfigured);
+                if (domain.RootAzureBindingStatus != AgentDomainStatus.Bound)
+                {
+                    domain.RootAzureBindingStatus = adviserCanFixIt ? AgentDomainStatus.Failed : AgentDomainStatus.NotConfigured;
+                }
+
+                domain.RootRedirectsToWww = false;
+                domain.RootLastError = sentence;
+                // Warning: the raw Azure answer is the only place the real reason is written down
+                // (the adviser sees the plain sentence above), and Information is not captured.
+                _logger.LogWarning("Short address {Root} could not be bound: {Message}", domain.RootDomain, result.Message);
+                return;
+            }
+        }
+
+        var secured = domain.RootSslStatus == AgentDomainStatus.Bound;
+        domain.RootRedirectsToWww = secured;
+        domain.RootLastError = secured
+            ? string.Empty
+            : $"We are securing {domain.RootDomain}. This usually takes a few minutes and happens automatically.";
+    }
+
+    // What the adviser is told when Azure will not bind the short address, and whether it is theirs
+    // to fix. Azure's own sentence for the usual case names the record ("A TXT record pointing from
+    // asuid.example.com to ... was not found"), so that case gets the one instruction that fixes it.
+    internal static (string Sentence, bool AdviserCanFixIt) DescribeRootFailure(string rootDomain, string? azureMessage, bool automationConfigured)
+    {
+        if (!automationConfigured)
+        {
+            return ("Domain automation is being finalized on our side. Please check back shortly.", false);
+        }
+
+        var message = azureMessage ?? string.Empty;
+        if (message.Contains("TXT", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("asuid", StringComparison.OrdinalIgnoreCase))
+        {
+            return ($"{rootDomain} points at us, but its TXT record is missing or not right yet. Add the TXT record from the setup steps (name asuid), then click Check now.", true);
+        }
+
+        if (message.Contains("Conflict", StringComparison.OrdinalIgnoreCase))
+        {
+            return ($"{rootDomain} is already connected to another site in our system. Contact support if this seems wrong.", true);
+        }
+
+        return ($"We are connecting {rootDomain}. It did not go through on this try; we will keep trying, and there is nothing for you to do.", false);
+    }
+
+    private async Task<IPAddress[]> PlatformAddressesAsync(string? dnsTarget, CancellationToken cancellationToken)
+    {
+        var target = (dnsTarget ?? string.Empty).Trim().Trim('.');
+        if (target.Length == 0) return Array.Empty<IPAddress>();
+        if (_platformAddresses.TryGetValue(target, out var known)) return known;
+
+        IPAddress[] found;
+        try
+        {
+            found = await ResolveHook(target, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Not remembered: the next domain in this run asks again.
+            _logger.LogWarning(ex, "The platform's own name {Target} did not resolve; short addresses pointed at it cannot be recognised this run", target);
+            return Array.Empty<IPAddress>();
+        }
+
+        _platformAddresses[target] = found;
+        return found;
     }
 }

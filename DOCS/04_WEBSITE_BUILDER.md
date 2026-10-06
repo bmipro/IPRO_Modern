@@ -137,6 +137,35 @@ Only one page can be the home page.
 
 IPRO automatically provides canonical URLs, search-engine instructions, social-sharing metadata, structured business data, `robots.txt`, and a host-specific `sitemap.xml`. The first visible block image is used as the social-sharing image, with the website logo as fallback.
 
+## Old Addresses (Moving From Another Website)
+
+When a page replaces one on your previous website, tell IPRO where it used to live (553). Search results,
+bookmarks, a Google Business Profile's menu link and printed QR codes keep working: anyone arriving on the old
+address is sent to the new page, for good.
+
+1. Open **Manage Pages** and edit the page.
+2. Under **Page Settings**, open **Old addresses for this page**.
+3. Enter the addresses the page had on the old website, one per line. Paste the whole address
+   (`https://www.yourfirm.ca/about-us`) or only the part after the domain name (`about-us`).
+4. Click **Save Page Settings**.
+
+Up to 12 addresses per page. An address that is another page's own address, or that another page already
+lists, is left out, and the page tells you which.
+
+You do not need to list an address that differs only in spelling. These are matched on their own:
+
+| Old address | Opens |
+|---|---|
+| `/bread-&-pastries`, `/Bread_Pastries` | `/bread-pastries` |
+| `/services.html`, `/services.php` | `/services` |
+| `/index.html`, `/default.aspx` | your home page |
+
+A page that exists at the address always wins, and an address nothing matches still shows "page not found".
+
+Old addresses work on the `www` name. For links to the short address (`yourfirm.ca/about-us`) to arrive as
+well, point the short address straight at IPRO rather than forwarding it: see
+[05_DOMAINS_AND_LEADS.md](05_DOMAINS_AND_LEADS.md).
+
 ## Review Website Analytics
 
 1. Open **Analytics** from the Agent Portal navigation.

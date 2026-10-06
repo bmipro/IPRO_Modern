@@ -745,7 +745,7 @@ public class WebsitePagesController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SavePage(int id, string title, string slug, string navigationLabel,
         string metaTitle, string metaDescription, int? parentPageId, bool showInNavigation, bool isPublished, bool isHomePage,
-        string starterPreset = "blank")
+        string starterPreset = "blank", string? oldAddresses = null)
     {
         var website = await GetWebsiteAsync();
         if (website == null) return RedirectToAction("Index", "Website");
@@ -771,6 +771,30 @@ public class WebsitePagesController : Controller
             return id == 0 ? RedirectToAction(nameof(Create)) : RedirectToAction(nameof(Edit), new { id });
         }
 
+        // 553: the addresses this page had on the adviser's previous website (OldAddresses). An address
+        // that is a live page's own, or that another page already lists, could never be used -- a real
+        // page always wins and the first listing wins -- so it is left out and the adviser is told which.
+        var keptOldAddresses = new List<string>();
+        var droppedOldAddresses = new List<string>();
+        if (!string.IsNullOrWhiteSpace(oldAddresses))
+        {
+            var otherPages = await _db.WebsitePages.AsNoTracking()
+                .Where(p => p.AgentWebsiteId == website.Id && p.Id != id)
+                .Select(p => new { p.Title, p.Slug, p.OldAddresses })
+                .ToListAsync();
+            foreach (var address in IPRO.Web.Infrastructure.OldAddresses.Parse(oldAddresses))
+            {
+                if (address == slug) continue; // this page's own address: nothing to remember
+                var liveAt = otherPages.FirstOrDefault(p => p.Slug == address);
+                var listedOn = liveAt == null
+                    ? otherPages.FirstOrDefault(p => IPRO.Web.Infrastructure.OldAddresses.Parse(p.OldAddresses).Contains(address))
+                    : null;
+                if (liveAt != null) droppedOldAddresses.Add($"/{address} is where your {liveAt.Title} page lives now");
+                else if (listedOn != null) droppedOldAddresses.Add($"/{address} is already listed on your {listedOn.Title} page");
+                else keptOldAddresses.Add(address);
+            }
+        }
+
         var requestedParentId = parentPageId;
         parentPageId = await ResolveParentAsync(website.Id, id, isHomePage, parentPageId);
         if (requestedParentId.HasValue && parentPageId != requestedParentId)
@@ -778,6 +802,12 @@ public class WebsitePagesController : Controller
             // Same honesty as SaveNavigationItem: the save continues (matching the established
             // fallback) but the agent is told their placement was rejected.
             TempData["Warning"] = "The parent page you chose was not valid (it would create a loop or exceed the 3-level menu), so this page was saved at the top level instead.";
+        }
+
+        if (droppedOldAddresses.Count > 0)
+        {
+            var left = "Not added to the old addresses: " + string.Join("; ", droppedOldAddresses) + ".";
+            TempData["Warning"] = TempData["Warning"] is string earlier ? earlier + " " + left : left;
         }
 
         if (page == null)
@@ -796,6 +826,7 @@ public class WebsitePagesController : Controller
         page.NavigationLabel = navigationLabel;
         page.MetaTitle = metaTitle?.Trim() ?? string.Empty;
         page.MetaDescription = metaDescription?.Trim() ?? string.Empty;
+        page.OldAddresses = IPRO.Web.Infrastructure.OldAddresses.Store(keptOldAddresses);
         page.ParentPageId = parentPageId;
         page.ShowInNavigation = showInNavigation;
         page.IsPublished = isPublished;

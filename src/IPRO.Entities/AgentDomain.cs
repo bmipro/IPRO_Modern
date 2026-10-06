@@ -35,6 +35,18 @@ public class AgentDomain
     public string RootLastError { get; set; } = string.Empty;
 
     /// <summary>
+    /// 553: the short address pointed straight at the platform (an A record) instead of through a
+    /// registrar's forwarding. RootDnsStatus says where the name points (Bound = at the platform);
+    /// these say what Azure holds for it. NotConfigured until the name first points here; once the
+    /// binding exists it stays recorded, so removing the domain knows there is one to delete.
+    /// </summary>
+    public string RootAzureBindingStatus { get; set; } = AgentDomainStatus.NotConfigured;
+    public string RootSslStatus { get; set; } = AgentDomainStatus.NotConfigured;
+
+    /// <summary>When the short address was first bound: the start of its certificate's grace period.</summary>
+    public DateTime? RootBoundAt { get; set; }
+
+    /// <summary>
     /// When IPRO was alerted that this domain is bound but has no certificate. The domain check
     /// runs every 5 minutes and the condition is terminal until a human acts, so without this the
     /// alert would resend forever. Cleared when SSL goes green so a later lapse alerts again.

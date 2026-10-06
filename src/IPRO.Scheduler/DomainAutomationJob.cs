@@ -51,8 +51,21 @@ public class DomainAutomationJob
         // hundreds of domains this is a handful of lookups per run.
         var boundRecheckCutoff = now.AddMinutes(-30);
 
+        // 553: a short address pointed straight at the platform is bound in one pass and secured in
+        // the next, like the www name -- so while its certificate is being issued the domain is back
+        // on the every-run path even though the www half is finished. Only for the grace period: a
+        // certificate that has not arrived by then is an alert, not something a 5-minute retry fixes.
+        var rootCertificateCutoff = now - CertificateGracePeriod;
+
         var domains = await _db.AgentDomains
             .Where(d =>
+                (
+                    d.RootDnsStatus == AgentDomainStatus.Bound &&
+                    d.RootAzureBindingStatus == AgentDomainStatus.Bound &&
+                    d.RootSslStatus != AgentDomainStatus.Bound &&
+                    d.RootBoundAt != null && d.RootBoundAt > rootCertificateCutoff
+                )
+                ||
                 (
                     // Still being set up -- the fast path, every run.
                     (d.DnsStatus != AgentDomainStatus.Bound ||
@@ -99,22 +112,46 @@ public class DomainAutomationJob
     // ignore the mail.
     private static readonly TimeSpan CertificateGracePeriod = TimeSpan.FromHours(3);
 
-    private async Task AlertIfCertificateIsOverdueAsync(AgentDomain domain)
+    // 553: which of the domain's two names is waiting for a certificate, and whether the wait is
+    // past the grace period. The short address counts from the moment it was bound (RootBoundAt): it
+    // is usually connected long after the row was created, so CreatedAt would alert at once.
+    internal static (bool Waiting, string? OverdueHost) CertificateWait(AgentDomain domain, DateTime utcNow)
     {
-        var boundWithoutCertificate =
+        var wwwWaiting =
             domain.AzureBindingStatus == AgentDomainStatus.Bound &&
             domain.SslStatus != AgentDomainStatus.Bound;
+        var rootWaiting =
+            domain.RootDnsStatus == AgentDomainStatus.Bound &&
+            domain.RootAzureBindingStatus == AgentDomainStatus.Bound &&
+            domain.RootSslStatus != AgentDomainStatus.Bound;
 
-        // Still inside the window where Azure is simply working on it.
-        if (boundWithoutCertificate && DateTime.UtcNow - domain.CreatedAt < CertificateGracePeriod)
+        string? overdue = null;
+        if (wwwWaiting && utcNow - domain.CreatedAt >= CertificateGracePeriod)
         {
-            return;
+            overdue = domain.DomainName;
+        }
+        else if (rootWaiting && domain.RootBoundAt.HasValue && utcNow - domain.RootBoundAt.Value >= CertificateGracePeriod)
+        {
+            overdue = domain.RootDomain;
         }
 
-        if (!boundWithoutCertificate)
+        return (wwwWaiting || rootWaiting, overdue);
+    }
+
+    private async Task AlertIfCertificateIsOverdueAsync(AgentDomain domain)
+    {
+        var (waiting, overdueHost) = CertificateWait(domain, DateTime.UtcNow);
+
+        if (!waiting)
         {
             // Re-arm, so a certificate that lapses later alerts again rather than staying silent.
             domain.CertificateAlertSentAt = null;
+            return;
+        }
+
+        // Still inside the window where Azure is simply working on it.
+        if (overdueHost == null)
+        {
             return;
         }
 
@@ -131,8 +168,8 @@ public class DomainAutomationJob
         _logger.LogWarning(
             "Domain {Domain} (agent {AgentUserId}) has been bound with no certificate for over {Hours}h. " +
             "Managed certificate issuance appears stuck; check the managed-{Slug} certificate resource in Azure",
-            domain.DomainName, domain.AgentUserId, CertificateGracePeriod.TotalHours,
-            domain.DomainName.Replace('.', '-'));
+            overdueHost, domain.AgentUserId, CertificateGracePeriod.TotalHours,
+            overdueHost.Replace('.', '-'));
 
         var to = _configuration["Email:NotificationEmail"];
         if (string.IsNullOrWhiteSpace(to) || to.StartsWith("CHANGE_THIS_", StringComparison.OrdinalIgnoreCase))
@@ -144,7 +181,7 @@ public class DomainAutomationJob
 
         if (string.IsNullOrWhiteSpace(to))
         {
-            _logger.LogWarning("Certificate alert for {Domain} had no deliverable recipient", domain.DomainName);
+            _logger.LogWarning("Certificate alert for {Domain} had no deliverable recipient", overdueHost);
             return;
         }
 
@@ -153,7 +190,7 @@ public class DomainAutomationJob
             .Select(a => a.FirstName + " " + a.LastName + " (" + a.Email + ")")
             .FirstOrDefaultAsync() ?? ("agent #" + domain.AgentUserId);
 
-        var host = WebUtility.HtmlEncode(domain.DomainName);
+        var host = WebUtility.HtmlEncode(overdueHost);
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
               <div style="padding:22px;background:#b42318;color:white">
@@ -189,12 +226,12 @@ public class DomainAutomationJob
         try
         {
             // 454 (2026-09-11): a returned false is a refused send, not a thrown one; say so.
-            var sent = await _email.SendAsync(to, "IPRO Operations", $"Domain needs a certificate: {domain.DomainName}", html);
-            if (!sent) _logger.LogWarning("Certificate alert for {Domain} to {To} was not sent: the provider refused it", domain.DomainName, to);
+            var sent = await _email.SendAsync(to, "IPRO Operations", $"Domain needs a certificate: {overdueHost}", html);
+            if (!sent) _logger.LogWarning("Certificate alert for {Domain} to {To} was not sent: the provider refused it", overdueHost, to);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not send certificate alert for {Domain}", domain.DomainName);
+            _logger.LogWarning(ex, "Could not send certificate alert for {Domain}", overdueHost);
         }
     }
 }

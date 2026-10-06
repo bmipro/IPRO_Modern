@@ -275,6 +275,11 @@ public class WebsiteController : Controller
         ViewBag.TemporaryDomain = agent?.DomainName ?? string.Empty;
         ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
         ViewBag.WebsiteDnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net";
+        // 553: the two values a short address needs to point straight at the platform -- the A
+        // record's address and the TXT record that proves the domain to Azure. Neither is a secret
+        // (both are published in every connected domain's DNS). Blank hides that way of doing it.
+        ViewBag.WebsiteAddress = (_configuration["App:WebsiteAddress"] ?? string.Empty).Trim();
+        ViewBag.DomainVerificationId = (_configuration["App:DomainVerificationId"] ?? string.Empty).Trim();
         ViewBag.PrimaryDomain = await _db.AgentDomains
             .AsNoTracking()
             .Where(d => d.AgentUserId == AgentId && d.IsPrimary)
@@ -401,6 +406,12 @@ public class WebsiteController : Controller
         }
 
         var domainNameForCleanup = domain.DomainName;
+        // 553: a short address that was pointed straight at the platform has a binding and a
+        // certificate of its own in Azure; they go with the domain.
+        var rootForCleanup = ShortAddressState.HasShortAddress(domain) &&
+                             domain.RootAzureBindingStatus != AgentDomainStatus.NotConfigured
+            ? domain.RootDomain
+            : null;
         var wasPrimary = domain.IsPrimary;
         _db.AgentDomains.Remove(domain);
         await _db.SaveChangesAsync();
@@ -427,13 +438,17 @@ public class WebsiteController : Controller
             await _websites.UpdateAsync(website);
         }
 
-        try
+        foreach (var host in new[] { domainNameForCleanup, rootForCleanup })
         {
-            await _azureDomains.RemoveDomainAsync(domainNameForCleanup);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Best-effort Azure cleanup failed for {Domain} after removal", domainNameForCleanup);
+            if (string.IsNullOrWhiteSpace(host)) continue;
+            try
+            {
+                await _azureDomains.RemoveDomainAsync(host);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Best-effort Azure cleanup failed for {Domain} after removal", host);
+            }
         }
 
         TempData["Success"] = $"{domainNameForCleanup} was removed.";
@@ -469,12 +484,20 @@ public class WebsiteController : Controller
         // Always say what was found, including the forwarding result. Previously a successful check
         // that left forwarding unchanged produced a message about binding only, so the button looked
         // inert to anyone watching the forwarding badge.
-        var rootPart = string.IsNullOrWhiteSpace(domain.RootDomain) ||
-                       string.Equals(domain.RootDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase)
-            ? string.Empty
-            : domain.RootRedirectsToWww
-                ? $" {domain.RootDomain} forwards correctly."
-                : $" {domain.RootDomain} is not forwarding yet.";
+        // 553: the short address has two ways to work now, and one of them (pointed straight at
+        // us) has stages of its own; RootLastError already says which stage in plain words.
+        var rootPart = string.Empty;
+        if (ShortAddressState.HasShortAddress(domain))
+        {
+            var shortAddress = ShortAddressState.Describe(domain);
+            rootPart = shortAddress.Direct
+                ? shortAddress.Working
+                    ? $" {domain.RootDomain} is connected and secured too."
+                    : " " + (string.IsNullOrWhiteSpace(domain.RootLastError) ? $"{domain.RootDomain} is being connected." : domain.RootLastError)
+                : shortAddress.Working
+                    ? $" {domain.RootDomain} forwards correctly."
+                    : $" {domain.RootDomain} is not forwarding yet.";
+        }
 
         TempData[bound ? "Success" : "Error"] = bound
             ? $"Checked just now: {domain.DomainName} is connected and secured.{rootPart}"

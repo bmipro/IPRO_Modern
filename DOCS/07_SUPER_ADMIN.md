@@ -342,7 +342,7 @@ agent first if they may have added their own pages there. The action is recorded
 
 Automation settings require valid tenant ID, client ID, client secret, subscription ID, resource group, web app, App Service plan resource ID, and location. If a required setting is missing, the domain's error message names exactly which setting is blank.
 
-Each domain row also shows the root/apex domain's forwarding status when it differs from the `www` host (informational only — it never blocks the site). A domain that has failed repeatedly shows an "Auto-retry paused" badge once IPRO's background job stops automatically rechecking it; **Recheck** still works normally on a paused domain and resumes automatic checking if it succeeds.
+Each domain row also shows the short address (**Root (...)**) when it differs from the `www` host, in the agent's own words: **Not set up**, **Forwarding OK**, or -- when it is pointed straight at the platform with an A record (553) -- **Connecting**, **Securing**, **Connected** or **Needs attention**, followed by the Azure binding and SSL states and, while it is not working, the sentence the agent is shown. A short address never blocks the `www` site. A domain that has failed repeatedly shows an "Auto-retry paused" badge once IPRO's background job stops automatically rechecking it; **Recheck** still works normally on a paused domain and resumes automatic checking if it succeeds.
 
 Super Admin always sees the real underlying Azure/DNS error text for a failed domain (unlike the agent-facing view, which shows a plain-language translation) — use this for actual diagnosis.
 

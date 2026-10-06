@@ -22,8 +22,13 @@ namespace IPRO.IntegrationTests;
 //      unconditionally. Jobs__RecurringDisabled=true now makes an instance a bystander -- no
 //      server (a server on shared storage processes jobs even with no registrations), no
 //      registrations. Program.cs wiring is pinned by source-walk (the M8 pattern).
+[Collection(ConfigHazardTests.AzureStatics)]
 public class ConfigHazardTests : IDisposable
 {
+    // 553: SiteNameProvider is one seam for the whole process and test classes run in parallel;
+    // every class that sets it shares this collection, so they take turns.
+    public const string AzureStatics = "AzureDomainAutomationService statics";
+
     public ConfigHazardTests() => AzureDomainAutomationService.SiteNameProvider =
         () => Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
     public void Dispose() => AzureDomainAutomationService.SiteNameProvider =

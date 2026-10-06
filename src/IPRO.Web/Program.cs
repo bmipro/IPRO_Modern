@@ -255,6 +255,15 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// 553: a custom domain's short address (example.com) that points straight at this app goes to its
+// www name, permanently, with the page path and the query kept -- the one thing a registrar's
+// forwarding does not do. Nothing happens for any other host. See ShortAddressRedirect.
+app.Use(async (context, next) =>
+{
+    if (await IPRO.Web.Infrastructure.ShortAddressRedirect.TryHandleAsync(context, app.Configuration)) return;
+    await next();
+});
+
 // 509: HEAD is answered like GET without the body, for the public addresses HeadRequests lists and
 // no others (it says why). An [HttpGet] action answers HEAD with 405, which uptime monitors and link
 // checkers read as a broken page. Kestrel never sends a body for HEAD; the null stream spares the
@@ -802,7 +811,12 @@ static string NormalizeHostForLookup(string host) => host.Trim().Trim('.').ToLow
 static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration)
 {
     if (!HttpMethods.IsGet(context.Request.Method)) return false;
-    if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value)) return false;
+    // 553: an old-style page address (/about.html, /services.php) is the one kind of path with an
+    // extension that belongs to the public site. This app serves no file of those kinds (static files
+    // have already had their turn), and on an adviser's own domain it is an address of their previous
+    // website: the public site knows where it went (OldAddresses) or answers with its own 404.
+    if (context.Request.Path.HasValue && Path.HasExtension(context.Request.Path.Value) &&
+        !IPRO.Web.Infrastructure.PlatformAliasHosts.IsLegacyPage(context.Request.Path)) return false;
 
     // /portal belongs to the portal on every host, unconditionally. This is the whole point of the
     // prefix: no slug lookup, no cookie check, no reserved list -- one segment decides it. An agent

@@ -10,6 +10,13 @@ public class WebsitePage
     public string NavigationLabel { get; set; } = string.Empty;
     public string MetaTitle { get; set; } = string.Empty;
     public string MetaDescription { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 553: addresses this page had on the adviser's previous website, one per line, as OldAddresses
+    /// stores them ("about-us", "services/tax.html"). A visitor or search engine arriving on one is
+    /// sent to this page for good.
+    /// </summary>
+    public string OldAddresses { get; set; } = string.Empty;
     public bool IsHomePage { get; set; }
     public bool ShowInNavigation { get; set; } = true;
     public bool IsPublished { get; set; } = true;

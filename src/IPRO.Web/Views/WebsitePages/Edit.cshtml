@@ -81,6 +81,19 @@
                 }
       <div class="col-md-6"><label class="form-label fw-semibold">Browser/SEO Title</label><input name="metaTitle" value="@sitePage.MetaTitle" class="form-control" /></div>
       <div class="col-md-6"><label class="form-label fw-semibold">Search Description</label><input name="metaDescription" value="@sitePage.MetaDescription" maxlength="320" class="form-control" /></div>
+      @* 553: closed unless the page has some. Most pages never had another address; a page that
+         replaces one on the adviser's previous website needs exactly this and nothing else. *@
+      <div class="col-12">
+        <details @(string.IsNullOrWhiteSpace(sitePage.OldAddresses) ? "" : "open")>
+          <summary class="fw-semibold">Old addresses for this page <span class="text-muted fw-normal">— moved here from another website?</span></summary>
+          <textarea name="oldAddresses" rows="3" class="form-control mt-2" aria-label="Old addresses for this page" placeholder="about-us&#10;services/tax-planning.html">@sitePage.OldAddresses</textarea>
+          <div class="form-text">
+            The addresses this page had on your previous website, one per line. Paste the whole
+            address or only the part after the domain name. Visitors, bookmarks and search results
+            that still use one are sent to this page.
+          </div>
+        </details>
+      </div>
       <div class="col-12 d-flex flex-wrap gap-4">
         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="showInNavigation" value="true" checked="@sitePage.ShowInNavigation" /><label class="form-check-label fw-semibold">Show in navigation</label></div>
         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isPublished" value="true" checked="@sitePage.IsPublished" /><label class="form-check-label fw-semibold">Published</label></div>

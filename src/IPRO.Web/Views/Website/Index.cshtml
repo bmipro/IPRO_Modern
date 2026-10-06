@@ -5,6 +5,11 @@
     var temporaryDomain = ViewBag.TemporaryDomain as string ?? "";
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     var dnsTarget = ViewBag.WebsiteDnsTarget as string ?? "ipro-prod-web.azurewebsites.net";
+    // 553: the two values that point a short address straight at the platform (an A record and the
+    // TXT record that proves the domain). Without both, the setup steps offer forwarding only.
+    var websiteAddress = ViewBag.WebsiteAddress as string ?? "";
+    var domainVerificationId = ViewBag.DomainVerificationId as string ?? "";
+    var canPointShortAddress = websiteAddress.Length > 0 && domainVerificationId.Length > 0;
     var siteTitle = Model?.SiteTitle ?? "";
     var tagLine = Model?.TagLine ?? "";
     var customDomain = Model?.CustomDomain ?? "";
@@ -435,30 +440,63 @@
             <span class="badge bg-primary rounded-pill">2</span>
             <span class="fw-bold">Send the short address to it</span>
           </div>
-          <div class="small text-muted mb-2">Under <strong>Forwarding</strong> / <strong>Redirect</strong>, set:</div>
-          <div class="bg-light rounded p-3 font-monospace small">
-            <div>@exRoot &nbsp;&rarr;&nbsp; https://@exWww</div>
-            <div class="text-muted">permanent (301) &middot; masking off</div>
-          </div>
-          <div class="small text-muted mt-2">
-            <strong>Skip this and half your visitors won't arrive.</strong> Anyone typing
-            <span class="font-monospace">@exRoot</span> without the
-            <span class="font-monospace">www</span> lands on your registrar's parked page instead of your
-            site. This is a forwarding setting, not a DNS record — the bare address can't use a CNAME.
-          </div>
-          <button class="btn btn-link btn-sm p-0 small mt-2" type="button" data-bs-toggle="collapse"
-                  data-bs-target="#registrarHints" aria-expanded="false" aria-controls="registrarHints">
-            Where is this on my registrar?
-          </button>
-          <div class="collapse mt-2" id="registrarHints">
-            <div class="bg-light rounded p-3 small">
+          @* 553: two ways, and the one that keeps every page address comes first. A registrar's
+             forwarding moves the home address only; a site that used to live on the short address
+             loses every link to its inner pages that way. Forwarding stays, one click down, for the
+             domain that never had a website. Without the two values there is only forwarding. *@
+          @if (canPointShortAddress)
+          {
+            <div class="small text-muted mb-2">
+              Point <span class="font-monospace">@exRoot</span> straight at us. On the same
+              <strong>DNS</strong> screen, set these two records:
+            </div>
+            <div class="bg-light rounded p-3 font-monospace small">
+              <div><span class="text-muted">Type&nbsp;&nbsp;</span>A</div>
+              <div><span class="text-muted">Name&nbsp;&nbsp;</span>@@</div>
+              <div><span class="text-muted">Value&nbsp;</span>@websiteAddress</div>
+            </div>
+            <div class="bg-light rounded p-3 font-monospace small mt-2">
+              <div><span class="text-muted">Type&nbsp;&nbsp;</span>TXT</div>
+              <div><span class="text-muted">Name&nbsp;&nbsp;</span>asuid</div>
+              <div class="text-break"><span class="text-muted">Value&nbsp;</span>@domainVerificationId</div>
+            </div>
+            <div class="small text-muted mt-2">
+              <strong>Skip this and half your visitors won't arrive.</strong> Anyone typing
+              <span class="font-monospace">@exRoot</span> without the
+              <span class="font-monospace">www</span> lands on your registrar's parked page instead of your
+              site. Ours must be the only A record for <span class="font-monospace">@@</span>: change the
+              one that is there rather than adding a second, and switch your registrar's forwarding off
+              if it is on. Every address on <span class="font-monospace">@exRoot</span> then opens the
+              same page on <span class="font-monospace">@exWww</span>, links to your previous website's
+              pages included, and its certificate is automatic too. When the records are saved, click
+              <strong>Check now</strong> beside the domain below.
+            </div>
+            <button class="btn btn-link btn-sm p-0 small mt-2" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#registrarHints" aria-expanded="false" aria-controls="registrarHints">
+              Or use your registrar's forwarding instead
+            </button>
+          }
+          <div class="collapse @(canPointShortAddress ? "" : "show") mt-2" id="registrarHints">
+            <div class="small text-muted mb-2">Under <strong>Forwarding</strong> / <strong>Redirect</strong>, set:</div>
+            <div class="bg-light rounded p-3 font-monospace small">
+              <div>@exRoot &nbsp;&rarr;&nbsp; https://@exWww</div>
+              <div class="text-muted">permanent (301) &middot; masking off</div>
+            </div>
+            <div class="small text-muted mt-2">
+              One setting instead of two records, with one limit: a registrar forwards your home
+              address only. A link to an inner page on the short address, such as
+              <span class="font-monospace">@exRoot/services</span>, shows the registrar's "not found"
+              page. Fine for a domain that never had a website; if you are moving an existing website
+              here, use the two records above.
+            </div>
+            <div class="bg-light rounded p-3 small mt-2">
               <div class="mb-2"><strong>GoDaddy</strong> — My Products → Domains → your domain → Forwarding → Add</div>
               <div class="mb-2"><strong>Namecheap</strong> — Domain List → Manage → Redirect Domain</div>
               <div class="mb-2"><strong>Squarespace / Google Domains</strong> — Domains → your domain → Forwarding</div>
               <div class="mb-2"><strong>Cloudflare</strong> — Rules → Redirect Rules (or a Page Rule)</div>
               <div class="text-muted">
                 Wording differs, but it's always called forwarding or redirecting. If your registrar
-                doesn't offer it, tell us and we'll sort out an alternative.
+                doesn't offer it, use the two records.
               </div>
             </div>
           </div>
@@ -532,9 +570,16 @@
                   {
                     <div class="small @(domainDnsReady ? "text-danger" : "text-muted")">@IPRO.Utility.DomainErrorTranslator.ToAgentMessage(domain.LastError)</div>
                   }
-                  @if (!string.IsNullOrWhiteSpace(domain.RootDomain) && !string.Equals(domain.RootDomain, domain.DomainName, StringComparison.OrdinalIgnoreCase))
+                  @if (IPRO.Utility.ShortAddressState.HasShortAddress(domain))
                   {
-                    <div class="small mt-1">Root domain (@domain.RootDomain): <span class="badge @(domain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(domain.RootRedirectsToWww ? "Forwarding OK" : "Not forwarding")</span></div>
+                    var domainShortAddress = IPRO.Utility.ShortAddressState.Describe(domain);
+                    <div class="small mt-1">Short address (@domain.RootDomain): <span class="badge @domainShortAddress.Badge">@domainShortAddress.Label</span></div>
+                    @* The Connection status panel below is the primary domain's only: a second domain's
+                       short address says here what it is waiting for, or what is wrong with it. *@
+                    @if (!domain.IsPrimary && domainShortAddress.Direct && !domainShortAddress.Working && !string.IsNullOrWhiteSpace(domain.RootLastError))
+                    {
+                      <div class="small @(domainShortAddress.Label == "Needs attention" ? "text-danger" : "text-muted")">@domain.RootLastError</div>
+                    }
                   }
                 </div>
                 <div class="d-flex flex-wrap gap-1 mt-2 pt-2 border-top">
@@ -605,9 +650,9 @@
                     and <strong>renewed automatically</strong> from then on. Nothing for you to do.
                   </li>
                   <li>
-                    <strong>Short address</strong> — set up forwarding at your registrar so
-                    <code>@(primaryDomain.RootDomain)</code> redirects to
-                    <code>@(primaryDomain.DomainName)</code>. Without it, people who leave off the
+                    <strong>Short address</strong> — point <code>@(primaryDomain.RootDomain)</code>
+                    straight at us with two DNS records (or set up forwarding at your registrar), so it
+                    reaches <code>@(primaryDomain.DomainName)</code>. Without it, people who leave off the
                     <code>www</code> land on your registrar's parked page instead of your site.
                   </li>
                 </ol>
@@ -663,25 +708,31 @@
                 to 24 hours. Nothing more for you to do — this page updates on its own.
               </div>
             }
-            @if (!string.IsNullOrWhiteSpace(primaryDomain.RootDomain) && !string.Equals(primaryDomain.RootDomain, primaryDomain.DomainName, StringComparison.OrdinalIgnoreCase))
+            @if (IPRO.Utility.ShortAddressState.HasShortAddress(primaryDomain))
             {
-              <div class="d-flex justify-content-between small mb-2">
+              @* 553: one row for both ways the short address can work (ShortAddressState). Pointed
+                 straight at us it has stages of its own, and RootLastError says which in plain words. *@
+              var shortAddress = IPRO.Utility.ShortAddressState.Describe(primaryDomain);
+              @* align-items-start: on a phone the domain name wraps to a second line, and a stretched
+                 badge grew to the height of both. *@
+              <div class="d-flex justify-content-between align-items-start gap-2 small mb-2">
                 <span>Short address (@primaryDomain.RootDomain)</span>
-                <span class="badge @(primaryDomain.RootRedirectsToWww ? "bg-success" : "bg-light text-dark")">@(primaryDomain.RootRedirectsToWww ? "Forwarding OK" : "Not set up")</span>
+                <span class="badge @shortAddress.Badge">@shortAddress.Label</span>
               </div>
-              @if (!primaryDomain.RootRedirectsToWww)
+              @if (!shortAddress.Working && !shortAddress.Direct)
               {
                 <div class="small text-muted mb-2">
                   People who type <strong>@primaryDomain.RootDomain</strong> without the
                   <code>www</code> won't reach your site — they'll land on your registrar's parked page.
-                  To fix it, set up <em>forwarding</em> where you bought the domain:
-                  <strong>@primaryDomain.RootDomain</strong> &rarr;
-                  <strong>https://@primaryDomain.DomainName</strong>, permanent redirect, masking off.
+                  To fix it, follow step 2 of the setup steps: point
+                  <strong>@primaryDomain.RootDomain</strong> straight at us, or set up
+                  <em>forwarding</em> to <strong>https://@primaryDomain.DomainName</strong> where you
+                  bought the domain.
                 </div>
               }
               @if (!string.IsNullOrWhiteSpace(primaryDomain.RootLastError))
               {
-                <div class="small text-muted mb-2">@primaryDomain.RootLastError</div>
+                <div class="small @(shortAddress.Label == "Needs attention" ? "text-danger" : "text-muted") mb-2">@primaryDomain.RootLastError</div>
               }
             }
             @if (primaryDomain.LastCheckedAt.HasValue)

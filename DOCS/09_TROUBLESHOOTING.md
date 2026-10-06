@@ -1236,6 +1236,49 @@ like an ordinary client.**
 
 ---
 
+## Trap: A Registrar's Forwarding Moves Only The Home Address (2026-10-06)
+
+**Symptom.** A customer moves an existing website to IPRO, the portal says **Forwarding OK**, and every link
+to an inner page of the old site is dead: `yourfirm.ca/services` shows the registrar's "not found" page.
+
+**Cause.** Forwarding is the registrar's own web server answering for the bare name. GoDaddy's answers the
+home address with a 301 and everything else with a 404; measured on three domains already on the platform:
+
+```
+https://4ipro.com/         ->  301  https://www.4ipro.com/
+https://4ipro.com/about    ->  404  (GoDaddy's page)
+```
+
+The portal's check asks only about the home address, so it was green. It did not matter while every domain
+was new; it mattered the day a bakery arrived whose site had lived on the short address for years
+(lavenuebakery.com: four menu and gallery pages in search results).
+
+**Fix (553).** The short address can point straight at the platform: an A record to the app's inbound address
+and the `asuid` TXT record. `DomainCheckService` recognises it (the name resolves to what the CNAME target
+resolves to), binds it as an A-record hostname and orders its managed certificate; `ShortAddressRedirect` then
+sends every address on it to the `www` name with the path and query, and `OldAddresses` takes it from there
+for pages whose address changed.
+
+**Checks, all read-only:**
+
+```
+nslookup -type=A   yourfirm.ca        <their nameserver>   # ours, and ONLY ours
+nslookup -type=TXT asuid.yourfirm.ca  <their nameserver>   # the verification id
+curl -sI https://yourfirm.ca/services                      # 301 to https://www.yourfirm.ca/services
+bash ops/domain-switch/dns-check.sh yourfirm.ca            # the same, several reads, with CAA
+```
+
+**When the Short address row says Needs attention:** the sentence under it is the diagnosis (the TXT record
+is missing or mistyped; a second A record was left beside ours). The raw Azure answer is in the web log at
+Warning: `Short address ... could not be bound`. **Securing for longer than a few minutes** is usually Azure's
+own DNS check still seeing the name's previous record: it binds the name and refuses the certificate order
+(`Missing one DNS record`, in the web log as `its certificate order was not accepted yet`). The job asks again
+every five minutes for three hours, then alerts; the old record's TTL is the wait. A short address that has just been secured starts
+redirecting within five minutes (the lookup is remembered per host for that long); until the `www` name
+itself is secured it is served in place instead, so nobody is redirected into a certificate warning.
+
+---
+
 ## Trap: Startup DDL Races Abort Both Apps (2026-08-06)
 
 **Symptom.** One or both apps fail to start after a deploy, with SIGABRT (exit 134) and no

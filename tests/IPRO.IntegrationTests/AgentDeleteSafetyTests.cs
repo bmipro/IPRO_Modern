@@ -110,6 +110,42 @@ public class AgentDeleteSafetyTests
         Assert.False(await db.AgentUsers.AsNoTracking().AnyAsync(a => a.Id == agentId));
     }
 
+    [Fact]
+    public async Task A_short_address_bound_to_the_platform_is_unbound_with_the_agent_553()
+    {
+        // 553: a short address pointed straight at the platform (an A record) has a binding and a
+        // certificate of its own. A forwarded one never had anything in Azure, and is not asked about.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var agentId = await SeedAgentAsync(db, "direct");
+        await SeedBoundDomainAsync(db, agentId, "www.direct.example");
+        var domain = await db.AgentDomains.SingleAsync(d => d.AgentUserId == agentId);
+        domain.RootDomain = "direct.example";
+        domain.WwwDomain = "www.direct.example";
+        domain.RootAzureBindingStatus = AgentDomainStatus.Bound;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var azure = new RecordingAzureDomains();
+        await NewController(db, new RecordingBlobStore(), azure).Delete(agentId);
+        Assert.Contains("www.direct.example", azure.Removed);
+        Assert.Contains("direct.example", azure.Removed);
+
+        var forwardedId = await SeedAgentAsync(db, "forwarded");
+        await SeedBoundDomainAsync(db, forwardedId, "www.forwarded.example");
+        var forwarded = await db.AgentDomains.SingleAsync(d => d.AgentUserId == forwardedId);
+        forwarded.RootDomain = "forwarded.example";
+        forwarded.WwwDomain = "www.forwarded.example";
+        forwarded.RootRedirectsToWww = true;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var second = new RecordingAzureDomains();
+        await NewController(db, new RecordingBlobStore(), second).Delete(forwardedId);
+        Assert.Contains("www.forwarded.example", second.Removed);
+        Assert.DoesNotContain("forwarded.example", second.Removed);
+    }
+
     // ---- M14: an erase failure is caught, audited, and leaves locked-out-but-intact ----------
 
     [Fact]
@@ -252,6 +288,8 @@ public class AgentDeleteSafetyTests
         public List<string> Removed { get; } = new();
         public bool IsConfigured => true;
         public Task<AzureDomainAutomationResult> EnsureDomainAsync(string hostName, CancellationToken ct = default)
+            => Task.FromResult(new AzureDomainAutomationResult { Success = true, Message = "ok" });
+        public Task<AzureDomainAutomationResult> EnsureRootDomainAsync(string hostName, CancellationToken ct = default)
             => Task.FromResult(new AzureDomainAutomationResult { Success = true, Message = "ok" });
         public Task<AzureDomainAutomationResult> RemoveDomainAsync(string hostName, CancellationToken ct = default)
         {

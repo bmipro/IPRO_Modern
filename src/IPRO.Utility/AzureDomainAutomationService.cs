@@ -57,7 +57,21 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         return true;
     }
 
-    public async Task<AzureDomainAutomationResult> EnsureDomainAsync(string hostName, CancellationToken cancellationToken = default)
+    public Task<AzureDomainAutomationResult> EnsureDomainAsync(string hostName, CancellationToken cancellationToken = default) =>
+        EnsureHostAsync(hostName, CNameRecord, cancellationToken);
+
+    // 553: a short address (example.com) cannot carry a CNAME, so it reaches the app by an A record
+    // and Azure proves it by the asuid TXT record. Everything after the binding -- the managed
+    // certificate issuing a few minutes later, the second pass that attaches it -- is the same as
+    // for a www name. (A bare name's certificate is validated by an HTTP token through the A
+    // record; the platform's own bare names took two minutes each on 2026-09-20.)
+    public Task<AzureDomainAutomationResult> EnsureRootDomainAsync(string hostName, CancellationToken cancellationToken = default) =>
+        EnsureHostAsync(hostName, AddressRecord, cancellationToken);
+
+    internal const string CNameRecord = "CName";
+    internal const string AddressRecord = "A";
+
+    private async Task<AzureDomainAutomationResult> EnsureHostAsync(string hostName, string dnsRecordType, CancellationToken cancellationToken)
     {
         hostName = (hostName ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(hostName))
@@ -81,9 +95,15 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
             return AzureDomainAutomationResult.Skipped($"Azure domain automation refused: {identityReason}.");
         }
 
+        // 553: whether the binding itself went through, so a failure AFTER it (the certificate
+        // order) can say so. Azure refuses that order while its own DNS check still sees the name's
+        // previous record ("Missing one DNS record", seen for an hour on 2026-09-20): the name is
+        // bound, only its certificate is waiting, and the caller should simply come back.
+        var bindingCreated = false;
         try
         {
-            await PutHostNameBindingAsync(hostName, null, cancellationToken);
+            await PutHostNameBindingAsync(hostName, null, dnsRecordType, cancellationToken);
+            bindingCreated = true;
 
             if (!_options.HasRequiredCertificateSettings)
             {
@@ -125,7 +145,7 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
                 };
             }
 
-            await PutHostNameBindingAsync(hostName, thumbprint, cancellationToken);
+            await PutHostNameBindingAsync(hostName, thumbprint, dnsRecordType, cancellationToken);
             return new AzureDomainAutomationResult
             {
                 Success = true,
@@ -138,7 +158,12 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Azure domain automation failed for {HostName}", hostName);
-            return AzureDomainAutomationResult.Failed("Azure automation failed: " + ex.Message);
+            return new AzureDomainAutomationResult
+            {
+                Success = false,
+                BindingCreated = bindingCreated,
+                Message = "Azure automation failed: " + ex.Message
+            };
         }
     }
 
@@ -198,7 +223,7 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         }
     }
 
-    private async Task PutHostNameBindingAsync(string hostName, string? thumbprint, CancellationToken cancellationToken)
+    private async Task PutHostNameBindingAsync(string hostName, string? thumbprint, string dnsRecordType, CancellationToken cancellationToken)
     {
         var uri = ManagementUri(
             $"subscriptions/{_options.SubscriptionId}/resourceGroups/{_options.ResourceGroup}/providers/Microsoft.Web/sites/{_options.WebAppName}/hostNameBindings/{Uri.EscapeDataString(hostName)}");
@@ -207,7 +232,7 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         {
             ["siteName"] = _options.WebAppName,
             ["hostNameType"] = "Verified",
-            ["customHostNameDnsRecordType"] = "CName"
+            ["customHostNameDnsRecordType"] = dnsRecordType
         };
 
         if (!string.IsNullOrWhiteSpace(thumbprint))

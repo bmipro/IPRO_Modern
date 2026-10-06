@@ -16,12 +16,57 @@ The agent should not alter temporary-domain DNS records.
    - Type: `CNAME`
    - Name/Host: `www`
    - Value: `ipro-prod-web.azurewebsites.net`
-6. Forward the root domain to the `www` domain using a permanent redirect when the registrar supports it. IPRO now automatically checks whether the root domain resolves and actually forwards to the `www` address, and shows this as a separate, informational-only status — it never blocks the site from working, since only the `www` host is what IPRO actually binds and serves.
+6. Make the short address (the root domain, without `www`) reach the site too: point it straight at IPRO with two DNS records, or forward it at the registrar. See **Point the short address straight at IPRO** below. IPRO checks it automatically and shows it as its own **Short address** row; the `www` site works either way.
 7. Wait for DNS propagation.
 
 IPRO checks pending domains automatically. Agents can also click **Retry** beside a domain to recheck it immediately (about every 2 minutes at most). Super Admin can also select **Recheck**.
 
-Once the Connection status panel shows **Found**, **Connected**, **Secured** and **Forwarding OK**, the two registrar instruction cards fold away behind **Show the setup steps (for adding another domain)**. They come back on their own if anything stops being green.
+Once the Connection status panel shows **Found**, **Connected**, **Secured** and the short address reads **Connected** or **Forwarding OK**, the two registrar instruction cards fold away behind **Show the setup steps (for adding another domain)**. They come back on their own if anything stops being green.
+
+### Point the short address straight at IPRO
+
+The short address is the domain without `www` (`yourfirm.ca`). It cannot use a CNAME, so there are two ways to
+make it reach the site (553).
+
+**Recommended: two DNS records.** On the registrar's DNS screen:
+
+| Type | Name / Host | Value |
+|---|---|---|
+| A | `@` | `40.89.19.0` |
+| TXT | `asuid` | the long code shown in step 2 of the setup steps on **My Website** |
+
+- Ours must be the only A record for `@`: change the one that is there rather than adding a second, and remove
+  any AAAA record for `@`.
+- If the registrar's forwarding is switched on for the domain, switch it off first (it owns the A record while
+  it is on).
+- IPRO notices at its next check (**Check now** checks at once), connects the address and secures it with its
+  own certificate, usually within a few minutes. The **Short address** row reads **Connecting**, then
+  **Securing**, then **Connected**.
+- Every address on the short name then opens the same page on the `www` name: `yourfirm.ca/services` goes to
+  `www.yourfirm.ca/services`.
+
+**Simpler, with one limit: the registrar's forwarding.** Forward `yourfirm.ca` to `https://www.yourfirm.ca`,
+permanent, masking off. A registrar forwards only your home address: `yourfirm.ca` works, but a link to an inner
+page (`yourfirm.ca/services`) shows the registrar's "not found" page. Fine for a domain that never had a
+website. The row reads **Forwarding OK**.
+
+Either way counts as done.
+
+### Moving an existing website here
+
+When the domain already has a website, its pages are in search results, on a Google Business Profile, in social
+profiles and on printed QR codes. To keep them working:
+
+1. Build the pages in IPRO first; the old site keeps serving while you do.
+2. At the registrar, edit the `www` record that is already there rather than adding one (a registrar refuses a
+   second `www`). Leave every mail record (MX, TXT, autodiscover) and the nameservers exactly as they are.
+3. Wait for **Found**, **Connected** and **Secured**, and look at the new site on the `www` address. The short
+   address still shows the old site, so nothing is lost while you check.
+4. Point the short address straight at IPRO (above). Do not use forwarding: the old site's inner pages lived on
+   the short address, and forwarding loses every one of them.
+5. For each page whose address changed, list the old address on the page (**Old addresses**, see
+   [04_WEBSITE_BUILDER.md](04_WEBSITE_BUILDER.md)). Addresses that differ only in spelling
+   (`/bread-%26-pastries` and `/bread-pastries`, `/services.html` and `/services`) are matched on their own.
 
 ### The address on your emails
 
@@ -47,7 +92,7 @@ Wording that can be used directly in onboarding, support replies, or a help page
 > **You can stop at any point and your current site keeps working.**
 >
 > **There are two settings to make at your registrar, and you should do both in one visit** — the
-> CNAME in step 3 and the forwarding in step 4. Doing only the first is the single most common
+> CNAME in step 3 and the short address in step 4. Doing only the first is the single most common
 > mistake: your site works at `www.yourfirm.ca`, but anyone typing `yourfirm.ca` lands on your
 > registrar's parked page. Leave your nameservers alone; neither step changes them.
 >
@@ -68,17 +113,28 @@ Wording that can be used directly in onboarding, support replies, or a help page
 > *A CNAME tells the internet "when someone asks for this address, send them to IPRO."* Save it — that's
 > your part done. You don't need to keep the page open.
 >
-> **4. Make the short address work too** — while you're still on your registrar's site. Under
-> **Forwarding** or **Redirect**, forward `yourfirm.ca` → `https://www.yourfirm.ca`, permanent
-> redirect, masking off.
+> **4. Make the short address work too** -- while you're still on your registrar's site. On the same DNS
+> screen, set the two records the portal shows you:
 >
-> Where to find it: **GoDaddy** — My Products → Domains → your domain → Forwarding → Add ·
-> **Namecheap** — Domain List → Manage → Redirect Domain · **Squarespace/Google Domains** — Domains →
-> your domain → Forwarding · **Cloudflare** — Rules → Redirect Rules.
+> | Type | Name / Host | Value |
+> |---|---|---|
+> | A | `@` | the address shown in the portal |
+> | TXT | `asuid` | the long code shown in the portal |
 >
-> *Why this isn't just another DNS record:* a bare domain can't use a CNAME — the DNS standard forbids
-> it alongside the `SOA` and `NS` records every domain must have. Forwarding is how registrars solve
-> that, which is why it lives in a different screen.
+> Change the A record that is already there for `@` rather than adding a second one, and switch your
+> registrar's forwarding off if it is on. Every address on `yourfirm.ca` then opens the same page on
+> `www.yourfirm.ca`, and its certificate is automatic too.
+>
+> *Simpler, with one limit:* under **Forwarding** or **Redirect**, forward `yourfirm.ca` to
+> `https://www.yourfirm.ca`, permanent redirect, masking off. A registrar forwards only your home address, so
+> a link to an inner page on the short address stops working. Fine for a new domain; not for a website you
+> are moving here. Where to find it: **GoDaddy** -- My Products, Domains, your domain, Forwarding, Add;
+> **Namecheap** -- Domain List, Manage, Redirect Domain; **Squarespace/Google Domains** -- Domains, your
+> domain, Forwarding; **Cloudflare** -- Rules, Redirect Rules.
+>
+> *Why the short address is different:* a bare domain can't use a CNAME -- the DNS standard forbids it
+> alongside the `SOA` and `NS` records every domain must have. So it gets an address record instead, and a
+> TXT record that proves the domain is yours.
 >
 > **5. Your certificate installs itself.** The last step is the padlock in the browser. It's issued and
 > installed automatically, usually within a few minutes of step 3 completing, and renewed automatically
@@ -91,6 +147,8 @@ Wording that can be used directly in onboarding, support replies, or a help page
 > - *A security warning* — that's step 5 still finishing. Give it a few minutes and reload. If it's still
 >   there after a couple of hours, contact support.
 > - *Short address shows a parked page* — step 4 hasn't been done; your registrar is still showing its placeholder.
+> - *Short address says Needs attention* -- the line under it says why: usually the TXT record is missing or
+>   mistyped, or the old A record is still there beside ours.
 
 ## Domain Statuses
 
@@ -106,7 +164,12 @@ Admin and support.
 | **Securing your site** `[BindingPending]` | Security certificate | Managed certificate is being issued. Normal, a few minutes. |
 | **Taking longer than usual** `[BindingPending]` | Security certificate | Bound with no certificate for 3+ hours. Genuinely stuck; IPRO is alerted. |
 | **Secured** `[Bound]` | Security certificate | Certificate is live and auto-renewing. |
-| **Not set up** `[NotConfigured]` | Short address | The bare domain doesn't forward to `www`. Informational only — the `www` site still works. |
+| **Connecting** | Short address | The short address points at IPRO (an A record) and is being connected. |
+| **Securing** | Short address | Connected; its certificate is being issued. A few minutes. |
+| **Connected** | Short address | Points at IPRO and is secured. Every address on it goes on to `www` with its path. |
+| **Forwarding OK** | Short address | The registrar forwards it to `www` (the home address only). |
+| **Needs attention** | Short address | Points at IPRO but could not be connected: the TXT record is missing or wrong, or a second A record is still there. The row says which. |
+| **Not set up** `[NotConfigured]` | Short address | The bare domain neither points at IPRO nor forwards to `www`. The `www` site still works. |
 | **Failed** `[Failed]` | any | Agents see a plain-language error; Super Admin sees the raw Azure/DNS detail. |
 
 ### Bound-with-no-certificate is normal for a few minutes
@@ -190,6 +253,17 @@ on this subscription."** They demonstrably do; the table above is the evidence.
 **Not needed, despite appearances:** the `asuid` TXT record. Azure requires it for *apex* binding only —
 a `www` hostname is proven by the CNAME itself. Nor is any `_acme-challenge` TXT record needed, since
 nothing about the normal path uses ACME.
+
+**The short address is the one place the `asuid` record IS needed (553).** Pointed straight at IPRO it is
+exactly that apex binding, which is why step 2 of the setup steps shows a TXT record beside the A record. Its
+certificate is a managed one too, validated over the A record, and renews itself.
+
+**The A record's value is the app's inbound address** (`App:WebsiteAddress`; today `40.89.19.0`, what
+`ipro-prod-web.azurewebsites.net` resolves to). A `www` name follows the CNAME wherever the app goes; a short
+address does not. Before any change of App Service plan or region, check whether the inbound address changes:
+if it does, every short address pointed at IPRO must be updated by its owner, and `App:WebsiteAddress` with
+it. The domain check recognises a short address by resolving the CNAME target, never by the setting, so it is
+not fooled by a stale one.
 
 ## Add a Contact Form to a Website Page
 

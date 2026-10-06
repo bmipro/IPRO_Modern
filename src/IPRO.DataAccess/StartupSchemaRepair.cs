@@ -202,6 +202,10 @@ public static class StartupSchemaRepair
         await EnsureTableColumnAsync(db, "AgentDomains", "RootLastCheckedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootLastCheckedAt` datetime(6) NULL");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootLastError", "ALTER TABLE `AgentDomains` ADD COLUMN `RootLastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
         await EnsureTableColumnAsync(db, "AgentDomains", "CertificateAlertSentAt", "ALTER TABLE `AgentDomains` ADD COLUMN `CertificateAlertSentAt` datetime(6) NULL");
+        // 553: the short address bound to the platform itself (an A record) instead of forwarded.
+        await EnsureTableColumnAsync(db, "AgentDomains", "RootAzureBindingStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootAzureBindingStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
+        await EnsureTableColumnAsync(db, "AgentDomains", "RootSslStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootSslStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
+        await EnsureTableColumnAsync(db, "AgentDomains", "RootBoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootBoundAt` datetime(6) NULL");
     }
 
     public static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)
@@ -229,6 +233,9 @@ public static class StartupSchemaRepair
         try
         {
             await EnsureTableColumnAsync(db, "WebsiteContentBlocks", "LayoutVariant", "ALTER TABLE `WebsiteContentBlocks` ADD COLUMN `LayoutVariant` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            // 553: the addresses a page had on the adviser's previous website (OldAddresses). Here, not with
+            // the AgentWebsites columns: this step runs right after WebsiteContentSchema creates the table.
+            await EnsureTableColumnAsync(db, "WebsitePages", "OldAddresses", "ALTER TABLE `WebsitePages` ADD COLUMN `OldAddresses` varchar(2000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
         }
         finally
         {

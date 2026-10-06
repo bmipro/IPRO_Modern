@@ -802,7 +802,31 @@ public class PublicWebsiteController : Controller
             return View("NotFound", host);
         }
 
+        // 553: an old-style page address (/about.html, /index.php). No page of this site can live
+        // at one -- a page address has no dot -- so the only question is whether it is an address
+        // of the adviser's previous website. Answered from three columns and nothing else: these
+        // paths are also what scanners probe all day (/wp-login.php, /xmlrpc.php), and they must
+        // not cost a full page render each. Unknown: the same bare 404 such a path always got.
+        if (!string.IsNullOrWhiteSpace(slug) && IPRO.Web.Infrastructure.PlatformAliasHosts.IsLegacyPage(new PathString("/" + slug.Trim('/'))))
+        {
+            var addresses = await _db.WebsitePages
+                .AsNoTracking()
+                .Where(p => p.AgentWebsiteId == website.Id && p.IsPublished)
+                .Select(p => new IPRO.Entities.WebsitePage { Id = p.Id, Slug = p.Slug, IsHomePage = p.IsHomePage, OldAddresses = p.OldAddresses })
+                .ToListAsync();
+            var replacement = IPRO.Web.Infrastructure.OldAddresses.Find(addresses, slug);
+            return replacement == null ? NotFound() : MovedForGood(replacement);
+        }
+
         return await BuildWebsiteViewAsync(website, slug);
+    }
+
+    // 553: the answer for an address of the adviser's previous website. Permanent, but not for ever
+    // (507): a 301 with no lifetime can sit in a browser indefinitely.
+    private IActionResult MovedForGood(IPRO.Entities.WebsitePage page)
+    {
+        Response.Headers.CacheControl = IPRO.Web.Infrastructure.PlatformAliasHosts.RedirectLifetime;
+        return LocalRedirectPermanent(page.IsHomePage ? "/" : "/" + page.Slug.Trim('/'));
     }
 
     private async Task<IPRO.Entities.AgentWebsite?> FindWebsiteForHostAsync(string host, bool requirePublished = true)
@@ -915,6 +939,17 @@ public class PublicWebsiteController : Controller
         else
         {
             currentPage = pages.FirstOrDefault(p => string.Equals(p.Slug, normalizedSlug, StringComparison.OrdinalIgnoreCase));
+
+            // 553: an address from the adviser's previous website goes to the page that replaced it,
+            // for good. Asked only when no page lives AT the requested address -- nothing there, or a
+            // longer path of which only the first part happens to match a page -- so a real page
+            // always wins. Not a page view either: the visit is counted where it lands.
+            var requestedAddress = IPRO.Web.Infrastructure.OldAddresses.Normalize(slug);
+            if (currentPage == null || !string.Equals(requestedAddress, normalizedSlug, StringComparison.Ordinal))
+            {
+                var movedTo = IPRO.Web.Infrastructure.OldAddresses.Find(pages, requestedAddress);
+                if (movedTo != null) return MovedForGood(movedTo);
+            }
 
             if (currentPage == null)
             {
