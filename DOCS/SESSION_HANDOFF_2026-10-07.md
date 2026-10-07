@@ -12,6 +12,10 @@
   phone numbers on the site: 416-333-4455 on the Call buttons, (416) 886-0458 in the contact block and footer; a
   typo, "bakey", in the home page's Search Description; Menu and Bread & Pastries sharing one search title) and
   three things true of every customer site -> **554**, built and gated 2026-10-07.
+- **crm.to is back** (his question, then his steps at the .to registry, GoDaddy and the Azure portal): DNS hosted at
+  GoDaddy, both names bound with managed certificates, forwarding as an alias name -> **555** so it lands on
+  www.iproadvisers.com rather than the platform host. The first deploy of 554 needed a re-run: both runs ended
+  "failure" with the build green and the deploy job never started.
 
 ## Pushed today
 
