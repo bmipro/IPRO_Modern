@@ -24,9 +24,18 @@
 
 ## After 553 is out: the bakery's short address (his steps, in this order)
 
-1. GoDaddy -> lavenuebakery.com -> **Forwarding** off. Then **DNS**: the A record for `@` -> the address shown in
-   step 2 of the setup steps on My Website (it must be the only A record for `@`), and a TXT record named `asuid`
-   with the code shown there. Leave the mail rows and the `www` row alone.
+**Put off to 2026-10-07 (his call, 8:20 p.m.):** signing in to the bakery's GoDaddy account needs a code texted to
+the bakery's owner, who was not available. Nothing is half-done: 553 is live (both hosts on `23559d6` at 8:05 p.m.,
+the web log clean after two runs of the domain job), the bakery's `www` old addresses already redirect, and the
+short address is still on GoDaddy's forwarding (home works, inner pages 404) until step 1. A quiet hour is best: for
+up to the old record's hour some visitors on the short address get an error while the change spreads. The watch from
+outside is the scratchpad's `watch_short_553.sh` (`once`, `dns`, `live`): the zone's own nameservers and the
+platform's address, read-only. This is the first real run of the Azure side of 553.
+
+1. GoDaddy -> lavenuebakery.com -> **DNS**: first a TXT record named `asuid` with the code shown in step 2 of the
+   setup steps on My Website (harmless by itself). Then **Forwarding** off, and the A record for `@` -> the address
+   shown there (it must be the only A record for `@`; edit a "Parked" row rather than adding a second). Leave the
+   mail rows and the `www` row alone.
 2. The bakery's My Website -> **Check now**. The Short address row reads Connecting, Securing, Connected (a few
    minutes). From outside: `curl -sI https://lavenuebakery.com/drinks-and-meals` answers 301 to the www address.
 3. The bakery's About page -> Page Settings -> **Old addresses**: `about-us`. (`/bread-%26-pastries` finds
