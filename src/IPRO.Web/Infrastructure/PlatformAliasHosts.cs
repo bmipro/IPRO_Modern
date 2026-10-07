@@ -98,7 +98,16 @@ public static class PlatformAliasHosts
         var baseUrl = PlatformBase(configuration);
         // 509: the root keeps its query too -- a campaign link to a name that only forwards arrived at
         // the platform without its utm_ parameters.
-        if (!path.HasValue || path == "/") return baseUrl + (Find(configuration, host)?.Path ?? "/") + query.Value;
+        if (!path.HasValue || path == "/")
+        {
+            // 555: a name that only forwards (crm.to) lands where the home page is KNOWN -- the brand
+            // name that serves it, www.iproadvisers.com -- not on the platform host, which shows the
+            // same page under an address nobody is given. With no such name configured HomeBase is
+            // the platform itself, so nothing changes for a setup without one.
+            var alias = Find(configuration, host);
+            if (alias != null && !alias.OwnPage) return HomeBase(configuration) + "/" + query.Value;
+            return baseUrl + (alias?.Path ?? "/") + query.Value;
+        }
         // 493: PathString.Value is the DECODED path; a %0A or a space in it made a Location header
         // Kestrel refuses (a 500 on a public host). ToUriComponent re-escapes it; the query string is
         // carried as received, already escaped.
@@ -133,7 +142,7 @@ public static class PlatformAliasHosts
             // 509: to the front page of the name the visitor used when that name has a page of its own
             // (the closest thing to what the old page was about); to the platform home when it only
             // forwards. The old query string meant something to the old site only.
-            var front = alias.OwnPage ? "https://" + request.Host.Value.ToLowerInvariant() + "/" : PlatformBase(configuration) + "/";
+            var front = alias.OwnPage ? "https://" + request.Host.Value.ToLowerInvariant() + "/" : HomeBase(configuration) + "/";
             context.Response.Headers.CacheControl = RedirectLifetime;
             context.Response.Redirect(front, permanent: true);
             return true;
