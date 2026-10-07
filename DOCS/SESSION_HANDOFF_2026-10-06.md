@@ -10,16 +10,17 @@
 - **What forwarding cost:** the bakery's old site lived on the short address (no www), and GoDaddy's forwarder
   answers 404 for everything but the home address (measured on three domains already on the platform:
   `4ipro.com/about` is a 404 too). Its four old page addresses -- `/bread-%26-pastries`, `/drinks-and-meals`,
-  `/gallery`, `/about-us` -- died the moment the short address moved. The owner: "build it" -> **553**, built and
-  gated 2026-10-06, held for his word.
+  `/gallery`, `/about-us` -- died the moment the short address moved. The owner: "build it" -> **553**,
+  deployed 2026-10-06 (build `23559d6`).
 - **Found on the bakery's new site, theirs to clean:** 22 published starter pages written for advisers (most twice,
   the second ending in `-2`), not in the menu but in the sitemap under the bakery's name. Three other sites checked
   show no doubled pages, so it looks specific to this site; the cause was not looked into.
 
-## Built today (held)
+## Pushed today
 
 | Code | Item | Gate |
 |---|---|---|
+| `cc65366` | **553** a short address pointed straight at the platform, and old addresses | 1532/1532 |
 
 ## After 553 is out: the bakery's short address (his steps, in this order)
 
