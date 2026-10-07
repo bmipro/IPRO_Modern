@@ -135,6 +135,15 @@ Only one page can be the home page.
 4. Save page settings.
 5. Confirm the public page title and description in the browser source or an SEO testing tool.
 
+Left empty, a search result shows the grey text in the two boxes (554): the title is your business name on
+the home page and `Page | Business name` on every other page, and the description is the page's own opening
+words, then your tagline, then the page, the business and its town. The starter values a page is born with
+(`Home`, `Home - professional service and support.`, the tagline `Professional service and client support.`)
+count as empty: they are never shown to search engines, and the boxes no longer display them.
+
+Link checkers and uptime monitors that ask with HEAD get the same answer as a browser for every page of the
+site (554); before, every page but the home page answered "not found" to them.
+
 IPRO automatically provides canonical URLs, search-engine instructions, social-sharing metadata, structured business data, `robots.txt`, and a host-specific `sitemap.xml`. The first visible block image is used as the social-sharing image, with the website logo as fallback.
 
 ## Old Addresses (Moving From Another Website)

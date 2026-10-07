@@ -309,9 +309,14 @@ public class WebsitePagesController : Controller
             ViewBag.StorageUsedMb = IPRO.Web.Infrastructure.AgentStorageUsage.ToMb(
                 await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, AgentId));
         }
+        // 554: the search boxes' grey text -- what the public page tells search engines when the owner
+        // has written nothing of their own. The same rule the page's <head> uses.
+        var site = await _db.AgentWebsites.AsNoTracking().Include(w => w.AgentUser).FirstOrDefaultAsync(w => w.Id == page.AgentWebsiteId);
         return View(new WebsitePageEditViewModel
         {
             Page = page,
+            SearchTitle = site == null ? string.Empty : IPRO.Web.Infrastructure.PublicSeoText.Title(page, IPRO.Web.Infrastructure.PublicSeoText.SiteName(site)),
+            SearchDescription = site == null ? string.Empty : IPRO.Web.Infrastructure.PublicSeoText.Description(page, site),
             AvailableParents = await GetParentChoicesAsync(page.AgentWebsiteId, page.Id),
             MediaAssets = await GetMediaAssetsAsync(page.AgentWebsiteId),
             AvailableSentPolls = sentPolls,

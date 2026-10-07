@@ -106,11 +106,15 @@
   .pl-section-title { margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--pl-accent); font-size: 1.3rem; font-weight: 800; }
   .pl-items { display: grid; gap: 14px; }
   .pl-item-body { flex: 1; min-width: 0; }
-  .pl-item-line { display: flex; align-items: baseline; gap: 8px; }
-  .pl-item-name { font-weight: 700; overflow-wrap: anywhere; }
+  /* 554: the row wraps, the name does not break. A name could shrink to nothing (overflow-wrap:
+     anywhere), so on a phone a tag and three prices squeezed "Americano" into "America / no". Now a
+     name keeps its words whole (it still breaks one too long for the row) and what does not fit --
+     the price first -- goes to a second line, at the right. On a wide row nothing changes. */
+  .pl-item-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+  .pl-item-name { font-weight: 700; overflow-wrap: break-word; max-width: 100%; }
   .pl-badge { flex: none; padding: 2px 9px; border-radius: 999px; background: var(--site-theme-soft, #eef4ff); color: var(--pl-accent); font-size: .72rem; font-weight: 800; letter-spacing: .02em; }
   .pl-leader { flex: 1; min-width: 18px; border-bottom: 2px dotted var(--pl-line); transform: translateY(-4px); }
-  .pl-price { flex: none; max-width: 55%; text-align: right; font-weight: 800; }
+  .pl-price { flex: none; max-width: 100%; margin-left: auto; text-align: right; font-weight: 800; }
   .pl-item-description { margin-top: 3px; color: #5b6472; font-size: .93rem; line-height: 1.5; }
   .pl-unavailable { margin-top: 3px; color: #b42318; font-size: .8rem; font-weight: 700; }
   .pl-item.is-unavailable .pl-item-name, .pl-item.is-unavailable .pl-price { color: #94a3b8; }
@@ -129,13 +133,11 @@
   .pl-cards .pl-item { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--pl-line); border-radius: 12px; background: #fff; }
   .pl-cards .pl-item-image { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
   .pl-cards .pl-item-body { display: flex; flex-direction: column; padding: 14px 16px 16px; }
-  .pl-cards .pl-item-line { flex-wrap: wrap; }
   .pl-cards .pl-leader { display: none; }
   .pl-cards .pl-price { margin-left: auto; color: var(--pl-accent); }
 
   @@media (max-width: 640px) {
     .pl-compact .pl-items { grid-template-columns: 1fr; }
-    .pl-price { max-width: 50%; }
   }
 </style>
 }

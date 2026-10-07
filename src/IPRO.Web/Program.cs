@@ -268,7 +268,10 @@ app.Use(async (context, next) =>
 // no others (it says why). An [HttpGet] action answers HEAD with 405, which uptime monitors and link
 // checkers read as a broken page. Kestrel never sends a body for HEAD; the null stream spares the
 // work of writing one, and the method is put back so the request is logged as what it was.
-app.Use((context, next) => IPRO.Web.Infrastructure.HeadRequests.AnswerAsync(context, next));
+// 554: and for a customer site's own pages -- the same addresses a GET is handed to the public site for
+// (IsPublicWebsiteAddress), so nothing that acts on a request is ever answered this way.
+app.Use((context, next) => IPRO.Web.Infrastructure.HeadRequests.AnswerAsync(
+    context, next, candidate => IsPublicWebsiteAddress(candidate, app.Configuration)));
 
 if (!app.Environment.IsDevelopment())
 {
@@ -808,9 +811,14 @@ static string NormalizeHostForLookup(string host) => host.Trim().Trim('.').ToLow
 // ShouldRouteToPublicWebsite -- same question, two answers, and they had already drifted (only the
 // one below knows about App:BaseUrl and App:TemporarySiteRootDomain). Two predicates for "is this an
 // agent's public host" is the same failure that let the slug collision survive three fixes.
-static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration)
+static bool ShouldRouteToPublicWebsite(HttpContext context, IConfiguration configuration) =>
+    HttpMethods.IsGet(context.Request.Method) && IsPublicWebsiteAddress(context, configuration);
+
+// 554: the address half of the rule, on its own. Whether this host and path belong to a customer's
+// public site says nothing about the method: a HEAD for such an address is answered as the GET would
+// be (HeadRequests), and it is this test that decides which addresses those are.
+static bool IsPublicWebsiteAddress(HttpContext context, IConfiguration configuration)
 {
-    if (!HttpMethods.IsGet(context.Request.Method)) return false;
     // 553: an old-style page address (/about.html, /services.php) is the one kind of path with an
     // extension that belongs to the public site. This app serves no file of those kinds (static files
     // have already had their turn), and on an adviser's own domain it is an address of their previous

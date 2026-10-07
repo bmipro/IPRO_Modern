@@ -4,27 +4,17 @@
     var website = Model.Website;
     var agent = website.AgentUser;
     var page = Model.CurrentPage;
-    var agentName = $"{agent.FirstName} {agent.LastName}".Trim();
-    var siteName = string.IsNullOrWhiteSpace(website.SiteTitle) ? agentName : website.SiteTitle;
+    var siteName = IPRO.Web.Infrastructure.PublicSeoText.SiteName(website);
     // A 404 must not describe itself as the site's home page. Without this the tab reads as the
     // site name, the canonical points at "/", and robots says index,follow -- so every mistyped or
     // stale URL is offered to search engines as a real page.
     var isPageNotFound = Model.PageNotFound;
 
-    var pageTitle = isPageNotFound
-        ? $"Page not found | {siteName}"
-        : !string.IsNullOrWhiteSpace(page?.MetaTitle)
-            ? page.MetaTitle
-            : page != null && !page.IsHomePage
-                ? $"{page.Title} | {siteName}"
-                : siteName;
-    var description = isPageNotFound
-        ? $"That page could not be found on {siteName}."
-        : !string.IsNullOrWhiteSpace(page?.MetaDescription)
-            ? page.MetaDescription
-            : !string.IsNullOrWhiteSpace(website.TagLine)
-                ? website.TagLine
-                : $"Learn more about {siteName} and the professional services available.";
+    // 554: what the owner typed, else the business's own name and the page's own words -- a starter
+    // value nobody touched ("Home", "Home - professional service and support.") counts as not
+    // written. The rule lives in PublicSeoText, which the page editor's hints read too.
+    var pageTitle = IPRO.Web.Infrastructure.PublicSeoText.Title(page, siteName, isPageNotFound);
+    var description = IPRO.Web.Infrastructure.PublicSeoText.Description(page, website, isPageNotFound);
     var publicPath = page == null || page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}";
     // Canonical origin comes from the controller (custom domain when fully bound, else the
     // request host) so a site reachable on both its subdomain and its custom domain names ONE

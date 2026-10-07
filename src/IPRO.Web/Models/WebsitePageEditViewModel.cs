@@ -24,6 +24,10 @@ public static class WebsitePageStarterPresetCatalog
 public class WebsitePageEditViewModel
 {
     public WebsitePage Page { get; set; } = new();
+    // 554: what a search result shows for this page as things stand (PublicSeoText): the grey text in
+    // the two search boxes when the owner has written nothing of their own. Empty for a page not saved yet.
+    public string SearchTitle { get; set; } = string.Empty;
+    public string SearchDescription { get; set; } = string.Empty;
     public List<WebsitePage> AvailableParents { get; set; } = new();
     public List<WebsiteMediaAsset> MediaAssets { get; set; } = new();
     public List<PollSurvey> AvailableSentPolls { get; set; } = new();

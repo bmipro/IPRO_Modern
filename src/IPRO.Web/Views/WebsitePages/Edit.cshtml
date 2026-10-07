@@ -3,6 +3,11 @@
     var sitePage = Model.Page;
     var isNew = sitePage.Id == 0;
     ViewData["Title"] = isNew ? "Create Website Page" : $"Edit {sitePage.Title}";
+    // 554: the two search boxes show what the OWNER wrote. A starter value nobody touched is not used on
+    // the public page (PublicSeoText), so it is not shown as if it were: the box is empty and its grey
+    // text is what a search result shows today. Saved empty, the starter value is gone for good.
+    var ownSearchTitle = IPRO.Web.Infrastructure.PublicSeoText.HasOwnTitle(sitePage) ? sitePage.MetaTitle : string.Empty;
+    var ownSearchDescription = IPRO.Web.Infrastructure.PublicSeoText.HasOwnDescription(sitePage) ? sitePage.MetaDescription : string.Empty;
 }
 @functions {
     private static string StripHtml(string? html) => string.IsNullOrWhiteSpace(html) ? "" : System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", " ").Trim();
@@ -79,8 +84,12 @@
                         <div class="form-text">This adds editable starter sections. You can change, reorder, or delete them afterwards.</div>
                     </div>
                 }
-      <div class="col-md-6"><label class="form-label fw-semibold">Browser/SEO Title</label><input name="metaTitle" value="@sitePage.MetaTitle" class="form-control" /></div>
-      <div class="col-md-6"><label class="form-label fw-semibold">Search Description</label><input name="metaDescription" value="@sitePage.MetaDescription" maxlength="320" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Browser/SEO Title</label><input name="metaTitle" value="@ownSearchTitle" placeholder="@Model.SearchTitle" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">Search Description</label><input name="metaDescription" value="@ownSearchDescription" placeholder="@Model.SearchDescription" maxlength="320" class="form-control" /></div>
+      @if (!isNew)
+      {
+        <div class="col-12"><div class="form-text mt-0">Left empty, a search result shows the grey text: your business name and this page's own opening words. Type your own to change it.</div></div>
+      }
       @* 553: closed unless the page has some. Most pages never had another address; a page that
          replaces one on the adviser's previous website needs exactly this and nothing else. *@
       <div class="col-12">

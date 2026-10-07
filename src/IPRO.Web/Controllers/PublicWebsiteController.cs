@@ -1017,6 +1017,9 @@ public class PublicWebsiteController : Controller
         try
         {
             if (string.Equals(Request.Headers["DNT"], "1", StringComparison.Ordinal)) return;
+            // 554: a HEAD answered as a GET (HeadRequests) is a link checker or a monitor asking
+            // whether the page is there. Nobody looked at it.
+            if (IPRO.Web.Infrastructure.HeadRequests.IsBeingAnswered(HttpContext)) return;
 
             var userAgent = Request.Headers["User-Agent"].ToString();
             if (string.IsNullOrWhiteSpace(userAgent) || IsLikelyBot(userAgent)) return;
