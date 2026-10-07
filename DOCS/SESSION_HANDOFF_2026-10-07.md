@@ -17,5 +17,6 @@
 
 | Code | Item | Gate |
 |---|---|---|
+| `69685a5` | **554** what a customer site tells search engines and link checkers (live on build `50dd7ba`) | 1539/1539 |
 
 Related: `DOCS/TODO.md` 553 and 554; `DOCS/SESSION_HANDOFF_2026-10-06.md` (yesterday's close-out and list).
