@@ -209,6 +209,33 @@ public class WebsitePagesController : Controller
         return RedirectToAction(nameof(Footer));
     }
 
+    // 556: opening hours and the kind of business. One row a day (open_N ticked, opens_N, closes_N,
+    // N = System.DayOfWeek); a day left unticked, or ticked without both times, is closed.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind)
+    {
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+        var hours = WebsiteBusinessHours.FromEntries(
+            WebsiteBusinessHours.WeekOrder.Select(day => (day,
+                Request.Form[$"open_{(int)day}"].Any(v => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)),
+                Request.Form[$"opens_{(int)day}"].FirstOrDefault(),
+                Request.Form[$"closes_{(int)day}"].FirstOrDefault())),
+            hoursNote, out var halfSet);
+        var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+        settings.Hours = hours;
+        settings.BusinessKind = WebsiteBusinessKinds.Normalize(businessKind);
+        website.FooterSettingsJson = settings.ToJson();
+        website.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        // A day ticked open with a time missing is saved as closed; say so rather than show wrong hours.
+        if (halfSet.Count > 0)
+            TempData["Error"] = $"{string.Join(", ", halfSet)}: an opening and a closing time are both needed, so {(halfSet.Count == 1 ? "that day shows" : "those days show")} as closed for now.";
+        else
+            TempData["Success"] = settings.Hours.IsSet ? "Hours saved. They now show on your website." : "Hours saved. No hours are shown on your website.";
+        return RedirectToAction(nameof(Footer));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddSocialLink(string platform, string url)
     {

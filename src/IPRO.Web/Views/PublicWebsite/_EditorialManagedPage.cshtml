@@ -107,7 +107,7 @@
     var hero = IPRO.Entities.WebsiteHeroSettings.FromJson(block.SettingsJson);
     var imageOpacity = Math.Clamp((100 - hero.OverlayStrength) / 100.0, .15, .9).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
     <section class="ep-hero layout-@hero.Layout align-@hero.TextAlignment height-@hero.Height" style="--hero-image-opacity:@imageOpacity">
-      <div class="ep-hero-copy"><div class="ep-kicker">@agent.CompanyName</div><h1>@block.Heading</h1><p class="ep-copy">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@block.ButtonText</a>}</div>
+      <div class="ep-hero-copy"><div class="ep-kicker">@agent.CompanyName</div><h1>@block.Heading</h1><p class="ep-copy">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="ep-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl)?"/contact":block.ButtonUrl)">@block.ButtonText</a>}@await Html.PartialAsync("_OpenNow", Model)</div>
       <div class="ep-hero-visual">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" style="object-position:@hero.ImagePosition" />}else{<div class="ep-hero-mark" aria-hidden="true">@(HeroMonogram(agent))</div>}</div>
     </section>
   }
@@ -156,7 +156,7 @@
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm){
     var epContactSettings = IPRO.Entities.WebsiteContactFormSettings.FromJson(block.SettingsJson);
-    <section class="ep-section"><div class="ep-inner ep-contact"><div class="ep-heading"><div class="ep-kicker">Contact</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p>@if(epContactSettings.ShowPhoto && !string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="ep-avatar" />}<h3>@($"{agent.FirstName} {agent.LastName}".Trim())</h3><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<p><a href="tel:@agent.Phone">@agent.Phone</a></p>}</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>}
+    <section class="ep-section"><div class="ep-inner ep-contact"><div class="ep-heading"><div class="ep-kicker">Contact</div><h2>@block.Heading</h2><p class="ep-copy">@block.Subheading</p><p class="ep-copy">@block.Body</p>@if(epContactSettings.ShowPhoto && !string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="ep-avatar" />}<h3>@($"{agent.FirstName} {agent.LastName}".Trim())</h3><p>@agent.CompanyName</p>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<p><a href="tel:@agent.Phone">@agent.Phone</a></p>}@await Html.PartialAsync("_BusinessHours", Model)</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>}
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
   {
     <section class="ep-section ep-alt"><div class="ep-inner"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:640px">@await Html.PartialAsync("_TestimonialForm", new IPRO.Web.Models.TestimonialFormViewModel { PageId = Model.CurrentPage?.Id })</div>@if(Model.ApprovedTestimonials.Any()){if(block.LayoutVariant == "grid"){<div class="ep-quote-grid">@foreach(var t in Model.ApprovedTestimonials){<blockquote class="ep-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}</div>}else{<div>@foreach(var t in Model.ApprovedTestimonials){<blockquote class="ep-quote">&ldquo;@t.Body&rdquo;<div class="fw-bold mt-1">@($"{t.FirstName} {t.LastName}".Trim())</div></blockquote>}</div>}}</div></section>
@@ -333,6 +333,7 @@
           @if(epAddressLines.Any()){<div class="ep-agent-detail">@foreach(var line in epAddressLines){<div>@line</div>}</div>}
           @if(epAgentInfo.ShowPhone && !string.IsNullOrWhiteSpace(agent.Phone)){<div class="ep-agent-detail mt-2"><a href="tel:@agent.Phone">@agent.Phone</a></div>}
           @if(epAgentInfo.ShowEmail && !string.IsNullOrWhiteSpace(agent.Email)){<div class="ep-agent-detail"><a href="mailto:@agent.Email">@agent.Email</a></div>}
+          @await Html.PartialAsync("_BusinessHours", Model)
         </div>
       </div>
     </div></section>

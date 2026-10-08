@@ -1,0 +1,29 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    // 556: the week as seven rows with today's in bold, "Open now" above it and the note below.
+    // Renders nothing until hours are set (My Website > Footer > Hours). The styles are in
+    // _ManagedPageStyles, which all three designs load.
+    var hours = IPRO.Entities.WebsiteFooterSettings.FromJson(Model.Website.FooterSettingsJson).Hours;
+    var now = IPRO.Web.Infrastructure.BusinessHoursClock.Now(Model.Website.AgentUser);
+    var status = hours.StatusAt(now);
+}
+@if (hours.IsSet)
+{
+  <div class="site-hours">
+    @if (status.Text.Length > 0)
+    {
+      <div class="site-hours__status @(status.Open ? "is-open" : "is-closed")"><span class="site-hours__dot" aria-hidden="true"></span>@status.Text</div>
+    }
+    <table class="site-hours__week">
+      <caption class="visually-hidden">Hours</caption>
+      @foreach (var day in hours.Week())
+      {
+        <tr class="@(day.Day == now.DayOfWeek ? "is-today" : null)"><th scope="row">@day.Name</th><td>@day.Text</td></tr>
+      }
+    </table>
+    @if (hours.Note.Length > 0)
+    {
+      <div class="site-hours__note">@hours.Note</div>
+    }
+  </div>
+}

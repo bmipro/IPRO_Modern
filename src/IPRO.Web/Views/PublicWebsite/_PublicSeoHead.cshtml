@@ -30,10 +30,12 @@
         : Uri.TryCreate(imagePath, UriKind.Absolute, out var absoluteImage)
             ? absoluteImage.ToString()
             : origin + (imagePath.StartsWith('/') ? imagePath : "/" + imagePath);
+    // 556: the kind of business and its hours, when the owner has set them (My Website > Footer).
+    var businessDetails = IPRO.Entities.WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
     var structuredData = new Dictionary<string, object?>
     {
         ["@context"] = "https://schema.org",
-        ["@type"] = "ProfessionalService",
+        ["@type"] = IPRO.Entities.WebsiteBusinessKinds.SchemaType(businessDetails.BusinessKind),
         ["name"] = siteName,
         ["url"] = canonicalUrl,
         ["description"] = description,
@@ -50,6 +52,8 @@
             ["addressCountry"] = agent.Country
         }
     };
+    // A null entry in a dictionary is written out as null, so the key is added only when there are hours.
+    if (businessDetails.Hours.IsSet) structuredData["openingHoursSpecification"] = businessDetails.Hours.ToSchema();
 }
 <title>@pageTitle</title>
 <meta name="description" content="@description" />

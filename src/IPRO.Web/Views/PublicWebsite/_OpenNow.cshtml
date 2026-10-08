@@ -1,0 +1,11 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@{
+    // 556: one line under a page's first button -- the question a visitor on a phone has.
+    // Nothing until hours are set.
+    var hours = IPRO.Entities.WebsiteFooterSettings.FromJson(Model.Website.FooterSettingsJson).Hours;
+    var status = hours.StatusAt(IPRO.Web.Infrastructure.BusinessHoursClock.Now(Model.Website.AgentUser));
+}
+@if (status.Text.Length > 0)
+{
+  <div class="site-open-now @(status.Open ? "is-open" : "is-closed")"><span class="site-hours__dot" aria-hidden="true"></span>@status.Text</div>
+}

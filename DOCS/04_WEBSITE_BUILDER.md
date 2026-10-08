@@ -249,6 +249,27 @@ A small arrow icon linking to the agent portal sign-in page always appears in th
 
 The footer appears on every published page across all templates, including the temporary domain and any connected custom domains. Footer style automatically matches the selected template; no separate footer design controls are needed.
 
+## Show Your Hours
+
+Enter your opening hours once and they appear across your website (added 2026-10-07).
+
+1. Go to **My Website**.
+2. Click **Footer**, then find **Hours**.
+3. Tick each day you are open and enter its opening and closing time. A day left unticked shows as **Closed**.
+4. To fill the week quickly, set the first open day, tick the others, and click **Use the first open day's times for every open day**. Then adjust any day that differs.
+5. Optionally add a one-line **Note** (a holiday closing, a lunch break, "by appointment").
+6. Choose your **Kind of business**. It is not shown on the site; it tells search engines what you are.
+7. Click **Save Hours**.
+
+Where they show:
+
+- at the bottom of every page, in as few lines as it takes (days with the same hours share a line);
+- on the **About / agent info** card and beside the **Contact form**, as the full week with today in bold;
+- as an **Open now** or **Closed now** line under the first button of a page's banner, with the next opening or closing time;
+- in the business details search engines read, so your hours can appear in search results.
+
+"Open now" follows the time zone on your **Profile**, not the visitor's. One opening and one closing time a day: a closing time earlier than the opening time runs past midnight. Leave every day unticked to show no hours anywhere. Keep the hours on your Google Business Profile the same; most people check there first.
+
 To link a legal link to a page you don't want in the main menu (for example, a Privacy Policy page), create the page under **Pages**, turn off **Show in navigation** on it, then pick it from the **Link to** dropdown here — the page stays off the menu but is still reachable from the footer link.
 
 ### Troubleshooting

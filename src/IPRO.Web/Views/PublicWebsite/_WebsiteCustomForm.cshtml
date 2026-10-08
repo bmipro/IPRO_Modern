@@ -123,7 +123,7 @@
           <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
         </span>
       </label>
-      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>I agree that this adviser may use my information to respond to this request.</span></label>
+      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>I agree that @(ViewData["ConsentParty"] as string ?? "this business") may use my information to respond to this request.</span></label>
       <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas fa-paper-plane"></i> @Model.SubmitButtonText</button>
     </form>
   }

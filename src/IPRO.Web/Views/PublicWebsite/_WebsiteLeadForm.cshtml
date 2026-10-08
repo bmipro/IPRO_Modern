@@ -16,6 +16,8 @@
     // no real agent behind it at all. Disable submission and say so, rather than let it fail silently.
     var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true || ViewBag.IsProspectPreview == true;
     var formId = $"website-lead-{Guid.NewGuid():N}";
+    // 556: the consent line names the business ("this adviser" was on a bakery's form).
+    var consentParty = ViewData["ConsentParty"] as string ?? "this business";
     var submitted = Context.Request.Query["submitted"].ToString();
     var dlToken = Context.Request.Query["dl"].ToString();
     // "q" is how many Did You Know emails were actually queued. The page used to promise articles were
@@ -104,7 +106,7 @@
           <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
         </span>
       </label>
-      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : isLeadMagnet ? "I agree that this adviser may use my information to follow up about this download." : isDidYouKnow ? "I agree to receive these articles by email and understand I can unsubscribe later." : "I agree that this adviser may use my information to respond to this request.")</span></label>
+      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : isLeadMagnet ? $"I agree that {consentParty} may use my information to follow up about this download." : isDidYouKnow ? "I agree to receive these articles by email and understand I can unsubscribe later." : $"I agree that {consentParty} may use my information to respond to this request.")</span></label>
       <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas @(isNewsletter ? "fa-envelope" : isLeadMagnet ? "fa-download" : isDidYouKnow ? "fa-envelope" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : isLeadMagnet ? "Get the Download" : isDidYouKnow ? "Email Me the Article(s)" : "Send message")</button>
     </form>
   }

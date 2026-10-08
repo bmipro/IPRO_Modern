@@ -2,6 +2,8 @@
 @{
     Layout = null;
     var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Website.Template);
+    // 556: who a form's consent line names; every partial below reads it.
+    ViewData["ConsentParty"] = IPRO.Web.Infrastructure.BusinessHoursClock.ConsentParty(Model.Website.AgentUser);
 }
 @if (design.Renderer == "classic-sidebar")
 {

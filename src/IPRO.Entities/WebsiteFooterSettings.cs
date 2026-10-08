@@ -12,6 +12,9 @@ public class WebsiteFooterSettings
     public string DisclaimerText { get; set; } = string.Empty;
     public List<WebsiteSocialLink> SocialLinks { get; set; } = new();
     public List<WebsiteFooterLink> LegalLinks { get; set; } = new();
+    // 556: opening hours and the kind of business, kept beside the phone and the address.
+    public WebsiteBusinessHours Hours { get; set; } = new();
+    public string BusinessKind { get; set; } = string.Empty;
 
     public static readonly string[] KnownPlatforms = { "facebook", "linkedin", "instagram", "twitter-x", "youtube", "other" };
 
@@ -28,6 +31,8 @@ public class WebsiteFooterSettings
             value.DisclaimerText = value.DisclaimerText?.Trim() ?? string.Empty;
             value.SocialLinks ??= new();
             value.LegalLinks ??= new();
+            value.Hours = (value.Hours ?? new()).Normalized();
+            value.BusinessKind = WebsiteBusinessKinds.Normalize(value.BusinessKind);
             foreach (var link in value.SocialLinks)
             {
                 link.Platform = Normalize(link.Platform, KnownPlatforms, "other");

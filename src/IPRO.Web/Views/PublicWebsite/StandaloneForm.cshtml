@@ -8,6 +8,7 @@
         : agent != null ? $"{agent.FirstName} {agent.LastName}".Trim() : "Your Website";
     var theme = string.IsNullOrWhiteSpace(website?.ThemeColor) ? "#1457d9" : website!.ThemeColor;
     var isPreview = ViewBag.IsFormPreview == true;
+    ViewData["ConsentParty"] = IPRO.Web.Infrastructure.BusinessHoursClock.ConsentParty(agent);   // 556
 }
 <!DOCTYPE html>
 <html lang="en">

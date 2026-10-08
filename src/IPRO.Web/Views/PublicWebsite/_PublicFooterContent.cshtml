@@ -28,6 +28,11 @@
     }
   </div>
 }
+@* 556: the week in as few lines as it takes; nothing until hours are set. *@
+@if (footer.Hours.IsSet)
+{
+  <div class="public-footer__hours"><i class="fas fa-clock" aria-hidden="true"></i><span class="visually-hidden">Hours: </span>@foreach (var line in footer.Hours.Lines()) { <span>@line</span> }</div>
+}
 @if (footer.SocialLinks.Any())
 {
   <div class="public-footer__social">
@@ -54,6 +59,9 @@
    534: the agent-login arrow follows it (the owner's placement; it used to end the social row). *@
 <div class="public-footer__powered">Powered by <a href="@IPRO.Entities.PoweredBy.BrandUrl(agent.BusinessType)" title="@IPRO.Entities.PoweredBy.BrandName(agent.BusinessType)">@IPRO.Entities.PoweredBy.Label</a><a class="public-footer__agent-login" href="@agentLoginUrl" aria-label="Agent login" title="Agent login"><i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i></a></div>
 <style>
+  .public-footer__hours { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+  .public-footer__hours i { color: var(--site-theme, #1457d9); }
+  .public-footer__hours span { white-space: nowrap; }
   .public-footer__powered { margin-top: 10px; font-size: 11px; letter-spacing: .02em; color: var(--muted, #8a94a6); opacity: .85; }
   .public-footer__powered a { color: inherit; text-decoration: none; font-weight: 600; }
   .public-footer__powered a:hover { text-decoration: underline; }
