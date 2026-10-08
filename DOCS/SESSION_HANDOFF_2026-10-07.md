@@ -43,6 +43,14 @@
 - **Local machine:** the build servers shut down; the local app stopped after each look and its test rows removed;
   the blob emulator stopped; MySQL is the IPROLocalMySQL service, nothing to do.
 
+## After the close-out: 556 (evening of 10-07)
+
+- The owner asked how the bakery should show its hours; the site showed none and there was nowhere to enter them.
+  **556** adds My Website > Footer > Hours (see `DOCS/TODO.md` 556 and `DOCS/04_WEBSITE_BUILDER.md`, "Show Your Hours").
+- **His, once it is live:** enter the bakery's hours and pick "Bakery" as the kind of business (Footer > Hours), and
+  keep the Google Business Profile hours the same. The editor card has not been seen signed in.
+- The forms' consent line names the business now (it said "this adviser" on the bakery's contact form).
+
 ## Do this first tomorrow
 
 1. **Teach the deploy watch the shape seen today:** a run that ends `failure` with its build job green and its deploy
