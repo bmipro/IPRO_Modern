@@ -24,6 +24,7 @@
 |---|---|---|
 | `d25f6b1` | **556** opening hours, entered once and shown across a site (live on build `bd31a53`) | 1550/1550 |
 | `05388c4` | **557** the hours are picked from lists, and the footer line is a choice (live on build `aae6490`) | 1552/1552 |
+| `b291421` | **558 and 559** a bracketed phone number is a link; the hours are entered on My Website (live on build `213025b`) | 1579/1579 |
 
 ## Close-out 2026-10-08
 
