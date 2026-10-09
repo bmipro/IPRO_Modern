@@ -28,8 +28,9 @@
     }
   </div>
 }
-@* 556: the week in as few lines as it takes; nothing until hours are set. *@
-@if (footer.Hours.IsSet)
+@* 556: the week in as few lines as it takes; nothing until hours are set.
+   557: and only when the owner ticked "Also show the hours in the footer". *@
+@if (footer.Hours.IsSet && footer.Hours.ShowInFooter)
 {
   <div class="public-footer__hours"><i class="fas fa-clock" aria-hidden="true"></i><span class="visually-hidden">Hours: </span>@foreach (var line in footer.Hours.Lines()) { <span>@line</span> }</div>
 }

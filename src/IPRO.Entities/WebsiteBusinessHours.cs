@@ -23,6 +23,8 @@ public class WebsiteBusinessHours
 
     public List<WebsiteDayHours> Days { get; set; } = new();
     public string Note { get; set; } = string.Empty;
+    // 557: the footer line is a choice, off unless ticked (the owner, of the bakery's footer: "It is ugly").
+    public bool ShowInFooter { get; set; }
 
     // Nothing shows anywhere until at least one day has hours.
     public bool IsSet => Days.Any(d => d.IsOpen);
@@ -37,6 +39,7 @@ public class WebsiteBusinessHours
         return new WebsiteBusinessHours
         {
             Note = note.Length > NoteMaxLength ? note[..NoteMaxLength].TrimEnd() : note,
+            ShowInFooter = ShowInFooter,
             Days = WeekOrder.Select(day =>
             {
                 var source = (Days ?? new()).FirstOrDefault(d => d.Day == (int)day);
@@ -46,6 +49,20 @@ public class WebsiteBusinessHours
                 return new WebsiteDayHours { Day = (int)day, Opens = open ? opens : string.Empty, Closes = open ? closes : string.Empty };
             }).ToList()
         };
+    }
+
+    // 557: the times the form offers, every quarter hour, so a time cannot be left half entered (a
+    // browser's time box could be: "08:30 --" with no AM/PM, and the page then refused to save). A
+    // stored time that is not on a quarter hour is offered too, in its place, so it is seen and kept.
+    public const string DefaultOpens = "09:00";
+    public const string DefaultCloses = "17:00";
+
+    public static IReadOnlyList<(string Value, string Label)> TimeChoices(string? current = null)
+    {
+        var values = Enumerable.Range(0, 96).Select(i => TimeSpan.FromMinutes(i * 15).ToString(@"hh\:mm", CultureInfo.InvariantCulture)).ToList();
+        var own = WebsiteDayHours.Clean(current);
+        if (own.Length > 0 && !values.Contains(own)) values.Add(own);
+        return values.OrderBy(v => v, StringComparer.Ordinal).Select(v => (v, Clock(v))).ToList();
     }
 
     // What the hours form posts: a row a day. A day ticked open without both times (or with the

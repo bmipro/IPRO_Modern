@@ -149,7 +149,7 @@ public class BusinessHours556Tests
         Assert.Equal(string.Empty, odd.Hours.Note);
 
         var controller = Read(@"src\IPRO.Web\Controllers\WebsitePagesController.cs");
-        Assert.Contains("public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind)", controller);
+        Assert.Contains("public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind, bool showHoursInFooter = false)", controller);   // 557 added the footer choice
         Assert.Contains("settings.BusinessKind = WebsiteBusinessKinds.Normalize(businessKind);", controller);
         var saveHours = controller.Substring(controller.IndexOf("public async Task<IActionResult> SaveHours", StringComparison.Ordinal) - 60, 60);
         Assert.Contains("[HttpPost, ValidateAntiForgeryToken]", saveHours);
@@ -199,7 +199,7 @@ public class BusinessHours556Tests
         Assert.Contains("@if (status.Text.Length > 0)", Read(@"src\IPRO.Web\Views\PublicWebsite\_OpenNow.cshtml"));
 
         var footer = Read(@"src\IPRO.Web\Views\PublicWebsite\_PublicFooterContent.cshtml");
-        Assert.Contains("@if (footer.Hours.IsSet)", footer);
+        Assert.Contains("@if (footer.Hours.IsSet && footer.Hours.ShowInFooter)", footer);   // 557: the footer line is a choice
         Assert.Contains("@foreach (var line in footer.Hours.Lines()) { <span>@line</span> }", footer);
         // One stylesheet for the three designs.
         Assert.Contains(".site-hours__week .is-today th, .site-hours__week .is-today td { font-weight: 700; }", Read(@"src\IPRO.Web\Views\PublicWebsite\_ManagedPageStyles.cshtml"));
@@ -207,8 +207,8 @@ public class BusinessHours556Tests
         var editor = Read(@"src\IPRO.Web\Views\WebsitePages\Footer.cshtml");
         Assert.Contains("action=\"/portal/WebsitePages/SaveHours\"", editor);
         Assert.Contains("name=\"open_@key\" value=\"true\" checked=\"@row.IsOpen\"", editor);
-        Assert.Contains("name=\"opens_@key\" value=\"@row.Opens\"", editor);
-        Assert.Contains("name=\"closes_@key\" value=\"@row.Closes\"", editor);
+        Assert.Contains("id=\"opens_@key\" name=\"opens_@key\">", editor);      // 557: dropdowns
+        Assert.Contains("id=\"closes_@key\" name=\"closes_@key\">", editor);
         Assert.Contains("<script nonce=\"@Context.GetCspNonce()\">", editor);
 
         var guide = Read(@"DOCS\04_WEBSITE_BUILDER.md");

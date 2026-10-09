@@ -212,7 +212,7 @@ public class WebsitePagesController : Controller
     // 556: opening hours and the kind of business. One row a day (open_N ticked, opens_N, closes_N,
     // N = System.DayOfWeek); a day left unticked, or ticked without both times, is closed.
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind)
+    public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind, bool showHoursInFooter = false)
     {
         var website = await GetWebsiteAsync();
         if (website == null) return RedirectToAction("Index", "Website");
@@ -223,6 +223,7 @@ public class WebsitePagesController : Controller
                 Request.Form[$"closes_{(int)day}"].FirstOrDefault())),
             hoursNote, out var halfSet);
         var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+        hours.ShowInFooter = showHoursInFooter;   // 557: off unless ticked
         settings.Hours = hours;
         settings.BusinessKind = WebsiteBusinessKinds.Normalize(businessKind);
         website.FooterSettingsJson = settings.ToJson();
