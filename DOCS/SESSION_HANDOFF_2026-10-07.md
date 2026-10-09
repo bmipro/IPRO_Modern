@@ -23,6 +23,7 @@
 |---|---|---|
 | `69685a5` | **554** what a customer site tells search engines and link checkers (live on build `50dd7ba`) | 1539/1539 |
 | `57f70f5` | **555** a name that only forwards lands on the home page's own address (live on build `9ffe61c`) | 1542/1542 |
+| `d25f6b1` | **556** opening hours, entered once and shown across a site (live on build `bd31a53`) | 1550/1550 |
 
 ## Close-out 2026-10-07
 
