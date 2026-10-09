@@ -42,6 +42,17 @@
   The kind of business was set to "Cafe or coffee shop" at the time of his screenshot.
 - Item 1 of the list below is done apart from that correction.
 
+## 10-09: 558 and 559 (one commit)
+
+- **558:** the bakery's "Call to order" and "Give us a call" buttons had fallen back to /contact: a tel: link whose
+  number starts with a bracket was dropped without a word. Fixed, and a link that is not kept is now said so.
+  **His:** type the number again in the three buttons (Home, Bread & Pastries, Drinks and Meals) and save each.
+- **559:** the owner found it confusing that the hours were entered under Footer. The card is on My Website now
+  ("Business hours"), with a tick-box for each place the hours show. Item 2's "a switch to hide the hours on one
+  card" in the list below is done by this.
+- The bakery's hours had shown as empty right after 557 went live and were back in his next screenshot; he did not
+  say whether he had cleared them. Nothing in a deploy writes saved settings.
+
 ## Do this first tomorrow
 
 1. **His, for the bakery:** My Website > Footer > Hours: enter the hours, pick "Bakery" as the kind of business, Save
