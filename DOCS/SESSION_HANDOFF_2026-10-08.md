@@ -23,6 +23,7 @@
 | Commit | What | Gate |
 |---|---|---|
 | `d25f6b1` | **556** opening hours, entered once and shown across a site (live on build `bd31a53`) | 1550/1550 |
+| `05388c4` | **557** the hours are picked from lists, and the footer line is a choice (live on build `aae6490`) | 1552/1552 |
 
 ## Close-out 2026-10-08
 
