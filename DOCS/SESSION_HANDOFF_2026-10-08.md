@@ -32,6 +32,15 @@
   the local test site's rows put back (website 2: no custom domain, empty footer settings, template 1, the added block
   removed); `.claude/launch.json` restored; the blob emulator stopped; MySQL is the IPROLocalMySQL service, nothing to do.
 
+## After the close-out: 557 (later on 10-08)
+
+- The owner entered the bakery's hours (556's first real use). Two things came back: the save was refused because the
+  browser's time boxes had no AM/PM, and he did not want the hours in the footer. **557**: the times are dropdowns,
+  and the footer line is a tick-box that is off by default (see `DOCS/TODO.md` 557).
+- **His:** the bakery's Tuesday opening time was saved as 8:39 a.m.; it shows in the Tuesday dropdown to be corrected.
+  The kind of business was set to "Cafe or coffee shop" at the time of his screenshot.
+- Item 1 of the list below is done apart from that correction.
+
 ## Do this first tomorrow
 
 1. **His, for the bakery:** My Website > Footer > Hours: enter the hours, pick "Bakery" as the kind of business, Save
