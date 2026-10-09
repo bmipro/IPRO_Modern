@@ -212,7 +212,8 @@ public class WebsitePagesController : Controller
     // 556: opening hours and the kind of business. One row a day (open_N ticked, opens_N, closes_N,
     // N = System.DayOfWeek); a day left unticked, or ticked without both times, is closed.
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind, bool showHoursInFooter = false)
+    public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind, bool showHoursInFooter = false,
+        bool showHoursOnContact = false, bool showHoursOnAbout = false, bool showOpenNow = false)
     {
         var website = await GetWebsiteAsync();
         if (website == null) return RedirectToAction("Index", "Website");
@@ -224,6 +225,10 @@ public class WebsitePagesController : Controller
             hoursNote, out var halfSet);
         var settings = WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
         hours.ShowInFooter = showHoursInFooter;   // 557: off unless ticked
+        // 559: the form posts every box, so an unticked one arrives as false.
+        hours.ShowOnContact = showHoursOnContact;
+        hours.ShowOnAbout = showHoursOnAbout;
+        hours.ShowOpenNow = showOpenNow;
         settings.Hours = hours;
         settings.BusinessKind = WebsiteBusinessKinds.Normalize(businessKind);
         website.FooterSettingsJson = settings.ToJson();
@@ -234,7 +239,8 @@ public class WebsitePagesController : Controller
             TempData["Error"] = $"{string.Join(", ", halfSet)}: an opening and a closing time are both needed, so {(halfSet.Count == 1 ? "that day shows" : "those days show")} as closed for now.";
         else
             TempData["Success"] = settings.Hours.IsSet ? "Hours saved. They now show on your website." : "Hours saved. No hours are shown on your website.";
-        return RedirectToAction(nameof(Footer));
+        // 559: the card lives on My Website now.
+        return Redirect("/portal/Website#hours");
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -1055,7 +1061,11 @@ public class WebsitePagesController : Controller
             blogPostCount, blogShowImages, videoUrl, calculatorKind, priceListKind, priceListJson);
         block.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        TempData["Success"] = "Content block saved.";
+        // 558: a typed link that is not one a button may carry used to vanish without a word.
+        if (!string.IsNullOrWhiteSpace(buttonUrl) && string.IsNullOrEmpty(block.ButtonUrl))
+            TempData["Error"] = IPRO.Web.Infrastructure.ButtonLinks.NotKept(buttonUrl);
+        else
+            TempData["Success"] = "Content block saved.";
         return RedirectToAction(nameof(Edit), new { id = block.WebsitePageId });
     }
 
@@ -1497,18 +1507,7 @@ public class WebsitePagesController : Controller
             ? uri.ToString()
             : string.Empty;
     }
-    private static string NormalizeLink(string? value)
-    {
-        value = value?.Trim() ?? string.Empty;
-        if (value.StartsWith('/')) return value;
-        // 549: "Call to order" on a bakery's menu -- a button may dial a number or start an email. Only
-        // these two schemes and only plain numbers and addresses; anything else is still dropped.
-        if (PhoneLink.IsMatch(value) || MailLink.IsMatch(value)) return value;
-        return NormalizeUrl(value);
-    }
-
-    private static readonly System.Text.RegularExpressions.Regex PhoneLink =
-        new(@"^tel:\+?[0-9][0-9 ().-]{2,30}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-    private static readonly System.Text.RegularExpressions.Regex MailLink =
-        new(@"^mailto:[^\s@<>""'()]+@[^\s@<>""'()]+\.[^\s@<>""'()]+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    // 549: a button may dial a number or start an email. 558: the rule lives in ButtonLinks (a number
+    // may start with a bracket; one typed on its own becomes a tel: link).
+    private static string NormalizeLink(string? value) => IPRO.Web.Infrastructure.ButtonLinks.Normalize(value, NormalizeUrl);
 }

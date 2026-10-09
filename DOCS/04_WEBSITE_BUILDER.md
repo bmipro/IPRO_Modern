@@ -254,20 +254,20 @@ The footer appears on every published page across all templates, including the t
 Enter your opening hours once and they appear across your website (added 2026-10-07).
 
 1. Go to **My Website**.
-2. Click **Footer**, then find **Hours**.
+2. Scroll to **Business hours**, under Website Settings. (Until 2026-10-09 this was on the Footer page.)
 3. Tick each day you are open and pick its opening and closing time from the lists. A day left unticked shows as **Closed**.
 4. To fill the week quickly, set the first open day, tick the others, and click **Use the first open day's times for every open day**. Then adjust any day that differs.
 5. Optionally add a one-line **Note** (a holiday closing, a lunch break, "by appointment").
 6. Choose your **Kind of business**. It is not shown on the site; it tells search engines what you are.
-7. To show the hours at the bottom of every page as well, tick **Also show the hours in the footer of every page** (off unless you tick it).
+7. Under **Where your hours show**, tick the places you want: beside your contact form, on your "about us" card, as an "Open now" line under a banner's button, and in the footer of every page. The first three start ticked; the footer starts unticked.
 8. Click **Save Hours**.
 
-Where they show:
+Where they show, each only if its box is ticked:
 
-- at the bottom of every page, only if you ticked the footer box, in as few lines as it takes (days with the same hours share a line);
+- at the bottom of every page, in as few lines as it takes (days with the same hours share a line);
 - on the **About / agent info** card and beside the **Contact form**, as the full week with today in bold;
 - as an **Open now** or **Closed now** line under the first button of a page's banner, with the next opening or closing time;
-- in the business details search engines read, so your hours can appear in search results.
+- in the business details search engines read, so your hours can appear in search results (always, once hours are set).
 
 "Open now" follows the time zone on your **Profile**, not the visitor's. One opening and one closing time a day: a closing time earlier than the opening time runs past midnight. Leave every day unticked to show no hours anywhere. Keep the hours on your Google Business Profile the same; most people check there first.
 

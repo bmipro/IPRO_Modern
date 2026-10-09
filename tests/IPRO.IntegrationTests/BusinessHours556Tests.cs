@@ -149,7 +149,7 @@ public class BusinessHours556Tests
         Assert.Equal(string.Empty, odd.Hours.Note);
 
         var controller = Read(@"src\IPRO.Web\Controllers\WebsitePagesController.cs");
-        Assert.Contains("public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind, bool showHoursInFooter = false)", controller);   // 557 added the footer choice
+        Assert.Contains("public async Task<IActionResult> SaveHours(string? hoursNote, string? businessKind, bool showHoursInFooter = false,", controller);   // 557 and 559 added the choices
         Assert.Contains("settings.BusinessKind = WebsiteBusinessKinds.Normalize(businessKind);", controller);
         var saveHours = controller.Substring(controller.IndexOf("public async Task<IActionResult> SaveHours", StringComparison.Ordinal) - 60, 60);
         Assert.Contains("[HttpPost, ValidateAntiForgeryToken]", saveHours);
@@ -184,7 +184,7 @@ public class BusinessHours556Tests
     [Fact]
     public void All_three_designs_show_the_hours_in_the_same_places()
     {
-        const string hours = "@await Html.PartialAsync(\"_BusinessHours\", Model)";
+        const string hours = "@await Html.PartialAsync(\"_BusinessHours\", Model";   // 559: the contact one passes its place
         const string openNow = "@await Html.PartialAsync(\"_OpenNow\", Model)";
         foreach (var design in new[] { "_ModernManagedPage", "_ClassicManagedPage", "_EditorialManagedPage" })
         {
@@ -194,9 +194,9 @@ public class BusinessHours556Tests
         }
         // Each renders nothing until hours are set.
         var card = Read(@"src\IPRO.Web\Views\PublicWebsite\_BusinessHours.cshtml");
-        Assert.Contains("@if (hours.IsSet)", card);
+        Assert.Contains("@if (hours.IsSet && (", card);   // 559: and the place is switched on
         Assert.Contains("<tr class=\"@(day.Day == now.DayOfWeek ? \"is-today\" : null)\"><th scope=\"row\">@day.Name</th><td>@day.Text</td></tr>", card);
-        Assert.Contains("@if (status.Text.Length > 0)", Read(@"src\IPRO.Web\Views\PublicWebsite\_OpenNow.cshtml"));
+        Assert.Contains("@if (status.Text.Length > 0 && hours.ShowOpenNow)", Read(@"src\IPRO.Web\Views\PublicWebsite\_OpenNow.cshtml"));   // 559: and switched on
 
         var footer = Read(@"src\IPRO.Web\Views\PublicWebsite\_PublicFooterContent.cshtml");
         Assert.Contains("@if (footer.Hours.IsSet && footer.Hours.ShowInFooter)", footer);   // 557: the footer line is a choice
@@ -204,7 +204,7 @@ public class BusinessHours556Tests
         // One stylesheet for the three designs.
         Assert.Contains(".site-hours__week .is-today th, .site-hours__week .is-today td { font-weight: 700; }", Read(@"src\IPRO.Web\Views\PublicWebsite\_ManagedPageStyles.cshtml"));
 
-        var editor = Read(@"src\IPRO.Web\Views\WebsitePages\Footer.cshtml");
+        var editor = Read(@"src\IPRO.Web\Views\Website\_BusinessHoursEditor.cshtml");   // 559: the card moved to My Website
         Assert.Contains("action=\"/portal/WebsitePages/SaveHours\"", editor);
         Assert.Contains("name=\"open_@key\" value=\"true\" checked=\"@row.IsOpen\"", editor);
         Assert.Contains("id=\"opens_@key\" name=\"opens_@key\">", editor);      // 557: dropdowns

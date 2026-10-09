@@ -1,13 +1,14 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
 @{
     // 556: the week as seven rows with today's in bold, "Open now" above it and the note below.
-    // Renders nothing until hours are set (My Website > Footer > Hours). The styles are in
+    // Renders nothing until hours are set (My Website > Business hours). The styles are in
     // _ManagedPageStyles, which all three designs load.
     var hours = IPRO.Entities.WebsiteFooterSettings.FromJson(Model.Website.FooterSettingsJson).Hours;
     var now = IPRO.Web.Infrastructure.BusinessHoursClock.Now(Model.Website.AgentUser);
     var status = hours.StatusAt(now);
 }
-@if (hours.IsSet)
+@* 559: the caller says which place this is ("contact" or "about"); each can be switched off. *@
+@if (hours.IsSet && ((ViewData["HoursPlace"] as string) == "contact" ? hours.ShowOnContact : hours.ShowOnAbout))
 {
   <div class="site-hours">
     @if (status.Text.Length > 0)

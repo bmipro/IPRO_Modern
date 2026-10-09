@@ -12,7 +12,7 @@
   };
 }
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-  <div><div class="small text-muted mb-1"><a href="/portal/Website">My Website</a> / Footer</div><h2 class="fw-bold mb-1"><i class="fas fa-shoe-prints me-2 text-primary"></i>Footer</h2><div class="text-muted">Copyright, contact details, hours, social links, and legal links shown at the bottom of every page.</div></div>
+  <div><div class="small text-muted mb-1"><a href="/portal/Website">My Website</a> / Footer</div><h2 class="fw-bold mb-1"><i class="fas fa-shoe-prints me-2 text-primary"></i>Footer</h2><div class="text-muted">Copyright, contact details, social links, and legal links shown at the bottom of every page.</div></div>
   <div class="d-flex gap-2"><a href="/portal/WebsitePages/Navigation" class="btn btn-outline-secondary"><i class="fas fa-bars-staggered me-1"></i>Header & Menu</a><a href="/portal/Website" class="btn btn-outline-primary"><i class="fas fa-arrow-left me-1"></i>Website Settings</a></div>
 </div>
 
@@ -34,72 +34,8 @@
   <div class="card-footer bg-white border-0 px-4 pb-4"><button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Footer</button></div>
 </form>
 
-@* 556: opening hours, entered once and shown across the site. A day without both times is closed. *@
-<form method="post" action="/portal/WebsitePages/SaveHours" class="card border-0 shadow-sm mb-4" id="hours">
-  @Html.AntiForgeryToken()
-  <div class="card-body p-4">
-    <div class="mb-3"><h4 class="fw-bold mb-1">Hours</h4><div class="text-muted small">Enter them once. They show on your contact and "about us" cards, as an "Open now" line under the first button of a page, and to search engines. Leave every day unticked to show no hours.</div></div>
-    <div class="hours-grid">
-      @foreach (var day in IPRO.Entities.WebsiteBusinessHours.WeekOrder)
-      {
-        var key = (int)day;
-        var row = Model.Footer.Hours.For(day);
-        // 557: dropdowns, so a time cannot be left half entered; a closed day starts at 9 to 5 when ticked.
-        var opensNow = row.IsOpen ? row.Opens : IPRO.Entities.WebsiteBusinessHours.DefaultOpens;
-        var closesNow = row.IsOpen ? row.Closes : IPRO.Entities.WebsiteBusinessHours.DefaultCloses;
-        <div class="hours-row">
-          <div class="form-check hours-row__day"><input class="form-check-input js-hours-open" type="checkbox" id="open_@key" name="open_@key" value="true" checked="@row.IsOpen" /><label class="form-check-label fw-semibold" for="open_@key">@day</label></div>
-          <div class="hours-row__times">
-            <label class="visually-hidden" for="opens_@key">@day opens at</label>
-            <select class="form-select" id="opens_@key" name="opens_@key">@foreach (var time in IPRO.Entities.WebsiteBusinessHours.TimeChoices(opensNow)) { <option value="@time.Value" selected="@(time.Value == opensNow)">@time.Label</option> }</select>
-            <span class="text-muted">to</span>
-            <label class="visually-hidden" for="closes_@key">@day closes at</label>
-            <select class="form-select" id="closes_@key" name="closes_@key">@foreach (var time in IPRO.Entities.WebsiteBusinessHours.TimeChoices(closesNow)) { <option value="@time.Value" selected="@(time.Value == closesNow)">@time.Label</option> }</select>
-            <span class="hours-row__closed text-muted small">Closed</span>
-          </div>
-        </div>
-      }
-    </div>
-    <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="hoursCopy"><i class="fas fa-copy me-1"></i>Use the first open day's times for every open day</button></div>
-    <div class="form-text">A closing time earlier than the opening time runs past midnight (6 p.m. to 2 a.m.).</div>
-    <div class="form-check mt-3"><input class="form-check-input" type="checkbox" id="showHoursInFooter" name="showHoursInFooter" value="true" checked="@Model.Footer.Hours.ShowInFooter" /><label class="form-check-label" for="showHoursInFooter">Also show the hours in the footer of every page</label></div>
-    <div class="row g-3 mt-1">
-      <div class="col-md-7"><label class="form-label fw-semibold" for="hoursNote">Note (optional)</label><input id="hoursNote" name="hoursNote" value="@Model.Footer.Hours.Note" maxlength="@IPRO.Entities.WebsiteBusinessHours.NoteMaxLength" class="form-control" placeholder="Closed on statutory holidays" /><div class="form-text">One line shown under the hours: a holiday closing, a lunch break, "by appointment".</div></div>
-      <div class="col-md-5"><label class="form-label fw-semibold" for="businessKind">Kind of business</label><select id="businessKind" name="businessKind" class="form-select">@foreach (var kind in IPRO.Entities.WebsiteBusinessKinds.Options) { <option value="@kind.Value" selected="@(kind.Value == Model.Footer.BusinessKind)">@kind.Label</option> }</select><div class="form-text">Not shown on the site. It tells search engines what you are, so your hours can appear in the right kind of result.</div></div>
-    </div>
-  </div>
-  <div class="card-footer bg-white border-0 px-4 pb-4"><button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Hours</button></div>
-</form>
-<style>
-  .hours-grid { display: grid; gap: 8px; max-width: 560px; }
-  .hours-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
-  .hours-row__day { flex: 0 0 130px; margin: 0; }
-  .hours-row__times { display: flex; align-items: center; gap: 8px; flex: 1 1 260px; }
-  .hours-row__times select { max-width: 150px; }
-  .hours-row__closed { display: none; }
-  .hours-row.is-closed .hours-row__times select, .hours-row.is-closed .hours-row__times span:not(.hours-row__closed) { display: none; }
-  .hours-row.is-closed .hours-row__closed { display: inline; }
-</style>
-<script nonce="@Context.GetCspNonce()">
-  (function () {
-    var rows = Array.prototype.slice.call(document.querySelectorAll('.hours-row'));
-    function sync(row) { row.classList.toggle('is-closed', !row.querySelector('.js-hours-open').checked); }
-    rows.forEach(function (row) {
-      sync(row);
-      row.querySelector('.js-hours-open').addEventListener('change', function () { sync(row); });
-    });
-    var copy = document.getElementById('hoursCopy');
-    if (copy) copy.addEventListener('click', function () {
-      var open = rows.filter(function (row) { return row.querySelector('.js-hours-open').checked; });
-      if (!open.length) return;
-      var times = open[0].querySelectorAll('select');
-      open.slice(1).forEach(function (row) {
-        var own = row.querySelectorAll('select');
-        own[0].value = times[0].value; own[1].value = times[1].value;
-      });
-    });
-  })();
-</script>
+@* 559: the hours are entered on My Website now; this line is for whoever looks for them here. *@
+<div class="alert alert-light border small mb-4"><i class="fas fa-clock me-2 text-primary"></i>Looking for your opening hours? They are under <a href="/portal/Website#hours">My Website &gt; Business hours</a>, where you also choose whether they show in this footer.</div>
 
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">

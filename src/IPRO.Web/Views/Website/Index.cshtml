@@ -376,6 +376,11 @@
         </form>
       </div>
     </div>
+    @* 559: opening hours, entered here and shown where the owner chooses (they were under Footer). *@
+    @if (Model != null)
+    {
+      @await Html.PartialAsync("_BusinessHoursEditor", IPRO.Entities.WebsiteFooterSettings.FromJson(Model.FooterSettingsJson))
+    }
   </div>
 
   <div class="col-xl-4">

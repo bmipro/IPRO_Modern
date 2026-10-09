@@ -164,6 +164,13 @@ public class PriceList549Tests
     [InlineData("tel:416 333-4455", "tel:416 333-4455")]
     [InlineData("tel:+1 (416) 333-4455", "tel:+1 (416) 333-4455")]
     [InlineData("mailto:info@lavenuebakery.example", "mailto:info@lavenuebakery.example")]
+    // 558: the bakery writes its number with a bracket first; a number or an address typed on its own is a link too.
+    [InlineData("tel:(416)-886-0458", "tel:(416)-886-0458")]
+    [InlineData("(416)-886-0458", "tel:(416)-886-0458")]
+    [InlineData("416 886 0458", "tel:416 886 0458")]
+    [InlineData("info@lavenuebakery.example", "mailto:info@lavenuebakery.example")]
+    [InlineData("12345", "")]
+    [InlineData("call us", "")]
     [InlineData("/contact", "/contact")]
     [InlineData("https://order.example.test/lavenue", "https://order.example.test/lavenue")]
     [InlineData("javascript:alert(1)", "")]

@@ -5,7 +5,7 @@
     var hours = IPRO.Entities.WebsiteFooterSettings.FromJson(Model.Website.FooterSettingsJson).Hours;
     var status = hours.StatusAt(IPRO.Web.Infrastructure.BusinessHoursClock.Now(Model.Website.AgentUser));
 }
-@if (status.Text.Length > 0)
+@if (status.Text.Length > 0 && hours.ShowOpenNow)
 {
   <div class="site-open-now @(status.Open ? "is-open" : "is-closed")"><span class="site-hours__dot" aria-hidden="true"></span>@status.Text</div>
 }

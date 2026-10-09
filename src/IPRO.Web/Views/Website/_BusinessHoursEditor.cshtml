@@ -1,0 +1,75 @@
+@model IPRO.Entities.WebsiteFooterSettings
+@* 556: opening hours, entered once and shown across the site. A day without both times is closed.
+   559: the card lives on My Website (it was on the Footer page, which the hours no longer belong to),
+   and each place the hours show is a choice. Kept inside FooterSettingsJson as before. *@
+<form method="post" action="/portal/WebsitePages/SaveHours" class="card border-0 shadow-sm mt-4" id="hours">
+  @Html.AntiForgeryToken()
+  <div class="card-body p-4">
+    <div class="mb-3"><h5 class="fw-bold mb-1"><i class="fas fa-clock me-2 text-primary"></i>Business hours</h5><div class="text-muted small">Enter them once, then choose below where they show on your website. Search engines are told them too. Leave every day unticked to show no hours anywhere.</div></div>
+    <div class="hours-grid">
+      @foreach (var day in IPRO.Entities.WebsiteBusinessHours.WeekOrder)
+      {
+        var key = (int)day;
+        var row = Model.Hours.For(day);
+        // 557: dropdowns, so a time cannot be left half entered; a closed day starts at 9 to 5 when ticked.
+        var opensNow = row.IsOpen ? row.Opens : IPRO.Entities.WebsiteBusinessHours.DefaultOpens;
+        var closesNow = row.IsOpen ? row.Closes : IPRO.Entities.WebsiteBusinessHours.DefaultCloses;
+        <div class="hours-row">
+          <div class="form-check hours-row__day"><input class="form-check-input js-hours-open" type="checkbox" id="open_@key" name="open_@key" value="true" checked="@row.IsOpen" /><label class="form-check-label fw-semibold" for="open_@key">@day</label></div>
+          <div class="hours-row__times">
+            <label class="visually-hidden" for="opens_@key">@day opens at</label>
+            <select class="form-select" id="opens_@key" name="opens_@key">@foreach (var time in IPRO.Entities.WebsiteBusinessHours.TimeChoices(opensNow)) { <option value="@time.Value" selected="@(time.Value == opensNow)">@time.Label</option> }</select>
+            <span class="text-muted">to</span>
+            <label class="visually-hidden" for="closes_@key">@day closes at</label>
+            <select class="form-select" id="closes_@key" name="closes_@key">@foreach (var time in IPRO.Entities.WebsiteBusinessHours.TimeChoices(closesNow)) { <option value="@time.Value" selected="@(time.Value == closesNow)">@time.Label</option> }</select>
+            <span class="hours-row__closed text-muted small">Closed</span>
+          </div>
+        </div>
+      }
+    </div>
+    <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="hoursCopy"><i class="fas fa-copy me-1"></i>Use the first open day's times for every open day</button></div>
+    <div class="form-text">A closing time earlier than the opening time runs past midnight (6 p.m. to 2 a.m.).</div>
+    <fieldset class="mt-3">
+      <legend class="form-label fw-semibold fs-6 mb-1">Where your hours show</legend>
+      <div class="form-check"><input class="form-check-input" type="checkbox" id="showHoursOnContact" name="showHoursOnContact" value="true" checked="@Model.Hours.ShowOnContact" /><label class="form-check-label" for="showHoursOnContact">Beside your contact form (the week, today in bold)</label></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" id="showHoursOnAbout" name="showHoursOnAbout" value="true" checked="@Model.Hours.ShowOnAbout" /><label class="form-check-label" for="showHoursOnAbout">On your "about us" card, the Agent Info block (the week, today in bold)</label></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" id="showOpenNow" name="showOpenNow" value="true" checked="@Model.Hours.ShowOpenNow" /><label class="form-check-label" for="showOpenNow">As an "Open now" line under the button of a page's banner</label></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" id="showHoursInFooter" name="showHoursInFooter" value="true" checked="@Model.Hours.ShowInFooter" /><label class="form-check-label" for="showHoursInFooter">In the footer of every page (one or two lines)</label></div>
+    </fieldset>
+    <div class="row g-3 mt-1">
+      <div class="col-md-7"><label class="form-label fw-semibold" for="hoursNote">Note (optional)</label><input id="hoursNote" name="hoursNote" value="@Model.Hours.Note" maxlength="@IPRO.Entities.WebsiteBusinessHours.NoteMaxLength" class="form-control" placeholder="Closed on statutory holidays" /><div class="form-text">One line shown under the hours: a holiday closing, a lunch break, "by appointment".</div></div>
+      <div class="col-md-5"><label class="form-label fw-semibold" for="businessKind">Kind of business</label><select id="businessKind" name="businessKind" class="form-select">@foreach (var kind in IPRO.Entities.WebsiteBusinessKinds.Options) { <option value="@kind.Value" selected="@(kind.Value == Model.BusinessKind)">@kind.Label</option> }</select><div class="form-text">Not shown on the site. It tells search engines what you are, so your hours can appear in the right kind of result.</div></div>
+    </div>
+  </div>
+  <div class="card-footer bg-white border-0 px-4 pb-4"><button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Hours</button><span class="text-muted small ms-3">Saved on its own; the Website Settings above are not touched.</span></div>
+</form>
+<style>
+  .hours-grid { display: grid; gap: 8px; max-width: 560px; }
+  .hours-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+  .hours-row__day { flex: 0 0 130px; margin: 0; }
+  .hours-row__times { display: flex; align-items: center; gap: 8px; flex: 1 1 260px; }
+  .hours-row__times select { max-width: 150px; }
+  .hours-row__closed { display: none; }
+  .hours-row.is-closed .hours-row__times select, .hours-row.is-closed .hours-row__times span:not(.hours-row__closed) { display: none; }
+  .hours-row.is-closed .hours-row__closed { display: inline; }
+</style>
+<script nonce="@Context.GetCspNonce()">
+  (function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.hours-row'));
+    function sync(row) { row.classList.toggle('is-closed', !row.querySelector('.js-hours-open').checked); }
+    rows.forEach(function (row) {
+      sync(row);
+      row.querySelector('.js-hours-open').addEventListener('change', function () { sync(row); });
+    });
+    var copy = document.getElementById('hoursCopy');
+    if (copy) copy.addEventListener('click', function () {
+      var open = rows.filter(function (row) { return row.querySelector('.js-hours-open').checked; });
+      if (!open.length) return;
+      var times = open[0].querySelectorAll('select');
+      open.slice(1).forEach(function (row) {
+        var own = row.querySelectorAll('select');
+        own[0].value = times[0].value; own[1].value = times[1].value;
+      });
+    });
+  })();
+</script>

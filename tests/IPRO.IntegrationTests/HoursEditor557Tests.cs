@@ -32,7 +32,7 @@ public class HoursEditor557Tests
         Assert.Equal(96, WebsiteBusinessHours.TimeChoices("08:30").Count);
         Assert.Equal(96, WebsiteBusinessHours.TimeChoices("not a time").Count);
 
-        var editor = Read(@"src\IPRO.Web\Views\WebsitePages\Footer.cshtml");
+        var editor = Read(@"src\IPRO.Web\Views\Website\_BusinessHoursEditor.cshtml");   // 559: the card moved to My Website
         Assert.DoesNotContain("type=\"time\"", editor);
         Assert.Contains("<select class=\"form-select\" id=\"opens_@key\" name=\"opens_@key\">@foreach (var time in IPRO.Entities.WebsiteBusinessHours.TimeChoices(opensNow))", editor);
         Assert.Contains("<select class=\"form-select\" id=\"closes_@key\" name=\"closes_@key\">@foreach (var time in IPRO.Entities.WebsiteBusinessHours.TimeChoices(closesNow))", editor);
@@ -63,13 +63,13 @@ public class HoursEditor557Tests
         Assert.Contains("@if (footer.Hours.IsSet && footer.Hours.ShowInFooter)", footer);
         var controller = Read(@"src\IPRO.Web\Controllers\WebsitePagesController.cs");
         Assert.Contains("hours.ShowInFooter = showHoursInFooter;", controller);
-        var editor = Read(@"src\IPRO.Web\Views\WebsitePages\Footer.cshtml");
-        Assert.Contains("name=\"showHoursInFooter\" value=\"true\" checked=\"@Model.Footer.Hours.ShowInFooter\"", editor);
+        var editor = Read(@"src\IPRO.Web\Views\Website\_BusinessHoursEditor.cshtml");   // 559: the card moved to My Website
+        Assert.Contains("name=\"showHoursInFooter\" value=\"true\" checked=\"@Model.Hours.ShowInFooter\"", editor);
         Assert.DoesNotContain("They show at the bottom of every page", editor);
         // The cards and the line under the button do not ask.
         Assert.DoesNotContain("ShowInFooter", Read(@"src\IPRO.Web\Views\PublicWebsite\_BusinessHours.cshtml"));
         Assert.DoesNotContain("ShowInFooter", Read(@"src\IPRO.Web\Views\PublicWebsite\_OpenNow.cshtml"));
-        Assert.Contains("tick **Also show the hours in the footer of every page**", Read(@"DOCS\04_WEBSITE_BUILDER.md"));
+        Assert.Contains("the footer starts unticked", Read(@"DOCS\04_WEBSITE_BUILDER.md"));   // 559 reworded the step
     }
 
     private static string Read(string relative)

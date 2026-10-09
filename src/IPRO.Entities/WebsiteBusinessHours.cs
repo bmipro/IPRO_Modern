@@ -25,6 +25,10 @@ public class WebsiteBusinessHours
     public string Note { get; set; } = string.Empty;
     // 557: the footer line is a choice, off unless ticked (the owner, of the bakery's footer: "It is ugly").
     public bool ShowInFooter { get; set; }
+    // 559: each other place is a choice too, on unless unticked (hours saved before 559 keep showing).
+    public bool ShowOnContact { get; set; } = true;
+    public bool ShowOnAbout { get; set; } = true;
+    public bool ShowOpenNow { get; set; } = true;
 
     // Nothing shows anywhere until at least one day has hours.
     public bool IsSet => Days.Any(d => d.IsOpen);
@@ -40,6 +44,9 @@ public class WebsiteBusinessHours
         {
             Note = note.Length > NoteMaxLength ? note[..NoteMaxLength].TrimEnd() : note,
             ShowInFooter = ShowInFooter,
+            ShowOnContact = ShowOnContact,
+            ShowOnAbout = ShowOnAbout,
+            ShowOpenNow = ShowOpenNow,
             Days = WeekOrder.Select(day =>
             {
                 var source = (Days ?? new()).FirstOrDefault(d => d.Day == (int)day);
