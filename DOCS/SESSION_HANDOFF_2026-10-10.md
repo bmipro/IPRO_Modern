@@ -19,6 +19,8 @@
 
 | Commit | What | Gate |
 |---|---|---|
+| `f9a264e` | **560** the Reviews block shows reviews the owner picked (live on build `9e1573c`) | 1588/1588 |
+| `15c6824` | **506 and 434** a domain's CAA records are read and explained; a website lead can be deleted (live on build `9e1573c`) | 1588/1588 |
 
 ## The open list, as agreed with the owner on 2026-10-10 (shorter by three)
 
