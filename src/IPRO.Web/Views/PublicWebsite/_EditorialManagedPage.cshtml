@@ -314,6 +314,7 @@
         @if(!string.IsNullOrWhiteSpace(epReview.ReviewUrl)){<a class="ep-button mt-3" href="@epReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
       </div></div></section>
     }
+    @await Html.PartialAsync("_ReviewQuotes", epReview)
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.AgentInfo)
   {

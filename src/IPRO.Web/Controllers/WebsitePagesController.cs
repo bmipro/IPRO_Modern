@@ -1130,12 +1130,28 @@ public class WebsitePagesController : Controller
         }
         else if (block.BlockType == WebsiteBlockTypes.Reviews)
         {
+            // 560: the picked reviews arrive as rows of the posted form (reviewQuoteName/Stars/Text). A save
+            // that does not carry them (anything but the block editor's own form) keeps what is stored.
+            var storedReviews = WebsiteReviewSettings.FromJson(block.SettingsJson);
+            var quotes = storedReviews.Quotes;
+            var writeReviewUrl = storedReviews.WriteReviewUrl;
+            if (Request.HasFormContentType && Request.Form.ContainsKey("reviewQuotesPosted"))
+            {
+                var names = Request.Form["reviewQuoteName"];
+                var stars = Request.Form["reviewQuoteStars"];
+                var texts = Request.Form["reviewQuoteText"];
+                quotes = WebsiteReviewSettings.QuotesFromEntries(Enumerable.Range(0, texts.Count).Select(i =>
+                    (i < names.Count ? names[i] : null, i < stars.Count && int.TryParse(stars[i], out var rated) ? rated : 5, texts[i])));
+                writeReviewUrl = NormalizeUrl(Request.Form["reviewWriteUrl"].FirstOrDefault());
+            }
             block.SettingsJson = new WebsiteReviewSettings
             {
                 Platform = reviewPlatform,
                 ReviewUrl = NormalizeUrl(reviewUrl),
                 Rating = reviewRating,
-                ReviewCount = reviewCount
+                ReviewCount = reviewCount,
+                Quotes = quotes,
+                WriteReviewUrl = writeReviewUrl
             }.ToJson();
         }
         else if (block.BlockType == WebsiteBlockTypes.Calculator)

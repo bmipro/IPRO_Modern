@@ -341,6 +341,7 @@
         @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button mt-3" href="@mpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
       </div></div></section>
     }
+    @await Html.PartialAsync("_ReviewQuotes", mpReview)
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Video)
   {

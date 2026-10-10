@@ -1,0 +1,25 @@
+@model IPRO.Entities.WebsiteReviewSettings
+@* 560: the reviews the owner picked, as cards under the rating; nothing when there are none.
+   The styles are in _ManagedPageStyles, which all three designs load. *@
+@if (Model.Quotes.Count > 0 || Model.WriteReviewUrl.Length > 0)
+{
+  <section class="site-reviews" aria-label="Reviews from @Model.Platform">
+    @if (Model.Quotes.Count > 0)
+    {
+      <div class="site-reviews__grid">
+        @foreach (var quote in Model.Quotes)
+        {
+          <figure class="site-reviews__card">
+            <div class="site-reviews__stars" role="img" aria-label="@quote.Stars out of 5 stars">@for (var star = 1; star <= 5; star++) { <i class="@(star <= quote.Stars ? "fas" : "far") fa-star" aria-hidden="true"></i> }</div>
+            <blockquote class="site-reviews__text">@quote.Text</blockquote>
+            <figcaption class="site-reviews__who">@(quote.Name.Length > 0 ? quote.Name : "A customer") <span>on @Model.Platform</span></figcaption>
+          </figure>
+        }
+      </div>
+    }
+    @if (Model.WriteReviewUrl.Length > 0)
+    {
+      <div class="site-reviews__more"><a href="@Model.WriteReviewUrl" target="_blank" rel="noopener">Review us on @Model.Platform <i class="fas fa-arrow-up-right-from-square ms-1" aria-hidden="true"></i></a></div>
+    }
+  </section>
+}

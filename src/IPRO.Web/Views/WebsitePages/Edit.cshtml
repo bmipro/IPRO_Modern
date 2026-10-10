@@ -543,6 +543,26 @@
               <input type="number" name="reviewCount" class="form-control" value="@reviewSettings.ReviewCount" min="0" />
               <div class="form-text">Enter your current rating and count from @reviewSettings.Platform — update here whenever they change.</div>
             </div>
+            @* 560: reviews the owner picks and pastes in; shown as cards under the rating. *@
+            <div class="col-12">
+              <input type="hidden" name="reviewQuotesPosted" value="1" />
+              <details class="border rounded p-3" open="@(reviewSettings.Quotes.Count > 0)">
+                <summary class="fw-semibold">Reviews to show (@reviewSettings.Quotes.Count of @IPRO.Entities.WebsiteReviewSettings.MaxQuotes)</summary>
+                <div class="form-text mb-2">Copy your best reviews from @reviewSettings.Platform and paste them here: the reviewer's name as it appears there, their stars, and their words unchanged. They show as cards under your rating. Leave a row's text empty to skip it. These do not update by themselves.</div>
+                @for (var quoteIndex = 0; quoteIndex < IPRO.Entities.WebsiteReviewSettings.MaxQuotes; quoteIndex++)
+                {
+                  var quote = quoteIndex < reviewSettings.Quotes.Count ? reviewSettings.Quotes[quoteIndex] : new IPRO.Entities.WebsiteReviewQuote();
+                  <div class="row g-2 mb-2 align-items-start">
+                    <div class="col-md-3"><input name="reviewQuoteName" class="form-control" value="@quote.Name" maxlength="@IPRO.Entities.WebsiteReviewSettings.QuoteNameMaxLength" placeholder="Reviewer's name" aria-label="Reviewer @(quoteIndex + 1) name" /></div>
+                    <div class="col-md-2"><select name="reviewQuoteStars" class="form-select" aria-label="Reviewer @(quoteIndex + 1) stars">@for (var star = 5; star >= 1; star--) { <option value="@star" selected="@(quote.Stars == star)">@star star@(star == 1 ? "" : "s")</option> }</select></div>
+                    <div class="col-md-7"><textarea name="reviewQuoteText" class="form-control" rows="2" maxlength="@IPRO.Entities.WebsiteReviewSettings.QuoteTextMaxLength" placeholder="What they wrote" aria-label="Reviewer @(quoteIndex + 1) words">@quote.Text</textarea></div>
+                  </div>
+                }
+                <label class="form-label fw-semibold mt-2" for="reviewWriteUrl_@block.Id">"Review us" link (optional)</label>
+                <input type="text" id="reviewWriteUrl_@block.Id" name="reviewWriteUrl" class="form-control" value="@reviewSettings.WriteReviewUrl" placeholder="https://g.page/r/your-business/review" />
+                <div class="form-text">Adds a "Review us on @reviewSettings.Platform" link under the cards. In your Google Business Profile, choose <strong>Ask for reviews</strong> and copy the link it gives you.</div>
+              </details>
+            </div>
           }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Video)
           {

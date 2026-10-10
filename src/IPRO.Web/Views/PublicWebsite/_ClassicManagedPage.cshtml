@@ -301,6 +301,7 @@
         @if(!string.IsNullOrWhiteSpace(cpReview.ReviewUrl)){<a class="cp-button mt-3" href="@cpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
       </div></section>
     }
+    @await Html.PartialAsync("_ReviewQuotes", cpReview)
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.CallToAction)
   {

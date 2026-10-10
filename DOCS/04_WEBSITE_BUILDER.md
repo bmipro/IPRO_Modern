@@ -249,6 +249,18 @@ A small arrow icon linking to the agent portal sign-in page always appears in th
 
 The footer appears on every published page across all templates, including the temporary domain and any connected custom domains. Footer style automatically matches the selected template; no separate footer design controls are needed.
 
+## Show Reviews From Google
+
+The **Reviews** block shows your star rating, your number of reviews and a **Read Reviews** button. Since 2026-10-10 it can also show reviews themselves, as cards under the rating.
+
+1. Open the page in **Manage Pages** and add a **Reviews** block, or open the one you have.
+2. Enter the **Platform**, the **Review page URL**, your **Rating** and **Review count** as shown on your Google Business Profile.
+3. Open **Reviews to show**. For each review you want on your site, paste the reviewer's name as it appears on Google, pick their stars, and paste their words unchanged. Up to six; leave a row's text empty to skip it.
+4. Optionally paste your **"Review us" link**: in your Google Business Profile choose **Ask for reviews** and copy the link. It adds a "Review us on Google" link under the cards.
+5. Click **Save Block**.
+
+The cards are the reviews you chose; they do not update by themselves, and neither do the rating and the count. Use real reviews, word for word, with the name the reviewer published. If you are a licensed adviser, check your regulator's rules on client testimonials before showing any.
+
 ## Show Your Hours
 
 Enter your opening hours once and they appear across your website (added 2026-10-07).
