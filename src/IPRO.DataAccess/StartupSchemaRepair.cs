@@ -206,6 +206,8 @@ public static class StartupSchemaRepair
         await EnsureTableColumnAsync(db, "AgentDomains", "RootAzureBindingStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootAzureBindingStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootSslStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootSslStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootBoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootBoundAt` datetime(6) NULL");
+        // 506: the name whose CAA records keep DigiCert out (empty = nothing in the way).
+        await EnsureTableColumnAsync(db, "AgentDomains", "CaaBlockingName", "ALTER TABLE `AgentDomains` ADD COLUMN `CaaBlockingName` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     }
 
     public static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)

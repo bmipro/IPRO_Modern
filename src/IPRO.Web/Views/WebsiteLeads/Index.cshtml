@@ -47,7 +47,7 @@
 </form>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">All captured</div><div class="h3 fw-bold mb-0">@totalCount</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">@(status == "all" ? "Open leads" : "In this view")</div><div class="h3 fw-bold mb-0">@totalCount</div></div></div></div>
     <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Unread</div><div class="h3 fw-bold text-primary mb-0">@unreadCount</div></div></div></div>
     <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Needs follow-up</div><div class="h3 fw-bold text-warning mb-0">@newCount</div></div></div></div>
 </div>
@@ -56,7 +56,7 @@
     <div class="card-body p-3">
         <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
             <div class="btn-group flex-wrap" role="group">
-                <a class="btn @FilterClass("all")" href="/portal/WebsiteLeads?status=all">All</a>
+                <a class="btn @FilterClass("all")" href="/portal/WebsiteLeads?status=all" title="Everything except dismissed leads">All open</a>
                 <a class="btn @FilterClass("unread")" href="/portal/WebsiteLeads?status=unread">Unread</a>
                 <a class="btn @FilterClass("new")" href="/portal/WebsiteLeads?status=new">New</a>
                 <a class="btn @FilterClass("contacted")" href="/portal/WebsiteLeads?status=contacted">Contacted</a>
@@ -68,7 +68,8 @@
                     <label class="form-check-label small" for="selectAllLeads">Select all</label>
                 </div>
                 <button type="submit" form="bulkActionsForm" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Contacted" class="btn btn-sm btn-outline-success"><i class="fas fa-check me-1"></i>Mark Selected Contacted</button>
-                <button type="submit" form="bulkActionsForm" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Dismissed" class="btn btn-sm btn-outline-secondary"><i class="fas fa-archive me-1"></i>Dismiss Selected</button>
+                <button type="submit" form="bulkActionsForm" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Dismissed" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye-slash me-1"></i>Dismiss Selected</button>
+                <button type="submit" form="bulkActionsForm" formaction="/portal/WebsiteLeads/BulkDelete" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Delete the selected leads for good? This cannot be undone. CRM contacts made from them are kept."><i class="fas fa-trash me-1"></i>Delete Selected</button>
             </div>
         </div>
         <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
@@ -122,7 +123,7 @@
                     }
                     @if (!lead.NotificationSent)
                     {
-                        <div class="lead-processing-note mt-3" title="@lead.NotificationError"><i class="fas fa-envelope-circle-check me-1"></i>Email notification for this lead could not be delivered. The lead was still saved &mdash; check your profile email and SendGrid setup.</div>
+                        <div class="lead-processing-note mt-3" title="@lead.NotificationError"><i class="fas fa-envelope-circle-check me-1"></i>Email notification for this lead could not be delivered. The lead was still saved &mdash; check the email address on your profile.</div>
                     }
                 </div>
                 </div>
@@ -157,9 +158,16 @@
                             <input type="hidden" name="id" value="@lead.Id" />
                             <input type="hidden" name="status" value="@IPRO.Entities.WebsiteLeadStatuses.Dismissed" />
                             <input type="hidden" name="returnUrl" value="@returnUrl" />
-                            <button class="btn btn-outline-secondary" title="Dismiss"><i class="fas fa-archive"></i></button>
+                            <button class="btn btn-outline-secondary" title="Hide this lead from your open list; it stays under Dismissed"><i class="fas fa-eye-slash me-1"></i>Dismiss</button>
                         </form>
                     }
+                    @* 434: gone for good -- junk, a test, or a person who asked to be removed. *@
+                    <form asp-action="Delete" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@lead.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button class="btn btn-outline-danger js-confirm-submit" title="Delete this lead for good" aria-label="Delete this lead for good" data-confirm-message="Delete this lead for good? This cannot be undone.@(lead.ClientId.HasValue ? " The CRM contact made from it is kept." : "")"><i class="fas fa-trash"></i></button>
+                    </form>
                 </div>
             </div>
         </div>

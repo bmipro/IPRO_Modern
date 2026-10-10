@@ -681,6 +681,19 @@
                 @(sslReady ? "Secured" : (certificateStuck ? "Taking longer than usual" : (certificatePending ? "Securing your site" : "Not started")))
               </span>
             </div>
+            @* 506: the domain's own DNS keeps our certificate authority out; say so, and what to add. *@
+            @if (!sslReady && !string.IsNullOrEmpty(primaryDomain?.CaaBlockingName))
+            {
+              <div class="alert alert-danger border-0 small mb-2 mt-2 py-2">
+                <strong>One record is missing at your registrar.</strong>
+                The DNS for <strong>@primaryDomain!.CaaBlockingName</strong> lists which companies may issue its security certificate, and ours (DigiCert) is not on the list, so the certificate cannot be issued. Add this record where your DNS is managed, then click <strong>Check now</strong>:
+                <div class="table-responsive mt-2"><table class="table table-sm table-bordered bg-white mb-1">
+                  <thead><tr><th>Type</th><th>Name</th><th>Value</th></tr></thead>
+                  <tbody><tr><td>CAA</td><td><code>@(string.Equals(primaryDomain.CaaBlockingName, primaryDomain.RootDomain, StringComparison.OrdinalIgnoreCase) ? "@" : primaryDomain.CaaBlockingName)</code></td><td><code>@IPRO.Utility.CaaCheck.RecordToAdd</code></td></tr></tbody>
+                </table></div>
+                Keep the CAA records that are already there; this one is added beside them. Some registrars ask for it in three boxes: flag <code>0</code>, tag <code>issue</code>, value <code>digicert.com</code>.
+              </div>
+            }
             @if (certificatePending)
             {
               <div class="alert @(certificateStuck ? "alert-danger" : "alert-warning") border-0 small mb-2 mt-2 py-2">

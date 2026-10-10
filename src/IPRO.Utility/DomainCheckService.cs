@@ -67,6 +67,7 @@ public class DomainCheckService : IDomainCheckService
 
         await CheckDomainAsync(domain, cancellationToken);
         await CheckRootDomainAsync(domain, cancellationToken);
+        await CheckCaaAsync(domain, cancellationToken);
 
         var fullyBound = domain.DnsStatus == AgentDomainStatus.Bound &&
                           domain.AzureBindingStatus == AgentDomainStatus.Bound &&
@@ -94,6 +95,54 @@ public class DomainCheckService : IDomainCheckService
         }
 
         return fullyBound;
+    }
+
+    // 506: while a certificate is still wanted, read the domain's CAA records. A list that leaves
+    // DigiCert out means the certificate will never arrive, and until now nothing said why. A lookup
+    // that fails changes nothing: what was known stays.
+    internal async Task CheckCaaAsync(AgentDomain domain, CancellationToken cancellationToken = default)
+    {
+        var hosts = new List<string>();
+        if (domain.SslStatus != AgentDomainStatus.Bound && !string.IsNullOrWhiteSpace(domain.DomainName)) hosts.Add(domain.DomainName);
+        // The short address needs a certificate of its own only when it points straight at the platform (553).
+        if (domain.RootDnsStatus == AgentDomainStatus.Bound && domain.RootSslStatus != AgentDomainStatus.Bound &&
+            !string.IsNullOrWhiteSpace(domain.RootDomain) && !hosts.Contains(domain.RootDomain, StringComparer.OrdinalIgnoreCase))
+            hosts.Add(domain.RootDomain);
+        if (hosts.Count == 0)
+        {
+            domain.CaaBlockingName = string.Empty;   // every certificate is in place
+            return;
+        }
+
+        var blocking = string.Empty;
+        foreach (var host in hosts)
+        {
+            if (PublicHostGuard.IsBlockedHost(host)) continue;
+            var found = await CaaCheck.FindBlockingNameAsync(host, CaaCheck.LookupHook ?? LookUpCaaAsync, cancellationToken);
+            if (found == null) return;                // a lookup failed: keep what was known
+            if (found.Length > 0) { blocking = found; break; }
+        }
+        if (blocking.Length > 0 && blocking != domain.CaaBlockingName)
+            _logger.LogWarning("Custom domain {Domain}: the CAA records at {Name} do not allow {Authority}, so no certificate can be issued", domain.DomainName, blocking, CaaCheck.Authority);
+        domain.CaaBlockingName = blocking;
+    }
+
+    // One name's CAA records from a public DNS-over-HTTPS resolver, as its JSON. Null on any failure.
+    private async Task<string?> LookUpCaaAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(8));
+            var client = _httpClientFactory.CreateClient();
+            using var response = await client.GetAsync($"https://dns.google/resolve?name={Uri.EscapeDataString(name)}&type=CAA", timeout.Token);
+            return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(timeout.Token) : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation(ex, "CAA lookup for {Name} did not answer", name);
+            return null;
+        }
     }
 
     private async Task CheckDomainAsync(AgentDomain domain, CancellationToken cancellationToken)

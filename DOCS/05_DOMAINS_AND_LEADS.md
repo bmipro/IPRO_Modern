@@ -202,6 +202,23 @@ If it has a thumbprint, bind that. Only if no managed certificate exists should 
 > `www.drhug.ca` in July. The result was a 90-day manual renewal chore replacing a certificate that
 > renewed itself. One `az` query against a working domain would have prevented it.
 
+### The certificate never arrives: a CAA record
+
+Some web hosts publish **CAA** records for a domain: a list of the only companies allowed to issue its security certificate. IPRO's certificates come from **DigiCert**. If your domain has such a list and DigiCert is not on it, the certificate cannot be issued, however long you wait.
+
+IPRO checks this for you while your certificate is pending. When it is the cause, the domain panel on **My Website** shows a red note, **One record is missing at your registrar**, with the record to add:
+
+| Type | Name | Value |
+|---|---|---|
+| CAA | `@` (your domain) | `0 issue "digicert.com"` |
+
+1. Sign in where your domain's DNS is managed.
+2. Add the record above **beside** the CAA records already there. Do not remove the others; your host uses them.
+3. Some registrars ask for it in three boxes: flag `0`, tag `issue`, value `digicert.com`.
+4. Go back to **My Website** and click **Check now**. The note disappears on the next check, and the certificate follows within minutes.
+
+A domain with no CAA records at all needs nothing: any company may issue for it.
+
 ## Retry a Domain Check
 
 1. Open **My Website**.
@@ -356,20 +373,24 @@ The honeypot is a hidden decoy field that real visitors never see or fill. Some 
 ## Review Website Leads
 
 1. Select **Website Leads** in the Agent Portal.
-2. Filter by all, unread, new, contacted, or dismissed.
+2. Filter by **All open** (everything except dismissed leads), unread, new, contacted, or dismissed.
 3. Search by name, email, phone, message, or source.
 4. Narrow further with a **From**/**To** date range.
 5. Sort by newest first, oldest first, or by status.
 6. Open the connected CRM contact when available.
 7. Use **Plan Follow-up** to schedule the next action for connected CRM contacts.
 8. Mark the lead **Contacted** after responding.
-9. Dismiss irrelevant leads.
+9. **Dismiss** a lead you do not need to act on. It leaves your open list and stays under **Dismissed**.
 10. Use **Mark all read** when appropriate.
 
 The dashboard displays new and unread lead counts.
 
+### Delete a lead for good
+
+Use the red trash button on a lead to remove it permanently: spam, a test you sent yourself, or a person who asked you to remove their details. The lead and any form answers it carried are deleted and cannot be brought back. A CRM contact that was created from the lead is your own record and is kept; delete it under **Clients** if it should go too.
+
 ## Bulk Actions and Export
 
 1. Check the box beside each lead to act on, or use **Select all** to select every lead currently shown on the page.
-2. Click **Mark Selected Contacted** or **Dismiss Selected** to apply that status to every selected lead at once.
+2. Click **Mark Selected Contacted** or **Dismiss Selected** to apply that status to every selected lead at once, or **Delete Selected** to remove them for good.
 3. Click **Export CSV** to download every lead matching the current filter, search, date range, and sort as a spreadsheet-ready file — not just the leads on the current page.

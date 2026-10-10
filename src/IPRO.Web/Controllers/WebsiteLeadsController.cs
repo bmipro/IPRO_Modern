@@ -156,6 +156,48 @@ public class WebsiteLeadsController : Controller
         return LocalRedirect(SafeReturnUrl(returnUrl));
     }
 
+    // 434: a lead can be removed for good -- junk, a test, or a person who asked. Dismiss only hid it,
+    // which left a stranger's name, email and message in the account for ever. The lead and the answers
+    // it carried go; a CRM contact made from it is the adviser's own record and stays.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, string? returnUrl = null)
+    {
+        var removed = await DeleteLeadsAsync(new[] { id });
+        if (removed == 0) return NotFound();
+        TempData["Success"] = "Lead deleted.";
+        return LocalRedirect(SafeReturnUrl(returnUrl));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkDelete(int[] ids, string? returnUrl = null)
+    {
+        if (ids == null || ids.Length == 0)
+        {
+            TempData["Error"] = "Select at least one lead first.";
+            return LocalRedirect(SafeReturnUrl(returnUrl));
+        }
+
+        var removed = await DeleteLeadsAsync(ids);
+        TempData["Success"] = $"{removed} lead(s) deleted.";
+        return LocalRedirect(SafeReturnUrl(returnUrl));
+    }
+
+    // Only this adviser's leads: the ids are narrowed to theirs before anything is removed.
+    private async Task<int> DeleteLeadsAsync(int[] ids)
+    {
+        var own = await _db.WebsiteLeads
+            .Where(x => x.AgentUserId == AgentId && ids.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync();
+        if (own.Count == 0) return 0;
+
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await _db.WebsiteFormSubmissionAnswers.Where(a => own.Contains(a.WebsiteLeadId)).ExecuteDeleteAsync();
+        var removed = await _db.WebsiteLeads.Where(x => x.AgentUserId == AgentId && own.Contains(x.Id)).ExecuteDeleteAsync();
+        await transaction.CommitAsync();
+        return removed;
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkAllRead(string? returnUrl = null)
     {
@@ -185,7 +227,8 @@ public class WebsiteLeadsController : Controller
             "contacted" => query.Where(x => x.Status == WebsiteLeadStatuses.Contacted),
             "dismissed" => query.Where(x => x.Status == WebsiteLeadStatuses.Dismissed),
             "unread" => query.Where(x => !x.IsRead),
-            _ => query
+            // 434: "All" used to list dismissed leads too, so dismissing one looked like a delete that failed.
+            _ => query.Where(x => x.Status != WebsiteLeadStatuses.Dismissed)
         };
 
         if (!string.IsNullOrWhiteSpace(search))

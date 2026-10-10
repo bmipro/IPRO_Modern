@@ -191,6 +191,10 @@ public class DomainAutomationJob
             .FirstOrDefaultAsync() ?? ("agent #" + domain.AgentUserId);
 
         var host = WebUtility.HtmlEncode(overdueHost);
+        // 506: when the domain's CAA records keep DigiCert out, that is the whole story.
+        var caaNote = string.IsNullOrEmpty(domain.CaaBlockingName)
+            ? string.Empty
+            : $"<p style=\"background:#fff7ed;border-left:3px solid #c2410c;padding:12px\"><strong>Likely cause: CAA.</strong> The CAA records at <strong>{WebUtility.HtmlEncode(domain.CaaBlockingName)}</strong> do not list {IPRO.Utility.CaaCheck.Authority}, so the managed certificate cannot be issued. The adviser is shown the record to add on My Website (<code>{WebUtility.HtmlEncode(IPRO.Utility.CaaCheck.RecordToAdd)}</code>); nothing below will help until it is there.</p>";
         var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
               <div style="padding:22px;background:#b42318;color:white">
@@ -203,6 +207,7 @@ public class DomainAutomationJob
                   binds itself, so this is not the usual delay.
                 </p>
                 <p>Agent: {WebUtility.HtmlEncode(agentName)}</p>
+                {caaNote}
                 <p style="background:#fef3f2;border-left:3px solid #b42318;padding:12px">
                   Their website is <strong>unreachable</strong> — the site is HTTPS-only and is serving a
                   certificate for the wrong name, so browsers block it.

@@ -178,6 +178,7 @@ public class IPRODbContext : DbContext
             e.Property(d => d.LastError).HasMaxLength(1000);
             e.Property(d => d.RootAzureBindingStatus).HasMaxLength(40).IsRequired();
             e.Property(d => d.RootSslStatus).HasMaxLength(40).IsRequired();
+            e.Property(d => d.CaaBlockingName).HasMaxLength(255).IsRequired();
 
             e.HasOne(d => d.AgentUser)
              .WithMany()

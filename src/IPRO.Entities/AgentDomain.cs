@@ -53,6 +53,13 @@ public class AgentDomain
     /// </summary>
     public DateTime? CertificateAlertSentAt { get; set; }
 
+    /// <summary>
+    /// 506: the name whose CAA records keep the platform's certificate authority (DigiCert) out, so
+    /// no certificate can ever be issued for this domain until one record is added there. Empty when
+    /// nothing stands in the way. Read by the domain check while a certificate is still wanted.
+    /// </summary>
+    public string CaaBlockingName { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;
