@@ -15,6 +15,20 @@
 - **560:** the Reviews block takes up to six reviews the owner pastes in (name, stars, words) and shows them as cards
   under the rating, with an optional "Review us on Google" link. Nothing is fetched from Google.
 
+## The template builder, looked at again (afternoon)
+
+- The owner wants to bring the builder in as a Beta and asked for a fresh look first, judged against what site
+  builders are expected to do. Walked through his local build (127.0.0.1:5087) read-only: nothing saved, exported,
+  restored or applied; two test edits were discarded by reloading. The server process is not ours (left running).
+- Verdict given to him: good editing, not ready for customers. The five conditions before a Beta are in
+  `DOCS/TODO.md` 467. Fixed since September: the split hero on a phone, the preview's device toggle, local times
+  in the history, subheadings stored in sentence case.
+- Corrected in the same conversation: contract v0.4 section 12 already says iPro opens only sites whose every block
+  is an allowed export type, and keeps each page's SEO fields itself. So the block limit is our rule, and today the
+  bakery could not use the Beta at all.
+- The note asking the developer for a review package is in the owner's Documents folder (he forwards it). When the
+  package arrives: code read-only, the exports through the v0.4 checker, a round trip, then a v0.5 draft.
+
 ## Pushed
 
 | Commit | What | Gate |
