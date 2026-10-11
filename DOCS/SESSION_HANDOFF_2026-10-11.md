@@ -23,6 +23,7 @@
 
 | Commit | What | Gate |
 |---|---|---|
+| `fc59382` | **565** Email Activity opens on the last 30 days, 25 to a page, with a Needs attention tab and a search (live on build `1c57274`) | 1621/1621 |
 | `dc366f7` | **563 and 564** tax is a tick on each invoice line; the invoice's dates are the dates typed (live on build `61cd45b`) | 1611/1611 |
 | `7eced19` | **561** the rate limiter knows a visitor by the connection, never by a header (live on build `a551e51`) | 1597/1597 |
 | `dd4ba34` | **562** an invoice email shows whether the client viewed the invoice (live on build `a551e51`) | 1597/1597 |
