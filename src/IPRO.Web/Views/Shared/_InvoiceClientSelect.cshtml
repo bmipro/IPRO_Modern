@@ -1,0 +1,23 @@
+@model int
+@using System.Globalization
+@using IPRO.Business.Services
+@using IPRO.Web.Infrastructure
+@{
+    // 566: the client box of the invoice editor and of the recurring-schedule editor, one markup for
+    // both. Each client carries the tax their invoice will bear and why (563) -- the rule the save and
+    // the recurring job apply -- so the lines editor (_InvoiceLinesEditor) can show the figures as
+    // the document is written. The model is the client already chosen, 0 for none.
+    var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
+    var taxByClient = ViewBag.TaxByClient as IDictionary<int, ClientInvoiceTaxRule> ?? new Dictionary<int, ClientInvoiceTaxRule>();
+}
+<select name="ClientId" id="invoiceClient" class="form-select" required>
+  <option value="">Choose a client...</option>
+  @foreach (var c in clients)
+  {
+    taxByClient.TryGetValue(c.Id, out var rule);
+    <option value="@c.Id" selected="@(c.Id == Model)"
+            data-tax-rate="@((rule?.Rate ?? 0m).ToString(CultureInfo.InvariantCulture))"
+            data-tax-label="@(rule is { Charges: true } ? InvoiceText.TaxLabel(rule.Region, rule.Rate, 1m) : "Tax")"
+            data-tax-note="@(rule?.Note ?? string.Empty)">@c.FirstName @c.LastName @(string.IsNullOrWhiteSpace(c.CompanyName) ? "" : $"({c.CompanyName})")</option>
+  }
+</select>

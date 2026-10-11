@@ -23,6 +23,20 @@ When no tax will be charged, the editor says so in red under the totals, with th
 
 If you do not charge tax at all, untick **Tax** on your lines.
 
+### Discounts
+
+Under the lines, **Discount** has three choices:
+
+- **None**: no discount (how every invoice starts).
+- **Whole invoice** (or **Whole estimate**): one discount for the whole document. A box appears in the totals: type the number and choose **%** or **$**. The invoice shows the subtotal (the lines at their full prices), then the discount, then the tax and the total.
+- **Each item**: a **Discount** box appears on every line. Type a number and choose **%** or **$** for any item that has a discount, and leave the others empty. The invoice gets a Discount column showing what came off each item, and the totals show **Discounts** with the sum of them, between the subtotal and the tax.
+
+It is one or the other: changing the choice does not delete what you typed, but only the chosen kind is saved.
+
+Tax is charged on the price after the discount. A discount on the whole invoice is shared between the taxed and the untaxed lines in proportion, so a 10% discount on bread (not taxed) and a cake (taxed) lowers the tax by 10% of the cake's tax. A discount is never more than what it comes off, and a percent is never more than 100.
+
+The totals under the lines show the result as you type. A duplicate keeps the discount, and so does every invoice a recurring schedule makes.
+
 ## Send a Document to a Client
 
 1. Open the draft from **Client Invoices**.
@@ -37,7 +51,7 @@ A document number (`EST-####` for estimates, `INV-####` for invoices) is assigne
 
 ## What the Client Sees
 
-- A read-only, printable page in the agent's branding: their company name, address, phone and email, and their website logo when they have one; the client's bill-to information; each line with quantity, unit price, a tick in the Tax column when the line is taxed, and amount; the tax summary (the taxable amount and the tax by name), subtotal, tax and total; for an invoice, the due date, payment received and balance due, and once paid, the date and method. The status reads in words (Awaiting payment, Awaiting your reply, Paid, Approved, Declined, Void).
+- A read-only, printable page in the agent's branding: their company name, address, phone and email, and their website logo when they have one; the client's bill-to information; each line with quantity, unit price, a tick in the Tax column when the line is taxed, and amount; a Discount column when an item was discounted; the tax summary (the taxable amount and the tax by name), subtotal, the discount when there is one on the whole document, tax and total; for an invoice, the due date, payment received and balance due, and once paid, the date and method. The status reads in words (Awaiting payment, Awaiting your reply, Paid, Approved, Declined, Void).
 - For an **estimate**: **Approve** and **Decline** buttons. Approving does not charge anything — it just flags the estimate as approved.
 - For an **invoice**: a **Pay Now** button, shown only if the agent has set a payment link on their Profile page (see below). The client can also arrange payment another way (cheque, e-transfer, cash) directly with the agent.
 
@@ -109,7 +123,7 @@ The money goes straight to your own account with that service; IPRO is not in th
 ## Recurring Invoices
 
 1. Select **Client Invoices**, then **Recurring Schedules**.
-2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items. Each line has the same **Tax** tick as on an invoice, and every invoice the schedule makes keeps it.
+2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items. The lines are edited exactly as on an invoice: the same **Tax** tick on each, the same **Discount** choice, and the totals show what each invoice will come to. Every invoice the schedule makes keeps them.
 3. Each time the schedule runs, a new **Draft** invoice is created automatically — it is never sent to the client automatically. Review it and click **Send to Client** yourself.
 4. Use **Pause**/**Resume** to temporarily stop or restart a schedule, or **Delete** to remove it.
 

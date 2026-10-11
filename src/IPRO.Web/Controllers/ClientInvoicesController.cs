@@ -1,3 +1,4 @@
+using IPRO.Business.Services;
 using System.Security.Claims;
 using System.Text;
 using IPRO.Business.Interfaces;
@@ -232,11 +233,7 @@ public class ClientInvoicesController : Controller
             {
                 lines.Add(new ClientInvoiceLineItem { Description = "Services", Quantity = 1, UnitPrice = invoice.SubTotal, Amount = invoice.SubTotal });
             }
-            foreach (var line in lines)
-            {
-                // 563: a line that is not ticked carries no tax and says so.
-                var taxType = line.IsTaxable ? taxedType : "Tax Exempt";
-                var lineTax = line.IsTaxable ? Math.Round(line.Amount * invoice.TaxRate, 2) : 0m;
+            void XeroRow(string description, string quantity, string unitAmount, string discountPercent, string taxType, decimal lineTax) =>
                 csv.AppendLine(string.Join(",",
                     CsvEscape(contact),
                     CsvEscape(invoice.Client?.Email ?? string.Empty),
@@ -251,16 +248,41 @@ public class ClientInvoicesController : Controller
                     CsvEscape((invoice.DueDate ?? invoice.IssueDate).ToString("yyyy-MM-dd")),
                     CsvEscape(invoice.Total.ToString("0.00")),
                     string.Empty,
-                    CsvEscape(string.IsNullOrWhiteSpace(line.Description) ? "Services" : line.Description),
-                    CsvEscape(line.Quantity.ToString("0.##")),
-                    CsvEscape(line.UnitPrice.ToString("0.##")),
-                    string.Empty,
+                    CsvEscape(description),
+                    CsvEscape(quantity),
+                    CsvEscape(unitAmount),
+                    CsvEscape(discountPercent),
                     "200",
                     CsvEscape(taxType),
                     CsvEscape(lineTax.ToString("0.00")),
                     string.Empty, string.Empty, string.Empty, string.Empty,
                     CsvEscape(invoice.Currency),
                     string.Empty));
+
+            foreach (var line in lines)
+            {
+                // 563: a line that is not ticked carries no tax and says so.
+                var taxType = line.IsTaxable ? taxedType : "Tax Exempt";
+                var lineTax = line.IsTaxable ? Math.Round(line.Amount * invoice.TaxRate, 2) : 0m;
+                // 566: a percent off an item goes in Xero's own Discount column. Dollars off an item have
+                // no column there, so the unit amount is the price after them.
+                var percentOff = line.DiscountAmount > 0 && line.DiscountType == InvoiceDiscountType.Percent;
+                var unit = line.DiscountAmount > 0 && !percentOff && line.Quantity != 0 ? Math.Round(line.Amount / line.Quantity, 4) : line.UnitPrice;
+                XeroRow(string.IsNullOrWhiteSpace(line.Description) ? "Services" : line.Description, line.Quantity.ToString("0.##"), unit.ToString("0.####"),
+                    percentOff ? line.DiscountValue.ToString("0.##") : string.Empty, taxType, lineTax);
+            }
+
+            // 566: a discount on the whole invoice is a line of its own, split as the tax was: the taxed
+            // lines' share carries the invoice's tax type (and takes its tax back), the rest is exempt.
+            if (invoice.DiscountAmount > 0)
+            {
+                var label = ("Discount " + ClientInvoiceMath.Words(invoice.DiscountType, invoice.DiscountValue)).Trim();
+                var itemsTotal = lines.Sum(l => l.Amount);
+                var taxableItems = lines.Where(l => l.IsTaxable).Sum(l => l.Amount);
+                var taxedShare = invoice.TaxRate == 0 ? 0m : taxableItems - ClientInvoiceMath.TaxableAfterDiscount(itemsTotal, taxableItems, invoice.DiscountAmount);
+                var exemptShare = invoice.DiscountAmount - taxedShare;
+                if (taxedShare > 0) XeroRow(label, "1", (0m - taxedShare).ToString("0.##"), string.Empty, taxedType, 0m - Math.Round(taxedShare * invoice.TaxRate, 2));
+                if (exemptShare > 0) XeroRow(label, "1", (0m - exemptShare).ToString("0.##"), string.Empty, "Tax Exempt", 0m);
             }
         }
         return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", $"xero-invoices-{period.FileStem}.csv");
@@ -394,8 +416,7 @@ public class ClientInvoicesController : Controller
                 lineItems.Add(new ClientInvoiceLineItem { Description = string.Empty, Quantity = 1, UnitPrice = invoice.Total, Amount = invoice.Total });
             }
 
-            foreach (var line in lineItems)
-            {
+            void QuickBooksRow(string description, string quantity, string rate, decimal amount) =>
                 csv.AppendLine(string.Join(",",
                     CsvEscape(invoice.DocumentNumber),
                     CsvEscape(customer),
@@ -403,13 +424,29 @@ public class ClientInvoicesController : Controller
                     CsvEscape(invoice.DueDate?.ToString("yyyy-MM-dd") ?? string.Empty),
                     CsvEscape(terms),
                     CsvEscape("Services"),
-                    CsvEscape(line.Description),
-                    CsvEscape(line.Quantity.ToString("0.##")),
-                    CsvEscape(line.UnitPrice.ToString("0.00")),
-                    CsvEscape(line.Amount.ToString("0.00")),
+                    CsvEscape(description),
+                    CsvEscape(quantity),
+                    CsvEscape(rate),
+                    CsvEscape(amount.ToString("0.00")),
                     CsvEscape(invoice.Currency),
                     CsvEscape(invoice.Status.ToString()),
                     CsvEscape(invoice.PaidAt?.ToString("yyyy-MM-dd") ?? string.Empty)));
+
+            foreach (var line in lineItems)
+            {
+                // 566: with a discount on the item, the rate is the price after it, so quantity x rate
+                // is still the amount.
+                var rate = line.DiscountAmount > 0 && line.Quantity != 0
+                    ? Math.Round(line.Amount / line.Quantity, 4).ToString("0.00##")
+                    : line.UnitPrice.ToString("0.00");
+                QuickBooksRow(line.Description, line.Quantity.ToString("0.##"), rate, line.Amount);
+            }
+
+            // 566: a discount on the whole invoice is a row of its own, so the rows add up to the invoice.
+            if (invoice.DiscountAmount > 0)
+            {
+                var off = 0m - invoice.DiscountAmount;
+                QuickBooksRow(("Discount " + ClientInvoiceMath.Words(invoice.DiscountType, invoice.DiscountValue)).Trim(), "1", off.ToString("0.00"), off);
             }
         }
 
@@ -463,7 +500,8 @@ public class ClientInvoicesController : Controller
             DocumentNumber = await _invoiceService.GenerateDocumentNumberAsync(AgentId, model.DocumentType)
         };
 
-        ApplyLineItems(invoice, model.LineItems);
+        ApplyDiscount(invoice, model);
+        ApplyLineItems(invoice, model.LineItems, model.DiscountMode);
         await ApplyTotalsAsync(invoice, client!);
 
         _db.ClientInvoices.Add(invoice);
@@ -495,12 +533,19 @@ public class ClientInvoicesController : Controller
             IssueDate = invoice.IssueDate,
             DueDate = invoice.DueDate,
             Notes = invoice.Notes,
+            // 566: the discount as it was saved -- on the whole invoice, on the items, or none.
+            DiscountMode = invoice.DiscountAmount > 0 ? ClientInvoiceMath.ModeInvoice
+                : invoice.LineItems.Any(l => l.DiscountAmount > 0) ? ClientInvoiceMath.ModeLines : ClientInvoiceMath.ModeNone,
+            DiscountType = invoice.DiscountAmount > 0 ? invoice.DiscountType : InvoiceDiscountType.Percent,
+            DiscountValue = invoice.DiscountAmount > 0 ? invoice.DiscountValue : 0m,
             LineItems = invoice.LineItems.OrderBy(l => l.SortOrder).Select(l => new ClientInvoiceLineItemInputModel
             {
                 Description = l.Description,
                 Quantity = l.Quantity,
                 UnitPrice = l.UnitPrice,
-                IsTaxable = l.IsTaxable
+                IsTaxable = l.IsTaxable,
+                DiscountType = l.DiscountAmount > 0 ? l.DiscountType : InvoiceDiscountType.Percent,
+                DiscountValue = l.DiscountAmount > 0 ? l.DiscountValue : 0m
             }).ToList()
         });
     }
@@ -543,7 +588,8 @@ public class ClientInvoicesController : Controller
 
         _db.ClientInvoiceLineItems.RemoveRange(invoice.LineItems);
         invoice.LineItems.Clear();
-        ApplyLineItems(invoice, model.LineItems);
+        ApplyDiscount(invoice, model);
+        ApplyLineItems(invoice, model.LineItems, model.DiscountMode);
         await ApplyTotalsAsync(invoice, client!);
 
         await _db.SaveChangesAsync();
@@ -711,6 +757,9 @@ public class ClientInvoicesController : Controller
             Notes = source.Notes,
             ViewToken = Guid.NewGuid().ToString("N"),
             DocumentNumber = await _invoiceService.GenerateDocumentNumberAsync(AgentId, source.DocumentType),
+            DiscountType = source.DiscountType,     // 566: the copy keeps the discount, on the invoice and on its items
+            DiscountValue = source.DiscountValue,
+            DiscountAmount = source.DiscountAmount,
             SubTotal = source.SubTotal,
             TaxRegion = source.TaxRegion,
             TaxRate = source.TaxRate,
@@ -722,6 +771,9 @@ public class ClientInvoicesController : Controller
                 Description = l.Description,
                 Quantity = l.Quantity,
                 UnitPrice = l.UnitPrice,
+                DiscountType = l.DiscountType,
+                DiscountValue = l.DiscountValue,
+                DiscountAmount = l.DiscountAmount,
                 Amount = l.Amount,
                 IsTaxable = l.IsTaxable,
                 SortOrder = l.SortOrder
@@ -752,17 +804,34 @@ public class ClientInvoicesController : Controller
         ViewBag.TaxByClient = clients.ToDictionary(c => c.Id, c => IPRO.Business.Services.ClientInvoiceTaxRules.Resolve(c, business, rates));
     }
 
-    private static void ApplyLineItems(ClientInvoice invoice, List<ClientInvoiceLineItemInputModel> lineItems)
+    // 566: one discount on the whole document, when that is where the editor says the discount is.
+    private static void ApplyDiscount(ClientInvoice invoice, ClientInvoiceEditViewModel model)
     {
+        var typed = model.DiscountValue ?? 0m;
+        var onInvoice = ClientInvoiceMath.CleanMode(model.DiscountMode) == ClientInvoiceMath.ModeInvoice && typed > 0 && model.DiscountType != InvoiceDiscountType.None;
+        invoice.DiscountType = onInvoice ? model.DiscountType : InvoiceDiscountType.None;
+        invoice.DiscountValue = !onInvoice ? 0m : model.DiscountType == InvoiceDiscountType.Percent ? Math.Min(typed, 100m) : typed;
+    }
+
+    // 566: a line's amount is quantity x unit price less its own discount, when the discount is on the items.
+    private static void ApplyLineItems(ClientInvoice invoice, List<ClientInvoiceLineItemInputModel> lineItems, string? discountMode = null)
+    {
+        var onLines = ClientInvoiceMath.CleanMode(discountMode) == ClientInvoiceMath.ModeLines;
         var sortOrder = 0;
         foreach (var item in lineItems.Where(l => !string.IsNullOrWhiteSpace(l.Description)))
         {
+            var gross = ClientInvoiceMath.LineGross(item.Quantity, item.UnitPrice);
+            var typed = item.DiscountValue ?? 0m;
+            var discount = onLines ? ClientInvoiceMath.Discount(gross, item.DiscountType, typed) : 0m;
             invoice.LineItems.Add(new ClientInvoiceLineItem
             {
                 Description = item.Description!.Trim(),
                 Quantity = item.Quantity <= 0 ? 1 : item.Quantity,
                 UnitPrice = item.UnitPrice,
-                Amount = Math.Round((item.Quantity <= 0 ? 1 : item.Quantity) * item.UnitPrice, 2, MidpointRounding.AwayFromZero),
+                DiscountType = discount > 0 ? item.DiscountType : InvoiceDiscountType.None,
+                DiscountValue = discount <= 0 ? 0m : item.DiscountType == InvoiceDiscountType.Percent ? Math.Min(typed, 100m) : typed,
+                DiscountAmount = discount,
+                Amount = gross - discount,
                 IsTaxable = item.IsTaxable,
                 SortOrder = sortOrder++
             });
@@ -771,11 +840,20 @@ public class ClientInvoicesController : Controller
 
     // 563: tax is charged on the lines that are ticked, at the client's province's rate or, when
     // the client has no province on file, the business's own (ClientInvoiceTaxRules).
+    // 566: and on the price after any discount (ClientInvoiceMath). SubTotal is what is left after
+    // a discount on the whole invoice, so SubTotal + TaxAmount is still the Total.
     private async Task ApplyTotalsAsync(ClientInvoice invoice, Client client)
     {
-        invoice.SubTotal = invoice.LineItems.Sum(l => l.Amount);
+        var totals = ClientInvoiceMath.Totals(invoice.LineItems.Select(l => (l.Amount, l.IsTaxable)), invoice.DiscountType, invoice.DiscountValue);
+        invoice.DiscountAmount = totals.InvoiceDiscount;
+        if (totals.InvoiceDiscount <= 0)
+        {
+            invoice.DiscountType = InvoiceDiscountType.None;
+            invoice.DiscountValue = 0m;
+        }
+        invoice.SubTotal = totals.SubTotal;
         var business = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
-        var tax = await _invoiceService.CalculateTaxAsync(client, business, invoice.LineItems.Where(l => l.IsTaxable).Sum(l => l.Amount));
+        var tax = await _invoiceService.CalculateTaxAsync(client, business, totals.TaxableAmount);
         invoice.TaxRate = tax.Rate;
         invoice.TaxAmount = tax.Amount;
         invoice.TaxRegion = tax.Region;

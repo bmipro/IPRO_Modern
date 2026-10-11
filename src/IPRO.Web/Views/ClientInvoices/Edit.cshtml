@@ -1,16 +1,8 @@
 @model IPRO.Web.Models.ClientInvoiceEditViewModel
-@using System.Globalization
-@using IPRO.Business.Services
-@using IPRO.Web.Infrastructure
 @{
     var isEstimate = Model.DocumentType == IPRO.Entities.ClientInvoiceDocumentType.Estimate;
     ViewData["Title"] = Model.Id > 0 ? $"Edit {(isEstimate ? "Estimate" : "Invoice")}" : $"New {(isEstimate ? "Estimate" : "Invoice")}";
     var formAction = Model.Id > 0 ? $"/portal/ClientInvoices/Edit/{Model.Id}" : "/portal/ClientInvoices/Create";
-    var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client>) ?? Enumerable.Empty<IPRO.Entities.Client>();
-    var lineItems = Model.LineItems.Count > 0 ? Model.LineItems : new List<IPRO.Web.Models.ClientInvoiceLineItemInputModel> { new() };
-    // 563: which tax each client's invoice carries, and why -- the rule the save applies, so the
-    // figures under the lines are the ones the invoice will show.
-    var taxByClient = ViewBag.TaxByClient as IDictionary<int, ClientInvoiceTaxRule> ?? new Dictionary<int, ClientInvoiceTaxRule>();
     var docWord = isEstimate ? "estimate" : "invoice";
 }
 
@@ -30,17 +22,7 @@
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Client</label>
-          <select name="ClientId" id="invoiceClient" class="form-select" required>
-            <option value="">Choose a client...</option>
-            @foreach (var c in clients)
-            {
-              taxByClient.TryGetValue(c.Id, out var rule);
-              <option value="@c.Id" selected="@(c.Id == Model.ClientId)"
-                      data-tax-rate="@((rule?.Rate ?? 0m).ToString(CultureInfo.InvariantCulture))"
-                      data-tax-label="@(rule is { Charges: true } ? InvoiceText.TaxLabel(rule.Region, rule.Rate, 1m) : "Tax")"
-                      data-tax-note="@(rule?.Note ?? string.Empty)">@c.FirstName @c.LastName @(string.IsNullOrWhiteSpace(c.CompanyName) ? "" : $"({c.CompanyName})")</option>
-            }
-          </select>
+          <partial name="_InvoiceClientSelect" model="Model.ClientId" />
         </div>
         <div class="col-md-4">
           <label class="form-label">Issue Date</label>
@@ -60,53 +42,9 @@
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
       <label class="form-label fw-bold">Line Items</label>
-      @* On a phone each line is two rows (the shared styles below) and the Amount column steps aside:
-         the totals are under the lines. *@
-      <partial name="_InvoiceLineStyles" />
-      <div class="table-responsive">
-      <table class="table align-middle" id="lineItemsTable">
-        <thead>
-          <tr>
-            <th style="min-width:170px">Description</th>
-            <th style="width:100px;min-width:76px">Qty</th>
-            <th style="width:130px;min-width:96px">Unit Price</th>
-            <th class="text-center" style="width:56px" title="Tick each line that is taxed">Tax</th>
-            <th class="text-end d-none d-md-table-cell" style="width:120px">Amount</th>
-            <th style="width:40px"></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (var i = 0; i < lineItems.Count; i++)
-          {
-            <tr class="line-item-row">
-              <td class="line-what"><input type="text" name="LineItems[@i].Description" class="form-control" value="@lineItems[i].Description" placeholder="Service or product description" /></td>
-              <td class="line-qty" data-label="Qty"><input type="number" step="0.01" name="LineItems[@i].Quantity" class="form-control" value="@lineItems[i].Quantity" /></td>
-              <td class="line-price" data-label="Unit price"><input type="number" step="0.01" name="LineItems[@i].UnitPrice" class="form-control" value="@lineItems[i].UnitPrice" /></td>
-              @* 563: the ticked box posts "true"; the hidden field behind it answers "false" for a box left empty. *@
-              <td class="text-center line-taxed" data-label="Tax"><input type="checkbox" class="form-check-input line-tax" name="LineItems[@i].IsTaxable" value="true" checked="@lineItems[i].IsTaxable" aria-label="Charge tax on this line" /><input type="hidden" name="LineItems[@i].IsTaxable" value="false" /></td>
-              <td class="text-end line-amount d-none d-md-table-cell">$0.00</td>
-              <td class="line-remove"><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>
-            </tr>
-          }
-        </tbody>
-      </table>
-      </div>
-      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-        <div>
-          <button type="button" id="addLineItem" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i>Add Line</button>
-          <div class="small text-muted mt-2">Tick <strong>Tax</strong> on each line that is taxed. The rate follows the client's province.</div>
-        </div>
-        <div class="flex-grow-1" style="max-width:360px">
-          <table class="table table-sm table-borderless mb-1" id="invoiceTotals" aria-live="polite">
-            <tbody>
-              <tr><td>Subtotal</td><td class="text-end" id="totalsSubtotal">$0.00</td></tr>
-              <tr><td id="totalsTaxLabel">Tax</td><td class="text-end" id="totalsTax">$0.00</td></tr>
-              <tr class="fw-bold border-top"><td>Total</td><td class="text-end" id="totalsTotal">$0.00</td></tr>
-            </tbody>
-          </table>
-          <div class="small" id="totalsTaxNote" data-doc="@docWord"></div>
-        </div>
-      </div>
+      @* 566: the lines, the Tax ticks, the discount and the totals are one editor, shared with the
+         recurring-schedule screen. *@
+      <partial name="_InvoiceLinesEditor" model="new IPRO.Web.Models.InvoiceLinesEditorModel { Lines = Model.LineItems, DiscountMode = Model.DiscountMode, DiscountType = Model.DiscountType, DiscountValue = Model.DiscountValue, DocWord = docWord }" />
     </div>
   </div>
 
@@ -120,86 +58,3 @@
   <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save me-2"></i>Save Draft</button>
   <a href="/portal/ClientInvoices" class="btn btn-outline-secondary btn-lg">Cancel</a>
 </form>
-
-<script nonce="@Context.GetCspNonce()">
-  function reindexRows() {
-    document.querySelectorAll('#lineItemsTable tbody tr').forEach(function (row, index) {
-      row.querySelectorAll('input').forEach(function (input) {
-        input.name = input.name.replace(/LineItems\[\d+\]/, 'LineItems[' + index + ']');
-      });
-    });
-  }
-
-  // 563: the subtotal, the tax and the total as the invoice is written. Whole cents throughout, and
-  // halves rounded away from zero, which is how the save works them out.
-  function lineCents(quantity, unitPrice) {
-    var q = Math.round((quantity > 0 ? quantity : 1) * 100), p = Math.round(unitPrice * 100);
-    var n = q * p;
-    return (n < 0 ? -1 : 1) * Math.floor((Math.abs(n) + 50) / 100);
-  }
-
-  function money(cents) {
-    return (cents < 0 ? '-$' : '$') + (Math.abs(cents) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  function refreshTotals() {
-    var client = document.getElementById('invoiceClient');
-    var chosen = client.options[client.selectedIndex];
-    var hasClient = !!(chosen && chosen.value);
-    var rate = hasClient ? parseFloat(chosen.getAttribute('data-tax-rate')) || 0 : 0;
-    var subtotal = 0, taxable = 0, ticked = 0;
-    document.querySelectorAll('#lineItemsTable tbody tr').forEach(function (row) {
-      var description = row.querySelector('input[name$=".Description"]').value.trim();
-      var cents = lineCents(parseFloat(row.querySelector('input[name$=".Quantity"]').value) || 0,
-                            parseFloat(row.querySelector('input[name$=".UnitPrice"]').value) || 0);
-      row.querySelector('.line-amount').textContent = money(cents);
-      if (!description) return;                       // a line with no description is not saved
-      subtotal += cents;
-      if (row.querySelector('.line-tax').checked) { taxable += cents; ticked++; }
-    });
-    var tax = rate > 0 && taxable > 0 ? Math.floor((taxable * Math.round(rate * 100000) + 50000) / 100000) : 0;
-    document.getElementById('totalsSubtotal').textContent = money(subtotal);
-    document.getElementById('totalsTax').textContent = money(tax);
-    document.getElementById('totalsTotal').textContent = money(subtotal + tax);
-    document.getElementById('totalsTaxLabel').textContent =
-      rate > 0 ? chosen.getAttribute('data-tax-label') + (taxable !== subtotal ? ' on ' + money(Math.max(taxable, 0)) : '') : 'Tax';
-
-    var note = document.getElementById('totalsTaxNote');
-    var reason = hasClient ? (chosen.getAttribute('data-tax-note') || '') : 'Choose a client to see the tax.';
-    if (hasClient && rate > 0 && ticked === 0) reason = 'No line is ticked for tax, so none is charged.';
-    note.textContent = hasClient && rate <= 0 ? 'No tax will be charged on this ' + note.getAttribute('data-doc') + '. ' + reason : reason;
-    note.className = 'small ' + (hasClient && rate <= 0 ? 'text-danger' : 'text-muted');
-  }
-
-  document.getElementById('addLineItem').addEventListener('click', function () {
-    var tbody = document.querySelector('#lineItemsTable tbody');
-    var row = document.createElement('tr');
-    row.className = 'line-item-row';
-    var nextIndex = tbody.querySelectorAll('tr').length;
-    row.innerHTML =
-      '<td class="line-what"><input type="text" name="LineItems[' + nextIndex + '].Description" class="form-control" placeholder="Service or product description" /></td>' +
-      '<td class="line-qty" data-label="Qty"><input type="number" step="0.01" name="LineItems[' + nextIndex + '].Quantity" class="form-control" value="1" /></td>' +
-      '<td class="line-price" data-label="Unit price"><input type="number" step="0.01" name="LineItems[' + nextIndex + '].UnitPrice" class="form-control" value="0" /></td>' +
-      '<td class="text-center line-taxed" data-label="Tax"><input type="checkbox" class="form-check-input line-tax" name="LineItems[' + nextIndex + '].IsTaxable" value="true" checked aria-label="Charge tax on this line" /><input type="hidden" name="LineItems[' + nextIndex + '].IsTaxable" value="false" /></td>' +
-      '<td class="text-end line-amount d-none d-md-table-cell">$0.00</td>' +
-      '<td class="line-remove"><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>';
-    tbody.appendChild(row);
-    refreshTotals();
-  });
-
-  document.querySelector('#lineItemsTable tbody').addEventListener('click', function (e) {
-    var btn = e.target.closest('.remove-row');
-    if (!btn) return;
-    var rows = document.querySelectorAll('#lineItemsTable tbody tr');
-    if (rows.length > 1) {
-      btn.closest('tr').remove();
-      reindexRows();
-      refreshTotals();
-    }
-  });
-
-  document.querySelector('#lineItemsTable tbody').addEventListener('input', refreshTotals);
-  document.querySelector('#lineItemsTable tbody').addEventListener('change', refreshTotals);
-  document.getElementById('invoiceClient').addEventListener('change', refreshTotals);
-  refreshTotals();
-</script>

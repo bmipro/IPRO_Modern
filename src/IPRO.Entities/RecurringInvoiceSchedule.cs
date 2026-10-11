@@ -12,6 +12,9 @@ public class RecurringInvoiceSchedule
     public int DueInDays { get; set; } = 15;
     public bool IsActive { get; set; } = true;
     public string? Notes { get; set; } = string.Empty;
+    // 566: one discount on the whole of each invoice the schedule makes.
+    public InvoiceDiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

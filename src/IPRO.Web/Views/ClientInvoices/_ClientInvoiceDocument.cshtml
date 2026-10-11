@@ -312,6 +312,11 @@
                 <th scope="col">Description</th>
                 <th scope="col">Qty</th>
                 <th scope="col">Unit price</th>
+                @* 566: a Discount column only when a discount was given on an item. *@
+                @if (view.HasLineDiscounts)
+                {
+                  <th scope="col">Discount</th>
+                }
                 <th scope="col" class="col-tax">Tax</th>
                 <th scope="col">Amount</th>
               </tr>
@@ -323,6 +328,10 @@
                   <td data-label="Description"><strong>@line.Description</strong></td>
                   <td data-label="Quantity">@line.Quantity.ToString("0.##")</td>
                   <td data-label="Unit price">@Cell(line.UnitPrice)</td>
+                  @if (view.HasLineDiscounts)
+                  {
+                    <td data-label="Discount">@line.Discount</td>
+                  }
                   @* 563 (the owner, 2026-10-11): "for each item all we need is a checked box". The tax's
                      name and its total are in the Tax summary below, once. *@
                   <td data-label="Tax" class="col-tax"><span class="tax-box@(line.Taxed ? " is-taxed" : string.Empty)" aria-hidden="true">@if (line.Taxed) {<text>&#10003;</text>}</span><span class="visually-hidden">@(line.Taxed ? "Taxed" : "Not taxed")</span></td>
@@ -349,7 +358,17 @@
         </div>
 
         <dl class="totals">
-          <div><dt>Subtotal</dt><dd>@Money(Model.SubTotal)</dd></div>
+          @* 566: a discount, on the whole document or on its items, sits between what the lines add up to
+             at their full prices and the tax (the owner: "a line indicating the total discount"). *@
+          @if (view.HasDiscount)
+          {
+            <div><dt>Subtotal</dt><dd>@Money(view.ItemsTotal)</dd></div>
+            <div><dt>@view.DiscountLabel</dt><dd>@Money(-view.DiscountTotal)</dd></div>
+          }
+          else
+          {
+            <div><dt>Subtotal</dt><dd>@Money(Model.SubTotal)</dd></div>
+          }
           <div><dt>@(view.HasTax ? view.TaxLabel : "Tax")</dt><dd>@Money(Model.TaxAmount)</dd></div>
           <div class="total"><dt>Total</dt><dd>@Money(Model.Total)</dd></div>
           @if (view.ShowsBalance)

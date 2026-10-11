@@ -1,3 +1,4 @@
+using IPRO.Business.Services;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
@@ -33,20 +34,31 @@ public class RecurringClientInvoiceJob
         {
             try
             {
-                var lineItems = schedule.LineItems.OrderBy(l => l.SortOrder).Select(l => new ClientInvoiceLineItem
+                // 566: a line's amount is quantity x unit price less its own discount; a discount on the
+                // whole invoice comes off the sum, and tax is charged on what is left (ClientInvoiceMath).
+                var lineItems = schedule.LineItems.OrderBy(l => l.SortOrder).Select(l =>
                 {
-                    Description = l.Description,
-                    Quantity = l.Quantity,
-                    UnitPrice = l.UnitPrice,
-                    Amount = Math.Round(l.Quantity * l.UnitPrice, 2, MidpointRounding.AwayFromZero),
-                    IsTaxable = l.IsTaxable,
-                    SortOrder = l.SortOrder
+                    var gross = Math.Round(l.Quantity * l.UnitPrice, 2, MidpointRounding.AwayFromZero);
+                    var discount = ClientInvoiceMath.Discount(gross, l.DiscountType, l.DiscountValue);
+                    return new ClientInvoiceLineItem
+                    {
+                        Description = l.Description,
+                        Quantity = l.Quantity,
+                        UnitPrice = l.UnitPrice,
+                        DiscountType = discount > 0 ? l.DiscountType : InvoiceDiscountType.None,
+                        DiscountValue = discount > 0 ? l.DiscountValue : 0m,
+                        DiscountAmount = discount,
+                        Amount = gross - discount,
+                        IsTaxable = l.IsTaxable,
+                        SortOrder = l.SortOrder
+                    };
                 }).ToList();
 
-                var subTotal = lineItems.Sum(l => l.Amount);
+                var totals = ClientInvoiceMath.Totals(lineItems.Select(l => (l.Amount, l.IsTaxable)), schedule.DiscountType, schedule.DiscountValue);
+                var subTotal = totals.SubTotal;
                 // 563: tax on the ticked lines, at the client's province's rate or else the business's own.
                 var business = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == schedule.AgentUserId);
-                var tax = await _invoiceService.CalculateTaxAsync(schedule.Client, business, lineItems.Where(l => l.IsTaxable).Sum(l => l.Amount));
+                var tax = await _invoiceService.CalculateTaxAsync(schedule.Client, business, totals.TaxableAmount);
                 // 564: dated the adviser's own today, not the UTC date.
                 var today = AgentLocalTime.FromUtc(DateTime.UtcNow, business?.TimeZone).Date;
 
@@ -61,6 +73,9 @@ public class RecurringClientInvoiceJob
                     Notes = schedule.Notes,
                     ViewToken = Guid.NewGuid().ToString("N"),
                     DocumentNumber = await _invoiceService.GenerateDocumentNumberAsync(schedule.AgentUserId, ClientInvoiceDocumentType.Invoice),
+                    DiscountType = totals.InvoiceDiscount > 0 ? schedule.DiscountType : InvoiceDiscountType.None,
+                    DiscountValue = totals.InvoiceDiscount > 0 ? schedule.DiscountValue : 0m,
+                    DiscountAmount = totals.InvoiceDiscount,
                     SubTotal = subTotal,
                     TaxRegion = tax.Region,
                     TaxRate = tax.Rate,

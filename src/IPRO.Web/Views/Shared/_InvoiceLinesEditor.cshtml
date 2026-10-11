@@ -1,0 +1,236 @@
+@model IPRO.Web.Models.InvoiceLinesEditorModel
+@using System.Globalization
+@using IPRO.Business.Services
+@using IPRO.Entities
+@{
+    // 566 (2026-10-11): the lines of an invoice, an estimate or a recurring schedule, with their Tax
+    // ticks (563), the discount, and the subtotal, tax and total as the document is written. One
+    // editor for the invoice screen and the recurring-schedule screen: until now each carried its own
+    // copy of the table and of the script, and only one of them showed any totals.
+    //
+    // The figures are worked out in the browser by the same steps as ClientInvoiceMath, in whole
+    // cents; the save works them out again and is the one that counts.
+    var lines = Model.Lines.Count > 0 ? Model.Lines : new List<IPRO.Web.Models.ClientInvoiceLineItemInputModel> { new() };
+    var mode = ClientInvoiceMath.CleanMode(Model.DiscountMode);
+    string Typed(decimal? value) => value is > 0 ? value.Value.ToString("0.##", CultureInfo.InvariantCulture) : string.Empty;
+
+    // One row, written once: for each line of the document, and (index "__i__") as the pattern the
+    // Add Line button copies.
+    // (Async because its inputs are tag helpers, which Razor writes with an await.)
+    async Task Row(string i, IPRO.Web.Models.ClientInvoiceLineItemInputModel line)
+    {
+        <tr class="line-item-row">
+          <td class="line-what"><input type="text" name="LineItems[@i].Description" class="form-control" value="@line.Description" placeholder="Service or product description" /></td>
+          <td class="line-qty" data-label="Qty"><input type="number" step="0.01" name="LineItems[@i].Quantity" class="form-control" value="@line.Quantity" /></td>
+          <td class="line-price" data-label="Unit price"><input type="number" step="0.01" name="LineItems[@i].UnitPrice" class="form-control" value="@line.UnitPrice" /></td>
+          @* 566: shown when the discount is on each item. A percent or dollars off this line. *@
+          <td class="line-discount" data-label="Discount">
+            <div class="input-group flex-nowrap">
+              <input type="number" step="0.01" min="0" name="LineItems[@i].DiscountValue" class="form-control line-discount-value" value="@Typed(line.DiscountValue)" placeholder="0" aria-label="Discount on this item" />
+              <select name="LineItems[@i].DiscountType" class="form-select line-discount-type" style="flex:0 0 72px" aria-label="Percent or dollars">
+                <option value="Percent" selected="@(line.DiscountType != InvoiceDiscountType.Amount)">%</option>
+                <option value="Amount" selected="@(line.DiscountType == InvoiceDiscountType.Amount)">$</option>
+              </select>
+            </div>
+          </td>
+          @* 563: the ticked box posts "true"; the hidden field behind it answers "false" for a box left empty. *@
+          <td class="text-center line-taxed" data-label="Tax"><input type="checkbox" class="form-check-input line-tax" name="LineItems[@i].IsTaxable" value="true" checked="@line.IsTaxable" aria-label="Charge tax on this line" /><input type="hidden" name="LineItems[@i].IsTaxable" value="false" /></td>
+          <td class="text-end line-amount d-none d-md-table-cell">$0.00</td>
+          <td class="line-remove"><button type="button" class="btn btn-sm btn-outline-danger remove-row" aria-label="Remove this line"><i class="fas fa-trash"></i></button></td>
+        </tr>
+    }
+}
+
+@* On a phone each line is two rows (the shared styles) and the Amount column steps aside: the totals
+   are under the lines. *@
+<partial name="_InvoiceLineStyles" />
+<div class="table-responsive">
+<table class="table align-middle @(mode == ClientInvoiceMath.ModeLines ? "discount-lines" : "")" id="lineItemsTable">
+  <thead>
+    <tr>
+      <th style="min-width:170px">Description</th>
+      <th style="width:100px;min-width:76px">Qty</th>
+      <th style="width:130px;min-width:96px">Unit Price</th>
+      <th class="line-discount" style="width:170px;min-width:150px">Discount</th>
+      <th class="text-center" style="width:56px" title="Tick each line that is taxed">Tax</th>
+      <th class="text-end d-none d-md-table-cell" style="width:120px">Amount</th>
+      <th style="width:40px"></th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (var i = 0; i < lines.Count; i++)
+    {
+        await Row(i.ToString(CultureInfo.InvariantCulture), lines[i]);
+    }
+  </tbody>
+</table>
+</div>
+<template id="lineItemTemplate">
+  @{ await Row("__i__", new IPRO.Web.Models.ClientInvoiceLineItemInputModel()); }
+</template>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+  <div>
+    <button type="button" id="addLineItem" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i>Add Line</button>
+    <div class="small text-muted mt-2">Tick <strong>Tax</strong> on each line that is taxed. The rate follows the client's province.</div>
+    @* 566: where the discount is. One choice at a time: on the whole document, or item by item. *@
+    <div class="mt-3">
+      <div class="small fw-semibold mb-1">Discount</div>
+      <div class="btn-group btn-group-sm" role="group" aria-label="Discount">
+        <input type="radio" class="btn-check" name="DiscountMode" id="discountNone" value="none" checked="@(mode == ClientInvoiceMath.ModeNone)" autocomplete="off" />
+        <label class="btn btn-outline-secondary" for="discountNone">None</label>
+        <input type="radio" class="btn-check" name="DiscountMode" id="discountInvoice" value="invoice" checked="@(mode == ClientInvoiceMath.ModeInvoice)" autocomplete="off" />
+        <label class="btn btn-outline-secondary" for="discountInvoice">Whole @Model.DocWord</label>
+        <input type="radio" class="btn-check" name="DiscountMode" id="discountLines" value="lines" checked="@(mode == ClientInvoiceMath.ModeLines)" autocomplete="off" />
+        <label class="btn btn-outline-secondary" for="discountLines">Each item</label>
+      </div>
+      <div class="small text-muted mt-1" id="discountHint"></div>
+    </div>
+  </div>
+  <div class="flex-grow-1" style="max-width:380px">
+    <table class="table table-sm table-borderless align-middle mb-1" id="invoiceTotals" aria-live="polite">
+      <tbody>
+        <tr><td>Subtotal</td><td class="text-end" id="totalsSubtotal">$0.00</td></tr>
+        @* 566: the discount reads the same way for both kinds: the subtotal at full prices, what comes
+           off, then the tax. For "whole invoice" the amount is typed here; for "each item" it is the
+           sum of the lines' own discounts and the boxes step aside. *@
+        <tr id="totalsDiscountRow" hidden="@(mode == ClientInvoiceMath.ModeNone)">
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <label for="invoiceDiscountValue" class="mb-0" id="totalsDiscountLabel">Discount</label>
+              <div class="input-group input-group-sm flex-nowrap" style="max-width:170px" id="invoiceDiscountBox" hidden="@(mode != ClientInvoiceMath.ModeInvoice)">
+                <input type="number" step="0.01" min="0" name="DiscountValue" id="invoiceDiscountValue" class="form-control" value="@Typed(Model.DiscountValue)" placeholder="0" />
+                <select name="DiscountType" id="invoiceDiscountType" class="form-select" style="flex:0 0 72px" aria-label="Percent or dollars">
+                  <option value="Percent" selected="@(Model.DiscountType != InvoiceDiscountType.Amount)">%</option>
+                  <option value="Amount" selected="@(Model.DiscountType == InvoiceDiscountType.Amount)">$</option>
+                </select>
+              </div>
+            </div>
+          </td>
+          <td class="text-end" id="totalsDiscount">$0.00</td>
+        </tr>
+        <tr><td id="totalsTaxLabel">Tax</td><td class="text-end" id="totalsTax">$0.00</td></tr>
+        <tr class="fw-bold border-top"><td>Total</td><td class="text-end" id="totalsTotal">$0.00</td></tr>
+      </tbody>
+    </table>
+    <div class="small" id="totalsTaxNote" data-doc="@Model.DocWord"></div>
+  </div>
+</div>
+
+<script nonce="@Context.GetCspNonce()">
+  (function () {
+    var table = document.getElementById('lineItemsTable');
+    var tbody = table.querySelector('tbody');
+    var client = document.getElementById('invoiceClient');
+    var invoiceValue = document.getElementById('invoiceDiscountValue');
+    var invoiceType = document.getElementById('invoiceDiscountType');
+
+    function reindexRows() {
+      tbody.querySelectorAll('tr').forEach(function (row, index) {
+        row.querySelectorAll('input, select').forEach(function (field) {
+          field.name = field.name.replace(/LineItems\[\d+\]/, 'LineItems[' + index + ']');
+        });
+      });
+    }
+
+    // Whole cents throughout, and halves rounded away from zero: the steps of ClientInvoiceMath.
+    function lineCents(quantity, unitPrice) {
+      var q = Math.round((quantity > 0 ? quantity : 1) * 100), p = Math.round(unitPrice * 100);
+      var n = q * p;
+      return (n < 0 ? -1 : 1) * Math.floor((Math.abs(n) + 50) / 100);
+    }
+
+    // What a discount takes off an amount: never more than the amount, nothing off a credit.
+    function discountCents(amount, type, value) {
+      if (amount <= 0 || !(value > 0)) return 0;
+      if (type === 'Amount') return Math.min(Math.round(value * 100), amount);
+      return Math.floor((amount * Math.min(Math.round(value * 100), 10000) + 5000) / 10000);
+    }
+
+    // A part's share of a discount on the whole, to the cent.
+    function share(discount, part, whole) {
+      var n = discount * part;
+      return (n < 0 ? -1 : 1) * Math.floor((2 * Math.abs(n) + whole) / (2 * whole));
+    }
+
+    function money(cents) {
+      return (cents < 0 ? '-$' : '$') + (Math.abs(cents) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function typed(field) { return parseFloat(field.value) || 0; }
+
+    function discountMode() {
+      var chosen = document.querySelector('input[name="DiscountMode"]:checked');
+      return chosen ? chosen.value : 'none';
+    }
+
+    function refreshTotals() {
+      var mode = discountMode();
+      table.classList.toggle('discount-lines', mode === 'lines');
+      document.getElementById('totalsDiscountRow').hidden = mode === 'none';
+      document.getElementById('invoiceDiscountBox').hidden = mode !== 'invoice';
+      document.getElementById('totalsDiscountLabel').textContent = mode === 'lines' ? 'Discounts' : 'Discount';
+      document.getElementById('discountHint').textContent =
+        mode === 'invoice' ? 'One discount, taken off the subtotal before tax.'
+        : mode === 'lines' ? 'A percent or dollars off any item, in its Discount box.' : '';
+
+      var chosen = client ? client.options[client.selectedIndex] : null;
+      var hasClient = !!(chosen && chosen.value);
+      var rate = hasClient ? parseFloat(chosen.getAttribute('data-tax-rate')) || 0 : 0;
+      var items = 0, taxableItems = 0, ticked = 0, lineDiscounts = 0;
+      tbody.querySelectorAll('tr').forEach(function (row) {
+        var gross = lineCents(typed(row.querySelector('input[name$=".Quantity"]')), typed(row.querySelector('input[name$=".UnitPrice"]')));
+        var off = mode === 'lines' ? discountCents(gross, row.querySelector('.line-discount-type').value, typed(row.querySelector('.line-discount-value'))) : 0;
+        row.querySelector('.line-amount').textContent = money(gross);          // the full price; what comes off is in the totals
+        if (!row.querySelector('input[name$=".Description"]').value.trim()) return;   // a line with no description is not saved
+        items += gross - off;
+        lineDiscounts += off;
+        if (row.querySelector('.line-tax').checked) { taxableItems += gross - off; ticked++; }
+      });
+
+      var invoiceOff = mode === 'invoice' ? discountCents(items, invoiceType.value, typed(invoiceValue)) : 0;
+      var taxable = invoiceOff > 0 ? taxableItems - share(invoiceOff, taxableItems, items) : taxableItems;
+      var tax = rate > 0 && taxable > 0 ? Math.floor((taxable * Math.round(rate * 100000) + 50000) / 100000) : 0;
+      var subtotal = items - invoiceOff;
+
+      document.getElementById('totalsSubtotal').textContent = money(items + lineDiscounts);
+      document.getElementById('totalsDiscount').textContent = money(-(invoiceOff + lineDiscounts));
+      document.getElementById('totalsTax').textContent = money(tax);
+      document.getElementById('totalsTotal').textContent = money(subtotal + tax);
+      document.getElementById('totalsTaxLabel').textContent =
+        rate > 0 ? chosen.getAttribute('data-tax-label') + (taxable !== subtotal ? ' on ' + money(Math.max(taxable, 0)) : '') : 'Tax';
+
+      var note = document.getElementById('totalsTaxNote');
+      var reason = hasClient ? (chosen.getAttribute('data-tax-note') || '') : 'Choose a client to see the tax.';
+      if (hasClient && rate > 0 && ticked === 0) reason = 'No line is ticked for tax, so none is charged.';
+      note.textContent = hasClient && rate <= 0 ? 'No tax will be charged on this ' + note.getAttribute('data-doc') + '. ' + reason : reason;
+      note.className = 'small ' + (hasClient && rate <= 0 ? 'text-danger' : 'text-muted');
+    }
+
+    document.getElementById('addLineItem').addEventListener('click', function () {
+      var index = tbody.querySelectorAll('tr').length;
+      tbody.insertAdjacentHTML('beforeend', document.getElementById('lineItemTemplate').innerHTML.replace(/__i__/g, index));
+      refreshTotals();
+    });
+
+    tbody.addEventListener('click', function (e) {
+      var btn = e.target.closest('.remove-row');
+      if (!btn) return;
+      if (tbody.querySelectorAll('tr').length > 1) {
+        btn.closest('tr').remove();
+        reindexRows();
+        refreshTotals();
+      }
+    });
+
+    tbody.addEventListener('input', refreshTotals);
+    tbody.addEventListener('change', refreshTotals);
+    [invoiceValue, invoiceType].forEach(function (field) {
+      field.addEventListener('input', refreshTotals);
+      field.addEventListener('change', refreshTotals);
+    });
+    document.querySelectorAll('input[name="DiscountMode"]').forEach(function (radio) { radio.addEventListener('change', refreshTotals); });
+    if (client) client.addEventListener('change', refreshTotals);
+    refreshTotals();
+  })();
+</script>

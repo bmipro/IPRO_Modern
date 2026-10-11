@@ -401,6 +401,24 @@ td .tax-box.is-taxed {
   border-color: var(--navy);
 }
 
+/* 567 (the owner, 2026-10-11, with a two-line invoice and wide gaps between Qty, Unit price and
+   Amount): the table shared its spare width among all its columns. On a client's document the
+   description takes it, and each figure's column is as wide as what is in it. */
+.client-document .charges th:not(:first-child),
+.client-document .charges td:not(:first-child) {
+  width: 1%;
+  padding-left: 28px;
+  white-space: nowrap;
+}
+
+.client-document .charges th.col-tax,
+.client-document .charges td.col-tax {
+  padding-left: 18px;
+  padding-right: 4px;
+  text-align: center;
+}
+
+
 .totals-area {
   display: grid;
   grid-template-columns: 1fr 330px;
@@ -679,6 +697,15 @@ td .tax-box.is-taxed {
     width: 100%;
     padding: 7px 0;
     text-align: right;
+  }
+
+  /* 567: on a phone every cell is a row of its own again, label on the left and figure on the right. */
+  .client-document .charges td:not(:first-child),
+  .client-document .charges td.col-tax {
+    width: 100%;
+    padding: 7px 0;
+    text-align: right;
+    white-space: normal;
   }
 
   .totals-area {

@@ -10,5 +10,9 @@ public class RecurringInvoiceEditViewModel
     public DateTime NextRunDate { get; set; } = DateTime.UtcNow.Date.AddMonths(1);
     public int DueInDays { get; set; } = 15;
     public string? Notes { get; set; } = string.Empty;
+    // 566: as on an invoice (ClientInvoiceEditViewModel).
+    public string DiscountMode { get; set; } = "none";
+    public InvoiceDiscountType DiscountType { get; set; } = InvoiceDiscountType.Percent;
+    public decimal? DiscountValue { get; set; }   // empty when nothing was typed
     public List<ClientInvoiceLineItemInputModel> LineItems { get; set; } = new();
 }

@@ -15,6 +15,13 @@ public class ClientInvoice
     public DateTime IssueDate { get; set; } = DateTime.UtcNow;
     public DateTime? DueDate { get; set; }
     public string Currency { get; set; } = "CAD";
+    // 566: one discount on the whole invoice. DiscountValue is what was typed (10 for 10 % or for
+    // $10); DiscountAmount is the dollars it came to at the save. SubTotal is what is left AFTER it,
+    // so SubTotal + TaxAmount = Total as it always has, and every report that reads SubTotal as the
+    // sale before tax is still right. The sum of the lines is SubTotal + DiscountAmount.
+    public InvoiceDiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal SubTotal { get; set; }
     public string TaxRegion { get; set; } = string.Empty;
     public decimal TaxRate { get; set; }

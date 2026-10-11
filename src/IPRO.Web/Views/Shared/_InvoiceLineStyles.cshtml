@@ -1,7 +1,11 @@
 @* 563: the line table of the invoice and recurring-schedule editors on a phone. Under 576 px the
    header row goes and each line is two rows: what it is, then quantity, unit price, the Tax tick and
-   remove, each under its own small label (the cell's data-label). *@
+   remove, each under its own small label (the cell's data-label).
+   566: the Discount cell of a line shows only when the discount is on each item (the table then
+   carries "discount-lines"); on a phone it takes a row of its own, after the others. *@
 <style>
+  #lineItemsTable .line-discount { display: none; }
+  #lineItemsTable.discount-lines .line-discount { display: table-cell; }
   @@media (max-width: 575.98px) {
     #lineItemsTable thead { display: none; }
     #lineItemsTable tbody tr { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 12px 0; border-bottom: 1px solid #dee2e6; }
@@ -12,5 +16,7 @@
     #lineItemsTable tbody td.line-price { flex: 1 1 96px; }
     #lineItemsTable tbody td.line-taxed { flex: 0 0 44px; padding-bottom: 6px; }
     #lineItemsTable tbody td.line-remove { flex: 0 0 auto; }
+    #lineItemsTable tbody td.line-discount { display: none; }
+    #lineItemsTable.discount-lines tbody td.line-discount { display: block; flex: 1 1 100%; order: 5; max-width: 220px; }
   }
 </style>

@@ -611,6 +611,18 @@ public static class StartupSchemaRepair
             // was taxed whenever its invoice was.
             await EnsureTableColumnAsync(db, "ClientInvoiceLineItems", "IsTaxable", "ALTER TABLE `ClientInvoiceLineItems` ADD COLUMN `IsTaxable` tinyint(1) NOT NULL DEFAULT 1");
             await EnsureTableColumnAsync(db, "RecurringInvoiceLineItems", "IsTaxable", "ALTER TABLE `RecurringInvoiceLineItems` ADD COLUMN `IsTaxable` tinyint(1) NOT NULL DEFAULT 1");
+            // 566: a discount on the whole invoice or on each item (InvoiceDiscountType: 0 none, 1 percent,
+            // 2 dollars). DEFAULT 0 everywhere: nothing written before this carries a discount.
+            await EnsureTableColumnAsync(db, "ClientInvoices", "DiscountType", "ALTER TABLE `ClientInvoices` ADD COLUMN `DiscountType` int NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "ClientInvoices", "DiscountValue", "ALTER TABLE `ClientInvoices` ADD COLUMN `DiscountValue` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "ClientInvoices", "DiscountAmount", "ALTER TABLE `ClientInvoices` ADD COLUMN `DiscountAmount` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "ClientInvoiceLineItems", "DiscountType", "ALTER TABLE `ClientInvoiceLineItems` ADD COLUMN `DiscountType` int NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "ClientInvoiceLineItems", "DiscountValue", "ALTER TABLE `ClientInvoiceLineItems` ADD COLUMN `DiscountValue` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "ClientInvoiceLineItems", "DiscountAmount", "ALTER TABLE `ClientInvoiceLineItems` ADD COLUMN `DiscountAmount` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "RecurringInvoiceSchedules", "DiscountType", "ALTER TABLE `RecurringInvoiceSchedules` ADD COLUMN `DiscountType` int NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "RecurringInvoiceSchedules", "DiscountValue", "ALTER TABLE `RecurringInvoiceSchedules` ADD COLUMN `DiscountValue` decimal(10,2) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "RecurringInvoiceLineItems", "DiscountType", "ALTER TABLE `RecurringInvoiceLineItems` ADD COLUMN `DiscountType` int NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "RecurringInvoiceLineItems", "DiscountValue", "ALTER TABLE `RecurringInvoiceLineItems` ADD COLUMN `DiscountValue` decimal(10,2) NOT NULL DEFAULT 0");
             await EnsureUniqueIndexAsync(db, "ClientInvoices", "UX_ClientInvoices_Agent_DocumentNumber",
                 "ALTER TABLE `ClientInvoices` ADD UNIQUE INDEX `UX_ClientInvoices_Agent_DocumentNumber` (`AgentUserId`, `DocumentNumber`)");
             // Backstop for the 2026-08-05 domain-takeover fix. DescribeDomainClaimAsync is a read followed

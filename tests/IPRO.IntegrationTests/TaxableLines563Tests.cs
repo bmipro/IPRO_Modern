@@ -359,32 +359,28 @@ public class TaxableLines563Tests
     [Fact]
     public void The_editor_has_a_tick_on_every_line_and_shows_the_totals_as_it_is_filled_in()
     {
-        var editor = Read(@"src\IPRO.Web\Views\ClientInvoices\Edit.cshtml");
+        // 566: the invoice screen and the recurring-schedule screen share one lines editor now.
+        var editor = Read(@"src\IPRO.Web\Views\Shared\_InvoiceLinesEditor.cshtml");
         // A ticked box posts "true"; the hidden field after it answers "false" for an empty box.
-        Assert.Contains("name=\"LineItems[@i].IsTaxable\" value=\"true\" checked=\"@lineItems[i].IsTaxable\"", editor);
+        Assert.Contains("name=\"LineItems[@i].IsTaxable\" value=\"true\" checked=\"@line.IsTaxable\"", editor);
         Assert.Contains("<input type=\"hidden\" name=\"LineItems[@i].IsTaxable\" value=\"false\" />", editor);
-        Assert.Contains("name=\"LineItems[' + nextIndex + '].IsTaxable\" value=\"true\" checked", editor);     // a line added in the browser
+        // A line added in the browser is a copy of the same row, ticked like any new line.
+        Assert.Contains("await Row(\"__i__\", new IPRO.Web.Models.ClientInvoiceLineItemInputModel());", editor);
+        Assert.Contains("document.getElementById('lineItemTemplate').innerHTML.replace(/__i__/g, index)", editor);
         Assert.Contains("style=\"width:56px\"", editor);                                                        // the narrow column
         foreach (var id in new[] { "id=\"totalsSubtotal\"", "id=\"totalsTax\"", "id=\"totalsTotal\"", "id=\"totalsTaxNote\"" })
             Assert.Contains(id, editor);
-        Assert.Contains("data-tax-rate=", editor);
         Assert.Contains("'No tax will be charged on this '", editor);                                           // said before the invoice goes out
-
-        var recurring = Read(@"src\IPRO.Web\Views\RecurringInvoices\Edit.cshtml");
-        Assert.Contains("name=\"LineItems[@i].IsTaxable\" value=\"true\" checked=\"@lineItems[i].IsTaxable\"", recurring);
-        Assert.Contains("<input type=\"hidden\" name=\"LineItems[@i].IsTaxable\" value=\"false\" />", recurring);
+        Assert.Contains("data-tax-rate=", Read(@"src\IPRO.Web\Views\Shared\_InvoiceClientSelect.cshtml"));
 
         // On a phone the tick is on the screen, under its own label, not a sideways scroll away: each
-        // line is two rows, by one set of styles both editors share.
+        // line is two rows.
         var styles = Read(@"src\IPRO.Web\Views\Shared\_InvoiceLineStyles.cshtml");
         Assert.Contains("@@media (max-width: 575.98px) {", styles);            // doubled: a single @ is Razor's, and the build fails on it
         Assert.Contains("#lineItemsTable tbody td[data-label]::before { content: attr(data-label);", styles);
-        foreach (var view in new[] { editor, recurring })
-        {
-            Assert.Contains("<partial name=\"_InvoiceLineStyles\" />", view);
-            Assert.Equal(2, view.Split("line-taxed\" data-label=\"Tax\">").Length - 1);      // the row, and the row the script adds
-            Assert.Equal(2, view.Split("class=\"line-qty\" data-label=\"Qty\">").Length - 1);
-        }
+        Assert.Contains("<partial name=\"_InvoiceLineStyles\" />", editor);
+        Assert.Contains("line-taxed\" data-label=\"Tax\">", editor);
+        Assert.Contains("class=\"line-qty\" data-label=\"Qty\">", editor);
     }
 
     [Fact]
