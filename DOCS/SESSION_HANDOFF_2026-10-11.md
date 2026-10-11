@@ -48,8 +48,7 @@
   sent now show dates one day later than their page did, which is what their emails always said: tell the owner.
 - **Lesson:** a Razor view with a style block needs `@@media`; a single `@` builds as C#. The solution build before the
   last view was added passed, and only the local run of the app caught it. Build after the LAST edit, always.
-- **Discounts:** he is asking the bakery whether a discount applies to one item or to the whole invoice. Not built.
-  Today a line with a negative amount does it, and lowers the tax when its Tax box is ticked.
+- **Discounts:** built the same evening as 566 (below), once the bakery had answered: one discount on the whole invoice.
 - **Offered, not built:** a GST/HST registration number on the invoice (there is no field for one; Canadian
   registrants are expected to show it), and a one-time "we do not charge tax" setting for a business that never does.
 
@@ -59,6 +58,18 @@
   "30 days is good, build all four": a period (30 days by default), 25 to a page, a **Needs attention** tab, and a
   search by subject or recipient. Built the same evening; see the row in `DOCS/TODO.md`.
 - Not built, offered: collapsing the one-at-a-time automatic emails into one row per day.
+
+## Discounts (566) and the invoice's columns (567)
+
+- The bakery wants one discount on the whole invoice; the owner wanted both kinds for other businesses and asked to be
+  shown before any deploy. Built, shown as pictures from the local app, and changed once on his word: a discount on the
+  items is a line of the totals ("Discounts"), not a small note under the lines. Then "looks good".
+- One choice under the lines: None, Whole invoice, Each item. Tax after the discount; a whole-invoice discount is
+  shared between taxed and untaxed lines. The two editors (invoice, recurring) now share one lines editor.
+- 567: his two-line invoice had wide gaps between the figures; the description takes the spare width now.
+- **Next, agreed (568):** the editor remembers items. Typing in a line's Description offers the items this business has
+  invoiced before, with the last price and Tax tick; picking one fills the line. No setup, no new screen. A managed
+  "My items" list was offered as the alternative and held back.
 
 ## Still his
 
@@ -71,7 +82,7 @@
 
 ## Not seen signed in
 
-The Email Activity list with its period, pages, Needs attention tab and search (565); the invoice editor with its Tax ticks and live totals, and the recurring editor (563); Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
+The discount choice in the invoice and recurring editors (566); the Email Activity list with its period, pages, Needs attention tab and search (565); the invoice editor with its Tax ticks and live totals, and the recurring editor (563); Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
 in the block editor (560); the Business hours card on My Website (559). The owner's first visit to each is its
 first real look: fix whatever he finds.
 
