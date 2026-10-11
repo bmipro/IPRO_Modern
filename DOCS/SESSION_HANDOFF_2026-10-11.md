@@ -23,6 +23,8 @@
 
 | Commit | What | Gate |
 |---|---|---|
+| `7eced19` | **561** the rate limiter knows a visitor by the connection, never by a header (live on build `a551e51`) | 1597/1597 |
+| `dd4ba34` | **562** an invoice email shows whether the client viewed the invoice (live on build `a551e51`) | 1597/1597 |
 
 ## Invoice tax and discounts (open, next)
 
