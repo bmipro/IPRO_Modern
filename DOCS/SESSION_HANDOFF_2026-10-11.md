@@ -52,6 +52,13 @@
 - **Offered, not built:** a GST/HST registration number on the invoice (there is no field for one; Canadian
   registrants are expected to show it), and a one-time "we do not charge tax" setting for a business that never does.
 
+## Email Activity (565)
+
+- The owner scrolled the list back to August and asked how to keep it manageable. Recommended four things; he said
+  "30 days is good, build all four": a period (30 days by default), 25 to a page, a **Needs attention** tab, and a
+  search by subject or recipient. Built the same evening; see the row in `DOCS/TODO.md`.
+- Not built, offered: collapsing the one-at-a-time automatic emails into one row per day.
+
 ## Still his
 
 - SES step 8.2: `Email__Ses__Streams` = `notify,news` on `ipro-prod-web` (today it is `notify`, six characters;
@@ -63,7 +70,7 @@
 
 ## Not seen signed in
 
-The invoice editor with its Tax ticks and live totals, and the recurring editor (563); Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
+The Email Activity list with its period, pages, Needs attention tab and search (565); the invoice editor with its Tax ticks and live totals, and the recurring editor (563); Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
 in the block editor (560); the Business hours card on My Website (559). The owner's first visit to each is its
 first real look: fix whatever he finds.
 
