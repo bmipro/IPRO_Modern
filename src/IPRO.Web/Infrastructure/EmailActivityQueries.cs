@@ -80,6 +80,7 @@ public static class EmailActivityQueries
             {
                 e.Id, e.Kind, e.Status, e.Subject, e.ToEmail, e.SentAt, e.CreatedAt,
                 e.DeliveredAt, e.OpenedAt,
+                LastViewed = e.ClientInvoice.LastViewedAt,
                 Number = e.ClientInvoice.DocumentNumber,
                 ClientFirst = e.ClientInvoice.Client.FirstName,
                 ClientLast = e.ClientInvoice.Client.LastName
@@ -96,7 +97,9 @@ public static class EmailActivityQueries
                 1,
                 e.SentAt != null ? 1 : 0,
                 e.DeliveredAt != null ? 1 : 0,
-                e.OpenedAt != null ? 1 : 0,
+                // 562: invoice mail carries no open pixel; what counts is the client viewing the invoice
+                // itself after this email went out. The list shows that in the Opened column.
+                InvoiceViewText.ViewedSince(e.SentAt, e.LastViewed) ? 1 : 0,
                 e.Status is ClientInvoiceEmailStatus.Failed or ClientInvoiceEmailStatus.Bounced ? 1 : 0))
             .ToList();
     }
@@ -119,5 +122,43 @@ public static class EmailActivityQueries
                 ($"{r.ClientFirst} {r.ClientLast}").Trim(), r.ToEmail, r.Status.ToString(),
                 r.SentAt, r.DeliveredAt, r.OpenedAt, r.ClickedAt, r.FailureReason))
             .ToList();
+    }
+
+    // 562: the invoice behind one invoice email, and when the client last looked at it.
+    public static async Task<InvoiceViewInfo?> InvoiceViewAsync(IPRODbContext db, int agentId, int emailId)
+    {
+        return await db.ClientInvoiceEmails
+            .AsNoTracking()
+            .Where(e => e.Id == emailId && e.AgentUserId == agentId)
+            .Select(e => new InvoiceViewInfo(
+                e.ClientInvoiceId, e.ClientInvoice.DocumentNumber, e.SentAt,
+                e.ClientInvoice.FirstViewedAt, e.ClientInvoice.LastViewedAt, e.ClientInvoice.ViewCount))
+            .FirstOrDefaultAsync();
+    }
+}
+
+// 562 (2026-10-11). The owner, looking at an invoice email in Email Activity: "remind me again as why
+// we do not track Opened?" and, of the explanation under the table, "it is as confusing if it was
+// written by me". Invoice mail has no open pixel on purpose: the invoice page stamps a view each time
+// the client opens the invoice (452), which says more than a mail app loading pictures. The screen
+// said "not tracked" and never mentioned that. It now says whether the invoice was viewed.
+public record InvoiceViewInfo(int InvoiceId, string DocumentNumber, DateTime? SentAt, DateTime? FirstViewedAt, DateTime? LastViewedAt, int ViewCount)
+{
+    public bool ViewedSinceThisEmail => InvoiceViewText.ViewedSince(SentAt, LastViewedAt);
+}
+
+public static class InvoiceViewText
+{
+    // An invoice can be emailed more than once (a resend, a reminder). A view counts for an email
+    // when it happened after that email went out.
+    public static bool ViewedSince(DateTime? sentAt, DateTime? lastViewedAt) =>
+        sentAt.HasValue && lastViewedAt.HasValue && lastViewedAt.Value >= sentAt.Value;
+
+    public static string Describe(InvoiceViewInfo? view, Func<DateTime, string> stamp)
+    {
+        if (view == null || view.ViewCount <= 0 || !view.LastViewedAt.HasValue) return "Not viewed yet";
+        var when = stamp(view.LastViewedAt.Value);
+        if (!view.ViewedSinceThisEmail) return $"Not since this email (last viewed {when})";
+        return view.ViewCount == 1 ? $"Viewed {when}" : $"Viewed {when} ({view.ViewCount} views in all)";
     }
 }

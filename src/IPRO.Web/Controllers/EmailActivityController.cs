@@ -81,6 +81,9 @@ public class EmailActivityController : Controller
         // Invoice mail is not instrumented (488): the invoice page records its own views instead.
         ViewBag.EngagementTracking = _email.EngagementTrackingEnabled
             || (_email.PlatformTrackingEnabled && normalizedType != "invoice");
+        // 562: an invoice email shows whether the client viewed the invoice itself.
+        if (normalizedType == "invoice")
+            ViewBag.InvoiceView = await IPRO.Web.Infrastructure.EmailActivityQueries.InvoiceViewAsync(_db, AgentId, id);
         return View(await LoadRecipientsAsync(normalizedType, id));
     }
 
