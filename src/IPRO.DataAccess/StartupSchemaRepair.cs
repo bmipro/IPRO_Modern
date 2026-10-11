@@ -531,6 +531,7 @@ public static class StartupSchemaRepair
         `Quantity` decimal(10,2) NOT NULL DEFAULT 1,
         `UnitPrice` decimal(10,2) NOT NULL DEFAULT 0,
         `Amount` decimal(10,2) NOT NULL DEFAULT 0,
+        `IsTaxable` tinyint(1) NOT NULL DEFAULT 1,
         `SortOrder` int NOT NULL DEFAULT 0,
         PRIMARY KEY (`Id`)
     ) CHARACTER SET=utf8mb4;");
@@ -557,6 +558,7 @@ public static class StartupSchemaRepair
         `Description` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
         `Quantity` decimal(10,2) NOT NULL DEFAULT 1,
         `UnitPrice` decimal(10,2) NOT NULL DEFAULT 0,
+        `IsTaxable` tinyint(1) NOT NULL DEFAULT 1,
         `SortOrder` int NOT NULL DEFAULT 0,
         PRIMARY KEY (`Id`)
     ) CHARACTER SET=utf8mb4;");
@@ -605,6 +607,10 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "ClientInvoices", "ViewCount", "ALTER TABLE `ClientInvoices` ADD COLUMN `ViewCount` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "AgentUsers", "TrialRemindersSentCount", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialRemindersSentCount` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "ClientInvoices", "LastReminderSentAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastReminderSentAt` datetime(6) NULL");
+            // 563: tax is a choice on each line. DEFAULT 1 because every line written before this
+            // was taxed whenever its invoice was.
+            await EnsureTableColumnAsync(db, "ClientInvoiceLineItems", "IsTaxable", "ALTER TABLE `ClientInvoiceLineItems` ADD COLUMN `IsTaxable` tinyint(1) NOT NULL DEFAULT 1");
+            await EnsureTableColumnAsync(db, "RecurringInvoiceLineItems", "IsTaxable", "ALTER TABLE `RecurringInvoiceLineItems` ADD COLUMN `IsTaxable` tinyint(1) NOT NULL DEFAULT 1");
             await EnsureUniqueIndexAsync(db, "ClientInvoices", "UX_ClientInvoices_Agent_DocumentNumber",
                 "ALTER TABLE `ClientInvoices` ADD UNIQUE INDEX `UX_ClientInvoices_Agent_DocumentNumber` (`AgentUserId`, `DocumentNumber`)");
             // Backstop for the 2026-08-05 domain-takeover fix. DescribeDomainClaimAsync is a read followed

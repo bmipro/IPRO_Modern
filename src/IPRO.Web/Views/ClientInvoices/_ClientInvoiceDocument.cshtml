@@ -312,7 +312,7 @@
                 <th scope="col">Description</th>
                 <th scope="col">Qty</th>
                 <th scope="col">Unit price</th>
-                <th scope="col">Tax</th>
+                <th scope="col" class="col-tax">Tax</th>
                 <th scope="col">Amount</th>
               </tr>
             </thead>
@@ -323,7 +323,9 @@
                   <td data-label="Description"><strong>@line.Description</strong></td>
                   <td data-label="Quantity">@line.Quantity.ToString("0.##")</td>
                   <td data-label="Unit price">@Cell(line.UnitPrice)</td>
-                  <td data-label="Tax">@line.TaxLabel</td>
+                  @* 563 (the owner, 2026-10-11): "for each item all we need is a checked box". The tax's
+                     name and its total are in the Tax summary below, once. *@
+                  <td data-label="Tax" class="col-tax"><span class="tax-box@(line.Taxed ? " is-taxed" : string.Empty)" aria-hidden="true">@if (line.Taxed) {<text>&#10003;</text>}</span><span class="visually-hidden">@(line.Taxed ? "Taxed" : "Not taxed")</span></td>
                   <td data-label="Amount">@Cell(line.Amount)</td>
                 </tr>
               }
@@ -337,7 +339,7 @@
           <h2>Tax summary</h2>
           @if (view.HasTax)
           {
-            <p><span>Taxable amount</span><strong>@Money(Model.SubTotal)</strong></p>
+            <p><span>Taxable amount</span><strong>@Money(view.TaxableAmount)</strong></p>
             <p><span>@view.TaxLabel</span><strong>@Money(Model.TaxAmount)</strong></p>
           }
           else

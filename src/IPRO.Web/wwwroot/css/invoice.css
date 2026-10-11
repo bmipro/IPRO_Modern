@@ -371,6 +371,36 @@ td span {
   font-size: 12px;
 }
 
+/* 563: on a client's invoice the Tax column is a tick per line and no wider than its heading;
+   the Tax summary names the tax and carries its total. */
+th.col-tax,
+td.col-tax {
+  width: 1%;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+td .tax-box {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin: 1px 0 0;
+  border: 1.5px solid var(--muted);
+  border-radius: 2px;
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 12px;
+  text-align: center;
+  vertical-align: top;
+}
+
+td .tax-box.is-taxed {
+  border-color: var(--navy);
+}
+
 .totals-area {
   display: grid;
   grid-template-columns: 1fr 330px;
@@ -643,6 +673,12 @@ td span {
   td:first-child::before {
     display: block;
     margin-bottom: 8px;
+  }
+
+  td.col-tax {
+    width: 100%;
+    padding: 7px 0;
+    text-align: right;
   }
 
   .totals-area {

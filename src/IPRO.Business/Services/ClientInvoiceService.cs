@@ -2,6 +2,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess.Repositories;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Business.Services;
 
@@ -10,38 +11,25 @@ public class ClientInvoiceService : IClientInvoiceService
     private readonly IUnitOfWork _uow;
     public ClientInvoiceService(IUnitOfWork uow) => _uow = uow;
 
-    public async Task<ClientInvoiceTaxResult> CalculateTaxAsync(Client client, decimal taxableAmount)
+    public Task<ClientInvoiceTaxResult> CalculateTaxAsync(Client client, decimal taxableAmount) =>
+        CalculateTaxAsync(client, null, taxableAmount);
+
+    // 563: the business is asked too, so a client with no province takes the business's own rate
+    // (see ClientInvoiceTaxRules). The amount is what is TAXABLE, which is no longer the subtotal:
+    // each line says whether it is taxed.
+    public async Task<ClientInvoiceTaxResult> CalculateTaxAsync(Client client, AgentUser? business, decimal taxableAmount)
     {
         if (taxableAmount <= 0)
         {
             return new ClientInvoiceTaxResult(0, 0, "No tax");
         }
 
-        var country = (client.Country ?? string.Empty).Trim();
-        if (country.Equals("US", StringComparison.OrdinalIgnoreCase) ||
-            country.Equals("USA", StringComparison.OrdinalIgnoreCase) ||
-            country.Equals("United States", StringComparison.OrdinalIgnoreCase) ||
-            country.Equals("United States of America", StringComparison.OrdinalIgnoreCase))
-        {
-            return new ClientInvoiceTaxResult(0, 0, "US");
-        }
-
-        if (!country.Equals("Canada", StringComparison.OrdinalIgnoreCase) &&
-            !country.Equals("CA", StringComparison.OrdinalIgnoreCase))
-        {
-            return new ClientInvoiceTaxResult(0, 0, country.Length == 0 ? "No tax" : country);
-        }
-
-        var province = NormalizeProvince(client.Province);
-        var taxRate = await _uow.ProvinceTaxRates.FirstOrDefaultAsync(t => t.ProvinceCode == province && t.IsActive);
-        if (taxRate == null)
-        {
-            return new ClientInvoiceTaxResult(0, 0, string.IsNullOrWhiteSpace(province) ? "Canada" : province);
-        }
-
-        var amount = Math.Round(taxableAmount * taxRate.Rate, 2, MidpointRounding.AwayFromZero);
-        return new ClientInvoiceTaxResult(taxRate.Rate, amount, $"{taxRate.ProvinceCode} {taxRate.TaxLabel}".Trim());
+        var rule = ClientInvoiceTaxRules.Resolve(client, business, await ActiveTaxRatesAsync());
+        return new ClientInvoiceTaxResult(rule.Rate, ClientInvoiceTaxRules.TaxOn(taxableAmount, rule.Rate), rule.Region);
     }
+
+    public async Task<IReadOnlyList<ProvinceTaxRate>> ActiveTaxRatesAsync() =>
+        await _uow.Context.ProvinceTaxRates.AsNoTracking().Where(t => t.IsActive).ToListAsync();
 
     // 418 (2026-09-09): per agent and per document type, a counter that only goes up (see
     // PayPalBillingService.GenerateInvoiceNumberAsync for the incident). Seeded from the agent's
@@ -62,29 +50,4 @@ public class ClientInvoiceService : IClientInvoiceService
 
         return documentNumber;
     }
-
-    private static string NormalizeProvince(string? province)
-    {
-        var value = (province ?? string.Empty).Trim().ToUpperInvariant();
-        return ProvinceAliases.TryGetValue(value, out var alias) ? alias : value;
-    }
-
-    private static readonly Dictionary<string, string> ProvinceAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["ALBERTA"] = "AB",
-        ["BRITISH COLUMBIA"] = "BC",
-        ["MANITOBA"] = "MB",
-        ["NEW BRUNSWICK"] = "NB",
-        ["NEWFOUNDLAND"] = "NL",
-        ["NEWFOUNDLAND AND LABRADOR"] = "NL",
-        ["NORTHWEST TERRITORIES"] = "NT",
-        ["NOVA SCOTIA"] = "NS",
-        ["NUNAVUT"] = "NU",
-        ["ONTARIO"] = "ON",
-        ["PRINCE EDWARD ISLAND"] = "PE",
-        ["QUEBEC"] = "QC",
-        ["QUÉBEC"] = "QC",
-        ["SASKATCHEWAN"] = "SK",
-        ["YUKON"] = "YT"
-    };
 }

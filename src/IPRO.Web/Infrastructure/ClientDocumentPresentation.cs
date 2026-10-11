@@ -3,7 +3,8 @@ using IPRO.Entities;
 
 namespace IPRO.Web.Infrastructure;
 
-public sealed record ClientDocumentLineView(string Description, decimal Quantity, decimal UnitPrice, string TaxLabel, decimal Amount);
+// Taxed (563): tax is charged on this line -- the document has tax and the line is ticked for it.
+public sealed record ClientDocumentLineView(string Description, decimal Quantity, decimal UnitPrice, string TaxLabel, decimal Amount, bool Taxed = false);
 
 // 515 (2026-09-22): what an adviser's invoice or estimate to a client says, on the same design as
 // the platform's own invoice (514) but branded for the ADVISER: their company name, address, phone
@@ -30,6 +31,7 @@ public sealed class ClientDocumentPresentation
     public IReadOnlyList<string> BillToAddressLines { get; init; } = Array.Empty<string>();
     public string TaxLabel { get; init; } = string.Empty;
     public bool HasTax { get; init; }
+    public decimal TaxableAmount { get; init; }   // 563: the ticked lines, which is what the tax is charged on
     public IReadOnlyList<ClientDocumentLineView> Lines { get; init; } = Array.Empty<ClientDocumentLineView>();
     public bool ShowsBalance { get; init; }
     public decimal PaymentReceived { get; init; }
@@ -41,6 +43,11 @@ public sealed class ClientDocumentPresentation
         var client = document.Client;
         var zone = agent?.TimeZone;
         string Day(DateTime utc) => AgentTimeZoneHelper.FromUtc(utc, zone).ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
+        // 564 (2026-10-11): the issue date and the due date are calendar dates, typed in the editor's date
+        // boxes and stored at midnight. Read as moments in UTC and moved to the adviser's zone, they showed
+        // the day BEFORE to everyone west of Greenwich, while the email, the list and the statement said
+        // the day itself. A payment is a moment, so the paid date keeps its conversion.
+        string Date(DateTime date) => date.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
 
         var (statusText, statusClass) = document.Status switch
         {
@@ -54,10 +61,14 @@ public sealed class ClientDocumentPresentation
         };
 
         var taxLabel = InvoiceText.TaxLabel(document.TaxRegion, document.TaxRate, document.TaxAmount);
-        var lines = (document.LineItems ?? new List<ClientInvoiceLineItem>())
-            .OrderBy(i => i.SortOrder)
-            .Select(i => new ClientDocumentLineView(i.Description, i.Quantity, i.UnitPrice, taxLabel, i.Amount))
+        // 563: each line says whether it is taxed. A line left unticked reads "No tax"; on a document
+        // with no tax at all, no line is taxed whatever its tick says.
+        var hasTax = document.TaxAmount > 0;
+        var items = (document.LineItems ?? new List<ClientInvoiceLineItem>()).OrderBy(i => i.SortOrder).ToList();
+        var lines = items
+            .Select(i => new ClientDocumentLineView(i.Description, i.Quantity, i.UnitPrice, hasTax && !i.IsTaxable ? "No tax" : taxLabel, i.Amount, hasTax && i.IsTaxable))
             .ToList();
+        var taxableAmount = !hasTax ? 0m : items.Count == 0 ? document.SubTotal : items.Where(i => i.IsTaxable).Sum(i => i.Amount);
 
         var billToName = $"{client?.FirstName} {client?.LastName}".Trim();
         var cityLine = AddressText.CityLine(client?.City, client?.Province, client?.PostalCode);   // 516: one way everywhere
@@ -79,8 +90,8 @@ public sealed class ClientDocumentPresentation
             SupplierPhone = agent?.Phone?.Trim() ?? string.Empty,
             SupplierEmail = agent?.Email?.Trim() ?? string.Empty,
             LogoUrl = logoUrl?.Trim() ?? string.Empty,
-            IssueDate = Day(document.IssueDate),
-            DueDate = document.DueDate.HasValue ? Day(document.DueDate.Value) : string.Empty,
+            IssueDate = Date(document.IssueDate),
+            DueDate = document.DueDate.HasValue ? Date(document.DueDate.Value) : string.Empty,
             PaidOn = paid && document.PaidAt.HasValue ? Day(document.PaidAt.Value) : string.Empty,
             PaidMethod = paid ? MethodWords(document.PaidMethod) : string.Empty,
             BillToName = billToName.Length == 0 ? (client?.CompanyName ?? string.Empty) : billToName,
@@ -88,7 +99,8 @@ public sealed class ClientDocumentPresentation
             BillToEmail = client?.Email?.Trim() ?? string.Empty,
             BillToAddressLines = billToLines,
             TaxLabel = taxLabel,
-            HasTax = document.TaxAmount > 0,
+            HasTax = hasTax,
+            TaxableAmount = taxableAmount,
             Lines = lines,
             ShowsBalance = !isEstimate && (paid || owes),
             PaymentReceived = paid ? document.Total : 0m,

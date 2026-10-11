@@ -52,12 +52,14 @@
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
       <label class="form-label fw-bold">Line Items</label>
+      <partial name="_InvoiceLineStyles" />
       <table class="table" id="lineItemsTable">
         <thead>
           <tr>
             <th>Description</th>
             <th style="width:110px">Qty</th>
             <th style="width:140px">Unit Price</th>
+            <th class="text-center" style="width:56px" title="Tick each line that is taxed">Tax</th>
             <th style="width:40px"></th>
           </tr>
         </thead>
@@ -65,10 +67,12 @@
           @for (var i = 0; i < lineItems.Count; i++)
           {
             <tr class="line-item-row">
-              <td><input type="text" name="LineItems[@i].Description" class="form-control" value="@lineItems[i].Description" placeholder="Service or product description" /></td>
-              <td><input type="number" step="0.01" name="LineItems[@i].Quantity" class="form-control" value="@lineItems[i].Quantity" /></td>
-              <td><input type="number" step="0.01" name="LineItems[@i].UnitPrice" class="form-control" value="@lineItems[i].UnitPrice" /></td>
-              <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>
+              <td class="line-what"><input type="text" name="LineItems[@i].Description" class="form-control" value="@lineItems[i].Description" placeholder="Service or product description" /></td>
+              <td class="line-qty" data-label="Qty"><input type="number" step="0.01" name="LineItems[@i].Quantity" class="form-control" value="@lineItems[i].Quantity" /></td>
+              <td class="line-price" data-label="Unit price"><input type="number" step="0.01" name="LineItems[@i].UnitPrice" class="form-control" value="@lineItems[i].UnitPrice" /></td>
+              @* 563: the ticked box posts "true"; the hidden field behind it answers "false" for a box left empty. *@
+              <td class="text-center align-middle line-taxed" data-label="Tax"><input type="checkbox" class="form-check-input line-tax" name="LineItems[@i].IsTaxable" value="true" checked="@lineItems[i].IsTaxable" aria-label="Charge tax on this line" /><input type="hidden" name="LineItems[@i].IsTaxable" value="false" /></td>
+              <td class="line-remove"><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>
             </tr>
           }
         </tbody>
@@ -103,10 +107,11 @@
     row.className = 'line-item-row';
     var nextIndex = tbody.querySelectorAll('tr').length;
     row.innerHTML =
-      '<td><input type="text" name="LineItems[' + nextIndex + '].Description" class="form-control" placeholder="Service or product description" /></td>' +
-      '<td><input type="number" step="0.01" name="LineItems[' + nextIndex + '].Quantity" class="form-control" value="1" /></td>' +
-      '<td><input type="number" step="0.01" name="LineItems[' + nextIndex + '].UnitPrice" class="form-control" value="0" /></td>' +
-      '<td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>';
+      '<td class="line-what"><input type="text" name="LineItems[' + nextIndex + '].Description" class="form-control" placeholder="Service or product description" /></td>' +
+      '<td class="line-qty" data-label="Qty"><input type="number" step="0.01" name="LineItems[' + nextIndex + '].Quantity" class="form-control" value="1" /></td>' +
+      '<td class="line-price" data-label="Unit price"><input type="number" step="0.01" name="LineItems[' + nextIndex + '].UnitPrice" class="form-control" value="0" /></td>' +
+      '<td class="text-center align-middle line-taxed" data-label="Tax"><input type="checkbox" class="form-check-input line-tax" name="LineItems[' + nextIndex + '].IsTaxable" value="true" checked aria-label="Charge tax on this line" /><input type="hidden" name="LineItems[' + nextIndex + '].IsTaxable" value="false" /></td>' +
+      '<td class="line-remove"><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="fas fa-trash"></i></button></td>';
     tbody.appendChild(row);
   });
 

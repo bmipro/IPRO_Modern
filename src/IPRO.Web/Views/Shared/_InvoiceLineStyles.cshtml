@@ -1,0 +1,16 @@
+@* 563: the line table of the invoice and recurring-schedule editors on a phone. Under 576 px the
+   header row goes and each line is two rows: what it is, then quantity, unit price, the Tax tick and
+   remove, each under its own small label (the cell's data-label). *@
+<style>
+  @@media (max-width: 575.98px) {
+    #lineItemsTable thead { display: none; }
+    #lineItemsTable tbody tr { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 12px 0; border-bottom: 1px solid #dee2e6; }
+    #lineItemsTable tbody td { display: block; border: 0; padding: 0; }
+    #lineItemsTable tbody td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: #6c757d; font-size: .75rem; }
+    #lineItemsTable tbody td.line-what { flex: 0 0 100%; }
+    #lineItemsTable tbody td.line-qty { flex: 0 0 76px; }
+    #lineItemsTable tbody td.line-price { flex: 1 1 96px; }
+    #lineItemsTable tbody td.line-taxed { flex: 0 0 44px; padding-bottom: 6px; }
+    #lineItemsTable tbody td.line-remove { flex: 0 0 auto; }
+  }
+</style>

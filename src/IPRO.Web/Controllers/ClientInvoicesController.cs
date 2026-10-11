@@ -226,7 +226,7 @@ public class ClientInvoicesController : Controller
         foreach (var invoice in invoices)
         {
             var contact = $"{invoice.Client?.FirstName} {invoice.Client?.LastName}".Trim();
-            var taxType = invoice.TaxRate == 0 ? "Tax Exempt" : $"{invoice.TaxRegion} {invoice.TaxRate * 100:0.###}%".Trim();
+            var taxedType = invoice.TaxRate == 0 ? "Tax Exempt" : $"{invoice.TaxRegion} {invoice.TaxRate * 100:0.###}%".Trim();
             var lines = invoice.LineItems.OrderBy(l => l.SortOrder).ToList();
             if (lines.Count == 0)
             {
@@ -234,7 +234,9 @@ public class ClientInvoicesController : Controller
             }
             foreach (var line in lines)
             {
-                var lineTax = Math.Round(line.Amount * invoice.TaxRate, 2);
+                // 563: a line that is not ticked carries no tax and says so.
+                var taxType = line.IsTaxable ? taxedType : "Tax Exempt";
+                var lineTax = line.IsTaxable ? Math.Round(line.Amount * invoice.TaxRate, 2) : 0m;
                 csv.AppendLine(string.Join(",",
                     CsvEscape(contact),
                     CsvEscape(invoice.Client?.Email ?? string.Empty),
@@ -421,7 +423,10 @@ public class ClientInvoicesController : Controller
         if (gate != null) return gate;
 
         await LoadClientsAsync();
-        return View("Edit", new ClientInvoiceEditViewModel { DocumentType = documentType });
+        // 564: a new document is dated the adviser's own today (it was the UTC date, which is tomorrow
+        // from eight in the evening in Toronto).
+        var (_, today) = await AgentDayAsync();
+        return View("Edit", new ClientInvoiceEditViewModel { DocumentType = documentType, IssueDate = today, DueDate = today.AddDays(15) });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -494,7 +499,8 @@ public class ClientInvoicesController : Controller
             {
                 Description = l.Description,
                 Quantity = l.Quantity,
-                UnitPrice = l.UnitPrice
+                UnitPrice = l.UnitPrice,
+                IsTaxable = l.IsTaxable
             }).ToList()
         });
     }
@@ -673,8 +679,9 @@ public class ClientInvoicesController : Controller
         invoice.DocumentType = ClientInvoiceDocumentType.Invoice;
         invoice.Status = ClientInvoiceStatus.Draft;
         invoice.DocumentNumber = await _invoiceService.GenerateDocumentNumberAsync(AgentId, ClientInvoiceDocumentType.Invoice);
-        invoice.IssueDate = DateTime.UtcNow.Date;
-        invoice.DueDate = DateTime.UtcNow.Date.AddDays(15);
+        var (_, today) = await AgentDayAsync();   // 564: the adviser's own day
+        invoice.IssueDate = today;
+        invoice.DueDate = today.AddDays(15);
         invoice.SentAt = null;
         invoice.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -692,14 +699,15 @@ public class ClientInvoicesController : Controller
         var source = await _db.ClientInvoices.Include(i => i.LineItems).Include(i => i.Client).FirstOrDefaultAsync(i => i.Id == id && i.AgentUserId == AgentId);
         if (source == null) return NotFound();
 
+        var (_, today) = await AgentDayAsync();   // 564: the adviser's own day
         var copy = new ClientInvoice
         {
             AgentUserId = AgentId,
             ClientId = source.ClientId,
             DocumentType = source.DocumentType,
             Status = ClientInvoiceStatus.Draft,
-            IssueDate = DateTime.UtcNow.Date,
-            DueDate = source.DocumentType == ClientInvoiceDocumentType.Invoice ? DateTime.UtcNow.Date.AddDays(15) : null,
+            IssueDate = today,
+            DueDate = source.DocumentType == ClientInvoiceDocumentType.Invoice ? today.AddDays(15) : null,
             Notes = source.Notes,
             ViewToken = Guid.NewGuid().ToString("N"),
             DocumentNumber = await _invoiceService.GenerateDocumentNumberAsync(AgentId, source.DocumentType),
@@ -715,9 +723,16 @@ public class ClientInvoicesController : Controller
                 Quantity = l.Quantity,
                 UnitPrice = l.UnitPrice,
                 Amount = l.Amount,
+                IsTaxable = l.IsTaxable,
                 SortOrder = l.SortOrder
             }).ToList()
         };
+        // 563: the copy is taxed by what is true today (the client may have a province now), not by
+        // the figures the original was saved with.
+        if (source.Client != null)
+        {
+            await ApplyTotalsAsync(copy, source.Client);
+        }
 
         _db.ClientInvoices.Add(copy);
         await _db.SaveChangesAsync();
@@ -728,7 +743,13 @@ public class ClientInvoicesController : Controller
 
     private async Task LoadClientsAsync()
     {
-        ViewBag.Clients = await _db.Clients.AsNoTracking().Where(c => c.AgentUserId == AgentId).OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync();
+        var clients = await _db.Clients.AsNoTracking().Where(c => c.AgentUserId == AgentId).OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync();
+        ViewBag.Clients = clients;
+        // 563: the editor shows the subtotal, the tax and the total while the invoice is written, so
+        // it needs each client's rule (the same one the save applies).
+        var business = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+        var rates = await _invoiceService.ActiveTaxRatesAsync();
+        ViewBag.TaxByClient = clients.ToDictionary(c => c.Id, c => IPRO.Business.Services.ClientInvoiceTaxRules.Resolve(c, business, rates));
     }
 
     private static void ApplyLineItems(ClientInvoice invoice, List<ClientInvoiceLineItemInputModel> lineItems)
@@ -742,15 +763,19 @@ public class ClientInvoicesController : Controller
                 Quantity = item.Quantity <= 0 ? 1 : item.Quantity,
                 UnitPrice = item.UnitPrice,
                 Amount = Math.Round((item.Quantity <= 0 ? 1 : item.Quantity) * item.UnitPrice, 2, MidpointRounding.AwayFromZero),
+                IsTaxable = item.IsTaxable,
                 SortOrder = sortOrder++
             });
         }
     }
 
+    // 563: tax is charged on the lines that are ticked, at the client's province's rate or, when
+    // the client has no province on file, the business's own (ClientInvoiceTaxRules).
     private async Task ApplyTotalsAsync(ClientInvoice invoice, Client client)
     {
         invoice.SubTotal = invoice.LineItems.Sum(l => l.Amount);
-        var tax = await _invoiceService.CalculateTaxAsync(client, invoice.SubTotal);
+        var business = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
+        var tax = await _invoiceService.CalculateTaxAsync(client, business, invoice.LineItems.Where(l => l.IsTaxable).Sum(l => l.Amount));
         invoice.TaxRate = tax.Rate;
         invoice.TaxAmount = tax.Amount;
         invoice.TaxRegion = tax.Region;

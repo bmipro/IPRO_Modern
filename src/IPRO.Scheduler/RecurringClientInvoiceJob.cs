@@ -39,11 +39,16 @@ public class RecurringClientInvoiceJob
                     Quantity = l.Quantity,
                     UnitPrice = l.UnitPrice,
                     Amount = Math.Round(l.Quantity * l.UnitPrice, 2, MidpointRounding.AwayFromZero),
+                    IsTaxable = l.IsTaxable,
                     SortOrder = l.SortOrder
                 }).ToList();
 
                 var subTotal = lineItems.Sum(l => l.Amount);
-                var tax = await _invoiceService.CalculateTaxAsync(schedule.Client, subTotal);
+                // 563: tax on the ticked lines, at the client's province's rate or else the business's own.
+                var business = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == schedule.AgentUserId);
+                var tax = await _invoiceService.CalculateTaxAsync(schedule.Client, business, lineItems.Where(l => l.IsTaxable).Sum(l => l.Amount));
+                // 564: dated the adviser's own today, not the UTC date.
+                var today = AgentLocalTime.FromUtc(DateTime.UtcNow, business?.TimeZone).Date;
 
                 var invoice = new ClientInvoice
                 {
@@ -51,8 +56,8 @@ public class RecurringClientInvoiceJob
                     ClientId = schedule.ClientId,
                     DocumentType = ClientInvoiceDocumentType.Invoice,
                     Status = ClientInvoiceStatus.Draft,
-                    IssueDate = DateTime.UtcNow.Date,
-                    DueDate = DateTime.UtcNow.Date.AddDays(schedule.DueInDays),
+                    IssueDate = today,
+                    DueDate = today.AddDays(schedule.DueInDays),
                     Notes = schedule.Notes,
                     ViewToken = Guid.NewGuid().ToString("N"),
                     DocumentNumber = await _invoiceService.GenerateDocumentNumberAsync(schedule.AgentUserId, ClientInvoiceDocumentType.Invoice),

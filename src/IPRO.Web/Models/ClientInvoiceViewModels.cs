@@ -18,4 +18,7 @@ public class ClientInvoiceLineItemInputModel
     public string? Description { get; set; } = string.Empty;
     public decimal Quantity { get; set; } = 1;
     public decimal UnitPrice { get; set; }
+    // 563: the Tax tick on the line. The form always posts it (a ticked box, then a hidden "false"),
+    // so the default speaks only for a line the form never showed: taxed, as every line was before.
+    public bool IsTaxable { get; set; } = true;
 }

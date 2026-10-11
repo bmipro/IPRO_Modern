@@ -108,7 +108,8 @@ public class RecurringInvoicesController : Controller
             {
                 Description = l.Description,
                 Quantity = l.Quantity,
-                UnitPrice = l.UnitPrice
+                UnitPrice = l.UnitPrice,
+                IsTaxable = l.IsTaxable
             }).ToList()
         });
     }
@@ -234,6 +235,7 @@ public class RecurringInvoicesController : Controller
                 Description = item.Description!.Trim(),
                 Quantity = item.Quantity <= 0 ? 1 : item.Quantity,
                 UnitPrice = item.UnitPrice,
+                IsTaxable = item.IsTaxable,   // 563: each invoice the schedule makes keeps the line's tick
                 SortOrder = sortOrder++
             });
         }

@@ -7,11 +7,21 @@ Client Invoicing lets an agent bill their own clients directly from IPRO — sep
 1. Select **Client Invoices** in the Agent Portal.
 2. Click **New Estimate** or **New Invoice**.
 3. Choose the client, issue date, and (for invoices) due date.
-4. Add one or more line items with a description, quantity, and unit price.
+4. Add one or more line items with a description, quantity, and unit price, and tick **Tax** on each line that is taxed.
 5. Add optional notes — these are shown to the client.
 6. Click **Save Draft**.
 
-Tax is calculated automatically from the client's own province/country (not the agent's), using the same Canadian provincial tax table Super Admin manages under **Tax Rates**. US and other non-Canadian clients are not taxed.
+As you fill in the lines, the subtotal, the tax and the total show under them, so you see what the client will be charged before you save.
+
+### Tax on each line
+
+Every line has a **Tax** tick, ticked to begin with. Leave it ticked on what is taxed and untick what is not: a bakery unticks its plain bread and leaves its cakes ticked, on the same invoice. Tax is charged on the ticked lines only, and a line added to bring the bill down (a discount as a negative amount) lowers the tax when it is ticked.
+
+The rate comes from the client's province, using the Canadian provincial tax table Super Admin manages under **Tax Rates**. When a client has no province on file, the rate for your own province (from your **Profile**) is used, and the editor says so. US and other non-Canadian clients are not taxed.
+
+When no tax will be charged, the editor says so in red under the totals, with the reason: the client is outside Canada, the province on the client's record is not one we recognise (use the two-letter code, for example ON), or neither the client nor your Profile has a province.
+
+If you do not charge tax at all, untick **Tax** on your lines.
 
 ## Send a Document to a Client
 
@@ -27,7 +37,7 @@ A document number (`EST-####` for estimates, `INV-####` for invoices) is assigne
 
 ## What the Client Sees
 
-- A read-only, printable page in the agent's branding: their company name, address, phone and email, and their website logo when they have one; the client's bill-to information; each line with quantity, unit price, tax and amount; the tax summary, subtotal, tax and total; for an invoice, the due date, payment received and balance due, and once paid, the date and method. The status reads in words (Awaiting payment, Awaiting your reply, Paid, Approved, Declined, Void).
+- A read-only, printable page in the agent's branding: their company name, address, phone and email, and their website logo when they have one; the client's bill-to information; each line with quantity, unit price, a tick in the Tax column when the line is taxed, and amount; the tax summary (the taxable amount and the tax by name), subtotal, tax and total; for an invoice, the due date, payment received and balance due, and once paid, the date and method. The status reads in words (Awaiting payment, Awaiting your reply, Paid, Approved, Declined, Void).
 - For an **estimate**: **Approve** and **Decline** buttons. Approving does not charge anything — it just flags the estimate as approved.
 - For an **invoice**: a **Pay Now** button, shown only if the agent has set a payment link on their Profile page (see below). The client can also arrange payment another way (cheque, e-transfer, cash) directly with the agent.
 
@@ -99,7 +109,7 @@ The money goes straight to your own account with that service; IPRO is not in th
 ## Recurring Invoices
 
 1. Select **Client Invoices**, then **Recurring Schedules**.
-2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items.
+2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items. Each line has the same **Tax** tick as on an invoice, and every invoice the schedule makes keeps it.
 3. Each time the schedule runs, a new **Draft** invoice is created automatically — it is never sent to the client automatically. Review it and click **Send to Client** yourself.
 4. Use **Pause**/**Resume** to temporarily stop or restart a schedule, or **Delete** to remove it.
 
