@@ -119,9 +119,15 @@ builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection(
 // entirely and fall through to the connection-based one, which the ForwardedHeaders configuration
 // below has already made trustworthy.
 builder.Services.PostConfigure<IpRateLimitOptions>(o => o.RealIpHeader = null);
+// 561: that alone never worked. The library takes the header's name from IpRateLimitOptions OR,
+// when that is null, from ClientRateLimitOptions, whose default is also "X-Real-IP" -- so the
+// header resolver stayed, a malformed X-Real-IP answered 500 and a made-up one side-stepped the
+// limits (seen live 2026-10-11). Both names are cleared, and the configuration registered below
+// adds the connection resolver alone, whatever the options say.
+builder.Services.PostConfigure<ClientRateLimitOptions>(o => { o.RealIpHeader = null; o.ClientIdHeader = null; });
 builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
 builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
-builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IRateLimitConfiguration, IPRO.Admin.Infrastructure.ConnectionOnlyRateLimitConfiguration>();
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddInMemoryRateLimiting();
 
