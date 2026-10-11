@@ -36,23 +36,25 @@ public class EmailActivityController : Controller
         _email = email.Value;
     }
 
-    public async Task<IActionResult> Index(string type = "all")
+    // 565 (2026-10-11): the list opens on the last 30 days, 25 to a page. A tab holds what needs
+    // attention, and a search finds an email by its subject or by who received it. The rules are in
+    // EmailActivityListing; this method gathers the rows for it.
+    public async Task<IActionResult> Index(string type = "all", string period = EmailActivityListing.DefaultPeriod, string? q = null, int page = 1)
     {
-        var rows = await LoadSendsAsync();
-        // The tab badges count the UNFILTERED list, so they do not change with the filter. (493: the
-        // list was being built twice per request, once for the rows and once for these counts.)
-        ViewBag.Counts = rows
-            .GroupBy(r => r.TypeKey)
-            .ToDictionary(g => g.Key, g => g.Count());
+        var chosenPeriod = EmailActivityListing.PeriodFor(period);
+        var since = EmailActivityListing.Since(chosenPeriod, DateTime.UtcNow);
+        // Built once per request (493). The tab badges count the period and the search, never the tab,
+        // so they do not change as the tabs are clicked.
+        var inPeriod = EmailActivityListing.InPeriod(await LoadSendsAsync(since), since);
+        var search = EmailActivityListing.CleanQuery(q);
+        var reached = search.Length == 0 ? null : await EmailActivityQueries.RecipientMatchesAsync(_db, AgentId, search, inPeriod);
+        var listing = EmailActivityListing.Build(inPeriod, type, chosenPeriod, search, page, reached);
+        var rows = listing.Rows;
 
-        var normalizedType = (type ?? "all").Trim().ToLowerInvariant();
-        if (normalizedType != "all")
-        {
-            rows = rows.Where(r => r.TypeKey == normalizedType).ToList();
-        }
-
+        ViewBag.Listing = listing;
+        ViewBag.Counts = listing.Counts;
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();
-        ViewBag.Filter = normalizedType;
+        ViewBag.Filter = listing.Type;
         // 444: lets the screen say "not tracked" instead of an ambiguous dash while nothing is
         // injecting open/click tracking. 488: the platform's own pixel and redirect count too; the
         // view keeps saying "not tracked" for invoice rows, which are not instrumented.
@@ -77,6 +79,8 @@ public class EmailActivityController : Controller
         if (send == null) return NotFound();
 
         ViewBag.Send = send;
+        // 565: "Back" returns to the list as it was left (its period, tab, search and page).
+        ViewBag.BackAddress = EmailActivityListing.BackAddress(Request.Headers.Referer.ToString(), Request.Host.Host);
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();
         // Invoice mail is not instrumented (488): the invoice page records its own views instead.
         ViewBag.EngagementTracking = _email.EngagementTrackingEnabled
@@ -89,7 +93,11 @@ public class EmailActivityController : Controller
 
     // ---- data ------------------------------------------------------------------------------
 
-    private async Task<List<EmailActivityRow>> LoadSendsAsync()
+    // since (565): the start of the period the list is showing, or null for every send (the detail
+    // page looks a send up whatever its age). The senders with one row per send are cut down in the
+    // database; campaign steps and Did You Know are grouped from their recipients, so they arrive
+    // whole and EmailActivityListing.InPeriod applies the same rule to every row afterwards.
+    private async Task<List<EmailActivityRow>> LoadSendsAsync(DateTime? since = null)
     {
         var rows = new List<EmailActivityRow>();
 
@@ -98,6 +106,7 @@ public class EmailActivityController : Controller
         var newsletterSends = await _db.NewsLetterSends
             .AsNoTracking()
             .Where(s => s.AgentUserId == AgentId)
+            .Where(s => since == null || (s.SentAt ?? s.ScheduledAt) >= since)
             .Select(s => new
             {
                 s.Id,
@@ -127,6 +136,7 @@ public class EmailActivityController : Controller
         var cards = await _db.ECards
             .AsNoTracking()
             .Where(c => c.AgentUserId == AgentId)
+            .Where(c => since == null || (c.SentAt ?? c.ScheduledAt) >= since)
             .Select(c => new
             {
                 c.Id,
@@ -151,6 +161,7 @@ public class EmailActivityController : Controller
         var letters = await _db.ELetters
             .AsNoTracking()
             .Where(l => l.AgentUserId == AgentId)
+            .Where(l => since == null || (l.SentAt ?? l.ScheduledAt) >= since)
             .Select(l => new
             {
                 l.Id,
@@ -175,6 +186,7 @@ public class EmailActivityController : Controller
         var pollSends = await _db.PollSends
             .AsNoTracking()
             .Where(s => s.AgentUserId == AgentId)
+            .Where(s => since == null || (s.SentAt ?? s.ScheduledAt) >= since)
             .Select(s => new
             {
                 s.Id,
@@ -231,7 +243,7 @@ public class EmailActivityController : Controller
                 g.Count(q => q.Status == DidYouKnowQueueStatuses.Failed))));
 
         rows.AddRange(await EmailActivityQueries.DripStepRowsAsync(_db, AgentId));
-        rows.AddRange(await EmailActivityQueries.InvoiceRowsAsync(_db, AgentId)); // 452
+        rows.AddRange(await EmailActivityQueries.InvoiceRowsAsync(_db, AgentId, since)); // 452
 
         return rows.OrderByDescending(r => r.When ?? DateTime.MinValue).ToList();
     }

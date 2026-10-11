@@ -71,11 +71,13 @@ public static class EmailActivityQueries
 
     // 452: invoices in Email Activity. One row per email (a resend or a reminder is its own row),
     // because each is its own delivery with its own outcome.
-    public static async Task<List<EmailActivityRow>> InvoiceRowsAsync(IPRODbContext db, int agentId)
+    // since (565): the start of the period the list is showing; null is every email.
+    public static async Task<List<EmailActivityRow>> InvoiceRowsAsync(IPRODbContext db, int agentId, DateTime? since = null)
     {
         var emails = await db.ClientInvoiceEmails
             .AsNoTracking()
             .Where(e => e.AgentUserId == agentId)
+            .Where(e => since == null || (e.SentAt ?? e.CreatedAt) >= since)
             .Select(e => new
             {
                 e.Id, e.Kind, e.Status, e.Subject, e.ToEmail, e.SentAt, e.CreatedAt,
@@ -125,6 +127,68 @@ public static class EmailActivityQueries
     }
 
     // 562: the invoice behind one invoice email, and when the client last looked at it.
+    // 565: the search box finds an email by who received it. Of the sends given (the adviser's own, in
+    // the period on the screen), these reached someone whose name or address holds the text. An invoice
+    // row already carries its client's name and address in its own line, so it needs no lookup here.
+    public static async Task<HashSet<(string TypeKey, int Id)>> RecipientMatchesAsync(IPRODbContext db, int agentId, string text, IReadOnlyCollection<EmailActivityRow> rows)
+    {
+        var found = new HashSet<(string TypeKey, int Id)>();
+        List<int> Ids(string typeKey) => rows.Where(r => r.TypeKey == typeKey).Select(r => r.Id).Distinct().ToList();
+        void Add(string typeKey, IEnumerable<int> ids) { foreach (var id in ids) found.Add((typeKey, id)); }
+
+        var newsletters = Ids("newsletter").Cast<int?>().ToList();
+        if (newsletters.Count > 0)
+        {
+            Add("newsletter", (await db.NewsLetterRecipients.AsNoTracking()
+                .Where(r => newsletters.Contains(r.NewsLetterSendId) && (r.RecipientName.Contains(text) || r.Email.Contains(text)))
+                .Select(r => r.NewsLetterSendId).Distinct().ToListAsync()).Where(id => id.HasValue).Select(id => id!.Value));
+        }
+
+        var cards = Ids("ecard");
+        if (cards.Count > 0)
+        {
+            Add("ecard", await db.ECardRecipients.AsNoTracking()
+                .Where(r => cards.Contains(r.ECardId) && (r.RecipientName.Contains(text) || r.Email.Contains(text)))
+                .Select(r => r.ECardId).Distinct().ToListAsync());
+        }
+
+        var letters = Ids("eletter");
+        if (letters.Count > 0)
+        {
+            Add("eletter", await db.ELetterRecipients.AsNoTracking()
+                .Where(r => letters.Contains(r.ELetterId) && (r.RecipientName.Contains(text) || r.Email.Contains(text)))
+                .Select(r => r.ELetterId).Distinct().ToListAsync());
+        }
+
+        var polls = Ids("poll").Cast<int?>().ToList();
+        if (polls.Count > 0)
+        {
+            Add("poll", (await db.PollRecipients.AsNoTracking()
+                .Where(r => polls.Contains(r.PollSendId) && (r.RecipientName.Contains(text) || r.Email.Contains(text)))
+                .Select(r => r.PollSendId).Distinct().ToListAsync()).Where(id => id.HasValue).Select(id => id!.Value));
+        }
+
+        var steps = Ids("drip");
+        if (steps.Count > 0)
+        {
+            Add("drip", await db.DripCampaignStepSends.AsNoTracking()
+                .Where(s => steps.Contains(s.DripCampaignStepId) && s.DripCampaignStep.DripCampaign.AgentUserId == agentId
+                            && (s.RecipientName.Contains(text) || s.Email.Contains(text)))
+                .Select(s => s.DripCampaignStepId).Distinct().ToListAsync());
+        }
+
+        var articles = Ids("didyouknow");
+        if (articles.Count > 0)
+        {
+            Add("didyouknow", await db.DidYouKnowEmailQueueItems.AsNoTracking()
+                .Where(q => articles.Contains(q.ArticleId) && db.Clients.Any(c => c.Id == q.ClientId && c.AgentUserId == agentId
+                            && (c.FirstName.Contains(text) || c.LastName.Contains(text) || c.Email.Contains(text) || (c.FirstName + " " + c.LastName).Contains(text))))
+                .Select(q => q.ArticleId).Distinct().ToListAsync());
+        }
+
+        return found;
+    }
+
     public static async Task<InvoiceViewInfo?> InvoiceViewAsync(IPRODbContext db, int agentId, int emailId)
     {
         return await db.ClientInvoiceEmails

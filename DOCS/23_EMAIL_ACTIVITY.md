@@ -6,11 +6,11 @@ One screen that lists every email your account has sent to clients and whether i
 
 ## Open It
 
-Select **Email Activity** in the Agent Portal menu (under Marketing). The list opens on the **Everything** tab, newest first.
+Select **Email Activity** in the Agent Portal menu (under Marketing). The list opens on the **Everything** tab showing the last 30 days, newest first, 25 emails to a page.
 
 ## Read the List
 
-Use the tabs to narrow the list: **Everything, Newsletters, Campaigns, E-Cards, E-Letters, Polls, Did You Know, Invoices**. Each tab shows how many rows it holds.
+Use the tabs to narrow the list: **Everything, Needs attention, Newsletters, Campaigns, E-Cards, E-Letters, Polls, Did You Know, Invoices**. Each tab shows how many rows it holds for the period on the screen.
 
 Each row shows:
 
@@ -20,6 +20,14 @@ Each row shows:
 - **Recipients / Sent / Delivered / Opened / Failed** counts.
 - **When**, in your own time zone.
 - A **Detail** button.
+
+## Finding an Email
+
+- **Show: 7 days, 30 days, 90 days, 12 months, All.** The list opens on the last 30 days so it stays short. Older email is never removed: pick a longer period to see it. An email that is scheduled for later, or not yet scheduled, shows in every period.
+- **Needs attention** holds only the emails in that period with a failure or a bounce. Its number turns red when there is something to look at, so a problem is not buried under newer mail.
+- **Search** looks at each email's subject, at the grey line under it, and at the name and email address of everyone it went to. Type a client's name to see what they were sent, for example whether their birthday card went out. It searches within the period and the tab on the screen; **Search all time** widens it, and **Clear the search** removes it.
+- **Previous** and **Next** under the list move between pages of 25. The line above the list says which rows you are looking at.
+- After you open a row's **Detail**, **Back to Email Activity** returns you to the same period, tab, search and page.
 
 ## Read One Send in Detail
 

@@ -1,9 +1,9 @@
 @model IEnumerable<IPRO.Web.Controllers.EmailActivityRow>
+@using IPRO.Web.Infrastructure
 @{
     ViewData["Title"] = "Email Activity";
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
     var filter = ViewBag.Filter as string ?? "all";
-    var counts = ViewBag.Counts as IDictionary<string, int> ?? new Dictionary<string, int>();
     var tracking = ViewBag.EngagementTracking as bool? ?? false;   // 444
 
     string StatusClass(string status) => status switch
@@ -27,9 +27,14 @@
         _ => "fa-envelope"
     };
 
+    // 565: the period, the tab, the search and the page the list is showing (EmailActivityListing).
+    var listing = ViewBag.Listing as EmailActivityListing
+        ?? EmailActivityListing.Build(Model, filter, EmailActivityListing.PeriodFor(null), null, 1);
+
     var tabs = new[]
     {
         ("all", "Everything"),
+        (EmailActivityListing.Attention, "Needs attention"),
         ("newsletter", "Newsletters"),
         ("drip", "Campaigns"),
         ("ecard", "E-Cards"),
@@ -40,21 +45,46 @@
     };
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
   <div>
     <h2 class="fw-bold mb-0"><i class="fas fa-chart-line me-2 text-primary"></i>Email Activity</h2>
-    <small class="text-muted">Everything you have sent, and whether it arrived. Click any row for the recipient-by-recipient detail.</small>
+    <small class="text-muted">What you have sent, and whether it arrived. Click any row for the recipient-by-recipient detail.</small>
   </div>
+  @* 565: find an email by its subject or by who received it, within the period and the tab on the screen. *@
+  <form method="get" action="/portal/EmailActivity" class="d-flex gap-2" style="flex:1 1 280px;max-width:420px" role="search">
+    @if (listing.Type != "all") { <input type="hidden" name="type" value="@listing.Type" /> }
+    @if (listing.Period.Key != EmailActivityListing.DefaultPeriod) { <input type="hidden" name="period" value="@listing.Period.Key" /> }
+    <input type="search" name="q" value="@listing.Query" class="form-control" maxlength="80" placeholder="Subject or recipient" aria-label="Search by subject or recipient" />
+    <button type="submit" class="btn btn-outline-primary text-nowrap"><i class="fas fa-magnifying-glass me-1"></i>Search</button>
+  </form>
+</div>
+
+@* 565: the list opens on the last 30 days; older mail is one click away, never gone. *@
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <span class="text-muted small">Show</span>
+  <div class="btn-group btn-group-sm" role="group" aria-label="Period">
+    @foreach (var p in EmailActivityListing.Periods)
+    {
+      <a class="btn @(listing.Period.Key == p.Key ? "btn-primary" : "btn-outline-primary")" href="@listing.Url(period: p.Key)">@p.Label</a>
+    }
+  </div>
+  @if (listing.Query.Length > 0)
+  {
+    <span class="small text-muted ms-2">Search: <strong class="text-body">@listing.Query</strong></span>
+    <a class="small" href="@listing.Url(query: string.Empty)">Clear the search</a>
+  }
 </div>
 
 <ul class="nav nav-pills mb-3 gap-1">
   @foreach (var (key, label) in tabs)
   {
-    var count = key == "all" ? counts.Values.Sum() : (counts.TryGetValue(key, out var c) ? c : 0);
+    var count = listing.CountFor(key);
+    var active = listing.Type == key;
+    var alarm = key == EmailActivityListing.Attention && count > 0;   // something failed or bounced in this period
     <li class="nav-item">
-      <a class="nav-link @(filter == key ? "active" : "")" href="/portal/EmailActivity?type=@key">
+      <a class="nav-link @(active ? "active" : "")" href="@listing.Url(type: key)">
         @label
-        <span class="badge rounded-pill @(filter == key ? "bg-white text-primary" : "bg-secondary-subtle text-secondary")">@count</span>
+        <span class="badge rounded-pill @(active ? "bg-white text-primary" : alarm ? "bg-danger" : "bg-secondary-subtle text-secondary")">@count</span>
       </a>
     </li>
   }
@@ -64,14 +94,35 @@
 {
   <div class="card border-0 shadow-sm">
     <div class="card-body text-center py-5">
-      <i class="fas fa-paper-plane fa-3x text-muted opacity-25 mb-3 d-block"></i>
-      <h5 class="fw-bold">Nothing sent yet</h5>
-      <p class="text-muted mb-0">Once you send a newsletter, e-card, e-letter or poll, it shows up here with its delivery results.</p>
+      @if (listing.Query.Length > 0)
+      {
+        <i class="fas fa-magnifying-glass fa-3x text-muted opacity-25 mb-3 d-block"></i>
+        <h5 class="fw-bold">Nothing from @listing.Period.Words matches &ldquo;@listing.Query&rdquo;</h5>
+        <p class="text-muted">The search looks at each email's subject and at the name and address of everyone it went to.</p>
+        @if (listing.Period.Days != null) { <a class="btn btn-outline-primary btn-sm me-1" href="@listing.Url(period: "all")">Search all time</a> }
+        <a class="btn btn-outline-secondary btn-sm" href="@listing.Url(query: string.Empty)">Clear the search</a>
+      }
+      else if (listing.Type == EmailActivityListing.Attention)
+      {
+        <i class="fas fa-circle-check fa-3x text-success opacity-50 mb-3 d-block"></i>
+        <h5 class="fw-bold">Nothing needs attention</h5>
+        <p class="text-muted mb-0">No email from @listing.Period.Words failed or bounced.</p>
+      }
+      else
+      {
+        <i class="fas fa-paper-plane fa-3x text-muted opacity-25 mb-3 d-block"></i>
+        <h5 class="fw-bold">@(listing.Period.Days == null ? "Nothing sent yet" : $"Nothing sent in {listing.Period.Words}")</h5>
+        <p class="text-muted @(listing.Period.Days == null ? "mb-0" : "")">Once you send a newsletter, e-card, e-letter or poll, it shows up here with its delivery results.</p>
+        @if (listing.Period.Days != null) { <a class="btn btn-outline-primary btn-sm" href="@listing.Url(period: "all")">Show all time</a> }
+      }
     </div>
   </div>
 }
 else
 {
+  <div class="small text-muted mb-2">
+    Showing @listing.From&ndash;@listing.To of @listing.Total from @listing.Period.Words@(listing.Query.Length > 0 ? " that match the search" : string.Empty), newest first.
+  </div>
   <div class="card border-0 shadow-sm">
     <div class="table-responsive">
       <table class="table align-middle mb-0">
@@ -153,4 +204,15 @@ else
       </table>
     </div>
   </div>
+  @* 565: 25 to a page. *@
+  @if (listing.PageCount > 1)
+  {
+    var first = listing.Page <= 1;
+    var last = listing.Page >= listing.PageCount;
+    <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Pages of email activity">
+      <a class="btn btn-outline-secondary btn-sm @(first ? "disabled" : "")" href="@listing.Url(page: listing.Page - 1)" aria-disabled="@(first ? "true" : "false")" tabindex="@(first ? "-1" : "0")"><i class="fas fa-chevron-left me-1"></i>Previous</a>
+      <span class="small text-muted">Page @listing.Page of @listing.PageCount</span>
+      <a class="btn btn-outline-secondary btn-sm @(last ? "disabled" : "")" href="@listing.Url(page: listing.Page + 1)" aria-disabled="@(last ? "true" : "false")" tabindex="@(last ? "-1" : "0")">Next<i class="fas fa-chevron-right ms-1"></i></a>
+    </nav>
+  }
 }

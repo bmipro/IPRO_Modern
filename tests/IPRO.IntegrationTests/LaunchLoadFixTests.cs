@@ -257,7 +257,7 @@ public class LaunchLoadFixTests
         var controller = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Controllers\EmailActivityController.cs"));
         var index = controller[controller.IndexOf("public async Task<IActionResult> Index(", StringComparison.Ordinal)..];
         index = index[..index.IndexOf("return View(rows);", StringComparison.Ordinal)];
-        Assert.Equal(1, index.Split("LoadSendsAsync()").Length - 1);
+        Assert.Equal(1, index.Split("LoadSendsAsync(").Length - 1);   // 565: the call now names the period's start
     }
 
     // ---- harness ----------------------------------------------------------------------------
