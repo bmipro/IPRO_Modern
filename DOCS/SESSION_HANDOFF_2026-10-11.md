@@ -26,7 +26,7 @@
 | `7eced19` | **561** the rate limiter knows a visitor by the connection, never by a header (live on build `a551e51`) | 1597/1597 |
 | `dd4ba34` | **562** an invoice email shows whether the client viewed the invoice (live on build `a551e51`) | 1597/1597 |
 
-## Invoice tax and discounts (open, next)
+## Invoice tax (563, 564) and discounts
 
 - The owner reported that tax on client invoices "worked before" and that a tax check box "is GONE", after the
   bakery sent an invoice with no tax. Read in the code and its history: there was never a tax check box on the
@@ -36,11 +36,20 @@
   `ON 13% HST` on every line, which is that rule working.
 - **What he asked for, with a screenshot (2026-10-11):** in the Tax column each item needs only a check box, the
   column thinner; the Tax summary box is enough to carry the tax's name and total.
-- **Planned as 563:** a "taxable" tick per line (stored on the line; ticked by default), a narrow Tax column with a
-  check mark on the document, the taxable amount in the Tax summary from the ticked lines, the subtotal, tax and
-  total shown in the editor as it is filled in, and the business's own province used when the client has none.
-  Carried through Duplicate, recurring invoices, the Xero export and the statement.
+- **Built as 563 the same afternoon:** a Tax tick per line (ticked by default), a narrow Tax column with a box per
+  line on the document, the taxable amount in the Tax summary from the ticked lines, the subtotal, tax and total
+  shown in the editor as it is filled in (with the reason, in red, when no tax will be charged), and the business's
+  own province used when the client has none. Carried through Duplicate, recurring invoices and the Xero file. Both
+  editors got a phone layout (each line two rows) so the tick is not a sideways scroll away.
+- **564, found on the way:** the invoice page showed the issue date and the due date one day early (calendar dates
+  read as UTC moments). Fixed in the same commit; new documents are dated the adviser's own today. Invoices already
+  sent now show dates one day later than their page did, which is what their emails always said: tell the owner.
+- **Lesson:** a Razor view with a style block needs `@@media`; a single `@` builds as C#. The solution build before the
+  last view was added passed, and only the local run of the app caught it. Build after the LAST edit, always.
 - **Discounts:** he is asking the bakery whether a discount applies to one item or to the whole invoice. Not built.
+  Today a line with a negative amount does it, and lowers the tax when its Tax box is ticked.
+- **Offered, not built:** a GST/HST registration number on the invoice (there is no field for one; Canadian
+  registrants are expected to show it), and a one-time "we do not charge tax" setting for a business that never does.
 
 ## Still his
 
@@ -53,7 +62,7 @@
 
 ## Not seen signed in
 
-Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
+The invoice editor with its Tax ticks and live totals, and the recurring editor (563); Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
 in the block editor (560); the Business hours card on My Website (559). The owner's first visit to each is its
 first real look: fix whatever he finds.
 
