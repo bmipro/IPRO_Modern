@@ -26,6 +26,13 @@
   draft in his name: it is his to send or change.
 - **Ours, in parallel, none started:** the consolidated `CONTRACT.md` v0.4 (about half a day), the stage 1 importer
   (2-3 days; without it stage 1 cannot be used), and later the v0.5 draft. The importer waits on the owner's word.
+- **Later the same day** the owner relayed the developer's message: the reviewed snapshot is pushed on
+  `feature/builder-ux-refresh` as `6e119e56240ec025b42e53200982c11140ab5245`. So the go-ahead was given and stage 1's
+  fixes are under way on his side. Checked read-only: the commit holds all 167 files of the package's `source/`
+  folder (136 byte for byte, 31 apart from line endings, none different or missing), and its handover fixture is
+  ours. The check is kept as `compare_commit_with_package.py` beside the other two in the checker folder. One small
+  thing for the next note to him: the package's README places the handover fixture under `source/tests/fixtures/`,
+  where the package does not have it (the commit does).
 - The owner also said SES step 8.2 will be tomorrow "if not urgent". It is not: marketing mail stays on Azure until
   he changes the setting, and nothing is waiting on it.
 
