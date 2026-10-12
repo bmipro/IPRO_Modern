@@ -74,6 +74,44 @@
   no new screen, nothing new stored. A managed "My items" list was offered as the alternative and held back; a way
   to forget a mistyped item is the first thing to add if anyone asks.
 
+## 569, parked (the last thing of the day)
+
+- The owner printed INV-1023: one page to PDF, two pages in the phone layout to his HP printer. Cause and fix are in
+  the `DOCS/TODO.md` row. The fix is two rules in `invoice.css` and a test class.
+- It is NOT on main and NOT deployed: he closed the day before a gate could run (55 minutes). It is the one commit of
+  the local branch `hold/569-print-layout` (`fc2eb10`), which is not pushed and is not in the backup zips (they are
+  snapshots of main). The repository on disk keeps it across the reboot.
+- Told to him: "Margins: None" in the print dialog gives the one-page layout meanwhile.
+
+## Close-out 2026-10-11
+
+- **Live on both hosts:** everything in the table above. Six code commits, each gated over the whole tree: 561 and 562
+  (1597), 563 and 564 (1611), 565 (1621), 566 and 567 (1632), 568 (1636). The final build is this close-out's docs
+  commit (the report to the owner names it).
+- **What the owner has seen signed in, from his own screenshots:** the invoice with a box per line and the narrow Tax
+  column (INV-1022), an invoice with a discount on its items and the Discounts line (INV-1023, in his print preview),
+  and the Email Activity list with "not viewed yet" on an invoice row. He said "looks great" and "looks good". Not
+  yet reported by him: the editor's live totals and discount choice in use, the remembered items, the Email Activity
+  period, pages, Needs attention tab and search.
+- **Outside the code:** the findings note for the template builder's developer is in the owner's Documents folder
+  for him to forward; nothing was sent to anyone. No production setting was changed today.
+- **Not ours, left as found:** the developer's builder copy on 127.0.0.1:5087, if it is still running (the reboot
+  ends it).
+- **One environment note:** a dropped local MySQL connection failed one unrelated test once (first gate of the day)
+  and passed on the re-run; four later gates were clean first time.
+
+## Do this first next time
+
+1. **569:** `git merge hold/569-print-layout`, run the gate, tell the owner it is ready, push on his word.
+2. **Ask what he found** in the invoice editor (Tax ticks, discounts, remembered items) and in Email Activity: his
+   first uses are the first real look at each.
+3. **His, when he is ready:** SES step 8.2 (below). Then 8.3.
+4. **Offered today and open:** a GST/HST registration number on the invoice; a one-time "we do not charge tax"
+   setting; a way to forget a mistyped remembered item; a managed "My items" price list (held back); one row per
+   day for the one-at-a-time automatic emails; the Open-now line once per page on the bakery's home page.
+5. **The template builder:** his answers from the developer (the snapshot's commit, which fixes he takes, a hosting
+   estimate); ours are the importer for stage 1, the consolidated contract v0.4 and a v0.5 draft.
+
 ## Still his
 
 - SES step 8.2: `Email__Ses__Streams` = `notify,news` on `ipro-prod-web` (today it is `notify`, six characters;
@@ -89,4 +127,4 @@ The remembered items under a line's Description (568); the discount choice in th
 in the block editor (560); the Business hours card on My Website (559). The owner's first visit to each is its
 first real look: fix whatever he finds.
 
-Related: `DOCS/TODO.md` 561, 562, 467; `DOCS/SESSION_HANDOFF_2026-10-10.md`.
+Related: `DOCS/TODO.md` 561 to 569, 467; `DOCS/SESSION_HANDOFF_2026-10-10.md`.
