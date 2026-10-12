@@ -23,6 +23,7 @@
 
 | Commit | What | Gate |
 |---|---|---|
+| `84aade1` | **568** the invoice editor remembers the items a business has invoiced before (live on build `e6df9c5`) | 1636/1636 |
 | `73a8297` | **566 and 567** a discount on a client invoice, on the whole of it or on each item; the invoice's figures sit together (live on build `b3a3e72`) | 1632/1632 |
 | `fc59382` | **565** Email Activity opens on the last 30 days, 25 to a page, with a Needs attention tab and a search (live on build `1c57274`) | 1621/1621 |
 | `dc366f7` | **563 and 564** tax is a tick on each invoice line; the invoice's dates are the dates typed (live on build `61cd45b`) | 1611/1611 |
