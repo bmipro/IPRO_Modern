@@ -44,6 +44,16 @@
                 </form>
             }
         }
+        @* 571: bring a site in from the Template Builder. Replaces a customer's pages, so SuperAdmin
+           only; disabled, not hidden, for support admins (the owner's standing rule). *@
+        @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
+        {
+            <a href="/BuilderImports?agentId=@Model.Id" class="btn btn-outline-secondary"><i class="fas fa-file-import me-1"></i>Template Builder</a>
+        }
+        else
+        {
+            <button type="button" class="btn btn-outline-secondary" disabled title="SuperAdmin only: brings a site in from the Template Builder and replaces the customer's pages"><i class="fas fa-file-import me-1"></i>Template Builder</button>
+        }
         <form asp-action="RebuildResources" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
             @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))

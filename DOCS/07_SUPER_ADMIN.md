@@ -333,6 +333,56 @@ keeps their edits, and rebuilding twice does not leave duplicate articles behind
 created themselves *underneath* Resources is part of that tree and will be removed, so check with the
 agent first if they may have added their own pages there. The action is recorded in the audit log.
 
+## Bring In a Site From the Template Builder
+
+A site built in the Template Builder (the separate page builder; for now it is used internally, on the
+owner's or his designer's machine) leaves the builder as one .zip file. **Template Builder** on the agent
+details screen is where that file becomes the customer's site. SuperAdmin only; every step is recorded in
+the audit log.
+
+1. **Upload.** Choose the .zip and press **Check the package**. Nothing on the site changes. The package
+   is checked against the export contract (`DOCS/TEMPLATE_BUILDER_CONTRACT.md`). If it breaks a rule it
+   is not taken, and every reason is listed with its page, its section and the contract section, ready
+   to send to the builder's developer.
+2. **Review.** A package that passes shows what it would do, page by page:
+   - a page with the same address is **replaced** (it keeps its search title and description, and
+     whether it is published and in the menu);
+   - a new address is a **new page**;
+   - a page of the site that is not in the package **stays as it is**, unless you tick
+     **Remove this page**;
+   - the home page is always replaced by the package's home page.
+
+   A replaced page's sections are replaced as a set. Sections the builder cannot carry (a map, a gallery,
+   a price list, reviews) go with them: the screen names each one in red. Add them again in the page
+   editor afterwards, or build that page in iPro and leave it out of the package.
+
+   **Look** opens a page as it would be, in the customer's own design, in a new tab. A look works for an
+   hour. Menu links inside a look are not live, so open each page from the list.
+
+   **The design:** leave the site's design as it is, or switch to another on the way in. Colours and
+   fonts are the site's own (My Website); they do not come from the builder.
+
+   After ticking pages or changing the design, press **Update the looks with these choices**.
+3. **Bring it in.** The site's pages become the package's. On a published site this is live at once (the
+   button says so before you confirm). The site as it was is kept.
+4. **Put the previous site back,** if it is not right: on the list, beside the package that is on the
+   site. Every page, section and the logo return to the moment before the package went in. Anything
+   changed on the site since then is lost with it, so do it soon or not at all. Only the newest package
+   on a site can be taken back out.
+
+**Drop** removes a package that was never brought in, and takes back out of the media library the images
+it added that nothing uses.
+
+Good to know:
+
+- For now a package must be a site built from scratch in the builder. One that was started from an iPro
+  package is refused until iPro can hand a site over to the builder.
+- New images go into the customer's media library and count against their storage. Bringing the same
+  site in again after an edit stores only the images that are new.
+- A logo in the package replaces the site's logo. A package without a logo leaves the site's logo alone.
+- Article and custom-form sections cannot come from a from-scratch package: they point at one customer's
+  own article or form. Add them in the page editor after the package is in.
+
 ## Monitor Domain Automation
 
 1. Select **Domains**.

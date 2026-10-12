@@ -113,6 +113,7 @@ public static class AgentDataEraser
         ("WebsiteForms",                "AgentUserId = @agentId"),
 
         // -- Website --
+        ("WebsiteBuilderImports",       "AgentUserId = @agentId"), // 571: the record of a builder import goes with the adviser
         ("WebsiteContentBlocks",        "WebsitePageId IN (SELECT Id FROM WebsitePages WHERE AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId))"),
         ("WebsitePages",                "AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId)"),
         ("WebsiteMediaAssets",          "AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId)"),

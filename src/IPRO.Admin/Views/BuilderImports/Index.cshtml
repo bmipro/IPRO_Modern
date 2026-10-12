@@ -1,0 +1,127 @@
+@model IPRO.Admin.Models.BuilderImportIndexViewModel
+@using IPRO.Entities
+@{
+    ViewData["Title"] = $"Template Builder: {Model.Agent.UserName}";
+    string When(DateTime utc) => IPRO.Admin.Infrastructure.AdminClock.Format(utc, Model.Zone);
+    var business = string.IsNullOrWhiteSpace(Model.Agent.CompanyName) ? $"{Model.Agent.FirstName} {Model.Agent.LastName}" : Model.Agent.CompanyName;
+}
+
+<div class="mb-4">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="/Agents">Agents</a></li>
+        <li class="breadcrumb-item"><a href="/Agents/Details/@Model.Agent.Id">@Model.Agent.UserName</a></li>
+        <li class="breadcrumb-item active">Template Builder</li>
+    </ol></nav>
+    <h4 class="fw-bold mb-1"><i class="fas fa-file-import me-2 text-primary"></i>Bring in a site from the Template Builder</h4>
+    <div class="text-muted">For @business. A site built in the builder is exported as one .zip file; this is where it comes into iPro.</div>
+</div>
+
+@if (Model.Website == null)
+{
+    <div class="alert alert-warning border-0 shadow-sm">This customer has no website yet, so there is nowhere to bring a site in. It is created the first time they open My Website.</div>
+}
+else
+{
+    @if (Model.Problems.Count > 0)
+    {
+        <section class="card border-0 shadow-sm mb-4 border-start border-4 border-danger">
+            <div class="card-header bg-white py-3">
+                <strong class="text-danger"><i class="fas fa-circle-xmark me-1"></i>"@Model.RefusedFileName" was not taken</strong>
+                <div class="text-muted small">Nothing was stored and the site is unchanged. Each line below is a rule of the export contract the package breaks; the section number is the one in CONTRACT.md, for the builder's developer.</div>
+            </div>
+            <div class="table-responsive"><table class="table align-middle mb-0">
+                <thead><tr><th style="width:22%">Where</th><th>What is wrong</th><th style="width:14%">Contract section</th></tr></thead>
+                <tbody>
+                @foreach (var problem in Model.Problems)
+                {
+                    <tr><td>@problem.Where</td><td>@problem.Message</td><td class="text-muted">@problem.Rule</td></tr>
+                }
+                </tbody>
+            </table></div>
+        </section>
+    }
+
+    <section class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3"><strong>1. Upload the package</strong></div>
+        <div class="card-body">
+            <form asp-action="Upload" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="agentId" value="@Model.Agent.Id" />
+                <div class="col-md-7">
+                    <label class="form-label" for="package">The .zip file the builder exported</label>
+                    <input class="form-control" type="file" id="package" name="package" accept=".zip,application/zip" required />
+                </div>
+                <div class="col-md-5">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-magnifying-glass me-1"></i>Check the package</button>
+                </div>
+            </form>
+            <ul class="text-muted small mt-3 mb-0">
+                <li><strong>Nothing on the site changes at this step.</strong> The package is checked against the export contract. If it passes, you see what it would change, page by page, and can look at every page before you bring it in.</li>
+                <li>For now a package must be a site built from scratch in the builder. A site that was started from an iPro package is refused until iPro can hand a site over.</li>
+                <li>New images go into this customer's media library and count against their storage: @Model.StorageUsedMb.ToString("0.0") MB of @Model.StorageLimitMb MB used. An image an earlier package already brought in is not stored twice.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3"><strong>2. Packages for this site</strong></div>
+        @if (Model.Imports.Count == 0)
+        {
+            <div class="card-body text-muted">No package has been uploaded for this site yet.</div>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table align-middle mb-0">
+                <thead><tr><th>Package</th><th>Uploaded</th><th>Holds</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                <tbody>
+                @foreach (var import in Model.Imports)
+                {
+                    <tr>
+                        <td><strong>@import.FileName</strong><div class="text-muted small">@import.TemplateName</div></td>
+                        <td>@When(import.CreatedAt)<div class="text-muted small">by @import.UploadedBy</div></td>
+                        <td>@import.PageCount page@(import.PageCount == 1 ? "" : "s"), @import.BlockCount section@(import.BlockCount == 1 ? "" : "s")<div class="text-muted small">@import.NewImageCount new image@(import.NewImageCount == 1 ? "" : "s")</div></td>
+                        <td>
+                            @switch (import.Status)
+                            {
+                                case WebsiteBuilderImportStatus.Pending:
+                                    <span class="badge bg-warning text-dark">Waiting for review</span>
+                                    break;
+                                case WebsiteBuilderImportStatus.Applied:
+                                    <span class="badge bg-success">On the site</span>
+                                    <div class="text-muted small">@(import.AppliedAt.HasValue ? When(import.AppliedAt.Value) : "") by @import.AppliedBy</div>
+                                    break;
+                                case WebsiteBuilderImportStatus.Restored:
+                                    <span class="badge bg-secondary">Taken back out</span>
+                                    <div class="text-muted small">@(import.ClosedAt.HasValue ? When(import.ClosedAt.Value) : "")</div>
+                                    break;
+                                default:
+                                    <span class="badge bg-light text-muted">Dropped</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end gap-1">
+                            @if (import.Status == WebsiteBuilderImportStatus.Pending)
+                            {
+                                <a href="/BuilderImports/Review/@import.Id" class="btn btn-sm btn-primary"><i class="fas fa-list-check me-1"></i>Review</a>
+                                <form asp-action="Discard" asp-route-id="@import.Id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary js-confirm-submit" data-confirm-message="Drop this package? The site was never changed by it. The images it added that nothing uses are removed from the media library.">Drop</button>
+                                </form>
+                            }
+                            else if (import.Id == Model.RestorableId)
+                            {
+                                <form asp-action="Restore" asp-route-id="@import.Id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Put the site back as it was before this package was brought in? Every page, section and the logo return to that moment. Anything changed on the site since then, by you or by the customer, is lost."><i class="fas fa-rotate-left me-1"></i>Put the previous site back</button>
+                                </form>
+                            }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table></div>
+        }
+    </section>
+}

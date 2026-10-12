@@ -14,6 +14,7 @@ public class IPRODbContext : DbContext
     public DbSet<WebsitePage> WebsitePages => Set<WebsitePage>();
     public DbSet<WebsiteContentBlock> WebsiteContentBlocks => Set<WebsiteContentBlock>();
     public DbSet<WebsiteMediaAsset> WebsiteMediaAssets => Set<WebsiteMediaAsset>();
+    public DbSet<WebsiteBuilderImport> WebsiteBuilderImports => Set<WebsiteBuilderImport>();
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<WebsiteStarterArticle> WebsiteStarterArticles => Set<WebsiteStarterArticle>();
@@ -231,6 +232,7 @@ public class IPRODbContext : DbContext
             e.Property(a => a.OriginalFileName).HasMaxLength(255).IsRequired();
             e.Property(a => a.BlobUrl).HasMaxLength(1000).IsRequired();
             e.Property(a => a.ContentType).HasMaxLength(100).IsRequired();
+            e.Property(a => a.ContentSha256).HasMaxLength(64);
             e.HasOne(a => a.AgentWebsite)
              .WithMany(w => w.MediaAssets)
              .HasForeignKey(a => a.AgentWebsiteId)
@@ -420,6 +422,23 @@ public class IPRODbContext : DbContext
             // refuses to index it (error 1170).
             e.Property(i => i.DocumentNumber).HasMaxLength(40);
             e.Property(i => i.ViewToken).HasMaxLength(80);
+        });
+
+        // 571: sites brought in from the Template Builder; listed per site. No foreign keys: the row
+        // is a record of an operation and goes with the adviser (AgentDataEraser).
+        modelBuilder.Entity<WebsiteBuilderImport>(e =>
+        {
+            e.Property(i => i.Status).HasMaxLength(20);
+            e.Property(i => i.FileName).HasMaxLength(200);
+            e.Property(i => i.PackageSha256).HasMaxLength(64);
+            e.Property(i => i.TemplateName).HasMaxLength(60);
+            e.Property(i => i.Theme).HasMaxLength(20);
+            e.Property(i => i.HandoverId).HasMaxLength(20);
+            e.Property(i => i.UploadedBy).HasMaxLength(100);
+            e.Property(i => i.AppliedBy).HasMaxLength(100);
+            e.Property(i => i.PreviewKey).HasMaxLength(64);
+            e.HasIndex(i => i.AgentUserId);
+            e.HasIndex(i => i.AgentWebsiteId);
         });
 
         // 472: the client recycle bin; listed per agent, purged by PurgeAfter.

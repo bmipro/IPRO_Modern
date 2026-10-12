@@ -348,6 +348,7 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNumberSequenceSchemaAsync", () => StartupSchemaRepair.EnsureNumberSequenceSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync", () => StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteFormSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteFormSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteBuilderImportSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteBuilderImportSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync", () => StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAiUsageSchemaAsync", () => StartupSchemaRepair.EnsureAiUsageSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTrialFeatureSchemaAsync", () => StartupSchemaRepair.EnsureTrialFeatureSchemaAsync(db), db, app.Logger);

@@ -1,0 +1,1219 @@
+# IPRO.TemplateBuilder export contract — v0.4
+
+*Consolidated revision of 2026-10-12 (first issued 2026-09-29). This document is the **entire interface** between the builder and the host product.
+It is deliberately self-contained: everything needed to produce a valid export, and to open a site
+iPro hands over, is in this file. If something here is ambiguous, ask — do not guess and do not read
+host code (you don't have it).*
+
+Supersedes v0.3. It also supersedes the sample shapes in the host's two answer notes of 2026-09-29
+(those followed an older draft: `template` instead of `theme`, `export.json` instead of
+`template.json`, a Hero without settings, and missing required fields). Where anything disagrees,
+this file and its fixtures (§8) win.
+
+**What this revision is.** The 29 September text with every clarification iPro has given since folded
+into the section it belongs to, so there is one document to read. Nothing in it changes the schema, so
+`contractVersion` stays `"0.4"` and the two fixtures are unchanged, byte for byte. The changelog at the
+bottom lists what was folded in. It replaces the v0.3 file at the root of the builder's repository.
+
+**Where iPro's side stands (2026-10-12).** iPro's importer exists and enforces §1–§4, §7 and §10 as
+written here. iPro does not yet hand a site over (§9 and §11 are not built on the host), so for now
+the importer takes a template built from scratch (`handoverId: ""`) and refuses a return. §12.1 says
+what the importer does with a site when a template is brought in.
+
+---
+
+## 0. Version policy
+
+- `contractVersion` is the exact string `"0.4"`.
+- During 0.x, **any** change (additive or breaking) bumps the minor and the importer accepts an
+  exact match only. The builder should refuse to export anything but the version it was built for.
+- Change control: the host side owns this file; changes arrive as a new dated revision of
+  CONTRACT.md with a changelog entry at the bottom. Never patch it locally.
+- A clarification that changes no validation rule and no part of the schema is recorded in the
+  changelog and folded into the text without a version bump (this revision is one).
+
+### 0.1 Conventions used throughout
+
+- **Lengths count UTF-16 code units:** what JavaScript's `.length` and .NET's `string.Length` return.
+  An emoji outside the basic plane counts as two.
+- **Patterns match the whole value.** A trailing line break is not part of a slug or a file name:
+  anchor with `\A…\z` in .NET and use `fullmatch` in Python, not `^…$`, where `$` also matches
+  before a final newline.
+- **`null` is never a value,** with one exception: a top-level page's `parentSlug` (§3). An unused
+  text field is `""`, an unused `settings` is `{}`. The importer refuses `null` anywhere else.
+- **Every key is always written.** A missing key is an error exactly as an unknown one is (§2).
+
+## 1. Export package format (ZIP)
+
+Unchanged from v0.3. An export is **one ZIP file** (any name; suggested `<templateName>-<yyyymmdd>.zip`)
+containing:
+
+```
+template.json          (required, at the ZIP root)
+assets/                (required if any block or the logo references an image, else omit)
+  hero-home.png
+  adviser-logo.png
+```
+
+Rules the importer will enforce (build them into your export writer AND your tests):
+
+1. `template.json` is UTF-8, **no BOM**, at the ZIP root (not inside a folder).
+2. `assets/` is **flat** — no subdirectories.
+3. Asset file types: `.jpg` `.jpeg` `.png` `.gif` `.webp` **only**. Nothing else may appear in
+   the ZIP — no HTML, no CSS, no JS, no fonts, no SVG (SVG can script; it is not accepted).
+4. Asset filenames match `^[a-z0-9][a-z0-9-]*\.(jpg|jpeg|png|gif|webp)$` (lowercase kebab).
+   No spaces, no `..`, no path separators, no leading dots.
+   At most **100 characters**, extension included.
+5. Each asset file ≤ **8 MB** (hard host limit). Whole ZIP ≤ **40 MB**.
+6. The importer verifies **magic bytes** match the extension (a PNG renamed `.jpg` is rejected),
+   so write real files, not just correctly-named ones.
+7. `assets[]` in the JSON and the files in `assets/` must match **exactly, both directions**:
+   every declared ref exists as a file; every file is declared. Orphans either way fail import.
+
+Three things that are **not** errors:
+
+- **ZIP directory entries** (for example an entry named `assets/`) are allowed and ignored. Only file
+  entries count.
+- **An asset nothing references** (listed in `assets[]`, present in `assets/`, used by no block and
+  not the logo). Neither side should send one. If one arrives it is ignored: iPro does not store it
+  or count it against storage, and the builder must not refuse a package for it. Rule 7 still
+  applies: the manifest and the files match both ways.
+- **Large or unusual images.** The only image guarantees are the ones above: an allowed type, magic
+  bytes matching the extension, at most 8 MB, and the file-name pattern. There is no pixel limit.
+  Phone photos can be 48 MP or more, and many JPEGs carry bytes after the end marker. Open them; if
+  one is too large for the builder's own processing, preview a downscaled copy and keep the original
+  bytes for the return (§10.3).
+
+iPro's importer also stops reading a package that unpacks to more than 120 MB or holds more than
+2,000 entries. These are safety limits, not rules to design to: images do not compress, so no
+package within rule 5 comes near them.
+
+The **handover package** iPro sends the builder (§9) follows the same rules for `template.json` and
+`assets/`, and adds `handover.json` and `catalog/`.
+
+## 2. `template.json` — top level
+
+```json
+{
+  "contractVersion": "0.4",
+  "templateName": "prairie-advisor",
+  "theme": "modern",
+  "handoverId": "",
+  "logoRef": "assets/adviser-logo.png",
+  "logoAltText": "Prairie Advisor",
+  "pages": [ ... ],
+  "assets": [ { "ref": "assets/hero-home.png", "type": "image/png" } ]
+}
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `contractVersion` | string | exactly `"0.4"` |
+| `templateName` | string | `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–60 chars; the template's identity |
+| `theme` | string | one of `"modern"`, `"classic"`, `"editorial"` — a **hint** for which host shell the template was designed against; the importer stores it, the agent can still switch |
+| `handoverId` | string | **new in v0.4.** `""` for a template not started from an iPro handover (a designer template). Otherwise exactly the `handoverId` of the handover package the site came from (§9.2). Always emit the key |
+| `logoRef` | string | `""` (no logo) or an exact `ref` from `assets[]` — same both-directions matching rule as `imageRef`. Always emit the key. The importer lands it on the site's header logo, rendered by all three host shells. Same file rules as any asset (§1; no SVG). Recommend a landscape mark ≤512KB — the host header renders it small |
+| `logoAltText` | string | plain text ≤80 chars. REQUIRED non-empty when `logoRef` is set (accessibility); must be `""` when `logoRef` is `""`. iPro validates it; today its three shells write the logo's alternative text from the business name |
+| `pages` | array | 1–30 pages |
+| `assets` | array | see §1 and §10; `ref` is the exact string blocks use in `imageRef`; `type` is the MIME type matching the extension (`image/jpeg`, `image/png`, `image/gif`, `image/webp`) |
+
+Unknown top-level keys: **do not emit any.** The importer treats unknown keys as an error in 0.x
+(strict now is cheap; loose now is forever).
+
+The same holds at every level: pages, blocks, `settings` and the entries of `assets[]`. And no key may
+be missing (§0.1).
+
+## 3. Pages — including hierarchy
+
+Unchanged from v0.3.
+
+```json
+{
+  "slug": "our-services",
+  "parentSlug": null,
+  "title": "Our Services",
+  "navigationLabel": "Services",
+  "isHomePage": false,
+  "sortOrder": 1,
+  "blocks": [ ... ]
+}
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `slug` | string | `^[a-z0-9]+(-[a-z0-9]+)*$`, 1–80 chars, **unique across the whole template** (not just among siblings — host routing is single-segment `/{slug}`) |
+| `parentSlug` | string \| null | `null` = top-level. Otherwise must equal the `slug` of another page in this export. **Maximum depth 3** (top → child → grandchild). No cycles. The home page must have `parentSlug: null` |
+| `title` | string | 1–120 chars, plain text, not only spaces |
+| `navigationLabel` | string | 1–40 chars, plain text, not only spaces (what the menu shows) |
+| `isHomePage` | boolean | exactly **one** page `true` per export; conventionally slug `"home"` |
+| `sortOrder` | integer | ≥ 0, unique **within its sibling group** (pages sharing the same `parentSlug`), ascending = menu order |
+| `blocks` | array | 1–40 blocks |
+
+Your builder UI may ship **flat pages first** — just always emit `parentSlug` (`null`) so the schema
+never changes shape.
+
+Reserved slugs: the importer rejects a small reserved list (host route names — e.g. `portal`,
+`sitemap`, `health`). The exact list is enforced host-side at import; the builder only needs the
+regex + uniqueness + depth rules above. Don't hardcode a reserved list.
+
+One address is worth knowing, because a designer can run into it: **`home` belongs to the home page.**
+iPro's page editor keeps that address for the home page alone, so the importer refuses any other page
+whose slug is `home`. (The home page itself may have any valid slug; `home` is the convention.)
+
+## 4. Blocks — the locked palette, per-type rules
+
+Common shape (unchanged):
+
+```json
+{
+  "type": "Hero",
+  "heading": "", "subheading": "", "body": "",
+  "imageRef": "", "buttonText": "", "buttonUrl": "",
+  "layoutVariant": "", "sortOrder": 0, "isVisible": true,
+  "settings": { }
+}
+```
+
+Common rules for **every** block:
+
+- `type`: one of the **8 export types** — `Hero`, `Text`, `Services`, `CallToAction`,
+  `ContactForm`, and new in v0.4 `ArticleContent`, `Blog`, `Form` — **verbatim, case-sensitive**.
+  (Footer and Disclaimer remain **editor presets** that export as `type: "Text"`; see §4.6.)
+  When the template comes from a handover, only the types in that handover's `allowedBlockTypes`
+  (§9.2) may be used — the rest are outside the adviser's package.
+- `sortOrder`: integer ≥ 0, unique within the page, ascending = render order.
+- `isVisible`: boolean (a hidden block imports but doesn't render — useful for staging content).
+- Always emit **all** common fields; use `""` / `{}` for unused ones. No extra keys, in blocks
+  or in `settings`.
+- A field a block type does not use (each type below says which) is `""`. The importer **refuses** a
+  value there rather than dropping it without a word: a heading on an `ArticleContent`, an image on a
+  `Services`.
+- Field length caps (importer-enforced): `heading` ≤ 200, `subheading` ≤ 300, `body` ≤ 10 000,
+  `buttonText` ≤ 60, `buttonUrl` ≤ 500 chars.
+- `imageRef`: `""` or an exact `ref` from `assets[]` (§10).
+- `buttonUrl`: `""` **or** a site-relative path starting with `/` (e.g. `/contact`,
+  `/our-services` — may reference a slug in this export) **or** an absolute `https://` URL
+  **or** `mailto:`/`tel:`. Nothing else — no `http://`, no `javascript:`, no protocol-relative
+  `//` (and not `/\`, which browsers read the same way).
+- `layoutVariant`: `""` (host default) or one of the type's enum below, lowercase. Anything
+  else is **rejected on import** (§7). iPro's renderer normalizes a value it already stores; that is
+  how old data is treated, not a promise that an invalid export is accepted.
+
+### ⚠ The most important rule in this file: every text field is PLAIN TEXT
+
+Unchanged in v0.4. **No field in any palette block carries HTML.** The host renders `heading`,
+`subheading`, `body`, `buttonText` HTML-encoded — a `<b>` you export would display to visitors as the
+literal characters `<b>`. The three new blocks point at content iPro owns (articles and forms); that
+content never enters the contract, so rich text still does not either.
+
+### 4.1 `Hero` — required: `heading`
+
+Full-width banner. `subheading` = lead line, `body` = optional second lead paragraph,
+`imageRef` = banner image (omit ⇒ host renders a branded monogram), button optional
+(empty `buttonUrl` with non-empty `buttonText` ⇒ host links to `/contact`).
+
+`layoutVariant`: none (`""`) — Hero layout lives in `settings` (`ContactForm` is the other v0.3 block with a setting, §4.5):
+
+```json
+"settings": {
+  "layout": "split",         // "split" | "image-left" | "centered" | "full-image" | "compact"
+  "imagePosition": "center", // "center" | "left" | "right" | "top" | "bottom"  (crop focus)
+  "textAlignment": "left",   // "left" | "center"
+  "height": "standard",      // "compact" | "standard" | "tall"
+  "overlayStrength": 45      // integer 0–85 (image dimming %, for text legibility)
+}
+```
+
+Emit all five keys, always. A value outside the enums or the range is **rejected on import**; the
+defaults shown are what iPro's renderer falls back to for data it already stores.
+
+### 4.2 `Text` — required: at least one of `heading` / `body`
+
+The general-purpose section; also how **Footer** and **Disclaimer** are built. `subheading` renders
+as a small kicker above the heading. Line breaks in `body` are preserved as line breaks.
+
+**A Text block may carry a button.** iPro renders a button on a Text block whenever `buttonText` is
+non-empty, linking to `buttonUrl`, in all three themes. Send **both fields or neither**; the importer
+refuses one without the other. The builder must accept and keep them when a handover has them;
+offering them in the editor is optional.
+
+`layoutVariant`: `"image-left"` | `"image-right"` (only meaningful when `imageRef` is set;
+`""` ⇒ image-right). `settings`: `{}`.
+
+### 4.3 `Services` — required: `body`
+
+`body` is **one service per line** — the host splits on line breaks and renders each line as a
+card / list item / icon tile. Keep each line short (≤ 80 chars); no empty lines.
+`heading`/`subheading` introduce the section. `imageRef`, button: unused, emit `""`.
+
+"≤ 80 characters, no empty lines" is **guidance**, not an import rule. iPro renders longer lines and
+skips empty ones. The builder may point them out in readiness, but must not refuse to open or export
+because of them.
+
+`layoutVariant`: `"cards"` | `"list"` | `"icons"` (`""` ⇒ cards). `settings`: `{}`.
+
+### 4.4 `CallToAction` — required: `heading`
+
+`buttonText` empty ⇒ host renders "Get in touch"; `buttonUrl` empty ⇒ `/contact`.
+`imageRef`: unused.
+
+`layoutVariant`: `"banner"` | `"card"` | `"split"` (`""` ⇒ split). `settings`: `{}`.
+
+### 4.5 `ContactForm` — required: nothing (all fields optional)
+
+**Placeholder in the builder** — the host renders its own CRM-wired lead form here; the builder
+shows a static mock of a form and must not attempt to build a working one. `heading`/
+`subheading`/`body` = the copy beside the form. `imageRef`, button: unused.
+
+`layoutVariant`: none (`""`). `settings`:
+
+```json
+"settings": { "showPhoto": true }   // whether the adviser's photo shows beside the form
+```
+
+`showPhoto` is **required**: a boolean, always emitted, like every settings key.
+
+### 4.6 Footer and Disclaimer (editor presets, not export types)
+
+Unchanged: builder-side presets that create a pre-filled `Text` block and export as `type: "Text"`
+(§4.2). A template SHOULD end its home page with a `Text` disclaimer block; **its `body` must be
+generic placeholder compliance text** — real compliance wording is the adviser's, and (host hard
+rule) **no sample content anywhere in a template may contain dollar amounts, rates of return, or
+subscription-package promises.**
+
+### 4.7 `ArticleContent` — required: `settings.articleId` (new in v0.4)
+
+Shows one of the adviser's **published** articles in full. The host renders the article's own image,
+title and text; the block contributes only the reference. `heading`, `subheading`, `body`,
+`imageRef`, `buttonText`, `buttonUrl`: unused, emit `""`.
+
+`layoutVariant`: none (`""`). `settings`:
+
+```json
+"settings": { "articleId": 101 }   // integer ≥ 1: an `id` from the handover's catalog.articles (§9.3)
+```
+
+Only in a template that came from a handover (`handoverId` set). A designer template has no adviser
+to own an article, so it may not contain this block.
+
+### 4.8 `Blog` — required: nothing (new in v0.4)
+
+Lists the adviser's published articles newest first; a visitor opens a post on the same page.
+`subheading` = small kicker, `heading` = section title, `body` = lead paragraph (plain text).
+`imageRef`, button: unused, emit `""`.
+
+`layoutVariant`: none (`""`). `settings`:
+
+```json
+"settings": { "postCount": 6, "showImages": true }   // postCount: integer 1–50; showImages: boolean
+```
+
+Emit both keys, always. Allowed in designer templates too: it carries no IDs.
+
+### 4.9 `Form` — required: `settings.websiteFormId` (new in v0.4)
+
+One of the adviser's **active** custom forms, rendered and processed entirely by the host:
+validation, spam protection, consent, storage of the answers and the adviser's notification.
+`subheading` = small kicker, `heading` = section title (`""` ⇒ the form's own title), `body` = lead
+paragraph (plain text). `imageRef`, button: unused, emit `""`.
+
+`layoutVariant`: none (`""`). `settings`:
+
+```json
+"settings": { "websiteFormId": 45 }   // integer ≥ 1: an `id` from the handover's catalog.forms (§9.3)
+```
+
+Only in a template that came from a handover (`handoverId` set). The builder never produces a working
+form: see §5.1 for what it draws instead.
+
+## 5. "Pixel-equivalent preview" — defined
+
+Unchanged from v0.3:
+
+- The editor canvas and the preview route render through **one shared renderer inside the
+  builder**. "Pixel-equivalent" = same DOM + CSS modulo editor chrome (selection outlines,
+  drag handles). That's the testable claim.
+- **Host-theme fidelity is explicitly out of scope.** You do not get the Modern/Classic/
+  Editorial shell markup (deliberate isolation), so do not try to imitate them pixel-for-pixel.
+  Build one clean, neutral render style. At integration, the host re-renders the imported
+  blocks through its own shells — layout structure survives, exact styling is the host's.
+
+### 5.1 Stand-ins for host-owned content (new in v0.4)
+
+The three new blocks show content the builder doesn't own, so it draws **non-interactive stand-ins**
+from the handover catalogue (§9.3):
+
+- `ArticleContent`: the article's `title`, its image (`imageRef` in `catalog/`, when not `""`) and its
+  `summary`, with a note such as "Full article shown on your site".
+- `Blog`: the newest `postCount` catalogue articles, each with title, summary and (when `showImages`)
+  image. With no handover, a neutral sample list clearly marked as sample.
+- `Form`: the form's `title` (or the block's `heading`) and `description`, then the host's standard
+  contact fields — **first name, last name, email, phone and a consent checkbox** — then the form's own
+  `fields` in order, drawn as **disabled** controls, and the `submitButtonText` as an inert button.
+  This is a picture of a form: no `<form>` element, nothing that submits, and none of it is exported.
+- An ID that isn't in the catalogue: a visible placeholder ("This article is no longer available" /
+  "This form is no longer available"), and the export is blocked until the adviser picks another item
+  or removes the block (the importer would reject it — §7).
+
+The exact host rendering is available only at integration, through the host preview (§11.4).
+
+## 6. Sanitizer profile — the standing appendix
+
+Unchanged from v0.3 and still **moot by design**: no exported field in v0.4 passes through the HTML
+sanitizer. Keep the conformance harness green; it activates the day a rich-text field enters the
+contract. Below is the host's **exact** production profile (host package: **HtmlSanitizer (Ganss)
+9.2.995**).
+
+**Conformance is defined as canonical-output comparison** (one definition, for both the vectors
+below and future exports):
+
+- **Vector tests:** assert `Sanitize(input) == Sanitize(expected)`. Comparing both sides after
+  a sanitizer pass absorbs the serializer's whitespace/quoting normalization, which is not part
+  of the security claim.
+- **Future rich-text exports:** the builder runs `Sanitize` once at export time and exports the
+  **result** (canonical form). Because the sanitizer is idempotent, the importer's check —
+  `Sanitize(body) == body`, now genuinely byte-for-byte — passes exactly when the content is
+  canonical and profile-clean. "Survives unchanged" therefore means: *canonicalization changes
+  bytes; sanitization must not change meaning* — no element, attribute, declaration or text the
+  author wrote may be dropped.
+- Add one harness test pinning idempotence itself: `Sanitize(Sanitize(x)) == Sanitize(x)` over
+  the vector set.
+
+### 6.1 Architecture: two passes, in this order
+
+1. **XSS pass** — stock `HtmlSanitizer` defaults (default tag/attribute/scheme allow-lists),
+   `KeepChildNodes = false`: a dangerous element is deleted **with** its contents
+   (`<script>`/`<style>` bodies are code, not prose).
+2. **Unwrap pass** — a second `HtmlSanitizer` with `KeepChildNodes = true` and the form-control
+   tags removed from `AllowedTags`, so `<button>Book a call</button>` becomes the bare text
+   `Book a call` (prose preserved, control gone).
+
+Both passes are additionally hardened as follows.
+
+### 6.2 Removed beyond the library defaults
+
+- **Tags (unwrapped, pass 2):** `form input button select textarea option optgroup label
+  fieldset legend datalist output`
+- **Attributes (both passes):** `formaction formmethod formtarget action method`
+
+### 6.3 CSS: allow-list, not deny-list
+
+`AllowedCssProperties` is **cleared** and replaced with exactly this set — any property not
+listed is dropped from `style` attributes. Note what is *absent*: `position`, `top/right/
+bottom/left/inset`, `z-index`, `transform` and friends, `clip/clip-path`, `filter`,
+`animation/transition`, `pointer-events`, `visibility`, `content`. Absence is the security
+property (anti-phishing-overlay), so never ask for an addition that lets a box escape normal flow.
+
+```
+color direction font font-family font-size font-style font-variant font-weight
+letter-spacing line-height quotes tab-size text-align text-align-last text-decoration
+text-decoration-color text-decoration-line text-decoration-style text-decoration-thickness
+text-indent text-overflow text-shadow text-transform unicode-bidi vertical-align
+white-space word-break word-spacing word-wrap overflow-wrap hyphens
+background background-color background-image background-position background-repeat
+background-size background-clip background-origin opacity
+margin margin-top margin-right margin-bottom margin-left
+padding padding-top padding-right padding-bottom padding-left
+border border-width border-style border-color
+border-top border-top-width border-top-style border-top-color
+border-right border-right-width border-right-style border-right-color
+border-bottom border-bottom-width border-bottom-style border-bottom-color
+border-left border-left-width border-left-style border-left-color
+border-radius border-top-left-radius border-top-right-radius
+border-bottom-left-radius border-bottom-right-radius
+border-collapse border-spacing box-shadow box-sizing
+width min-width max-width height min-height max-height
+object-fit object-position aspect-ratio
+display float clear overflow overflow-x overflow-y
+gap column-gap row-gap align-items align-content align-self
+justify-content justify-items justify-self
+flex flex-basis flex-direction flex-grow flex-shrink flex-wrap order
+list-style list-style-type list-style-position list-style-image
+table-layout caption-side empty-cells
+```
+
+### 6.4 Value-level guards (run after the property filter, per declaration)
+
+1. **Negative margins / text-indent:** any `margin*` or `text-indent` declaration containing a
+   negative numeric component anywhere in its value is dropped (`margin: 10px -900px` dies
+   exactly like `margin-top: -900px`). Detection: a `-` at a token start (start of value, or
+   after space/comma/`(`/`:`) followed by a digit or `.`.
+2. **Viewport units:** any declaration whose value contains a viewport-relative unit is dropped.
+   Regex (case-insensitive): `(^|[\s,(])[-+]?\d*\.?\d+(vw|vh|vmin|vmax|svw|svh|lvw|lvh|dvw|dvh)($|[\s,;)])`
+   — `width:100%` is the legitimate spelling; `100vw` is only ever the exploit's.
+
+A dropped declaration removes only itself; the rest of the `style` attribute survives. An
+emptied `style` attribute is removed.
+
+### 6.5 Canonical conformance vectors
+
+| # | Input | Expected output |
+|---|---|---|
+| 1 | `<p style="color:#336699; text-align:center">Hi</p>` | unchanged |
+| 2 | `<script>alert(1)</script><p>Hi</p>` | `<p>Hi</p>` (script body must NOT leak as text) |
+| 3 | `<button>Book a call</button>` | `Book a call` (unwrapped, no element) |
+| 4 | `<form action="https://evil.example"><p>Real text</p></form>` | `<p>Real text</p>` |
+| 5 | `<div style="position:fixed; top:0; color:red">x</div>` | `<div style="color: red">x</div>` |
+| 6 | `<div style="margin: 10px -900px">x</div>` | `<div>x</div>` |
+| 7 | `<div style="width:100vw; font-weight:bold">x</div>` | `<div style="font-weight: bold">x</div>` |
+| 8 | `<img src="x" onerror="alert(1)">` | `<img src="x">` |
+| 9 | `<a href="javascript:alert(1)">x</a>` | `<a>x</a>` |
+| 10 | `<td style="width:50%; background-color:#eee">x</td>` (in a table) | unchanged |
+
+(Compare per the canonical-output definition above: `Sanitize(input) == Sanitize(expected)`.)
+
+## 7. Importer validation summary (what "valid" means, in one list)
+
+The host importer will reject an export for any of: wrong `contractVersion`; unknown keys
+anywhere; ZIP structure violations (§1); slug regex/uniqueness/reserved violations; missing or
+duplicated home page; `parentSlug` unknown, cyclic, on the home page, or exceeding depth 3;
+duplicate `sortOrder` within a sibling group or page; unknown block `type`; invalid
+`layoutVariant`/`settings` values; field length overruns; `imageRef` (or `logoRef`) not in `assets[]`;
+`logoAltText` missing when `logoRef` is set, or set when it is not; `buttonUrl` scheme violations;
+asset/manifest mismatch, bad magic bytes, oversize files.
+
+**Added in v0.4:**
+
+- a block `type` not in the handover's `allowedBlockTypes` (templates from a handover);
+- `ArticleContent` or `Form` in a template whose `handoverId` is `""`;
+- `handoverId` that isn't the one the session was opened with (at integration);
+- an `articleId` or `websiteFormId` that isn't in that handover's catalogue, or is no longer the
+  adviser's published article / active form at the moment of import;
+- `Blog` settings missing a key, or `postCount` outside 1–50;
+- new images whose total size exceeds the handover's `uploads.remainingBytes` (§10).
+
+**Stated since 2026-09-29 and enforced by iPro's importer** (each is a rule of the section named, not
+a new one):
+
+- `null` anywhere but a top-level page's `parentSlug` (§0.1);
+- a missing key, at any level (§0.1, §2);
+- a field the block's type does not use that is not `""` (§4, §10 rule 7);
+- a `Text` block with `buttonText` but no `buttonUrl`, or the reverse (§4.2);
+- a page other than the home page whose slug is `home` (§3);
+- a `title` or `navigationLabel` of only spaces (§3);
+- an image file name longer than 100 characters (§1 rule 4);
+- a `buttonUrl` starting `/\` (§4).
+
+**Not a reason to reject** (§1, §4.3): a ZIP directory entry; an asset nothing references; a Services
+line longer than 80 characters, or an empty one; an image of any pixel size within §1's rules.
+
+Every rejection names the page (its `slug`), the block (its `sortOrder`) and the section of this
+document it comes from, and the importer reports all of them, not only the first.
+
+Your round-trip test suite should cover every line of that list — a red test per rule, then the
+export writer makes it green.
+
+## 8. The authoritative fixtures
+
+Two ZIP files accompany this revision. Both pass every rule in this file; use them as golden fixtures.
+They are the fixtures issued on 2026-09-29, unchanged: SHA-256
+`13daa3a87a60519ef7a9b41999dadf063b13645dfdf46ab21fd299664e336b72` (handover) and
+`d15bf2c119f877e0b115c2c4db9a26afa093864a37bd12830186d351098602d6` (return).
+
+- **`ipro-v0.4-handover-fixture.zip`** — what iPro sends: `handover.json`, `template.json` (the
+  adviser's current site, 3 pages, 7 of the 8 types), `assets/` (3 images) and `catalog/` (1 image).
+- **`ipro-v0.4-return-fixture.zip`** — what the builder sends back after an editing session on that
+  site: the hero heading changed, the About image replaced by a new upload, a Resources page added with
+  an `ArticleContent` block, and the blog count raised. `assets/` holds the two unchanged images
+  byte-for-byte and the one new image; the replaced image is gone from both the manifest and the ZIP.
+
+Their JSON, in full:
+
+**`handover.json`** (in the handover ZIP):
+
+```json
+{
+  "handoverVersion": "1.0",
+  "handoverId": "h_2f6c9a41d0b84e5f",
+  "contractVersion": "0.4",
+  "issuedAt": "2026-09-29T15:00:00Z",
+  "sessionToken": "fixture-session-token-not-a-real-secret-0000000000",
+  "sessionExpiresAt": "2026-09-30T03:00:00Z",
+  "adviser": {
+    "businessName": "Sample Planning Group",
+    "vertical": "advisers"
+  },
+  "allowedBlockTypes": [
+    "Hero",
+    "Text",
+    "Services",
+    "CallToAction",
+    "ContactForm",
+    "ArticleContent",
+    "Blog",
+    "Form"
+  ],
+  "uploads": {
+    "maxFileBytes": 8388608,
+    "remainingBytes": 52428800
+  },
+  "catalog": {
+    "articles": [
+      {
+        "id": 101,
+        "title": "Five questions to ask before renewing your mortgage",
+        "summary": "A short checklist to go through when the renewal letter arrives.",
+        "imageRef": "catalog/renewal-checklist.png",
+        "publishedAt": "2026-09-15T14:00:00Z"
+      },
+      {
+        "id": 102,
+        "title": "Choosing between an RRSP and a TFSA",
+        "summary": "The questions that decide which account to fund first.",
+        "imageRef": "",
+        "publishedAt": "2026-09-01T13:00:00Z"
+      }
+    ],
+    "forms": [
+      {
+        "id": 45,
+        "title": "Book a planning review",
+        "description": "Tell us a little about what you would like to review.",
+        "submitButtonText": "Send",
+        "fields": [
+          {
+            "id": 1,
+            "type": "Section",
+            "label": "Your review",
+            "placeholder": "",
+            "helpText": "",
+            "required": false,
+            "options": []
+          },
+          {
+            "id": 2,
+            "type": "Dropdown",
+            "label": "Topic",
+            "placeholder": "",
+            "helpText": "Pick the closest match.",
+            "required": true,
+            "options": [
+              "Insurance",
+              "Investments",
+              "Mortgage"
+            ]
+          },
+          {
+            "id": 3,
+            "type": "DateTime",
+            "label": "Preferred time",
+            "placeholder": "",
+            "helpText": "",
+            "required": false,
+            "options": []
+          },
+          {
+            "id": 4,
+            "type": "CheckboxGroup",
+            "label": "How should we reach you?",
+            "placeholder": "",
+            "helpText": "",
+            "required": false,
+            "options": [
+              "Phone",
+              "Email"
+            ]
+          },
+          {
+            "id": 5,
+            "type": "Textarea",
+            "label": "Anything else?",
+            "placeholder": "Optional",
+            "helpText": "",
+            "required": false,
+            "options": []
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**`template.json`** (in the handover ZIP):
+
+```json
+{
+  "contractVersion": "0.4",
+  "templateName": "sample-planning-group",
+  "theme": "modern",
+  "handoverId": "h_2f6c9a41d0b84e5f",
+  "logoRef": "assets/adviser-logo.png",
+  "logoAltText": "Sample Planning Group",
+  "pages": [
+    {
+      "slug": "home",
+      "parentSlug": null,
+      "title": "Home",
+      "navigationLabel": "Home",
+      "isHomePage": true,
+      "sortOrder": 0,
+      "blocks": [
+        {
+          "type": "Hero",
+          "heading": "Plan with confidence",
+          "subheading": "Insurance and investment advice for families and business owners.",
+          "body": "",
+          "imageRef": "assets/hero-home.png",
+          "buttonText": "Book a review",
+          "buttonUrl": "/contact",
+          "layoutVariant": "",
+          "sortOrder": 0,
+          "isVisible": true,
+          "settings": {
+            "layout": "split",
+            "imagePosition": "center",
+            "textAlignment": "left",
+            "height": "standard",
+            "overlayStrength": 45
+          }
+        },
+        {
+          "type": "Services",
+          "heading": "How we can help",
+          "subheading": "",
+          "body": "Retirement planning\nInsurance review\nEducation savings",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "cards",
+          "sortOrder": 1,
+          "isVisible": true,
+          "settings": {}
+        },
+        {
+          "type": "Blog",
+          "heading": "From the blog",
+          "subheading": "Latest",
+          "body": "Short reads on planning topics.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 2,
+          "isVisible": true,
+          "settings": {
+            "postCount": 3,
+            "showImages": true
+          }
+        },
+        {
+          "type": "Text",
+          "heading": "",
+          "subheading": "",
+          "body": "This is sample template content. Replace with your own compliance wording.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 3,
+          "isVisible": true,
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "slug": "about",
+      "parentSlug": null,
+      "title": "About",
+      "navigationLabel": "About",
+      "isHomePage": false,
+      "sortOrder": 1,
+      "blocks": [
+        {
+          "type": "Text",
+          "heading": "About the practice",
+          "subheading": "Who we are",
+          "body": "We help families plan for the years ahead.\nEvery plan starts with a conversation.",
+          "imageRef": "assets/office-team.png",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "image-left",
+          "sortOrder": 0,
+          "isVisible": true,
+          "settings": {}
+        },
+        {
+          "type": "CallToAction",
+          "heading": "Ready to talk?",
+          "subheading": "",
+          "body": "",
+          "imageRef": "",
+          "buttonText": "Get in touch",
+          "buttonUrl": "/contact",
+          "layoutVariant": "banner",
+          "sortOrder": 1,
+          "isVisible": true,
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "slug": "contact",
+      "parentSlug": null,
+      "title": "Contact",
+      "navigationLabel": "Contact",
+      "isHomePage": false,
+      "sortOrder": 2,
+      "blocks": [
+        {
+          "type": "ContactForm",
+          "heading": "Let's talk",
+          "subheading": "",
+          "body": "Send a note and we will get back to you within one business day.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 0,
+          "isVisible": true,
+          "settings": {
+            "showPhoto": true
+          }
+        },
+        {
+          "type": "Form",
+          "heading": "",
+          "subheading": "Planning review",
+          "body": "Tell us what you would like to cover.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 1,
+          "isVisible": true,
+          "settings": {
+            "websiteFormId": 45
+          }
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "ref": "assets/adviser-logo.png",
+      "type": "image/png"
+    },
+    {
+      "ref": "assets/hero-home.png",
+      "type": "image/png"
+    },
+    {
+      "ref": "assets/office-team.png",
+      "type": "image/png"
+    }
+  ]
+}
+```
+
+**`template.json`** (in the return ZIP):
+
+```json
+{
+  "contractVersion": "0.4",
+  "templateName": "sample-planning-group",
+  "theme": "modern",
+  "handoverId": "h_2f6c9a41d0b84e5f",
+  "logoRef": "assets/adviser-logo.png",
+  "logoAltText": "Sample Planning Group",
+  "pages": [
+    {
+      "slug": "home",
+      "parentSlug": null,
+      "title": "Home",
+      "navigationLabel": "Home",
+      "isHomePage": true,
+      "sortOrder": 0,
+      "blocks": [
+        {
+          "type": "Hero",
+          "heading": "Plan with confidence, at every stage",
+          "subheading": "Insurance and investment advice for families and business owners.",
+          "body": "",
+          "imageRef": "assets/hero-home.png",
+          "buttonText": "Book a review",
+          "buttonUrl": "/contact",
+          "layoutVariant": "",
+          "sortOrder": 0,
+          "isVisible": true,
+          "settings": {
+            "layout": "split",
+            "imagePosition": "center",
+            "textAlignment": "left",
+            "height": "standard",
+            "overlayStrength": 45
+          }
+        },
+        {
+          "type": "Services",
+          "heading": "How we can help",
+          "subheading": "",
+          "body": "Retirement planning\nInsurance review\nEducation savings",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "cards",
+          "sortOrder": 1,
+          "isVisible": true,
+          "settings": {}
+        },
+        {
+          "type": "Blog",
+          "heading": "From the blog",
+          "subheading": "Latest",
+          "body": "Short reads on planning topics.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 2,
+          "isVisible": true,
+          "settings": {
+            "postCount": 4,
+            "showImages": true
+          }
+        },
+        {
+          "type": "Text",
+          "heading": "",
+          "subheading": "",
+          "body": "This is sample template content. Replace with your own compliance wording.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 3,
+          "isVisible": true,
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "slug": "about",
+      "parentSlug": null,
+      "title": "About",
+      "navigationLabel": "About",
+      "isHomePage": false,
+      "sortOrder": 1,
+      "blocks": [
+        {
+          "type": "Text",
+          "heading": "About the practice",
+          "subheading": "Who we are",
+          "body": "We help families plan for the years ahead.\nEvery plan starts with a conversation.",
+          "imageRef": "assets/meeting-room.png",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "image-left",
+          "sortOrder": 0,
+          "isVisible": true,
+          "settings": {}
+        },
+        {
+          "type": "CallToAction",
+          "heading": "Ready to talk?",
+          "subheading": "",
+          "body": "",
+          "imageRef": "",
+          "buttonText": "Get in touch",
+          "buttonUrl": "/contact",
+          "layoutVariant": "banner",
+          "sortOrder": 1,
+          "isVisible": true,
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "slug": "contact",
+      "parentSlug": null,
+      "title": "Contact",
+      "navigationLabel": "Contact",
+      "isHomePage": false,
+      "sortOrder": 2,
+      "blocks": [
+        {
+          "type": "ContactForm",
+          "heading": "Let's talk",
+          "subheading": "",
+          "body": "Send a note and we will get back to you within one business day.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 0,
+          "isVisible": true,
+          "settings": {
+            "showPhoto": true
+          }
+        },
+        {
+          "type": "Form",
+          "heading": "",
+          "subheading": "Planning review",
+          "body": "Tell us what you would like to cover.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 1,
+          "isVisible": true,
+          "settings": {
+            "websiteFormId": 45
+          }
+        }
+      ]
+    },
+    {
+      "slug": "resources",
+      "parentSlug": null,
+      "title": "Resources",
+      "navigationLabel": "Resources",
+      "isHomePage": false,
+      "sortOrder": 3,
+      "blocks": [
+        {
+          "type": "Text",
+          "heading": "Resources",
+          "subheading": "",
+          "body": "Articles we wrote for our clients.",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 0,
+          "isVisible": true,
+          "settings": {}
+        },
+        {
+          "type": "ArticleContent",
+          "heading": "",
+          "subheading": "",
+          "body": "",
+          "imageRef": "",
+          "buttonText": "",
+          "buttonUrl": "",
+          "layoutVariant": "",
+          "sortOrder": 1,
+          "isVisible": true,
+          "settings": {
+            "articleId": 101
+          }
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "ref": "assets/adviser-logo.png",
+      "type": "image/png"
+    },
+    {
+      "ref": "assets/hero-home.png",
+      "type": "image/png"
+    },
+    {
+      "ref": "assets/meeting-room.png",
+      "type": "image/png"
+    }
+  ]
+}
+```
+
+## 9. Handover package (host → builder) — new in v0.4
+
+### 9.1 ZIP layout
+
+```
+handover.json          (required, at the ZIP root)
+template.json          (required, at the ZIP root: the adviser's current site as a valid v0.4
+                        template, with handoverId set)
+assets/                (the site's images, exactly as in §1)
+catalog/               (catalogue article images, flat; omit if none)
+```
+
+- Every rule in §1 applies to `template.json` and `assets/`.
+- `catalog/` follows §1 rules 2–6 (flat; image types only; the filename regex; ≤ 8 MB each; real magic
+  bytes). Every file in `catalog/` is referenced by exactly one `catalog.articles[].imageRef`, and every
+  such reference exists as a file — both directions, like `assets[]`.
+- `handover.json` is UTF-8, no BOM. Whole ZIP ≤ **40 MB**.
+- Nothing else appears in the package.
+
+### 9.2 `handover.json`
+
+| Field | Type | Rules |
+|---|---|---|
+| `handoverVersion` | string | exactly `"1.0"` |
+| `handoverId` | string | `^h_[0-9a-f]{16}$`. The export must carry it in `template.json` → `handoverId` |
+| `contractVersion` | string | `"0.4"`: the version of the enclosed `template.json`, and the version the export must use |
+| `issuedAt` | string | ISO 8601 UTC, e.g. `"2026-09-29T15:00:00Z"` |
+| `sessionToken` | string | opaque, 32–200 characters; the only credential the builder ever holds (§11). In fixtures, a dummy value |
+| `sessionExpiresAt` | string | ISO 8601 UTC; normally 12 hours after `issuedAt`. Use the value given as the deadline; don't check the arithmetic |
+| `adviser` | object | exactly `{ "businessName": string ≤ 120, plain text, "vertical": "advisers" \| "accountants" \| "mortgage" }` — for display and brand defaults only |
+| `allowedBlockTypes` | array | the export types this adviser's package includes: always the five v0.3 types, plus any of `ArticleContent`, `Blog`, `Form`. Offer only these in the palette |
+| `uploads` | object | exactly `{ "maxFileBytes": 8388608, "remainingBytes": integer ≥ 0 }` — `remainingBytes` is the adviser's remaining storage (§10) |
+| `catalog` | object | exactly `{ "articles": [...], "forms": [...] }` (§9.3); either array may be empty |
+
+No other keys. Treat the file as strictly as the importer treats yours: reject unknown keys.
+It carries nothing else about the adviser — no email, phone, internal account IDs, client data or
+billing. Business details that appear on the site are already in its blocks.
+
+**The same package opened twice.** Every issuance has a new `handoverId`. Opening the same package
+again must reopen it, not fail: an adviser double-clicks, or opens the file twice. Different content
+under a known `handoverId` never comes from iPro, and may be refused.
+
+### 9.3 The catalogue
+
+`catalog.articles[]` — only the adviser's **published** articles, newest first:
+
+| Field | Type | Rules |
+|---|---|---|
+| `id` | integer | ≥ 1; the value an `ArticleContent` block puts in `settings.articleId` |
+| `title` | string | ≤ 200, plain text |
+| `summary` | string | ≤ 500, plain text |
+| `imageRef` | string | `""` or `"catalog/<file>"` (§9.1) |
+| `publishedAt` | string | ISO 8601 UTC |
+
+`catalog.forms[]` — only the adviser's **active** forms:
+
+| Field | Type | Rules |
+|---|---|---|
+| `id` | integer | ≥ 1; the value a `Form` block puts in `settings.websiteFormId` |
+| `title` | string | ≤ 200, plain text |
+| `description` | string | ≤ 1 000, plain text |
+| `submitButtonText` | string | ≤ 60, plain text |
+| `fields` | array | in display order; each exactly `{ "id": integer ≥ 1, "type": "Text" \| "Textarea" \| "CheckboxGroup" \| "Dropdown" \| "Section" \| "DateTime", "label": string ≤ 200, "placeholder": string ≤ 200, "helpText": string ≤ 500, "required": boolean, "options": [string ≤ 200, ...] }` — `options` is empty unless the type is `CheckboxGroup` or `Dropdown`; a `Section` is a heading inside the form, never `required` |
+
+The catalogue is for **picking and stand-ins only** (§5.1). It is never exported: only an `id` travels
+back, inside a block's `settings`. The host's standard contact fields (first name, last name, email,
+phone, consent) are not listed in `fields`; every form has them (§5.1).
+
+### 9.4 When the builder refuses a handover
+
+Refuse a handover only for a rule this contract states, and name the rule in the message. Anything
+else the builder would like to be stricter about (image dimensions, line lengths) belongs in
+readiness, where the adviser can fix it.
+
+## 10. Image references — all the rules in one place (new in v0.4)
+
+1. In `template.json`, **every image is a file** in `assets/`, named by a block's `imageRef` or by
+   `logoRef`, and declared in `assets[]`. There are no image URLs anywhere in `template.json`.
+2. The handover delivers the adviser's current site images the same way: iPro writes them into
+   `assets/` with names that match §1's regex. Keep a file's **bytes unchanged** unless the adviser
+   replaces that image.
+3. The return carries **every image the site uses**, old and new. iPro recognizes a file that is
+   byte-identical (SHA-256) to one it delivered in this handover and links the image it already
+   stores, so unchanged images cost no storage. Re-encoding, resizing, re-compressing or stripping
+   metadata from an unchanged image breaks the match and uses the adviser's storage. Matching is by
+   content, not by name: a renamed file with identical bytes still matches.
+4. **New images** are the files that aren't byte-identical to a handover file. Each is within
+   `uploads.maxFileBytes` and §1's rules, and together they fit within `uploads.remainingBytes`.
+   Each distinct new image counts once, by SHA-256; identical new images should be one file anyway.
+5. An image the adviser removed or replaced is simply absent from the return — manifest and ZIP both.
+6. **Catalogue images** live in `catalog/` and are referenced only from `catalog.articles[].imageRef`,
+   for stand-ins. They never appear in `template.json`, in `assets[]`, or in the return.
+7. Blocks that don't take an image — `Services`, `CallToAction`, `ContactForm`, `ArticleContent`,
+   `Blog`, `Form` — emit `imageRef: ""`.
+
+## 11. Transport at integration (paths are placeholders until the host builds its side) — new in v0.4
+
+During the prototype there is **no network**: the builder opens a handover ZIP from disk ("Open iPro
+package") and writes a return ZIP to disk. At integration the same two files travel as follows.
+
+1. **Open.** The adviser clicks "Open in the new builder" in the iPro portal. iPro builds the handover
+   package and redirects the adviser's browser to `https://<builder-host>/open?token=<open-token>`.
+2. **Fetch.** The builder's server fetches the package, server to server:
+   `GET https://app.iproadvisers.com/builder/handover` with `Authorization: Bearer <open-token>`.
+   The response is the handover ZIP. The open token works once and expires 10 minutes after issue.
+3. **Session.** From then on the builder uses `handover.json` → `sessionToken`: valid until
+   `sessionExpiresAt` (12 hours), bound to this adviser and this handover. Keep it on the builder's
+   server, send it over HTTPS only, never log it, never put it in a URL. When it expires, the adviser
+   starts again from iPro's button; the builder may keep its local draft.
+4. **Preview.** `POST https://app.iproadvisers.com/builder/preview` with
+   `Authorization: Bearer <sessionToken>` and a return-format ZIP as the body. iPro answers
+   `200 { "previewUrl": "https://…", "expiresAt": "…" }`: every page rendered through the host's real
+   shells, with full article text and forms whose submissions are switched off. The address stays
+   valid for 30 minutes, publishes nothing, and is hidden from search engines. iPro may rate-limit
+   preview requests.
+5. **Return.** `POST https://app.iproadvisers.com/builder/return` with
+   `Authorization: Bearer <sessionToken>` and the return ZIP as the body. iPro validates it (§7) and
+   answers `202 { "reviewUrl": "https://…" }`; the builder sends the adviser there. A rejected export
+   answers `422 { "errors": [ { "page": "home", "block": 2, "message": "…" } ] }` (`page` and `block`
+   are `null` for package-level problems; `block` is the block's `sortOrder`).
+6. **Publish.** The adviser reviews the result on iPro's page and publishes it there. **Publishing
+   always happens in iPro, never in the builder.**
+
+## 12. Round trip — what the host keeps and what it refuses (new in v0.4)
+
+- iPro offers "Open in the new builder" only for a site that already fits this contract: every block
+  one of the adviser's allowed export types, every page and field within §3–§4. Otherwise it tells the
+  adviser what the builder can't carry yet (for example a map or reviews block) and doesn't open it.
+- Page settings the contract doesn't carry — SEO title, SEO description, "show in menu", page
+  published — are kept by iPro for every page whose `slug` is unchanged. New pages get iPro's defaults.
+- `theme` in the return is the hint it has always been; the adviser confirms the theme on iPro's
+  review page.
+
+### 12.1 What iPro's importer does today (2026-10-12)
+
+For a template built from scratch (`handoverId: ""`), brought in by iPro's staff for one customer:
+
+- **Nothing changes at upload.** The package is checked (§7) and its new images are stored. iPro's
+  staff then see what it would do, page by page, and each page rendered through the customer's real
+  shell, before anything is replaced.
+- **The home page is the home page.** The package's home page replaces the site's home page, whatever
+  either side calls it. Every other page is matched by `slug`: a match is replaced and keeps the page
+  settings listed above; a page with a new slug is added.
+- **A page the package does not have is kept** as it is, after the package's pages in the menu, unless
+  iPro's staff choose to remove it. (A return of a handed-over site carries every page of the site,
+  so there a missing page is one the adviser removed.)
+- **A replaced page's sections are replaced as a set.** A section of a kind the builder cannot carry
+  (a map, a gallery, a price list) does not survive; iPro's review names each one before it goes.
+- **The logo:** a `logoRef` replaces the site's logo. `logoRef: ""` in a template built from scratch
+  says nothing about the site's logo, which stays; in a return it means the adviser removed it.
+- **Images are matched by content** (§10.3) against the images earlier packages brought into the site, so bringing
+  the same template in again after an edit stores only what is new.
+- **The previous site is kept** and can be put back in one step.
+
+---
+
+## Changelog
+
+- **v0.4, consolidated revision (2026-10-12, doc-only — no validation rule and no part of the schema
+  changed, `contractVersion` stays `"0.4"`, fixtures unchanged)** — the clarifications iPro gave on
+  2026-09-29 (review note, section 6) are folded into their sections: rejection versus fallback for
+  `layoutVariant` and `settings` (§4, §4.1); a Text block's button (§4.2); `showPhoto` required
+  (§4.5); Services line guidance (§4.3); unreferenced assets, ZIP directory entries and the image
+  guarantees (§1); when to refuse a handover (§9.4); `sessionExpiresAt` and reopening a package
+  (§9.2); counting new images (§10); UTF-16 lengths and whole-value patterns (§0.1); file names of at
+  most 100 characters (§1); the two wording fixes (§4, §4.1). Added from building iPro's importer,
+  each a consequence of a rule already stated: `null` is never a value and no key is missing (§0.1);
+  an unused field is `""` and a value there is refused (§4); `home` belongs to the home page and a
+  title is not only spaces (§3); `/\` is refused like `//` (§4); the importer's two safety limits
+  (§1); what iPro does with `logoAltText` (§2); the restated list in §7; what the importer does
+  with a site (§12.1). Checked against the builder's six exports of 2026-10-12: all pass.
+- **v0.4 (2026-09-29)** — articles, forms and the handover, on the builder developer's questions of
+  2026-09-29. Palette 5 → **8 export types**: `ArticleContent`, `Blog`, `Form` (§4.7–4.9), each carrying
+  only a reference or display settings — host content never enters the contract, so the plain-text rule
+  and §6 stand unchanged. New top-level key `handoverId` (§2). New: stand-ins (§5.1), the handover
+  package (§9), image-reference rules (§10), transport (§11), round trip (§12), validation additions
+  (§7), authoritative fixtures (§8). Per policy this is a schema change, so `contractVersion` is now
+  exactly `"0.4"`. The sample shapes in the host's two answer notes of 2026-09-29 are superseded.
+- **v0.3 (2026-08-30)** — template-level logo, on the builder developer's request: `logoRef` +
+  `logoAltText` (rules in §2). Approved after confirming the host renders a site logo
+  (`AgentWebsite.LogoUrl`, all three shells), so the importer has a real landing spot — the
+  builder's upload/replace/remove/preview/export flow is green-lit end to end. Per policy this
+  is a schema change, so `contractVersion` is now exactly `"0.3"`.
+- **v0.2 clarifications (2026-08-29, doc-only — no validation rule changed, `contractVersion`
+  stays `"0.2"`)** — three developer-raised points: (1) confirmed there are **5 export types**;
+  Footer/Disclaimer are editor presets exporting as `Text` (§4, §4.6); (2) sanitizer
+  conformance unified to one definition — canonical-output comparison
+  `Sanitize(input) == Sanitize(expected)`, plus an idempotence pin (§6); (3) ONBOARDING §7
+  item 5 rewritten: the sanitizer harness is preparation for a future rich-text contract,
+  since v0.2 exports plain text only. Policy note: doc-only clarifications are recorded here
+  without a version bump; anything touching a validation rule or the schema bumps the minor.
+- **v0.2 (2026-08-29)** — first self-contained revision. Added: ZIP package spec (§1);
+  `templateName`; `parentSlug` + depth-3 hierarchy; per-block required fields, variant enums and
+  settings shapes; plain-text rule for all palette fields (corrects v0.1, which wrongly implied
+  rich-text HTML in `body`); exact sanitizer profile as standing appendix; validation summary;
+  preview definition; field length caps; URL scheme rules.
+- **v0.1 (2026-08-29)** — draft sketch in ONBOARDING.md §5. Superseded.

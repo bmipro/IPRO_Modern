@@ -70,6 +70,32 @@ public class PublicWebsiteController : Controller
         return View("~/Views/PublicWebsite/Index.cshtml", model);
     }
 
+    // 571: a SuperAdmin's look at a Template Builder package before it is brought into a customer's
+    // site (the admin app's BuilderImports review screen links here, one link per page). The admin is
+    // not signed in on this host, so the link carries the import's id and the random key kept on its
+    // row for an hour; only a package still waiting has a look. Nothing is written and nothing is
+    // counted as a visit.
+    //
+    // A public address, so scanners will find it: a request without a well-formed key is answered
+    // before the database is asked anything.
+    [HttpGet]
+    public async Task<IActionResult> PreviewBuilderImport(int id, string? key, string? page, int? design, string? without)
+    {
+        if (id <= 0 || !IPRO.Business.SiteImport.BuilderImportService.LookKeyLooksRight(key)) return NotFound();
+        var import = await _db.WebsiteBuilderImports.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+        if (import == null || !IPRO.Business.SiteImport.BuilderImportService.LookIsOpen(import, key, DateTime.UtcNow)) return NotFound();
+
+        var model = await IPRO.Web.Infrastructure.BuilderImportPreviewBuilder.BuildAsync(_db, import, page, design, without);
+        if (model == null) return NotFound();
+
+        ViewBag.IsTemplatePreview = true;
+        // The three designs show a banner on a preview; this one says what this preview is.
+        ViewBag.PreviewBanner = "A look at a Template Builder package before it is brought in. Nothing on the site has changed.";
+        Response.Headers.CacheControl = "no-store";
+        Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+        return View("~/Views/PublicWebsite/Index.cshtml", model);
+    }
+
     // Canonical host selection. A site bound to a custom domain deliberately stays reachable on
     // its 247advisers subdomain -- certificates renew manually, so the subdomain is the fallback
     // if one lapses. But serving identical content on two hosts, each self-canonicalizing, makes

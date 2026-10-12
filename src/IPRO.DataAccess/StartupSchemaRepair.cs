@@ -1367,6 +1367,45 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 571: sites brought in from the Template Builder (WebsiteBuilderImport), and the content hash on
+    // a media-library image that lets a package's unchanged image be linked instead of stored again.
+    // Mirrors the EF model.
+    public static async Task EnsureWebsiteBuilderImportSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `WebsiteBuilderImports` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `AgentWebsiteId` int NOT NULL,
+        `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `FileName` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+        `PackageSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `TemplateName` varchar(60) CHARACTER SET utf8mb4 NOT NULL,
+        `Theme` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `HandoverId` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `PageCount` int NOT NULL,
+        `BlockCount` int NOT NULL,
+        `NewImageCount` int NOT NULL,
+        `NewImageBytes` bigint NOT NULL,
+        `TemplateJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `AssetMapJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `SnapshotJson` longtext CHARACTER SET utf8mb4 NULL,
+        `UploadedBy` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+        `AppliedBy` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `AppliedAt` datetime(6) NULL,
+        `ClosedAt` datetime(6) NULL,
+        `PreviewKey` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `PreviewKeyExpiresAt` datetime(6) NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_WebsiteBuilderImports_AgentUserId` (`AgentUserId`),
+        KEY `IX_WebsiteBuilderImports_AgentWebsiteId` (`AgentWebsiteId`)
+    ) CHARACTER SET=utf8mb4;");
+
+        await EnsureTableColumnAsync(db, "WebsiteMediaAssets", "ContentSha256",
+            "ALTER TABLE `WebsiteMediaAssets` ADD COLUMN `ContentSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+    }
+
     // 498: the morning follow-ups email's switch and day-claim (AgentFollowUpReminder). A table of its
     // own and NOT columns on AgentUsers -- the entity says why. Matches the EF model column for column.
     public static async Task EnsureFollowUpReminderSchemaAsync(IPRODbContext db)
