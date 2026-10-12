@@ -92,6 +92,53 @@
 - For whoever picks this up: the builder's SQLite tests fail from a long folder path. The scratchpad copy passed
   only through a temporary drive letter (`subst T:`), removed afterwards. Work in a copy at a short path.
 
+## The hand-over, the round trip and the first audits (572)
+
+- **The developer handed the code over** (final commit `cd4e995`; his note is `docs/FINAL_HANDOVER_2026-10-12.md` in the
+  builder's repository). The owner: Chrome will be available for testing the editor; the developer stays around for
+  questions, which go through the owner. Our working copy is `C:\Users\admin\Projects\ipro-builder`, branch `ipro/beta` (cut
+  from `cd4e995`; nothing pushed). Keep it at a short path: its SQLite tests fail from a long one.
+- **572 is built, gated 1707/1707 and committed on the branch as `effdcf6`.** iPro makes the package the builder opens
+  (SuperAdmin, Template Builder, "Make the package") and takes the edited site back as a return. The TODO row has
+  the whole of it.
+- **Proven with real code on both sides:** a package made by iPro was opened by the builder's own importer, edited,
+  exported by its exporter and taken back by iPro's door with all three images recognized as unchanged. Those two
+  files are fixtures in both repositories.
+- **Two independent audits ran on 571 and the builder** (read-only reviewers given the code and the contract, not
+  our conclusions): one on whether the builder, the importer and the contract agree; one on security. Every finding
+  acted on was checked first.
+  - *Fixed in iPro (in 572):* a double bring-in overwrote the kept copy of the previous site (each step now claims
+    the package's status in one statement); the look read the row before checking its key; a button link could
+    carry a tab; text from a package was quoted back at any length; storing a package was two saves; a kept copy of
+    a site did not count as using its images; a replaced home page forgot its old address.
+  - *Fixed in the builder (`6ffed14` on `ipro/beta`, 285 .NET and 29 Node tests):* it refused a phone button
+    written with a space, so a whole iPro site would not open; its editor left the old home page at the address
+    `home`, which iPro refuses; it did not know the addresses iPro keeps for itself; a title of spaces alone passed.
+    The address rules stop an export and show in readiness; they do not stop a save, so an older draft still opens.
+  - *Checked and found not to be a hole:* the audit rated the builder's 80 MB expanded-size limit HIGH because it
+    adds up the lengths the archive declares. A test showed the .NET 8 zip reader stops at the declared length, so
+    the sum was already a true bound. The limit counts real bytes now all the same.
+  - *Open in the builder, reported by the audits and NOT yet verified or fixed by us:* stored images are never
+    reclaimed and the storage limit is one total for everybody; the image preview has no bound on work or memory;
+    there is no sign-in and one draft, so separation rests on ids the browser sends (the answer is the next piece:
+    the builder behind iPro's sign-in, a draft per customer); response headers, cookies and CDN integrity; a backup
+    zip with a SQLite database is tracked in its Git history; machine paths in `appsettings.Development.json`.
+    Editor behaviour: reopening a package replaces saved edits without asking; a second tab that is told "a newer
+    version exists" can never save; no autosave; an upload refused for its pixel size gets a misleading message;
+    refusals do not name the section.
+  - *Deferred in iPro:* no cap on an image's pixel dimensions (bytes only); the look's key travels in the address
+    (one hour, noindex).
+- **The owner's own saved work is in the old copy on port 5087** (an older build; its data under his Temp folder).
+  Do not stop it, save in it or copy its live database file. Only after he says his edits are saved: stop it,
+  copy its whole App_Data somewhere durable, and bring his site up on the current build. Port 5090 is the
+  developer's synthetic review copy.
+- **Images held for rights:** the 69 stock photos in the builder's local inventory stay out of anything that ships
+  until the owner confirms the licence. The four generated design photos in Git are usable.
+- **Next, in this order:** the builder behind iPro's sign-in with a draft per customer; the per-customer Beta switch
+  (SuperAdmin) and "Try the new builder (Beta)" in My Website, back and forth; a local test bench (builder, portal
+  and admin together) for the owner's own testing; hands-on testing of the editor in his Chrome; then the
+  three-lens audit (code quality, security, functionality) before any production step is even proposed.
+
 ## Pushed
 
 | Commit | What | Gate |
@@ -118,7 +165,7 @@ consolidated contract v0.4 and a v0.5 draft.
 ## Not seen signed in
 
 The three Template Builder screens in SuperAdmin (571): rendered from their real views by a test and looked at as
-pictures of that markup, never signed in. The owner's first upload is the first real use.
+pictures of that markup, never signed in. The owner's first upload is the first real use. The "Make the package" step and a return's review (572) likewise: rendered by tests, never signed in.
 
 The Profile page's GST/HST number box (570) and the editor's reminder; and, from 10-11, the editor's live totals and
 discount choice in use, the remembered items, Email Activity's period, pages, Needs attention tab and search. His
