@@ -24,6 +24,7 @@ public sealed class ClientDocumentPresentation
     public IReadOnlyList<string> SupplierAddressLines { get; init; } = Array.Empty<string>();
     public string SupplierPhone { get; init; } = string.Empty;
     public string SupplierEmail { get; init; } = string.Empty;
+    public string SupplierTaxNumber { get; init; } = string.Empty;   // 570: the business's GST/HST registration number; empty prints nothing
     public string LogoUrl { get; init; } = string.Empty;
     public string IssueDate { get; init; } = string.Empty;
     public string DueDate { get; init; } = string.Empty;
@@ -113,6 +114,7 @@ public sealed class ClientDocumentPresentation
             SupplierAddressLines = InvoiceText.WithoutCountryOnly(InvoiceText.AgentAddressLines(agent), agent?.Country),
             SupplierPhone = agent?.Phone?.Trim() ?? string.Empty,
             SupplierEmail = agent?.Email?.Trim() ?? string.Empty,
+            SupplierTaxNumber = agent?.TaxRegistrationNumber?.Trim() ?? string.Empty,
             LogoUrl = logoUrl?.Trim() ?? string.Empty,
             IssueDate = Date(document.IssueDate),
             DueDate = document.DueDate.HasValue ? Date(document.DueDate.Value) : string.Empty,

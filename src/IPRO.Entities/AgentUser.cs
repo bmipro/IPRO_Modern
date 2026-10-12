@@ -15,6 +15,10 @@ public class AgentUser
     public string Province { get; set; } = string.Empty;
     public string PostalCode { get; set; } = string.Empty;
     public string Country { get; set; } = "Canada";
+    // 570 (2026-10-12): the business's GST/HST registration number, as the business writes it
+    // ("123456789 RT0001"). Printed on its invoices and estimates to clients; empty when it is not
+    // registered, and then nothing is printed.
+    public string TaxRegistrationNumber { get; set; } = string.Empty;
     public string TimeZone { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string BusinessFax { get; set; } = string.Empty;

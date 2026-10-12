@@ -239,6 +239,8 @@ public class RecurringInvoicesController : Controller
         var business = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
         var rates = await _db.ProvinceTaxRates.AsNoTracking().Where(t => t.IsActive).ToListAsync();
         ViewBag.TaxByClient = clients.ToDictionary(c => c.Id, c => ClientInvoiceTaxRules.Resolve(c, business, rates));
+        // 570: the editor reminds a business that charges tax and has no GST/HST number on its Profile.
+        ViewBag.TaxNumberMissing = string.IsNullOrWhiteSpace(business?.TaxRegistrationNumber);
         // 568: what this business has invoiced before, offered in the editor as a description is typed.
         ViewBag.RememberedItems = await IPRO.Web.Infrastructure.RememberedInvoiceItems.ForAgentAsync(_db, AgentId);
     }

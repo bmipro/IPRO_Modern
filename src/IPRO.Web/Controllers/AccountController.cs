@@ -743,6 +743,7 @@ public class AccountController : Controller
         agent.Designation = model.Designation ?? "";
         agent.CompanyName = model.CompanyName;
         agent.CompanyAddress = model.CompanyAddress ?? "";
+        agent.TaxRegistrationNumber = model.TaxRegistrationNumber ?? "";   // 570
         agent.City = model.City;
         agent.Province = model.Province;
         agent.PostalCode = model.PostalCode;
@@ -1203,6 +1204,7 @@ public class AccountController : Controller
         Designation = agent.Designation,
         CompanyName = agent.CompanyName,
         CompanyAddress = agent.CompanyAddress,
+        TaxRegistrationNumber = agent.TaxRegistrationNumber,
         City = agent.City,
         Province = agent.Province,
         PostalCode = agent.PostalCode,
@@ -1245,6 +1247,7 @@ public class AccountController : Controller
         model.Designation = model.Designation?.Trim() ?? "";
         model.CompanyName = model.CompanyName?.Trim() ?? "";
         model.CompanyAddress = model.CompanyAddress?.Trim() ?? "";
+        model.TaxRegistrationNumber = model.TaxRegistrationNumber?.Trim() ?? "";
         model.City = model.City?.Trim() ?? "";
         model.Province = model.Province?.Trim() ?? "";
         model.PostalCode = model.PostalCode?.Trim() ?? "";

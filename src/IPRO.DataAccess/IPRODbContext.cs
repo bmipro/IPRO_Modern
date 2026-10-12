@@ -131,6 +131,7 @@ public class IPRODbContext : DbContext
             e.Property(u => u.Designation).HasMaxLength(80);
             e.Property(u => u.CompanyName).HasMaxLength(150).IsRequired();
             e.Property(u => u.CompanyAddress).HasMaxLength(200);
+            e.Property(u => u.TaxRegistrationNumber).HasMaxLength(60);
             e.Property(u => u.City).HasMaxLength(80).IsRequired();
             e.Property(u => u.Province).HasMaxLength(80).IsRequired();
             e.Property(u => u.PostalCode).HasMaxLength(20).IsRequired();

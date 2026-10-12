@@ -25,6 +25,11 @@ public class AgentProfileViewModel
 
     public string? CompanyAddress { get; set; }
 
+    // 570: printed on the business's invoices and estimates. Free text: businesses write it in more
+    // than one way, and some carry a second number (Quebec's QST) beside it.
+    [StringLength(60)]
+    public string? TaxRegistrationNumber { get; set; }
+
     [Required]
     public string City { get; set; } = string.Empty;
 

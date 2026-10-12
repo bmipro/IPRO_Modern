@@ -121,6 +121,12 @@
       </tbody>
     </table>
     <div class="small" id="totalsTaxNote" data-doc="@Model.DocWord"></div>
+    @* 570: shown by the script only while tax is being charged. The Profile opens in a new tab, so the
+       document being written is not lost. *@
+    @if (ViewBag.TaxNumberMissing as bool? == true)
+    {
+      <div class="small text-muted mt-1" id="taxNumberReminder" hidden>Your GST/HST number is not on your Profile yet, so it will not print on this @Model.DocWord. <a href="/portal/Account/Profile" target="_blank" rel="noopener">Add it</a></div>
+    }
   </div>
 </div>
 
@@ -212,6 +218,10 @@
       if (hasClient && rate > 0 && ticked === 0) reason = 'No line is ticked for tax, so none is charged.';
       note.textContent = hasClient && rate <= 0 ? 'No tax will be charged on this ' + note.getAttribute('data-doc') + '. ' + reason : reason;
       note.className = 'small ' + (hasClient && rate <= 0 ? 'text-danger' : 'text-muted');
+
+      // 570: a business that charges tax and has no GST/HST number on its Profile is told it will not print.
+      var reminder = document.getElementById('taxNumberReminder');
+      if (reminder) reminder.hidden = !(tax > 0);
     }
 
     // 568: the items this business has invoiced before, offered under a description as it is typed.

@@ -132,6 +132,13 @@
               <input asp-for="CompanyAddress" class="form-control" maxlength="200" />
               <div class="form-text">Shown with your company name at the foot of your marketing emails: Canada's anti-spam law asks for a mailing address.</div>
             </div>
+            @* 570: asked for where the business's other printed details are; nothing is printed while it is empty. *@
+            <div class="col-md-6">
+              <label asp-for="TaxRegistrationNumber" class="form-label fw-semibold">GST/HST number</label>
+              <input asp-for="TaxRegistrationNumber" class="form-control" maxlength="60" placeholder="123456789 RT0001" autocomplete="off" />
+              <div class="form-text">Printed on the invoices and estimates you send to clients. Leave it empty if you are not registered for GST/HST.</div>
+            </div>
+            <div class="col-md-6 d-none d-md-block"></div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">City <span class="text-danger">*</span></label>
               <input asp-for="City" class="form-control" maxlength="80" required />

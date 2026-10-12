@@ -31,6 +31,14 @@ When no tax will be charged, the editor says so in red under the totals, with th
 
 If you do not charge tax at all, untick **Tax** on your lines.
 
+### Your GST/HST Number
+
+If you are registered for GST/HST, type your registration number once on your **Profile** page, under Company Details (**GST/HST number**, for example `123456789 RT0001`). It is then printed on every invoice and estimate you send: under your company's details at the top, and in the Tax summary.
+
+Leave it empty if you are not registered; nothing is printed. While it is empty and an invoice is charging tax, the editor reminds you under the totals that the number will not print, with a link to your Profile (it opens in a new tab, so the invoice you are writing is not lost).
+
+The box takes the number as you write it. If you carry a second number, such as Quebec's QST, type both in the same box.
+
 ### Discounts
 
 Under the lines, **Discount** has three choices:

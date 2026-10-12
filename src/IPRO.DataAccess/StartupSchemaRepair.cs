@@ -601,6 +601,9 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetToken", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetToken` varchar(80) CHARACTER SET utf8mb4 NULL");
             await EnsureTableColumnAsync(db, "AgentUsers", "PasswordResetTokenExpiresAt", "ALTER TABLE `AgentUsers` ADD COLUMN `PasswordResetTokenExpiresAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "AgentUsers", "TrialEndsAt", "ALTER TABLE `AgentUsers` ADD COLUMN `TrialEndsAt` datetime(6) NULL");
+            // 570: the business's GST/HST registration number, printed on its invoices to clients. Both apps
+            // read AgentUsers and both run this method at start-up, so whichever comes up first adds it.
+            await EnsureTableColumnAsync(db, "AgentUsers", "TaxRegistrationNumber", "ALTER TABLE `AgentUsers` ADD COLUMN `TaxRegistrationNumber` varchar(60) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
             // 452: view stamps on the invoice itself.
             await EnsureTableColumnAsync(db, "ClientInvoices", "FirstViewedAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `FirstViewedAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "ClientInvoices", "LastViewedAt", "ALTER TABLE `ClientInvoices` ADD COLUMN `LastViewedAt` datetime(6) NULL");

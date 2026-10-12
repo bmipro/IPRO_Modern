@@ -210,6 +210,10 @@
               {
                 <p>@view.SupplierEmail</p>
               }
+              @if (!string.IsNullOrWhiteSpace(view.SupplierTaxNumber))
+              {
+                <p>GST/HST registration no. @view.SupplierTaxNumber</p>
+              }
             </div>
           }
           else
@@ -227,6 +231,10 @@
               @if (!string.IsNullOrWhiteSpace(view.SupplierEmail))
               {
                 <p>@view.SupplierEmail</p>
+              }
+              @if (!string.IsNullOrWhiteSpace(view.SupplierTaxNumber))
+              {
+                <p>GST/HST registration no. @view.SupplierTaxNumber</p>
               }
             </div>
           }
@@ -354,6 +362,11 @@
           else
           {
             <p><span>No tax is charged on this @docLabel.ToLowerInvariant().</span></p>
+          }
+          @* 570: the business's registration number, as on iPro's own invoice to an adviser. *@
+          @if (!string.IsNullOrWhiteSpace(view.SupplierTaxNumber))
+          {
+            <p><span>GST/HST registration no.</span><strong>@view.SupplierTaxNumber</strong></p>
           }
         </div>
 
