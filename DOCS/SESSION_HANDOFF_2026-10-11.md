@@ -68,9 +68,10 @@
 - One choice under the lines: None, Whole invoice, Each item. Tax after the discount; a whole-invoice discount is
   shared between taxed and untaxed lines. The two editors (invoice, recurring) now share one lines editor.
 - 567: his two-line invoice had wide gaps between the figures; the description takes the spare width now.
-- **Next, agreed (568):** the editor remembers items. Typing in a line's Description offers the items this business has
-  invoiced before, with the last price and Tax tick; picking one fills the line. No setup, no new screen. A managed
-  "My items" list was offered as the alternative and held back.
+- **568, built the same evening:** the editor remembers items. Clicking or typing in a line's Description offers the
+  items this business has invoiced before, with the last price and Tax tick; picking one fills the line. No setup,
+  no new screen, nothing new stored. A managed "My items" list was offered as the alternative and held back; a way
+  to forget a mistyped item is the first thing to add if anyone asks.
 
 ## Still his
 
@@ -83,7 +84,7 @@
 
 ## Not seen signed in
 
-The discount choice in the invoice and recurring editors (566); the Email Activity list with its period, pages, Needs attention tab and search (565); the invoice editor with its Tax ticks and live totals, and the recurring editor (563); Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
+The remembered items under a line's Description (568); the discount choice in the invoice and recurring editors (566); the Email Activity list with its period, pages, Needs attention tab and search (565); the invoice editor with its Tax ticks and live totals, and the recurring editor (563); Email Activity's invoice rows and detail page (562); the leads page with its Delete buttons (434); the reviews rows
 in the block editor (560); the Business hours card on My Website (559). The owner's first visit to each is its
 first real look: fix whatever he finds.
 
