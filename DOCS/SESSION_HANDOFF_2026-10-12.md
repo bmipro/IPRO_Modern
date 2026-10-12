@@ -1,5 +1,18 @@
 # Session handoff -- 2026-10-12
 
+## Branches: read this first
+
+- **`main` is what production runs, plus notes.** A fix for the live site is made on `main`, gated and pushed as
+  always. Nothing of the Template Builder is on it.
+- **`feat/template-builder-beta` (local only, not pushed) holds the Template Builder work:** 571 (the importer) and
+  everything after it. The owner's word, 2026-10-12: nothing of it goes to production before it has been tested
+  extensively on this machine and audited for code quality, security and functionality. That branch's copy of this
+  file has the full story of the day.
+- After anything lands on `main`, merge `main` into the branch (`git switch feat/template-builder-beta`, then
+  `git merge main`), so the two never drift far. The branch goes to `main` only on the owner's word.
+- A backup tag, `backup/main-before-builder-branch-20261012`, marks where local `main` stood before the split.
+  Each backup run also writes a bundle of the branch beside the zips (the zips hold one branch's files only).
+
 ## What happened
 
 - The owner, first thing: "Lets do the GST/HST number on client invoices and push it with the Prininting fix. Also
