@@ -586,7 +586,11 @@ td .tax-box.is-taxed {
   max-height: 96px;
 }
 
-@media (max-width: 720px) {
+/* 569 (the owner, 2026-10-11): printed to a real printer the invoice came out in this phone layout,
+   on two sheets. A Letter sheet with the print dialog's default half-inch margins is exactly 720 px
+   wide, so the phone rules below applied to the paper. They are for screens: paper always takes the
+   table layout, whatever margins the dialog adds. */
+@media screen and (max-width: 720px) {
   .page-shell {
     width: 100%;
     padding: 0;
@@ -724,8 +728,12 @@ td .tax-box.is-taxed {
     background: #fff;
   }
 
+  /* 569: as wide as the sheet's printable area, which is the whole 8.5 inches when the dialog adds no
+     margins (this stylesheet's own padding is the margin then) and less when it does. A fixed 8.5
+     inches ran off the right edge, or was shrunk to fit, once a printer's margins were added. */
   .page-shell {
-    width: 8.5in;
+    width: 100%;
+    max-width: 8.5in;
     margin: 0;
     padding: 0;
   }
@@ -740,7 +748,8 @@ td .tax-box.is-taxed {
      spilled a four-line invoice onto a second page (the owner, 2026-09-23), so every gap is
      tightened here and the blocks that must not straddle a page are told so. */
   .invoice {
-    width: 8.5in;
+    width: 100%;
+    max-width: 8.5in;
     min-height: 0;
     padding: 0.35in 0.5in;
     border: 0;
