@@ -16,6 +16,19 @@
 - A mistake of mine, caught by the safety check and not run: a clean-up command that removed files after changing
   directory. Use a NEW folder for each download instead of clearing an old one.
 
+## The template builder: the developer's response (467)
+
+- The owner passed on the developer's reply to the 11 October review (`C:\Users\admin\Projects\IPRO.TemplateBuilder\docs\reviews\2026-10-11\iPro_TemplateBuilder_Response_to_Review_2026-10-11.txt`).
+  He accepts everything as asked: the two stages, all nine fixes in order, hiding the appearance controls on handover
+  sites; 2-3 focused working days; the reviewed snapshot committed and pushed first; a new review package after.
+- **He has started nothing and is waiting for the owner's explicit authorization.** A go-ahead note is in the owner's
+  Documents folder for him to forward if he agrees (`iPro_TemplateBuilder_Stage1_GoAhead_2026-10-12.md`). It is a
+  draft in his name: it is his to send or change.
+- **Ours, in parallel, none started:** the consolidated `CONTRACT.md` v0.4 (about half a day), the stage 1 importer
+  (2-3 days; without it stage 1 cannot be used), and later the v0.5 draft. The importer waits on the owner's word.
+- The owner also said SES step 8.2 will be tomorrow "if not urgent". It is not: marketing mail stays on Azure until
+  he changes the setting, and nothing is waiting on it.
+
 ## Pushed
 
 | Commit | What | Gate |
