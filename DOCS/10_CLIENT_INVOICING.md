@@ -13,6 +13,14 @@ Client Invoicing lets an agent bill their own clients directly from IPRO — sep
 
 As you fill in the lines, the subtotal, the tax and the total show under them, so you see what the client will be charged before you save.
 
+### Items You Have Used Before
+
+You do not have to type the same item twice. Click in a line's **Description** and a short list appears of the items you have invoiced before, the ones you use most first, each with its price. Start typing and the list narrows to what matches.
+
+Pick one (click it, or use the arrow keys and Enter) and the line fills in: the description, the unit price you last charged for it, and the **Tax** tick as you last used it. The cursor moves to the quantity. Change the price on the line if it is different this time; the new price is the one offered next time.
+
+The list is built from your own invoices, estimates and recurring schedules; there is nothing to set up. Other businesses never see your items. Items from a voided document are left out. An item you stop using sinks down the list as others are used more.
+
 ### Tax on each line
 
 Every line has a **Tax** tick, ticked to begin with. Leave it ticked on what is taxed and untick what is not: a bakery unticks its plain bread and leaves its cakes ticked, on the same invoice. Tax is charged on the ticked lines only, and a line added to bring the bill down (a discount as a negative amount) lowers the tax when it is ticked.

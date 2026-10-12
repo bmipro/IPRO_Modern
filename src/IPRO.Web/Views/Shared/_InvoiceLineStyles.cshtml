@@ -4,6 +4,11 @@
    566: the Discount cell of a line shows only when the discount is on each item (the table then
    carries "discount-lines"); on a phone it takes a row of its own, after the others. *@
 <style>
+  /* 568: the items offered under a description as it is typed. It hangs from the page, not from the
+     table, so the table's sideways scroll on a small screen cannot cut it off. */
+  .item-suggestions { position: absolute; z-index: 1056; max-height: 280px; overflow-y: auto; }
+  .item-suggestions .list-group-item { padding: .45rem .75rem; cursor: pointer; }
+  .item-suggestions .list-group-item.active .text-muted { color: inherit !important; }
   #lineItemsTable .line-discount { display: none; }
   #lineItemsTable.discount-lines .line-discount { display: table-cell; }
   @@media (max-width: 575.98px) {
