@@ -45,14 +45,15 @@ public static class BuilderPackageReader
             {
                 var name = entry.FullName;
                 if (name.EndsWith('/')) continue;   // a folder entry: allowed and ignored (only files count)
+                var shown = Shorten(name);   // a name is the sender's text: quoted short in a message
                 if (!seen.Add(name))
                 {
-                    problems.Add(null, null, "1", $"\"{name}\" is in the package twice.");
+                    problems.Add(null, null, "1", $"\"{shown}\" is in the package twice.");
                     continue;
                 }
                 if (name.Contains('\\') || name.StartsWith('/') || name.Split('/').Any(part => part is ".." or "."))
                 {
-                    problems.Add(null, null, "1, rule 4", $"\"{name}\" is not a file name a package may hold (no backslashes, no \"..\", no leading slash).");
+                    problems.Add(null, null, "1, rule 4", $"\"{shown}\" is not a file name a package may hold (no backslashes, no \"..\", no leading slash).");
                     continue;
                 }
 
@@ -68,28 +69,28 @@ public static class BuilderPackageReader
                     var file = name[BuilderContract.AssetFolder.Length..];
                     if (file.Contains('/'))
                     {
-                        problems.Add(null, null, "1, rule 2", $"\"{name}\" is inside a folder under assets/. The assets folder is flat.");
+                        problems.Add(null, null, "1, rule 2", $"\"{shown}\" is inside a folder under assets/. The assets folder is flat.");
                         continue;
                     }
                     if (BuilderContract.ContentTypeFor(file).Length == 0)
                     {
-                        problems.Add(null, null, "1, rule 3", $"\"{name}\" is not an image type a package may hold (.jpg, .jpeg, .png, .gif or .webp).");
+                        problems.Add(null, null, "1, rule 3", $"\"{shown}\" is not an image type a package may hold (.jpg, .jpeg, .png, .gif or .webp).");
                         continue;
                     }
                     if (!BuilderContract.AssetFileName.IsMatch(file))
                     {
-                        problems.Add(null, null, "1, rule 4", $"\"{name}\": an image's name is lower-case letters, digits and hyphens, then its extension.");
+                        problems.Add(null, null, "1, rule 4", $"\"{shown}\": an image's name is lower-case letters, digits and hyphens, then its extension.");
                         continue;
                     }
                     if (file.Length > BuilderContract.MaxFileNameLength)
                     {
-                        problems.Add(null, null, "1, rule 4", $"\"{name}\": a file name may be at most {BuilderContract.MaxFileNameLength} characters, extension included.");
+                        problems.Add(null, null, "1, rule 4", $"\"{shown}\": a file name may be at most {BuilderContract.MaxFileNameLength} characters, extension included.");
                         continue;
                     }
                     var bytes = ReadCapped(entry, BuilderContract.MaxAssetBytes, ref expanded);
                     if (bytes == null)
                     {
-                        problems.Add(null, null, "1, rule 5", $"\"{name}\" is larger than 8 MB.");
+                        problems.Add(null, null, "1, rule 5", $"\"{shown}\" is larger than 8 MB.");
                         oversize.Add(name);
                         continue;
                     }
@@ -104,8 +105,8 @@ public static class BuilderPackageReader
                 }
 
                 problems.Add(null, null, "1, rule 3", name.EndsWith("/" + BuilderContract.TemplateFile, StringComparison.Ordinal)
-                    ? $"template.json is inside a folder (\"{name}\"). It must be at the top level of the ZIP."
-                    : $"\"{name}\" may not be in a package. A package holds template.json and the images in assets/, nothing else.");
+                    ? $"template.json is inside a folder (\"{shown}\"). It must be at the top level of the ZIP."
+                    : $"\"{shown}\" may not be in a package. A package holds template.json and the images in assets/, nothing else.");
             }
 
             if (handoverPackage)
@@ -217,9 +218,43 @@ public static class BuilderPackageReader
         };
     }
 
+    // 572: what a package says about where it came from, read before the package itself is: "" for a
+    // site built from scratch, a hand-over's id for a return, null when the file cannot say (it is
+    // then read as built from scratch, and the door reports what is wrong with it). Nothing is
+    // decided here: it only chooses what the package will be checked against.
+    public static string? PeekHandoverId(byte[] zip)
+    {
+        if (zip.LongLength > BuilderContract.MaxZipBytes) return null;
+        try
+        {
+            using var archive = new ZipArchive(new MemoryStream(zip, writable: false), ZipArchiveMode.Read, leaveOpen: false, Encoding.UTF8);
+            var entry = archive.Entries.Count > BuilderContract.MaxEntries ? null : archive.GetEntry(BuilderContract.TemplateFile);
+            if (entry == null) return null;
+            long expanded = 0;
+            var bytes = ReadCapped(entry, BuilderContract.MaxTemplateJsonBytes, ref expanded);
+            if (bytes == null) return null;
+            using var document = JsonDocument.Parse(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? bytes.AsMemory(3) : bytes);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                   && document.RootElement.TryGetProperty("handoverId", out var id) && id.ValueKind == JsonValueKind.String
+                ? id.GetString()
+                : null;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException or ExpandedTooFarException)
+        {
+            return null;
+        }
+    }
+
     public static string Hex(byte[] hash) => Convert.ToHexString(hash).ToLowerInvariant();
 
     private static string Mb(long bytes) => (bytes / 1024.0 / 1024.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+
+    // A value quoted in a message: short, and on one line. Everything quoted is the sender's text.
+    private static string Shorten(string value)
+    {
+        var oneLine = value.Replace('\r', ' ').Replace('\n', ' ');
+        return oneLine.Length <= 60 ? oneLine : oneLine[..60] + "...";
+    }
 
     private sealed class ExpandedTooFarException : Exception { }
 
@@ -316,7 +351,7 @@ public static class BuilderPackageReader
                 {
                     _problems.Add(null, null, "0", version == null
                         ? "template.json does not say which contract version it follows (contractVersion)."
-                        : $"The package follows contract version \"{version}\". This iPro takes version \"{BuilderContract.Version}\" only.");
+                        : $"The package follows contract version \"{Shorten(version)}\". This iPro takes version \"{BuilderContract.Version}\" only.");
                     return null;
                 }
 
@@ -351,7 +386,7 @@ public static class BuilderPackageReader
                 var logoAltText = Text(top, "logoAltText", null, null, "2") ?? string.Empty;
                 if (logoRef.Length > 0 && !DeclaredAssets.Contains(logoRef))
                 {
-                    _problems.Add(null, null, "2", $"logoRef \"{logoRef}\" is not one of the images listed in assets[].");
+                    _problems.Add(null, null, "2", $"logoRef \"{Shorten(logoRef)}\" is not one of the images listed in assets[].");
                 }
                 if (logoAltText.Length > BuilderContract.MaxLogoAltText)
                 {
@@ -389,7 +424,7 @@ public static class BuilderPackageReader
                 var file = assetRef.StartsWith(BuilderContract.AssetFolder, StringComparison.Ordinal) ? assetRef[BuilderContract.AssetFolder.Length..] : string.Empty;
                 if (file.Length == 0 || !BuilderContract.AssetFileName.IsMatch(file) || file.Length > BuilderContract.MaxFileNameLength)
                 {
-                    _problems.Add(null, null, "1, rule 4", $"assets[] entry {index}: \"{assetRef}\" is not \"assets/\" followed by an image file name " +
+                    _problems.Add(null, null, "1, rule 4", $"assets[] entry {index}: \"{Shorten(assetRef)}\" is not \"assets/\" followed by an image file name " +
                         $"(lower-case letters, digits and hyphens, then .jpg, .jpeg, .png, .gif or .webp; at most {BuilderContract.MaxFileNameLength} characters).");
                     continue;
                 }
@@ -400,7 +435,7 @@ public static class BuilderPackageReader
                 }
                 if (type != null && type != BuilderContract.ContentTypeFor(file))
                 {
-                    _problems.Add(null, null, "2", $"{assetRef}: its type must be \"{BuilderContract.ContentTypeFor(file)}\" (it is \"{type}\").");
+                    _problems.Add(null, null, "2", $"{assetRef}: its type must be \"{BuilderContract.ContentTypeFor(file)}\" (it is \"{Shorten(type)}\").");
                 }
             }
         }
@@ -820,11 +855,5 @@ public static class BuilderPackageReader
             return null;
         }
 
-        // A value quoted in a message: short, and on one line.
-        private static string Shorten(string value)
-        {
-            var oneLine = value.Replace('\r', ' ').Replace('\n', ' ');
-            return oneLine.Length <= 60 ? oneLine : oneLine[..60] + "...";
-        }
     }
 }

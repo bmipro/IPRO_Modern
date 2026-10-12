@@ -54,7 +54,11 @@ public static class BlobReferences
         ("DripCampaignSteps",    "HtmlBody"),
         ("Articles",             "Content"),
         ("ELetters",             "Body"),
-        ("WebsiteContentBlocks", "SettingsJson")
+        ("WebsiteContentBlocks", "SettingsJson"),
+        // 572: the site as it was before a Template Builder package replaced it, kept so it can be
+        // put back. A picture only that copy still names must outlive a tidy-up of the media library,
+        // or putting the site back would bring back dead pictures. The copy is cleared once used.
+        ("WebsiteBuilderImports", "SnapshotJson")
     };
 
     // The containers this application owns, and what each holds. The report enumerates exactly

@@ -343,7 +343,12 @@ public class BuilderImportScreens571Tests
         var guard = body.IndexOf("LookKeyLooksRight(key)) return NotFound();", StringComparison.Ordinal);
         var read = body.IndexOf("_db.", StringComparison.Ordinal);
         Assert.True(guard > 0 && read > guard, "the key's shape is checked before the database is read");
-        Assert.Contains("LookIsOpen(import, key, DateTime.UtcNow)) return NotFound();", body);
+        Assert.Contains("LookIsOpen(look, key, DateTime.UtcNow)) return NotFound();", body);
+        // ...and the key is settled on three small columns before the row (a whole site's content) is read.
+        var keyCheck = body.IndexOf("LookIsOpen(look, key", StringComparison.Ordinal);
+        var wholeRow = body.IndexOf("_db.WebsiteBuilderImports.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id)", StringComparison.Ordinal);
+        Assert.True(keyCheck > 0 && wholeRow > keyCheck, "the whole row is read only after the key matched");
+        Assert.Contains("PreviewKey = i.PreviewKey, PreviewKeyExpiresAt = i.PreviewKeyExpiresAt", body);
         Assert.Contains("ViewBag.IsTemplatePreview = true;", body);            // noindex, forms switched off
         Assert.Contains("\"noindex, nofollow\"", body);
         Assert.DoesNotContain("TrackPageViewAsync", body);                     // a look is not a visit
@@ -384,7 +389,7 @@ public class BuilderImportScreens571Tests
 
     // The view's own markup (no layout), rendered by the real Razor engine from the admin app's
     // compiled views, as a signed-in SuperAdmin.
-    private static async Task<string> RenderAsync<TModel>(string viewPath, TModel model)
+    internal static async Task<string> RenderAsync<TModel>(string viewPath, TModel model)
     {
         var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(new Microsoft.AspNetCore.Builder.WebApplicationOptions
         {

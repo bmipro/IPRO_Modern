@@ -15,6 +15,7 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteContentBlock> WebsiteContentBlocks => Set<WebsiteContentBlock>();
     public DbSet<WebsiteMediaAsset> WebsiteMediaAssets => Set<WebsiteMediaAsset>();
     public DbSet<WebsiteBuilderImport> WebsiteBuilderImports => Set<WebsiteBuilderImport>();
+    public DbSet<WebsiteBuilderHandover> WebsiteBuilderHandovers => Set<WebsiteBuilderHandover>();
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<WebsiteStarterArticle> WebsiteStarterArticles => Set<WebsiteStarterArticle>();
@@ -439,6 +440,20 @@ public class IPRODbContext : DbContext
             e.Property(i => i.PreviewKey).HasMaxLength(64);
             e.HasIndex(i => i.AgentUserId);
             e.HasIndex(i => i.AgentWebsiteId);
+        });
+
+        // 572: sites handed to the Template Builder; found by the hand-over's id when a package comes
+        // back, listed per site. No foreign keys, like the imports above.
+        modelBuilder.Entity<WebsiteBuilderHandover>(e =>
+        {
+            e.Property(h => h.HandoverId).HasMaxLength(20);
+            e.Property(h => h.SessionTokenSha256).HasMaxLength(64);
+            e.Property(h => h.IssuedBy).HasMaxLength(100);
+            e.Property(h => h.TemplateName).HasMaxLength(60);
+            e.Property(h => h.PackageSha256).HasMaxLength(64);
+            e.HasIndex(h => h.HandoverId).IsUnique();
+            e.HasIndex(h => h.AgentUserId);
+            e.HasIndex(h => h.AgentWebsiteId);
         });
 
         // 472: the client recycle bin; listed per agent, purged by PurgeAfter.

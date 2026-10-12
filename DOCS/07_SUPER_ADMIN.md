@@ -340,6 +340,24 @@ owner's or his designer's machine) leaves the builder as one .zip file. **Templa
 details screen is where that file becomes the customer's site. SuperAdmin only; every step is recorded in
 the audit log.
 
+A package is one of two things: a site **built from scratch** in the builder, or a site iPro handed to
+the builder that comes back edited (a **return**).
+
+**To edit an existing site in the builder, hand it over first.** On the Template Builder screen press
+**Make the package**. One .zip downloads: the site as it is now (its pages, sections, logo and images)
+and the list of published articles and active forms the builder may place. In the builder, open it with
+**Open iPro package**. Nothing on the site changes.
+
+- A site is handed over whole or not at all. If a page has a section the builder does not have (a map, a
+  gallery, a price list, reviews), or a page still shows only the design's standard layout, the screen
+  lists each reason and makes nothing. Put those right in the page editor first.
+- Only the package made from the **newest** hand-over can come back. Making a new one closes the door on
+  the one before it.
+- What is changed in iPro after the hand-over is replaced when the package comes back. The review names
+  the pages this affects, before anything is written.
+- The screen lists what the hand-over tidied on the way out (for example a button with words and no
+  link, which leads nowhere on the live site, is left out).
+
 1. **Upload.** Choose the .zip and press **Check the package**. Nothing on the site changes. The package
    is checked against the export contract (`DOCS/TEMPLATE_BUILDER_CONTRACT.md`). If it breaks a rule it
    is not taken, and every reason is listed with its page, its section and the contract section, ready
@@ -351,6 +369,14 @@ the audit log.
    - a page of the site that is not in the package **stays as it is**, unless you tick
      **Remove this page**;
    - the home page is always replaced by the package's home page.
+
+   When the package is a **return**, the screen says so at the top, and reads the site against the
+   hand-over:
+   - a page that went to the builder and did not come back was **removed in the builder**, and is
+     removed; tick **Keep this page after all** to keep it;
+   - a page made in iPro after the hand-over was never in the builder, and **stays** (tick
+     **Remove this page** to remove it);
+   - a page **changed in iPro after the hand-over** is marked in red: the return replaces those changes.
 
    A replaced page's sections are replaced as a set. Sections the builder cannot carry (a map, a gallery,
    a price list, reviews) go with them: the screen names each one in red. Add them again in the page
@@ -375,8 +401,10 @@ it added that nothing uses.
 
 Good to know:
 
-- For now a package must be a site built from scratch in the builder. One that was started from an iPro
-  package is refused until iPro can hand a site over to the builder.
+- A return of an older hand-over is refused, and the reason names the newest one.
+- An article unpublished or a form switched off after the hand-over stops a return that uses it: when
+  it is uploaded, and again when it is brought in. Publish it again, or take that section out in the
+  builder.
 - New images go into the customer's media library and count against their storage. Bringing the same
   site in again after an edit stores only the images that are new.
 - A logo in the package replaces the site's logo. A package without a logo leaves the site's logo alone.

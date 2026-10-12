@@ -14,14 +14,14 @@ namespace IPRO.Web.Infrastructure;
 public static class BuilderImportPreviewBuilder
 {
     public static async Task<PublicWebsiteViewModel?> BuildAsync(
-        IPRODbContext db, WebsiteBuilderImport import, string? pageSlug, int? design, string? without)
+        IPRODbContext db, WebsiteBuilderImport import, string? pageSlug, int? design, string? without, string? keep = null)
     {
-        var removed = (without ?? string.Empty)
+        static HashSet<int> Ids(string? list) => (list ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(part => int.TryParse(part, out var id) ? id : 0)
             .Where(id => id > 0)
             .ToHashSet();
-        var planned = await BuilderImportService.PlanAsync(db, import, removed);
+        var planned = await BuilderImportService.PlanAsync(db, import, Ids(without), Ids(keep));
         if (planned?.Plan == null || planned.Plan.Problems.Count > 0) return null;
         var plan = planned.Plan;
 

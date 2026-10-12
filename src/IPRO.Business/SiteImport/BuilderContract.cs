@@ -108,13 +108,18 @@ public static class BuilderContract
     }
 
     // Section 4, buttonUrl: nothing, a path on this site, an https address, or a mail or phone link.
-    // "//host" is another site under a path's clothing, and browsers read "/\host" the same way.
+    // "//host" is another site under a path's clothing, and browsers read "/\host" the same way; they
+    // also drop a tab or a line break inside an address, so no control character and no backslash is
+    // allowed anywhere. A space is allowed only where people write one: inside a phone number.
     public static bool IsAllowedButtonUrl(string value)
     {
         if (value.Length == 0) return true;
-        if (value[0] == '/') return value.Length == 1 || (value[1] != '/' && value[1] != '\\');
+        if (value.Any(char.IsControl) || value.Contains('\\')) return false;
+        var phone = value.StartsWith("tel:", StringComparison.Ordinal);
+        if (!phone && value.Any(char.IsWhiteSpace)) return false;
+        if (value[0] == '/') return value.Length == 1 || value[1] != '/';
         return (value.StartsWith("https://", StringComparison.Ordinal) && value.Length > "https://".Length)
             || (value.StartsWith("mailto:", StringComparison.Ordinal) && value.Length > "mailto:".Length)
-            || (value.StartsWith("tel:", StringComparison.Ordinal) && value.Length > "tel:".Length);
+            || (phone && value["tel:".Length..].Trim().Length > 0);
     }
 }

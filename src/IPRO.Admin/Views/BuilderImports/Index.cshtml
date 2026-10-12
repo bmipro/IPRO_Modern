@@ -41,8 +41,55 @@ else
         </section>
     }
 
+    @if (Model.HandoverBlockers.Count > 0)
+    {
+        <section class="card border-0 shadow-sm mb-4 border-start border-4 border-danger">
+            <div class="card-header bg-white py-3">
+                <strong class="text-danger"><i class="fas fa-circle-xmark me-1"></i>This site cannot be handed to the builder yet</strong>
+                <div class="text-muted small">Nothing was made and nothing changed. A site goes to the builder whole or not at all; each line is something to put right in the page editor first.</div>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var reason in Model.HandoverBlockers)
+                {
+                    <li class="list-group-item">@reason</li>
+                }
+            </ul>
+        </section>
+    }
+
     <section class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white py-3"><strong>1. Upload the package</strong></div>
+        <div class="card-header bg-white py-3"><strong>1. Hand the site to the builder</strong> <span class="text-muted fw-normal">(only when an existing site is to be edited there)</span></div>
+        <div class="card-body">
+            <form asp-action="Handover" method="post" class="d-flex flex-wrap gap-3 align-items-center">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="agentId" value="@Model.Agent.Id" />
+                <button type="submit" class="btn btn-outline-primary"><i class="fas fa-file-export me-1"></i>Make the package</button>
+                <span class="text-muted small">Downloads one .zip of the site as it is now. In the builder, open it with "Open iPro package". Nothing on the site changes.</span>
+            </form>
+            @if (Model.LatestHandover != null)
+            {
+                var notes = IPRO.Business.SiteImport.SiteHandoverService.List<string>(Model.LatestHandover.NotesJson);
+                <div class="alert alert-light border mt-3 mb-0">
+                    <strong>Last handed over @When(Model.LatestHandover.IssuedAt)</strong> by @Model.LatestHandover.IssuedBy:
+                    @Model.LatestHandover.PageCount page@(Model.LatestHandover.PageCount == 1 ? "" : "s"), @Model.LatestHandover.ImageCount picture@(Model.LatestHandover.ImageCount == 1 ? "" : "s").
+                    <span class="text-muted">Only the package made from this hand-over can come back. Making a new one closes the door on this one.</span>
+                    @if (notes.Count > 0)
+                    {
+                        <ul class="small mb-0 mt-2">
+                            @foreach (var note in notes) { <li>@note</li> }
+                        </ul>
+                    }
+                </div>
+            }
+            <ul class="text-muted small mt-3 mb-0">
+                <li>A site is handed over whole. If a page has a section the builder does not have (a map, a gallery, a price list, reviews), or a page shows only the design's standard layout, the reasons are listed and nothing is made.</li>
+                <li>What is changed in iPro after the hand-over is replaced when the package comes back. The review names the pages this affects.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3"><strong>2. Upload the package</strong></div>
         <div class="card-body">
             <form asp-action="Upload" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
                 @Html.AntiForgeryToken()
@@ -57,14 +104,14 @@ else
             </form>
             <ul class="text-muted small mt-3 mb-0">
                 <li><strong>Nothing on the site changes at this step.</strong> The package is checked against the export contract. If it passes, you see what it would change, page by page, and can look at every page before you bring it in.</li>
-                <li>For now a package must be a site built from scratch in the builder. A site that was started from an iPro package is refused until iPro can hand a site over.</li>
+                <li>A package is either a site built from scratch in the builder, or the return of this site's newest hand-over (step 1). A return of an older hand-over is refused.</li>
                 <li>New images go into this customer's media library and count against their storage: @Model.StorageUsedMb.ToString("0.0") MB of @Model.StorageLimitMb MB used. An image an earlier package already brought in is not stored twice.</li>
             </ul>
         </div>
     </section>
 
     <section class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white py-3"><strong>2. Packages for this site</strong></div>
+        <div class="card-header bg-white py-3"><strong>3. Packages for this site</strong></div>
         @if (Model.Imports.Count == 0)
         {
             <div class="card-body text-muted">No package has been uploaded for this site yet.</div>
@@ -77,7 +124,7 @@ else
                 @foreach (var import in Model.Imports)
                 {
                     <tr>
-                        <td><strong>@import.FileName</strong><div class="text-muted small">@import.TemplateName</div></td>
+                        <td><strong>@import.FileName</strong><div class="text-muted small">@import.TemplateName@(import.HandoverId.Length > 0 ? " (a return from the builder)" : " (built from scratch)")</div></td>
                         <td>@When(import.CreatedAt)<div class="text-muted small">by @import.UploadedBy</div></td>
                         <td>@import.PageCount page@(import.PageCount == 1 ? "" : "s"), @import.BlockCount section@(import.BlockCount == 1 ? "" : "s")<div class="text-muted small">@import.NewImageCount new image@(import.NewImageCount == 1 ? "" : "s")</div></td>
                         <td>

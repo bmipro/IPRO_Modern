@@ -1402,6 +1402,33 @@ public static class StartupSchemaRepair
         KEY `IX_WebsiteBuilderImports_AgentWebsiteId` (`AgentWebsiteId`)
     ) CHARACTER SET=utf8mb4;");
 
+        // 572: sites handed to the Template Builder (WebsiteBuilderHandover). Mirrors the EF model.
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `WebsiteBuilderHandovers` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `AgentWebsiteId` int NOT NULL,
+        `HandoverId` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `IssuedAt` datetime(6) NOT NULL,
+        `SessionExpiresAt` datetime(6) NOT NULL,
+        `SessionTokenSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `IssuedBy` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+        `TemplateName` varchar(60) CHARACTER SET utf8mb4 NOT NULL,
+        `PackageSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `PageCount` int NOT NULL,
+        `ImageCount` int NOT NULL,
+        `AllowedBlockTypesJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `ArticleIdsJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `FormIdsJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `PagesJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `DeliveredJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `NotesJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_WebsiteBuilderHandovers_HandoverId` (`HandoverId`),
+        KEY `IX_WebsiteBuilderHandovers_AgentUserId` (`AgentUserId`),
+        KEY `IX_WebsiteBuilderHandovers_AgentWebsiteId` (`AgentWebsiteId`)
+    ) CHARACTER SET=utf8mb4;");
+
         await EnsureTableColumnAsync(db, "WebsiteMediaAssets", "ContentSha256",
             "ALTER TABLE `WebsiteMediaAssets` ADD COLUMN `ContentSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     }

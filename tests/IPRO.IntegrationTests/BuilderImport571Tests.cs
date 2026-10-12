@@ -1019,8 +1019,10 @@ public class BuilderImport571Tests
             UserName = $"bi-{Guid.NewGuid():N}"[..20], Email = "builder-import@example.com", FirstName = "Bake", LastName = "House",
             CompanyName = "Sample Bakery", DomainName = $"bi-{Guid.NewGuid():N}"[..24], PackageId = rule.Id
         };
-        var template = new WebsiteTemplate { TemplateKey = "modern-professional", Name = "Modern", IsActive = true, IsDefault = true };
-        db.AddRange(agent, template);
+        var template = await db.WebsiteTemplates.FirstOrDefaultAsync(t => t.TemplateKey == "modern-professional")
+                       ?? new WebsiteTemplate { TemplateKey = "modern-professional", Name = "Modern", IsActive = true, IsDefault = true };
+        db.Add(agent);
+        if (template.Id == 0) db.Add(template);
         await db.SaveChangesAsync();
         var site = new AgentWebsite
         {

@@ -10,7 +10,7 @@ public enum PageChange
     Added,      // in the package, not on the site
     Replaced,   // in the package and on the site: the page keeps its row and its search settings
     Kept,       // on the site, not in the package: left as it is
-    Removed     // on the site, not in the package, and the operator chose to remove it
+    Removed     // on the site, not in the package, and it goes
 }
 
 public sealed class PlannedPage
@@ -21,6 +21,12 @@ public sealed class PlannedPage
     public PageChange Change { get; init; }
     // The section types the page has on the site today (empty for an added page).
     public IReadOnlyList<string> SectionsBefore { get; init; } = Array.Empty<string>();
+    // 572: the page was handed to the builder and did not come back: it was removed there. (A page
+    // made in iPro after the hand-over was never in the builder, and is simply kept.)
+    public bool RemovedInBuilder { get; init; }
+    // When the page was last changed on the site (null for an added page). A returning package
+    // replaces whatever was changed in iPro after its hand-over; the review says which pages.
+    public DateTime? ChangedOnSite { get; init; }
 
     // Sections a replaced or removed page has today that the builder cannot carry (a map, a gallery,
     // a price list...). They do not come back with the package.
@@ -43,17 +49,28 @@ public sealed class SiteImportPlan
     public IReadOnlyList<WebsitePage> PagesAfter =>
         Pages.Where(p => p.Change != PageChange.Removed).Select(p => p.Page).ToList();
 
+    // removePageIds: pages the operator chose to remove. handedOverPageIds: the pages a hand-over
+    // carried (empty for a site built from scratch); one of those missing from the package was
+    // removed in the builder and goes, unless the operator keeps it (keepPageIds).
     public static SiteImportPlan Build(
         BuilderTemplate template,
         IReadOnlyDictionary<string, string> imageUrls,
         AgentWebsite site,
         IReadOnlyList<WebsitePage> currentPages,
-        IReadOnlySet<int> removePageIds)
+        IReadOnlySet<int> removePageIds,
+        IReadOnlySet<int>? handedOverPageIds = null,
+        IReadOnlySet<int>? keepPageIds = null,
+        IEnumerable<string>? knownProblems = null)
     {
-        var problems = new List<string>();
+        var problems = new List<string>(knownProblems ?? Array.Empty<string>());
         var nextId = -1;
         int TempId() => nextId--;
         string Image(string imageRef) => imageRef.Length > 0 && imageUrls.TryGetValue(imageRef, out var url) ? url : string.Empty;
+        foreach (var missing in template.UsedImageRefs.Where(r => !imageUrls.ContainsKey(r)).Take(1))
+        {
+            // Without this a page would be written with its pictures quietly gone.
+            problems.Add($"The record of where this package's pictures were stored is incomplete ({missing}). Drop the package and upload it again.");
+        }
 
         // 1. Which row of the site each package page lands on. The home page is the home page,
         //    whatever either side calls it; every other page is matched by its address.
@@ -93,7 +110,7 @@ public sealed class SiteImportPlan
                 // gets iPro's defaults.
                 MetaTitle = row?.MetaTitle ?? string.Empty,
                 MetaDescription = row?.MetaDescription ?? string.Empty,
-                OldAddresses = row?.OldAddresses ?? string.Empty,
+                OldAddresses = OldAddressesAfter(row, source.Slug),
                 ShowInNavigation = row?.ShowInNavigation ?? true,
                 IsPublished = row?.IsPublished ?? true,
                 CreatedAt = row?.CreatedAt ?? DateTime.UtcNow,
@@ -120,7 +137,8 @@ public sealed class SiteImportPlan
             {
                 Page = page,
                 Change = row == null ? PageChange.Added : PageChange.Replaced,
-                SectionsBefore = row == null ? Array.Empty<string>() : SectionTypes(row)
+                SectionsBefore = row == null ? Array.Empty<string>() : SectionTypes(row),
+                ChangedOnSite = row?.UpdatedAt
             });
         }
         foreach (var source in template.Pages.Where(p => p.ParentSlug != null))
@@ -128,15 +146,23 @@ public sealed class SiteImportPlan
             bySlug[source.Slug].ParentPageId = bySlug.TryGetValue(source.ParentSlug!, out var parent) ? parent.Id : null;
         }
 
-        // 3. The site's other pages: kept as they are, or removed when the operator said so.
+        // 3. The site's other pages: kept as they are, or removed -- because the operator said so,
+        //    or because the page went to the builder and was removed there.
         var others = currentPages.Where(r => !taken.Contains(r.Id)).ToList();
-        var removed = others.Where(r => removePageIds.Contains(r.Id)).Select(r => r.Id).ToHashSet();
+        var removedInBuilder = others
+            .Where(r => handedOverPageIds != null && handedOverPageIds.Contains(r.Id) && !(keepPageIds?.Contains(r.Id) ?? false))
+            .Select(r => r.Id).ToHashSet();
+        var removed = others.Where(r => removePageIds.Contains(r.Id) || removedInBuilder.Contains(r.Id)).Select(r => r.Id).ToHashSet();
         var parentOf = currentPages.ToDictionary(r => r.Id, r => r.ParentPageId);
         foreach (var row in others)
         {
             if (removed.Contains(row.Id))
             {
-                planned.Add(new PlannedPage { Page = row, Change = PageChange.Removed, SectionsBefore = SectionTypes(row) });
+                planned.Add(new PlannedPage
+                {
+                    Page = row, Change = PageChange.Removed, SectionsBefore = SectionTypes(row),
+                    RemovedInBuilder = removedInBuilder.Contains(row.Id), ChangedOnSite = row.UpdatedAt
+                });
                 continue;
             }
 
@@ -164,7 +190,7 @@ public sealed class SiteImportPlan
                 UpdatedAt = row.UpdatedAt,
                 Blocks = row.Blocks.OrderBy(b => b.SortOrder).ToList()
             };
-            planned.Add(new PlannedPage { Page = kept, Change = PageChange.Kept, SectionsBefore = SectionTypes(row) });
+            planned.Add(new PlannedPage { Page = kept, Change = PageChange.Kept, SectionsBefore = SectionTypes(row), ChangedOnSite = row.UpdatedAt });
 
             if (bySlug.ContainsKey(row.Slug))
             {
@@ -226,4 +252,18 @@ public sealed class SiteImportPlan
 
     private static IReadOnlyList<string> SectionTypes(WebsitePage page) =>
         page.Blocks.OrderBy(b => b.SortOrder).Select(b => b.BlockType).ToList();
+
+    // A page that keeps its row but changes its address (only the home page can: it is matched as
+    // the home page, not by address) remembers the address it had, so links and search results that
+    // point at the old one still arrive (553: OldAddresses, one per line).
+    private static string OldAddressesAfter(WebsitePage? row, string newSlug)
+    {
+        var current = row?.OldAddresses ?? string.Empty;
+        if (row == null || string.Equals(row.Slug, newSlug, StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(row.Slug)) return current;
+        var lines = current.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        if (lines.Contains(row.Slug, StringComparer.OrdinalIgnoreCase)) return current;
+        lines.Add(row.Slug);
+        var joined = string.Join("\n", lines);
+        return joined.Length <= 2000 ? joined : current;   // the column's size; an address too many is not worth a failed import
+    }
 }

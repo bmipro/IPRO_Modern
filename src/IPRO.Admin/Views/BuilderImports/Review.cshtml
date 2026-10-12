@@ -11,6 +11,9 @@
     var linked = Model.Images.Count - created.Count;
     var blocked = plan == null || plan.Problems.Count > 0;
     var live = Model.Website.IsPublished;
+    string When(DateTime utc) => IPRO.Admin.Infrastructure.AdminClock.Format(utc, Model.Zone);
+    // 572: a page changed in iPro after its site went to the builder is replaced by the return.
+    bool ChangedSinceHandover(PlannedPage item) => Model.Handover != null && item.ChangedOnSite.HasValue && item.ChangedOnSite.Value > Model.Handover.IssuedAt;
 }
 
 <div class="mb-4">
@@ -22,6 +25,10 @@
     </ol></nav>
     <h4 class="fw-bold mb-1"><i class="fas fa-list-check me-2 text-primary"></i>Review "@Model.Import.FileName"</h4>
     <div class="text-muted">For @business. The package passed the export contract. <strong>Nothing on the site has changed yet.</strong></div>
+    @if (Model.Handover != null)
+    {
+        <div class="alert alert-info border-0 shadow-sm mt-3 mb-0"><i class="fas fa-right-left me-1"></i>This is the <strong>return</strong> of the site handed to the builder on @When(Model.Handover.IssuedAt) by @Model.Handover.IssuedBy. A page that did not come back was removed in the builder; a page made in iPro since then is kept.</div>
+    }
 </div>
 
 @if (plan == null)
@@ -101,11 +108,30 @@ else
                                     {
                                         <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i>The builder cannot carry these, so they go: <strong>@Names(item.SectionsLost)</strong>. Add them again in the page editor afterwards.</div>
                                     }
+                                    @if (ChangedSinceHandover(item))
+                                    {
+                                        <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i>Changed in iPro on @When(item.ChangedOnSite!.Value), after the hand-over. Those changes are replaced.</div>
+                                    }
                                     break;
                                 case PageChange.Kept:
                                     <span class="badge bg-light text-muted">Stays as it is</span>
-                                    <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="without" value="@pg.Id" id="without-@pg.Id" />
-                                        <label class="form-check-label small" for="without-@pg.Id">Remove this page (it is not in the package)</label></div>
+                                    @if (Model.Keep.Contains(pg.Id))
+                                    {
+                                        @* Removed in the builder and kept here: the choice travels with the form. *@
+                                        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="keep" value="@pg.Id" id="keep-@pg.Id" checked />
+                                            <label class="form-check-label small" for="keep-@pg.Id">Keep this page (it was removed in the builder)</label></div>
+                                    }
+                                    else
+                                    {
+                                        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="without" value="@pg.Id" id="without-@pg.Id" />
+                                            <label class="form-check-label small" for="without-@pg.Id">Remove this page (@(Model.Handover != null ? "it was made in iPro after the hand-over" : "it is not in the package"))</label></div>
+                                    }
+                                    break;
+                                case PageChange.Removed when item.RemovedInBuilder:
+                                    <span class="badge bg-danger">Removed in the builder</span>
+                                    <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="keep" value="@pg.Id" id="keep-@pg.Id" />
+                                        <label class="form-check-label small" for="keep-@pg.Id">Keep this page after all</label></div>
+                                    @if (item.SectionsBefore.Count > 0) { <div class="small text-muted mt-1">With its sections: @Names(item.SectionsBefore).</div> }
                                     break;
                                 default:
                                     <span class="badge bg-danger">Will be removed</span>

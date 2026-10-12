@@ -14,6 +14,10 @@ namespace IPRO.Business.SiteImport;
 //   ApplyAsync    writes exactly that plan, after keeping the site as it was.
 //   RestoreAsync  puts the site back as it was (DiscardAsync drops a package that never went in).
 //
+// 572: a package may also be the return of a site iPro handed to the builder (SiteHandoverService).
+// It is then held to that hand-over: its section types, its articles and forms as they are NOW, and
+// only the site's newest hand-over can come back.
+//
 // Static with the context passed in, like ClientRecycleBin: the admin app runs it today and the
 // portal will when a customer returns from the builder.
 public static class BuilderImportService
@@ -21,7 +25,8 @@ public static class BuilderImportService
     public const string MediaContainer = "website-media";
 
     // Where an image the package uses is stored. Created = this import put it in the media library
-    // (false: the site already held the same bytes, so the existing image is linked).
+    // (false: the site already held the same bytes, so the existing image is linked). MediaAssetId is
+    // 0 for a picture that is not a row of the media library (a logo the hand-over delivered).
     public sealed record StoredImage(string Ref, string Url, int MediaAssetId, bool Created, string Sha256, long Bytes);
 
     public sealed record ApplyResult(bool Ok, IReadOnlyList<string> Problems)
@@ -30,35 +35,70 @@ public static class BuilderImportService
         public static ApplyResult Done() => new(true, Array.Empty<string>());
     }
 
-    // What a package for this site is checked against. No hand-over exists yet (the exporter is the
-    // next piece of work), so only a site built from scratch in the builder is taken.
-    public static async Task<BuilderImportContext> ContextAsync(IPRODbContext db, AgentWebsite site, long storageLimitBytes)
+    // What a package for this site is checked against. packageHandoverId is what the package says
+    // about itself (BuilderPackageReader.PeekHandoverId): empty for a site built from scratch in the
+    // builder, else the hand-over it answers. Only the site's newest hand-over can come back; for any
+    // other id the reader says which hand-over the site is waiting for.
+    public static async Task<BuilderImportContext> ContextAsync(IPRODbContext db, AgentWebsite site, long storageLimitBytes, string? packageHandoverId = null)
     {
-        var known = await db.WebsiteMediaAssets.AsNoTracking()
+        var known = (await db.WebsiteMediaAssets.AsNoTracking()
             .Where(a => a.AgentWebsiteId == site.Id && a.ContentSha256 != "")
             .Select(a => a.ContentSha256)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync()).ToHashSet(StringComparer.Ordinal);
         // A limit of zero or less means no limit, as in the page editor's own upload.
         var remaining = storageLimitBytes <= 0
             ? long.MaxValue
             : Math.Max(0, storageLimitBytes - await AgentStorage.TotalBytesAsync(db, site.AgentUserId));
-        return BuilderImportContext.DesignerTemplate(known.ToHashSet(StringComparer.Ordinal), remaining);
+        if (string.IsNullOrEmpty(packageHandoverId)) return BuilderImportContext.DesignerTemplate(known, remaining);
+
+        var handover = await SiteHandoverService.LatestAsync(db, site.Id);
+        if (handover == null) return BuilderImportContext.DesignerTemplate(known, remaining);
+        var allowed = SiteHandoverService.List<string>(handover.AllowedBlockTypesJson).ToHashSet(StringComparer.Ordinal);
+        if (handover.HandoverId != packageHandoverId)
+        {
+            return new BuilderImportContext(handover.HandoverId, allowed, new HashSet<int>(), new HashSet<int>(), known, remaining);
+        }
+
+        // The articles and forms the hand-over listed that are STILL the customer's published
+        // articles and active forms: one unpublished since cannot be shown, so it is refused (section 7).
+        var listedArticles = SiteHandoverService.List<int>(handover.ArticleIdsJson);
+        var listedForms = SiteHandoverService.List<int>(handover.FormIdsJson);
+        var articles = await db.Articles.AsNoTracking()
+            .Where(a => a.AgentUserId == site.AgentUserId && a.IsPublished && listedArticles.Contains(a.Id)).Select(a => a.Id).ToListAsync();
+        var forms = await db.WebsiteForms.AsNoTracking()
+            .Where(f => f.AgentUserId == site.AgentUserId && f.IsActive && listedForms.Contains(f.Id)).Select(f => f.Id).ToListAsync();
+        foreach (var delivered in SiteHandoverService.List<HandoverImage>(handover.DeliveredJson)) known.Add(delivered.Sha256);
+        return new BuilderImportContext(handover.HandoverId, allowed, articles.ToHashSet(), forms.ToHashSet(), known, remaining);
     }
 
     public static async Task<WebsiteBuilderImport> StoreAsync(
         IPRODbContext db, IBlobStorageService blob, AgentWebsite site, BuilderPackage package, string fileName, string uploadedBy)
     {
         if (!package.IsValid) throw new InvalidOperationException("Only a package that passed every rule is stored.");
+        var template = package.Template!;
 
+        // Every picture the site already stores, by its content: the media library's, and for a
+        // returning package the ones its hand-over delivered (a logo is not a row of the library).
+        var byHash = new Dictionary<string, (string Url, int MediaAssetId)>(StringComparer.Ordinal);
         var existing = await db.WebsiteMediaAssets
             .Where(a => a.AgentWebsiteId == site.Id && a.ContentSha256 != "")
             .OrderBy(a => a.Id)
             .ToListAsync();
-        var byHash = new Dictionary<string, WebsiteMediaAsset>(StringComparer.Ordinal);
-        foreach (var asset in existing) byHash.TryAdd(asset.ContentSha256, asset);
+        foreach (var asset in existing) byHash.TryAdd(asset.ContentSha256, (asset.BlobUrl, asset.Id));
+        if (template.HandoverId.Length > 0)
+        {
+            var handover = await SiteHandoverService.FindAsync(db, site.Id, template.HandoverId);
+            foreach (var delivered in SiteHandoverService.List<HandoverImage>(handover?.DeliveredJson ?? "[]"))
+            {
+                byHash.TryAdd(delivered.Sha256, (delivered.Url, 0));
+            }
+        }
 
+        // The images and the package's row are recorded together or not at all. Storage is outside
+        // the transaction: what was uploaded for a package that was not recorded is taken back out.
         var created = new List<WebsiteMediaAsset>();
+        await using var transaction = await db.Database.BeginTransactionAsync();
         try
         {
             foreach (var image in package.Images.Values.OrderBy(i => i.Ref, StringComparer.Ordinal))
@@ -76,45 +116,51 @@ public static class BuilderImportService
                     ContentSha256 = image.Sha256
                 };
                 db.WebsiteMediaAssets.Add(asset);
-                byHash[image.Sha256] = asset;
                 created.Add(asset);
+                byHash[image.Sha256] = (url, 0);
             }
             await db.SaveChangesAsync();
+            foreach (var asset in created) byHash[asset.ContentSha256] = (asset.BlobUrl, asset.Id);
+
+            var createdHashes = created.Select(a => a.ContentSha256).ToHashSet(StringComparer.Ordinal);
+            var stored = package.Images.Values
+                .OrderBy(i => i.Ref, StringComparer.Ordinal)
+                .Select(i => new StoredImage(i.Ref, byHash[i.Sha256].Url, byHash[i.Sha256].MediaAssetId, createdHashes.Contains(i.Sha256), i.Sha256, i.Length))
+                .ToList();
+            var import = new WebsiteBuilderImport
+            {
+                AgentUserId = site.AgentUserId,
+                AgentWebsiteId = site.Id,
+                Status = WebsiteBuilderImportStatus.Pending,
+                FileName = Clip(Path.GetFileName(fileName), 200),
+                PackageSha256 = package.Sha256,
+                TemplateName = template.TemplateName,
+                Theme = template.Theme,
+                HandoverId = template.HandoverId,
+                PageCount = template.Pages.Count,
+                BlockCount = template.Pages.Sum(p => p.Blocks.Count),
+                NewImageCount = created.Count,
+                NewImageBytes = created.Sum(a => a.FileSize),
+                TemplateJson = package.TemplateJson,
+                AssetMapJson = JsonSerializer.Serialize(stored),
+                UploadedBy = Clip(uploadedBy, 100),
+                CreatedAt = DateTime.UtcNow
+            };
+            db.WebsiteBuilderImports.Add(import);
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return import;
         }
         catch
         {
-            // Nothing was recorded, so no row points at what was uploaded so far: take it back out.
-            foreach (var asset in created) await blob.DeleteAsync(asset.BlobUrl);
+            await transaction.RollbackAsync();
+            foreach (var asset in created)
+            {
+                db.Entry(asset).State = EntityState.Detached;
+                await blob.DeleteAsync(asset.BlobUrl);
+            }
             throw;
         }
-
-        var stored = package.Images.Values
-            .OrderBy(i => i.Ref, StringComparer.Ordinal)
-            .Select(i => new StoredImage(i.Ref, byHash[i.Sha256].BlobUrl, byHash[i.Sha256].Id, created.Contains(byHash[i.Sha256]), i.Sha256, i.Length))
-            .ToList();
-        var template = package.Template!;
-        var import = new WebsiteBuilderImport
-        {
-            AgentUserId = site.AgentUserId,
-            AgentWebsiteId = site.Id,
-            Status = WebsiteBuilderImportStatus.Pending,
-            FileName = Clip(Path.GetFileName(fileName), 200),
-            PackageSha256 = package.Sha256,
-            TemplateName = template.TemplateName,
-            Theme = template.Theme,
-            HandoverId = template.HandoverId,
-            PageCount = template.Pages.Count,
-            BlockCount = template.Pages.Sum(p => p.Blocks.Count),
-            NewImageCount = created.Count,
-            NewImageBytes = created.Sum(a => a.FileSize),
-            TemplateJson = package.TemplateJson,
-            AssetMapJson = JsonSerializer.Serialize(stored),
-            UploadedBy = Clip(uploadedBy, 100),
-            CreatedAt = DateTime.UtcNow
-        };
-        db.WebsiteBuilderImports.Add(import);
-        await db.SaveChangesAsync();
-        return import;
     }
 
     public static IReadOnlyList<StoredImage> StoredImages(WebsiteBuilderImport import)
@@ -123,48 +169,84 @@ public static class BuilderImportService
         catch (JsonException) { return new List<StoredImage>(); }
     }
 
-    public sealed record PlanResult(BuilderPackage Package, SiteImportPlan? Plan, AgentWebsite Site);
+    // Handover: the hand-over a returning package answers (null for a site built from scratch).
+    public sealed record PlanResult(BuilderPackage Package, SiteImportPlan? Plan, AgentWebsite Site, WebsiteBuilderHandover? Handover = null);
 
     // The stored package read again and laid over the site as it is now. Plan is null when the
     // package no longer passes (Package.Problems says why).
-    public static async Task<PlanResult?> PlanAsync(IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int>? removePageIds = null)
+    public static async Task<PlanResult?> PlanAsync(
+        IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int>? removePageIds = null, IReadOnlySet<int>? keepPageIds = null)
     {
         var site = await db.AgentWebsites.AsNoTracking().Include(w => w.AgentUser).Include(w => w.Template)
             .FirstOrDefaultAsync(w => w.Id == import.AgentWebsiteId);
         if (site == null) return null;
 
         // Storage was settled when the package was stored (its images are already in the library).
-        var package = BuilderPackageReader.ReadStored(import.TemplateJson, BuilderImportContext.DesignerTemplate());
-        if (package.Template == null) return new PlanResult(package, null, site);
+        // What the site decides is asked again: for a return, that its hand-over is still the newest
+        // and that its articles and forms are still published and active.
+        var returned = import.HandoverId.Length > 0;
+        var context = returned ? await ContextAsync(db, site, 0, import.HandoverId) : BuilderImportContext.DesignerTemplate();
+        var handover = returned ? await SiteHandoverService.FindAsync(db, site.Id, import.HandoverId) : null;
+        var package = BuilderPackageReader.ReadStored(import.TemplateJson, context);
+        if (package.Template == null) return new PlanResult(package, null, site, handover);
 
         var pages = await db.WebsitePages.AsNoTracking()
             .Where(p => p.AgentWebsiteId == site.Id)
             .Include(p => p.Blocks)
             .OrderBy(p => p.SortOrder).ThenBy(p => p.Title)
             .ToListAsync();
-        var urls = StoredImages(import).ToDictionary(i => i.Ref, i => i.Url, StringComparer.Ordinal);
-        var plan = SiteImportPlan.Build(package.Template, urls, site, pages, removePageIds ?? new HashSet<int>());
-        return new PlanResult(package, plan, site);
+
+        // A picture of this package that has since been deleted from the media library would be
+        // written into the site as a dead picture: said here, so the review shows it and the write refuses.
+        var stored = StoredImages(import);
+        var problems = new List<string>();
+        var assetIds = stored.Where(i => i.MediaAssetId > 0).Select(i => i.MediaAssetId).Distinct().ToList();
+        if (assetIds.Count > 0)
+        {
+            var present = await db.WebsiteMediaAssets.AsNoTracking()
+                .Where(a => a.AgentWebsiteId == site.Id && assetIds.Contains(a.Id)).Select(a => a.Id).ToListAsync();
+            var gone = stored.Where(i => i.MediaAssetId > 0 && !present.Contains(i.MediaAssetId)).Select(i => i.Ref).Distinct().ToList();
+            if (gone.Count > 0)
+            {
+                problems.Add($"{gone.Count} of this package's pictures {(gone.Count == 1 ? "has" : "have")} been deleted from the media library since it was uploaded " +
+                    $"({string.Join(", ", gone.Take(3))}{(gone.Count > 3 ? ", ..." : string.Empty)}). Drop the package and upload it again.");
+            }
+        }
+
+        var urls = stored.GroupBy(i => i.Ref).ToDictionary(g => g.Key, g => g.First().Url, StringComparer.Ordinal);
+        var handedOver = handover == null
+            ? null
+            : SiteHandoverService.List<HandoverPage>(handover.PagesJson).Select(p => p.Id).ToHashSet();
+        var plan = SiteImportPlan.Build(package.Template, urls, site, pages, removePageIds ?? new HashSet<int>(), handedOver, keepPageIds, problems);
+        return new PlanResult(package, plan, site, handover);
     }
 
     // Brings the package in: the site's pages become the plan's pages. templateId, when given, also
     // switches the site to that design.
     public static async Task<ApplyResult> ApplyAsync(
-        IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int> removePageIds, int? templateId, string appliedBy)
+        IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int> removePageIds, int? templateId, string appliedBy, IReadOnlySet<int>? keepPageIds = null)
     {
-        if (import.Status != WebsiteBuilderImportStatus.Pending) return ApplyResult.Failed("This package has already been brought in or dropped.");
-        var planned = await PlanAsync(db, import, removePageIds);
-        if (planned == null) return ApplyResult.Failed("The customer's website no longer exists.");
-        if (planned.Plan == null) return new ApplyResult(false, planned.Package.Problems.Select(p => $"{p.Where}: {p.Message}").ToList());
-        if (planned.Plan.Problems.Count > 0) return new ApplyResult(false, planned.Plan.Problems);
-        var plan = planned.Plan;
-
         if (templateId.HasValue && !await db.WebsiteTemplates.AnyAsync(t => t.Id == templateId.Value && t.IsActive))
         {
             return ApplyResult.Failed("That design is not available.");
         }
 
+        // One request brings a package in, whatever arrives at the same moment: the row is claimed
+        // in the database (Pending becomes Applied only for the first), inside the transaction that
+        // does the work, so a second click waits and then finds nothing left to claim. Leaving this
+        // method any other way than by Commit gives the claim back.
         await using var transaction = await db.Database.BeginTransactionAsync();
+        var claimed = await db.WebsiteBuilderImports
+            .Where(i => i.Id == import.Id && i.Status == WebsiteBuilderImportStatus.Pending)
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Applied));
+        if (claimed != 1) return ApplyResult.Failed("This package has already been brought in or dropped.");
+
+        var planned = await PlanAsync(db, import, removePageIds, keepPageIds);
+        if (planned == null) return ApplyResult.Failed("The customer's website no longer exists.");
+        if (planned.Plan == null) return new ApplyResult(false, planned.Package.Problems.Select(p => $"{p.Where}: {p.Message}").ToList());
+        if (planned.Plan.Problems.Count > 0) return new ApplyResult(false, planned.Plan.Problems);
+        var plan = planned.Plan;
+
         var site = await db.AgentWebsites.FirstAsync(w => w.Id == import.AgentWebsiteId);
         var rows = await db.WebsitePages.Where(p => p.AgentWebsiteId == site.Id).Include(p => p.Blocks).ToListAsync();
         import.SnapshotJson = SiteSnapshot.Capture(site, rows).ToJson();
@@ -276,19 +358,27 @@ public static class BuilderImportService
     // on the site since then goes with it, so the screen asks first.
     public static async Task<ApplyResult> RestoreAsync(IPRODbContext db, WebsiteBuilderImport import)
     {
-        if (import.Status != WebsiteBuilderImportStatus.Applied || string.IsNullOrWhiteSpace(import.SnapshotJson))
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var latest = await LatestAppliedAsync(db, import.AgentWebsiteId);
+        var current = await db.WebsiteBuilderImports.AsNoTracking().Where(i => i.Id == import.Id)
+            .Select(i => new { i.Status, i.SnapshotJson }).FirstOrDefaultAsync();
+        if (current == null || current.Status != WebsiteBuilderImportStatus.Applied || string.IsNullOrWhiteSpace(current.SnapshotJson))
         {
             return ApplyResult.Failed("This package is not on the site, so there is nothing to put back.");
         }
-        var latest = await LatestAppliedAsync(db, import.AgentWebsiteId);
         if (latest == null || latest.Id != import.Id)
         {
             return ApplyResult.Failed("A newer package has been brought in since. Put that one back first.");
         }
-        var snapshot = SiteSnapshot.FromJson(import.SnapshotJson);
+        var snapshot = SiteSnapshot.FromJson(current.SnapshotJson);
         if (snapshot == null) return ApplyResult.Failed("The record of the previous site cannot be read.");
 
-        await using var transaction = await db.Database.BeginTransactionAsync();
+        // Claimed in the database, as in ApplyAsync: of two requests to put it back, one does.
+        var claimed = await db.WebsiteBuilderImports
+            .Where(i => i.Id == import.Id && i.Status == WebsiteBuilderImportStatus.Applied)
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Restored));
+        if (claimed != 1) return ApplyResult.Failed("This package is not on the site, so there is nothing to put back.");
+
         var site = await db.AgentWebsites.FirstOrDefaultAsync(w => w.Id == import.AgentWebsiteId);
         if (site == null) return ApplyResult.Failed("The customer's website no longer exists.");
         var rows = await db.WebsitePages.Where(p => p.AgentWebsiteId == site.Id).Include(p => p.Blocks).ToListAsync();
@@ -366,6 +456,9 @@ public static class BuilderImportService
         site.UpdatedAt = now;
         import.Status = WebsiteBuilderImportStatus.Restored;
         import.ClosedAt = now;
+        // The site is its own record again: the kept copy has done its work, and while it stayed it
+        // would keep every picture it names from ever being cleaned up (BlobReferences reads it).
+        import.SnapshotJson = null;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return ApplyResult.Done();
@@ -376,39 +469,50 @@ public static class BuilderImportService
     // (the rule the page editor's own delete follows).
     public static async Task<bool> DiscardAsync(IPRODbContext db, IBlobStorageService blob, WebsiteBuilderImport import)
     {
-        if (import.Status != WebsiteBuilderImportStatus.Pending) return false;
-
-        var site = await db.AgentWebsites.AsNoTracking().FirstOrDefaultAsync(w => w.Id == import.AgentWebsiteId);
-        var mine = StoredImages(import).Where(i => i.Created).ToList();
-        // Another package of this site that links the same image (it arrived with identical bytes).
-        var others = await db.WebsiteBuilderImports.AsNoTracking()
-            .Where(i => i.AgentWebsiteId == import.AgentWebsiteId && i.Id != import.Id
-                        && (i.Status == WebsiteBuilderImportStatus.Pending || i.Status == WebsiteBuilderImportStatus.Applied))
-            .Select(i => i.AssetMapJson)
-            .ToListAsync();
-        var linkedElsewhere = others
-            .SelectMany(json => StoredImages(new WebsiteBuilderImport { AssetMapJson = json }))
-            .Select(i => i.Url)
-            .ToHashSet(StringComparer.Ordinal);
-
         var freed = new List<string>();
-        foreach (var image in mine)
+        await using (var transaction = await db.Database.BeginTransactionAsync())
         {
-            if (linkedElsewhere.Contains(image.Url)) continue;
-            if (site != null && string.Equals(site.LogoUrl, image.Url, StringComparison.Ordinal)) continue;
-            if (await db.WebsiteContentBlocks.AnyAsync(b => b.WebsitePage.AgentWebsiteId == import.AgentWebsiteId && b.ImageUrl == image.Url)) continue;
-            var asset = await db.WebsiteMediaAssets.FirstOrDefaultAsync(a => a.Id == image.MediaAssetId && a.AgentWebsiteId == import.AgentWebsiteId);
-            if (asset == null) continue;
-            db.WebsiteMediaAssets.Remove(asset);
-            freed.Add(asset.BlobUrl);
+            // Claimed in the database: a "bring it in" arriving at the same moment gets the row or
+            // this does, never both (dropping would delete pictures the other is about to use).
+            var claimed = await db.WebsiteBuilderImports
+                .Where(i => i.Id == import.Id && i.Status == WebsiteBuilderImportStatus.Pending)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Discarded));
+            if (claimed != 1) return false;
+
+            var site = await db.AgentWebsites.AsNoTracking().FirstOrDefaultAsync(w => w.Id == import.AgentWebsiteId);
+            var mine = StoredImages(import).Where(i => i.Created).ToList();
+            // Another package of this site that links the same image (it arrived with identical bytes).
+            var others = await db.WebsiteBuilderImports.AsNoTracking()
+                .Where(i => i.AgentWebsiteId == import.AgentWebsiteId && i.Id != import.Id
+                            && (i.Status == WebsiteBuilderImportStatus.Pending || i.Status == WebsiteBuilderImportStatus.Applied))
+                .Select(i => i.AssetMapJson)
+                .ToListAsync();
+            var linkedElsewhere = others
+                .SelectMany(json => StoredImages(new WebsiteBuilderImport { AssetMapJson = json }))
+                .Select(i => i.Url)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (var image in mine)
+            {
+                if (linkedElsewhere.Contains(image.Url)) continue;
+                if (site != null && string.Equals(site.LogoUrl, image.Url, StringComparison.Ordinal)) continue;
+                if (await db.WebsiteContentBlocks.AnyAsync(b => b.WebsitePage.AgentWebsiteId == import.AgentWebsiteId && b.ImageUrl == image.Url)) continue;
+                var asset = await db.WebsiteMediaAssets.FirstOrDefaultAsync(a => a.Id == image.MediaAssetId && a.AgentWebsiteId == import.AgentWebsiteId);
+                if (asset == null) continue;
+                db.WebsiteMediaAssets.Remove(asset);
+                freed.Add(asset.BlobUrl);
+            }
+
+            import.Status = WebsiteBuilderImportStatus.Discarded;
+            import.ClosedAt = DateTime.UtcNow;
+            import.PreviewKey = string.Empty;
+            import.PreviewKeyExpiresAt = null;
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
-        import.Status = WebsiteBuilderImportStatus.Discarded;
-        import.ClosedAt = DateTime.UtcNow;
-        import.PreviewKey = string.Empty;
-        import.PreviewKeyExpiresAt = null;
-        await db.SaveChangesAsync();
-
+        // A file goes only when nothing references it any more: not a page, not an article, and not
+        // the kept copy of a site that another package replaced (BlobReferences reads those too).
         foreach (var url in freed)
         {
             if (!await BlobReferences.IsReferencedAsync(db, url)) await blob.DeleteAsync(url);

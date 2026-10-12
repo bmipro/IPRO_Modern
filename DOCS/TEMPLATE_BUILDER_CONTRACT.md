@@ -15,10 +15,10 @@ into the section it belongs to, so there is one document to read. Nothing in it 
 `contractVersion` stays `"0.4"` and the two fixtures are unchanged, byte for byte. The changelog at the
 bottom lists what was folded in. It replaces the v0.3 file at the root of the builder's repository.
 
-**Where iPro's side stands (2026-10-12).** iPro's importer exists and enforces §1–§4, §7 and §10 as
-written here. iPro does not yet hand a site over (§9 and §11 are not built on the host), so for now
-the importer takes a template built from scratch (`handoverId: ""`) and refuses a return. §12.1 says
-what the importer does with a site when a template is brought in.
+**Where iPro's side stands (2026-10-12).** iPro's importer and its hand-over both exist and enforce
+§1–§4, §7, §9 and §10 as written here. They are operated by iPro's staff for one customer at a time: a
+package is made from the admin screens (§9) and the package that comes back is uploaded there. The
+transport of §11 is not built. §12.1 says what the importer does with a site.
 
 ---
 
@@ -156,6 +156,13 @@ Reserved slugs: the importer rejects a small reserved list (host route names —
 `sitemap`, `health`). The exact list is enforced host-side at import; the builder only needs the
 regex + uniqueness + depth rules above. Don't hardcode a reserved list.
 
+The list as it stands on 2026-10-12, so a designer is told while editing and not when the site comes
+back: `account`, `billing`, `publicwebsite`, `media`, `hangfire`, `health`, `error`, `clientportal`,
+`clientportalaccount`, `clientportalappointments`, `clientportaldocuments`, `clientportalmessages`,
+`clientportalpreferences`, `clientportalprofile`, `invoice`, `poll`, `testimonial`, `email-preferences`,
+`t`, `portal`, `sitemap`, `robots`. The builder may warn about these in readiness. The importer stays
+the authority: the list can grow without a new version of this document.
+
 One address is worth knowing, because a designer can run into it: **`home` belongs to the home page.**
 iPro's page editor keeps that address for the home page alone, so the importer refuses any other page
 whose slug is `home`. (The home page itself may have any valid slug; `home` is the convention.)
@@ -195,6 +202,10 @@ Common rules for **every** block:
   `/our-services` — may reference a slug in this export) **or** an absolute `https://` URL
   **or** `mailto:`/`tel:`. Nothing else — no `http://`, no `javascript:`, no protocol-relative
   `//` (and not `/\`, which browsers read the same way).
+- **The characters of `buttonUrl`:** no control character (a tab, a line break) and no backslash,
+  anywhere. No whitespace, with one exception: inside a `tel:` link, where people write a number
+  with spaces (`tel:(416) 555-0199`). The scheme is written in lower case: `https://`, `mailto:`,
+  `tel:`. Both sides apply exactly this rule: no stricter and no looser.
 - `layoutVariant`: `""` (host default) or one of the type's enum below, lowercase. Anything
   else is **rejected on import** (§7). iPro's renderer normalizes a value it already stores; that is
   how old data is treated, not a promise that an invalid export is accepted.
@@ -492,13 +503,16 @@ a new one):
 - a page other than the home page whose slug is `home` (§3);
 - a `title` or `navigationLabel` of only spaces (§3);
 - an image file name longer than 100 characters (§1 rule 4);
-- a `buttonUrl` starting `/\` (§4).
+- a `buttonUrl` starting `/\`, holding a control character or a backslash, holding whitespace outside
+  a `tel:` number, or with its scheme not in lower case (§4);
+- a return whose `handoverId` is not the newest hand-over of that site (§9.2).
 
 **Not a reason to reject** (§1, §4.3): a ZIP directory entry; an asset nothing references; a Services
 line longer than 80 characters, or an empty one; an image of any pixel size within §1's rules.
 
 Every rejection names the page (its `slug`), the block (its `sortOrder`) and the section of this
-document it comes from, and the importer reports all of them, not only the first.
+document it comes from, and the importer reports all of them, not only the first (the first hundred,
+then the number that remain).
 
 Your round-trip test suite should cover every line of that list — a red test per rule, then the
 export writer makes it green.
@@ -1062,6 +1076,9 @@ billing. Business details that appear on the site are already in its blocks.
 again must reopen it, not fail: an adviser double-clicks, or opens the file twice. Different content
 under a known `handoverId` never comes from iPro, and may be refused.
 
+**Only the newest hand-over of a site can come back.** Each hand-over carries the site as it was at
+that moment; once iPro makes a newer one, a package made from an older one is refused.
+
 ### 9.3 The catalogue
 
 `catalog.articles[]` — only the adviser's **published** articles, newest first:
@@ -1155,29 +1172,56 @@ package") and writes a return ZIP to disk. At integration the same two files tra
 
 ### 12.1 What iPro's importer does today (2026-10-12)
 
-For a template built from scratch (`handoverId: ""`), brought in by iPro's staff for one customer:
+A package is brought in by iPro's staff for one customer. It is either a template built from scratch
+(`handoverId: ""`) or the return of that site's newest hand-over.
 
 - **Nothing changes at upload.** The package is checked (§7) and its new images are stored. iPro's
   staff then see what it would do, page by page, and each page rendered through the customer's real
   shell, before anything is replaced.
 - **The home page is the home page.** The package's home page replaces the site's home page, whatever
-  either side calls it. Every other page is matched by `slug`: a match is replaced and keeps the page
-  settings listed above; a page with a new slug is added.
-- **A page the package does not have is kept** as it is, after the package's pages in the menu, unless
-  iPro's staff choose to remove it. (A return of a handed-over site carries every page of the site,
-  so there a missing page is one the adviser removed.)
+  either side calls it; if its address changes, the old address keeps arriving. Every other page is
+  matched by `slug`: a match is replaced and keeps the page settings listed above; a page with a new
+  slug is added.
+- **A page the package does not have:**
+  - *built from scratch:* it is kept as it is, after the package's pages in the menu, unless iPro's
+    staff choose to remove it;
+  - *a return:* a page that was in the hand-over and did not come back was removed in the builder, and
+    is removed (iPro's staff may keep it); a page made in iPro after the hand-over was never in the
+    builder, and is kept.
+- **What was changed in iPro after a hand-over is replaced by its return.** iPro's review names the
+  pages this affects before anything is written.
 - **A replaced page's sections are replaced as a set.** A section of a kind the builder cannot carry
-  (a map, a gallery, a price list) does not survive; iPro's review names each one before it goes.
+  (a map, a gallery, a price list) does not survive; iPro's review names each one before it goes. A
+  site that has such a section is not handed over in the first place (§12).
+- **Articles and forms are asked about twice:** when a return is uploaded, and again when it is
+  brought in. One unpublished or switched off in between stops it.
 - **The logo:** a `logoRef` replaces the site's logo. `logoRef: ""` in a template built from scratch
   says nothing about the site's logo, which stays; in a return it means the adviser removed it.
-- **Images are matched by content** (§10.3) against the images earlier packages brought into the site, so bringing
-  the same template in again after an edit stores only what is new.
+- **Images are matched by content** (§10.3): against what the hand-over delivered, and against the
+  images earlier packages brought into the site, whatever name they travel under.
 - **The previous site is kept** and can be put back in one step.
+
+What iPro's hand-over does on the way out, so the builder is not surprised: a field a section type
+does not use is written `""` whatever the site holds there; a Text section's button with words and no
+link is left out (on the live site it leads nowhere); line breaks are written as LF; page and section
+`sortOrder` are renumbered from 0; a scheme is written in lower case; image files are named
+`<readable name>-<8 hex of its SHA-256>.<type>`; `adviser.vertical` is `advisers` for a business that is
+none of the three (until this document has a value for it).
 
 ---
 
 ## Changelog
 
+- **v0.4, second doc-only revision (2026-10-12)** — after two independent audits compared the builder,
+  iPro's importer and this document, and once iPro's hand-over existed. `contractVersion` stays `"0.4"`;
+  fixtures unchanged. One rule for the characters of `buttonUrl`, applied identically by both sides
+  (§4, §7): the builder had refused a phone number written with a space, and iPro had let a tab
+  through. The reserved addresses are listed (§3), so a designer is told while editing. Only a site's
+  newest hand-over can come back (§9.2, §7). §12.1 rewritten now that a return is taken: what happens
+  to a page removed in the builder, to a page made in iPro since, to changes made in iPro after the
+  hand-over; and what the hand-over tidies on the way out. The importer reports the first hundred
+  problems and counts the rest (§7). Checked by a real trip: a hand-over made by iPro, opened, edited
+  and exported by the builder's own code, and taken back by iPro with every image recognized.
 - **v0.4, consolidated revision (2026-10-12, doc-only — no validation rule and no part of the schema
   changed, `contractVersion` stays `"0.4"`, fixtures unchanged)** — the clarifications iPro gave on
   2026-09-29 (review note, section 6) are folded into their sections: rejection versus fallback for

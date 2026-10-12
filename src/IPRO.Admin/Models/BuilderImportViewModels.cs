@@ -14,6 +14,10 @@ public sealed class BuilderImportIndexViewModel
     // Set when an upload was just refused: why, and which file.
     public IReadOnlyList<ImportProblem> Problems { get; init; } = Array.Empty<ImportProblem>();
     public string RefusedFileName { get; init; } = string.Empty;
+    // 572: the newest package of this site made for the builder (null: never handed over), and,
+    // when a hand-over was just refused, why.
+    public WebsiteBuilderHandover? LatestHandover { get; init; }
+    public IReadOnlyList<string> HandoverBlockers { get; init; } = Array.Empty<string>();
     public double StorageUsedMb { get; init; }
     public int StorageLimitMb { get; init; }
     public string Zone { get; init; } = string.Empty;
@@ -32,6 +36,10 @@ public sealed class BuilderImportReviewViewModel
     // The operator's choices so far: the design to switch to (null = leave it) and the pages to remove.
     public int? Design { get; init; }
     public IReadOnlySet<int> Without { get; init; } = new HashSet<int>();
+    // 572: the hand-over this package answers (null for a site built from scratch), and the pages
+    // removed in the builder that the operator keeps after all.
+    public WebsiteBuilderHandover? Handover { get; init; }
+    public IReadOnlySet<int> Keep { get; init; } = new HashSet<int>();
     // The address of the look for one page: this, with the page's slug appended.
     public string LookAddress { get; init; } = string.Empty;
     public string Zone { get; init; } = string.Empty;

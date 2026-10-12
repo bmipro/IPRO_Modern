@@ -79,13 +79,19 @@ public class PublicWebsiteController : Controller
     // A public address, so scanners will find it: a request without a well-formed key is answered
     // before the database is asked anything.
     [HttpGet]
-    public async Task<IActionResult> PreviewBuilderImport(int id, string? key, string? page, int? design, string? without)
+    public async Task<IActionResult> PreviewBuilderImport(int id, string? key, string? page, int? design, string? without, string? keep)
     {
         if (id <= 0 || !IPRO.Business.SiteImport.BuilderImportService.LookKeyLooksRight(key)) return NotFound();
+        // The key is settled on three small columns. The row itself (a whole site's content) is read
+        // only for a request that carries the right key, so a guessed id costs next to nothing.
+        var look = await _db.WebsiteBuilderImports.AsNoTracking().Where(i => i.Id == id)
+            .Select(i => new IPRO.Entities.WebsiteBuilderImport { Id = i.Id, Status = i.Status, PreviewKey = i.PreviewKey, PreviewKeyExpiresAt = i.PreviewKeyExpiresAt })
+            .FirstOrDefaultAsync();
+        if (look == null || !IPRO.Business.SiteImport.BuilderImportService.LookIsOpen(look, key, DateTime.UtcNow)) return NotFound();
         var import = await _db.WebsiteBuilderImports.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
-        if (import == null || !IPRO.Business.SiteImport.BuilderImportService.LookIsOpen(import, key, DateTime.UtcNow)) return NotFound();
+        if (import == null) return NotFound();
 
-        var model = await IPRO.Web.Infrastructure.BuilderImportPreviewBuilder.BuildAsync(_db, import, page, design, without);
+        var model = await IPRO.Web.Infrastructure.BuilderImportPreviewBuilder.BuildAsync(_db, import, page, design, without, keep);
         if (model == null) return NotFound();
 
         ViewBag.IsTemplatePreview = true;
