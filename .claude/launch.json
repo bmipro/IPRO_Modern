@@ -32,6 +32,20 @@
         "http://localhost:5200"
       ],
       "port": 5200
+    },
+    {
+      "name": "builder",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "C:/Users/admin/Projects/ipro-builder/src/Builder.Web/Builder.Web.csproj",
+        "--no-launch-profile",
+        "--",
+        "--urls",
+        "http://localhost:5300"
+      ],
+      "port": 5300
     }
   ]
 }
