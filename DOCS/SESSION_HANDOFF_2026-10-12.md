@@ -36,6 +36,29 @@
 - The owner also said SES step 8.2 will be tomorrow "if not urgent". It is not: marketing mail stays on Azure until
   he changes the setting, and nothing is waiting on it.
 
+## The template builder: his Stage 1 package, our importer and the contract (467, 571)
+
+- The owner: "yes build the importer and do the contract". While the importer was being built he passed on the
+  developer's Stage 1 review package.
+- **His package: accepted.** 363 files match their hashes, the source is commit `0064936`, the six exports pass our
+  checker and the importer's own door, the two returns of our fixture differ by the one heading and by nothing. Seven
+  of the nine fixes were run on our own copy (extracted to the scratchpad, port 5091, stopped after; his copies on
+  5087 and 5090 were not touched); two were read in code. Two small points for him, neither blocking. The note is in
+  the owner's Documents folder (`iPro_TemplateBuilder_Stage1_Review_2026-10-12.md`) for him to forward. The three
+  checker scripts no longer depend on the first package's file names.
+- **571, the importer:** SuperAdmin, an agent's details page, Template Builder: upload (checked against the contract,
+  nothing changes), review (page by page, with a look at each page in the customer's real design), bring in, put the
+  previous site back. See the row in `DOCS/TODO.md` and `DOCS/07_SUPER_ADMIN.md`. Only a site built from scratch in
+  the builder is taken for now; iPro cannot hand a site over yet (the exporter is next).
+- **The contract:** the consolidated v0.4 is written (`DOCS/TEMPLATE_BUILDER_CONTRACT.md`; for the developer,
+  `Documents\iPro_TemplateBuilder_v0.4\CONTRACT.md`, with the 29 September text kept beside it). Doc-only; the
+  fixtures are unchanged. It is the owner's to forward, with the review note.
+- Local look-see, for next time: website images stored in the local blob emulator do not show in a browser, because
+  the site's image policy allows only the real storage host. To see them, save the page and open the copy from a
+  file (no policy header), with the site's own addresses made absolute.
+- Left in the local database (`ipro_crm`): the new table, the new column and one dropped import row for site 1. The
+  images it stored locally were removed with it.
+
 ## Pushed
 
 | Commit | What | Gate |
@@ -60,6 +83,9 @@ bakery's home page. The template builder: his answers from the developer; ours a
 consolidated contract v0.4 and a v0.5 draft.
 
 ## Not seen signed in
+
+The three Template Builder screens in SuperAdmin (571): rendered from their real views by a test and looked at as
+pictures of that markup, never signed in. The owner's first upload is the first real use.
 
 The Profile page's GST/HST number box (570) and the editor's reminder; and, from 10-11, the editor's live totals and
 discount choice in use, the remembered items, Email Activity's period, pages, Needs attention tab and search. His
