@@ -20,6 +20,8 @@
 
 | Commit | What | Gate |
 |---|---|---|
+| `f15d566` | **570** a business's GST/HST number on its invoices and estimates to clients (live on build `909650b`) | 1644/1644 |
+| `d09ddb6` | **569** a printed invoice takes the table layout whatever margins the printer adds (live on build `909650b`) | 1644/1644 |
 
 ## Still his
 
