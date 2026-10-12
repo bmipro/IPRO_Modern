@@ -59,6 +59,26 @@
 - Left in the local database (`ipro_crm`): the new table, the new column and one dropped import row for site 1. The
   images it stored locally were removed with it.
 
+## The owner's direction on the builder, evening (467)
+
+- His words: "If you could i like you to take over the code ONLY if you can if not we could go back to the other
+  template builder developer since he did extensive research with squarespace site. I also like to extensively test
+  it locally with some auditors from code quality to security and functionality before thinking of deployment in
+  production. I think at one point we did talk about having a switch to beta allowing clients to switch back and
+  forth if they don't like it or find it buggy for now".
+- **Answered yes, on evidence.** A second copy of the builder's pushed branch (`f01fd21`) builds here and passes its
+  tests (247 .NET, 25 Node). Its own code is small. His Squarespace review is a written file in the repository.
+  The limit said plainly: an editor's feel is judged here by scripts and pictures, not by hand at full size.
+- **571 is NOT to be pushed.** It stays committed locally (`3aed496`) until the whole thing has been tested on this
+  machine, audited (code quality, security, functionality: independent reviewers given the code, not our
+  conclusions) and he says so.
+- **Not started, waiting on him:** his confirmation after the answer, and the developer's last push. A hand-over
+  request is drafted in his Documents folder (`iPro_TemplateBuilder_Handover_Request_2026-10-12.md`). Until the
+  developer has stopped, his repository and working folder stay read-only for us; his copies on 5087 and 5090 were
+  left running.
+- For whoever picks this up: the builder's SQLite tests fail from a long folder path. The scratchpad copy passed
+  only through a temporary drive letter (`subst T:`), removed afterwards. Work in a copy at a short path.
+
 ## Pushed
 
 | Commit | What | Gate |
