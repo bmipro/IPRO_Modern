@@ -478,6 +478,10 @@ public class ClientsController : Controller
             return View(model);
         }
 
+        // 573: the posted contact is its own fields only. Whatever else the request named (documents,
+        // messages, an account, a key) is dropped before the row is added; categories come from the
+        // database below.
+        IPRO.DataAccess.PostedRecord.Clean(_db, model);
         model.AgentUserId = AgentId;
         model.CreatedAt = DateTime.UtcNow;
         model.UpdatedAt = DateTime.UtcNow;

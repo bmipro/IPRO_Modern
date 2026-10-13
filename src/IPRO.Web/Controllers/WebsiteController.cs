@@ -54,6 +54,11 @@ public class WebsiteController : Controller
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
+        // 573: the logo's address never comes from the form; only the upload below sets it. A posted
+        // LogoUrl used to be stored as the site's logo, and the address it replaced was then deleted
+        // from storage by its path, whoever's file that was.
+        model.LogoUrl = string.Empty;
+
         if (model.TemplateId <= 0)
         {
             var agent = await _agents.GetByIdAsync(AgentId);
@@ -174,8 +179,26 @@ public class WebsiteController : Controller
 
         if (existing == null)
         {
-            model.AgentUserId = AgentId;
-            existing = await _websites.CreateAsync(model);
+            // 573: a first save writes the fields this form has, and nothing else the request named
+            // (the posted object could carry pages, domains, an account, "published").
+            existing = await _websites.CreateAsync(new AgentWebsite
+            {
+                AgentUserId = AgentId,
+                TemplateId = model.TemplateId,
+                SiteTitle = model.SiteTitle,
+                TagLine = model.TagLine,
+                ThemeColor = model.ThemeColor,
+                FontFamilyOverride = model.FontFamilyOverride,
+                HeadingFontSizeOverride = model.HeadingFontSizeOverride,
+                BodyFontSizeOverride = model.BodyFontSizeOverride,
+                BackgroundColorOverride = model.BackgroundColorOverride,
+                ButtonStyleOverride = model.ButtonStyleOverride,
+                SectionSpacingOverride = model.SectionSpacingOverride,
+                HeroStyleOverride = model.HeroStyleOverride,
+                CustomDomain = model.CustomDomain,
+                CustomDomainDisplay = model.CustomDomainDisplay,
+                LogoUrl = model.LogoUrl
+            });
         }
         else
         {

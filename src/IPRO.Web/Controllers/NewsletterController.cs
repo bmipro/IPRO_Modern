@@ -85,6 +85,11 @@ public class NewsletterController : Controller
             return View(model);
         }
 
+        // 573: the posted newsletter is its own fields only; no sends, recipients or account ride in.
+        IPRO.DataAccess.PostedRecord.Clean(_db, model);
+        model.AgentUserId = AgentId;
+        model.SentAt = null;
+        model.TotalRecipients = model.TotalSent = model.TotalOpened = model.TotalClicked = 0;
         var nl = await _newsletters.CreateAsync(model);
         TempData["Success"] = "Newsletter draft saved.";
         return RedirectToAction(nameof(Preview), new { id = nl.Id });

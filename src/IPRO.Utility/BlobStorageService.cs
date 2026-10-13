@@ -63,8 +63,34 @@ public class AzureBlobStorageService : IBlobStorageService
         await container.SetAccessPolicyAsync(accessType);
     }
 
+    // 573: a file is deleted only under the exact address this service gives it. An address is
+    // resolved by its path alone (ParseBlobUrl), so many spellings reach one file: another host, a
+    // ?query, a #fragment, an escaped letter. The "is this file still used?" checks compare stored
+    // addresses as text, so a second spelling of somebody's file looks unused. Refusing every
+    // spelling but our own closes that for every caller at once. A refusal keeps the file.
+    public bool IsOwnAddress(string? blobUrl)
+    {
+        if (string.IsNullOrWhiteSpace(blobUrl)) return false;
+        try
+        {
+            var (containerName, blobName) = ParseBlobUrl(blobUrl);
+            var own = _client.GetBlobContainerClient(containerName).GetBlobClient(blobName).Uri.ToString();
+            return string.Equals(own, blobUrl, StringComparison.Ordinal);
+        }
+        catch (Exception ex) when (ex is ArgumentException or FormatException)
+        {
+            return false;
+        }
+    }
+
     public async Task<bool> DeleteAsync(string blobUrl)
     {
+        if (!IsOwnAddress(blobUrl))
+        {
+            _logger.LogWarning("Refused to delete {Url}: it is not an address this storage gave a file", blobUrl);
+            return false;
+        }
+
         try
         {
             var (containerName, blobName) = ParseBlobUrl(blobUrl);

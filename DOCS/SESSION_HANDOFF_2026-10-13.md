@@ -6,6 +6,23 @@
   Template Builder work: 571, 572 and everything after. Nothing of it goes to production before the owner says so.
   The full rule and the story so far are in `SESSION_HANDOFF_2026-10-12.md` on this branch.
 
+## 573: a hole in the live site, found by the builder's security audit
+
+- **What it was:** a signed-in customer could send a crafted request to My Website and have another customer's
+  picture deleted from storage. The save took the logo's address from the request; a file is found by the path of
+  its address alone; and the "still used?" check compares addresses as text, so the same file under another
+  spelling (`?z` on the end) looked unused. Two other forms (a new contact, a new newsletter) saved the posted
+  record whole, so a request could add related rows it named.
+- **Proven, not assumed:** the new test, run against the code as it stood, fails with both files in the delete
+  list.
+- **Fixed in `175d350` on `main`, gated 1653/1653, NOT pushed.** A push deploys; it waits for the owner's word. The
+  TODO row (573) has the three parts of the fix.
+- **Recoverable:** production's storage keeps deleted files and old versions for 30 days.
+- **Not known:** whether anyone used it. Listing deleted files needs access this sign-in does not have (asked for
+  and refused by the platform, so not worked around): the owner's say. After the fix is live, a scan of the public
+  sites for broken pictures is the other check.
+- **After the push:** both hosts must show the new build; then merge `main` into the builder branch.
+
 ## The owner's builder site moved out of the TEMP folder
 
 - His word, this morning: "the data on port 5087 is saved".
@@ -57,6 +74,7 @@
 
 ## Still his
 
+- **The word to deploy 573** (the fix for the live site; committed on `main`, not pushed).
 - Which of the 74 images are licensed for customers' sites.
 - Stage 1 to production first, or everything together later.
 - From 10-12, unchanged: SES step 8.2; his GST/HST number for 570.
