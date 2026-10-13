@@ -42,12 +42,11 @@
   **Never touch the `mail.` DNS records.** Incoming mail on port 25 cannot be tested from this network.
 - **575**: the nine "Not found" addresses he sent. Three have a successor and now go to it; five have none and
   keep answering "not found"; one already went to the front page. Committed on `main` as `c524ad6`, gated 1669/1669,
-  NOT pushed: a push deploys and waits for his word.
+  and LIVE as build `8c3f86d` on his word: the three addresses checked on the live site.
 - **Offered, not done** (his to ask for): the bare names answering with a redirect to www instead of the same page
   (507 was his choice that the name stays, so this is a question, not a fix); the "real address" tag on Privacy and
   Terms; real pages again for About, Features, Support and a blog, which the old site had and Google still showed.
 
 ## Still his
 
-- **The word to deploy 575** (old addresses of iproadvisers.com; committed on `main`, not pushed).
 - From 10-12, unchanged: SES step 8.2; his GST/HST number for 570.
