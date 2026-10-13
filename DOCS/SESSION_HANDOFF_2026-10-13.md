@@ -2,8 +2,10 @@
 
 ## Branches: read this first
 
-- `main` is what production runs, plus notes. `feat/template-builder-beta` (local only, not pushed) holds the
-  Template Builder work: 571, 572 and everything after. Nothing of it goes to production before the owner says so.
+- `main` is what production runs, plus notes. **Since this evening that includes the staff-only Template Builder
+  part (571, 572, 574): the owner said yes after the three audits.** `feat/template-builder-beta` (local only)
+  stays for what comes next, the builder for customers (sign-in, a draft per customer, the Beta switch): nothing
+  new on it goes to production before he says so, and it is not to be offered.
   The full rule and the story so far are in `SESSION_HANDOFF_2026-10-12.md` on this branch.
 
 ## 573: a hole in the live site, found by the builder's security audit
@@ -106,7 +108,7 @@
      of the three exists yet; they are the next build work.
 - His answer: "lets finish with the audit first", then "Continue with the builder fixes and Deploy the 573 first".
   So: 573 is live; the audit fixes are 574; whether the staff-only part (571, 572, 574) goes to production before
-  the customer-facing part is still his to say. He also has two questions about Google waiting to be asked.
+  the customer-facing part was his to say, and that evening he said yes (see below). He also has two questions about Google waiting to be asked.
 
 ## 575 and two Google matters
 
@@ -129,6 +131,29 @@
 - **Offered, not done** (his to ask for): the bare names answering with a redirect to www instead of the same page
   (507 was his choice that the name stays, so this is a question, not a fix); the "real address" tag on Privacy and
   Terms; real pages again for About, Features, Support and a blog, which the old site had and Google still showed.
+
+## The staff-only builder part is live
+
+- **His words.** Asked what "whether the staff-only builder part goes to production next" meant, he got it in plain
+  terms (the SuperAdmin screens: make the package, upload, review, bring in, put back; no customer sees anything;
+  the builder stays on his PC) and answered: "I am glad u did not do it on your own and asked my approval as it
+  should be ... I agree with your suggestions and lets do it".
+- **What went:** the tip of the builder branch, which already held all of `main`. It was gated as one tree first
+  (1744/1744: the builder work and the day's two live fixes had not been tested together). Build `5858ff8`.
+- **Checked live:** both hosts on the build and Healthy; the public sites answering; the builder screens on the
+  admin site asking for a sign-in; the look on the portal answering "not found" without its key AND with a
+  well-formed wrong one (which reads the new table, so the table is there); 573's forms and 575's addresses as
+  before; both apps' own logs read for failures since the push. Before the push: the admin app has file storage
+  and the portal's address set (names and length only), and a starter banner is reachable on the live portal.
+- **Not seen signed in.** The screens were rendered by tests. His first use is the first real one.
+- **For his first try, as he was told:** start with his own site. Opening an iPro package in the builder REPLACES
+  what the builder holds, and the builder on port 5087 holds his own design. So a second builder for packages:
+  `C:\Users\admin\Projects\ipro-builder-site\Start-Builder-For-Handovers.cmd`, http://127.0.0.1:5088, its own
+  empty data. His design was backed up again just before (his save of 12:35; the zip is in both backup folders).
+- **Known limits he was told:** a page with no sections of its own stops a hand-over; "Bring it in" on a published
+  site is live at once (one click puts it back); nobody but SuperAdmin can reach any of it.
+- **Next, on the branch, and again only on his word:** the builder for customers (it needs a place on the internet,
+  which is his decision and cost; sign-in with a draft per customer; the per-agent Beta switch).
 
 ## Still his
 
