@@ -25,6 +25,29 @@
   sites for broken pictures is the other check.
 - `main` is merged into the builder branch.
 
+## 575 and two Google matters
+
+- **The Workspace email** ("mark AI agent OAuth clients as agentic by Nov 11"): no action. iPro's code calls Google
+  only for the Calendar connection (the ordinary Calendar service) and embedded maps; nothing in it is an AI agent
+  calling Google's new servers. The owner was told to leave the setting OFF: it becomes permanent on 2026-11-12.
+- **Search Console, "Alternative page with proper canonical tag"** on iproadvisers.com and ipromortgages.com: not
+  an error. The bare name says the real address is the www one and Google agrees.
+- **Search Console, "Duplicate without user-selected canonical"** on iproaccountants.com: the pages were
+  `mail.iproaccountants.com/` and `/about.html`. That name points at the owner's OLD cPanel host (66.102.128.65),
+  which still receives the email for iproaccountants.com and iproadvisers.com and was still showing the old
+  website. He pasted redirect lines we wrote at the top of that host's `.htaccess` (his own hosting account; the
+  files are in his Documents folder, `iPro_Old_Host_Redirect`). Checked from here afterwards: every `mail.` page a
+  301 to its www site in one hop; `/.well-known/`, mail set-up and cPanel's own addresses left alone; the
+  certificate valid to 2026-12-28; the mail server answering. He was shown where "Start new validation" is.
+  **Never touch the `mail.` DNS records.** Incoming mail on port 25 cannot be tested from this network.
+- **575**: the nine "Not found" addresses he sent. Three have a successor and now go to it; five have none and
+  keep answering "not found"; one already went to the front page. Committed on `main` as `c524ad6`, gated 1669/1669,
+  NOT pushed: a push deploys and waits for his word.
+- **Offered, not done** (his to ask for): the bare names answering with a redirect to www instead of the same page
+  (507 was his choice that the name stays, so this is a question, not a fix); the "real address" tag on Privacy and
+  Terms; real pages again for About, Features, Support and a blog, which the old site had and Google still showed.
+
 ## Still his
 
+- **The word to deploy 575** (old addresses of iproadvisers.com; committed on `main`, not pushed).
 - From 10-12, unchanged: SES step 8.2; his GST/HST number for 570.
