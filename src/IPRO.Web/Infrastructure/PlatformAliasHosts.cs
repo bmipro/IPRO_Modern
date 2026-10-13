@@ -86,6 +86,36 @@ public static class PlatformAliasHosts
         return false;
     }
 
+    // 575 (2026-10-13, from Search Console's "Not found" list for iproadvisers.com): addresses of the
+    // legacy WordPress site that have a successor today, each with the page that took its place. They
+    // carry no file extension, so IsLegacyPage does not see them: they were forwarded to the platform
+    // with their path and answered 404 there. Only an address that was really asked for and really
+    // has a successor is listed. An old blog post, a category or a portfolio page has none, and "not
+    // found" is the true answer for those (sending everything to the front page is what search
+    // engines call a soft 404, and earns nothing).
+    private static readonly (string Slug, string Page)[] LegacyLandings =
+    {
+        ("insurance-professionals", "/"),
+        ("mortgage-professionals", "/mortgage"),
+        // The old site's post about the company itself; today the front page is that.
+        ("ipro-advisers-inc-right-online-partner-financial-advisors-brokers", "/")
+    };
+
+    // The page that took the place of a legacy address, or null. The old site wrote a post's address
+    // with and without its date ("/2016/02/25/<post>/"), so the last part of the path decides, and
+    // only for a path that is one part, or a date and one part.
+    public static string? LegacyLanding(PathString path)
+    {
+        if (!path.HasValue) return null;
+        var parts = path.Value!.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var dated = parts.Length == 4 && parts[0].Length == 4 && parts[1].Length == 2 && parts[2].Length == 2
+                    && parts.Take(3).All(part => part.All(char.IsAsciiDigit));
+        if (parts.Length != 1 && !dated) return null;
+        foreach (var (slug, page) in LegacyLandings)
+            if (string.Equals(parts[^1], slug, StringComparison.OrdinalIgnoreCase)) return page;
+        return null;
+    }
+
     // The absolute target for the root of this host: the platform base plus the host's own landing
     // path ("/" when none is configured, or the host is not an alias).
     public static string RedirectTarget(IConfiguration configuration, string? host = null) =>
@@ -145,6 +175,15 @@ public static class PlatformAliasHosts
             var front = alias.OwnPage ? "https://" + request.Host.Value.ToLowerInvariant() + "/" : HomeBase(configuration) + "/";
             context.Response.Headers.CacheControl = RedirectLifetime;
             context.Response.Redirect(front, permanent: true);
+            return true;
+        }
+
+        if (LegacyLanding(request.Path) is { } landing)
+        {
+            // 575: to the address that page is known by today (the mortgage page lives under its own
+            // brand name). The old query string ("?replytocom=82") meant something to the old site only.
+            context.Response.Headers.CacheControl = RedirectLifetime;
+            context.Response.Redirect(PageUrl(configuration, landing), permanent: true);
             return true;
         }
 
