@@ -25,6 +25,38 @@
   sites for broken pictures is the other check.
 - `main` is merged into the builder branch.
 
+## 574: the three audits of the builder work, and what was done about them
+
+- **Three independent reviewers** (security, functionality, code quality) read 571 and 572: the code and the
+  contract, not our conclusions. Each finding acted on was checked against the code first. The security reviewer's
+  look outside the two commits is where 573 came from.
+- **574 is built, gated 1728/1728 and committed on the branch as `062ada6`.** The TODO row lists every fix. The three
+  that mattered most: a customer's section edits after a hand-over were replaced by the return with no warning (the
+  rule read a time the page editor never moves); a logo replaced while a package was out was deleted and the return
+  then linked a dead file; and "Bring it in" wrote a freshly worked-out plan, not the one the reviewer had read.
+- **Found sound by all three:** staff-only access with anti-forgery on every change; each step all or nothing; the
+  strict reading of a package; tenant checks on every id; the look's key (random, timed, compared in fixed time).
+- **Left open, on purpose, for the owner to weigh:**
+  - no cap on an image's pixel size (bytes only);
+  - kept copies of replaced sites are held with no end date (each keeps its pictures from being cleaned up);
+  - the look answers on every host, a customer's own domain included (the key is still needed);
+  - a page with no sections of its own (it shows the design's standard layout) stops a hand-over: real sites may
+    have such pages, and the first real hand-over will show how often;
+  - two returns of the same hand-over: a page the first added and the second removed is kept (the safe side);
+  - menu labels over 40 characters, more than 30 pages, or pictures over 40 MB in all do not fit the contract.
+- **Nothing in the builder's own repository changed today.** The contract is unchanged.
+
+## The owner's builder on his network, and his photos
+
+- He asked for http://192.168.2.164:5087/ to open from his network. `Start-Builder.cmd` now listens on every
+  address of the PC and `site\appsettings.json` answers to that name; the builder was restarted and his site
+  checked intact (his last save 11:45). Windows already had a rule letting dotnet through on that network; the
+  firewall was NOT touched (a security setting is his to change). He was told it has no password: anyone on the
+  network who opens the address can change the site, and the port must not be forwarded on the router.
+- His five photos in `Documents\iPro_Builder_Images` were replaced with the full-resolution files from his ZIP
+  (cleaned copies, 1600 x 1200) and, for the sky, the 2000 x 1333 JPEG he sent last. He added `Blue_sky2.jpg` there
+  himself. The licence check of the 69 stock images is still his.
+
 ## The owner's builder site moved out of the TEMP folder
 
 - His word, this morning: "the data on port 5087 is saved".
@@ -72,7 +104,9 @@
   2. *Customers use the builder themselves:* needs the builder running somewhere on the internet (a hosting
      decision and cost that are his), sign-in so each agent sees only their own site, and the switch itself. None
      of the three exists yet; they are the next build work.
-- His decision is awaited. Nothing was pushed or offered for a push.
+- His answer: "lets finish with the audit first", then "Continue with the builder fixes and Deploy the 573 first".
+  So: 573 is live; the audit fixes are 574; whether the staff-only part (571, 572, 574) goes to production before
+  the customer-facing part is still his to say. He also has two questions about Google waiting to be asked.
 
 ## Still his
 
