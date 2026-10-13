@@ -26,7 +26,7 @@ public class SensitiveDataTelemetryInitializer : ITelemetryInitializer
 {
     // 496: and the prospect's own name and company, which the 30-second preview carries in its URL
     // (its form is a GET) under a banner that says "Nothing is saved".
-    private static readonly string[] SensitiveQueryParams = { "token", "subscription_id", "secret", "s", "firstName", "lastName", "companyName" };
+    private static readonly string[] SensitiveQueryParams = { "token", "subscription_id", "secret", "s", "firstName", "lastName", "companyName", "key" };
 
     private static readonly Regex TokenPathSegment = new(
         @"(?i)(/(?:invoice|testimonial)/|/t/[oc]/[^/?#\s]+/)([^/?#\s]+)",

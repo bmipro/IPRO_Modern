@@ -1423,12 +1423,16 @@ public static class StartupSchemaRepair
         `PagesJson` longtext CHARACTER SET utf8mb4 NOT NULL,
         `DeliveredJson` longtext CHARACTER SET utf8mb4 NOT NULL,
         `NotesJson` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `LogoUrl` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
         PRIMARY KEY (`Id`),
         UNIQUE KEY `IX_WebsiteBuilderHandovers_HandoverId` (`HandoverId`),
         KEY `IX_WebsiteBuilderHandovers_AgentUserId` (`AgentUserId`),
         KEY `IX_WebsiteBuilderHandovers_AgentWebsiteId` (`AgentWebsiteId`)
     ) CHARACTER SET=utf8mb4;");
 
+        // 574: a table made on 2026-10-12, before the logo's address was recorded.
+        await EnsureTableColumnAsync(db, "WebsiteBuilderHandovers", "LogoUrl",
+            "ALTER TABLE `WebsiteBuilderHandovers` ADD COLUMN `LogoUrl` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
         await EnsureTableColumnAsync(db, "WebsiteMediaAssets", "ContentSha256",
             "ALTER TABLE `WebsiteMediaAssets` ADD COLUMN `ContentSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     }

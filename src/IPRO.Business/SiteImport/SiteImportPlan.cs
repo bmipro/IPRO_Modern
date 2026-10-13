@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using IPRO.Entities;
 
 namespace IPRO.Business.SiteImport;
@@ -27,12 +29,16 @@ public sealed class PlannedPage
     // When the page was last changed on the site (null for an added page). A returning package
     // replaces whatever was changed in iPro after its hand-over; the review says which pages.
     public DateTime? ChangedOnSite { get; init; }
+    // 574: what the page says today is not what its hand-over recorded: it was changed in iPro after the
+    // site went to the builder, and this return replaces (or removes) that change. Decided here, from
+    // the content, and not in the view from a timestamp: the page editor stamps a saved section and not
+    // its page, and adding, deleting or moving a section stamps nothing.
+    public bool ChangedSinceHandover { get; init; }
 
-    // Sections a replaced or removed page has today that the builder cannot carry (a map, a gallery,
-    // a price list...). They do not come back with the package.
-    public IReadOnlyList<string> SectionsLost => Change is PageChange.Replaced or PageChange.Removed
-        ? SectionsBefore.Where(t => !BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal)).ToList()
-        : Array.Empty<string>();
+    // Sections a replaced or removed page has today that this package could not have carried (a map,
+    // a gallery, a price list; for a site built from scratch also a form or an article section, which
+    // only a hand-over can hold). They do not come back with the package.
+    public IReadOnlyList<string> SectionsLost { get; init; } = Array.Empty<string>();
 }
 
 public enum LogoChange { Unchanged, Set, Replaced, Removed }
@@ -44,6 +50,12 @@ public sealed class SiteImportPlan
     public IReadOnlyList<string> Problems { get; init; } = Array.Empty<string>();
     public string LogoUrlAfter { get; init; } = string.Empty;
     public LogoChange Logo { get; init; }
+    // 574: the site's logo is not the one that was handed over, and this return changes it.
+    public bool LogoChangedSinceHandover { get; init; }
+    // 574: what this plan would do, as one value. The review screen posts it back with "bring it in";
+    // if the site has changed in between so that the plan is no longer the one that was read, the
+    // write refuses and the review is shown again.
+    public string Fingerprint { get; init; } = string.Empty;
 
     // The site's pages afterwards, in menu order, as the public site would load them.
     public IReadOnlyList<WebsitePage> PagesAfter =>
@@ -60,8 +72,18 @@ public sealed class SiteImportPlan
         IReadOnlySet<int> removePageIds,
         IReadOnlySet<int>? handedOverPageIds = null,
         IReadOnlySet<int>? keepPageIds = null,
-        IEnumerable<string>? knownProblems = null)
+        IEnumerable<string>? knownProblems = null,
+        // 574, for a return. handedOverRowBySlug: the address a page had when it was handed over, to the
+        // row it is today (a page renamed in iPro since is still that page). changedSinceHandover: the
+        // rows whose content is not what the hand-over recorded. carriedTypes: the section types this
+        // package could carry (default: the contract's eight).
+        IReadOnlyDictionary<string, int>? handedOverRowBySlug = null,
+        IReadOnlySet<int>? changedSinceHandover = null,
+        bool logoChangedSinceHandover = false,
+        IReadOnlySet<string>? carriedTypes = null)
     {
+        IReadOnlyList<string> Lost(IReadOnlyList<string> before) =>
+            before.Where(t => carriedTypes == null ? !BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal) : !carriedTypes.Contains(t)).ToList();
         var problems = new List<string>(knownProblems ?? Array.Empty<string>());
         var nextId = -1;
         int TempId() => nextId--;
@@ -89,6 +111,20 @@ public sealed class SiteImportPlan
             if (row == null) continue;
             rowFor[page] = row;
             taken.Add(row.Id);
+        }
+        // 574: a page given another address in iPro after the hand-over is still the page that went to
+        // the builder. Matched by the address it had then, it is replaced on its own row (and keeps
+        // its search settings); before, it was removed and the package's page added beside the gap.
+        if (handedOverRowBySlug != null)
+        {
+            foreach (var page in template.Pages.Where(p => !rowFor.ContainsKey(p)))
+            {
+                if (!handedOverRowBySlug.TryGetValue(page.Slug, out var rowId) || taken.Contains(rowId)) continue;
+                var row = currentPages.FirstOrDefault(r => r.Id == rowId);
+                if (row == null) continue;
+                rowFor[page] = row;
+                taken.Add(row.Id);
+            }
         }
 
         // 2. The package's pages as they will be.
@@ -138,7 +174,9 @@ public sealed class SiteImportPlan
                 Page = page,
                 Change = row == null ? PageChange.Added : PageChange.Replaced,
                 SectionsBefore = row == null ? Array.Empty<string>() : SectionTypes(row),
-                ChangedOnSite = row?.UpdatedAt
+                SectionsLost = row == null ? Array.Empty<string>() : Lost(SectionTypes(row)),
+                ChangedOnSite = row?.UpdatedAt,
+                ChangedSinceHandover = row != null && (changedSinceHandover?.Contains(row.Id) ?? false)
             });
         }
         foreach (var source in template.Pages.Where(p => p.ParentSlug != null))
@@ -160,8 +198,9 @@ public sealed class SiteImportPlan
             {
                 planned.Add(new PlannedPage
                 {
-                    Page = row, Change = PageChange.Removed, SectionsBefore = SectionTypes(row),
-                    RemovedInBuilder = removedInBuilder.Contains(row.Id), ChangedOnSite = row.UpdatedAt
+                    Page = row, Change = PageChange.Removed, SectionsBefore = SectionTypes(row), SectionsLost = Lost(SectionTypes(row)),
+                    RemovedInBuilder = removedInBuilder.Contains(row.Id), ChangedOnSite = row.UpdatedAt,
+                    ChangedSinceHandover = changedSinceHandover?.Contains(row.Id) ?? false
                 });
                 continue;
             }
@@ -247,7 +286,33 @@ public sealed class SiteImportPlan
             .ThenBy(p => p.Page.SortOrder)
             .ThenBy(p => p.Page.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        return new SiteImportPlan { Pages = ordered, Problems = problems, LogoUrlAfter = logoAfter, Logo = logo };
+        return new SiteImportPlan
+        {
+            Pages = ordered, Problems = problems, LogoUrlAfter = logoAfter, Logo = logo,
+            LogoChangedSinceHandover = logoChangedSinceHandover && logo != LogoChange.Unchanged,
+            Fingerprint = FingerprintOf(ordered, problems, logo, logoAfter)
+        };
+    }
+
+    // Everything the review screen says about a plan: each page, what happens to it, what it loses and
+    // whether it was changed in iPro; the logo; what stands in the way.
+    private static string FingerprintOf(IReadOnlyList<PlannedPage> pages, IReadOnlyList<string> problems, LogoChange logo, string logoAfter)
+    {
+        const char field = (char)0x1F;
+        var text = new StringBuilder();
+        foreach (var item in pages)
+        {
+            text.Append(item.Change).Append(field)
+                .Append(item.Page.Id > 0 ? item.Page.Id : 0).Append(field)
+                .Append(item.Page.Slug).Append(field)
+                .Append(item.Page.Title).Append(field)
+                .Append(item.Page.Blocks?.Count ?? 0).Append(field)
+                .Append(string.Join(",", item.SectionsBefore)).Append(field)
+                .Append(string.Join(",", item.SectionsLost)).Append(field)
+                .Append(item.RemovedInBuilder).Append(item.ChangedSinceHandover).Append((char)0x1E);
+        }
+        text.Append(logo).Append(field).Append(logoAfter).Append(field).Append(string.Join(((char)0x1E).ToString(), problems));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()))).ToLowerInvariant()[..32];
     }
 
     private static IReadOnlyList<string> SectionTypes(WebsitePage page) =>

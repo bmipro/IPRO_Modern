@@ -38,10 +38,12 @@ public class BuilderImportsController : Controller
     // Resolved inside the action, never in the constructor: see AgentsController on why the blob
     // service must not be a constructor dependency in this app.
     private readonly IServiceProvider _services;
+    private readonly ILogger<BuilderImportsController> _logger;
 
     public BuilderImportsController(IPRODbContext db, IPackageEntitlementService entitlements, IAdminAuditLogService auditLog,
-        IConfiguration configuration, IServiceProvider services)
+        IConfiguration configuration, IServiceProvider services, ILogger<BuilderImportsController>? logger = null)
     {
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<BuilderImportsController>.Instance;
         _db = db;
         _entitlements = entitlements;
         _auditLog = auditLog;
@@ -71,8 +73,9 @@ public class BuilderImportsController : Controller
             blog: (await _entitlements.GetAccessAsync(agentId, PackageFeatureCodes.ManagedBlog)).IsIncluded,
             customForms: (await _entitlements.GetAccessAsync(agentId, PackageFeatureCodes.CustomForms)).IsIncluded);
         var capacity = await _entitlements.GetAccessAsync(agentId, PackageFeatureCodes.FileUploadCapacity);
-        var blob = _services.GetRequiredService<IBlobStorageService>();
-        var handover = await SiteHandoverService.BuildAsync(_db, blob, site, allowed, AgentStorage.LimitBytes(capacity.LimitValue));
+        var blob = Storage();
+        if (blob == null) return RedirectToAction(nameof(Index), new { agentId });
+        var handover = await SiteHandoverService.BuildAsync(_db, blob, site, allowed, AgentStorage.LimitBytes(capacity.LimitValue), ReadStarterBannerAsync);
         if (!handover.CanHandOver)
         {
             await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderHandoverRefused",
@@ -121,6 +124,7 @@ public class BuilderImportsController : Controller
         }
 
         var fileName = Path.GetFileName(package.FileName);
+        if (fileName.Length > 120) fileName = fileName[..120];
         if (!read.IsValid)
         {
             await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportRefused",
@@ -129,8 +133,20 @@ public class BuilderImportsController : Controller
             return model == null ? NotFound() : View(nameof(Index), model);
         }
 
-        var blob = _services.GetRequiredService<IBlobStorageService>();
-        var import = await BuilderImportService.StoreAsync(_db, blob, site, read, fileName, CurrentAdminUsername);
+        var blob = Storage();
+        if (blob == null) return RedirectToAction(nameof(Index), new { agentId });
+        WebsiteBuilderImport import;
+        try
+        {
+            import = await BuilderImportService.StoreAsync(_db, blob, site, read, fileName, CurrentAdminUsername);
+        }
+        catch (Exception ex) when (ex is Azure.RequestFailedException or IOException or InvalidOperationException or DbUpdateException)
+        {
+            // Nothing is half-stored: StoreAsync takes back what it uploaded when the record is not written.
+            _logger.LogError(ex, "Template Builder package for agent {AgentId} could not be stored", agentId);
+            TempData["Error"] = "The package passed every rule, but its pictures could not be stored (file storage did not answer). Nothing was kept and the site is unchanged. Try again in a minute.";
+            return RedirectToAction(nameof(Index), new { agentId });
+        }
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportStored",
             Short($"Template Builder package \"{fileName}\" for agent id {agentId} passed the contract and is waiting (import id {import.Id}; " +
                   $"{import.PageCount} page(s), {import.NewImageCount} new image(s){(import.HandoverId.Length > 0 ? $"; the return of hand-over {import.HandoverId}" : string.Empty)}). The site is unchanged."));
@@ -146,8 +162,8 @@ public class BuilderImportsController : Controller
         if (import == null) return NotFound();
         if (import.Status != WebsiteBuilderImportStatus.Pending) return RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
 
-        var removed = Ids(without);
-        var kept = Ids(keep);
+        var removed = BuilderImportService.ParseIds(without);
+        var kept = BuilderImportService.ParseIds(keep);
         var planned = await BuilderImportService.PlanAsync(_db, import, removed, kept);
         if (planned == null) return NotFound();
 
@@ -187,7 +203,7 @@ public class BuilderImportsController : Controller
         RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep) });
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Apply(int id, int? design, int[]? without, int[]? keep = null)
+    public async Task<IActionResult> Apply(int id, int? design, int[]? without, int[]? keep = null, string? plan = null)
     {
         var import = await _db.WebsiteBuilderImports.FirstOrDefaultAsync(i => i.Id == id);
         if (import == null) return NotFound();
@@ -197,9 +213,24 @@ public class BuilderImportsController : Controller
         var removed = (without ?? Array.Empty<int>()).ToHashSet();
         var kept = (keep ?? Array.Empty<int>()).ToHashSet();
         int? switchTo = design.HasValue && design != site.TemplateId ? design : null;
-        var result = await BuilderImportService.ApplyAsync(_db, import, removed, switchTo, CurrentAdminUsername, kept);
+        BuilderImportService.ApplyResult result;
+        try
+        {
+            // plan: what the review screen showed, posted back with the button (574).
+            result = await BuilderImportService.ApplyAsync(_db, import, removed, switchTo, CurrentAdminUsername, kept, plan ?? string.Empty);
+        }
+        catch (DbUpdateException ex)
+        {
+            // The database refused a row (two things written to one site at the same moment, an address
+            // taken meanwhile). The transaction is gone with it: nothing was changed.
+            _logger.LogWarning(ex, "Template Builder import {ImportId} was not written", id);
+            _db.ChangeTracker.Clear();
+            result = BuilderImportService.ApplyResult.Failed("The site was being changed at the same moment, so nothing was written. Read the review again.");
+        }
         if (!result.Ok)
         {
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportNotApplied",
+                Short($"Template Builder package \"{import.FileName}\" (import id {id}) was NOT brought into agent id {import.AgentUserId}'s website: {result.Problems.FirstOrDefault()}"));
             TempData["Error"] = "The package was not brought in. " + string.Join(" ", result.Problems);
             var stillWaiting = await _db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.Id == id && i.Status == WebsiteBuilderImportStatus.Pending);
             return stillWaiting
@@ -209,7 +240,9 @@ public class BuilderImportsController : Controller
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportApplied",
             Short($"Brought Template Builder package \"{import.FileName}\" (import id {import.Id}) into agent id {import.AgentUserId}'s website: " +
-                  $"{import.PageCount} page(s) from the package{(switchTo.HasValue ? $", design switched to template id {switchTo}" : string.Empty)}. " +
+                  $"{import.PageCount} page(s) from the package{(switchTo.HasValue ? $", design switched to template id {switchTo}" : string.Empty)}" +
+                  $"{(removed.Count > 0 ? $", pages removed by choice: ids {string.Join(" ", removed.OrderBy(x => x))}" : string.Empty)}" +
+                  $"{(kept.Count > 0 ? $", pages kept though removed in the builder: ids {string.Join(" ", kept.OrderBy(x => x))}" : string.Empty)}. " +
                   "The site as it was is kept and can be put back."));
         TempData["Success"] = site.IsPublished
             ? "The package is on the site and live now. If it is not right, \"Put the previous site back\" below undoes it."
@@ -222,7 +255,8 @@ public class BuilderImportsController : Controller
     {
         var import = await _db.WebsiteBuilderImports.FirstOrDefaultAsync(i => i.Id == id);
         if (import == null) return NotFound();
-        var blob = _services.GetRequiredService<IBlobStorageService>();
+        var blob = Storage();
+        if (blob == null) return RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
         if (await BuilderImportService.DiscardAsync(_db, blob, import))
         {
             await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportDiscarded",
@@ -241,7 +275,24 @@ public class BuilderImportsController : Controller
     {
         var import = await _db.WebsiteBuilderImports.FirstOrDefaultAsync(i => i.Id == id);
         if (import == null) return NotFound();
-        var result = await BuilderImportService.RestoreAsync(_db, import);
+        var blob = Storage();
+        if (blob == null) return RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
+        BuilderImportService.ApplyResult result;
+        try
+        {
+            result = await BuilderImportService.RestoreAsync(_db, import, blob);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogWarning(ex, "Template Builder import {ImportId} was not put back", id);
+            _db.ChangeTracker.Clear();
+            result = BuilderImportService.ApplyResult.Failed("The site was being changed at the same moment, so nothing was put back. Try again.");
+        }
+        if (!result.Ok)
+        {
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportNotRestored",
+                Short($"Agent id {import.AgentUserId}'s website was NOT put back from Template Builder package \"{import.FileName}\" (import id {id}): {result.Problems.FirstOrDefault()}"));
+        }
         if (result.Ok)
         {
             await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportRestored",
@@ -282,7 +333,7 @@ public class BuilderImportsController : Controller
             Agent = agent,
             Website = site,
             Imports = imports,
-            RestorableId = site == null ? null : (await BuilderImportService.LatestAppliedAsync(_db, site.Id))?.Id,
+            RestorableId = site == null ? null : await BuilderImportService.LatestAppliedIdAsync(_db, site.Id),
             Problems = problems ?? Array.Empty<ImportProblem>(),
             RefusedFileName = refusedFileName,
             LatestHandover = site == null ? null : await SiteHandoverService.LatestAsync(_db, site.Id),
@@ -293,15 +344,58 @@ public class BuilderImportsController : Controller
         };
     }
 
-    private static HashSet<int> Ids(string? list) =>
-        (list ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(part => int.TryParse(part, out var id) ? id : 0).Where(id => id > 0).ToHashSet();
-
     private static string? Joined(int[]? ids) =>
         ids == null || ids.Length == 0 ? null : string.Join(",", ids.Where(id => id > 0).Distinct().OrderBy(id => id));
 
-    // An audit entry quotes what a package or a page says about itself: kept to a readable length.
-    private static string Short(string details) => details.Length <= 600 ? details : details[..600] + "...";
+    // An audit entry quotes what a package or a page says about itself: kept inside the audit log's
+    // own column (500 characters; a longer line failed the write and the request with it).
+    private static string Short(string details) => details.Length <= 480 ? details : details[..480] + "...";
+
+    // File storage, or null with the reason on the screen. Resolved here and not in the constructor
+    // (see AgentsController); without this the admin gets a raw error page.
+    private IBlobStorageService? Storage()
+    {
+        try
+        {
+            return _services.GetRequiredService<IBlobStorageService>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Blob storage unavailable for the Template Builder screens");
+            TempData["Error"] = "File storage isn't configured for the admin app, so a site's pictures can be neither read nor stored. Nothing was changed. " +
+                                "Set Azure__StorageConnectionString and Azure__StorageAccountName on the admin app, then try again.";
+            return null;
+        }
+    }
+
+    // One of the page editor's starter banners. They are files of the portal, not of storage, so the
+    // hand-over asks the portal for the file by its name (which SiteHandoverService has already matched
+    // against the list the editor offers: nothing a customer typed reaches this address).
+    private async Task<byte[]?> ReadStarterBannerAsync(string fileName)
+    {
+        try
+        {
+            using var client = _services.GetRequiredService<IHttpClientFactory>().CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(15);
+            using var response = await client.GetAsync($"{PortalBaseUrl()}/images/starter-banners/{Uri.EscapeDataString(fileName)}", HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > BuilderContract.MaxAssetBytes) return null;
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var buffer = new MemoryStream();
+            var chunk = new byte[81920];
+            int read;
+            while ((read = await stream.ReadAsync(chunk)) > 0)
+            {
+                if (buffer.Length + read > BuilderContract.MaxAssetBytes) return null;
+                buffer.Write(chunk, 0, read);
+            }
+            return buffer.ToArray();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        {
+            _logger.LogWarning(ex, "Starter banner {File} could not be read from the portal", fileName);
+            return null;
+        }
+    }
 
     // The portal's own address: the one definition both apps share (WebAppUrlHelper).
     private string PortalBaseUrl() => WebAppUrlHelper.GetWebAppBaseUrl(_configuration);

@@ -351,6 +351,11 @@ and the list of published articles and active forms the builder may place. In th
 - A site is handed over whole or not at all. If a page has a section the builder does not have (a map, a
   gallery, a price list, reviews), or a page still shows only the design's standard layout, the screen
   lists each reason and makes nothing. Put those right in the page editor first.
+- Every press of **Make the package** records a new hand-over, which is why the button asks first. One
+  package per round of work: make it, keep that file, and do not press again while a designer is working.
+- A picture taken from the page editor's own starter banners travels like any other picture.
+- A site with more than 30 pages, a page with more than 40 sections, or pictures of more than 40 MB in
+  all does not fit in a package; the screen says which.
 - Only the package made from the **newest** hand-over can come back. Making a new one closes the door on
   the one before it.
 - What is changed in iPro after the hand-over is replaced when the package comes back. The review names
@@ -377,6 +382,13 @@ and the list of published articles and active forms the builder may place. In th
    - a page made in iPro after the hand-over was never in the builder, and **stays** (tick
      **Remove this page** to remove it);
    - a page **changed in iPro after the hand-over** is marked in red: the return replaces those changes.
+     This is read from what the page says (its name, its address, its sections and their order), so a
+     section the customer edited, added, removed or moved counts, whoever saved last. A page removed in
+     the builder that the customer worked on since is marked the same way: keep it if in doubt.
+   - a page **given another address in iPro** since is still the page that went to the builder: it is
+     replaced where it is, and its newer address keeps arriving;
+   - the **logo**, if it was changed in iPro after the hand-over, is marked too: the return carries the
+     one from before.
 
    A replaced page's sections are replaced as a set. Sections the builder cannot carry (a map, a gallery,
    a price list, reviews) go with them: the screen names each one in red. Add them again in the page
@@ -389,11 +401,16 @@ and the list of published articles and active forms the builder may place. In th
    fonts are the site's own (My Website); they do not come from the builder.
 
    After ticking pages or changing the design, press **Update the looks with these choices**.
+
+   **Bring it in** writes exactly what this screen shows. If the customer changed the site after you
+   opened the review, so that it would do something else, nothing is written and the screen says
+   "Read the review again": the review then shows the site as it is now.
 3. **Bring it in.** The site's pages become the package's. On a published site this is live at once (the
    button says so before you confirm). The site as it was is kept.
 4. **Put the previous site back,** if it is not right: on the list, beside the package that is on the
    site. Every page, section and the logo return to the moment before the package went in. Anything
-   changed on the site since then is lost with it, so do it soon or not at all. Only the newest package
+   changed on the site since then is lost with it, so do it soon or not at all. The pictures the package
+   brought leave the media library with it, unless something still uses them. Only the newest package
    on a site can be taken back out.
 
 **Drop** removes a package that was never brought in, and takes back out of the media library the images
@@ -407,7 +424,12 @@ Good to know:
   builder.
 - New images go into the customer's media library and count against their storage. Bringing the same
   site in again after an edit stores only the images that are new.
-- A logo in the package replaces the site's logo. A package without a logo leaves the site's logo alone.
+- A logo in the package replaces the site's logo. A package built from scratch without a logo leaves the
+  site's logo alone; a **return** without one removes it, because the designer took it out. The logo is
+  also what the customer's invoices and documents print.
+- A package built from scratch cannot hold a custom form or an article section, so a page it replaces
+  loses those: the review names them in red, as it does a map or a gallery.
+- A damaged or half-downloaded file is refused with a reason, like any other package that breaks a rule.
 - Article and custom-form sections cannot come from a from-scratch package: they point at one customer's
   own article or form. Add them in the page editor after the package is in.
 

@@ -744,7 +744,7 @@ public class BuilderImport571Tests
         var refused = await BuilderImportService.RestoreAsync(db, await db.WebsiteBuilderImports.SingleAsync(i => i.Id == first.Id));
         Assert.False(refused.Ok);
         Assert.Contains("newer package", refused.Problems.Single());
-        Assert.Equal(second.Id, (await BuilderImportService.LatestAppliedAsync(db, site.Id))!.Id);
+        Assert.Equal(second.Id, await BuilderImportService.LatestAppliedIdAsync(db, site.Id));
 
         // Taking the second out leaves the first on the site, and the first can then be taken out.
         Assert.True((await BuilderImportService.RestoreAsync(db, await db.WebsiteBuilderImports.SingleAsync(i => i.Id == second.Id))).Ok);

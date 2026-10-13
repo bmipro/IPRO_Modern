@@ -32,4 +32,6 @@ public class WebsiteBuilderHandover
     public string DeliveredJson { get; set; } = "[]";
     // What was left out or tidied on the way (a button with no link, for one), in plain sentences.
     public string NotesJson { get; set; } = "[]";
+    // 574: the site's logo address at the hand-over. A logo changed in iPro since is said at the return.
+    public string LogoUrl { get; set; } = string.Empty;
 }

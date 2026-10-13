@@ -489,12 +489,12 @@ public class SiteHandoverReturn572Tests
 
     // ---------------- helpers ----------------
 
-    private sealed record Seeded(AgentWebsite Site, int HomeId, int ArticleId, int FormId, string LogoUrl);
+    internal sealed record Seeded(AgentWebsite Site, int HomeId, int ArticleId, int FormId, string LogoUrl);
 
     // A customer's site made only of what the builder carries: a home page with a picture and a phone
     // button, an About page, a Contact page with the lead form and a custom form, a logo, one
     // published article and one active form.
-    private static async Task<Seeded> SeedFittingSiteAsync(IPRODbContext db, BuilderImport571Tests.MemoryBlob blob)
+    internal static async Task<Seeded> SeedFittingSiteAsync(IPRODbContext db, BuilderImport571Tests.MemoryBlob blob)
     {
         var rule = new BillingRule { PackageName = $"Pkg-{Guid.NewGuid():N}"[..20], MonthlyPrice = 60m };
         db.Add(rule);
@@ -560,7 +560,7 @@ public class SiteHandoverReturn572Tests
     // What the builder would send back for a hand-over package: its template.json (changed by
     // `edit`) and its site images, without handover.json and the catalogue. renameUnchanged gives
     // every delivered image the name the real builder gives it ("ipro-<sha256>").
-    private static byte[] Return(byte[] handoverZip, Action<JsonObject> edit, (string Name, byte[] Bytes)[]? addFiles = null, bool renameUnchanged = false)
+    internal static byte[] Return(byte[] handoverZip, Action<JsonObject> edit, (string Name, byte[] Bytes)[]? addFiles = null, bool renameUnchanged = false)
     {
         JsonObject template = null!;
         var files = new List<(string Name, byte[] Bytes)>();
@@ -594,20 +594,20 @@ public class SiteHandoverReturn572Tests
         return BuilderImport571Tests.Zip(template.ToJsonString(), files);
     }
 
-    private static JsonObject Page(JsonObject template, string slug) =>
+    internal static JsonObject Page(JsonObject template, string slug) =>
         template["pages"]!.AsArray().Single(p => p!["slug"]!.GetValue<string>() == slug)!.AsObject();
 
-    private static JsonObject Block(JsonObject template, string slug, int index) => Page(template, slug)["blocks"]!.AsArray()[index]!.AsObject();
+    internal static JsonObject Block(JsonObject template, string slug, int index) => Page(template, slug)["blocks"]!.AsArray()[index]!.AsObject();
 
-    private static JsonObject NewBlock(string type, int sortOrder, string body = "", string imageRef = "", JsonObject? settings = null) => new()
+    internal static JsonObject NewBlock(string type, int sortOrder, string body = "", string imageRef = "", JsonObject? settings = null) => new()
     {
         ["type"] = type, ["heading"] = "", ["subheading"] = "", ["body"] = body, ["imageRef"] = imageRef, ["buttonText"] = "", ["buttonUrl"] = "",
         ["layoutVariant"] = "", ["sortOrder"] = sortOrder, ["isVisible"] = true, ["settings"] = settings ?? new JsonObject()
     };
 
-    private static byte[] Png(byte seed) => new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, seed, seed, 1, 2 };
+    internal static byte[] Png(byte seed) => new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, seed, seed, 1, 2 };
 
-    private static BuilderImportsController Controller(IPRODbContext db, IBlobStorageService blob, IAdminAuditLogService audit)
+    internal static BuilderImportsController Controller(IPRODbContext db, IBlobStorageService blob, IAdminAuditLogService audit)
     {
         var services = new ServiceCollection().AddSingleton(blob).BuildServiceProvider();
         var configuration = new ConfigurationBuilder()
@@ -626,7 +626,7 @@ public class SiteHandoverReturn572Tests
         return controller;
     }
 
-    private static IFormFile Upload(byte[] bytes, string name) =>
+    internal static IFormFile Upload(byte[] bytes, string name) =>
         new FormFile(new MemoryStream(bytes), 0, bytes.Length, "package", name) { Headers = new HeaderDictionary(), ContentType = "application/zip" };
 
     private static string RepoRoot()
@@ -638,7 +638,7 @@ public class SiteHandoverReturn572Tests
         return dir!;
     }
 
-    private sealed class RecordingAudit : IAdminAuditLogService
+    internal sealed class RecordingAudit : IAdminAuditLogService
     {
         public List<(string Action, string Details)> Entries { get; } = new();
         public Task LogAsync(int adminUserId, string adminUsername, string action, string details)
@@ -648,7 +648,7 @@ public class SiteHandoverReturn572Tests
         }
     }
 
-    private sealed class NullTempData : Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider
+    internal sealed class NullTempData : Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
         public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }

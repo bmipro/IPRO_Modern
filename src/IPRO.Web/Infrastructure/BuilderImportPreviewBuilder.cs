@@ -16,12 +16,8 @@ public static class BuilderImportPreviewBuilder
     public static async Task<PublicWebsiteViewModel?> BuildAsync(
         IPRODbContext db, WebsiteBuilderImport import, string? pageSlug, int? design, string? without, string? keep = null)
     {
-        static HashSet<int> Ids(string? list) => (list ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(part => int.TryParse(part, out var id) ? id : 0)
-            .Where(id => id > 0)
-            .ToHashSet();
-        var planned = await BuilderImportService.PlanAsync(db, import, Ids(without), Ids(keep));
+        // The same reading of "12,15" the review screen uses, so a look shows the choices it was opened with.
+        var planned = await BuilderImportService.PlanAsync(db, import, BuilderImportService.ParseIds(without), BuilderImportService.ParseIds(keep));
         if (planned?.Plan == null || planned.Plan.Problems.Count > 0) return null;
         var plan = planned.Plan;
 

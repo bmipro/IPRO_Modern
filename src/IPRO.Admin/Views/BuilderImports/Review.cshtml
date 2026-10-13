@@ -12,8 +12,6 @@
     var blocked = plan == null || plan.Problems.Count > 0;
     var live = Model.Website.IsPublished;
     string When(DateTime utc) => IPRO.Admin.Infrastructure.AdminClock.Format(utc, Model.Zone);
-    // 572: a page changed in iPro after its site went to the builder is replaced by the return.
-    bool ChangedSinceHandover(PlannedPage item) => Model.Handover != null && item.ChangedOnSite.HasValue && item.ChangedOnSite.Value > Model.Handover.IssuedAt;
 }
 
 <div class="mb-4">
@@ -68,7 +66,11 @@ else
                     default: <text>Stays as it is</text> break;
                 }
             </div>
-            <div class="text-muted small">@(plan.Logo == LogoChange.Unchanged && string.IsNullOrEmpty(Model.Package.Template?.LogoRef) ? "The package has no logo, so it says nothing about the site's." : "The site's header shows it on every page.")</div>
+            <div class="text-muted small">@(plan.Logo == LogoChange.Unchanged && string.IsNullOrEmpty(Model.Package.Template?.LogoRef) ? "The package has no logo, so it says nothing about the site's." : "The site's header shows it on every page, and the customer's invoices and documents print it.")</div>
+            @if (plan.LogoChangedSinceHandover)
+            {
+                <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>The logo was changed in iPro after the hand-over.</strong> The package carries the one from before; bringing it in puts that one back.</div>
+            }
         </div></div></div>
     </div>
 
@@ -108,9 +110,9 @@ else
                                     {
                                         <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i>The builder cannot carry these, so they go: <strong>@Names(item.SectionsLost)</strong>. Add them again in the page editor afterwards.</div>
                                     }
-                                    @if (ChangedSinceHandover(item))
+                                    @if (item.ChangedSinceHandover)
                                     {
-                                        <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i>Changed in iPro on @When(item.ChangedOnSite!.Value), after the hand-over. Those changes are replaced.</div>
+                                        <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>Changed in iPro after the hand-over.</strong> What the customer changed on this page since then is replaced by the package's version.</div>
                                     }
                                     break;
                                 case PageChange.Kept:
@@ -132,6 +134,10 @@ else
                                     <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="keep" value="@pg.Id" id="keep-@pg.Id" />
                                         <label class="form-check-label small" for="keep-@pg.Id">Keep this page after all</label></div>
                                     @if (item.SectionsBefore.Count > 0) { <div class="small text-muted mt-1">With its sections: @Names(item.SectionsBefore).</div> }
+                                    @if (item.ChangedSinceHandover)
+                                    {
+                                        <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>Changed in iPro after the hand-over.</strong> The customer worked on this page since then; removing it loses that work. Tick "Keep this page after all" if in doubt.</div>
+                                    }
                                     break;
                                 default:
                                     <span class="badge bg-danger">Will be removed</span>
@@ -177,6 +183,8 @@ else
 
         <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
             <button type="submit" formaction="/BuilderImports/Choose/@Model.Import.Id" class="btn btn-outline-primary"><i class="fas fa-rotate me-1"></i>Update the looks with these choices</button>
+            @* 574: what this screen shows, as one value. "Bring it in" refuses if the site has changed since. *@
+            <input type="hidden" name="plan" value="@(plan?.Fingerprint)" />
             <button type="submit" class="btn btn-success js-confirm-submit" disabled="@blocked"
                     data-confirm-message="@(live
                         ? "Bring this package into the site now? The site is PUBLISHED: visitors see the change at once. The site as it is now is kept and can be put back."

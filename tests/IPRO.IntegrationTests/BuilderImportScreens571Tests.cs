@@ -103,7 +103,7 @@ public class BuilderImportScreens571Tests
         db.ChangeTracker.Clear();
 
         // 3. Bring it in.
-        var applied = Assert.IsType<RedirectToActionResult>(await Controller(db, blob, audit).Apply(importId, design: null, without: null));
+        var applied = Assert.IsType<RedirectToActionResult>(await Controller(db, blob, audit).Apply(importId, design: null, without: null, plan: await ReviewedAsync(db, importId)));
         Assert.Equal("Index", applied.ActionName);
         db.ChangeTracker.Clear();
         Assert.Equal(new[] { "about", "contact", "home", "menu", "resources" },
@@ -228,7 +228,7 @@ public class BuilderImportScreens571Tests
         db.ChangeTracker.Clear();
 
         // The list with a package on the site.
-        await Controller(db, blob, audit).Apply(importId, null, null);
+        await Controller(db, blob, audit).Apply(importId, null, null, plan: await ReviewedAsync(db, importId));
         db.ChangeTracker.Clear();
         var index = (BuilderImportIndexViewModel)((ViewResult)await Controller(db, blob, audit).Index(site.AgentUserId)).Model!;
         var indexHtml = await RenderAsync("~/Views/BuilderImports/Index.cshtml", index);
@@ -367,6 +367,14 @@ public class BuilderImportScreens571Tests
     }
 
     // ---------------- helpers ----------------
+
+    // 574: what the review screen showed for these choices, which "bring it in" posts back.
+    internal static async Task<string> ReviewedAsync(IPRODbContext db, int importId, params int[] without)
+    {
+        var import = await db.WebsiteBuilderImports.AsNoTracking().SingleAsync(i => i.Id == importId);
+        var planned = await BuilderImportService.PlanAsync(db, import, without.ToHashSet());
+        return planned!.Plan!.Fingerprint;
+    }
 
     private static BuilderImportsController Controller(IPRODbContext db, IBlobStorageService blob, IAdminAuditLogService audit)
     {

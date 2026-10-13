@@ -58,7 +58,11 @@ public static class BlobReferences
         // 572: the site as it was before a Template Builder package replaced it, kept so it can be
         // put back. A picture only that copy still names must outlive a tidy-up of the media library,
         // or putting the site back would bring back dead pictures. The copy is cleared once used.
-        ("WebsiteBuilderImports", "SnapshotJson")
+        ("WebsiteBuilderImports", "SnapshotJson"),
+        // 574: so does the newest hand-over of a site. Its package comes back naming pictures by
+        // their content, and an unchanged one is linked to the file it had: that file must still be
+        // there. (An older hand-over's list is emptied when a newer one is recorded.)
+        ("WebsiteBuilderHandovers", "DeliveredJson")
     };
 
     // The containers this application owns, and what each holds. The report enumerates exactly

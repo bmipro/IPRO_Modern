@@ -9,6 +9,9 @@ public interface IBlobStorageService
 {
     Task<string> UploadAsync(Stream fileStream, string fileName, string containerName, string contentType, bool isPrivate);
     Task<bool> DeleteAsync(string blobUrl);
+    // 573: true when this is exactly the address the service gives a file (not merely one that
+    // resolves to it). The real service checks; a fake has one spelling per file and says yes.
+    bool IsOwnAddress(string? blobUrl) => true;
     Task<Stream?> DownloadAsync(string blobUrl);
     // Full public URLs of every blob in a container. Exists for the Admin orphan REPORT only --
     // nothing that deletes may be built on top of an enumeration (the rejected A5-H11 sweep design).

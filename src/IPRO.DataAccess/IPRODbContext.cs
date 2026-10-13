@@ -451,6 +451,7 @@ public class IPRODbContext : DbContext
             e.Property(h => h.IssuedBy).HasMaxLength(100);
             e.Property(h => h.TemplateName).HasMaxLength(60);
             e.Property(h => h.PackageSha256).HasMaxLength(64);
+            e.Property(h => h.LogoUrl).HasMaxLength(500);
             e.HasIndex(h => h.HandoverId).IsUnique();
             e.HasIndex(h => h.AgentUserId);
             e.HasIndex(h => h.AgentWebsiteId);

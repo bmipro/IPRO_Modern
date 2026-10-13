@@ -63,7 +63,12 @@ else
             <form asp-action="Handover" method="post" class="d-flex flex-wrap gap-3 align-items-center">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="agentId" value="@Model.Agent.Id" />
-                <button type="submit" class="btn btn-outline-primary"><i class="fas fa-file-export me-1"></i>Make the package</button>
+                @* 574: every press records a new hand-over, and only the newest can come back. *@
+                <button type="submit" class="btn btn-outline-primary js-confirm-submit"
+                        data-confirm-message="@(Model.LatestHandover != null
+                            ? "Make a NEW package of this site? A package was already made on " + When(Model.LatestHandover.IssuedAt) + ". Only the newest package can come back: if someone is editing the earlier one in the builder, their work could no longer be brought in."
+                            : "Make a package of this site as it is now? Only the newest package made for a site can come back, so make one and keep that file.")">
+                    <i class="fas fa-file-export me-1"></i>Make the package</button>
                 <span class="text-muted small">Downloads one .zip of the site as it is now. In the builder, open it with "Open iPro package". Nothing on the site changes.</span>
             </form>
             @if (Model.LatestHandover != null)

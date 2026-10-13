@@ -34,8 +34,12 @@ public static class SiteHandoverService
 
     // The package for this site as it is now, or the reasons it cannot be handed over. Nothing is
     // written: call RecordAsync when the package is given out.
+    // readStarterBanner (574): the bytes of one of the page editor's own starter banners, by file
+    // name. Those are files of the portal, not of storage; without a reader such a picture cannot be
+    // read and the site is not handed over.
     public static async Task<SiteHandover> BuildAsync(
-        IPRODbContext db, IBlobStorageService blob, AgentWebsite site, IReadOnlySet<string> allowedBlockTypes, long storageLimitBytes)
+        IPRODbContext db, IBlobStorageService blob, AgentWebsite site, IReadOnlySet<string> allowedBlockTypes, long storageLimitBytes,
+        Func<string, Task<byte[]?>>? readStarterBanner = null)
     {
         var agent = site.AgentUser ?? await db.AgentUsers.AsNoTracking().FirstAsync(a => a.Id == site.AgentUserId);
         var template = site.Template ?? await db.WebsiteTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Id == site.TemplateId);
@@ -75,7 +79,10 @@ public static class SiteHandoverService
 
         var input = new SiteHandoverBuilder.Input(site, businessName, agent.BusinessType ?? string.Empty, template?.TemplateKey ?? string.Empty,
             pages, allowedBlockTypes, articles, forms, remaining, DateTime.UtcNow);
-        return await SiteHandoverBuilder.BuildAsync(input, url => FetchImageAsync(blob, url));
+        return await SiteHandoverBuilder.BuildAsync(input, url =>
+            StarterBannerFile(url) is { } banner
+                ? (readStarterBanner == null ? Task.FromResult<byte[]?>(null) : readStarterBanner(banner))
+                : FetchImageAsync(blob, url));
     }
 
     // The hand-over is on record from the moment its package is given out. Each delivered picture
@@ -89,6 +96,13 @@ public static class SiteHandoverService
         var urls = byUrl.Keys.ToList();
         var assets = await db.WebsiteMediaAssets.Where(a => a.AgentWebsiteId == site.Id && urls.Contains(a.BlobUrl)).ToListAsync();
         foreach (var asset in assets.Where(a => string.IsNullOrEmpty(a.ContentSha256))) asset.ContentSha256 = byUrl[asset.BlobUrl];
+
+        // 574: only the newest hand-over can come back, so only its pictures need keeping. An older
+        // one lets go of the list that holds them (BlobReferences reads DeliveredJson).
+        foreach (var older in await db.WebsiteBuilderHandovers.Where(h => h.AgentWebsiteId == site.Id && h.DeliveredJson != "[]").ToListAsync())
+        {
+            older.DeliveredJson = "[]";
+        }
 
         var row = new WebsiteBuilderHandover
         {
@@ -107,13 +121,22 @@ public static class SiteHandoverService
             ArticleIdsJson = JsonSerializer.Serialize(handover.ArticleIds),
             FormIdsJson = JsonSerializer.Serialize(handover.FormIds),
             PagesJson = JsonSerializer.Serialize(handover.Pages),
-            DeliveredJson = JsonSerializer.Serialize(handover.Delivered),
+            // Written as the addresses are (an accent or an apostrophe is not turned into an escape):
+            // the "is this file still used?" check looks for the address as text.
+            DeliveredJson = JsonSerializer.Serialize(handover.Delivered, AddressesAsWritten),
+            LogoUrl = handover.LogoUrl.Length <= 500 ? handover.LogoUrl : string.Empty,
             NotesJson = JsonSerializer.Serialize(handover.Notes)
         };
         db.WebsiteBuilderHandovers.Add(row);
         await db.SaveChangesAsync();
         return row;
     }
+
+    public static readonly JsonSerializerOptions AddressesAsWritten = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    // "/images/starter-banners/<file>" for a file the page editor really offers: its name, else null.
+    public static string? StarterBannerFile(string? url) =>
+        WebsiteStarterBannerCatalog.All.FirstOrDefault(b => string.Equals(b.Url, url?.Trim(), StringComparison.Ordinal))?.FileName;
 
     public static Task<WebsiteBuilderHandover?> FindAsync(IPRODbContext db, int websiteId, string handoverId) =>
         db.WebsiteBuilderHandovers.AsNoTracking().FirstOrDefaultAsync(h => h.AgentWebsiteId == websiteId && h.HandoverId == handoverId);
@@ -136,7 +159,9 @@ public static class SiteHandoverService
     // Null for anything else: an address on another site, a path on this one, a private container.
     public static async Task<byte[]?> FetchImageAsync(IBlobStorageService blob, string url)
     {
-        if (!IsSiteImageAddress(url)) return null;
+        // 574: and only under the address storage itself gave the file. The list below reads the path;
+        // storage reads the path its own way, and the two did not agree on every address.
+        if (!IsSiteImageAddress(url) || !blob.IsOwnAddress(url.Trim())) return null;
         try
         {
             await using var stream = await blob.DownloadAsync(url);
@@ -147,8 +172,9 @@ public static class SiteHandoverService
             while ((read = await stream.ReadAsync(chunk)) > 0)
             {
                 // One byte over the limit is enough to know it is too large; the builder says so.
-                if (buffer.Length + read > BuilderContract.MaxAssetBytes + 1) { buffer.Write(chunk, 0, 1); break; }
-                buffer.Write(chunk, 0, read);
+                // (574: it used to stop SHORT of the limit and pass a cut-off picture as whole.)
+                buffer.Write(chunk, 0, (int)Math.Min(read, BuilderContract.MaxAssetBytes + 1 - buffer.Length));
+                if (buffer.Length > BuilderContract.MaxAssetBytes) break;
             }
             return buffer.ToArray();
         }

@@ -120,9 +120,11 @@ public static class BuilderPackageReader
             problems.Add(null, null, "1, rule 5", "The package unpacks to far more than a 40 MB package can hold. It was not read.");
             return Fail();
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or ArgumentException)
         {
-            problems.Add(null, null, "1", "The file is not a ZIP package the importer can read.");
+            // 574: a download cut short, an entry packed a way this reader does not know, a password on
+            // the file. Whatever the archive reader throws for those, the answer is a refusal, not an error page.
+            problems.Add(null, null, "1", "The file is not a ZIP package the importer can read (it may be damaged, cut short or password-protected).");
             return Fail();
         }
 
@@ -239,7 +241,8 @@ public static class BuilderPackageReader
                 ? id.GetString()
                 : null;
         }
-        catch (Exception ex) when (ex is InvalidDataException or JsonException or ExpandedTooFarException)
+        catch (Exception ex) when (ex is InvalidDataException or JsonException or ExpandedTooFarException
+                                   or IOException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
             return null;
         }
@@ -317,6 +320,22 @@ public static class BuilderPackageReader
         }
 
         public BuilderTemplate? Read(string json)
+        {
+            try
+            {
+                return ReadDocument(json);
+            }
+            catch (InvalidOperationException)
+            {
+                // 574: text the JSON reader accepts and cannot hand over: half of a character pair
+                // written as an escape (a title cut in the middle of an emoji). It used to end the
+                // request with an error page.
+                _problems.Add(null, null, "1, rule 1", "template.json holds a broken character (half of a two-part character such as an emoji), so it cannot be read. Export the site again.");
+                return null;
+            }
+        }
+
+        private BuilderTemplate? ReadDocument(string json)
         {
             var before = _problems.Count;
             JsonDocument document;

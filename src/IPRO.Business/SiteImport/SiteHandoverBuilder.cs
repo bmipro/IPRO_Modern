@@ -24,7 +24,9 @@ namespace IPRO.Business.SiteImport;
 // recognized by its content and linked to that address again (section 10, rule 3).
 public sealed record HandoverImage(string Ref, string Url, string Sha256, long Bytes);
 
-public sealed record HandoverPage(int Id, string Slug);
+// Fingerprint (574): what the page said when it was handed over (SiteFingerprint), so a change made in
+// iPro afterwards is seen when the package comes back.
+public sealed record HandoverPage(int Id, string Slug, string Fingerprint = "");
 
 public sealed record HandoverForm(WebsiteForm Form, IReadOnlyList<WebsiteFormField> Fields, IReadOnlyDictionary<int, IReadOnlyList<string>> Options);
 
@@ -48,6 +50,8 @@ public sealed class SiteHandover
     public string FileName { get; init; } = string.Empty;
     public IReadOnlyList<HandoverImage> Delivered { get; init; } = Array.Empty<HandoverImage>();
     public IReadOnlyList<HandoverPage> Pages { get; init; } = Array.Empty<HandoverPage>();
+    // 574: the site's logo address at the hand-over (a logo changed in iPro since is said at the return).
+    public string LogoUrl { get; init; } = string.Empty;
     public IReadOnlyList<string> AllowedBlockTypes { get; init; } = Array.Empty<string>();
     public IReadOnlyList<int> ArticleIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> FormIds { get; init; } = Array.Empty<int>();
@@ -62,6 +66,7 @@ public static class SiteHandoverBuilder
     // articles, within a budget, so a customer with hundreds of articles still gets a small package.
     public const int CatalogueImagesMax = 12;
     public const long CatalogueImageBytesMax = 6L * 1024 * 1024;
+    public const int CatalogueTriesMax = 20;
 
     public sealed record Input(
         AgentWebsite Site,
@@ -88,6 +93,44 @@ public static class SiteHandoverBuilder
             return Refused();
         }
 
+        // 574: what can be told from the rows alone is told first, and a page that does not fit has
+        // none of its pictures fetched. The pictures of the pages that do fit are fetched only up to
+        // what a package can hold (AssetAsync). A site with hundreds of large pictures used to be read
+        // into memory whole and only then refused.
+        var unfit = new HashSet<int>();
+        if (input.Pages.Count > BuilderContract.MaxPages)
+        {
+            blockers.Add($"The site has {input.Pages.Count} pages, and a package holds at most {BuilderContract.MaxPages}.");
+        }
+        foreach (var page in input.Pages.OrderBy(p => p.SortOrder).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase))
+        {
+            var name = string.IsNullOrWhiteSpace(page.Title) ? "/" + page.Slug : page.Title.Trim();
+            var types = page.Blocks.Select(b => b.BlockType).ToList();
+            if (types.Count == 0)
+            {
+                blockers.Add($"\"{name}\" has no sections of its own (it shows the design's standard layout), so there is nothing to hand over. Add a section to it in the page editor first.");
+                unfit.Add(page.Id);
+                continue;
+            }
+            if (types.Count > BuilderContract.MaxBlocksPerPage)
+            {
+                blockers.Add($"\"{name}\" has {types.Count} sections, and a page in a package holds at most {BuilderContract.MaxBlocksPerPage}.");
+                unfit.Add(page.Id);
+            }
+            var foreign = types.Where(t => !BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal)).Distinct().ToList();
+            if (foreign.Count > 0)
+            {
+                blockers.Add($"\"{name}\" has sections the builder cannot carry yet: {string.Join(", ", foreign.Select(WebsiteBlockTypes.DisplayName))}.");
+            }
+            var outside = types.Where(t => BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal) && !input.AllowedBlockTypes.Contains(t)).Distinct().ToList();
+            if (outside.Count > 0)
+            {
+                blockers.Add($"\"{name}\" has sections this customer's package no longer includes: {string.Join(", ", outside.Select(WebsiteBlockTypes.DisplayName))}.");
+            }
+            if (foreign.Count > 0 || outside.Count > 0) unfit.Add(page.Id);
+        }
+        if (input.Pages.Count > BuilderContract.MaxPages) return Refused();
+
         var handoverId = "h_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
         var businessName = Clip(OneLine(input.BusinessName), 120);
         if (businessName.Length == 0) businessName = "Website";
@@ -99,10 +142,14 @@ public static class SiteHandoverBuilder
         var refBySha = new Dictionary<string, string>(StringComparer.Ordinal);
         var delivered = new List<HandoverImage>();
 
+        long pictureBytes = 0;
+        var pastWhatAPackageHolds = false;
         async Task<string> AssetAsync(string url, string where)
         {
             if (string.IsNullOrWhiteSpace(url)) return string.Empty;
             if (refByUrl.TryGetValue(url, out var known)) return known;
+            // 574: once the pictures alone are past what a package may hold, no more are fetched.
+            if (pastWhatAPackageHolds) return refByUrl[url] = string.Empty;
             var bytes = await fetchImage(url);
             if (bytes == null || bytes.Length == 0)
             {
@@ -123,6 +170,13 @@ public static class SiteHandoverBuilder
             var sha = BuilderPackageReader.Hex(SHA256.HashData(bytes));
             if (!refBySha.TryGetValue(sha, out var assetRef))
             {
+                pictureBytes += bytes.LongLength;
+                if (pictureBytes > BuilderContract.MaxZipBytes)
+                {
+                    pastWhatAPackageHolds = true;
+                    blockers.Add("The site's pictures come to more than a 40 MB package can hold. Use fewer or smaller pictures on the site, then hand it over.");
+                    return refByUrl[url] = string.Empty;
+                }
                 assetRef = BuilderContract.AssetFolder + ImageFileName(url, sha, extension);
                 refBySha[sha] = assetRef;
                 files.Add((assetRef, bytes));
@@ -146,24 +200,8 @@ public static class SiteHandoverBuilder
         foreach (var page in input.Pages.OrderBy(p => p.ParentPageId.HasValue ? 1 : 0).ThenBy(p => orderInGroup[p.Id]))
         {
             var name = string.IsNullOrWhiteSpace(page.Title) ? "/" + page.Slug : page.Title.Trim();
+            if (unfit.Contains(page.Id)) continue;
             var blocks = page.Blocks.OrderBy(b => b.SortOrder).ThenBy(b => b.Id).ToList();
-            if (blocks.Count == 0)
-            {
-                blockers.Add($"\"{name}\" has no sections of its own (it shows the design's standard layout), so there is nothing to hand over. Add a section to it in the page editor first.");
-                continue;
-            }
-            var foreign = blocks.Select(b => b.BlockType).Where(t => !BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal)).Distinct().ToList();
-            if (foreign.Count > 0)
-            {
-                blockers.Add($"\"{name}\" has sections the builder cannot carry yet: {string.Join(", ", foreign.Select(WebsiteBlockTypes.DisplayName))}.");
-            }
-            var outside = blocks.Select(b => b.BlockType).Where(t => BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal) && !input.AllowedBlockTypes.Contains(t)).Distinct().ToList();
-            if (outside.Count > 0)
-            {
-                blockers.Add($"\"{name}\" has sections this customer's package no longer includes: {string.Join(", ", outside.Select(WebsiteBlockTypes.DisplayName))}.");
-            }
-            if (foreign.Count > 0 || outside.Count > 0) continue;
-
             var written = new List<Dictionary<string, object?>>();
             var position = 0;
             foreach (var block in blocks)
@@ -181,15 +219,25 @@ public static class SiteHandoverBuilder
         var articles = new List<Dictionary<string, object?>>();
         long catalogueBytes = 0;
         var catalogueNames = new HashSet<string>(StringComparer.Ordinal);
+        // 574: the budget is on what is FETCHED, not only on what is kept. Before, a customer with
+        // hundreds of articles had every remaining picture downloaded and thrown away once the
+        // bytes were spent.
+        var catalogueTries = 0;
+        var catalogueFull = false;
         foreach (var article in input.PublishedArticles)
         {
             var imageRef = string.Empty;
-            if (!string.IsNullOrWhiteSpace(article.ImageUrl) && catalogueFiles.Count < CatalogueImagesMax)
+            if (!string.IsNullOrWhiteSpace(article.ImageUrl) && !catalogueFull && catalogueFiles.Count < CatalogueImagesMax && catalogueTries < CatalogueTriesMax)
             {
+                catalogueTries++;
                 var bytes = await fetchImage(article.ImageUrl);
                 var extension = bytes == null ? string.Empty : ExtensionFor(bytes);
                 if (bytes != null && extension.Length > 0 && bytes.LongLength <= BuilderContract.MaxAssetBytes
-                    && catalogueBytes + bytes.LongLength <= CatalogueImageBytesMax)
+                    && catalogueBytes + bytes.LongLength > CatalogueImageBytesMax)
+                {
+                    catalogueFull = true;
+                }
+                else if (bytes != null && extension.Length > 0 && bytes.LongLength <= BuilderContract.MaxAssetBytes)
                 {
                     var file = ImageFileName(article.ImageUrl, BuilderPackageReader.Hex(SHA256.HashData(bytes)), extension);
                     if (catalogueNames.Add(file))
@@ -234,6 +282,7 @@ public static class SiteHandoverBuilder
 
         // ---- template.json ----
         var slugById = input.Pages.ToDictionary(p => p.Id, p => p.Slug);
+        var fingerprints = SiteFingerprint.OfPages(input.Pages);
         var template = new Dictionary<string, object?>
         {
             ["contractVersion"] = BuilderContract.Version,
@@ -311,7 +360,8 @@ public static class SiteHandoverBuilder
             Zip = zip,
             FileName = $"ipro-handover-{templateName}-{issuedAt:yyyyMMdd-HHmm}.zip",
             Delivered = delivered,
-            Pages = pagesOut.Select(p => new HandoverPage(p.Page.Id, p.Page.Slug)).ToList(),
+            Pages = pagesOut.Select(p => new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id])).ToList(),
+            LogoUrl = input.Site.LogoUrl ?? string.Empty,
             AllowedBlockTypes = allowed,
             ArticleIds = articleIds.OrderBy(id => id).ToList(),
             FormIds = formIds.OrderBy(id => id).ToList()

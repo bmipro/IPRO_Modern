@@ -410,9 +410,37 @@ public static class AgentDataEraser
         // are the one source that needs parsing rather than selecting.
         found.AddRange(await GalleryUrlsAsync(db, agentId, ct));
 
+        // 574: a logo that a Template Builder package replaced is named nowhere but in the kept copy
+        // of the site (WebsiteBuilderImports.SnapshotJson). It is the agent's own upload: it goes too.
+        found.AddRange(await KeptLogoUrlsAsync(db, agentId, ct));
+
         var distinct = found.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         return (distinct.Where(u => !shared.Contains(u)).ToList(),
                 distinct.Where(u => shared.Contains(u)).ToList());
+    }
+
+    private static async Task<List<string>> KeptLogoUrlsAsync(IPRODbContext db, int agentId, CancellationToken ct)
+    {
+        var urls = new List<string>();
+        if (!await TableExistsAsync(db, "WebsiteBuilderImports", ct)) return urls;
+        foreach (var json in await StringsAsync(db,
+                     "SELECT `SnapshotJson` FROM `WebsiteBuilderImports` WHERE (AgentUserId = @agentId) AND `SnapshotJson` IS NOT NULL AND `SnapshotJson` <> ''",
+                     agentId, ct))
+        {
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(json);
+                // Only a file of the logo container: the address in a kept copy is whatever the site held.
+                if (document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && document.RootElement.TryGetProperty("LogoUrl", out var logo) && logo.ValueKind == System.Text.Json.JsonValueKind.String
+                    && logo.GetString() is { Length: > 0 } url && url.Contains("/agent-logos/", StringComparison.Ordinal))
+                {
+                    urls.Add(url);
+                }
+            }
+            catch (System.Text.Json.JsonException) { }
+        }
+        return urls;
     }
 
     private static async Task<HashSet<string>> SharedAssetUrlsAsync(IPRODbContext db, CancellationToken ct)
