@@ -448,10 +448,15 @@ public class SiteHandoverReturn572Tests
 
         // A site that does not fit: no file, the reasons on the list, nothing recorded.
         var other = await BuilderImport571Tests.SeedSiteAsync(db);   // it has a price list and a reviews section
+        // A page that shows only the design's standard layout: there is nothing of it to hand over.
+        db.Add(new WebsitePage { AgentWebsiteId = other.Id, Title = "Team", Slug = "team", NavigationLabel = "Team", SortOrder = 9 });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
         var refusedView = Assert.IsType<ViewResult>(await Controller(db, blob, audit).Handover(other.AgentUserId));
         var refused = Assert.IsType<BuilderImportIndexViewModel>(refusedView.Model);
-        Assert.Contains(refused.HandoverBlockers, b => b.Contains("cannot carry yet: Price List / Menu"));
-        Assert.Contains(refused.HandoverBlockers, b => b.Contains("Review Badge"));
+        Assert.Contains(refused.HandoverBlockers, b => b.Contains("\"Team\" has no sections of its own"));
+        // 576: its price list and reviews section are not reasons any more (they travel as locked boxes).
+        Assert.DoesNotContain(refused.HandoverBlockers, b => b.Contains("cannot carry") || b.Contains("Price List"));
         Assert.Equal(1, await db.WebsiteBuilderHandovers.CountAsync());
         Assert.Contains(audit.Entries, e => e.Action == "BuilderHandoverRefused");
         var refusedHtml = await BuilderImportScreens571Tests.RenderAsync("~/Views/BuilderImports/Index.cshtml", refused);

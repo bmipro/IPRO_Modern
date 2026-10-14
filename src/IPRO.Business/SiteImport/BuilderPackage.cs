@@ -16,6 +16,9 @@ public sealed record BuilderTemplate(
     string TemplateName, string Theme, string HandoverId, string LogoRef, string LogoAltText,
     IReadOnlyList<BuilderPage> Pages)
 {
+    // "0.4", or "0.5" for a package that may hold locked boxes (576).
+    public string ContractVersion { get; init; } = BuilderContract.Version;
+
     // Every image the site would show: the logo and each block's picture.
     public IEnumerable<string> UsedImageRefs =>
         Pages.SelectMany(p => p.Blocks).Select(b => b.ImageRef).Append(LogoRef).Where(r => r.Length > 0).Distinct();
@@ -27,9 +30,10 @@ public sealed record BuilderPage(
 
 // SettingsJson is the block's settings as iPro stores them (the entity settings classes), not as the
 // package wrote them. ArticleId and WebsiteFormId are 0 unless the block is of that kind.
+// HostSectionId (576): for a locked box, the number of the section it stands for; 0 otherwise.
 public sealed record BuilderBlock(
     string Type, string Heading, string Subheading, string Body, string ImageRef, string ButtonText, string ButtonUrl,
-    string LayoutVariant, int SortOrder, bool IsVisible, string SettingsJson, int ArticleId, int WebsiteFormId);
+    string LayoutVariant, int SortOrder, bool IsVisible, string SettingsJson, int ArticleId, int WebsiteFormId, int HostSectionId = 0);
 
 public sealed record BuilderImage(string Ref, string FileName, string ContentType, string Sha256, byte[] Bytes)
 {
@@ -43,14 +47,15 @@ public sealed record BuilderImage(string Ref, string FileName, string ContentTyp
 // carry, with the block types, articles and forms that hand-over offered.
 // KnownImageHashes: SHA-256 (lower-case hex) of images the site already stores; an image with the same
 // bytes is linked and costs no storage (section 10, rule 3). RemainingBytes: the storage left for new
-// images (rule 4).
+// images (rule 4). HostSectionIds (576): the locked boxes the hand-over sent out; only those may come back.
 public sealed record BuilderImportContext(
     string HandoverId,
     IReadOnlySet<string> AllowedBlockTypes,
     IReadOnlySet<int> ArticleIds,
     IReadOnlySet<int> FormIds,
     IReadOnlySet<string> KnownImageHashes,
-    long RemainingBytes)
+    long RemainingBytes,
+    IReadOnlySet<int>? HostSectionIds = null)
 {
     public static BuilderImportContext DesignerTemplate(IReadOnlySet<string>? knownImageHashes = null, long remainingBytes = long.MaxValue) =>
         new(string.Empty,

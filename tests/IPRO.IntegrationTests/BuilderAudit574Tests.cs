@@ -163,7 +163,7 @@ public class BuilderAudit574Tests
         db.ChangeTracker.Clear();
         Assert.Equal(WebsiteBuilderImportStatus.Pending, (await db.WebsiteBuilderImports.AsNoTracking().SingleAsync(i => i.Id == import.Id)).Status);
         Assert.Equal("Fresh every morning", (await db.WebsiteContentBlocks.AsNoTracking().FirstAsync(b => b.WebsitePage.AgentWebsiteId == site.Id && b.BlockType == WebsiteBlockTypes.Hero)).Heading);
-        Assert.Contains(audit.Entries, e => e.Action == "BuilderImportNotApplied" && e.Details.Contains("has changed since this review"));
+        Assert.Contains(audit.Entries, e => e.Action == "BuilderImportNotApplied" && e.Details.Contains("is no longer what the screen showed"));
 
         // A request that carries no plan at all is refused the same way.
         Assert.Equal("Review", Assert.IsType<RedirectToActionResult>(await H.Controller(db, blob, audit).Apply(import.Id, null, null)).ActionName);

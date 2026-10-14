@@ -1,36 +1,55 @@
-# IPRO.TemplateBuilder export contract — v0.4
+# IPRO.TemplateBuilder export contract — v0.5
 
-*Consolidated revision of 2026-10-12 (first issued 2026-09-29). This document is the **entire interface** between the builder and the host product.
+*v0.5 of 2026-10-13: the consolidated v0.4 text of 2026-10-12 (first issued 2026-09-29) plus host sections. This document is the **entire interface** between the builder and the host product.
 It is deliberately self-contained: everything needed to produce a valid export, and to open a site
 iPro hands over, is in this file. If something here is ambiguous, ask — do not guess and do not read
 host code (you don't have it).*
 
-Supersedes v0.3. It also supersedes the sample shapes in the host's two answer notes of 2026-09-29
+Supersedes v0.4 and v0.3. It also supersedes the sample shapes in the host's two answer notes of 2026-09-29
 (those followed an older draft: `template` instead of `theme`, `export.json` instead of
 `template.json`, a Hero without settings, and missing required fields). Where anything disagrees,
 this file and its fixtures (§8) win.
 
-**What this revision is.** The 29 September text with every clarification iPro has given since folded
-into the section it belongs to, so there is one document to read. Nothing in it changes the schema, so
-`contractVersion` stays `"0.4"` and the two fixtures are unchanged, byte for byte. The changelog at the
-bottom lists what was folded in. It replaces the v0.3 file at the root of the builder's repository.
+**What the v0.4 text under it is.** The 29 September text with every clarification iPro has given since
+folded into the section it belongs to, so there is one document to read. That consolidation changed no
+part of the schema, and the two v0.4 fixtures are unchanged, byte for byte. The changelog at the bottom
+lists what was folded in. This file replaces the one at the root of the builder's repository.
 
 **Where iPro's side stands (2026-10-12).** iPro's importer and its hand-over both exist and enforce
 §1–§4, §7, §9 and §10 as written here. They are operated by iPro's staff for one customer at a time: a
 package is made from the admin screens (§9) and the package that comes back is uploaded there. The
 transport of §11 is not built. §12.1 says what the importer does with a site.
 
+**v0.5 (2026-10-13): host sections.** A customer's site holds sections the builder does not carry: a
+calculator, a photo gallery, a price list, a poll and others, fifteen kinds today. Until now a site with
+one of them could not be handed over at all, and iPro's own site has fourteen such pages. From v0.5 each
+of those sections travels as a **locked box**: a ninth block type, `HostSection` (§4.10), that says which
+section it is and carries none of its content. (The hand-over names each box by its kind and its
+heading, §9.3; nothing else of the section leaves iPro.) The builder shows the box and lets the designer
+move, hide or remove it; iPro puts the real section back where the box is. Nothing else changed: a site
+with no host section is handed over, and comes back, as the v0.4 package it always was (§0).
+
 ---
 
 ## 0. Version policy
 
-- `contractVersion` is the exact string `"0.4"`.
-- During 0.x, **any** change (additive or breaking) bumps the minor and the importer accepts an
-  exact match only. The builder should refuse to export anything but the version it was built for.
+- `contractVersion` is the exact string `"0.4"` or `"0.5"`.
+- **v0.5 is v0.4 plus host sections** (§4.10; `catalog.hostSections`, §9.3; `handoverVersion` `"1.1"`,
+  §9.2) and nothing else. Whatever a `"0.4"` package may hold, a `"0.5"` package may hold on the same
+  terms; a `"0.4"` package cannot hold a `HostSection` block.
+- **Which of the two a package states:**
+  - iPro's hand-over states `"0.5"` when the site has at least one host section and `"0.4"` when it has
+    none, so a site made only of the eight export types is handed over exactly as before.
+  - A return states the `contractVersion` of the hand-over it answers, also when every locked box was
+    removed in the builder.
+  - A template built from scratch states `"0.4"`.
+- iPro's importer takes both. A builder built for v0.4 refuses a `"0.5"` hand-over by its version.
+- During 0.x, **any** change (additive or breaking) bumps the minor, and each side accepts exactly the
+  versions it was built for. The builder should refuse to export anything else.
 - Change control: the host side owns this file; changes arrive as a new dated revision of
   CONTRACT.md with a changelog entry at the bottom. Never patch it locally.
 - A clarification that changes no validation rule and no part of the schema is recorded in the
-  changelog and folded into the text without a version bump (this revision is one).
+  changelog and folded into the text without a version bump (the two revisions of 2026-10-12 were).
 
 ### 0.1 Conventions used throughout
 
@@ -108,7 +127,7 @@ The **handover package** iPro sends the builder (§9) follows the same rules for
 
 | Field | Type | Rules |
 |---|---|---|
-| `contractVersion` | string | exactly `"0.4"` |
+| `contractVersion` | string | exactly `"0.4"` or `"0.5"` (§0 says which) |
 | `templateName` | string | `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–60 chars; the template's identity |
 | `theme` | string | one of `"modern"`, `"classic"`, `"editorial"` — a **hint** for which host shell the template was designed against; the importer stores it, the agent can still switch |
 | `handoverId` | string | **new in v0.4.** `""` for a template not started from an iPro handover (a designer template). Otherwise exactly the `handoverId` of the handover package the site came from (§9.2). Always emit the key |
@@ -186,8 +205,11 @@ Common rules for **every** block:
 - `type`: one of the **8 export types** — `Hero`, `Text`, `Services`, `CallToAction`,
   `ContactForm`, and new in v0.4 `ArticleContent`, `Blog`, `Form` — **verbatim, case-sensitive**.
   (Footer and Disclaimer remain **editor presets** that export as `type: "Text"`; see §4.6.)
+  One more type exists that is **not** an export type: `HostSection` (§4.10, new in v0.5), a locked
+  box that only iPro makes and only a `"0.5"` template from a handover holds.
   When the template comes from a handover, only the types in that handover's `allowedBlockTypes`
-  (§9.2) may be used — the rest are outside the adviser's package.
+  (§9.2) may be used — the rest are outside the adviser's package. (A `HostSection` is never in
+  that list and is not held to it: it is allowed by its `hostSectionId`, §4.10.)
 - `sortOrder`: integer ≥ 0, unique within the page, ascending = render order.
 - `isVisible`: boolean (a hidden block imports but doesn't render — useful for staging content).
 - Always emit **all** common fields; use `""` / `{}` for unused ones. No extra keys, in blocks
@@ -337,6 +359,37 @@ paragraph (plain text). `imageRef`, button: unused, emit `""`.
 Only in a template that came from a handover (`handoverId` set). The builder never produces a working
 form: see §5.1 for what it draws instead.
 
+### 4.10 `HostSection` — required: `settings.hostSectionId` (new in v0.5)
+
+A section of the adviser's site that the builder does not carry: one of iPro's own kinds (a calculator,
+a photo gallery, a price list, a map, a poll, a newsletter sign-up and others; the list grows on iPro's
+side without a change to this file). It travels as a **locked box**. The block says *which* section it
+is and nothing about what is in it:
+
+```json
+{
+  "type": "HostSection",
+  "heading": "", "subheading": "", "body": "",
+  "imageRef": "", "buttonText": "", "buttonUrl": "",
+  "layoutVariant": "", "sortOrder": 2, "isVisible": true,
+  "settings": { "hostSectionId": 3 }   // integer ≥ 1: an `id` from the handover's catalog.hostSections (§9.3)
+}
+```
+
+- Every text field, `imageRef` and `layoutVariant` are `""`. `settings` is exactly
+  `{ "hostSectionId": n }`.
+- **Only iPro makes one.** It exists only in a `"0.5"` template that came from a handover, and only
+  with an `id` that handover lists. The builder never offers it in the palette, and it is not in
+  `allowedBlockTypes`.
+- **What a return may do with a box:** place it anywhere, on its page or on another; hide or show it
+  (`isVisible`); leave it out. Nothing else: what the section says is changed in iPro's page editor.
+  (The builder's editor moves a box within its page, hides and removes it; it has no move to another
+  page for any section.)
+- **The same `id` may appear more than once** (a page duplicated in a builder carries its boxes).
+  iPro then makes that many copies of the section. The builder need not offer copying a box by itself.
+- It is a block like any other for a page's limit of 40 and for `sortOrder`.
+- What the builder draws for it: §5.1. What iPro does with it on the way back: §12.1.
+
 ## 5. "Pixel-equivalent preview" — defined
 
 Unchanged from v0.3:
@@ -351,7 +404,8 @@ Unchanged from v0.3:
 
 ### 5.1 Stand-ins for host-owned content (new in v0.4)
 
-The three new blocks show content the builder doesn't own, so it draws **non-interactive stand-ins**
+The three blocks new in v0.4, and the locked box of v0.5, show content the builder doesn't own, so it
+draws **non-interactive stand-ins**
 from the handover catalogue (§9.3):
 
 - `ArticleContent`: the article's `title`, its image (`imageRef` in `catalog/`, when not `""`) and its
@@ -362,6 +416,11 @@ from the handover catalogue (§9.3):
   contact fields — **first name, last name, email, phone and a consent checkbox** — then the form's own
   `fields` in order, drawn as **disabled** controls, and the `submitButtonText` as an inert button.
   This is a picture of a form: no `<form>` element, nothing that submits, and none of it is exported.
+- `HostSection`: a plain box that cannot be mistaken for content. It shows the catalogue entry's
+  `label` ("Photo Gallery"), its `title` when it has one, and a line such as "This section stays as it
+  is on your iPro site. Move, hide or remove it here; change what it says in iPro." No picture of the
+  section, nothing to click inside it, no editing of its words, and it is not in the section library.
+  A `hostSectionId` that is not in the catalogue never comes from iPro: refuse the handover (§9.4).
 - An ID that isn't in the catalogue: a visible placeholder ("This article is no longer available" /
   "This form is no longer available"), and the export is blocked until the adviser picks another item
   or removes the block (the importer would reject it — §7).
@@ -485,7 +544,8 @@ asset/manifest mismatch, bad magic bytes, oversize files.
 
 **Added in v0.4:**
 
-- a block `type` not in the handover's `allowedBlockTypes` (templates from a handover);
+- a block `type` not in the handover's `allowedBlockTypes` (templates from a handover; a
+  `HostSection` is held to its `hostSectionId` instead, see "Added in v0.5");
 - `ArticleContent` or `Form` in a template whose `handoverId` is `""`;
 - `handoverId` that isn't the one the session was opened with (at integration);
 - an `articleId` or `websiteFormId` that isn't in that handover's catalogue, or is no longer the
@@ -506,6 +566,15 @@ a new one):
 - a `buttonUrl` starting `/\`, holding a control character or a backslash, holding whitespace outside
   a `tel:` number, or with its scheme not in lower case (§4);
 - a return whose `handoverId` is not the newest hand-over of that site (§9.2).
+
+**Added in v0.5:**
+
+- a `HostSection` block in a `"0.4"` template, or in a template with no `handoverId` (§4.10);
+- a `hostSectionId` the hand-over did not list (§4.10, §9.3);
+- a `HostSection` with a text field, an `imageRef` or a `layoutVariant` that is not `""`, or with
+  `settings` other than exactly `{ "hostSectionId": integer ≥ 1 }` (§4.10);
+- a template built from scratch (no `handoverId`) that states `"0.5"` (§0);
+- a return that does not state the `contractVersion` of the hand-over it answers (§0).
 
 **Not a reason to reject** (§1, §4.3): a ZIP directory entry; an asset nothing references; a Services
 line longer than 80 characters, or an empty one; an image of any pixel size within §1's rules.
@@ -531,7 +600,14 @@ They are the fixtures issued on 2026-09-29, unchanged: SHA-256
   an `ArticleContent` block, and the blog count raised. `assets/` holds the two unchanged images
   byte-for-byte and the one new image; the replaced image is gone from both the manifest and the ZIP.
 
-Their JSON, in full:
+**The v0.5 pair (2026-10-13).** Two more files are kept in both repositories, made by a real trip and
+not by hand: `roundtrip-v05-ipro-handover.zip`, a hand-over made by iPro of a site with three host
+sections (a calculator on Home, a gallery and a hidden map on About), and
+`roundtrip-v05-builder-return.zip`, what the builder's own editor exported after the calculator's box
+was moved below the blog, the gallery's box hidden and the map's box removed. §4.10 and §9.3 show
+their shapes; their JSON is not printed here.
+
+The JSON of the two v0.4 fixtures, in full:
 
 **`handover.json`** (in the handover ZIP):
 
@@ -1040,8 +1116,8 @@ Their JSON, in full:
 
 ```
 handover.json          (required, at the ZIP root)
-template.json          (required, at the ZIP root: the adviser's current site as a valid v0.4
-                        template, with handoverId set)
+template.json          (required, at the ZIP root: the adviser's current site as a valid template
+                        of the version handover.json states, with handoverId set)
 assets/                (the site's images, exactly as in §1)
 catalog/               (catalogue article images, flat; omit if none)
 ```
@@ -1057,16 +1133,16 @@ catalog/               (catalogue article images, flat; omit if none)
 
 | Field | Type | Rules |
 |---|---|---|
-| `handoverVersion` | string | exactly `"1.0"` |
+| `handoverVersion` | string | `"1.0"` with `contractVersion` `"0.4"`; `"1.1"` with `"0.5"`. Nothing else |
 | `handoverId` | string | `^h_[0-9a-f]{16}$`. The export must carry it in `template.json` → `handoverId` |
-| `contractVersion` | string | `"0.4"`: the version of the enclosed `template.json`, and the version the export must use |
+| `contractVersion` | string | `"0.4"` or `"0.5"` (§0): the version of the enclosed `template.json`, and the version the export must use |
 | `issuedAt` | string | ISO 8601 UTC, e.g. `"2026-09-29T15:00:00Z"` |
 | `sessionToken` | string | opaque, 32–200 characters; the only credential the builder ever holds (§11). In fixtures, a dummy value |
 | `sessionExpiresAt` | string | ISO 8601 UTC; normally 12 hours after `issuedAt`. Use the value given as the deadline; don't check the arithmetic |
 | `adviser` | object | exactly `{ "businessName": string ≤ 120, plain text, "vertical": "advisers" \| "accountants" \| "mortgage" }` — for display and brand defaults only |
 | `allowedBlockTypes` | array | the export types this adviser's package includes: always the five v0.3 types, plus any of `ArticleContent`, `Blog`, `Form`. Offer only these in the palette |
 | `uploads` | object | exactly `{ "maxFileBytes": 8388608, "remainingBytes": integer ≥ 0 }` — `remainingBytes` is the adviser's remaining storage (§10) |
-| `catalog` | object | exactly `{ "articles": [...], "forms": [...] }` (§9.3); either array may be empty |
+| `catalog` | object | `"1.0"`: exactly `{ "articles": [...], "forms": [...] }`. `"1.1"`: exactly `{ "articles": [...], "forms": [...], "hostSections": [...] }` (§9.3). Any array may be empty |
 
 No other keys. Treat the file as strictly as the importer treats yours: reject unknown keys.
 It carries nothing else about the adviser — no email, phone, internal account IDs, client data or
@@ -1101,6 +1177,20 @@ that moment; once iPro makes a newer one, a package made from an older one is re
 | `submitButtonText` | string | ≤ 60, plain text |
 | `fields` | array | in display order; each exactly `{ "id": integer ≥ 1, "type": "Text" \| "Textarea" \| "CheckboxGroup" \| "Dropdown" \| "Section" \| "DateTime", "label": string ≤ 200, "placeholder": string ≤ 200, "helpText": string ≤ 500, "required": boolean, "options": [string ≤ 200, ...] }` — `options` is empty unless the type is `CheckboxGroup` or `Dropdown`; a `Section` is a heading inside the form, never `required` |
 
+`catalog.hostSections[]` (`handoverVersion` `"1.1"` only) — the sections of the site that travel as
+locked boxes (§4.10), in the order they stand on the site:
+
+| Field | Type | Rules |
+|---|---|---|
+| `id` | integer | ≥ 1, used once in the list; the value a `HostSection` block puts in `settings.hostSectionId` |
+| `kind` | string | iPro's own name for the kind of section: matches `[A-Za-z][A-Za-z0-9]{0,39}` as a whole value (`Gallery`, `Calculator`, `PriceList`). For an icon at most; do not rely on a fixed list |
+| `label` | string | 1–60, plain text: what to call the box (`Photo Gallery`) |
+| `title` | string | ≤ 200, plain text: the section's own heading, `""` when it has none. It tells two boxes of one kind apart |
+
+Every `HostSection` block of the hand-over's `template.json` has its `id` here, and every entry here is
+used by exactly one block of it. The `title` is the one thing of a host section that travels: its
+text, its settings and its pictures stay in iPro.
+
 The catalogue is for **picking and stand-ins only** (§5.1). It is never exported: only an `id` travels
 back, inside a block's `settings`. The host's standard contact fields (first name, last name, email,
 phone, consent) are not listed in `fields`; every form has them (§5.1).
@@ -1130,7 +1220,9 @@ readiness, where the adviser can fix it.
 6. **Catalogue images** live in `catalog/` and are referenced only from `catalog.articles[].imageRef`,
    for stand-ins. They never appear in `template.json`, in `assets[]`, or in the return.
 7. Blocks that don't take an image — `Services`, `CallToAction`, `ContactForm`, `ArticleContent`,
-   `Blog`, `Form` — emit `imageRef: ""`.
+   `Blog`, `Form`, `HostSection` — emit `imageRef: ""`.
+8. A host section's own pictures (a gallery's photos) are **not in the package** at all. They stay in
+   iPro's storage, and the locked box shows none of them (§5.1).
 
 ## 11. Transport at integration (paths are placeholders until the host builds its side) — new in v0.4
 
@@ -1162,15 +1254,16 @@ package") and writes a return ZIP to disk. At integration the same two files tra
 
 ## 12. Round trip — what the host keeps and what it refuses (new in v0.4)
 
-- iPro offers "Open in the new builder" only for a site that already fits this contract: every block
-  one of the adviser's allowed export types, every page and field within §3–§4. Otherwise it tells the
-  adviser what the builder can't carry yet (for example a map or reviews block) and doesn't open it.
+- iPro hands over a site whose every section is either one of the adviser's allowed export types or
+  travels as a locked box (§4.10, from v0.5), and whose every page and field is within §3–§4. What
+  still stops a hand-over is said to iPro's staff instead: a page with no sections of its own, a section
+  type the adviser's package no longer includes, a picture that cannot be read.
 - Page settings the contract doesn't carry — SEO title, SEO description, "show in menu", page
   published — are kept by iPro for every page whose `slug` is unchanged. New pages get iPro's defaults.
 - `theme` in the return is the hint it has always been; the adviser confirms the theme on iPro's
   review page.
 
-### 12.1 What iPro's importer does today (2026-10-12)
+### 12.1 What iPro's importer does today (2026-10-13)
 
 A package is brought in by iPro's staff for one customer. It is either a template built from scratch
 (`handoverId: ""`) or the return of that site's newest hand-over.
@@ -1190,9 +1283,21 @@ A package is brought in by iPro's staff for one customer. It is either a templat
     builder, and is kept.
 - **What was changed in iPro after a hand-over is replaced by its return.** iPro's review names the
   pages this affects before anything is written.
-- **A replaced page's sections are replaced as a set.** A section of a kind the builder cannot carry
-  (a map, a gallery, a price list) does not survive; iPro's review names each one before it goes. A
-  site that has such a section is not handed over in the first place (§12).
+- **A replaced page's sections are replaced as a set,** and for a section of a kind the builder cannot
+  carry (a map, a gallery, a price list) that means one of these:
+  - *a locked box in the return* (§4.10) becomes the section it stands for **as the site has it now**,
+    at the place the box has. Nothing in a box could be changed in the builder, so a change the adviser
+    made to that section in iPro meanwhile is kept, not undone (the one exception to the line above).
+    It is hidden or shown as the site has it, unless the return changed that on the box. Only when the
+    site no longer has the section is it written as it was at the hand-over. iPro's review says when
+    that happens, and when a box comes back shown though its section is hidden on the site (or hidden
+    though it is shown), from another page, or as a copy.
+  - *a locked box that did not come back* was removed in the builder. When the site still has that
+    section, iPro's review names it and iPro's staff may keep it.
+  - *a section the package does not have at all:* in a template built from scratch, every such section
+    of a replaced page; in a return, one added in iPro after the hand-over. It does not come back with
+    the package. iPro's review names each one, and iPro's staff may keep it.
+  - *a kept section* stays as the site has it now, at the end of its page.
 - **Articles and forms are asked about twice:** when a return is uploaded, and again when it is
   brought in. One unpublished or switched off in between stops it.
 - **The logo:** a `logoRef` replaces the site's logo. `logoRef: ""` in a template built from scratch
@@ -1212,6 +1317,16 @@ none of the three (until this document has a value for it).
 
 ## Changelog
 
+- **v0.5 (2026-10-13)** — host sections, after the first real hand-over was refused: iPro's own site
+  has fourteen pages with sections the builder does not carry, and so will most customers'. New block
+  type `HostSection`, the locked box (§4.10), and what the builder draws for it (§5.1);
+  `catalog.hostSections` and `handoverVersion` `"1.1"` (§9.2, §9.3); the validation additions
+  (§7); what iPro does with a box on the way back, and that a section a package does not have can be
+  kept (§12, §12.1). Additive, and stated only where it is used (§0): a site without a host
+  section is handed over and returned as a v0.4 package as before, and the two v0.4 fixtures are
+  unchanged, byte for byte. Three independent reviews of both sides the same day tightened it: the two
+  version rules are import rules (§7); only a host section's heading travels (§9.3); a kept section,
+  and a section whose box comes back, is the one the site has now (§12.1).
 - **v0.4, second doc-only revision (2026-10-12)** — after two independent audits compared the builder,
   iPro's importer and this document, and once iPro's hand-over existed. `contractVersion` stays `"0.4"`;
   fixtures unchanged. One rule for the characters of `buttonUrl`, applied identically by both sides

@@ -9,6 +9,7 @@ namespace IPRO.Business.SiteImport;
 // 571: reads a Template Builder package and says whether iPro takes it. Every reason for refusing is
 // a rule CONTRACT.md states (v0.4, with the clarifications of 2026-09-29), named with its section so
 // the builder's developer can look it up; every reason is reported, not only the first.
+// 576: and v0.5, which is v0.4 plus the locked box (section 4.10).
 //
 // Nothing here touches the database or storage. A package is bytes in, a verdict out.
 public static class BuilderPackageReader
@@ -311,6 +312,8 @@ public static class BuilderPackageReader
 
         private readonly ProblemList _problems;
         private readonly BuilderImportContext _context;
+        // What the package says it follows: "0.4", or "0.5" (which alone may hold a locked box).
+        private string _version = BuilderContract.Version;
         public HashSet<string> DeclaredAssets { get; } = new(StringComparer.Ordinal);
 
         public TemplateReader(ProblemList problems, BuilderImportContext context)
@@ -366,13 +369,14 @@ public static class BuilderPackageReader
                 // The version first and alone: a package written for another version is not held to
                 // this one's rules.
                 var version = root.TryGetProperty("contractVersion", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-                if (version != BuilderContract.Version)
+                if (version == null || !BuilderContract.Versions.Contains(version, StringComparer.Ordinal))
                 {
                     _problems.Add(null, null, "0", version == null
                         ? "template.json does not say which contract version it follows (contractVersion)."
-                        : $"The package follows contract version \"{Shorten(version)}\". This iPro takes version \"{BuilderContract.Version}\" only.");
+                        : $"The package follows contract version \"{Shorten(version)}\". This iPro takes versions \"{BuilderContract.Version}\" and \"{BuilderContract.VersionWithHostSections}\" only.");
                     return null;
                 }
+                _version = version;
 
                 var top = Object(root, TopKeys, null, null, "template.json", "2");
 
@@ -399,6 +403,23 @@ public static class BuilderPackageReader
                             : $"The package belongs to hand-over {handoverId}. This site was handed over as {_context.HandoverId}.");
                 }
 
+                // 576, section 0: which of the two versions a package states is not its own choice.
+                // A site built from scratch says "0.4"; a return says what its hand-over said, which
+                // is "0.5" exactly when that hand-over sent locked boxes out.
+                if (handoverId.Length == 0 && version != BuilderContract.Version)
+                {
+                    _problems.Add(null, null, "0", $"A site built from scratch states contract version \"{BuilderContract.Version}\". " +
+                        $"\"{version}\" is the version of a site iPro handed over with locked boxes.");
+                }
+                else if (handoverId.Length > 0 && handoverId == _context.HandoverId)
+                {
+                    var handedOverAs = (_context.HostSectionIds?.Count ?? 0) > 0 ? BuilderContract.VersionWithHostSections : BuilderContract.Version;
+                    if (version != handedOverAs)
+                    {
+                        _problems.Add(null, null, "0", $"This site was handed over as a version \"{handedOverAs}\" package, and its return states the same version. This package says \"{version}\".");
+                    }
+                }
+
                 ReadAssets(top);
 
                 var logoRef = Text(top, "logoRef", null, null, "2") ?? string.Empty;
@@ -423,7 +444,7 @@ public static class BuilderPackageReader
                 var pages = ReadPages(top, handoverId);
 
                 return _problems.Count == before
-                    ? new BuilderTemplate(templateName, theme, handoverId, logoRef, logoAltText, pages)
+                    ? new BuilderTemplate(templateName, theme, handoverId, logoRef, logoAltText, pages) { ContractVersion = version }
                     : null;
             }
         }
@@ -619,10 +640,24 @@ public static class BuilderPackageReader
             var block = Object(element, BlockKeys, page, number, "The section", "4");
 
             var type = Text(block, "type", page, number, "4") ?? string.Empty;
-            var known = BuilderContract.BlockTypes.Contains(type, StringComparer.Ordinal);
+            // 576: a locked box. Not one of the eight and not on a customer's list of types: which
+            // boxes may come back is decided by number (ReadHostSettings).
+            var host = type == BuilderContract.HostSection;
+            var known = host || BuilderContract.BlockTypes.Contains(type, StringComparer.Ordinal);
             if (block.ContainsKey("type") && !known)
             {
                 _problems.Add(page, number, "4", $"\"{Shorten(type)}\" is not a section type the builder may send. The eight are: {string.Join(", ", BuilderContract.BlockTypes)}.");
+            }
+            else if (host)
+            {
+                if (_version != BuilderContract.VersionWithHostSections)
+                {
+                    _problems.Add(page, number, "4.10", $"A HostSection (a locked box) needs contract version \"{BuilderContract.VersionWithHostSections}\". This package says \"{_version}\".");
+                }
+                else if (handoverId.Length == 0)
+                {
+                    _problems.Add(page, number, "4.10", "A HostSection (a locked box) stands for a section of one customer's site, so it exists only in a site iPro handed to the builder.");
+                }
             }
             else if (known && !_context.AllowedBlockTypes.Contains(type))
             {
@@ -656,7 +691,7 @@ public static class BuilderPackageReader
             }
 
             var settingsJson = "{}";
-            int articleId = 0, websiteFormId = 0;
+            int articleId = 0, websiteFormId = 0, hostSectionId = 0;
             if (known)
             {
                 var variants = WebsiteBlockLayoutVariants.AllowedFor(type);
@@ -674,7 +709,7 @@ public static class BuilderPackageReader
                 };
                 foreach (var unused in BuilderContract.UnusedFields(type).Where(f => values[f].Length > 0))
                 {
-                    _problems.Add(page, number, unused == "imageRef" ? "10, rule 7" : "4",
+                    _problems.Add(page, number, host ? "4.10" : unused == "imageRef" ? "10, rule 7" : "4",
                         $"A {type} section does not use {unused}. It must be empty.");
                 }
 
@@ -707,6 +742,10 @@ public static class BuilderPackageReader
                     {
                         _problems.Add(page, number, "4", "settings must be an object ({} when the section has none).");
                     }
+                    else if (host)
+                    {
+                        hostSectionId = ReadHostSettings(settings, page, number, handoverId);
+                    }
                     else
                     {
                         (settingsJson, articleId, websiteFormId) = ReadSettings(type, settings, page, number);
@@ -715,7 +754,22 @@ public static class BuilderPackageReader
             }
 
             return new BuilderBlock(type, heading, subheading, body, imageRef, buttonText, buttonUrl, layoutVariant,
-                sortOrder, isVisible, settingsJson, articleId, websiteFormId);
+                sortOrder, isVisible, settingsJson, articleId, websiteFormId, hostSectionId);
+        }
+
+        // Section 4.10: exactly { "hostSectionId": n }, n one of the boxes this site's hand-over sent
+        // out. What the box stands for is on the hand-over's record, never in the package.
+        private int ReadHostSettings(JsonElement element, string page, int number, string handoverId)
+        {
+            var s = Object(element, new[] { "hostSectionId" }, page, number, "A HostSection's settings", "4.10");
+            var id = Whole(s, "hostSectionId", page, number, "4.10", minimum: 1) ?? 0;
+            // Held to the hand-over the package answers. A package that answers another hand-over has
+            // been told so already, once; its boxes are not each refused a second time for it.
+            if (id > 0 && handoverId.Length > 0 && handoverId == _context.HandoverId && !(_context.HostSectionIds?.Contains(id) ?? false))
+            {
+                _problems.Add(page, number, "7", $"Locked box {id} is not one this site's hand-over sent out.");
+            }
+            return id;
         }
 
         // Each type's settings, exactly the keys the contract names, turned into the settings iPro stores.

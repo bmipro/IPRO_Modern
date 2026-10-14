@@ -3,7 +3,7 @@
 @using IPRO.Entities
 @{
     ViewData["Title"] = $"Review a Template Builder package: {Model.Agent.UserName}";
-    var business = string.IsNullOrWhiteSpace(Model.Agent.CompanyName) ? $"{Model.Agent.FirstName} {Model.Agent.LastName}" : Model.Agent.CompanyName;
+    var business = string.IsNullOrWhiteSpace(Model.Agent.CompanyName) ? $"{Model.Agent.FirstName} {Model.Agent.LastName}" : Model.Agent.CompanyName.TrimEnd('.');
     var plan = Model.Plan;
     string Names(IEnumerable<string> types) => string.Join(", ", types.Select(WebsiteBlockTypes.DisplayName));
     string Size(long bytes) => bytes < 1024 * 1024 ? $"{Math.Max(1, bytes / 1024)} KB" : (bytes / 1024.0 / 1024.0).ToString("0.0") + " MB";
@@ -105,11 +105,7 @@ else
                                     break;
                                 case PageChange.Replaced:
                                     <span class="badge bg-primary">Replaced</span>
-                                    <div class="small text-muted mt-1">Its @item.SectionsBefore.Count section@(item.SectionsBefore.Count == 1 ? "" : "s") give way to the package's. Its search title and description, and whether it is published and in the menu, stay as they are.</div>
-                                    @if (item.SectionsLost.Count > 0)
-                                    {
-                                        <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i>The builder cannot carry these, so they go: <strong>@Names(item.SectionsLost)</strong>. Add them again in the page editor afterwards.</div>
-                                    }
+                                    <div class="small text-muted mt-1">Its @item.SectionsBefore.Count section@(item.SectionsBefore.Count == 1 ? "" : "s") give@(item.SectionsBefore.Count == 1 ? "s" : "") way to the package's. Its search title and description, and whether it is published and in the menu, stay as they are.</div>
                                     @if (item.ChangedSinceHandover)
                                     {
                                         <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>Changed in iPro after the hand-over.</strong> What the customer changed on this page since then is replaced by the package's version.</div>
@@ -145,6 +141,25 @@ else
                                         <label class="form-check-label small" for="without-@pg.Id">Remove this page</label></div>
                                     @if (item.SectionsBefore.Count > 0) { <div class="small text-muted mt-1">With its sections: @Names(item.SectionsBefore).</div> }
                                     break;
+                            }
+                            @* 576: each section of this page that the package does not bring back, with the choice to keep it. *@
+                            @foreach (var going in item.SectionsGoing)
+                            {
+                                var why = going.RemovedInBuilder ? "was removed in the builder"
+                                    : Model.Handover != null ? "is on the site but not in the package"
+                                    : "is not in the package (a site built from scratch cannot bring one)";
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox" name="sections" value="@going.BlockId" id="section-@going.BlockId" checked="@going.Kept" />
+                                    <label class="form-check-label small" for="section-@going.BlockId">
+                                        <span class="@(going.Kept ? "text-success" : "text-danger")"><i class="fas @(going.Kept ? "fa-check" : "fa-triangle-exclamation") me-1"></i><strong>@SiteImportPlan.Named(going.BlockType, going.Title)</strong> @why@(going.Kept ? ", and is kept as the site has it: it goes to the end of this page." : ", so it goes.")</span>
+                                        @(going.Kept ? "Clear the box to let it go." : "Tick the box to keep it at the end of this page.")
+                                    </label>
+                                </div>
+                            }
+                            @* 576: what the designer did with a locked box that the list of sections does not show. *@
+                            @foreach (var note in item.BoxNotes)
+                            {
+                                <div class="small mt-1" style="color:#8a5a00"><i class="fas fa-circle-info me-1"></i>@note</div>
                             }
                         </td>
                         <td class="small">@(item.Change == PageChange.Removed ? "-" : Names(pg.Blocks.OrderBy(b => b.SortOrder).Select(b => b.BlockType)))</td>
@@ -182,7 +197,7 @@ else
         </section>
 
         <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-            <button type="submit" formaction="/BuilderImports/Choose/@Model.Import.Id" class="btn btn-outline-primary"><i class="fas fa-rotate me-1"></i>Update the looks with these choices</button>
+            <button type="submit" formaction="/BuilderImports/Choose/@Model.Import.Id" class="btn btn-outline-primary"><i class="fas fa-rotate me-1"></i>Update this page and the looks with these choices</button>
             @* 574: what this screen shows, as one value. "Bring it in" refuses if the site has changed since. *@
             <input type="hidden" name="plan" value="@(plan?.Fingerprint)" />
             <button type="submit" class="btn btn-success js-confirm-submit" disabled="@blocked"
@@ -191,7 +206,7 @@ else
                         : "Bring this package into the site now? The site is not published, so visitors see nothing yet. The site as it is now is kept and can be put back.")">
                 <i class="fas fa-file-import me-1"></i>Bring it in
             </button>
-            <span class="text-muted small">@(live ? "This site is published: bringing it in is live at once." : "This site is not published yet.") The site as it is now is kept, so it can be put back.</span>
+            <span class="text-muted small">@(live ? "This site is published: bringing it in is live at once." : "This site is not published yet.") The site as it is now is kept, so it can be put back. After ticking or clearing a box above, press "Update this page and the looks with these choices" first: "Bring it in" does only what this page shows.</span>
         </div>
     </form>
 }

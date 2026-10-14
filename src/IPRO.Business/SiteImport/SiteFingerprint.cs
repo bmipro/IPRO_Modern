@@ -40,18 +40,32 @@ public static class SiteFingerprint
         foreach (var block in (page.Blocks ?? new List<WebsiteContentBlock>()).OrderBy(b => b.SortOrder).ThenBy(b => b.Id))
         {
             text.Append(Record);
-            Add(block.BlockType);
-            Add(block.Heading);
-            Add(block.Subheading);
-            Add(block.Body);
-            Add(block.ImageUrl);
-            Add(block.ButtonText);
-            Add(block.ButtonUrl);
-            Add(block.LayoutVariant);
-            Add(block.SettingsJson);
-            Add(block.IsVisible ? "shown" : "hidden");
+            AddSection(text, block);
         }
         return Hash(text.ToString());
+    }
+
+    // 576: what one section says and whether it shows, as one value.
+    public static string OfSection(WebsiteContentBlock block)
+    {
+        var text = new StringBuilder();
+        AddSection(text, block);
+        return Hash(text.ToString())[..16];
+    }
+
+    private static void AddSection(StringBuilder text, WebsiteContentBlock block)
+    {
+        void Add(string? value) => text.Append(value ?? string.Empty).Append(Field);
+        Add(block.BlockType);
+        Add(block.Heading);
+        Add(block.Subheading);
+        Add(block.Body);
+        Add(block.ImageUrl);
+        Add(block.ButtonText);
+        Add(block.ButtonUrl);
+        Add(block.LayoutVariant);
+        Add(block.SettingsJson);
+        Add(block.IsVisible ? "shown" : "hidden");
     }
 
     public static string OfLogo(string? logoUrl) => Hash(logoUrl ?? string.Empty);

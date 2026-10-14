@@ -348,9 +348,15 @@ the builder that comes back edited (a **return**).
 and the list of published articles and active forms the builder may place. In the builder, open it with
 **Open iPro package**. Nothing on the site changes.
 
-- A site is handed over whole or not at all. If a page has a section the builder does not have (a map, a
-  gallery, a price list, reviews), or a page still shows only the design's standard layout, the screen
-  lists each reason and makes nothing. Put those right in the page editor first.
+- A site is handed over whole or not at all. If a page still shows only the design's standard layout (it
+  has no sections of its own), the screen lists the reason and makes nothing. Add a section to that page
+  in the page editor first.
+- **A section the builder does not have travels as a locked box:** a calculator, a map, a gallery, a
+  price list, a poll, reviews and the rest. The package says where the section stands, what kind it is
+  and its heading (so two of a kind can be told apart). Nothing else of it leaves iPro: not its text,
+  its settings or its pictures. In the builder the designer sees a labelled box and can move it up or
+  down its page, hide it or remove it. What the section says is changed in iPro's page editor, not in
+  the builder. After a hand-over the screen says how many sections went out this way.
 - Every press of **Make the package** records a new hand-over, which is why the button asks first. One
   package per round of work: make it, keep that file, and do not press again while a designer is working.
 - A picture taken from the page editor's own starter banners travels like any other picture.
@@ -390,21 +396,47 @@ and the list of published articles and active forms the builder may place. In th
    - the **logo**, if it was changed in iPro after the hand-over, is marked too: the return carries the
      one from before.
 
-   A replaced page's sections are replaced as a set. Sections the builder cannot carry (a map, a gallery,
-   a price list, reviews) go with them: the screen names each one in red. Add them again in the page
-   editor afterwards, or build that page in iPro and leave it out of the package.
+   A replaced page's sections are replaced as a set.
+   - **A locked box that came back** is its section again, as the site has it now, where the designer
+     put the box. What the customer changed in that section in iPro meanwhile stays: nothing in a box
+     could be changed in the builder, so there is nothing to put in its place. It is hidden or shown as
+     the site has it, unless the designer changed that on the box. The screen says, in amber, when a
+     box comes back SHOWN though its section is hidden on the site (or HIDDEN though it is shown), when
+     it comes from another page, when it is a copy (the same box twice), when the site no longer has
+     the section, so that it comes back as it was at the hand-over, and when a box was matched to a
+     section by its kind alone because nothing else told which one it is.
+   - **A section the package does not bring back is named in red, with a tick box of its own:** one
+     whose locked box the designer removed in the builder; in a return, one the customer added
+     in iPro after the hand-over; in a site built from scratch, every section of a replaced page
+     that the builder cannot carry (a map, a gallery, a price list, reviews). Tick the box to keep that
+     section as the site has it now: it goes to the end of its page. Left unticked, it goes with the
+     page's old sections. A page cannot be kept past 40 sections: the screen says so and writes nothing.
+   - **A page the designer gave another address, or made the home page,** is not replaced where it
+     stands: the page under its old address shows as **removed in the builder** (with the kinds of
+     section it has) and the new address as a **new page**, published and in the menu like any new
+     page, also when the old one was not. Its locked boxes that came back are on the new page; the
+     old page's line says so, in amber, for each. A box the designer removed from such a page has no
+     tick box of its own: it goes with the old page. Keep the old page (tick **Keep this page after
+     all**) to keep that section, and tidy the two pages up in the page editor afterwards. For a page
+     made the home page that tick is refused (the home page takes its address): put the section back
+     in the page editor afterwards, or ask the designer to put the box back.
 
    **Look** opens a page as it would be, in the customer's own design, in a new tab. A look works for an
-   hour. Menu links inside a look are not live, so open each page from the list.
+   hour. Menu links inside a look are not live, so open each page from the list. The strip at the top of
+   a look says which kind of page it is: one that comes from the package, a new one, or one that is not
+   in the package and stays as it is. A page from the package can look much like the page it replaces:
+   the header, the menu, the colours and the fonts are the site's own design and do not come from the
+   builder. Its words, pictures and sections do.
 
    **The design:** leave the site's design as it is, or switch to another on the way in. Colours and
    fonts are the site's own (My Website); they do not come from the builder.
 
-   After ticking pages or changing the design, press **Update the looks with these choices**.
+   After ticking a box or changing the design, press **Update this page and the looks with these
+   choices**.
 
-   **Bring it in** writes exactly what this screen shows. If the customer changed the site after you
-   opened the review, so that it would do something else, nothing is written and the screen says
-   "Read the review again": the review then shows the site as it is now.
+   **Bring it in** writes exactly what this screen shows. Pressed after a box was ticked or cleared and
+   not yet updated, or after the customer changed the site so that it would do something else, it writes
+   nothing and says so: the review then shows what would happen now. Read it and press again.
 3. **Bring it in.** The site's pages become the package's. On a published site this is live at once (the
    button says so before you confirm). The site as it was is kept.
 4. **Put the previous site back,** if it is not right: on the list, beside the package that is on the

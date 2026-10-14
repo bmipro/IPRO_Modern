@@ -15,6 +15,14 @@ public enum PageChange
     Removed     // on the site, not in the package, and it goes
 }
 
+// 576: a section a replaced page has on the site today that the package does not bring back. The
+// review names each one and offers to keep it; BlockId, the section's own row, is what the review
+// posts back for that. RemovedInBuilder: it is a section the hand-over sent out, and its locked box
+// is nowhere in the package. Otherwise the package never had it: for a site built from scratch, any
+// section the builder cannot carry; for a return, one added in iPro since. Says: what the section
+// says, as one value, so that the write can tell a section changed after the review was read.
+public sealed record SectionGoing(int BlockId, string BlockType, string Title, bool RemovedInBuilder, bool Kept, string Says = "");
+
 public sealed class PlannedPage
 {
     // The page as it will be, sections included (for a removed page: as it is now). A page that does
@@ -38,7 +46,17 @@ public sealed class PlannedPage
     // Sections a replaced or removed page has today that this package could not have carried (a map,
     // a gallery, a price list; for a site built from scratch also a form or an article section, which
     // only a hand-over can hold). They do not come back with the package.
+    // 576: for a replaced page, the kinds of the sections that really go (SectionsGoing, less the
+    // ones the operator keeps). A section whose locked box came back is not among them.
     public IReadOnlyList<string> SectionsLost { get; init; } = Array.Empty<string>();
+    // 576: the sections a replaced page has today that the package does not bring back, one by one,
+    // each with the operator's choice. A kept one stays as the site has it, after the package's sections.
+    public IReadOnlyList<SectionGoing> SectionsGoing { get; init; } = Array.Empty<SectionGoing>();
+    // 576: what a reviewer could not tell from the list of sections alone. A locked box that comes
+    // back SHOWN though its section is hidden on the site, one that comes from another page, one that
+    // is a copy, one whose section the site no longer has; and, on a page that is not replaced, a
+    // section that comes back elsewhere in its box. In plain sentences.
+    public IReadOnlyList<string> BoxNotes { get; init; } = Array.Empty<string>();
 }
 
 public enum LogoChange { Unchanged, Set, Replaced, Removed }
@@ -80,10 +98,20 @@ public sealed class SiteImportPlan
         IReadOnlyDictionary<string, int>? handedOverRowBySlug = null,
         IReadOnlySet<int>? changedSinceHandover = null,
         bool logoChangedSinceHandover = false,
-        IReadOnlySet<string>? carriedTypes = null)
+        IReadOnlySet<string>? carriedTypes = null,
+        // 576. hostSections: the sections the hand-over sent out as locked boxes, each as it was.
+        // keepSectionIds: the rows of the sections the operator keeps (SectionGoing.BlockId).
+        IReadOnlyList<HandoverHostSection>? hostSections = null,
+        IReadOnlySet<int>? keepSectionIds = null)
     {
-        IReadOnlyList<string> Lost(IReadOnlyList<string> before) =>
-            before.Where(t => carriedTypes == null ? !BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal) : !carriedTypes.Contains(t)).ToList();
+        bool Carried(string type) => carriedTypes == null ? BuilderContract.BlockTypes.Contains(type, StringComparer.Ordinal) : carriedTypes.Contains(type);
+        IReadOnlyList<string> Lost(IReadOnlyList<string> before) => before.Where(t => !Carried(t)).ToList();
+        var hosts = hostSections ?? Array.Empty<HandoverHostSection>();
+        var hostById = hosts.GroupBy(h => h.Id).ToDictionary(g => g.Key, g => g.First());
+        // The boxes that came back, wherever in the site the designer put them, and how many times each.
+        var timesBack = template.Pages.SelectMany(p => p.Blocks).Where(b => b.Type == BuilderContract.HostSection)
+            .GroupBy(b => b.HostSectionId).ToDictionary(g => g.Key, g => g.Count());
+        var unknownBoxes = new SortedSet<int>();
         var problems = new List<string>(knownProblems ?? Array.Empty<string>());
         var nextId = -1;
         int TempId() => nextId--;
@@ -127,6 +155,74 @@ public sealed class SiteImportPlan
             }
         }
 
+        // 1b (576). The sections of the site the builder cannot carry, and which of them each locked box is.
+        //
+        // A box that comes back brings the section AS THE SITE HAS IT NOW, wherever a section of the
+        // site can be told to be the one that went out. Nothing in a box could be changed in the
+        // builder, so the hand-over's copy is never better than the site's own: using the site's means
+        // an edit the customer made meanwhile is not undone, and a section that was only saved again
+        // cannot be taken for a new one and come back twice. The hand-over's record is what is written
+        // only when the site no longer has the section.
+        //
+        // Which section a box is, in this order: the one on the row the hand-over recorded for it;
+        // one that still says what was recorded (rows do not survive a put-back or an earlier return
+        // of the same hand-over; what a section says does); one of its kind with its heading (the
+        // section, changed since, when its row is not the recorded one any more); and last, for a box
+        // whose section no box has found, one of its kind on the page the box stands on, which the
+        // review then says in a note. Each is tried on the box's own page first, then anywhere. A
+        // section is one box's at most.
+        var foreign = currentPages
+            .SelectMany(r => r.Blocks.Where(b => !Carried(b.BlockType)).Select(b => (Row: r, Block: b)))
+            .OrderBy(x => x.Row.SortOrder).ThenBy(x => x.Row.Id).ThenBy(x => x.Block.SortOrder).ThenBy(x => x.Block.Id)
+            .ToList();
+        var boxes = template.Pages
+            .SelectMany(p => p.Blocks.Where(b => b.Type == BuilderContract.HostSection && hostById.ContainsKey(b.HostSectionId))
+                .OrderBy(b => b.SortOrder).Select(b => (Page: p, Box: b)))
+            .ToList();
+        // By the box itself, not by what it says: two boxes of one section read the same.
+        var sectionOf = new Dictionary<BuilderBlock, (WebsitePage Row, WebsiteContentBlock Block)>(ReferenceEqualityComparer.Instance);
+        var accounted = new HashSet<int>();
+        var byKindAlone = new HashSet<BuilderBlock>(ReferenceEqualityComparer.Instance);
+        bool Found(int hostId) => boxes.Any(x => x.Box.HostSectionId == hostId && sectionOf.ContainsKey(x.Box));
+        void Match(bool samePage, Func<HandoverHostSection, WebsiteContentBlock, bool> isIt, bool lastResort = false)
+        {
+            foreach (var (boxPage, box) in boxes)
+            {
+                if (sectionOf.ContainsKey(box)) continue;
+                var host = hostById[box.HostSectionId];
+                // The same box a second time is a copy: it is not another section of that kind.
+                if (lastResort && Found(host.Id)) continue;
+                rowFor.TryGetValue(boxPage, out var boxRow);
+                foreach (var candidate in foreign)
+                {
+                    if (accounted.Contains(candidate.Block.Id) || (samePage && candidate.Row.Id != boxRow?.Id) || !isIt(host, candidate.Block)) continue;
+                    sectionOf[box] = candidate;
+                    accounted.Add(candidate.Block.Id);
+                    if (lastResort) byKindAlone.Add(box);
+                    break;
+                }
+            }
+        }
+        bool RecordedRow(HandoverHostSection host, WebsiteContentBlock block) => host.BlockId > 0 && host.BlockId == block.Id && host.BlockType == block.BlockType;
+        bool KindAndHeading(HandoverHostSection host, WebsiteContentBlock block) =>
+            host.BlockType == block.BlockType && string.Equals((host.Heading ?? string.Empty).Trim(), (block.Heading ?? string.Empty).Trim(), StringComparison.Ordinal);
+        Match(samePage: true, RecordedRow);
+        Match(samePage: false, RecordedRow);
+        Match(samePage: true, (host, block) => host.Says(block));
+        Match(samePage: false, (host, block) => host.Says(block));
+        Match(samePage: true, KindAndHeading);
+        Match(samePage: false, KindAndHeading);
+        Match(samePage: true, (host, block) => host.BlockType == block.BlockType, lastResort: true);
+        // The same box a second time has no section of its own: it is a copy of the section as it is now.
+        var liveOf = boxes.Where(x => sectionOf.ContainsKey(x.Box)).GroupBy(x => x.Box.HostSectionId)
+            .ToDictionary(g => g.Key, g => sectionOf[g.First().Box].Block);
+        // A section of a page that is not replaced, when a box somewhere in the package is that section.
+        IReadOnlyList<string> ElsewhereNotes(WebsitePage row, bool stays) => foreign
+            .Where(x => x.Row.Id == row.Id && accounted.Contains(x.Block.Id))
+            .Select(x => Named(x.Block.BlockType, x.Block.Heading) +
+                (stays ? " also comes back on another page, in its box: it will stand on both." : " comes back on another page, in its box."))
+            .ToList();
+
         // 2. The package's pages as they will be.
         var planned = new List<PlannedPage>();
         var bySlug = new Dictionary<string, WebsitePage>(StringComparer.Ordinal);
@@ -152,32 +248,119 @@ public sealed class SiteImportPlan
                 CreatedAt = row?.CreatedAt ?? DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-            page.Blocks = source.Blocks.OrderBy(b => b.SortOrder).Select(b => new WebsiteContentBlock
+            page.Blocks = new List<WebsiteContentBlock>();
+            var boxNotes = new List<string>();
+            foreach (var b in source.Blocks.OrderBy(x => x.SortOrder))
             {
-                Id = TempId(),
-                WebsitePageId = page.Id,
-                BlockType = b.Type,
-                Heading = b.Heading,
-                Subheading = b.Subheading,
-                Body = b.Body,
-                ImageUrl = Image(b.ImageRef),
-                ButtonText = b.ButtonText,
-                ButtonUrl = b.ButtonUrl,
-                SettingsJson = b.SettingsJson,
-                LayoutVariant = b.LayoutVariant,
-                SortOrder = b.SortOrder,
-                IsVisible = b.IsVisible
-            }).ToList();
+                WebsiteContentBlock block;
+                if (b.Type == BuilderContract.HostSection)
+                {
+                    // 576: a locked box becomes the section it stands for (1b, above), at the place the
+                    // box has. It is never stored as a box.
+                    if (!hostById.TryGetValue(b.HostSectionId, out var host))
+                    {
+                        unknownBoxes.Add(b.HostSectionId);
+                        continue;
+                    }
+                    var own = sectionOf.TryGetValue(b, out var its);
+                    var onSite = own ? its.Block : liveOf.GetValueOrDefault(host.Id);
+                    // Hidden or shown as the site has it, unless the designer changed that on the box.
+                    var wasShown = onSite?.IsVisible ?? host.IsVisible;
+                    var shown = b.IsVisible == host.IsVisible ? wasShown : b.IsVisible;
+                    block = onSite == null ? host.ToBlock(b.SortOrder, shown) : HandoverHostSection.Copy(onSite, b.SortOrder);
+                    block.IsVisible = shown;
+                    // What a reviewer cannot tell from the list of sections: nobody could look at this
+                    // section in the builder, and here it changes what visitors see.
+                    var name = Named(block.BlockType, block.Heading);
+                    if (onSite == null)
+                    {
+                        var otherwise = shown == host.IsVisible ? string.Empty : shown ? ", but SHOWN though it was hidden" : ", but HIDDEN though it was shown";
+                        boxNotes.Add($"{name} is not on the site any more as it was handed over: it comes back with its box, as it was then{otherwise}.");
+                    }
+                    else
+                    {
+                        if (shown && !wasShown) boxNotes.Add($"{name} is HIDDEN on the site and comes back shown.");
+                        if (!shown && wasShown) boxNotes.Add($"{name} is shown on the site and comes back HIDDEN.");
+                        if (own && its.Row.Id != row?.Id) boxNotes.Add($"{name} comes from another page (/{its.Row.Slug}).");
+                        if (!own) boxNotes.Add($"{name} comes back as a copy: the package has it {timesBack[host.Id]} times.");
+                        if (byKindAlone.Contains(b))
+                        {
+                            boxNotes.Add($"{name} is taken for the section this box stood for ({Named(host.BlockType, host.Heading)}): that one is not on the site any more as it was handed over, and this is the one of its kind on this page.");
+                        }
+                    }
+                }
+                else
+                {
+                    block = new WebsiteContentBlock
+                    {
+                        BlockType = b.Type,
+                        Heading = b.Heading,
+                        Subheading = b.Subheading,
+                        Body = b.Body,
+                        ImageUrl = Image(b.ImageRef),
+                        ButtonText = b.ButtonText,
+                        ButtonUrl = b.ButtonUrl,
+                        SettingsJson = b.SettingsJson,
+                        LayoutVariant = b.LayoutVariant,
+                        SortOrder = b.SortOrder,
+                        IsVisible = b.IsVisible
+                    };
+                }
+                block.Id = TempId();
+                block.WebsitePageId = page.Id;
+                page.Blocks.Add(block);
+            }
+
+            // 576: what this page has on the site today that the package does not bring back: every
+            // section the builder cannot carry that is no box's (1b). For a site built from scratch
+            // that is all of them. Each is named by its own row, and a kept one stays as the site has it.
+            var going = new List<SectionGoing>();
+            if (row != null)
+            {
+                var next = page.Blocks.Count == 0 ? 0 : page.Blocks.Max(x => x.SortOrder) + 1;
+                foreach (var (_, current) in foreign.Where(x => x.Row.Id == row.Id && !accounted.Contains(x.Block.Id)))
+                {
+                    // Surely removed in the builder: a section the hand-over sent out, whose box is nowhere in the package.
+                    // (Of several records it could be, the one whose box is missing is the one that explains it.)
+                    var was = hosts.FirstOrDefault(h => RecordedRow(h, current))
+                        ?? hosts.Where(h => h.Says(current)).OrderBy(h => timesBack.ContainsKey(h.Id)).FirstOrDefault()
+                        ?? hosts.Where(h => KindAndHeading(h, current)).OrderBy(h => timesBack.ContainsKey(h.Id)).FirstOrDefault();
+                    var kept = keepSectionIds?.Contains(current.Id) ?? false;
+                    going.Add(new SectionGoing(current.Id, current.BlockType, current.Heading ?? string.Empty,
+                        RemovedInBuilder: was != null && !timesBack.ContainsKey(was.Id), Kept: kept, Says: SiteFingerprint.OfSection(current)));
+                    if (!kept) continue;
+                    var copy = HandoverHostSection.Copy(current, next++);
+                    copy.Id = TempId();
+                    copy.WebsitePageId = page.Id;
+                    page.Blocks.Add(copy);
+                }
+                if (going.Any(g => g.Kept) && page.Blocks.Count > BuilderContract.MaxBlocksPerPage)
+                {
+                    // The page editor has no limit of its own, but a page past the package's limit could
+                    // never be handed to the builder again.
+                    problems.Add($"\"{page.Title}\" would have {page.Blocks.Count} sections with the ones kept, and a page that goes to the builder holds at most " +
+                        $"{BuilderContract.MaxBlocksPerPage}. Keep fewer sections on that page.");
+                }
+            }
+
             bySlug[source.Slug] = page;
             planned.Add(new PlannedPage
             {
                 Page = page,
                 Change = row == null ? PageChange.Added : PageChange.Replaced,
                 SectionsBefore = row == null ? Array.Empty<string>() : SectionTypes(row),
-                SectionsLost = row == null ? Array.Empty<string>() : Lost(SectionTypes(row)),
+                SectionsLost = going.Where(g => !g.Kept).Select(g => g.BlockType).ToList(),
+                SectionsGoing = going,
+                BoxNotes = boxNotes.Distinct().ToList(),
                 ChangedOnSite = row?.UpdatedAt,
                 ChangedSinceHandover = row != null && (changedSinceHandover?.Contains(row.Id) ?? false)
             });
+        }
+        if (unknownBoxes.Count > 0)
+        {
+            // The door refuses such a package; this is for a record that changed underneath one already stored.
+            problems.Add($"The package holds a locked box ({string.Join(", ", unknownBoxes)}) that this site's hand-over has no record of, so it cannot be brought in. " +
+                "Drop it, hand the site over again and work from that package.");
         }
         foreach (var source in template.Pages.Where(p => p.ParentSlug != null))
         {
@@ -200,7 +383,8 @@ public sealed class SiteImportPlan
                 {
                     Page = row, Change = PageChange.Removed, SectionsBefore = SectionTypes(row), SectionsLost = Lost(SectionTypes(row)),
                     RemovedInBuilder = removedInBuilder.Contains(row.Id), ChangedOnSite = row.UpdatedAt,
-                    ChangedSinceHandover = changedSinceHandover?.Contains(row.Id) ?? false
+                    ChangedSinceHandover = changedSinceHandover?.Contains(row.Id) ?? false,
+                    BoxNotes = ElsewhereNotes(row, stays: false)
                 });
                 continue;
             }
@@ -229,7 +413,10 @@ public sealed class SiteImportPlan
                 UpdatedAt = row.UpdatedAt,
                 Blocks = row.Blocks.OrderBy(b => b.SortOrder).ToList()
             };
-            planned.Add(new PlannedPage { Page = kept, Change = PageChange.Kept, SectionsBefore = SectionTypes(row), ChangedOnSite = row.UpdatedAt });
+            planned.Add(new PlannedPage
+            {
+                Page = kept, Change = PageChange.Kept, SectionsBefore = SectionTypes(row), ChangedOnSite = row.UpdatedAt, BoxNotes = ElsewhereNotes(row, stays: true)
+            });
 
             if (bySlug.ContainsKey(row.Slug))
             {
@@ -309,6 +496,12 @@ public sealed class SiteImportPlan
                 .Append(item.Page.Blocks?.Count ?? 0).Append(field)
                 .Append(string.Join(",", item.SectionsBefore)).Append(field)
                 .Append(string.Join(",", item.SectionsLost)).Append(field)
+                .Append(string.Join(",", item.SectionsGoing.Select(g => g.BlockId + (g.Kept ? "+" : "-") + (g.RemovedInBuilder ? "r" : "n") + g.Says))).Append(field)
+                .Append(string.Join("|", item.BoxNotes)).Append(field)
+                // 576: and what a page of the package will SAY. A locked box brings the section as the
+                // site has it at that moment, so what is written can change after the review was read.
+                .Append(item.Change is PageChange.Added or PageChange.Replaced
+                    ? string.Join(",", (item.Page.Blocks ?? new List<WebsiteContentBlock>()).OrderBy(b => b.SortOrder).Select(SiteFingerprint.OfSection)) : string.Empty).Append(field)
                 .Append(item.RemovedInBuilder).Append(item.ChangedSinceHandover).Append((char)0x1E);
         }
         text.Append(logo).Append(field).Append(logoAfter).Append(field).Append(string.Join(((char)0x1E).ToString(), problems));
@@ -317,6 +510,10 @@ public sealed class SiteImportPlan
 
     private static IReadOnlyList<string> SectionTypes(WebsitePage page) =>
         page.Blocks.OrderBy(b => b.SortOrder).Select(b => b.BlockType).ToList();
+
+    // A section as the review names it: its kind as the page editor calls it, and its own heading.
+    public static string Named(string blockType, string? heading) =>
+        WebsiteBlockTypes.DisplayName(blockType) + (string.IsNullOrWhiteSpace(heading) ? string.Empty : $" \"{heading.Trim()}\"");
 
     // A page that keeps its row but changes its address (only the home page can: it is matched as
     // the home page, not by address) remembers the address it had, so links and search results that

@@ -414,6 +414,12 @@ public static class AgentDataEraser
         // of the site (WebsiteBuilderImports.SnapshotJson). It is the agent's own upload: it goes too.
         found.AddRange(await KeptLogoUrlsAsync(db, agentId, ct));
 
+        // 576: nor is a gallery's photo that only a Template Builder record still names: a gallery
+        // that went out as a locked box and was deleted in iPro since (the hand-over's record), or one
+        // on a page a package replaced (the kept copy of the site). The rows go with the agent; these
+        // are the files they were holding.
+        found.AddRange(await KeptGalleryUrlsAsync(db, agentId, ct));
+
         var distinct = found.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         return (distinct.Where(u => !shared.Contains(u)).ToList(),
                 distinct.Where(u => shared.Contains(u)).ToList());
@@ -442,6 +448,54 @@ public static class AgentDataEraser
         }
         return urls;
     }
+
+    private static async Task<List<string>> KeptGalleryUrlsAsync(IPRODbContext db, int agentId, CancellationToken ct)
+    {
+        var urls = new List<string>();
+        foreach (var (table, column) in new[] { ("WebsiteBuilderHandovers", "HostSectionsJson"), ("WebsiteBuilderImports", "SnapshotJson") })
+        {
+            if (!await TableExistsAsync(db, table, ct) || !await ColumnExistsAsync(db, table, column, ct)) continue;
+            foreach (var json in await StringsAsync(db,
+                         $"SELECT `{column}` FROM `{table}` WHERE (AgentUserId = @agentId) AND `{column}` IS NOT NULL AND `{column}` <> ''", agentId, ct))
+            {
+                try
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(json);
+                    var found = new List<string>();
+                    CollectGallerySettings(document.RootElement, found);
+                    // Only a file of the gallery container: an address in a record is whatever the site held.
+                    urls.AddRange(found.Where(url => url.Contains("/website-gallery/", StringComparison.Ordinal)));
+                }
+                catch (System.Text.Json.JsonException) { }
+            }
+        }
+        return urls;
+    }
+
+    // Every gallery section anywhere in a builder record ({ "BlockType": "Gallery", "SettingsJson": "..." }),
+    // whatever list it sits in: its photos' addresses.
+    private static void CollectGallerySettings(System.Text.Json.JsonElement element, List<string> urls)
+    {
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray()) CollectGallerySettings(item, urls);
+            return;
+        }
+        if (element.ValueKind != System.Text.Json.JsonValueKind.Object) return;
+        if (element.TryGetProperty("BlockType", out var type) && type.ValueKind == System.Text.Json.JsonValueKind.String && type.GetString() == "Gallery"
+            && element.TryGetProperty("SettingsJson", out var settings) && settings.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            try { GalleryUrlsIn(settings.GetString() ?? string.Empty, urls); }
+            catch (System.Text.Json.JsonException) { }
+            return;
+        }
+        foreach (var property in element.EnumerateObject()) CollectGallerySettings(property.Value, urls);
+    }
+
+    private static async Task<bool> ColumnExistsAsync(IPRODbContext db, string table, string column, CancellationToken ct) =>
+        await ScalarAsync(db,
+            "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+            $"WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{table}' AND COLUMN_NAME = '{column}'", agentId: null, ct) > 0;
 
     private static async Task<HashSet<string>> SharedAssetUrlsAsync(IPRODbContext db, CancellationToken ct)
     {
@@ -475,20 +529,7 @@ public static class AgentDataEraser
         {
             try
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(json);
-                if (!doc.RootElement.TryGetProperty("Images", out var images)) continue;
-                foreach (var image in images.EnumerateArray())
-                {
-                    // 535: each photo is a full view (Url) and, usually, a small copy for the tiles (ThumbUrl).
-                    foreach (var property in new[] { "Url", "ThumbUrl" })
-                    {
-                        if (image.TryGetProperty(property, out var url) && url.ValueKind == System.Text.Json.JsonValueKind.String
-                            && url.GetString() is { Length: > 0 } value)
-                        {
-                            urls.Add(value);
-                        }
-                    }
-                }
+                GalleryUrlsIn(json, urls);
             }
             catch (System.Text.Json.JsonException)
             {
@@ -497,6 +538,27 @@ public static class AgentDataEraser
             }
         }
         return urls;
+    }
+
+    // The photos one gallery's settings name.
+    private static void GalleryUrlsIn(string settingsJson, List<string> urls)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(settingsJson);
+        if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object || !doc.RootElement.TryGetProperty("Images", out var images)
+            || images.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+        foreach (var image in images.EnumerateArray())
+        {
+            if (image.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+            // 535: each photo is a full view (Url) and, usually, a small copy for the tiles (ThumbUrl).
+            foreach (var property in new[] { "Url", "ThumbUrl" })
+            {
+                if (image.TryGetProperty(property, out var url) && url.ValueKind == System.Text.Json.JsonValueKind.String
+                    && url.GetString() is { Length: > 0 } value)
+                {
+                    urls.Add(value);
+                }
+            }
+        }
     }
 
     // The two apps' schema-repair routines run independently, so a table this map knows about may not

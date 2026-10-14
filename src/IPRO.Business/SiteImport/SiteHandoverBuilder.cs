@@ -12,9 +12,10 @@ namespace IPRO.Business.SiteImport;
 // package holds the site as a template (template.json, assets/) and what the builder needs to edit
 // it without owning any of iPro's content (handover.json, catalog/).
 //
-// A site is handed over whole or not at all (contract section 12): every section one of the types
-// the builder carries and the customer's package includes, every page and field within the
-// contract. Whether it fits is decided by the SAME door a returning package goes through
+// A site is handed over whole or not at all (contract section 12): every page and field within the
+// contract, every section either one of the types the builder carries and the customer's package
+// includes, or (576, contract v0.5) a locked box standing for a section the builder does not carry.
+// Whether it fits is decided by the SAME door a returning package goes through
 // (BuilderPackageReader), so iPro never hands over something it would refuse to take back.
 //
 // Nothing here touches the database or storage: the site comes in as rows, images through a
@@ -29,6 +30,40 @@ public sealed record HandoverImage(string Ref, string Url, string Sha256, long B
 public sealed record HandoverPage(int Id, string Slug, string Fingerprint = "");
 
 public sealed record HandoverForm(WebsiteForm Form, IReadOnlyList<WebsiteFormField> Fields, IReadOnlyDictionary<int, IReadOnlyList<string>> Options);
+
+// 576: a section the builder does not carry (a calculator, a gallery, a price list), as it was at
+// the hand-over. Id is the number its locked box carries (contract section 4.10); PageSlug is the
+// address of the page it stood on, BlockId the row the section was. The rest is what the section
+// said. When its box returns, the section is written as the site has it NOW if the site still has it
+// (SiteImportPlan finds it by that row, or by what it says), and from this record if it does not.
+// (A column added to WebsiteContentBlock belongs here too: HostSections576Tests has a test that
+// every one of them makes the trip.)
+public sealed record HandoverHostSection(
+    int Id, string PageSlug, string BlockType, string Heading, string Subheading, string Body, string ImageUrl,
+    string ButtonText, string ButtonUrl, string SettingsJson, string LayoutVariant, bool IsVisible, int BlockId = 0)
+{
+    public static HandoverHostSection From(WebsiteContentBlock block, int id, string pageSlug) => new(
+        id, pageSlug, block.BlockType, block.Heading ?? string.Empty, block.Subheading ?? string.Empty, block.Body ?? string.Empty,
+        block.ImageUrl ?? string.Empty, block.ButtonText ?? string.Empty, block.ButtonUrl ?? string.Empty,
+        string.IsNullOrWhiteSpace(block.SettingsJson) ? "{}" : block.SettingsJson, block.LayoutVariant ?? string.Empty, block.IsVisible, block.Id);
+
+    // Does this section of the site still say what was recorded? Everything a visitor would read
+    // or see, and not whether it is shown: a section the customer hid since is still that section.
+    public bool Says(WebsiteContentBlock block) =>
+        this with { Id = 0, PageSlug = string.Empty, IsVisible = false, BlockId = 0 } == From(block, 0, string.Empty) with { IsVisible = false, BlockId = 0 };
+
+    // A section of the site as a new row at another place, saying and showing what it does now.
+    public static WebsiteContentBlock Copy(WebsiteContentBlock block, int sortOrder) => From(block, 0, string.Empty).ToBlock(sortOrder, block.IsVisible);
+
+    // The section as a row again. Where it stands and whether it shows are the box's own: the
+    // designer may have moved or hidden it.
+    public WebsiteContentBlock ToBlock(int sortOrder, bool isVisible) => new()
+    {
+        BlockType = BlockType, Heading = Heading, Subheading = Subheading, Body = Body, ImageUrl = ImageUrl,
+        ButtonText = ButtonText, ButtonUrl = ButtonUrl, SettingsJson = SettingsJson, LayoutVariant = LayoutVariant,
+        SortOrder = sortOrder, IsVisible = isVisible
+    };
+}
 
 public sealed class SiteHandover
 {
@@ -55,11 +90,15 @@ public sealed class SiteHandover
     public IReadOnlyList<string> AllowedBlockTypes { get; init; } = Array.Empty<string>();
     public IReadOnlyList<int> ArticleIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> FormIds { get; init; } = Array.Empty<int>();
+    // 576: the sections that went out as locked boxes, each as it was.
+    public IReadOnlyList<HandoverHostSection> HostSections { get; init; } = Array.Empty<HandoverHostSection>();
 }
 
 public static class SiteHandoverBuilder
 {
     public const string HandoverVersion = "1.0";
+    // 576: handover.json lists the locked boxes (catalog.hostSections); contract section 9.2.
+    public const string HandoverVersionWithHostSections = "1.1";
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(12);     // section 9.2
 
     // The catalogue's pictures are for the builder's stand-ins only. They are sent for the newest
@@ -117,17 +156,14 @@ public static class SiteHandoverBuilder
                 blockers.Add($"\"{name}\" has {types.Count} sections, and a page in a package holds at most {BuilderContract.MaxBlocksPerPage}.");
                 unfit.Add(page.Id);
             }
-            var foreign = types.Where(t => !BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal)).Distinct().ToList();
-            if (foreign.Count > 0)
-            {
-                blockers.Add($"\"{name}\" has sections the builder cannot carry yet: {string.Join(", ", foreign.Select(WebsiteBlockTypes.DisplayName))}.");
-            }
+            // 576: a section of a kind the builder does not carry (a calculator, a gallery, a price
+            // list) no longer stops the hand-over: it travels as a locked box (the pages, below).
             var outside = types.Where(t => BuilderContract.BlockTypes.Contains(t, StringComparer.Ordinal) && !input.AllowedBlockTypes.Contains(t)).Distinct().ToList();
             if (outside.Count > 0)
             {
                 blockers.Add($"\"{name}\" has sections this customer's package no longer includes: {string.Join(", ", outside.Select(WebsiteBlockTypes.DisplayName))}.");
+                unfit.Add(page.Id);
             }
-            if (foreign.Count > 0 || outside.Count > 0) unfit.Add(page.Id);
         }
         if (input.Pages.Count > BuilderContract.MaxPages) return Refused();
 
@@ -197,6 +233,7 @@ public static class SiteHandoverBuilder
         var articleIds = input.PublishedArticles.Select(a => a.Id).ToHashSet();
         var formIds = input.ActiveForms.Select(f => f.Form.Id).ToHashSet();
         var pagesOut = new List<(WebsitePage Page, List<Dictionary<string, object?>> Blocks)>();
+        var hostSections = new List<HandoverHostSection>();
         foreach (var page in input.Pages.OrderBy(p => p.ParentPageId.HasValue ? 1 : 0).ThenBy(p => orderInGroup[p.Id]))
         {
             var name = string.IsNullOrWhiteSpace(page.Title) ? "/" + page.Slug : page.Title.Trim();
@@ -206,10 +243,30 @@ public static class SiteHandoverBuilder
             var position = 0;
             foreach (var block in blocks)
             {
+                if (!BuilderContract.BlockTypes.Contains(block.BlockType, StringComparer.Ordinal))
+                {
+                    // 576: the section stays iPro's. Its box carries a number and nothing else, and
+                    // handover.json names it by its kind and its heading. Nothing else of it leaves
+                    // (not its text, its settings or its pictures): the section is kept on the
+                    // hand-over's record, to be written back when the box returns.
+                    var host = HandoverHostSection.From(block, hostSections.Count + 1, page.Slug);
+                    hostSections.Add(host);
+                    written.Add(HostBlock(host.Id, position++, block.IsVisible));
+                    continue;
+                }
                 written.Add(await BlockAsync(block, position++, name, notes, AssetAsync));
             }
             pagesOut.Add((page, written));
         }
+        if (hostSections.Count > 0)
+        {
+            var kinds = hostSections.GroupBy(h => h.BlockType)
+                .Select(g => (g.Count() > 1 ? g.Count() + " x " : string.Empty) + WebsiteBlockTypes.DisplayName(g.Key));
+            notes.Add((hostSections.Count == 1 ? "One section travels as a locked box" : $"{hostSections.Count} sections travel as locked boxes") +
+                $" ({string.Join(", ", kinds)}): the builder shows where each stands and can move, hide or remove it. What it says stays as iPro has it.");
+        }
+        // v0.5 is stated only where it is used: a site with no such section is a v0.4 package as before.
+        var version = hostSections.Count > 0 ? BuilderContract.VersionWithHostSections : BuilderContract.Version;
 
         var logoRef = await AssetAsync(input.Site.LogoUrl ?? string.Empty, "used as the site's logo");
         if (blockers.Count > 0) return Refused();
@@ -285,7 +342,7 @@ public static class SiteHandoverBuilder
         var fingerprints = SiteFingerprint.OfPages(input.Pages);
         var template = new Dictionary<string, object?>
         {
-            ["contractVersion"] = BuilderContract.Version,
+            ["contractVersion"] = version,
             ["templateName"] = templateName,
             ["theme"] = ThemeFor(input.TemplateKey),
             ["handoverId"] = handoverId,
@@ -309,7 +366,8 @@ public static class SiteHandoverBuilder
         // ---- the door: would iPro take this back unchanged? ----
         var allowed = BuilderContract.BlockTypes.Where(input.AllowedBlockTypes.Contains).ToList();
         var context = new BuilderImportContext(handoverId, allowed.ToHashSet(StringComparer.Ordinal), articleIds, formIds,
-            delivered.Select(d => d.Sha256).ToHashSet(StringComparer.Ordinal), input.RemainingBytes);
+            delivered.Select(d => d.Sha256).ToHashSet(StringComparer.Ordinal), input.RemainingBytes,
+            hostSections.Select(h => h.Id).ToHashSet());
         var asReturn = BuilderPackageReader.Read(Zip(new[] { (BuilderContract.TemplateFile, Utf8(templateJson)) }.Concat(files)), context);
         if (!asReturn.IsValid)
         {
@@ -321,11 +379,24 @@ public static class SiteHandoverBuilder
         var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
         var issuedAt = new DateTime(input.UtcNow.Ticks - input.UtcNow.Ticks % TimeSpan.TicksPerSecond, DateTimeKind.Utc);
         var expiresAt = issuedAt.Add(SessionLifetime);
+        var catalogue = new Dictionary<string, object?> { ["articles"] = articles.Cast<object?>().ToList(), ["forms"] = forms.Cast<object?>().ToList() };
+        if (hostSections.Count > 0)
+        {
+            // Section 9.3: enough to name each box (its kind, and its heading to tell two of a kind
+            // apart), and nothing else of what its section holds.
+            catalogue["hostSections"] = hostSections.Select(h => (object?)new Dictionary<string, object?>
+            {
+                ["id"] = h.Id,
+                ["kind"] = HostKind(h.BlockType),
+                ["label"] = HostLabel(h.BlockType),
+                ["title"] = Clip(OneLine(h.Heading), BuilderContract.MaxHostSectionTitle)
+            }).ToList();
+        }
         var handover = new Dictionary<string, object?>
         {
-            ["handoverVersion"] = HandoverVersion,
+            ["handoverVersion"] = hostSections.Count > 0 ? HandoverVersionWithHostSections : HandoverVersion,
             ["handoverId"] = handoverId,
-            ["contractVersion"] = BuilderContract.Version,
+            ["contractVersion"] = version,
             ["issuedAt"] = Iso(issuedAt),
             ["sessionToken"] = sessionToken,
             ["sessionExpiresAt"] = Iso(expiresAt),
@@ -336,7 +407,7 @@ public static class SiteHandoverBuilder
                 ["maxFileBytes"] = BuilderContract.MaxAssetBytes,
                 ["remainingBytes"] = Math.Max(0, input.RemainingBytes == long.MaxValue ? 1024L * 1024 * 1024 : input.RemainingBytes)
             },
-            ["catalog"] = new Dictionary<string, object?> { ["articles"] = articles.Cast<object?>().ToList(), ["forms"] = forms.Cast<object?>().ToList() }
+            ["catalog"] = catalogue
         };
         var handoverJson = Json(handover);
 
@@ -364,8 +435,36 @@ public static class SiteHandoverBuilder
             LogoUrl = input.Site.LogoUrl ?? string.Empty,
             AllowedBlockTypes = allowed,
             ArticleIds = articleIds.OrderBy(id => id).ToList(),
-            FormIds = formIds.OrderBy(id => id).ToList()
+            FormIds = formIds.OrderBy(id => id).ToList(),
+            HostSections = hostSections
         };
+    }
+
+    // Section 4.10: a locked box. Every field empty; the section it stands for is named by number.
+    private static Dictionary<string, object?> HostBlock(int id, int sortOrder, bool isVisible) => new()
+    {
+        ["type"] = BuilderContract.HostSection,
+        ["heading"] = string.Empty,
+        ["subheading"] = string.Empty,
+        ["body"] = string.Empty,
+        ["imageRef"] = string.Empty,
+        ["buttonText"] = string.Empty,
+        ["buttonUrl"] = string.Empty,
+        ["layoutVariant"] = string.Empty,
+        ["sortOrder"] = sortOrder,
+        ["isVisible"] = isVisible,
+        ["settings"] = new Dictionary<string, object?> { ["hostSectionId"] = id }
+    };
+
+    // iPro's own name for the kind of section, for the builder's icon at most (section 9.3).
+    private static string HostKind(string blockType) =>
+        BuilderContract.HostSectionKind.IsMatch(blockType ?? string.Empty) ? blockType! : "Section";
+
+    // What the box is called: the name the page editor gives that kind of section.
+    private static string HostLabel(string blockType)
+    {
+        var label = Clip(OneLine(WebsiteBlockTypes.DisplayName(blockType ?? string.Empty)), BuilderContract.MaxHostSectionLabel);
+        return label.Length > 0 ? label : "Section";
     }
 
     // One section as the contract writes it: every key, a field its type does not use left empty.
@@ -450,8 +549,8 @@ public static class SiteHandoverBuilder
             : "modern";
     }
 
-    // v0.4 names three verticals. A business of any other kind travels as "advisers" until the
-    // contract has a value for it (the v0.5 draft); the builder uses this for display defaults only.
+    // The contract names three verticals. A business of any other kind travels as "advisers" until the
+    // contract has a value for it (v0.5 did not add one); the builder uses this for display defaults only.
     public static string VerticalFor(string? businessType)
     {
         var type = businessType ?? string.Empty;

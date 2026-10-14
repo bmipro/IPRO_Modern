@@ -34,4 +34,9 @@ public class WebsiteBuilderHandover
     public string NotesJson { get; set; } = "[]";
     // 574: the site's logo address at the hand-over. A logo changed in iPro since is said at the return.
     public string LogoUrl { get; set; } = string.Empty;
+    // 576: the sections the builder does not carry (a calculator, a gallery, a price list), each as
+    // it was at the hand-over. In the package such a section is a locked box that carries only its
+    // number; when the box comes back, the section is written from this record. A JSON list of
+    // HandoverHostSection. Null on a row made before host sections existed.
+    public string? HostSectionsJson { get; set; }
 }

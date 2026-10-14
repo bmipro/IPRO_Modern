@@ -149,7 +149,8 @@ public class SiteHandover572Tests
 
         Assert.False(refused.CanHandOver);
         Assert.Empty(refused.Zip);
-        Assert.Contains(refused.Blockers, b => b.Contains("\"About\" has sections the builder cannot carry yet: Map."));
+        // 576: a section the builder does not have no longer stops a hand-over (it travels as a locked box).
+        Assert.DoesNotContain(refused.Blockers, b => b.Contains("Map") || b.Contains("\"About\""));
         Assert.Contains(refused.Blockers, b => b.Contains("\"Our team\" has no sections of its own"));
         Assert.Contains(refused.Blockers, b => b.Contains("could not be read from iPro's storage (0123456789abcdef0123456789abcdef_gone.png)"));
         Assert.Contains(refused.Blockers, b => b.Contains("is not a JPG, PNG, GIF or WebP image"));

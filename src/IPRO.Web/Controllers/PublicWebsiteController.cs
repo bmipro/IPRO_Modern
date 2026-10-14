@@ -79,7 +79,7 @@ public class PublicWebsiteController : Controller
     // A public address, so scanners will find it: a request without a well-formed key is answered
     // before the database is asked anything.
     [HttpGet]
-    public async Task<IActionResult> PreviewBuilderImport(int id, string? key, string? page, int? design, string? without, string? keep)
+    public async Task<IActionResult> PreviewBuilderImport(int id, string? key, string? page, int? design, string? without, string? keep, string? sections = null)
     {
         if (id <= 0 || !IPRO.Business.SiteImport.BuilderImportService.LookKeyLooksRight(key)) return NotFound();
         // The key is settled on three small columns. The row itself (a whole site's content) is read
@@ -91,12 +91,13 @@ public class PublicWebsiteController : Controller
         var import = await _db.WebsiteBuilderImports.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
         if (import == null) return NotFound();
 
-        var model = await IPRO.Web.Infrastructure.BuilderImportPreviewBuilder.BuildAsync(_db, import, page, design, without, keep);
+        var model = await IPRO.Web.Infrastructure.BuilderImportPreviewBuilder.BuildAsync(_db, import, page, design, without, keep, sections);
         if (model == null) return NotFound();
 
         ViewBag.IsTemplatePreview = true;
-        // The three designs show a banner on a preview; this one says what this preview is.
-        ViewBag.PreviewBanner = "A look at a Template Builder package before it is brought in. Nothing on the site has changed.";
+        // The three designs show a banner on a preview; this one says what this preview is, and
+        // (576) whether the page shown comes from the package or stays as it is.
+        ViewBag.PreviewBanner = "A look at a Template Builder package before it is brought in. " + model.PreviewNote + " Nothing on the site has changed.";
         Response.Headers.CacheControl = "no-store";
         Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
         return View("~/Views/PublicWebsite/Index.cshtml", model);

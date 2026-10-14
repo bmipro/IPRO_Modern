@@ -62,7 +62,10 @@ public static class BlobReferences
         // 574: so does the newest hand-over of a site. Its package comes back naming pictures by
         // their content, and an unchanged one is linked to the file it had: that file must still be
         // there. (An older hand-over's list is emptied when a newer one is recorded.)
-        ("WebsiteBuilderHandovers", "DeliveredJson")
+        ("WebsiteBuilderHandovers", "DeliveredJson"),
+        // 576: and the sections it sent out as locked boxes. A gallery deleted in iPro while its
+        // package is out comes back with the return, so its pictures must still be there.
+        ("WebsiteBuilderHandovers", "HostSectionsJson")
     };
 
     // The containers this application owns, and what each holds. The report enumerates exactly
@@ -106,19 +109,39 @@ public static class BlobReferences
 
         // LIKE with explicit escaping: a URL containing % or _ (rare but legal in query strings)
         // must match itself, not act as a wildcard.
-        var escaped = url.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        // 576: and the address is looked for in every spelling stored JSON gives it (Spellings).
+        var spellings = Spellings(url);
         foreach (var (table, column) in ContentColumns)
         {
-            if (!await TableExistsAsync(db, table, ct)) continue;
+            // The column, not only its table: one of these is added to an existing table by a
+            // start-up step (576), and a step that failed once must not make every "is this file
+            // still used?" question fail with it.
+            if (!await ColumnExistsAsync(db, table, column, ct)) continue;
             total += await ScalarCountAsync(db,
-                $"SELECT COUNT(*) FROM `{table}` WHERE `{column}` LIKE @p0 ESCAPE '\\\\'",
-                new MySqlParameter("@p0", "%" + escaped + "%"), ct);
+                $"SELECT COUNT(*) FROM `{table}` WHERE " + string.Join(" OR ", spellings.Select((_, i) => $"`{column}` LIKE @p{i} ESCAPE '\\\\'")), ct,
+                spellings.Select((s, i) => new MySqlParameter($"@p{i}", "%" + s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%")).ToArray());
         }
 
         return total;
     }
 
-    private static async Task<int> ScalarCountAsync(IPRODbContext db, string sql, MySqlParameter p, CancellationToken ct)
+    // An address inside stored JSON is not always written as it is. The settings classes (a gallery's
+    // photos, a price list's pictures) use the default JSON writer, which turns an accent and a few
+    // other characters into an escape: "Montr\u00E9al.jpg". And settings kept inside another JSON
+    // text (the kept copy of a site, a hand-over's record of a locked box) have every backslash
+    // doubled. A picture named only in one of those spellings was taken for unused (found by the
+    // security audit of 576). All three are looked for: this can only ever keep more files.
+    public static IReadOnlyList<string> Spellings(string url)
+    {
+        var asJson = System.Text.Json.JsonSerializer.Serialize(url);
+        var written = asJson[1..^1];
+        return new[] { url, written, written.Replace("\\", "\\\\") }.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    private static Task<int> ScalarCountAsync(IPRODbContext db, string sql, MySqlParameter p, CancellationToken ct) =>
+        ScalarCountAsync(db, sql, ct, p);
+
+    private static async Task<int> ScalarCountAsync(IPRODbContext db, string sql, CancellationToken ct, params MySqlParameter[] parameters)
     {
         var connection = db.Database.GetDbConnection();
         var wasClosed = connection.State != System.Data.ConnectionState.Open;
@@ -130,9 +153,30 @@ public static class BlobReferences
             // a raw command on the same connection must join it or MySqlConnector refuses.
             command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
             command.CommandText = sql;
-            command.Parameters.Add(p);
+            foreach (var p in parameters) command.Parameters.Add(p);
             var result = await command.ExecuteScalarAsync(ct);
             return Convert.ToInt32(result);
+        }
+        finally
+        {
+            if (wasClosed) await connection.CloseAsync();
+        }
+    }
+
+    private static async Task<bool> ColumnExistsAsync(IPRODbContext db, string table, string column, CancellationToken ct)
+    {
+        var connection = db.Database.GetDbConnection();
+        var wasClosed = connection.State != System.Data.ConnectionState.Open;
+        if (wasClosed) await connection.OpenAsync(ct);
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+            command.CommandText =
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @t AND COLUMN_NAME = @c";
+            command.Parameters.Add(new MySqlParameter("@t", table));
+            command.Parameters.Add(new MySqlParameter("@c", column));
+            return Convert.ToInt32(await command.ExecuteScalarAsync(ct)) > 0;
         }
         finally
         {

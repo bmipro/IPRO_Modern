@@ -218,7 +218,10 @@ public class BuilderImportScreens571Tests
         var reviewHtml = await RenderAsync("~/Views/BuilderImports/Review.cshtml", review);
         Assert.Contains("bakery.zip", reviewHtml);
         Assert.Contains("Nothing on the site has changed yet.", reviewHtml);
-        Assert.Contains("The builder cannot carry these, so they go: <strong>Review Badge</strong>", reviewHtml);
+        // 576: each such section is named by itself, with a box to keep it.
+        Assert.Contains("<strong>Review Badge", reviewHtml);
+        Assert.Contains("is not in the package (a site built from scratch cannot bring one), so it goes.", reviewHtml);
+        Assert.Matches("name=\"sections\" value=\"\\d+\"", reviewHtml);
         Assert.Contains("Will be removed", reviewHtml);
         Assert.Contains($"name=\"without\" value=\"{menuId}\"", reviewHtml);
         Assert.Contains("PreviewBuilderImport?id=" + importId, reviewHtml);

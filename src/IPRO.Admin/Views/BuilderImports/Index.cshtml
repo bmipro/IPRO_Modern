@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = $"Template Builder: {Model.Agent.UserName}";
     string When(DateTime utc) => IPRO.Admin.Infrastructure.AdminClock.Format(utc, Model.Zone);
-    var business = string.IsNullOrWhiteSpace(Model.Agent.CompanyName) ? $"{Model.Agent.FirstName} {Model.Agent.LastName}" : Model.Agent.CompanyName;
+    var business = string.IsNullOrWhiteSpace(Model.Agent.CompanyName) ? $"{Model.Agent.FirstName} {Model.Agent.LastName}" : Model.Agent.CompanyName.TrimEnd('.');
 }
 
 <div class="mb-4">
@@ -87,7 +87,8 @@ else
                 </div>
             }
             <ul class="text-muted small mt-3 mb-0">
-                <li>A site is handed over whole. If a page has a section the builder does not have (a map, a gallery, a price list, reviews), or a page shows only the design's standard layout, the reasons are listed and nothing is made.</li>
+                <li>A site is handed over whole. A section the builder does not have (a map, a gallery, a price list, a calculator) travels as a locked box: the builder shows where it stands and can move, hide or remove it, and it comes back exactly as it is here.</li>
+                <li>If a page shows only the design's standard layout (it has no sections of its own), the reason is listed and nothing is made.</li>
                 <li>What is changed in iPro after the hand-over is replaced when the package comes back. The review names the pages this affects.</li>
             </ul>
         </div>

@@ -40,6 +40,8 @@ public sealed class BuilderImportReviewViewModel
     // removed in the builder that the operator keeps after all.
     public WebsiteBuilderHandover? Handover { get; init; }
     public IReadOnlySet<int> Keep { get; init; } = new HashSet<int>();
+    // 576: the sections of replaced pages the operator keeps, by their rows (SectionGoing.BlockId).
+    public IReadOnlySet<int> KeepSections { get; init; } = new HashSet<int>();
     // The address of the look for one page: this, with the page's slug appended.
     public string LookAddress { get; init; } = string.Empty;
     public string Zone { get; init; } = string.Empty;

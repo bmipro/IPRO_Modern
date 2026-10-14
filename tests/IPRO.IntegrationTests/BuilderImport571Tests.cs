@@ -93,7 +93,7 @@ public class BuilderImport571Tests
 
         var problem = Assert.Single(package.Problems);
         Assert.Equal("0", problem.Rule);
-        Assert.Contains("\"0.4\" only", problem.Message);
+        Assert.Contains("takes versions \"0.4\" and \"0.5\" only", problem.Message);   // 576: v0.5 is v0.4 plus the locked box
     }
 
     [Fact]

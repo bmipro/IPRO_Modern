@@ -1424,6 +1424,7 @@ public static class StartupSchemaRepair
         `DeliveredJson` longtext CHARACTER SET utf8mb4 NOT NULL,
         `NotesJson` longtext CHARACTER SET utf8mb4 NOT NULL,
         `LogoUrl` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `HostSectionsJson` longtext CHARACTER SET utf8mb4 NULL,
         PRIMARY KEY (`Id`),
         UNIQUE KEY `IX_WebsiteBuilderHandovers_HandoverId` (`HandoverId`),
         KEY `IX_WebsiteBuilderHandovers_AgentUserId` (`AgentUserId`),
@@ -1433,6 +1434,9 @@ public static class StartupSchemaRepair
         // 574: a table made on 2026-10-12, before the logo's address was recorded.
         await EnsureTableColumnAsync(db, "WebsiteBuilderHandovers", "LogoUrl",
             "ALTER TABLE `WebsiteBuilderHandovers` ADD COLUMN `LogoUrl` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        // 576: the sections that travel as locked boxes, as they were at the hand-over.
+        await EnsureTableColumnAsync(db, "WebsiteBuilderHandovers", "HostSectionsJson",
+            "ALTER TABLE `WebsiteBuilderHandovers` ADD COLUMN `HostSectionsJson` longtext CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "WebsiteMediaAssets", "ContentSha256",
             "ALTER TABLE `WebsiteMediaAssets` ADD COLUMN `ContentSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     }

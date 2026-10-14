@@ -99,9 +99,12 @@ public static class SiteHandoverService
 
         // 574: only the newest hand-over can come back, so only its pictures need keeping. An older
         // one lets go of the list that holds them (BlobReferences reads DeliveredJson).
-        foreach (var older in await db.WebsiteBuilderHandovers.Where(h => h.AgentWebsiteId == site.Id && h.DeliveredJson != "[]").ToListAsync())
+        foreach (var older in await db.WebsiteBuilderHandovers
+                     .Where(h => h.AgentWebsiteId == site.Id && (h.DeliveredJson != "[]" || h.HostSectionsJson != null)).ToListAsync())
         {
             older.DeliveredJson = "[]";
+            // 576: and of the sections it sent out as locked boxes (their pictures are held the same way).
+            older.HostSectionsJson = null;
         }
 
         var row = new WebsiteBuilderHandover
@@ -125,7 +128,9 @@ public static class SiteHandoverService
             // the "is this file still used?" check looks for the address as text.
             DeliveredJson = JsonSerializer.Serialize(handover.Delivered, AddressesAsWritten),
             LogoUrl = handover.LogoUrl.Length <= 500 ? handover.LogoUrl : string.Empty,
-            NotesJson = JsonSerializer.Serialize(handover.Notes)
+            NotesJson = JsonSerializer.Serialize(handover.Notes),
+            // 576: each locked box's section as it was, addresses written as they are (see DeliveredJson).
+            HostSectionsJson = handover.HostSections.Count == 0 ? null : JsonSerializer.Serialize(handover.HostSections, AddressesAsWritten)
         };
         db.WebsiteBuilderHandovers.Add(row);
         await db.SaveChangesAsync();
@@ -148,6 +153,10 @@ public static class SiteHandoverService
             .Where(h => h.AgentWebsiteId == websiteId)
             .OrderByDescending(h => h.IssuedAt).ThenByDescending(h => h.Id)
             .FirstOrDefaultAsync();
+
+    // 576: the sections a hand-over sent out as locked boxes (none for a row made before they existed).
+    public static IReadOnlyList<HandoverHostSection> HostSections(WebsiteBuilderHandover? handover) =>
+        string.IsNullOrWhiteSpace(handover?.HostSectionsJson) ? Array.Empty<HandoverHostSection>() : List<HandoverHostSection>(handover.HostSectionsJson);
 
     public static IReadOnlyList<T> List<T>(string json)
     {

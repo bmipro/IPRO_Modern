@@ -31,6 +31,8 @@ public static class BuilderImportService
 
     public sealed record ApplyResult(bool Ok, IReadOnlyList<string> Problems)
     {
+        // 576: how many sections of replaced pages were kept though the package did not have them.
+        public int KeptSections { get; init; }
         public static ApplyResult Failed(params string[] problems) => new(false, problems);
         public static ApplyResult Done() => new(true, Array.Empty<string>());
     }
@@ -69,7 +71,9 @@ public static class BuilderImportService
         var forms = await db.WebsiteForms.AsNoTracking()
             .Where(f => f.AgentUserId == site.AgentUserId && f.IsActive && listedForms.Contains(f.Id)).Select(f => f.Id).ToListAsync();
         foreach (var delivered in SiteHandoverService.List<HandoverImage>(handover.DeliveredJson)) known.Add(delivered.Sha256);
-        return new BuilderImportContext(handover.HandoverId, allowed, articles.ToHashSet(), forms.ToHashSet(), known, remaining);
+        // 576: and the locked boxes it sent out. Only those may come back.
+        return new BuilderImportContext(handover.HandoverId, allowed, articles.ToHashSet(), forms.ToHashSet(), known, remaining,
+            SiteHandoverService.HostSections(handover).Select(h => h.Id).ToHashSet());
     }
 
     public static async Task<WebsiteBuilderImport> StoreAsync(
@@ -174,8 +178,10 @@ public static class BuilderImportService
 
     // The stored package read again and laid over the site as it is now. Plan is null when the
     // package no longer passes (Package.Problems says why).
+    // keepSectionIds (576): the sections of replaced pages the operator keeps, by their rows (SectionGoing.BlockId).
     public static async Task<PlanResult?> PlanAsync(
-        IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int>? removePageIds = null, IReadOnlySet<int>? keepPageIds = null)
+        IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int>? removePageIds = null, IReadOnlySet<int>? keepPageIds = null,
+        IReadOnlySet<int>? keepSectionIds = null)
     {
         var site = await db.AgentWebsites.AsNoTracking().Include(w => w.AgentUser).Include(w => w.Template)
             .FirstOrDefaultAsync(w => w.Id == import.AgentWebsiteId);
@@ -253,7 +259,7 @@ public static class BuilderImportService
         }
 
         var plan = SiteImportPlan.Build(package.Template, urls, site, pages, removePageIds ?? new HashSet<int>(), handedOver, keepPageIds, problems,
-            rowBySlug, changed, logoChanged, carried);
+            rowBySlug, changed, logoChanged, carried, SiteHandoverService.HostSections(handover), keepSectionIds);
         return new PlanResult(package, plan, site, handover);
     }
 
@@ -281,7 +287,7 @@ public static class BuilderImportService
     // switches the site to that design.
     public static async Task<ApplyResult> ApplyAsync(
         IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int> removePageIds, int? templateId, string appliedBy, IReadOnlySet<int>? keepPageIds = null,
-        string? reviewedPlan = null)
+        string? reviewedPlan = null, IReadOnlySet<int>? keepSectionIds = null)
     {
         Track(db, import);
         if (templateId.HasValue && !await db.WebsiteTemplates.AnyAsync(t => t.Id == templateId.Value && t.IsActive))
@@ -300,7 +306,7 @@ public static class BuilderImportService
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Applied));
         if (claimed != 1) return ApplyResult.Failed("This package has already been brought in or dropped.");
 
-        var planned = await PlanAsync(db, import, removePageIds, keepPageIds);
+        var planned = await PlanAsync(db, import, removePageIds, keepPageIds, keepSectionIds);
         if (planned == null) return ApplyResult.Failed("The customer's website no longer exists.");
         if (planned.Plan == null) return new ApplyResult(false, planned.Package.Problems.Select(p => $"{p.Where}: {p.Message}").ToList());
         if (planned.Plan.Problems.Count > 0) return new ApplyResult(false, planned.Plan.Problems);
@@ -311,7 +317,9 @@ public static class BuilderImportService
         // longer the plan the screen showed.
         if (reviewedPlan != null && !string.Equals(reviewedPlan, plan.Fingerprint, StringComparison.Ordinal))
         {
-            return ApplyResult.Failed("The site has changed since this review was opened, so bringing the package in would not do what the screen said. Nothing was changed. Read the review again.");
+            // 576: a box ticked or cleared on the screen without "update the looks" lands here too,
+            // so the sentence covers both; the review is shown again with what would happen now.
+            return ApplyResult.Failed("What bringing it in would do is no longer what the screen showed: a choice on the screen was changed, or the site itself changed meanwhile. Nothing was changed. The review now shows what would happen: read it, then bring it in.");
         }
 
         var site = await db.AgentWebsites.FirstAsync(w => w.Id == import.AgentWebsiteId);
@@ -410,7 +418,7 @@ public static class BuilderImportService
         import.PreviewKeyExpiresAt = null;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
-        return ApplyResult.Done();
+        return ApplyResult.Done() with { KeptSections = plan.Pages.Sum(p => p.SectionsGoing.Count(g => g.Kept)) };
     }
 
     // The newest package that went in and has not been taken back out: the only one whose "before" is

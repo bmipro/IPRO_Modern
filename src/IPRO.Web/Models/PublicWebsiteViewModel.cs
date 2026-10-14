@@ -7,6 +7,9 @@ public class PublicWebsiteViewModel
     public AgentWebsite Website { get; set; } = null!;
     public List<WebsitePage> Pages { get; set; } = new();
     public WebsitePage? CurrentPage { get; set; }
+    // 576: for a look at a Template Builder package, what happens to the page shown: it comes from
+    // the package, or it is not in the package and stays as it is. Null everywhere else.
+    public string? PreviewNote { get; set; }
 
     // The site is live and rendering normally, but the requested slug is not one of its pages --
     // an ordinary 404 on a working website. Distinct from the "no published website for this host"

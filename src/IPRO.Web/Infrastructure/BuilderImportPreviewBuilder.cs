@@ -14,10 +14,11 @@ namespace IPRO.Web.Infrastructure;
 public static class BuilderImportPreviewBuilder
 {
     public static async Task<PublicWebsiteViewModel?> BuildAsync(
-        IPRODbContext db, WebsiteBuilderImport import, string? pageSlug, int? design, string? without, string? keep = null)
+        IPRODbContext db, WebsiteBuilderImport import, string? pageSlug, int? design, string? without, string? keep = null, string? sections = null)
     {
         // The same reading of "12,15" the review screen uses, so a look shows the choices it was opened with.
-        var planned = await BuilderImportService.PlanAsync(db, import, BuilderImportService.ParseIds(without), BuilderImportService.ParseIds(keep));
+        var planned = await BuilderImportService.PlanAsync(db, import, BuilderImportService.ParseIds(without), BuilderImportService.ParseIds(keep),
+            BuilderImportService.ParseIds(sections));
         if (planned?.Plan == null || planned.Plan.Problems.Count > 0) return null;
         var plan = planned.Plan;
 
@@ -56,11 +57,20 @@ public static class BuilderImportPreviewBuilder
                 .ToListAsync()
             : new List<TestimonialSubmission>();
 
+        // 576: a replaced page drawn in the customer's own design can look like the page it replaces
+        // (the same header, colours and kind of sections), so the look says which it is.
+        var change = plan.Pages.First(p => ReferenceEquals(p.Page, current)).Change;
         return new PublicWebsiteViewModel
         {
             Website = site,
             Pages = pages,
             CurrentPage = current,
+            PreviewNote = change switch
+            {
+                PageChange.Replaced => "THIS PAGE COMES FROM THE PACKAGE and would replace the one the site has now. Header, menu, colours and fonts are the site's own design, not the builder's.",
+                PageChange.Added => "THIS PAGE IS NEW, from the package. Header, menu, colours and fonts are the site's own design, not the builder's.",
+                _ => "THIS PAGE IS NOT IN THE PACKAGE: it stays exactly as it is now."
+            },
             ApprovedTestimonials = testimonials,
             PollResultsByBlockId = await PollResultsBuilder.BuildAsync(db, agentId, current, isOwnerPreview: true),
             PollVoteByBlockId = await PollVoteBuilder.BuildAsync(db, agentId, current, new HashSet<int>(), isOwnerPreview: true),

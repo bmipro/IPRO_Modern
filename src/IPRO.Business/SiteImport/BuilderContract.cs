@@ -9,6 +9,19 @@ namespace IPRO.Business.SiteImport;
 public static class BuilderContract
 {
     public const string Version = "0.4";                                  // section 0
+    // 576, v0.5: v0.4 plus host sections, and stated only where it is used (section 0). The
+    // hand-over of a site that has such a section says "0.5", and so does its return, even one that
+    // comes back with every box removed. Every other package says "0.4" and is byte for byte what it was.
+    public const string VersionWithHostSections = "0.5";
+    public static readonly string[] Versions = { Version, VersionWithHostSections };
+
+    // Section 4.10: a section the builder does not carry, travelling as a locked box. Not one of
+    // iPro's own section types and never stored as one: on the way back it becomes the section it
+    // stands for (SiteImportPlan).
+    public const string HostSection = "HostSection";
+    // Section 9.3, catalog.hostSections[].kind: iPro's own name for the kind of section.
+    public static readonly Regex HostSectionKind = new(@"\A[A-Za-z][A-Za-z0-9]{0,39}\z", RegexOptions.CultureInvariant);
+    public const int MaxHostSectionLabel = 60, MaxHostSectionTitle = 200;
 
     // Section 1: the package.
     public const long MaxZipBytes = 40L * 1024 * 1024;                    // rule 5
@@ -53,6 +66,7 @@ public static class BuilderContract
         WebsiteBlockTypes.ArticleContent => new[] { "heading", "subheading", "body", "imageRef", "buttonText", "buttonUrl" },
         WebsiteBlockTypes.Blog => new[] { "imageRef", "buttonText", "buttonUrl" },
         WebsiteBlockTypes.Form => new[] { "imageRef", "buttonText", "buttonUrl" },
+        HostSection => new[] { "heading", "subheading", "body", "imageRef", "buttonText", "buttonUrl" },
         _ => Array.Empty<string>()
     };
 
