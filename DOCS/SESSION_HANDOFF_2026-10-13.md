@@ -155,8 +155,77 @@
 - **Next, on the branch, and again only on his word:** the builder for customers (it needs a place on the internet,
   which is his decision and cost; sign-in with a draft per customer; the per-agent Beta switch).
 
+## 576: locked boxes, after his first real try (PARKED)
+
+- **What he hit.** The evening the staff-only part went live he tried it on his own site. "Make the package" refused:
+  fourteen pages hold sections the builder does not carry. He then uploaded a sample built from scratch in the
+  builder; the review said his Did You Know teaser would go; and "Look" showed him, in his words, "my own site with
+  no changes". **The sample package is still waiting on his live site (import 1): nothing was brought in.** He was
+  told what "Bring it in" would do (replace his Home and Contact pages, live at once) and that "Drop this package"
+  leaves the site untouched. His call.
+- **The look was right, and unreadable.** The live server's own record (App Insights `requests` on
+  `ipro-prod-web-insights`, read-only) shows his one click answered with the package's Home page, and his exact file
+  on a local copy draws the sample's page ("Planning with a steady hand"). It looked like his site because the sample
+  has the same kind of sections as his Home page and because colours, fonts, header and menu are the site's own
+  design. The look now says at the top which kind of page it is. **He may expect the builder's design to travel. It
+  does not** (the contract, since v0.2: words, pictures, sections and their order travel; styling is the site's). He
+  was told plainly; if he wants the design to travel, that is the larger piece the 10-10 handoff called "the look",
+  and it is not started.
+- **576 is built and PARKED: `47e986d` on the local branch `hold/576-locked-boxes`.** Not on `main`, not gated
+  on its final tree, not pushed. The TODO row has the whole of it. In one line: a section the builder does not
+  carry goes out as a locked box and comes back as the section the site has then, and every section a package
+  would drop is named with a tick box to keep it.
+- **Why parked and not held on `main`:** he closed the day while the last full run was still to be started. The
+  full suite ran on two earlier states of the work and passed as far as it got; each time a review finding
+  superseded the tree before the run ended. On the final tree: its own 24 tests, and 111 around it.
+- **Reviewed the way he asked:** three independent readers (security, function, code quality), given the code and
+  not our conclusions, then two re-checks of the answers. No hole, no path to another customer's data. The last
+  reader's verdict on the state before the final change: nothing that should stop it going to production, one
+  weak spot after a put-back or a second return (answered in the final change, by his own suggestion), and tests
+  that did not pin the heart of the rework (six added; each fails when its piece is switched off).
+- **The builder's side is `ba49da9` on its `ipro/beta`** (local, not pushed; four commits today). It was
+  written by a second session from the contract text and checked here before it was believed.
+- **Both of his builders (ports 5087 and 5088) still run the build from before this.** They open and export v0.4
+  packages as before. To open a package that has locked boxes, the build under
+  `C:\Users\admin\Projects\ipro-builder-site\build` has to be replaced with one published from `ba49da9`: stop both,
+  publish, start both (the steps are in the section on the move out of TEMP, above). Not done: it means stopping
+  his builder, so it waits for his word together with the deploy.
+- **The order of a release, when he says so:** push `main` (iPro then makes and takes v0.5 packages; nothing
+  changes for a v0.4 one), verify both hosts, then put the new build under his builders. In that order: a new
+  builder returning "0.5" to an iPro that does not know it yet would be refused on the version.
+
 ## Still his
 
 - Which of the 74 images are licensed for customers' sites.
-- Stage 1 to production first, or everything together later.
+- The sample package waiting on his own live site (import 1): bring it in, or drop it.
+- His word to finish and deploy 576 (locked boxes), and with it the new build under his two builders.
+- Whether the builder's DESIGN should travel to iPro (today only words, pictures and sections do).
 - From 10-12, unchanged: SES step 8.2; his GST/HST number for 570.
+
+## Close-out 2026-10-13
+
+| What | Where | State |
+|---|---|---|
+| 573 (posted records, SECURITY) | `main`, live as build `cd54996` | deployed, verified on both hosts |
+| 575 (three old addresses) | `main`, live as build `8c3f86d` | deployed, verified on both hosts |
+| 571, 572, 574 (staff-only Template Builder) | `main`, live as build `5858ff8` | deployed, verified on both hosts |
+| check-marks and these notes | `main`, local only | held: a push restarts the site, so it waits for his word |
+| 576 (locked boxes) | `hold/576-locked-boxes` `47e986d`, local only | PARKED: reviewed, not gated on its final tree |
+| the builder, contract v0.5 | `C:\Users\admin\Projects\ipro-builder`, `ipro/beta` `ba49da9`, local only | 375 and 37 tests green |
+
+- **Production is build `5858ff8` on both hosts,** as it was after the last deploy. Nothing was pushed since.
+- **Backups (20261013-223718),** in `OneDrive\Codex_Code_Bkup` and `Documents\IPRO_Backups`: a zip of `main`; a bundle of
+  `main`, the builder branch and the parked branch; the parked work as a `.patch`; a bundle of the builder's
+  `ipro/beta`. His builder site's data was not copied again: its saved design is the one in the 17:34 zip.
+- **Stopped:** the local file-storage emulator and the build servers. **Left running, his:** the two builders on
+  ports 5087 and 5088 (`ipro-builder-site`), and MySQL (a Windows service).
+
+## Do this first tomorrow
+
+1. Ask what he decided about the sample package waiting on his live site (import 1).
+2. Finish 576: `git checkout main`, `git merge --no-ff hold/576-locked-boxes` (or cherry-pick `47e986d`), pin check,
+   `gate_576.sh prepare`, the four parts, `sum`. Expect 1,768 tests. Commit on `main`, HELD.
+3. Tell him in plain words what the release does and ask for his word. On yes: push `main`, verify both hosts,
+   then publish `ba49da9` under his two builders (stop, publish, start; rehearse on a copy first).
+4. Then have him make the package of his own site again. If something else stops it (a page with no sections of
+   its own, a picture that cannot be read, a field longer than the contract carries), the screen says which.
