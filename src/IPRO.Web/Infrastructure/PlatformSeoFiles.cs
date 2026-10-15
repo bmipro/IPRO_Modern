@@ -14,7 +14,7 @@ namespace IPRO.Web.Infrastructure;
 public static class PlatformSeoFiles
 {
     // Pages a brand name may serve, then pages that live on the platform host only.
-    private static readonly string[] PublicPages = { "/", "/accountants", "/mortgage", "/terms", "/privacy" };
+    private static readonly string[] PublicPages = { "/", "/accountants", "/mortgage", "/terms", "/privacy", "/accessibility" };
 
     public static bool IsPlatformOrAlias(IConfiguration configuration, string? host)
     {

@@ -982,6 +982,22 @@ public class PublicWebsiteController : Controller
                 if (movedTo != null) return MovedForGood(movedTo);
             }
 
+            if (currentPage == null && IPRO.Web.Infrastructure.AccessibilityStatement.IsAddress(slug))
+            {
+                // 579: every site's accessibility statement, linked from its footer, written from what
+                // the site already has. The owner's own page at this address was looked for first and
+                // wins. It costs less than the 404 below (no canonical origin: the statement declares
+                // none), so a scanner asking for it once a second is no new load; not counted as a page
+                // view either.
+                return View("Index", new PublicWebsiteViewModel
+                {
+                    Website = website,
+                    Pages = pages,
+                    CurrentPage = null,
+                    AccessibilityStatement = true
+                });
+            }
+
             if (currentPage == null)
             {
                 // A LIVE site that simply has no page with this slug: an ordinary 404, and it must

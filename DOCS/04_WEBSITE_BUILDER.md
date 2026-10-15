@@ -257,7 +257,7 @@ A small arrow icon linking to the agent portal sign-in page always appears in th
 6. Optionally enable the disclaimer and enter its text.
 7. Click **Save Footer**.
 
-The footer appears on every published page across all templates, including the temporary domain and any connected custom domains. Footer style automatically matches the selected template; no separate footer design controls are needed.
+The footer appears on every published page across all templates, including the temporary domain and any connected custom domains. Footer style automatically matches the selected template; no separate footer design controls are needed. Every footer ends its legal links with **Accessibility**, the website's accessibility statement (see Accessibility statement).
 
 ## Show Reviews From Google
 
@@ -435,6 +435,12 @@ What the three designs do for visitors who use a keyboard, a screen reader or a 
 What stays the website owner's: describing pictures that carry information, captions on videos they embed, accessible PDFs they offer for download, link and button wording that says where it goes, and marking a French page.
 
 iPro checks every design automatically before each release.
+
+### Accessibility statement
+
+Every website has an accessibility statement at `/accessibility` (for example `yourfirm.com/accessibility`), linked as **Accessibility** at the end of the footer's legal links. Nothing needs setting up: it is written from the website's name, its language (English or French) and the phone, email and address in the footer (the account's phone when the footer has neither a phone nor an email; never the account's sign-in email). It says what the site aims for (WCAG 2.1 AA, without claiming it is met: no one has checked the designs with a screen reader yet), what visitors can do with their own screen reader, keyboard and zoom, the known limits (pictures not described, videos without captions, PDFs, parts from other companies such as YouTube or Google Maps, and a dark page background when one was picked with the color control), and how to ask for help or another format. Its form is the site's contact form: a request arrives under **Website Leads** and by email like any other message, with `/accessibility` as its source page.
+
+To use your own words, create a page whose address (URL slug) is `accessibility`: it replaces the standard statement, and the footer link goes to it. A footer that already has a legal link with "Accessibility" in its name does not get a second one. Previews do not show the link (they open on iPro's own address, where it would lead to iPro's statement).
 
 ## Preview a Page
 

@@ -221,31 +221,50 @@ internal static class PublicSitePages
     {
         /// <summary>A turned-down form to show again, kept as the controller keeps it.</summary>
         public IPRO.Web.Infrastructure.PublicFormRetry? Retry { get; set; }
+        /// <summary>579: the address asked for, when it is not the page's own (/accessibility).</summary>
+        public string? Path { get; set; }
+        /// <summary>579: ViewBag values the controller sets (the preview flags).</summary>
+        public Dictionary<string, object?> ViewBag { get; } = new();
     }
 
     public static async Task<string> RenderAsync(PublicWebsiteViewModel model, RenderOptions? options = null)
     {
         options ??= new RenderOptions();
+        var path = options.Path ?? (model.CurrentPage == null || model.CurrentPage.IsHomePage ? "/" : "/" + model.CurrentPage.Slug);
+        var viewData = new ViewDataDictionary<PublicWebsiteViewModel>(
+            new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary()) { Model = model };
+        foreach (var (key, value) in options.ViewBag) viewData[key] = value;
+        // The controller's name is how a view's partials are found in its own folder.
+        return await RenderCoreAsync("~/Views/PublicWebsite/Index.cshtml", "PublicWebsite", "rivers.example.test", path, viewData, tempData => options.Retry?.Save(tempData));
+    }
+
+    /// <summary>
+    /// 579: another public view of IPRO.Web (iPro's own pages, which carry no website model), rendered
+    /// the same way, its layout included.
+    /// </summary>
+    public static Task<string> RenderViewAsync(string viewPath, string controller, string path) =>
+        RenderCoreAsync(viewPath, controller, "app.iproadvisers.com", path,
+            new ViewDataDictionary(new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary()), null);
+
+    private static async Task<string> RenderCoreAsync(string viewPath, string controller, string host, string path, ViewDataDictionary viewData, Action<TempDataDictionary>? fillTempData)
+    {
         var app = await AppAsync();
         using var scope = app.Services.CreateScope();
         var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider, User = new ClaimsPrincipal(new ClaimsIdentity()) };
         http.Request.Scheme = "https";
-        http.Request.Host = new HostString("rivers.example.test");
-        http.Request.Path = model.CurrentPage == null || model.CurrentPage.IsHomePage ? "/" : "/" + model.CurrentPage.Slug;
+        http.Request.Host = new HostString(host);
+        http.Request.Path = path;
         http.Items["IproPublicPath"] = http.Request.Path.Value;
         http.SetEndpoint(new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(), "render"));
-        // The controller's name is how a view's partials are found in its own folder.
         var routeData = new Microsoft.AspNetCore.Routing.RouteData();
-        routeData.Values["controller"] = "PublicWebsite";
+        routeData.Values["controller"] = controller;
         routeData.Values["action"] = "Index";
-        var actionContext = new ActionContext(http, routeData, new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor { ControllerName = "PublicWebsite", ActionName = "Index" });
+        var actionContext = new ActionContext(http, routeData, new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor { ControllerName = controller, ActionName = "Index" });
         var engine = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Mvc.Razor.IRazorViewEngine>();
-        var found = engine.GetView(executingFilePath: null, viewPath: "~/Views/PublicWebsite/Index.cshtml", isMainPage: true);
-        Assert.True(found.Success, "the public website view was not found among IPRO.Web's compiled views");
-        var viewData = new ViewDataDictionary<PublicWebsiteViewModel>(
-            new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary()) { Model = model };
+        var found = engine.GetView(executingFilePath: null, viewPath: viewPath, isMainPage: true);
+        Assert.True(found.Success, $"{viewPath} was not found among IPRO.Web's compiled views");
         var tempData = new TempDataDictionary(http, new FixedTempData());
-        options.Retry?.Save(tempData);
+        fillTempData?.Invoke(tempData);
         await using var writer = new StringWriter();
         await found.View!.RenderAsync(new ViewContext(actionContext, found.View, viewData, tempData, writer, new HtmlHelperOptions()));
         return writer.ToString();

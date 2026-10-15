@@ -8,6 +8,10 @@
         : website.SiteTitle;
     var copyrightName = string.IsNullOrWhiteSpace(footer.CopyrightText) ? fallbackName : footer.CopyrightText;
     var agentLoginUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/Account/Login";
+    // 579: the statement link, except in a preview: those are drawn on the platform's own host, where
+    // /accessibility is iPro's statement, not this site's.
+    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true || ViewBag.IsProspectPreview == true;
+    var linkStatement = !isPreview && !IPRO.Web.Infrastructure.AccessibilityStatement.IsLinked(footer.LegalLinks);
     // 465: the icon map is shared with the Social links block (SocialPlatformIcons).
 }
 <div class="public-footer__copyright">&copy; @DateTime.UtcNow.Year @copyrightName</div>
@@ -43,14 +47,20 @@
     }
   </div>
 }
-@if (footer.LegalLinks.Any())
+@* 579: every site links its accessibility statement, last among the legal links, in the website's
+   language; not a second time when the owner already links one of their own. *@
+@if (footer.LegalLinks.Any() || linkStatement)
 {
-  <div class="public-footer__legal">
-    @foreach (var link in footer.LegalLinks.OrderBy(l => l.SortOrder))
-    {
-      <a href="@link.Url">@link.Label</a>
-    }
-  </div>
+<div class="public-footer__legal">
+  @foreach (var link in footer.LegalLinks.OrderBy(l => l.SortOrder))
+  {
+    <a href="@link.Url">@link.Label</a>
+  }
+  @if (linkStatement)
+  {
+    <a href="@IPRO.Web.Infrastructure.AccessibilityStatement.Path" aria-current="@(Model.AccessibilityStatement ? "page" : null)">@IPRO.Web.Infrastructure.AccessibilityStatement.LinkText(IPRO.Web.Infrastructure.SiteLanguageMarkup.Site(ViewData))</a>
+  }
+</div>
 }
 @if (footer.ShowDisclaimer && !string.IsNullOrWhiteSpace(footer.DisclaimerText))
 {

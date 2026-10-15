@@ -12,7 +12,7 @@ public static class HeadRequests
 {
     private static readonly HashSet<string> Answered = new(StringComparer.OrdinalIgnoreCase)
     {
-        "/", "/accountants", "/mortgage", "/mortgages", "/terms", "/privacy", "/Preview",
+        "/", "/accountants", "/mortgage", "/mortgages", "/terms", "/privacy", "/accessibility", "/Preview",
         "/Account/Register", "/Account/Login",
         "/health", "/health/version",
         "/robots.txt", "/sitemap.xml"

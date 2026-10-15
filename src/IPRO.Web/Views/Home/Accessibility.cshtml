@@ -1,0 +1,45 @@
+@{
+    ViewData["Title"] = "Accessibility";
+    ViewData["LegalDocument"] = false;
+    Layout = "_LegalLayout";
+    // 579: iPro's own accessibility statement. What it may claim is what the checks of October 2026
+    // showed (DOCS/ACCESSIBILITY_AUDIT_2026-10-14.md and 578's tests), and no more: no conformance
+    // claim until a person has checked with a screen reader. The problems it lists on iPro's own pages
+    // are the audit's, still open; take each one out when it is fixed and change the date with it.
+    var updatedOn = IPRO.Web.Infrastructure.AccessibilityStatement.PlatformUpdatedOn;
+    var updated = updatedOn.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+}
+<h1>Accessibility</h1>
+<p class="lg-org">iPro Advisers Inc.</p>
+<p class="lg-dates">Last updated: <time datetime="@updated">@IPRO.Web.Infrastructure.AccessibilityStatement.Date(IPRO.Entities.WebsiteLanguages.English, updatedOn)</time></p>
+
+<p class="lg-lead">iPro builds websites, client portals and marketing tools for advisers, accountants, mortgage professionals and other businesses. We want the websites we build, and our own pages, to work for everyone, including people who use a screen reader, a keyboard instead of a mouse, or larger text.</p>
+
+<h2>The standard we aim for</h2>
+<p>We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.1 at level AA. It is the international standard for accessible websites, and the one Canada&rsquo;s standard for accessible information technology (CAN/ASC-EN 301 549:2024) uses for web pages.</p>
+
+<h2>Where things stand</h2>
+
+<h3>The websites we build for our customers</h3>
+<p>Every customer website is built from iPro&rsquo;s shared designs, so a fix to a design reaches every site at once. In October 2026 we reviewed the designs against WCAG 2.1 AA and fixed what the review found: drop-down menus open from the keyboard, text stays readable on any theme colour a customer picks, pictures can be given a written description, a form that cannot be sent keeps what the visitor typed and says what to fix, and a site or a page can be marked as English or French.</p>
+<p>Automated accessibility tests check every design, on a computer screen and on a phone, together with keyboard tests of the menus, forms and photo viewer, each time we change the designs. No one has yet checked the designs with a screen reader, so we do not claim that they fully meet WCAG 2.1 AA.</p>
+<p>Each customer website has its own accessibility statement, linked as &ldquo;Accessibility&rdquo; at the foot of every page, with that business&rsquo;s own contact details for anyone who needs help.</p>
+
+<h3>What our customers add</h3>
+<p>Our customers write their own pages. A picture they have not described, a video without captions or a document such as a PDF may not be accessible. Our editor asks for a description when a picture is added to a website&rsquo;s image library.</p>
+
+<h3>Our own website and portals</h3>
+<p>The same review found problems on our own pages that are not fixed yet:</p>
+<ul>
+  <li>On this website, some orange buttons have white text with too little contrast.</li>
+  <li>The sign-up page&rsquo;s fields are not labelled for screen readers, and the sign-up and sign-in pages do not say which language they are in.</li>
+  <li>In the adviser and client portals (the screens our customers and their clients sign in to), many form fields show a label on screen that a screen reader does not announce.</li>
+</ul>
+
+<h2>Help, another format or feedback</h2>
+<p>If something on our websites or in our portals is hard to use, or you need information from us in another format, tell us and a person will help. Reports of accessibility problems are welcome: a fix to our designs reaches every site at once.</p>
+<ul>
+  <li>Phone: <a href="@IPRO.Web.Infrastructure.PlatformContact.SupportPhoneHref">@IPRO.Web.Infrastructure.PlatformContact.SupportPhone</a></li>
+  <li>Email: <a href="mailto:support@@iproadvisers.com?subject=Accessibility">support@@iProAdvisers.com</a></li>
+</ul>
+<p>If the problem is on one of our customers&rsquo; websites, you can also reach that business through the &ldquo;Accessibility&rdquo; link at the foot of its pages.</p>

@@ -6,6 +6,9 @@
     // AND every [TO BE CONFIRMED] placeholder below has been filled in.
     var reviewComplete = LegalConfig.GetValue<bool>("Legal:ReviewComplete");
     var effectiveDate = LegalConfig["Legal:EffectiveDate"];
+    // 579: the accessibility statement uses this layout too, but it is not a document anyone agrees
+    // to: no lawyer's review is pending on it, and it is meant to be found.
+    var legalDocument = ViewData["LegalDocument"] as bool? ?? true;
 }
 <!DOCTYPE html>
 <html lang="en-CA">
@@ -14,7 +17,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>@ViewData["Title"] &mdash; IPRO Advisers</title>
 <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
-@if (!reviewComplete)
+@if (!reviewComplete && legalDocument)
 {
     <meta name="robots" content="noindex"/>
 }
@@ -91,7 +94,7 @@
   </div>
 </header>
 
-@if (!reviewComplete)
+@if (!reviewComplete && legalDocument)
 {
   <div class="lg-wrap">
     @* Wording matters here. Once Legal:EffectiveDate is set, this document IS what subscribers
@@ -120,6 +123,7 @@
     &copy; @DateTime.UtcNow.Year IPRO Advisers Inc.
     <a href="/terms">Terms of Service</a>
     <a href="/privacy">Privacy Policy</a>
+    <a href="/accessibility">Accessibility</a>
     <a href="/">Home</a>
   </div>
 </footer>

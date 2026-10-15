@@ -15,6 +15,15 @@
     // written. The rule lives in PublicSeoText, which the page editor's hints read too.
     var pageTitle = IPRO.Web.Infrastructure.PublicSeoText.Title(page, siteName, isPageNotFound);
     var description = IPRO.Web.Infrastructure.PublicSeoText.Description(page, website, isPageNotFound);
+    // 579: the accessibility statement every site has. The same words on every site, so it is kept
+    // out of search results the way a 404 is (no canonical, no card): nothing of the site's own to rank.
+    var isStatement = Model.AccessibilityStatement;
+    if (isStatement)
+    {
+        var statementLanguage = IPRO.Web.Infrastructure.SiteLanguageMarkup.Page(ViewData);
+        pageTitle = IPRO.Web.Infrastructure.AccessibilityStatement.Title(statementLanguage, siteName);
+        description = IPRO.Web.Infrastructure.AccessibilityStatement.Description(statementLanguage, siteName);
+    }
     var publicPath = page == null || page.IsHomePage ? "/" : $"/{page.Slug.Trim('/')}";
     // Canonical origin comes from the controller (custom domain when fully bound, else the
     // request host) so a site reachable on both its subdomain and its custom domain names ONE
@@ -57,11 +66,11 @@
 }
 <title>@pageTitle</title>
 <meta name="description" content="@description" />
-<meta name="robots" content="@(isPageNotFound ? "noindex,follow" : ViewBag.IsTemplatePreview == true || ViewBag.IsProspectPreview == true ? "noindex,nofollow" : "index,follow,max-image-preview:large")" />
+<meta name="robots" content="@(isPageNotFound || isStatement ? "noindex,follow" : ViewBag.IsTemplatePreview == true || ViewBag.IsProspectPreview == true ? "noindex,nofollow" : "index,follow,max-image-preview:large")" />
 @* A 404 declares no canonical and no social card: canonicalUrl resolves to "/" when there is no
    current page, which would tell search engines and link unfurlers that this missing URL is the
    site's home page. The 404 status is the primary signal; noindex above is the belt to its braces. *@
-@if (!isPageNotFound)
+@if (!isPageNotFound && !isStatement)
 {
 <link rel="canonical" href="@canonicalUrl" />
 <meta property="og:type" content="website" />

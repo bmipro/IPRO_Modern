@@ -17,6 +17,9 @@ public class PublicWebsiteViewModel
     // The two were the same screen until 2026-08-08, so a visitor who mistyped a URL on a live firm
     // website was told the website was not published and invited to sign in to the agent portal.
     public bool PageNotFound { get; set; }
+    // 579: /accessibility on a site with no page of its own there: the statement every site has
+    // (AccessibilityStatement), drawn in the site's own design like the 404 above.
+    public bool AccessibilityStatement { get; set; }
     // The one origin every SEO surface names (canonical, og:url, structured data). Set by
     // PublicWebsiteController.ResolveCanonicalOriginAsync for real sites; previews leave it
     // empty and the SEO head falls back to the request origin (they are noindex anyway).

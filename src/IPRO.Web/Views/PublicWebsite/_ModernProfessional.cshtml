@@ -151,6 +151,10 @@
   {
     @await Html.PartialAsync("_PublicPageNotFound", Model)
   }
+  else if (Model.AccessibilityStatement)
+  {
+    @await Html.PartialAsync("_PublicAccessibilityStatement", Model)
+  }
   else if (Model.CurrentPage != null)
   {
     @await Html.PartialAsync("_ModernManagedPage", Model)

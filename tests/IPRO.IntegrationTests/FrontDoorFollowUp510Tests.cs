@@ -53,7 +53,8 @@ public class FrontDoorFollowUp510Tests
         var xml = PlatformSeoFiles.Sitemap(Config(), host);
 
         Assert.StartsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", xml);
-        Assert.Equal(new[] { "https://www.iproadvisers.com/", "https://app.iproadvisers.com/terms", "https://app.iproadvisers.com/privacy" }, Locations(xml));
+        // 579: and iPro's accessibility statement.
+        Assert.Equal(new[] { "https://www.iproadvisers.com/", "https://app.iproadvisers.com/terms", "https://app.iproadvisers.com/privacy", "https://app.iproadvisers.com/accessibility" }, Locations(xml));
     }
 
     [Theory]
@@ -72,7 +73,7 @@ public class FrontDoorFollowUp510Tests
         Assert.Equal(new[]
         {
             "https://app.iproadvisers.com/", "https://app.iproadvisers.com/accountants", "https://app.iproadvisers.com/mortgage",
-            "https://app.iproadvisers.com/terms", "https://app.iproadvisers.com/privacy"
+            "https://app.iproadvisers.com/terms", "https://app.iproadvisers.com/privacy", "https://app.iproadvisers.com/accessibility"
         }, Locations(PlatformSeoFiles.Sitemap(Config(aliasHosts: null), "app.iproadvisers.com")));
     }
 

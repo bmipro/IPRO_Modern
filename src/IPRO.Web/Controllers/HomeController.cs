@@ -115,6 +115,12 @@ public class HomeController : Controller
     [HttpGet("privacy")]
     public IActionResult Privacy() => View();
 
+    // 579: iPro's own accessibility statement, beside the legal pages and linked from every platform
+    // footer. On a customer's host this address is the customer site's statement instead (the
+    // URL-space rule in Program.cs hands every bare path there to PublicWebsiteController).
+    [HttpGet("accessibility")]
+    public IActionResult Accessibility() => View();
+
     private static int GetPackageRank(BillingRule package) => package.PackageName switch
     {
         "IPro Silver" => 1,

@@ -1,0 +1,150 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@using IPRO.Web.Infrastructure
+@{
+    // 579: the accessibility statement every customer website has at /accessibility (AccessibilityStatement
+    // says when it is shown and what it may claim). Rendered inside whichever design the site uses, in
+    // place of a page's sections, like _PublicPageNotFound: the shell's font and colours, on a light panel
+    // of its own, so it reads whatever page background the owner picked (the colour control allows a
+    // dark one, and the shells' body text is dark).
+    //
+    // Written in the website's language (English or French, 578). The contact form at the end is the
+    // site's own contact form, so a request reaches the owner the way every other message does; its words
+    // are iPro's English ones, marked as English on a French site, and the statement says so.
+    var website = Model.Website;
+    var agent = website.AgentUser;
+    var footer = IPRO.Entities.WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
+    // The name the tab and the description give the site too, so the page names the business once.
+    var siteName = PublicSeoText.SiteName(website);
+    // The contact details the site shows: the footer's. A footer with neither a phone nor an email gets
+    // the account's phone, as every design's Contact section shows it; never the account's email, which
+    // is its sign-in and shown on the site only where the owner turns it on. The form is always here.
+    var footerReachable = !string.IsNullOrWhiteSpace(footer.Phone) || !string.IsNullOrWhiteSpace(footer.Email);
+    var phone = footerReachable ? footer.Phone : agent.Phone;
+    var email = footer.Email;
+    var address = footer.Address;
+    // A page background the owner picked with the colour control can be dark, and the designs' body text
+    // is dark: 578 adjusts the site's own colour, not that. Said as a known limit on such a site only.
+    var background = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(website.Template,
+        new IPRO.Entities.AgentDesignOverrides { BackgroundColor = website.BackgroundColorOverride }).BackgroundColor;
+    var darkBackground = System.Text.RegularExpressions.Regex.IsMatch(background ?? string.Empty, "^#[0-9a-fA-F]{6}$")
+        && IPRO.Entities.AccentContrast.Ratio(IPRO.Entities.AccentContrast.Dark, background!) < IPRO.Entities.AccentContrast.TextRatio;
+    var language = SiteLanguageMarkup.Page(ViewData);
+    var french = language == IPRO.Entities.WebsiteLanguages.French;
+    var updated = AccessibilityStatement.UpdatedOn.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+}
+<style>
+  .public-a11y { padding: 56px 16px 80px; }
+  .public-a11y__inner { width: min(760px, 100%); margin: 0 auto; padding: clamp(22px, 4vw, 44px); background: #fff; color: #17223a; border: 1px solid rgba(23,34,58,.1); border-radius: 12px; font-size: 17px; line-height: 1.65; }
+  /* Only the statement's own children: the contact form inside keeps its own spacing and colours. */
+  .public-a11y__inner > h1 { margin: 0 0 18px; font-size: clamp(30px, 4.4vw, 42px); line-height: 1.15; }
+  .public-a11y__inner > h2 { margin: 40px 0 12px; font-size: clamp(21px, 2.6vw, 26px); line-height: 1.25; }
+  .public-a11y__inner > h3 { margin: 28px 0 10px; font-size: 19px; line-height: 1.3; }
+  .public-a11y__inner > p { margin: 0 0 14px; }
+  .public-a11y__inner > ul { margin: 0 0 14px; padding-left: 22px; }
+  .public-a11y__inner > ul > li { margin-bottom: 9px; }
+  .public-a11y__inner > p a, .public-a11y__inner > ul a { color: var(--site-theme-ink, var(--site-theme, #1457d9)); text-decoration: underline; text-underline-offset: 2px; }
+  .public-a11y__inner > .public-a11y__lead { font-size: 19px; }
+  .public-a11y__inner > .public-a11y__contact { list-style: none; padding-left: 0; }
+  .public-a11y__form { margin-top: 8px; padding: 22px; border: 1px solid rgba(128,128,128,.35); border-radius: 10px; }
+  .public-a11y__inner > .public-a11y__updated { margin-top: 40px; padding-top: 18px; border-top: 1px solid rgba(128,128,128,.35); font-size: 15px; }
+</style>
+<main class="public-a11y" id="main-content">
+  <div class="public-a11y__inner">
+    @if (french)
+    {
+      <h1>Accessibilité</h1>
+      <p class="public-a11y__lead">@siteName souhaite que tout le monde puisse utiliser ce site Web, y compris les personnes qui utilisent un lecteur d&rsquo;écran, qui naviguent au clavier plutôt qu&rsquo;avec une souris ou qui ont besoin de caractères plus grands.</p>
+
+      <h2>Notre objectif</h2>
+      <p>Nous visons à respecter les Règles pour l&rsquo;accessibilité des contenus Web (WCAG) 2.1, niveau AA, la norme internationale des sites Web accessibles.</p>
+      <p>Ce site est construit sur les modèles de sites Web d&rsquo;iPro. En octobre 2026, chaque modèle a été vérifié selon cette norme au moyen de tests automatisés, sur un écran d&rsquo;ordinateur et sur un téléphone, ainsi qu&rsquo;au clavier seulement (menus, formulaires et visionneuse de photos), et les problèmes relevés ont été corrigés. Personne n&rsquo;a encore vérifié les modèles avec un lecteur d&rsquo;écran; nous n&rsquo;affirmons donc pas que ce site respecte entièrement la norme.</p>
+
+      <h2>Utiliser ce site à votre façon</h2>
+      <ul>
+        <li><strong>Lecteurs d&rsquo;écran&nbsp;:</strong> les pages comportent des titres, des zones et des champs de formulaire étiquetés, dont les lecteurs d&rsquo;écran se servent pour s&rsquo;y retrouver.</li>
+        <li><strong>Clavier&nbsp;:</strong> la touche Tab avance et Maj+Tab recule. Entrée ouvre un menu et Échap le ferme. Le premier élément atteint au clavier est le lien «&nbsp;@SiteLanguageMarkup.SkipLink(language)&nbsp;».</li>
+        <li><strong>Zoom&nbsp;:</strong> le zoom de votre navigateur (Ctrl et + sous Windows, Commande et + sur Mac) agrandit la page jusqu&rsquo;à 200&nbsp;% sans rien couper. Sur un téléphone, la page tient dans l&rsquo;écran sans défilement horizontal.</li>
+        <li><strong>Couleurs&nbsp;:</strong> la couleur du site est ajustée au besoin pour que les boutons, les liens et les titres restent lisibles.</li>
+        <li><strong>Diaporamas&nbsp;:</strong> ils ne changent que lorsque vous appuyez sur leurs boutons.</li>
+        <li><strong>Formulaires&nbsp;:</strong> chaque champ a une étiquette. Si un formulaire ne peut pas être envoyé, il indique les champs à corriger et garde ce que vous avez saisi.</li>
+      </ul>
+
+      <h2>Limites connues</h2>
+      <ul>
+        <li>Ce que nous ajoutons nous-mêmes au site ne respecte pas toujours la norme&nbsp;: une image que nous n&rsquo;avons pas décrite par écrit, une vidéo sans sous-titres ou un document à télécharger, comme un PDF.</li>
+        <li>Les éléments qui viennent d&rsquo;autres entreprises, comme les vidéos intégrées (YouTube), les cartes (Google Maps) et les pages de paiement, fonctionnent comme ces entreprises les ont conçus.</li>
+        <li>Certains mots standard du site (étiquettes et boutons des formulaires, calculatrices, heures d&rsquo;ouverture) sont en anglais pour l&rsquo;instant.</li>
+        @if (darkBackground)
+        {
+          <li>Une partie du texte se trouve directement sur le fond foncé du site, une couleur que nous avons choisie nous-mêmes, et peut être difficile à lire.</li>
+        }
+      </ul>
+
+      <h2>Besoin d&rsquo;aide ou d&rsquo;un autre format?</h2>
+      <p>Si une partie de ce site est difficile à utiliser pour vous, ou si vous souhaitez en recevoir l&rsquo;information dans un autre format (par exemple en gros caractères, en texte simple ou par téléphone), dites-le-nous et nous ferons de notre mieux pour vous aider.</p>
+      @if (!string.IsNullOrWhiteSpace(phone) || !string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(address))
+      {
+        <ul class="public-a11y__contact">
+          @if (!string.IsNullOrWhiteSpace(phone)) { <li>Téléphone&nbsp;: <a href="tel:@phone">@phone</a></li> }
+          @if (!string.IsNullOrWhiteSpace(email)) { <li>Courriel&nbsp;: <a href="mailto:@email">@email</a></li> }
+          @if (!string.IsNullOrWhiteSpace(address)) { <li>Adresse&nbsp;: @address</li> }
+        </ul>
+      }
+      <h3>Envoyer un message</h3>
+      <p>Ce formulaire va directement à @siteName.</p>
+    }
+    else
+    {
+      <h1>Accessibility</h1>
+      <p class="public-a11y__lead">@siteName wants everyone to be able to use this website, including people who use a screen reader, move around with a keyboard instead of a mouse, or need larger text.</p>
+
+      <h2>What this website aims for</h2>
+      <p>We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.1 at level AA, the international standard for accessible websites.</p>
+      <p>This website is built on iPro&rsquo;s website designs. In October 2026 each design was checked against that standard with automated tests, on a computer screen and on a phone, and by keyboard alone (menus, forms and the photo viewer), and the problems found were fixed. No one has yet checked the designs with a screen reader, so we do not claim that this website fully meets the standard.</p>
+
+      <h2>Using this website your way</h2>
+      <ul>
+        <li><strong>Screen readers:</strong> pages are marked up with headings, regions and labelled form fields, which screen readers use to find their way around a page.</li>
+        <li><strong>Keyboard:</strong> Tab moves forward and Shift+Tab moves back. Enter opens a menu and Escape closes it. The first thing the keyboard reaches is a &ldquo;@SiteLanguageMarkup.SkipLink(language)&rdquo; link.</li>
+        <li><strong>Zoom:</strong> your browser&rsquo;s zoom (Ctrl and + on Windows, Command and + on a Mac) enlarges the page to 200% without cutting anything off. On a phone the page fits the screen without scrolling sideways.</li>
+        <li><strong>Colours:</strong> the website&rsquo;s own colour is adjusted where needed so that buttons, links and headings stay readable.</li>
+        <li><strong>Slideshows:</strong> they change only when you press their buttons.</li>
+        <li><strong>Forms:</strong> every field has a label. If a form cannot be sent, it says which fields to fix and keeps what you typed.</li>
+      </ul>
+
+      <h2>Known limits</h2>
+      <ul>
+        <li>Things we add to this website ourselves may not always meet the standard: a picture we have not described in words, a video without captions, or a document to download, such as a PDF.</li>
+        <li>Parts that come from other companies, such as embedded videos (YouTube), maps (Google Maps) and payment pages, work the way those companies made them.</li>
+        @if (darkBackground)
+        {
+          <li>Some text sits directly on this website&rsquo;s dark page background, a colour we chose ourselves, and may be hard to read.</li>
+        }
+      </ul>
+
+      <h2>Need help or another format?</h2>
+      <p>If any part of this website is hard for you to use, or you would like its information in another format (for example large print, plain text, or by phone), please tell us and we will do our best to help.</p>
+      @if (!string.IsNullOrWhiteSpace(phone) || !string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(address))
+      {
+        <ul class="public-a11y__contact">
+          @if (!string.IsNullOrWhiteSpace(phone)) { <li>Phone: <a href="tel:@phone">@phone</a></li> }
+          @if (!string.IsNullOrWhiteSpace(email)) { <li>Email: <a href="mailto:@email">@email</a></li> }
+          @if (!string.IsNullOrWhiteSpace(address)) { <li>Address: @address</li> }
+        </ul>
+      }
+      <h3>Send a message</h3>
+      <p>This form goes straight to @siteName.</p>
+    }
+    <div class="public-a11y__form">
+      @await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })
+    </div>
+    @if (french)
+    {
+      <p class="public-a11y__updated">Dernière mise à jour&nbsp;: <time datetime="@updated">@AccessibilityStatement.Date(language)</time></p>
+    }
+    else
+    {
+      <p class="public-a11y__updated">Last updated: <time datetime="@updated">@AccessibilityStatement.Date(language)</time></p>
+    }
+  </div>
+</main>
