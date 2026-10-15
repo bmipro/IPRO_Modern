@@ -359,12 +359,23 @@ and the list of published articles and active forms the builder may place. In th
   the builder. After a hand-over the screen says how many sections went out this way.
 - Every press of **Make the package** records a new hand-over, which is why the button asks first. One
   package per round of work: make it, keep that file, and do not press again while a designer is working.
+- **A menu label longer than 40 characters goes to the builder shortened.** The builder takes at most
+  40; iPro's starter articles are named in the menu by their whole title (often 42 to 51 characters),
+  so most sites have such a page. The builder shows the label cut after a whole word (inside a very
+  long one), ending in "…" ("Questions Worth Asking Before You…"), and the screen lists each one after
+  the hand-over. Left as it
+  is in the builder, the page keeps its own label when the package comes back, as the site has it then
+  (a label the customer changed meanwhile stays). Changed in the builder, the new label is used.
+- A page's **title** is at most 120 characters. A longer one stops the hand-over, and the screen names
+  the page and its length: shorten it in the page editor (its Page Title field).
 - A picture taken from the page editor's own starter banners travels like any other picture.
 - A site with more than 30 pages, a page with more than 40 sections, or pictures of more than 40 MB in
   all does not fit in a package; the screen says which.
 - Only the package made from the **newest** hand-over can come back. Making a new one closes the door on
   the one before it.
-- What is changed in iPro after the hand-over is replaced when the package comes back. The review names
+- What is changed in iPro after the hand-over is replaced when the package comes back, apart from a
+  locked box's section and a menu label the builder left as it went, which stay as the site has them.
+  The review names
   the pages this affects, before anything is written.
 - The screen lists what the hand-over tidied on the way out (for example a button with words and no
   link, which leads nowhere on the live site, is left out).
@@ -394,7 +405,12 @@ and the list of published articles and active forms the builder may place. In th
    - a page **given another address in iPro** since is still the page that went to the builder: it is
      replaced where it is, and its newer address keeps arriving;
    - the **logo**, if it was changed in iPro after the hand-over, is marked too: the return carries the
-     one from before.
+     one from before;
+   - a page whose **menu label went to the builder shortened** says so: "It came back unchanged, so the
+     page keeps its own" with the label it keeps, or that the designer changed it, with the new label.
+     A label the customer changed in iPro meanwhile, and the designer left alone, stays the customer's,
+     and a page whose only change in iPro is that label is not marked red. A page the designer gave
+     another address keeps its own label too, when its shortened label tells which page it is.
 
    A replaced page's sections are replaced as a set.
    - **A locked box that came back** is its section again, as the site has it now, where the designer

@@ -10,8 +10,10 @@ namespace IPRO.Business.SiteImport;
 //
 // A timestamp cannot answer this. The page editor stamps the section it saves, not the page, and
 // adding, deleting or moving a section stamps nothing at all (the audit of 572 found section edits
-// replaced without a word). The value covers exactly what a return overwrites: the page's name,
-// address and place in the menu, and its sections in order with everything they show. It leaves out
+// replaced without a word). The value covers what a return overwrites: the page's name, address and
+// place in the menu, and its sections in order with everything they show. (A locked box's section,
+// 576, and a menu label that comes back as the builder was given it, 577, are kept as the site has
+// them; the review allows for that.) It leaves out
 // what the contract does not carry and a return therefore keeps (search title and description, the
 // published and in-menu switches, old addresses), and it leaves out ids and times, so a site put
 // back by "put the previous site back" reads as unchanged.
@@ -23,17 +25,25 @@ public static class SiteFingerprint
     // put-back, addresses do.
     public static IReadOnlyDictionary<int, string> OfPages(IReadOnlyList<WebsitePage> pages)
     {
-        var slugById = pages.ToDictionary(p => p.Id, p => p.Slug ?? string.Empty);
-        return pages.ToDictionary(p => p.Id, p => OfPage(p, p.ParentPageId.HasValue && slugById.TryGetValue(p.ParentPageId.Value, out var parent) ? parent : string.Empty));
+        var parents = ParentSlugs(pages);
+        return pages.ToDictionary(p => p.Id, p => OfPage(p, parents[p.Id]));
     }
 
-    public static string OfPage(WebsitePage page, string parentSlug)
+    // The address of each page's parent, by the page's row id ("" for a top-level page).
+    public static IReadOnlyDictionary<int, string> ParentSlugs(IReadOnlyList<WebsitePage> pages)
+    {
+        var slugById = pages.ToDictionary(p => p.Id, p => p.Slug ?? string.Empty);
+        return pages.ToDictionary(p => p.Id, p => p.ParentPageId.HasValue && slugById.TryGetValue(p.ParentPageId.Value, out var parent) ? parent : string.Empty);
+    }
+
+    // navigationLabel (577): the page as it would read with that menu label in place of its own.
+    public static string OfPage(WebsitePage page, string parentSlug, string? navigationLabel = null)
     {
         var text = new StringBuilder();
         void Add(string? value) => text.Append(value ?? string.Empty).Append(Field);
         Add(page.Title);
         Add(page.Slug);
-        Add(page.NavigationLabel);
+        Add(navigationLabel ?? page.NavigationLabel);
         Add(parentSlug);
         Add(page.IsHomePage ? "home" : string.Empty);
         Add(page.SortOrder.ToString(System.Globalization.CultureInfo.InvariantCulture));

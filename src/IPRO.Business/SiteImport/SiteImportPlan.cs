@@ -23,6 +23,12 @@ public enum PageChange
 // says, as one value, so that the write can tell a section changed after the review was read.
 public sealed record SectionGoing(int BlockId, string BlockType, string Title, bool RemovedInBuilder, bool Kept, string Says = "");
 
+// 577: a page whose menu label went to the builder shortened (SiteHandoverBuilder.BuilderLabel). Slug:
+// the page's address at the hand-over; RowId: its row today (0 when the site no longer has it); Label:
+// its own label at the hand-over; SentLabel: what the builder was given. OnlyLabelChanged: the page was
+// changed in iPro since, and its menu label is all that changed.
+public sealed record ShortenedLabel(string Slug, int RowId, string Label, string SentLabel, bool OnlyLabelChanged = false);
+
 public sealed class PlannedPage
 {
     // The page as it will be, sections included (for a removed page: as it is now). A page that does
@@ -40,7 +46,8 @@ public sealed class PlannedPage
     // 574: what the page says today is not what its hand-over recorded: it was changed in iPro after the
     // site went to the builder, and this return replaces (or removes) that change. Decided here, from
     // the content, and not in the view from a timestamp: the page editor stamps a saved section and not
-    // its page, and adding, deleting or moving a section stamps nothing.
+    // its page, and adding, deleting or moving a section stamps nothing. 577: false when the one change
+    // is a menu label that this return keeps (LabelKept), wherever the page lands.
     public bool ChangedSinceHandover { get; init; }
 
     // Sections a replaced or removed page has today that this package could not have carried (a map,
@@ -57,6 +64,12 @@ public sealed class PlannedPage
     // is a copy, one whose section the site no longer has; and, on a page that is not replaced, a
     // section that comes back elsewhere in its box. In plain sentences.
     public IReadOnlyList<string> BoxNotes { get; init; } = Array.Empty<string>();
+    // 577: the menu label the builder was given for this page, shortened ("" = it had the page's own).
+    // LabelKept: it came back as it was given, so the page keeps its own label (Page.NavigationLabel).
+    // Otherwise what came back is written: the designer's label, or, for a page with no label of its
+    // own, the shortened one (Page.NavigationLabel equals LabelSent then).
+    public string LabelSent { get; init; } = string.Empty;
+    public bool LabelKept { get; init; }
 }
 
 public enum LogoChange { Unchanged, Set, Replaced, Removed }
@@ -102,7 +115,9 @@ public sealed class SiteImportPlan
         // 576. hostSections: the sections the hand-over sent out as locked boxes, each as it was.
         // keepSectionIds: the rows of the sections the operator keeps (SectionGoing.BlockId).
         IReadOnlyList<HandoverHostSection>? hostSections = null,
-        IReadOnlySet<int>? keepSectionIds = null)
+        IReadOnlySet<int>? keepSectionIds = null,
+        // 577. shortenedLabels: the pages whose menu label the builder was given shortened.
+        IReadOnlyList<ShortenedLabel>? shortenedLabels = null)
     {
         bool Carried(string type) => carriedTypes == null ? BuilderContract.BlockTypes.Contains(type, StringComparer.Ordinal) : carriedTypes.Contains(type);
         IReadOnlyList<string> Lost(IReadOnlyList<string> before) => before.Where(t => !Carried(t)).ToList();
@@ -223,19 +238,72 @@ public sealed class SiteImportPlan
                 (stays ? " also comes back on another page, in its box: it will stand on both." : " comes back on another page, in its box."))
             .ToList();
 
+        // 1c (577). The pages whose menu label the builder was given shortened, and which package page
+        // each one is. First by the shortened label itself, which iPro wrote and nothing else looks like:
+        // the one page that carries it word for word, when it is one record's alone and that page lands
+        // on that record's row or on none (it was given another address, or the designer made another
+        // page the home page, which then lands on the home row whatever either side calls it). A page
+        // that lands on another page's row is that page, whatever label it carries. Then, for a label the
+        // designer changed or one shared, the page on its row at its address, or still carrying the
+        // label; and last the page at its address.
+        var labels = shortenedLabels ?? Array.Empty<ShortenedLabel>();
+        var labelOf = new Dictionary<BuilderPage, ShortenedLabel>(ReferenceEqualityComparer.Instance);
+        var labelTaken = new HashSet<ShortenedLabel>(ReferenceEqualityComparer.Instance);
+        void Claim(BuilderPage page, ShortenedLabel? found)
+        {
+            if (found != null && !labelOf.ContainsKey(page) && labelTaken.Add(found)) labelOf[page] = found;
+        }
+        foreach (var page in template.Pages)
+        {
+            var records = labels.Where(l => string.Equals(l.SentLabel, page.NavigationLabel, StringComparison.Ordinal)).ToList();
+            var carriers = template.Pages.Count(p => string.Equals(p.NavigationLabel, page.NavigationLabel, StringComparison.Ordinal));
+            if (records.Count != 1 || carriers != 1) continue;
+            if (!rowFor.TryGetValue(page, out var row) || row.Id == records[0].RowId) Claim(page, records[0]);
+        }
+        foreach (var page in template.Pages)
+        {
+            if (!rowFor.TryGetValue(page, out var row)) continue;
+            Claim(page, labels.FirstOrDefault(l => l.RowId == row.Id && !labelTaken.Contains(l)
+                && (string.Equals(l.Slug, page.Slug, StringComparison.OrdinalIgnoreCase) || string.Equals(l.SentLabel, page.NavigationLabel, StringComparison.Ordinal))));
+        }
+        foreach (var page in template.Pages)
+        {
+            Claim(page, labels.FirstOrDefault(l => !labelTaken.Contains(l) && string.Equals(l.Slug, page.Slug, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        // What each of those pages' menu label becomes. One that came back exactly as the builder was
+        // given it is the page's own label: as the site has it now (a label the customer changed in
+        // iPro meanwhile stays changed), or as it was, when the site no longer has the page. What the
+        // designer could not have meant to change is not changed; a label they changed is written. (A
+        // page with no label of its own, which the page editor never saves, keeps what came back, and
+        // the review says so.) labelCarried: the rows whose one change in iPro since the hand-over, their
+        // label, goes on this way, on whichever page it lands: nothing of that change is lost.
+        var labelAfter = new Dictionary<BuilderPage, (string Label, bool Kept)>(ReferenceEqualityComparer.Instance);
+        var labelCarried = new HashSet<int>();
+        foreach (var (page, label) in labelOf)
+        {
+            var own = currentPages.FirstOrDefault(r => r.Id == label.RowId)?.NavigationLabel ?? label.Label;
+            var kept = string.Equals(page.NavigationLabel, label.SentLabel, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(own);
+            labelAfter[page] = (kept ? own : page.NavigationLabel, kept);
+            if (kept && label.OnlyLabelChanged) labelCarried.Add(label.RowId);
+        }
+
         // 2. The package's pages as they will be.
         var planned = new List<PlannedPage>();
         var bySlug = new Dictionary<string, WebsitePage>(StringComparer.Ordinal);
         foreach (var source in template.Pages)
         {
             rowFor.TryGetValue(source, out var row);
+            // 577: the menu label, as 1c worked it out for a page whose label went shortened.
+            var shortLabel = labelOf.GetValueOrDefault(source);
+            var (navigationLabel, labelKept) = labelAfter.TryGetValue(source, out var labelled) ? labelled : (source.NavigationLabel, false);
             var page = new WebsitePage
             {
                 Id = row?.Id ?? TempId(),
                 AgentWebsiteId = site.Id,
                 Title = source.Title,
                 Slug = source.Slug,
-                NavigationLabel = source.NavigationLabel,
+                NavigationLabel = navigationLabel,
                 IsHomePage = source.IsHomePage,
                 SortOrder = source.SortOrder,
                 // What the contract does not carry stays the page's own (section 12); a new page
@@ -353,7 +421,10 @@ public sealed class SiteImportPlan
                 SectionsGoing = going,
                 BoxNotes = boxNotes.Distinct().ToList(),
                 ChangedOnSite = row?.UpdatedAt,
-                ChangedSinceHandover = row != null && (changedSinceHandover?.Contains(row.Id) ?? false)
+                // 577: a page whose only change in iPro is its menu label, which goes on (1c), loses nothing.
+                ChangedSinceHandover = row != null && (changedSinceHandover?.Contains(row.Id) ?? false) && !labelCarried.Contains(row.Id),
+                LabelSent = shortLabel?.SentLabel ?? string.Empty,
+                LabelKept = labelKept
             });
         }
         if (unknownBoxes.Count > 0)
@@ -383,7 +454,8 @@ public sealed class SiteImportPlan
                 {
                     Page = row, Change = PageChange.Removed, SectionsBefore = SectionTypes(row), SectionsLost = Lost(SectionTypes(row)),
                     RemovedInBuilder = removedInBuilder.Contains(row.Id), ChangedOnSite = row.UpdatedAt,
-                    ChangedSinceHandover = changedSinceHandover?.Contains(row.Id) ?? false,
+                    // 577: not when its one change, its menu label, goes on with the page at its new address.
+                    ChangedSinceHandover = (changedSinceHandover?.Contains(row.Id) ?? false) && !labelCarried.Contains(row.Id),
                     BoxNotes = ElsewhereNotes(row, stays: false)
                 });
                 continue;
@@ -493,6 +565,9 @@ public sealed class SiteImportPlan
                 .Append(item.Page.Id > 0 ? item.Page.Id : 0).Append(field)
                 .Append(item.Page.Slug).Append(field)
                 .Append(item.Page.Title).Append(field)
+                // 577: and its menu label, which a return can take from the site as it is at that moment.
+                .Append(item.Page.NavigationLabel).Append(field)
+                .Append(item.LabelSent).Append(item.LabelKept).Append(field)
                 .Append(item.Page.Blocks?.Count ?? 0).Append(field)
                 .Append(string.Join(",", item.SectionsBefore)).Append(field)
                 .Append(string.Join(",", item.SectionsLost)).Append(field)

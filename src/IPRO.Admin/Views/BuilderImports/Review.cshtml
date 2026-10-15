@@ -108,7 +108,7 @@ else
                                     <div class="small text-muted mt-1">Its @item.SectionsBefore.Count section@(item.SectionsBefore.Count == 1 ? "" : "s") give@(item.SectionsBefore.Count == 1 ? "s" : "") way to the package's. Its search title and description, and whether it is published and in the menu, stay as they are.</div>
                                     @if (item.ChangedSinceHandover)
                                     {
-                                        <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>Changed in iPro after the hand-over.</strong> What the customer changed on this page since then is replaced by the package's version.</div>
+                                        <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>Changed in iPro after the hand-over.</strong> What the customer changed on this page since then is replaced by the package's version@(item.LabelKept ? ", apart from its menu label, which stays as the site has it" : "").</div>
                                     }
                                     break;
                                 case PageChange.Kept:
@@ -141,6 +141,15 @@ else
                                         <label class="form-check-label small" for="without-@pg.Id">Remove this page</label></div>
                                     @if (item.SectionsBefore.Count > 0) { <div class="small text-muted mt-1">With its sections: @Names(item.SectionsBefore).</div> }
                                     break;
+                            }
+                            @* 577: a menu label the builder was given shortened, and what becomes of it. *@
+                            @if (item.LabelSent.Length > 0)
+                            {
+                                <div class="small text-muted mt-1"><i class="fas fa-circle-info me-1"></i>@(item.LabelKept
+                                    ? $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\". It came back unchanged, so the page keeps its own: \"{pg.NavigationLabel}\"."
+                                    : pg.NavigationLabel != item.LabelSent
+                                    ? $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\", and the designer changed it to \"{pg.NavigationLabel}\". The menu shows that from now on."
+                                    : $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\". The page has no menu label of its own on the site, so the menu shows this one from now on; change it on the customer's Website Menu screen if it should read otherwise.")</div>
                             }
                             @* 576: each section of this page that the package does not bring back, with the choice to keep it. *@
                             @foreach (var going in item.SectionsGoing)

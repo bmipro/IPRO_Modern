@@ -1263,7 +1263,7 @@ package") and writes a return ZIP to disk. At integration the same two files tra
 - `theme` in the return is the hint it has always been; the adviser confirms the theme on iPro's
   review page.
 
-### 12.1 What iPro's importer does today (2026-10-13)
+### 12.1 What iPro's importer does today (2026-10-14)
 
 A package is brought in by iPro's staff for one customer. It is either a template built from scratch
 (`handoverId: ""`) or the return of that site's newest hand-over.
@@ -1283,11 +1283,17 @@ A package is brought in by iPro's staff for one customer. It is either a templat
     builder, and is kept.
 - **What was changed in iPro after a hand-over is replaced by its return.** iPro's review names the
   pages this affects before anything is written.
+- **A menu label longer than 40 characters** (§3) goes to the builder shortened (see below), and iPro
+  keeps the page's own. A `navigationLabel` that comes back exactly as it went is the page's own label
+  again, as the site has it then: a label the adviser changed in iPro meanwhile stays changed (an
+  exception to the line above, as a locked box is, below). A label changed in the builder is written.
+  iPro's review says which, page by page. (iPro's starter articles are named in the menu by their whole
+  title, so most sites have such a page; until 2026-10-14 every one of them stopped the hand-over.)
 - **A replaced page's sections are replaced as a set,** and for a section of a kind the builder cannot
   carry (a map, a gallery, a price list) that means one of these:
   - *a locked box in the return* (§4.10) becomes the section it stands for **as the site has it now**,
     at the place the box has. Nothing in a box could be changed in the builder, so a change the adviser
-    made to that section in iPro meanwhile is kept, not undone (the one exception to the line above).
+    made to that section in iPro meanwhile is kept, not undone (an exception to the line above).
     It is hidden or shown as the site has it, unless the return changed that on the box. Only when the
     site no longer has the section is it written as it was at the hand-over. iPro's review says when
     that happens, and when a box comes back shown though its section is hidden on the site (or hidden
@@ -1308,7 +1314,10 @@ A package is brought in by iPro's staff for one customer. It is either a templat
 
 What iPro's hand-over does on the way out, so the builder is not surprised: a field a section type
 does not use is written `""` whatever the site holds there; a Text section's button with words and no
-link is left out (on the live site it leads nowhere); line breaks are written as LF; page and section
+link is left out (on the live site it leads nowhere); line breaks are written as LF; a menu label longer
+than 40 characters is written on one line and, if still too long, cut after the last whole word that fits
+(inside a very long word) and ended with `…` (one character, U+2026), so it is at most 40 (what becomes
+of it is above); page and section
 `sortOrder` are renumbered from 0; a scheme is written in lower case; image files are named
 `<readable name>-<8 hex of its SHA-256>.<type>`; `adviser.vertical` is `advisers` for a business that is
 none of the three (until this document has a value for it).
@@ -1317,6 +1326,11 @@ none of the three (until this document has a value for it).
 
 ## Changelog
 
+- **v0.5, doc-only revision (2026-10-14)** — the owner's own site was refused a hand-over: four starter
+  articles are named in the menu by titles of 42 to 51 characters. iPro now sends such a label shortened
+  at a word, and a label that comes back as it went is the page's own again (§12.1, and the list of what
+  the hand-over does on the way out). Nothing changes for the builder: §3's 40 characters stand, and
+  every package it makes or opens is what it was.
 - **v0.5 (2026-10-13)** — host sections, after the first real hand-over was refused: iPro's own site
   has fourteen pages with sections the builder does not carry, and so will most customers'. New block
   type `HostSection`, the locked box (§4.10), and what the builder draws for it (§5.1);

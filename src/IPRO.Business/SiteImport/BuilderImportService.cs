@@ -225,6 +225,7 @@ public static class BuilderImportService
         HashSet<int>? handedOver = null;
         Dictionary<string, int>? rowBySlug = null;
         HashSet<int>? changed = null;
+        var labels = new List<ShortenedLabel>();
         var logoChanged = false;
         // What this package could carry: a hand-over's own list, or (built from scratch) the types
         // that do not point at one adviser's content.
@@ -236,6 +237,7 @@ public static class BuilderImportService
             var recordedIds = recorded.Select(r => r.Id).ToHashSet();
             var byId = pages.ToDictionary(r => r.Id);
             var today = SiteFingerprint.OfPages(pages);
+            var parents = SiteFingerprint.ParentSlugs(pages);
             handedOver = new HashSet<int>();
             rowBySlug = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             changed = new HashSet<int>();
@@ -245,7 +247,13 @@ public static class BuilderImportService
                 // new row -- the row now at the address it had.
                 var row = byId.GetValueOrDefault(was.Id)
                     ?? pages.FirstOrDefault(r => !recordedIds.Contains(r.Id) && string.Equals(r.Slug, was.Slug, StringComparison.OrdinalIgnoreCase));
-                if (row == null || !handedOver.Add(row.Id)) continue;
+                if (row == null || !handedOver.Add(row.Id))
+                {
+                    // 577: a page whose menu label went shortened can come back though the site no longer
+                    // has it (or its row is another record's); its own label is then the one it had.
+                    if (was.SentLabel != null) labels.Add(new ShortenedLabel(was.Slug, 0, was.Label ?? string.Empty, was.SentLabel));
+                    continue;
+                }
                 rowBySlug[was.Slug] = row.Id;
                 var said = was.Fingerprint ?? string.Empty;
                 // A hand-over made before fingerprints were kept falls back on the times, sections included.
@@ -253,13 +261,21 @@ public static class BuilderImportService
                     ? !string.Equals(today[row.Id], said, StringComparison.Ordinal)
                     : row.Blocks.Select(x => x.UpdatedAt).Append(row.UpdatedAt).Max() > handover.IssuedAt;
                 if (differs) changed.Add(row.Id);
+                if (was.SentLabel != null)
+                {
+                    // 577: and whether its menu label is all the customer changed since. A label the
+                    // builder did not change stays the site's, so then nothing of the change is replaced.
+                    var onlyLabel = differs && said.Length > 0
+                        && string.Equals(SiteFingerprint.OfPage(row, parents[row.Id], was.Label ?? string.Empty), said, StringComparison.Ordinal);
+                    labels.Add(new ShortenedLabel(was.Slug, row.Id, was.Label ?? string.Empty, was.SentLabel, onlyLabel));
+                }
             }
             logoChanged = recorded.Any(r => !string.IsNullOrEmpty(r.Fingerprint))
                 && !string.Equals(handover.LogoUrl ?? string.Empty, site.LogoUrl ?? string.Empty, StringComparison.Ordinal);
         }
 
         var plan = SiteImportPlan.Build(package.Template, urls, site, pages, removePageIds ?? new HashSet<int>(), handedOver, keepPageIds, problems,
-            rowBySlug, changed, logoChanged, carried, SiteHandoverService.HostSections(handover), keepSectionIds);
+            rowBySlug, changed, logoChanged, carried, SiteHandoverService.HostSections(handover), keepSectionIds, labels);
         return new PlanResult(package, plan, site, handover);
     }
 

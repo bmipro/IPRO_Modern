@@ -254,11 +254,15 @@ public static class BuilderPackageReader
     private static string Mb(long bytes) => (bytes / 1024.0 / 1024.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 
     // A value quoted in a message: short, and on one line. Everything quoted is the sender's text.
-    private static string Shorten(string value)
+    internal static string Shorten(string value)
     {
         var oneLine = value.Replace('\r', ' ').Replace('\n', ' ');
         return oneLine.Length <= 60 ? oneLine : oneLine[..60] + "...";
     }
+
+    // 577: how long a page's title or menu label is, as a refusal says it.
+    private static string Measured(string value) =>
+        value.Length == 0 ? "is empty" : string.IsNullOrWhiteSpace(value) ? "is only spaces" : $"is {value.Length} characters long";
 
     private sealed class ExpandedTooFarException : Exception { }
 
@@ -519,15 +523,16 @@ public static class BuilderPackageReader
                     }
                 }
 
+                // 577: and how long this one is, so whoever reads the line knows how much to cut.
                 var title = Text(page, "title", label, null, "3") ?? string.Empty;
                 if (page.ContainsKey("title") && (string.IsNullOrWhiteSpace(title) || title.Length > BuilderContract.MaxTitle))
                 {
-                    _problems.Add(label, null, "3", $"The title is 1 to {BuilderContract.MaxTitle} characters (and not only spaces).");
+                    _problems.Add(label, null, "3", $"The title is 1 to {BuilderContract.MaxTitle} characters (and not only spaces); this one {Measured(title)}.");
                 }
                 var navigationLabel = Text(page, "navigationLabel", label, null, "3") ?? string.Empty;
                 if (page.ContainsKey("navigationLabel") && (string.IsNullOrWhiteSpace(navigationLabel) || navigationLabel.Length > BuilderContract.MaxNavigationLabel))
                 {
-                    _problems.Add(label, null, "3", $"The menu label (navigationLabel) is 1 to {BuilderContract.MaxNavigationLabel} characters (and not only spaces).");
+                    _problems.Add(label, null, "3", $"The menu label (navigationLabel) is 1 to {BuilderContract.MaxNavigationLabel} characters (and not only spaces); this one {Measured(navigationLabel)}.");
                 }
 
                 var isHomePage = YesNo(page, "isHomePage", label, null, "3") ?? false;

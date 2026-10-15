@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using IPRO.Entities;
 
@@ -27,7 +28,13 @@ public sealed record HandoverImage(string Ref, string Url, string Sha256, long B
 
 // Fingerprint (574): what the page said when it was handed over (SiteFingerprint), so a change made in
 // iPro afterwards is seen when the package comes back.
-public sealed record HandoverPage(int Id, string Slug, string Fingerprint = "");
+// 577: a menu label longer than the builder takes (contract section 3: 40 characters) goes shortened.
+// SentLabel is what the builder was given, Label the page's own label then; both are null for a page
+// whose own label went (and the record of such a page reads as it did before 577).
+public sealed record HandoverPage(
+    int Id, string Slug, string Fingerprint = "",
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Label = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SentLabel = null);
 
 public sealed record HandoverForm(WebsiteForm Form, IReadOnlyList<WebsiteFormField> Fields, IReadOnlyDictionary<int, IReadOnlyList<string>> Options);
 
@@ -144,6 +151,17 @@ public static class SiteHandoverBuilder
         foreach (var page in input.Pages.OrderBy(p => p.SortOrder).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase))
         {
             var name = string.IsNullOrWhiteSpace(page.Title) ? "/" + page.Slug : page.Title.Trim();
+            // 577: the page's title as the builder takes it (contract section 3), said where it is
+            // changed. (A menu label that is too long goes shortened instead: see the pages, below.)
+            var title = page.Title ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(title) || title.Length > BuilderContract.MaxTitle)
+            {
+                blockers.Add(string.IsNullOrWhiteSpace(title)
+                    ? $"The page at /{page.Slug} has no title. Give it one in the page editor (its Page Title field)."
+                    : $"\"{BuilderPackageReader.Shorten(name)}\" has a title of {title.Length} characters, and the builder takes at most {BuilderContract.MaxTitle}. " +
+                      "Shorten it in the page editor (its Page Title field).");
+                unfit.Add(page.Id);
+            }
             var types = page.Blocks.Select(b => b.BlockType).ToList();
             if (types.Count == 0)
             {
@@ -265,6 +283,29 @@ public static class SiteHandoverBuilder
             notes.Add((hostSections.Count == 1 ? "One section travels as a locked box" : $"{hostSections.Count} sections travel as locked boxes") +
                 $" ({string.Join(", ", kinds)}): the builder shows where each stands and can move, hide or remove it. What it says stays as iPro has it.");
         }
+
+        // 577: the menu label each page goes with. One longer than the builder takes (contract section
+        // 3) goes shortened, and the hand-over keeps the page's own: a label that comes back as it went
+        // is the page's own label again (SiteImportPlan). iPro's starter articles are named in the menu
+        // by their whole title, so most sites have such a page; every one of them used to stop the hand-over.
+        // (A label that is long only for its spaces goes on one line, which is tidying and not shortening.)
+        var sentLabel = new Dictionary<int, string>();
+        var shortened = new List<(int PageId, string Own, string Sent)>();
+        foreach (var (page, _) in pagesOut)
+        {
+            var menu = MenuText(page);
+            sentLabel[page.Id] = BuilderLabel(menu);
+            if (sentLabel[page.Id] != menu && sentLabel[page.Id] != OneLine(menu)) shortened.Add((page.Id, OneLine(menu), sentLabel[page.Id]));
+        }
+        if (shortened.Count > 0)
+        {
+            var which = string.Join("; ", shortened.Select(s => $"\"{s.Own}\" as \"{s.Sent}\""));
+            notes.Add((shortened.Count == 1 ? "One menu label is" : $"{shortened.Count} menu labels are") +
+                $" longer than the {BuilderContract.MaxNavigationLabel} characters the builder takes, so the builder shows " +
+                (shortened.Count == 1 ? "it" : "them") + $" shortened: {which}. " +
+                "Left unchanged in the builder, a label comes back as the page's own; a label changed in the builder is used.");
+        }
+        var shortenedIds = shortened.Select(s => s.PageId).ToHashSet();
         // v0.5 is stated only where it is used: a site with no such section is a v0.4 package as before.
         var version = hostSections.Count > 0 ? BuilderContract.VersionWithHostSections : BuilderContract.Version;
 
@@ -353,7 +394,7 @@ public static class SiteHandoverBuilder
                 ["slug"] = p.Page.Slug,
                 ["parentSlug"] = p.Page.ParentPageId.HasValue && slugById.TryGetValue(p.Page.ParentPageId.Value, out var parent) ? parent : null,
                 ["title"] = p.Page.Title,
-                ["navigationLabel"] = string.IsNullOrWhiteSpace(p.Page.NavigationLabel) ? p.Page.Title : p.Page.NavigationLabel,
+                ["navigationLabel"] = sentLabel[p.Page.Id],
                 ["isHomePage"] = p.Page.IsHomePage,
                 ["sortOrder"] = orderInGroup[p.Page.Id],
                 ["blocks"] = p.Blocks.Cast<object?>().ToList()
@@ -431,7 +472,9 @@ public static class SiteHandoverBuilder
             Zip = zip,
             FileName = $"ipro-handover-{templateName}-{issuedAt:yyyyMMdd-HHmm}.zip",
             Delivered = delivered,
-            Pages = pagesOut.Select(p => new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id])).ToList(),
+            Pages = pagesOut.Select(p => shortenedIds.Contains(p.Page.Id)
+                ? new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id], p.Page.NavigationLabel ?? string.Empty, sentLabel[p.Page.Id])
+                : new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id])).ToList(),
             LogoUrl = input.Site.LogoUrl ?? string.Empty,
             AllowedBlockTypes = allowed,
             ArticleIds = articleIds.OrderBy(id => id).ToList(),
@@ -539,6 +582,37 @@ public static class SiteHandoverBuilder
     };
 
     // ---- small things ----
+
+    // The menu label a page goes to the builder with: its own, or its title when it has none. (The page
+    // editor never saves an empty label; the public menu prints the label as it is.)
+    private static string MenuText(WebsitePage page) =>
+        string.IsNullOrWhiteSpace(page.NavigationLabel) ? page.Title ?? string.Empty : page.NavigationLabel;
+
+    // 577: a menu label as the builder takes it (contract section 3: at most 40 characters). One that
+    // fits goes as it is. A longer one goes on one line and, if still too long, ends in an ellipsis, so
+    // the designer can see it was shortened: it is cut after the last whole word that fits, unless that
+    // would keep less than half of the room (one very long word), and then inside the word.
+    public static string BuilderLabel(string? label)
+    {
+        var text = label ?? string.Empty;
+        if (text.Length <= BuilderContract.MaxNavigationLabel) return text;
+        text = OneLine(text);
+        if (text.Length <= BuilderContract.MaxNavigationLabel) return text;
+        var room = BuilderContract.MaxNavigationLabel - 1;                 // the ellipsis takes the last place
+        var space = text.LastIndexOf(' ', room);                           // the words before it fit whole
+        var cut = space >= room / 2 ? text[..space].TrimEnd(Untidy) : string.Empty;
+        if (cut.Length == 0)
+        {
+            if (char.IsHighSurrogate(text[room - 1])) room--;              // never half of a character
+            cut = text[..room];
+        }
+        return cut + Ellipsis;
+    }
+
+    // What a label does not end on before its ellipsis: a space, or a mark that joins it to the words cut off.
+    private static readonly char[] Untidy = { ' ', ',', ';', ':', '-', '/', '&', '(', (char)0x2013, (char)0x2014 };
+
+    private static readonly string Ellipsis = ((char)0x2026).ToString();
 
     // The host's design a site uses, as the contract's theme hint.
     public static string ThemeFor(string? templateKey)
