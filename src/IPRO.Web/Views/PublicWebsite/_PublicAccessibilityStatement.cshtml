@@ -11,15 +11,13 @@
     // site's own contact form, so a request reaches the owner the way every other message does; its words
     // are iPro's English ones, marked as English on a French site, and the statement says so.
     var website = Model.Website;
-    var agent = website.AgentUser;
     var footer = IPRO.Entities.WebsiteFooterSettings.FromJson(website.FooterSettingsJson);
     // The name the tab and the description give the site too, so the page names the business once.
     var siteName = PublicSeoText.SiteName(website);
-    // The contact details the site shows: the footer's. A footer with neither a phone nor an email gets
-    // the account's phone, as every design's Contact section shows it; never the account's email, which
-    // is its sign-in and shown on the site only where the owner turns it on. The form is always here.
-    var footerReachable = !string.IsNullOrWhiteSpace(footer.Phone) || !string.IsNullOrWhiteSpace(footer.Email);
-    var phone = footerReachable ? footer.Phone : agent.Phone;
+    // The contact details the footer shows, and nothing else: the owner's choice (2026-10-15) is that a
+    // phone number is a way in only where the business already shows one. The form is always here, so a
+    // footer with none of them still leaves a way to ask.
+    var phone = footer.Phone;
     var email = footer.Email;
     var address = footer.Address;
     // A page background the owner picked with the colour control can be dark, and the designs' body text
@@ -81,7 +79,7 @@
       </ul>
 
       <h2>Besoin d&rsquo;aide ou d&rsquo;un autre format?</h2>
-      <p>Si une partie de ce site est difficile à utiliser pour vous, ou si vous souhaitez en recevoir l&rsquo;information dans un autre format (par exemple en gros caractères, en texte simple ou par téléphone), dites-le-nous et nous ferons de notre mieux pour vous aider.</p>
+      <p>Si une partie de ce site est difficile à utiliser pour vous, ou si vous souhaitez en recevoir l&rsquo;information dans un autre format (par exemple en gros caractères ou en texte simple), dites-le-nous et nous ferons de notre mieux pour vous aider.</p>
       @if (!string.IsNullOrWhiteSpace(phone) || !string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(address))
       {
         <ul class="public-a11y__contact">
@@ -123,7 +121,7 @@
       </ul>
 
       <h2>Need help or another format?</h2>
-      <p>If any part of this website is hard for you to use, or you would like its information in another format (for example large print, plain text, or by phone), please tell us and we will do our best to help.</p>
+      <p>If any part of this website is hard for you to use, or you would like its information in another format (for example large print or plain text), please tell us and we will do our best to help.</p>
       @if (!string.IsNullOrWhiteSpace(phone) || !string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(address))
       {
         <ul class="public-a11y__contact">

@@ -78,6 +78,12 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
         foreach (var (name, site) in new[]
         {
             ("en", PublicSitePages.Build(design)),
+            ("bare", PublicSitePages.Build(design, tweak: w =>
+            {
+                var footer = WebsiteFooterSettings.FromJson(w.FooterSettingsJson);
+                footer.Phone = footer.Email = footer.Address = string.Empty;
+                w.FooterSettingsJson = footer.ToJson();
+            })),
             ("fr", PublicSitePages.Build(design, tweak: French)),
             // The lightest offered colour: links and buttons on the statement use the site's colour.
             ("sky", PublicSitePages.Build(design, "#0EA5E9"))
@@ -196,8 +202,12 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
         Assert.Contains("This form goes straight to Rivers Financial.", WebUtility.HtmlDecode(html));
     }
 
-    [Fact]
-    public async Task With_no_contact_details_in_the_footer_the_statement_gives_the_accounts_phone_but_never_its_email()
+    // The owner (2026-10-15): a phone number is a way in only where the business already shows one. A
+    // footer with no contact details adds none of the account's; the statement's form is the way to ask.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task With_no_contact_details_in_the_footer_the_statement_offers_its_form_and_adds_none(bool french)
     {
         var site = PublicSitePages.Build(PublicSitePages.Classic, tweak: w =>
         {
@@ -206,12 +216,22 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
             w.FooterSettingsJson = footer.ToJson();
             w.AgentUser.Phone = "905-555-0199";
             w.AgentUser.Email = "owner@example.test";
+            if (french) French(w);
         });
-        var text = WebUtility.HtmlDecode(await RenderStatementAsync(site));
-        Assert.Contains("Phone: <a href=\"tel:905-555-0199\">905-555-0199</a>", text);
-        // The account's email is its sign-in: on the site only where the owner turns it on.
-        Assert.DoesNotContain("owner@example.test", Regex.Match(text, "<main class=\"public-a11y\"[\\s\\S]*?</main>").Value);
-        Assert.DoesNotContain("Address:", text);
+        var html = await RenderStatementAsync(site);
+        var main = WebUtility.HtmlDecode(Regex.Match(html, "<main class=\"public-a11y\"[\\s\\S]*?</main>").Value);
+        Assert.DoesNotContain("905-555-0199", main);
+        Assert.DoesNotContain("owner@example.test", main);
+        Assert.DoesNotContain("public-a11y__contact", main);
+        Assert.DoesNotContain("tel:", main);
+        Assert.DoesNotContain("mailto:", main);
+        // Nor a promise to phone: the formats offered are large print and plain text.
+        Assert.DoesNotContain(french ? "par téléphone" : "by phone", main);
+        // The section still asks and then offers the form.
+        Assert.Matches(french
+            ? "dites-le-nous et nous ferons de notre mieux pour vous aider.</p>\\s*<h3>Envoyer un message</h3>\\s*<p>Ce formulaire va directement à Rivers Financial.</p>"
+            : "please tell us and we will do our best to help.</p>\\s*<h3>Send a message</h3>\\s*<p>This form goes straight to Rivers Financial.</p>", main);
+        Assert.Contains("action=\"/PublicWebsite/SubmitLead\"", main);
     }
 
     // The colour control allows any page background; a dark one is not adjusted (578 adjusts the site's
@@ -447,7 +467,8 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
         Assert.Contains("some orange buttons have white text with too little contrast", text);
         Assert.Contains("the sign-up and sign-in pages do not say which language they are in", text);
         Assert.Contains("many form fields show a label on screen that a screen reader does not announce", text);
-        Assert.Contains($"<a href=\"{PlatformContact.SupportPhoneHref}\">{PlatformContact.SupportPhone}</a>", text);
+        // The owner (2026-10-15): no phone line; the support email is read.
+        Assert.DoesNotContain(PlatformContact.SupportPhone, Regex.Match(text, "<article class=\"lg-doc\">[\\s\\S]*?</article>").Value);
         Assert.Contains("<a href=\"mailto:support@iproadvisers.com?subject=Accessibility\">support@iProAdvisers.com</a>", text);
         Assert.Contains($"Last updated: <time datetime=\"{AccessibilityStatement.PlatformUpdatedOn:yyyy-MM-dd}\">15 October 2026</time>", text);
         Assert.Contains("on any theme colour a customer picks", text);
