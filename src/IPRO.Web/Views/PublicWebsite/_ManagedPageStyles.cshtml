@@ -1,14 +1,29 @@
 <style>
+  /* 578: the owner's colour comes in four roles (IPRO.Entities.AccentContrast), set by each design shell:
+     --site-theme       buttons, coloured bands, icons and borders (the owner's colour, or a deeper shade)
+     --site-theme-on    text ON --site-theme (white, or near-black on a light colour)
+     --site-theme-band  the coloured end of a fade that white text crosses (always dark enough for white)
+     --site-theme-ink   the colour AS text on the light backgrounds (labels, the active menu item, links)
+     A new rule picks the role by what sits on what; white text belongs only on -band or the dark colours. */
+  /* 578: Bootstrap's link blue (#0d6efd) is 4.1:1 on the designs' tinted bands; its own darker
+     hover blue reads on all of them, and hover goes darker still. */
+  :root { --bs-link-color: #0a58ca; --bs-link-color-rgb: 10,88,202; --bs-link-hover-color: #084298; --bs-link-hover-color-rgb: 8,66,152; }
   .managed-block { padding: var(--section-space, 72px) 24px; }
+  /* 578: the skip link, out of sight until a keyboard reaches it (WCAG 2.4.1). */
+  .site-skip-link { position: absolute; left: 12px; top: -80px; z-index: 1000; padding: 10px 16px; border-radius: 6px; background: #111827; color: #fff; font: 700 15px/1.2 Arial, sans-serif; text-decoration: none; }
+  .site-skip-link:focus { top: 12px; color: #fff; }
+  /* 578: with a sticky header, what keyboard focus moves to stops below it (WCAG 2.4.11); the script in
+     _PublicNavigation.cshtml sets the header's real height. */
+  html:has(.public-site-header.is-sticky) { scroll-padding-top: 96px; }
   .managed-block:nth-child(even):not(.managed-hero):not(.managed-cta):not(:first-of-type) { background: #fff; }
   .managed-inner { width: min(1120px, 100%); margin: 0 auto; }
-  .managed-eyebrow { color: var(--site-theme, #1457d9); font-weight: 800; text-transform: uppercase; font-size: 13px; }
+  .managed-eyebrow { color: var(--site-theme-ink, var(--site-theme, #1457d9)); font-weight: 800; text-transform: uppercase; font-size: 13px; }
   .managed-title { max-width: 820px; margin: 8px 0 14px; font-size: clamp(34px, 6vw, 62px); line-height: 1.04; font-weight: 900; }
   .managed-subheading { max-width: 780px; color: var(--muted, #5e6b80); font-size: 19px; line-height: 1.6; }
   .managed-copy { max-width: 850px; color: var(--muted, #5e6b80); white-space: pre-line; font-size: 17px; line-height: 1.75; }
-  .managed-button { display: inline-flex; margin-top: 18px; padding: 11px 18px; border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: #fff; text-decoration: none; font-weight: 800; }
-  .managed-button:hover { color: #fff; filter: brightness(.88); }
-  .managed-hero { min-height: 64vh; display: flex; align-items: center; color: #fff; background-color: #10203d; background-image: linear-gradient(115deg, #08142c 0%, var(--site-theme, #1457d9) 100%); }
+  .managed-button { display: inline-flex; margin-top: 18px; padding: 11px 18px; border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: var(--site-theme-on, #fff); text-decoration: none; font-weight: 800; }
+  .managed-button:hover { color: var(--site-theme-on, #fff); filter: brightness(.9); }
+  .managed-hero { min-height: 64vh; display: flex; align-items: center; color: #fff; background-color: #10203d; background-image: linear-gradient(115deg, #08142c 0%, var(--site-theme-band, var(--site-theme, #1457d9)) 100%); }
   .managed-hero .managed-eyebrow, .managed-hero .managed-subheading, .managed-hero .managed-copy { color: rgba(255,255,255,.84); }
   .managed-hero .managed-button { background: #fff; color: #10203d; }
   .managed-hero__layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: 52px; align-items: center; }
@@ -16,17 +31,17 @@
   .managed-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
   .managed-item { min-height: 112px; padding: 22px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgba(25,40,70,.06); }
   .managed-item i { color: var(--site-theme, #1457d9); }
-  .managed-cta { color: #fff; background-color: #10203d; background-image: linear-gradient(115deg, #10203d 0%, var(--site-theme, #1457d9) 100%); }
+  .managed-cta { color: #fff; background-color: #10203d; background-image: linear-gradient(115deg, #10203d 0%, var(--site-theme-band, var(--site-theme, #1457d9)) 100%); }
   .managed-cta .managed-subheading { color: rgba(255,255,255,.82); }
   .managed-cta .managed-copy { color: rgba(255,255,255,.82); }
-  .managed-block:first-of-type:not(.managed-hero):not(.managed-cta) { color: #fff; background-color: #10203d; background-image: linear-gradient(115deg, #08142c 0%, var(--site-theme, #1457d9) 100%); }
+  .managed-block:first-of-type:not(.managed-hero):not(.managed-cta) { color: #fff; background-color: #10203d; background-image: linear-gradient(115deg, #08142c 0%, var(--site-theme-band, var(--site-theme, #1457d9)) 100%); }
   .managed-block:first-of-type:not(.managed-hero):not(.managed-cta) .managed-eyebrow,
   .managed-block:first-of-type:not(.managed-hero):not(.managed-cta) .managed-subheading,
   .managed-block:first-of-type:not(.managed-hero):not(.managed-cta) .managed-copy { color: rgba(255,255,255,.86); }
   .managed-contact { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, .55fr); gap: 36px; align-items: center; }
   .public-site-header { position: relative; z-index: 20; background: #fff; border-bottom: 1px solid #dce4ef; }
   .public-site-header__inner { width: min(1180px, calc(100% - 32px)); min-height: 70px; margin: 0 auto; display: flex; align-items: center; gap: 22px; }
-  .public-site-brand { margin-right: auto; color: var(--site-theme, #1457d9); text-decoration: none; font-weight: 900; font-size: 19px; }
+  .public-site-brand { margin-right: auto; color: var(--site-theme-ink, var(--site-theme, #1457d9)); text-decoration: none; font-weight: 900; font-size: 19px; }
   .public-site-brand img { display: block; max-width: 220px; max-height: 54px; object-fit: contain; }
   .public-site-header.is-sticky { position: sticky; top: 0; }
   .public-site-header.style-compact .public-site-header__inner { min-height: 54px; }
@@ -41,8 +56,8 @@
   .public-site-nav { display: flex; align-items: stretch; gap: 4px; }
   .public-site-nav__item { position: relative; }
   .public-site-nav a { display: block; position: relative; padding: 13px 11px; color: #273348; text-decoration: none; font-weight: 700; font-size: 14px; }
-  .public-site-nav a:hover { color: var(--site-theme, #1457d9); }
-  .public-site-nav a.is-active { color: var(--site-theme, #1457d9); }
+  .public-site-nav a:hover { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
+  .public-site-nav a.is-active { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   .public-site-nav a.is-active::after { content: ''; position: absolute; left: 11px; right: 11px; bottom: 6px; height: 2px; border-radius: 1px; background: var(--site-theme, #1457d9); }
   .public-site-nav__children { display: none; position: absolute; top: 100%; left: 0; min-width: 210px; padding: 6px; border: 1px solid #dce4ef; border-radius: 6px; background: #fff; box-shadow: 0 14px 32px rgba(20,35,65,.14); }
   .public-site-nav__children a { padding: 9px 11px; }
@@ -54,33 +69,33 @@
   .public-site-nav__mega { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 24px 0 28px; border-top: 1px solid #dce4ef; background: #fff; box-shadow: 0 18px 40px rgba(20,35,65,.14); }
   .public-site-nav__mega-inner { width: min(1180px, calc(100% - 32px)); margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 28px; align-items: start; }
   .public-site-nav__mega-title { display: block; padding: 6px 0 8px; border-bottom: 1px solid #e6ecf5; color: #172033; font-size: 12px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-  .public-site-nav__mega-title.is-active { color: var(--site-theme, #1457d9); }
+  .public-site-nav__mega-title.is-active { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   .public-site-nav__mega-title.is-active::after { display: none; }
   /* Roughly the height of a column heading, so a heading-less column of plain links still lines up
      with the first link in the columns beside it. */
   .public-site-nav__mega-col--plain { padding-top: 31px; }
   .public-site-nav__mega-links { padding-top: 4px; }
   .public-site-nav__mega-links a { padding: 7px 0; color: #45536b; font-size: 13.5px; font-weight: 600; }
-  .public-site-nav__mega-links a.is-active { color: var(--site-theme, #1457d9); font-weight: 800; }
+  .public-site-nav__mega-links a.is-active { color: var(--site-theme-ink, var(--site-theme, #1457d9)); font-weight: 800; }
   .public-site-nav__mega-links a.is-active::after { display: none; }
   /* Mobile-only controls; the media query below is the only place these become visible. */
   .public-site-navbtn, .public-site-nav__toggle { display: none; }
   .public-site-actions { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .public-site-action { display: inline-flex; align-items: center; gap: 6px; color: #344158; text-decoration: none; font-size: 13px; font-weight: 700; }
-  .public-site-action:hover { color: var(--site-theme, #1457d9); }
-  .public-site-cta { display: inline-flex; align-items: center; min-height: 40px; padding: 0 15px; border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: #fff; text-decoration: none; font-weight: 800; font-size: 14px; }
-  .public-site-cta:hover { color: #fff; filter: brightness(.9); }
+  .public-site-action:hover { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
+  .public-site-cta { display: inline-flex; align-items: center; min-height: 40px; padding: 0 15px; border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: var(--site-theme-on, #fff); text-decoration: none; font-weight: 800; font-size: 14px; }
+  .public-site-cta:hover { color: var(--site-theme-on, #fff); filter: brightness(.9); }
   .header-dark .public-site-header { background: #111827; border-color: rgba(255,255,255,.12); }
   .header-dark .public-site-nav a, .header-dark .public-site-brand { color: #fff; }
   .header-dark .public-site-nav a.is-active { color: #fff; }
   .header-dark .public-site-nav a.is-active::after { background: #fff; }
   .header-dark .public-site-nav__children a { color: #273348; }
-  .header-dark .public-site-nav__children a:hover { color: var(--site-theme, #1457d9); }
+  .header-dark .public-site-nav__children a:hover { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   /* The mega panel has its own white background, so its links must not inherit the dark header's
      white text -- same reason the two rules above exist for the simple dropdown. */
   .header-dark .public-site-nav__mega-title { color: #172033; }
   .header-dark .public-site-nav__mega-links a { color: #45536b; }
-  .header-dark .public-site-nav__mega a:hover { color: var(--site-theme, #1457d9); }
+  .header-dark .public-site-nav__mega a:hover { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   .header-dark .public-site-action { color: rgba(255,255,255,.86); }
   .header-overlay .public-site-header { position: absolute; z-index: 30; width: 100%; background: rgba(255,255,255,.92); }
   .template-preview-banner { position: sticky; top: 0; z-index: 100; padding: 10px 18px; background: #fff3cd; border-bottom: 1px solid #ffda6a; color: #664d03; text-align: center; font: 700 14px/1.4 Arial, sans-serif; }
@@ -92,15 +107,15 @@
   .hero-centered .managed-hero__image { margin: 0 auto; max-width: 760px; }
   .hero-image-left .managed-hero__image { order: -1; }
   .hero-style-clean .managed-hero { color: #172033; background: #fff; border-bottom: 1px solid #dce4ef; }
-  .hero-style-clean .managed-hero .managed-eyebrow { color: var(--site-theme, #1457d9); }
+  .hero-style-clean .managed-hero .managed-eyebrow { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   .hero-style-clean .managed-hero .managed-subheading,
   .hero-style-clean .managed-hero .managed-copy { color: var(--muted, #5e6b80); }
-  .hero-style-classic .managed-hero { background-image: linear-gradient(115deg, #25211d 0%, var(--site-theme, #1457d9) 100%); }
+  .hero-style-classic .managed-hero { background-image: linear-gradient(115deg, #25211d 0%, var(--site-theme-band, var(--site-theme, #1457d9)) 100%); }
   .dyk-teasers { list-style: none; padding: 0; margin: 0 0 24px; }
   .dyk-card { padding: 16px 0; border-bottom: 1px solid rgba(0,0,0,.08); }
   .dyk-card-title { display: flex; align-items: center; margin: 0 0 8px; font-size: 17px; font-weight: 800; }
   .dyk-card-excerpt { margin: 0 0 10px; color: var(--muted, #5e6b80); font-size: 14px; line-height: 1.6; }
-  .dyk-readmore { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; font: 800 13px Arial, sans-serif; color: var(--site-theme, #1457d9); text-decoration: none; cursor: pointer; }
+  .dyk-readmore { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; font: 800 13px Arial, sans-serif; color: var(--site-theme-ink, var(--site-theme, #1457d9)); text-decoration: none; cursor: pointer; }
   .dyk-readmore:hover { text-decoration: underline; }
   .dyk-teasers.dyk-grid-2x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .dyk-teasers.dyk-grid-2x3 .dyk-card { border-bottom: 0; padding: 16px; background: rgba(0,0,0,.03); border-radius: 8px; }
@@ -117,6 +132,19 @@
        for a moment after the pointer leaves the item, long enough to reach the panel. */
     .public-site-nav__item.is-hover .public-site-nav__children { display: block; }
     .public-site-nav__item--mega.is-hover .public-site-nav__mega { display: block; }
+    /* 578: the keyboard's way in (WCAG 2.1.1). The phone's submenu toggle, smaller, sits beside its
+       link; it sets .is-open, which shows the submenu as hover does. */
+    .public-site-nav__item { display: flex; align-items: center; }
+    .public-site-nav__toggle { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #5e6b80; cursor: pointer; }
+    .public-site-nav__toggle::after { content: ''; width: 7px; height: 7px; margin-top: -4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+    .public-site-nav__item.is-open > .public-site-nav__toggle::after { margin-top: 3px; transform: rotate(225deg); }
+    .header-dark .public-site-nav__toggle { color: rgba(255,255,255,.72); }
+    .public-site-nav__item.is-open > .public-site-nav__children { display: block; }
+    .public-site-nav__item--mega.is-open > .public-site-nav__mega { display: block; }
+    /* Escape closes a submenu even under the mouse; it opens again once the pointer leaves and comes back.
+       Last, so it wins over the :hover rules of the same weight above. */
+    .public-site-nav__item.is-dismissed > .public-site-nav__children,
+    .public-site-nav__item--mega.is-dismissed > .public-site-nav__mega { display: none; }
   }
   @@media (min-width: 901px) {
     body.header-sidebar { padding-left: 240px; }
@@ -125,6 +153,11 @@
     .header-sidebar .public-site-brand { margin: 0 0 24px; }
     .header-sidebar .public-site-nav { flex-direction: column; }
     .header-sidebar .public-site-nav__children { position: static; box-shadow: none; }
+    /* 578: in the rail a submenu opens below its link, and the always-open third tier needs no toggle. */
+    .header-sidebar .public-site-nav__item { flex-wrap: wrap; }
+    .header-sidebar .public-site-nav__item > a { flex: 1 1 auto; }
+    .header-sidebar .public-site-nav__children, .header-sidebar .public-site-nav__mega { flex-basis: 100%; }
+    .header-sidebar .public-site-nav__item--mega > .public-site-nav__toggle { display: none; }
     /* A full-width hover panel makes no sense inside a 240px rail -- render the third tier as a
        always-expanded indented tree instead. */
     .header-sidebar .public-site-nav__item--mega { position: relative; }
@@ -188,7 +221,7 @@
   .site-reviews__stars { color: #f59e0b; font-size: 1rem; letter-spacing: 2px; }
   .site-reviews__text { margin: 0; font-size: .98em; line-height: 1.55; overflow-wrap: break-word; }
   .site-reviews__who { margin-top: auto; font-size: .9em; font-weight: 700; }
-  .site-reviews__who span { font-weight: 400; opacity: .7; }
+  .site-reviews__who .site-reviews__platform { font-weight: 400; opacity: .7; }
   .site-reviews__more { margin-top: 18px; text-align: center; font-size: .95em; }
-  .site-reviews__more a { color: var(--site-theme, #1457d9); font-weight: 700; }
+  .site-reviews__more a { color: var(--site-theme-ink, var(--site-theme, #1457d9)); font-weight: 700; }
 </style>

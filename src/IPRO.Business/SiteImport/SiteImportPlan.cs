@@ -311,6 +311,7 @@ public sealed class SiteImportPlan
                 MetaTitle = row?.MetaTitle ?? string.Empty,
                 MetaDescription = row?.MetaDescription ?? string.Empty,
                 OldAddresses = OldAddressesAfter(row, source.Slug),
+                Language = row?.Language ?? string.Empty,
                 ShowInNavigation = row?.ShowInNavigation ?? true,
                 IsPublished = row?.IsPublished ?? true,
                 CreatedAt = row?.CreatedAt ?? DateTime.UtcNow,
@@ -477,6 +478,7 @@ public sealed class SiteImportPlan
                 MetaTitle = row.MetaTitle,
                 MetaDescription = row.MetaDescription,
                 OldAddresses = row.OldAddresses,
+                Language = row.Language,
                 IsHomePage = false,   // the package's home page is the home page now
                 ShowInNavigation = row.ShowInNavigation,
                 IsPublished = row.IsPublished,

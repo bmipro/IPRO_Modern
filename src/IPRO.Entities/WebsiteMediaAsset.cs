@@ -6,6 +6,9 @@ public class WebsiteMediaAsset
     public int AgentWebsiteId { get; set; }
     public string OriginalFileName { get; set; } = string.Empty;
     public string BlobUrl { get; set; } = string.Empty;
+    // 578: what the picture shows, for people who cannot see it (its alt text on the website). Empty
+    // means the picture is decoration and is skipped by a screen reader.
+    public string Description { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long FileSize { get; set; }
     // 571: SHA-256 of the file (lower-case hex), set for images that arrive in a Template Builder

@@ -1,5 +1,5 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
-<footer class="editorial-footer">
+<footer class="editorial-footer" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.SiteParts(ViewData)">
   <div class="editorial-footer__inner">
     @await Html.PartialAsync("_PublicFooterContent", Model)
   </div>

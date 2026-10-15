@@ -16,7 +16,7 @@
     List<IPRO.Entities.WebsitePage> ChildrenOf(int parentId) =>
         navPages.Where(p => p.ParentPageId == parentId).OrderBy(p => p.SortOrder).ToList();
 }
-<header class="@headerClasses">
+<header class="@headerClasses" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.SiteParts(ViewData)">
   <div class="public-site-header__inner">
     <a href="@Href(null, true)" class="public-site-brand">
       @if (!string.IsNullOrWhiteSpace(website.LogoUrl))
@@ -31,7 +31,7 @@
     <button type="button" class="public-site-navbtn" id="publicSiteNavToggle" aria-expanded="false" aria-controls="publicSiteNav" aria-label="Menu">
       <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
     </button>
-    <nav class="public-site-nav" id="publicSiteNav" aria-label="Main navigation">
+    <nav class="public-site-nav" id="publicSiteNav" aria-label="@IPRO.Web.Infrastructure.SiteLanguageMarkup.MainNavigation(IPRO.Web.Infrastructure.SiteLanguageMarkup.Site(ViewData))">
       @foreach (var sitePage in topPages)
       {
         var children = ChildrenOf(sitePage.Id);
@@ -53,11 +53,12 @@
           <a href="@Href(sitePage.Slug, sitePage.IsHomePage)" class="@(branchIsCurrent ? "is-active" : "")" aria-current="@(isCurrent ? "page" : null)">@sitePage.NavigationLabel</a>
           @if (children.Any())
           {
-            <button type="button" class="public-site-nav__toggle" aria-expanded="false" aria-label="Show @sitePage.NavigationLabel submenu"></button>
+            @* 578: shown on a desktop too, so a keyboard reaches the pages under this one (WCAG 2.1.1). *@
+            <button type="button" class="public-site-nav__toggle" aria-expanded="false" aria-controls="public-site-sub-@sitePage.Id" aria-label="@IPRO.Web.Infrastructure.SiteLanguageMarkup.Submenu(IPRO.Web.Infrastructure.SiteLanguageMarkup.Site(ViewData), sitePage.NavigationLabel)"></button>
           }
           @if (hasGrandchildren)
           {
-            <div class="public-site-nav__mega">
+            <div class="public-site-nav__mega" id="public-site-sub-@sitePage.Id">
               <div class="public-site-nav__mega-inner">
                 @foreach (var child in sections)
                 {
@@ -87,7 +88,7 @@
           }
           else if (children.Any())
           {
-            <div class="public-site-nav__children">
+            <div class="public-site-nav__children" id="public-site-sub-@sitePage.Id">
               @foreach (var child in children)
               {
                 <a href="@Href(child.Slug, false)" class="@(child.Id == currentId ? "is-active" : "")" aria-current="@(child.Id == currentId ? "page" : null)">@child.NavigationLabel</a>
@@ -104,11 +105,11 @@
     <div class="public-site-actions">
       @if (header.ShowPhone && !string.IsNullOrWhiteSpace(website.AgentUser.Phone))
       {
-        <a class="public-site-action" href="tel:@website.AgentUser.Phone" aria-label="Call @website.AgentUser.Phone"><i class="fas fa-phone"></i><span>@website.AgentUser.Phone</span></a>
+        <a class="public-site-action" href="tel:@website.AgentUser.Phone" aria-label="Call @website.AgentUser.Phone" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.EnglishInSiteParts(ViewData)"><i class="fas fa-phone"></i><span>@website.AgentUser.Phone</span></a>
       }
       @if (header.ShowEmail && !string.IsNullOrWhiteSpace(website.AgentUser.Email))
       {
-        <a class="public-site-action" href="mailto:@website.AgentUser.Email" aria-label="Email @website.AgentUser.Email"><i class="fas fa-envelope"></i><span>Email</span></a>
+        <a class="public-site-action" href="mailto:@website.AgentUser.Email" aria-label="Email @website.AgentUser.Email" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.EnglishInSiteParts(ViewData)"><i class="fas fa-envelope"></i><span>Email</span></a>
       }
       @if (!string.IsNullOrWhiteSpace(header.ButtonText))
       {
@@ -119,15 +120,28 @@
 </header>
 <script nonce="@Context.GetCspNonce()">
 (function () {
-  // The menu button and the tap-to-open toggles are mobile only: the CSS that reads .is-open is inside
-  // the mobile media query, so these classes are inert above 800px. Desktop opens submenus on :hover,
-  // held open briefly by the handlers at the end (534).
+  // The menu button is mobile only. The submenu toggles work at every width (578): on a phone they open
+  // the accordion; on a desktop they are how a keyboard opens a submenu, which the mouse opens on :hover,
+  // held open briefly by the handlers at the end (534). Escape closes, and a desktop submenu closes once
+  // focus or a click goes elsewhere.
   var navToggle = document.getElementById('publicSiteNavToggle');
   var nav = document.getElementById('publicSiteNav');
   if (!navToggle || !nav) return;
+  var desktop = window.matchMedia('(min-width: 801px)');
 
   function setExpanded(el, open) {
     el.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function setItemOpen(item, open) {
+    item.classList.toggle('is-open', open);
+    if (open) item.classList.remove('is-dismissed');
+    var button = item.querySelector(':scope > .public-site-nav__toggle');
+    if (button) setExpanded(button, open);
+  }
+
+  function openItems() {
+    return Array.prototype.slice.call(nav.querySelectorAll('.public-site-nav__item.is-open'));
   }
 
   navToggle.addEventListener('click', function () {
@@ -141,16 +155,62 @@
       var item = button.closest('.public-site-nav__item');
       if (!item) return;
       var open = !item.classList.contains('is-open');
-      item.classList.toggle('is-open', open);
-      setExpanded(button, open);
+      // One desktop submenu at a time; the phone accordion may keep several open.
+      if (open && desktop.matches) openItems().forEach(function (other) { if (other !== item) setItemOpen(other, false); });
+      setItemOpen(item, open);
     });
   });
+
+  nav.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape' && event.key !== 'Esc') return;
+    var item = event.target.closest('.public-site-nav__item.is-open');
+    var hovered = desktop.matches ? event.target.closest('.public-site-nav__item') : null;
+    if (!item && hovered && hovered.querySelector('.public-site-nav__mega, .public-site-nav__children')
+        && (hovered.matches(':hover') || hovered.classList.contains('is-hover'))) item = hovered;
+    if (item) {
+      var hadFocusInside = item.querySelector('.public-site-nav__mega, .public-site-nav__children').contains(document.activeElement);
+      setItemOpen(item, false);
+      item.classList.remove('is-hover');
+      if (desktop.matches) item.classList.add('is-dismissed');
+      var button = item.querySelector(':scope > .public-site-nav__toggle');
+      if (button && (hadFocusInside || document.activeElement === button)) button.focus();
+      event.preventDefault();
+    } else if (!desktop.matches && nav.classList.contains('is-open')) {
+      nav.classList.remove('is-open');
+      setExpanded(navToggle, false);
+      navToggle.focus();
+      event.preventDefault();
+    }
+  });
+
+  nav.addEventListener('focusout', function (event) {
+    if (!desktop.matches) return;
+    var item = event.target.closest('.public-site-nav__item.is-open');
+    if (item && !item.contains(event.relatedTarget)) setItemOpen(item, false);
+  });
+
+  document.addEventListener('click', function (event) {
+    if (!desktop.matches) return;
+    openItems().forEach(function (item) { if (!item.contains(event.target)) setItemOpen(item, false); });
+  });
+
+  // 578: a sticky header covers the top of the page, so focus moving up the page must stop below it.
+  var header = nav.closest('.public-site-header');
+  // ("0px", not "", where the header is not on top, as in the side rail: "" would bring back the
+  // stylesheet's 96px guess.)
+  function padForStickyHeader() {
+    if (!header || !header.classList.contains('is-sticky')) return;
+    document.documentElement.style.scrollPaddingTop = getComputedStyle(header).position === 'sticky'
+      ? (header.offsetHeight + 12) + 'px' : '0px';
+  }
+  padForStickyHeader();
+  window.addEventListener('resize', padForStickyHeader);
+  navToggle.addEventListener('click', padForStickyHeader);
 
   // 534, desktop only: :hover alone closed a submenu the moment the pointer left its item, and the
   // mega panel starts below a strip of header, so it closed on the way down. Keep a submenu open for a
   // moment after the pointer leaves (it re-enters through the panel, which sits inside the item);
   // opening another submenu closes this one at once.
-  var desktop = window.matchMedia('(min-width: 801px)');
   var openItem = null;
   var closeTimer = null;
   nav.querySelectorAll('.public-site-nav__item').forEach(function (item) {
@@ -159,11 +219,13 @@
       if (!desktop.matches) return;
       clearTimeout(closeTimer);
       if (openItem && openItem !== item) openItem.classList.remove('is-hover');
+      openItems().forEach(function (other) { if (other !== item) setItemOpen(other, false); });
       item.classList.add('is-hover');
       openItem = item;
     });
     item.addEventListener('mouseleave', function () {
       if (!desktop.matches) return;
+      item.classList.remove('is-dismissed');
       clearTimeout(closeTimer);
       closeTimer = setTimeout(function () {
         item.classList.remove('is-hover');

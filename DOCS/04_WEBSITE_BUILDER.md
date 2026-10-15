@@ -42,6 +42,8 @@ Each theme sets a complete, coordinated look — accent color, background, font,
 
 A palette sets both Theme Color and Background Color at once. The color controls remain fully editable afterward for fine-tuning.
 
+**Readable with any color.** Every design keeps text readable whatever color is chosen (WCAG 2.1 AA asks for a contrast of 4.5 to 1). Where white text already reads on the color, nothing changes. On a light color (Modern Minimal's sky blue, Amber Gold, or a light color from the color control) buttons and colored bands keep the color and their text turns near-black; a middle color (Sunset Orange, Teal) is deepened just enough for white text. Small colored words on white (section labels, the highlighted menu item, links) use a deeper shade of the same color when the color itself is too light to read as text.
+
 ## Change the Font and Text Size
 
 1. Open **My Website**.
@@ -174,6 +176,14 @@ A page that exists at the address always wins, and an address nothing matches st
 Old addresses work on the `www` name. For links to the short address (`yourfirm.ca/about-us`) to arrive as
 well, point the short address straight at IPRO rather than forwarding it: see
 [05_DOMAINS_AND_LEADS.md](05_DOMAINS_AND_LEADS.md).
+
+## Website and Page Language
+
+Screen readers read a page with the voice of its language, so a French page marked as English is read with English pronunciation.
+
+- **My Website > Website language**: English or French, for the whole site.
+- A page in another language than the site (a French page on an English site): edit the page and set **Language of this page**. The header and footer stay in the website's language.
+- iPro's own words on the site (form labels and buttons, calculators, opening hours, "Powered by iPro") are English for now; on a French page they are marked as English so a screen reader reads them correctly.
 
 ## Review Website Analytics
 
@@ -402,6 +412,29 @@ The gallery is shared by every adviser and grouped: Family and lifestyle, Busine
 The image saves to the destination block immediately; there is no separate save step for the image itself. Any other unsaved changes in that block's other fields still require clicking **Save Block**. An image can be removed from the library. Blocks using that image are cleared to prevent broken links.
 
 Uploaded images are limited to image formats such as JPG, JPEG, PNG, GIF, and WebP. Non-image files should be rejected.
+
+### Describe a picture
+
+A description is read aloud to visitors who cannot see the picture (its "alt text"). Describe a picture that tells something: your team, a chart, your storefront. Leave it empty when the picture is only decoration; a screen reader then skips it.
+
+- When uploading, type it in **Describe the picture** beside the file.
+- Afterwards, open **Add a description** (or **Described**) under the picture in the Image Library, type, and click **Save**.
+- A Hero or Text block shows under its image what a screen reader will say for it.
+- One description serves every block that uses the picture, and it stays with the picture through a Template Builder hand-over.
+- An article's picture is described on the article itself (**Articles** > edit > **Describe the picture**); Article and Blog blocks use it.
+- A gallery photo's caption is its description. Starter banners are treated as decoration.
+
+## Accessibility of the Public Website
+
+What the three designs do for visitors who use a keyboard, a screen reader or a magnifier:
+
+- **Keyboard:** the first Tab offers "Skip to main content". A menu item with pages under it has a small arrow button beside it; Enter opens the drop-down and Escape closes it (on a desktop as on a phone). The photo viewer keeps keyboard focus inside it until it is closed. "Read More" on a Did You Know block moves to the form it opens, and "Back to articles" returns.
+- **Forms:** when a form is turned down (a wrong answer to the security question, a missing field) it comes back as the visitor left it, except the security answer, with a message above it naming each field to fix, and the cursor on that message. Only that form shows the message. Typed details are kept on the server for 15 minutes and never in the page address.
+- **Reading:** text is readable on every color (see Change the Theme Color), pictures can be described (see Describe a picture), calculator results are read out when they appear, and with a sticky header a focused item is never hidden under it.
+
+What stays the website owner's: describing pictures that carry information, captions on videos they embed, accessible PDFs they offer for download, link and button wording that says where it goes, and marking a French page.
+
+iPro checks every design automatically before each release.
 
 ## Preview a Page
 

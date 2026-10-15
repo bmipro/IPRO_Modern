@@ -33,8 +33,8 @@
       }
       @if (count > 1)
       {
-        <button type="button" class="site-slideshow__prev" aria-label="Previous photo">&#8249;</button>
-        <button type="button" class="site-slideshow__next" aria-label="Next photo">&#8250;</button>
+        <button type="button" class="site-slideshow__prev" aria-label="Previous photo" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">&#8249;</button>
+        <button type="button" class="site-slideshow__next" aria-label="Next photo" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">&#8250;</button>
       }
     </div>
     @if (count > 1)
@@ -46,7 +46,7 @@
           @for (var i = 0; i < count; i++)
           {
             var image = gallery.Images[i];
-            <button type="button" class="site-slideshow__thumb@(i == 0 ? " is-current" : string.Empty)" aria-label="Show photo @(i + 1) of @count" aria-current="@(i == 0 ? "true" : null)"><img src="@image.TileUrl" alt="" loading="lazy" /></button>
+            <button type="button" class="site-slideshow__thumb@(i == 0 ? " is-current" : string.Empty)" aria-label="Show photo @(i + 1) of @count" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)" aria-current="@(i == 0 ? "true" : null)"><img src="@image.TileUrl" alt="" loading="lazy" /></button>
           }
         </div>
       </div>

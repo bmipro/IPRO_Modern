@@ -198,7 +198,8 @@ a:focus-visible {
 
 .eyebrow {
   margin: 0 0 4px;
-  color: var(--orange);
+  /* 578: a deeper orange for small text; --orange (#e96b32) is 3.2:1 on white. */
+  color: #c2410c;
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;

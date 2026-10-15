@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using IPRO.Web.Models;
+using PublicFormRetry = IPRO.Web.Infrastructure.PublicFormRetry;
 using System.Net;
 using System.Security;
 using System.Security.Cryptography;
@@ -209,15 +210,13 @@ public class PublicWebsiteController : Controller
         if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
-            TempData["PublicFormError"] = "Please refresh the page and try the form again.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, LeadRetry(model, SendAgainMessage));
         }
 
         if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Captcha, returnPath);
-            TempData["PublicFormError"] = "Please complete the security check and try again.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, LeadRetry(model, SecurityAnswerMessage).Problem("CaptchaAnswer", "Security check", SecurityAnswerProblem));
         }
 
         var submissionType = ResolveSubmissionType(model.SubmissionType);
@@ -235,8 +234,7 @@ public class PublicWebsiteController : Controller
             _logger.LogWarning(
                 "Public lead submission rejected by validation on {Domain}{Page}. ConsentGiven={ConsentGiven}. Invalid fields: {InvalidFields}",
                 NormalizeHost(Request.Host.Host), returnPath, model.ConsentGiven, string.Join(" | ", invalidFields));
-            TempData["PublicFormError"] = "Please provide your name, a valid email address, and consent so the adviser can respond.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, PersonProblems(LeadRetry(model, FixAndSendMessage), model.ConsentGiven, "so we can reply"));
         }
 
         var pageId = model.PageId.HasValue && await _db.WebsitePages.AnyAsync(p => p.Id == model.PageId && p.AgentWebsiteId == website.Id)
@@ -583,15 +581,13 @@ public class PublicWebsiteController : Controller
         if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
-            TempData["PublicFormError"] = "Please refresh the page and try the form again.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, CustomFormRetry(model, SendAgainMessage));
         }
 
         if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Captcha, returnPath);
-            TempData["PublicFormError"] = "Please complete the security check and try again.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, CustomFormRetry(model, SecurityAnswerMessage).Problem("CaptchaAnswer", "Security check", SecurityAnswerProblem));
         }
 
         model.FirstName = model.FirstName?.Trim() ?? string.Empty;
@@ -601,8 +597,7 @@ public class PublicWebsiteController : Controller
 
         if (!ModelState.IsValid || !model.ConsentGiven)
         {
-            TempData["PublicFormError"] = "Please provide your name, a valid email address, and consent so the adviser can respond.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, PersonProblems(CustomFormRetry(model, FixAndSendMessage), model.ConsentGiven, "so we can reply"));
         }
 
         // Re-load the form and its fields server-side - never trust posted field labels/types, only the
@@ -621,12 +616,18 @@ public class PublicWebsiteController : Controller
             .GroupBy(a => a.FieldId)
             .ToDictionary(g => g.Key, g => g.SelectMany(a => a.Values ?? new List<string>()).Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()).ToList());
 
-        var missingRequired = fields.Any(f => f.FieldType != WebsiteFormFieldTypes.Section && f.IsRequired &&
-            (!postedAnswers.TryGetValue(f.Id, out var values) || values.Count == 0));
-        if (missingRequired)
+        var missingRequired = fields.Where(f => f.FieldType != WebsiteFormFieldTypes.Section && f.IsRequired &&
+            (!postedAnswers.TryGetValue(f.Id, out var values) || values.Count == 0)).ToList();
+        if (missingRequired.Count > 0)
         {
-            TempData["PublicFormError"] = "Please fill in all required fields.";
-            return LocalRedirect(returnPath);
+            // 578: the message names each question still to answer (it used to say only "required fields").
+            var retry = CustomFormRetry(model, FixAndSendMessage);
+            foreach (var field in missingRequired)
+            {
+                retry.Problem(PublicFormRetry.AnswerField(field.Id), field.Label,
+                    field.FieldType == WebsiteFormFieldTypes.CheckboxGroup ? "Choose at least one." : "Answer this question.");
+            }
+            return KeepForRetry(returnPath, retry);
         }
 
         var pageId = model.PageId.HasValue && await _db.WebsitePages.AnyAsync(p => p.Id == model.PageId && p.AgentWebsiteId == website.Id)
@@ -769,15 +770,13 @@ public class PublicWebsiteController : Controller
         if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
-            TempData["PublicFormError"] = "Please refresh the page and try the form again.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, TestimonialRetry(model, SendAgainMessage));
         }
 
         if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Captcha, returnPath);
-            TempData["PublicFormError"] = "Please complete the security check and try again.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, TestimonialRetry(model, SecurityAnswerMessage).Problem("CaptchaAnswer", "Security check", SecurityAnswerProblem));
         }
 
         model.FirstName = model.FirstName?.Trim() ?? string.Empty;
@@ -787,8 +786,7 @@ public class PublicWebsiteController : Controller
 
         if (!ModelState.IsValid || !model.ConsentGiven)
         {
-            TempData["PublicFormError"] = "Please provide your name, a valid email address, your testimonial, and consent so it can be reviewed.";
-            return LocalRedirect(returnPath);
+            return KeepForRetry(returnPath, PersonProblems(TestimonialRetry(model, FixAndSendMessage), model.ConsentGiven, "to your testimonial being reviewed and published"));
         }
 
         var duplicateCutoff = DateTime.UtcNow.AddMinutes(-5);
@@ -1041,7 +1039,8 @@ public class PublicWebsiteController : Controller
             FormsByBlockId = formsByBlockId,
             DidYouKnowByBlockId = didYouKnowByBlockId,
             ArticleContentByBlockId = articleContentByBlockId,
-            BlogByBlockId = blogByBlockId
+            BlogByBlockId = blogByBlockId,
+            PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, currentPage)
         });
     }
 
@@ -1277,6 +1276,73 @@ public class PublicWebsiteController : Controller
     private static string AddResult(string path, string key, string value, string extraKey, string extraValue) =>
         $"{AddResult(path, key, value)}&{Uri.EscapeDataString(extraKey)}={Uri.EscapeDataString(extraValue)}";
     private static string Truncate(string? value, int length) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim()[..Math.Min(value.Trim().Length, length)];
+
+    // 578: what a turned-down form says, and what it keeps for the visitor (PublicFormRetry).
+    private const string SendAgainMessage = "Nothing was sent yet. Please check your details and send the form again.";
+    private const string SecurityAnswerMessage = "Nothing was sent yet: the answer to the security question was not right. Your details are still here; please answer the new question and send again.";
+    private const string SecurityAnswerProblem = "Answer the new question.";
+    private const string FixAndSendMessage = "Nothing was sent yet. Please fix the following and send again:";
+
+    private IActionResult KeepForRetry(string returnPath, PublicFormRetry retry)
+    {
+        retry.Save(TempData);
+        return LocalRedirect(returnPath);
+    }
+
+    private static PublicFormRetry LeadRetry(WebsiteLeadFormViewModel model, string message)
+    {
+        return new PublicFormRetry { Form = PublicFormRetry.LeadForm(model, ResolveSubmissionType(model.SubmissionType)), Message = message, Consent = model.ConsentGiven }
+            .Keep("FirstName", model.FirstName, 80).Keep("LastName", model.LastName, 80).Keep("Email", model.Email, 200)
+            .Keep("Phone", model.Phone, 40).Keep("Message", model.Message, 4000);
+    }
+
+    private static PublicFormRetry TestimonialRetry(TestimonialFormViewModel model, string message) =>
+        new PublicFormRetry { Form = PublicFormRetry.TestimonialForm, Message = message, Consent = model.ConsentGiven }
+            .Keep("FirstName", model.FirstName, 80).Keep("LastName", model.LastName, 80).Keep("Email", model.Email, 200)
+            .Keep("Body", model.Body, 2000);
+
+    private static PublicFormRetry CustomFormRetry(WebsiteCustomFormViewModel model, string message)
+    {
+        var retry = new PublicFormRetry { Form = PublicFormRetry.CustomForm(model.WebsiteFormId), Message = message, Consent = model.ConsentGiven }
+            .Keep("FirstName", model.FirstName, 80).Keep("LastName", model.LastName, 80).Keep("Email", model.Email, 200)
+            .Keep("Phone", model.Phone, 40);
+        // The answers as posted, cut to the longest a field takes, and no more than a real form sends.
+        var budget = 20000;
+        foreach (var answer in (model.Answers ?? new List<CustomAnswerInput>()).Take(100))
+        {
+            foreach (var value in (answer.Values ?? new List<string>()).Take(50))
+            {
+                var text = value?.Trim() ?? string.Empty;
+                if (text.Length == 0) continue;
+                if (text.Length > 4000) text = text[..4000];
+                if (text.Length > budget) return retry;
+                budget -= text.Length;
+                if (!retry.Answers.TryGetValue(answer.FieldId, out var kept)) retry.Answers[answer.FieldId] = kept = new List<string>();
+                kept.Add(text);
+            }
+        }
+        return retry;
+    }
+
+    // Each field the model binder turned down, named with what to do about it.
+    private PublicFormRetry PersonProblems(PublicFormRetry retry, bool consentGiven, string consentPurpose)
+    {
+        foreach (var (field, label, missing, tooLong) in new[]
+        {
+            ("FirstName", "First name", "Enter your first name.", "Use 80 characters or fewer."),
+            ("LastName", "Last name", "Enter your last name.", "Use 80 characters or fewer."),
+            ("Email", "Email", "Enter your email address.", "Enter an email address like name@example.com."),
+            ("Phone", "Phone", "Enter your phone number.", "Use 40 characters or fewer."),
+            ("Message", "How can we help?", "Write your message.", "Use 4,000 characters or fewer."),
+            ("Body", "Your testimonial", "Write your testimonial.", "Use 2,000 characters or fewer.")
+        })
+        {
+            if (ModelState.GetFieldValidationState(field) != Microsoft.AspNetCore.Mvc.ModelBinding.ModelValidationState.Invalid) continue;
+            retry.Problem(field, label, string.IsNullOrWhiteSpace(retry.Value(field)) ? missing : tooLong);
+        }
+        if (!consentGiven) retry.Problem("ConsentGiven", "Agreement", $"Tick the box to agree {consentPurpose}.");
+        return retry;
+    }
 
     private static string ResolveSubmissionType(string? submissionType)
     {

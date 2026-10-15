@@ -1,5 +1,6 @@
 @model IPRO.Web.Models.PublicFormBlockData
 @using Microsoft.AspNetCore.DataProtection
+@using IPRO.Web.Infrastructure
 @inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
 @{
     var formId = $"website-form-{Guid.NewGuid():N}";
@@ -17,22 +18,36 @@
         .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
         .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}"); // nonce -> single-use (422g)
     var answerIndex = 0;
+    var submittedHere = submitted == "form" && submittedFormId == Model.WebsiteFormId.ToString();
+    // 578: this form as the visitor left it, when the server turned it down (never the security answer).
+    var retry = isPreview || submittedHere ? null : PublicFormRetry.Find(TempData, PublicFormRetry.CustomForm(Model.WebsiteFormId), Context.Items);
+    string FieldId(string field) => $"{formId}-{field}";
+    // The problem shows beside the field, aria-hidden so that it stays out of the label's name; the
+    // field's aria-describedby is how a screen reader hears it.
+    void FieldProblem(string field)
+    {
+        var problem = retry?.ProblemWith(field);
+        if (problem != null)
+        {
+            <span class="website-form-error" id="@PublicFormRetry.ErrorId(formId, field)" aria-hidden="true">@problem.Text</span>
+        }
+    }
 }
 <div class="website-lead-form-shell">
-  @if (submitted == "form" && submittedFormId == Model.WebsiteFormId.ToString())
+  @if (submittedHere)
   {
     <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @Model.SuccessMessage</div>
     <script nonce="@Context.GetCspNonce()">(function(){var u=new URL(location.href);u.searchParams.delete('submitted');u.searchParams.delete('formId');history.replaceState(null,'',u.pathname+u.search+u.hash);})();</script>
   }
   else
   {
-    @if (TempData["PublicFormError"] is string formError)
+    @if (retry != null)
     {
-      <div class="website-lead-error" role="alert">@formError</div>
+      @await Html.PartialAsync("_PublicFormProblems", new PublicFormRetry.Box(retry, formId, null))
     }
     @if (isPreview)
     {
-      <div class="website-lead-preview-note" role="note"><i class="fas fa-circle-info"></i> Preview only -- this form can't be submitted here.</div>
+      <div class="website-lead-preview-note" role="note" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)"><i class="fas fa-circle-info"></i> Preview only -- this form can't be submitted here.</div>
     }
     @if (!string.IsNullOrWhiteSpace(Model.Description))
     {
@@ -45,11 +60,11 @@
       <input type="hidden" name="FormStartedAt" value="@DateTimeOffset.UtcNow.ToUnixTimeSeconds()" />
       <input type="hidden" name="CaptchaToken" value="@captchaToken" />
       <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
-      <div class="website-lead-grid">
-        <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
-        <label><span>Last name</span><input name="LastName" maxlength="80" autocomplete="family-name" /></label>
-        <label><span>Email *</span><input type="email" name="Email" maxlength="200" autocomplete="email" required /></label>
-        <label><span>Phone</span><input name="Phone" maxlength="40" autocomplete="tel" /></label>
+      <div class="website-lead-grid" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">
+        <label><span>First name *</span><input name="FirstName" id="@FieldId("FirstName")" value="@retry?.Value("FirstName")" maxlength="80" autocomplete="given-name" required aria-invalid="@PublicFormRetry.Invalid(retry, "FirstName")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "FirstName")" />@{ FieldProblem("FirstName"); }</label>
+        <label><span>Last name</span><input name="LastName" id="@FieldId("LastName")" value="@retry?.Value("LastName")" maxlength="80" autocomplete="family-name" aria-invalid="@PublicFormRetry.Invalid(retry, "LastName")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "LastName")" />@{ FieldProblem("LastName"); }</label>
+        <label><span>Email *</span><input type="email" name="Email" id="@FieldId("Email")" value="@retry?.Value("Email")" maxlength="200" autocomplete="email" required aria-invalid="@PublicFormRetry.Invalid(retry, "Email")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "Email")" />@{ FieldProblem("Email"); }</label>
+        <label><span>Phone</span><input name="Phone" id="@FieldId("Phone")" value="@retry?.Value("Phone")" maxlength="40" autocomplete="tel" aria-invalid="@PublicFormRetry.Invalid(retry, "Phone")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "Phone")" />@{ FieldProblem("Phone"); }</label>
       </div>
 
       <div class="website-form-fields">
@@ -71,59 +86,79 @@
           answerIndex++;
           var isWide = field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Textarea
               || field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.CheckboxGroup;
+          // 578: each question's help is tied to it, and a checkbox question is a group named by its
+          // question, so a screen reader says what each box answers (WCAG 1.3.1); the answer typed
+          // before the server turned the form down is back in place.
+          var answerField = PublicFormRetry.AnswerField(field.FieldId);
+          var helpId = string.IsNullOrWhiteSpace(field.HelpText) ? null : $"{formId}-{answerField}-help";
+          var describedBy = PublicFormRetry.DescribedBy(retry, formId, answerField, helpId);
+          var invalid = PublicFormRetry.Invalid(retry, answerField);
+          var answer = retry?.Answer(field.FieldId);
           <div class="website-form-field @(isWide ? "website-form-field--wide" : "")">
             <input type="hidden" name="Answers[@idx].FieldId" value="@field.FieldId" />
+            @if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.CheckboxGroup)
+            {
+              <fieldset class="website-form-group" aria-describedby="@describedBy">
+                <legend><span>@field.Label</span>@if (field.IsRequired) {<span aria-hidden="true"> *</span><span class="visually-hidden" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)"> (required)</span>}</legend>
+                <span class="website-form-checkbox-options">
+                  @{ var optionIndex = 0; }
+                  @foreach (var opt in field.Options)
+                  {
+                    <label class="website-form-checkbox-option"><input type="checkbox" name="Answers[@idx].Values" value="@opt" id="@(optionIndex == 0 ? FieldId(answerField) : $"{FieldId(answerField)}-{optionIndex}")" checked="@(retry?.Chose(field.FieldId, opt) == true ? "checked" : null)" aria-invalid="@invalid" /> @opt</label>
+                    optionIndex++;
+                  }
+                </span>
+                @{ FieldProblem(answerField); }
+              </fieldset>
+            }
+            else
+            {
             <label>
               <span>@field.Label @(field.IsRequired ? "*" : "")</span>
               @if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Textarea)
               {
-                <textarea name="Answers[@idx].Values" maxlength="4000" rows="4" placeholder="@field.Placeholder" required="@(field.IsRequired ? "required" : null)"></textarea>
+                <textarea name="Answers[@idx].Values" id="@FieldId(answerField)" maxlength="4000" rows="4" placeholder="@field.Placeholder" required="@(field.IsRequired ? "required" : null)" aria-invalid="@invalid" aria-describedby="@describedBy">@answer</textarea>
               }
               else if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.Dropdown)
               {
-                <select name="Answers[@idx].Values" required="@(field.IsRequired ? "required" : null)">
-                  <option value="">Choose...</option>
+                <select name="Answers[@idx].Values" id="@FieldId(answerField)" required="@(field.IsRequired ? "required" : null)" aria-invalid="@invalid" aria-describedby="@describedBy">
+                  <option value="" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">Choose...</option>
                   @foreach (var opt in field.Options)
                   {
-                    <option value="@opt">@opt</option>
+                    <option value="@opt" selected="@(answer == opt ? "selected" : null)">@opt</option>
                   }
                 </select>
               }
-              else if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.CheckboxGroup)
-              {
-                <span class="website-form-checkbox-options">
-                  @foreach (var opt in field.Options)
-                  {
-                    <label class="website-form-checkbox-option"><input type="checkbox" name="Answers[@idx].Values" value="@opt" /> @opt</label>
-                  }
-                </span>
-              }
               else if (field.FieldType == IPRO.Entities.WebsiteFormFieldTypes.DateTime)
               {
-                <input type="datetime-local" name="Answers[@idx].Values" required="@(field.IsRequired ? "required" : null)" />
+                <input type="datetime-local" name="Answers[@idx].Values" id="@FieldId(answerField)" value="@answer" required="@(field.IsRequired ? "required" : null)" aria-invalid="@invalid" aria-describedby="@describedBy" />
               }
               else
               {
-                <input type="text" name="Answers[@idx].Values" maxlength="500" placeholder="@field.Placeholder" required="@(field.IsRequired ? "required" : null)" />
+                <input type="text" name="Answers[@idx].Values" id="@FieldId(answerField)" value="@answer" maxlength="500" placeholder="@field.Placeholder" required="@(field.IsRequired ? "required" : null)" aria-invalid="@invalid" aria-describedby="@describedBy" />
               }
+              @{ FieldProblem(answerField); }
             </label>
-            @if (!string.IsNullOrWhiteSpace(field.HelpText))
+            }
+            @if (helpId != null)
             {
-              <div class="website-form-help">@field.HelpText</div>
+              <div class="website-form-help" id="@helpId">@field.HelpText</div>
             }
           </div>
         }
       }
       </div>
 
-      <label class="website-lead-captcha">
+      <label class="website-lead-captcha" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">
         <span>Security check *</span>
         <span class="website-lead-captcha-row">
           <span class="website-lead-captcha-question">What is @captchaLeft + @captchaRight?</span>
-          <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
+          <input name="CaptchaAnswer" id="@FieldId("CaptchaAnswer")" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required aria-invalid="@PublicFormRetry.Invalid(retry, "CaptchaAnswer")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "CaptchaAnswer")" />
         </span>
+        @{ FieldProblem("CaptchaAnswer"); }
       </label>
-      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>I agree that @(ViewData["ConsentParty"] as string ?? "this business") may use my information to respond to this request.</span></label>
+      <label class="website-lead-consent" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)"><input type="checkbox" name="ConsentGiven" id="@FieldId("ConsentGiven")" value="true" checked="@(retry?.Consent == true ? "checked" : null)" required aria-invalid="@PublicFormRetry.Invalid(retry, "ConsentGiven")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "ConsentGiven")" /><span>I agree that @(ViewData["ConsentParty"] as string ?? "this business") may use my information to respond to this request.</span></label>
+      @{ FieldProblem("ConsentGiven"); }
       <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas fa-paper-plane"></i> @Model.SubmitButtonText</button>
     </form>
   }
@@ -133,14 +168,14 @@
   .website-lead-form{display:grid;gap:16px;}
   .website-lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .website-lead-form label{display:grid;gap:6px;font:700 13px/1.4 Arial,sans-serif;color:inherit;}
-  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea,.website-lead-form select{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#17223a;font:400 16px/1.4 Arial,sans-serif;} /* 16px, not 15: mobile Safari zooms the page on focus for any control under 16px and does not zoom back out (2026-08-31 mobile sweep). */
-  .website-lead-form input:focus,.website-lead-form textarea:focus,.website-lead-form select:focus{outline:3px solid color-mix(in srgb,var(--site-theme,#1457d9) 20%,transparent);border-color:var(--site-theme,#1457d9);}
+  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea,.website-lead-form select{width:100%;padding:11px 12px;border:1px solid #76839a;border-radius:6px;background:#fff;color:#17223a;font:400 16px/1.4 Arial,sans-serif;} /* 16px, not 15: mobile Safari zooms the page on focus for any control under 16px and does not zoom back out (2026-08-31 mobile sweep). */
+  .website-lead-form input:focus,.website-lead-form textarea:focus,.website-lead-form select:focus{outline:3px solid var(--site-theme-ink,var(--site-theme,#1457d9));outline-offset:1px;border-color:var(--site-theme-ink,var(--site-theme,#1457d9));} /* 578: 3:1 (WCAG 1.4.11) */
   .website-lead-captcha-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .website-lead-captcha-question{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:6px;background:color-mix(in srgb,var(--site-theme,#1457d9) 10%,#fff);border:1px solid color-mix(in srgb,var(--site-theme,#1457d9) 30%,#cbd5e1);font:800 14px Arial,sans-serif;color:#17223a;}
   .website-lead-captcha input{max-width:110px;}
   .website-lead-consent{display:flex!important;grid-template-columns:auto 1fr!important;align-items:start;gap:9px!important;font-weight:400!important;}
   .website-lead-consent input{margin-top:3px;}
-  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 3px rgb(0 0 0/.25);border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:#fff;font:800 14px Arial,sans-serif;}
+  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 3px rgb(0 0 0/.25);border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:var(--site-theme-on,#fff);font:800 14px Arial,sans-serif;}
   .website-lead-success,.website-lead-error{padding:14px;border-radius:6px;font:700 14px/1.5 Arial,sans-serif;}
   .website-lead-success{background:#dcfce7;color:#166534;border:1px solid #86efac;}
   .website-lead-error{margin-bottom:12px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
@@ -151,8 +186,10 @@
   .website-lead-preview-note{padding:12px 14px;border-radius:6px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;font:700 13px/1.4 Arial,sans-serif;}
   .website-form-section{margin-top:6px;padding-top:14px;border-top:1px solid #e2e8f0;}
   .website-form-section h4{margin:0 0 4px;font:800 16px Arial,sans-serif;color:inherit;}
-  .website-form-section-help{margin:0;font:400 13px/1.4 Arial,sans-serif;color:#64748b;}
-  .website-form-help{font:400 12px/1.4 Arial,sans-serif;color:#64748b;}
+  .website-form-section-help{margin:0;font:400 13px/1.4 Arial,sans-serif;color:#5b6472;}
+  .website-form-help{font:400 12px/1.4 Arial,sans-serif;color:#5b6472;}
+  .website-form-group{margin:0;padding:0;border:0;min-width:0;}
+  .website-form-group legend{float:none;width:auto;margin:0 0 6px;padding:0;font:700 13px/1.4 Arial,sans-serif;color:inherit;}
   .website-form-checkbox-options{display:grid;gap:6px;}
   .website-form-checkbox-option{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:8px;font-weight:400!important;}
   @@media(max-width:640px){.website-lead-grid,.website-form-fields{grid-template-columns:1fr}}

@@ -63,6 +63,7 @@
       font: inherit;
       resize: vertical;
     }
+    .body-label { display: block; margin: 0 0 6px; font-weight: 700; }
     label.consent {
       display: flex;
       align-items: flex-start;
@@ -110,7 +111,9 @@
         <p class="lead">@companyName would love to hear about your experience. Your feedback may be reviewed and shared publicly on their website.</p>
         <form method="post" action="/testimonial/@Model.RequestToken">
           @Html.AntiForgeryToken()
-          <textarea name="body" placeholder="Share a few words about your experience..." required maxlength="4000"></textarea>
+          @* 578: a label, not only a placeholder that disappears as the visitor types (WCAG 3.3.2). *@
+          <label for="testimonial-body" class="body-label">Your testimonial</label>
+          <textarea id="testimonial-body" name="body" placeholder="Share a few words about your experience..." required maxlength="4000"></textarea>
           <label class="consent">
             <input type="checkbox" name="consentGiven" value="true" required />
             <span>I agree that @companyName may review, edit for length, and publish this testimonial on their website.</span>

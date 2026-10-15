@@ -4,6 +4,9 @@
     var design = IPRO.Entities.WebsiteTemplateDesign.FromTemplate(Model.Website.Template);
     // 556: who a form's consent line names; every partial below reads it.
     ViewData["ConsentParty"] = IPRO.Web.Infrastructure.BusinessHoursClock.ConsentParty(Model.Website.AgentUser);
+    // 578: the page's language and the website's, for <html lang> and every lang="en" below.
+    IPRO.Web.Infrastructure.SiteLanguageMarkup.Set(ViewData, Model.Website, Model.CurrentPage);
+    ViewData["PictureDescriptions"] = Model.PictureDescriptions;   // 578, for _PriceList
 }
 @if (design.Renderer == "classic-sidebar")
 {

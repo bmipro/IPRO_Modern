@@ -19,6 +19,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 578: what the public-site accessibility checks load with no network: axe-core 4.10.2
+         (MPL-2.0, Deque Systems; its notice heads the file) and Bootstrap 5.3.3's stylesheet (MIT). -->
+    <None Update="Accessibility\vendor\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

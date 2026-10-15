@@ -6,7 +6,12 @@
     var forThisBlock = Context.Request.Query["block"].ToString() == Model.BlockId.ToString();
     var justVoted = forThisBlock && outcome == "thanks";
     var showForm = !Model.HasVoted && !justVoted;
-    var returnPath = Context.Request.Path.HasValue ? Context.Request.Path.Value! : "/";
+    // 578: the address the visitor sees, as the other forms post it. On a page other than the home page
+    // the request's own path is the rewritten /PublicWebsite/Page, so the vote came back to the home
+    // page and its message (a missing answer, a busy poll) was never shown.
+    var returnPath = Context.Items.TryGetValue("IproPublicPath", out var originalPath) && originalPath is string { Length: > 0 } originalPathValue
+        ? originalPathValue
+        : Context.Request.Path.HasValue ? Context.Request.Path.Value! : "/";
     var message = forThisBlock ? outcome switch
     {
         "thanks" => "Thanks for voting.",
@@ -20,7 +25,7 @@
 <div class="public-poll-vote" id="poll-@Model.BlockId">
   @if (!string.IsNullOrEmpty(message))
   {
-    <p class="small fw-semibold mb-3" role="status">@message</p>
+    <p class="small fw-semibold mb-3" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)" role="@(outcome == "thanks" || outcome == "already" ? "status" : "alert")">@message</p>
   }
   @if (showForm)
   {
@@ -43,7 +48,7 @@
           }
         </fieldset>
       }
-      <button type="submit" class="btn btn-primary">Vote</button>
+      <button type="submit" class="btn btn-primary" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">Vote</button>
     </form>
   }
   else if (Model.ShowResults && Model.Results != null)
@@ -52,6 +57,6 @@
   }
   else
   {
-    <p class="small mb-0" style="opacity:.75;">Results will appear here once more people have voted.</p>
+    <p class="small mb-0" style="opacity:.75;" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">Results will appear here once more people have voted.</p>
   }
 </div>

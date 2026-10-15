@@ -77,7 +77,8 @@ public static class BuilderImportPreviewBuilder
             FormsByBlockId = await PublicFormBuilder.BuildAsync(db, agentId, current),
             DidYouKnowByBlockId = await DidYouKnowBuilder.BuildAsync(db, agentId, current),
             ArticleContentByBlockId = await ArticleContentBuilder.BuildAsync(db, agentId, current),
-            BlogByBlockId = await BlogBuilder.BuildAsync(db, agentId, current, 0)
+            BlogByBlockId = await BlogBuilder.BuildAsync(db, agentId, current, 0),
+            PictureDescriptions = await PictureDescriptions.ForPageAsync(db, site.Id, current)
         };
     }
 }

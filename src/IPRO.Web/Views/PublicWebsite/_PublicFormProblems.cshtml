@@ -1,0 +1,43 @@
+@model IPRO.Web.Infrastructure.PublicFormRetry.Box
+@{
+    // 578: what the server turned down on this form, above it: announced (role=alert), given keyboard
+    // focus and scrolled into view, and each problem a link to its field (WCAG 3.3.1 and 3.3.3).
+    var boxId = $"{Model.FormId}-problems";
+}
+<div class="website-lead-error" role="alert" tabindex="-1" id="@boxId" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">
+  <p class="website-lead-error__lead">@Model.Retry.Message</p>
+  @if (Model.Retry.Problems.Count > 0)
+  {
+    <ul class="website-lead-error__list">
+      @foreach (var problem in Model.Retry.Problems)
+      {
+        <li><a href="#@Model.FormId-@problem.Field">@problem.Label: @problem.Text</a></li>
+      }
+    </ul>
+  }
+</div>
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  var box = document.getElementById('@boxId');
+  if (!box) return;
+  var panel = '@(Model.HidePanelId ?? string.Empty)';
+  if (panel && document.getElementById(panel)) document.getElementById(panel).hidden = true;
+  box.focus({ preventScroll: true });
+  try { box.scrollIntoView({ block: 'center' }); } catch (e) { box.scrollIntoView(); }
+  box.addEventListener('click', function (event) {
+    var link = event.target.closest('a[href^="#"]');
+    var field = link && document.getElementById(link.getAttribute('href').slice(1));
+    if (!field) return;
+    event.preventDefault();
+    field.focus();
+  });
+})();
+</script>
+<style>
+  .website-lead-error:focus { outline: 3px solid #991b1b; outline-offset: 2px; }
+  .website-lead-error__lead { margin: 0; }
+  .website-lead-error__list { margin: 8px 0 0; padding-left: 20px; font-weight: 400; }
+  .website-lead-error__list a { color: #991b1b; text-decoration: underline; }
+  .website-form-error { display: block; justify-self: start; margin-top: 2px; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #991b1b; font: 700 13px/1.4 Arial, sans-serif; }
+  .website-lead-form [aria-invalid="true"] { border-color: #b42318; }
+</style>

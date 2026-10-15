@@ -1,5 +1,5 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
-<footer class="modern-footer">
+<footer class="modern-footer" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.SiteParts(ViewData)">
   <div class="modern-footer__inner">
     @await Html.PartialAsync("_PublicFooterContent", Model)
   </div>
@@ -10,13 +10,13 @@
   .modern-footer__inner .public-footer__copyright { font-weight: 700; color: #111827; }
   .modern-footer__inner .public-footer__contact { display: flex; flex-wrap: wrap; gap: 16px; }
   .modern-footer__inner .public-footer__contact a { color: #425066; text-decoration: none; }
-  .modern-footer__inner .public-footer__contact a:hover { color: var(--site-theme, #1457d9); }
+  .modern-footer__inner .public-footer__contact a:hover { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   .modern-footer__inner .public-footer__contact i { color: var(--site-theme, #1457d9); margin-right: 6px; }
   .modern-footer__inner .public-footer__social { display: flex; align-items: center; gap: 12px; }
   .modern-footer__inner .public-footer__social a { color: #425066; font-size: 16px; }
-  .modern-footer__inner .public-footer__social a:hover { color: var(--site-theme, #1457d9); }
+  .modern-footer__inner .public-footer__social a:hover { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   .modern-footer__inner .public-footer__legal { display: flex; flex-wrap: wrap; gap: 14px; }
   .modern-footer__inner .public-footer__legal a { color: #425066; text-decoration: none; }
   .modern-footer__inner .public-footer__legal a:hover { text-decoration: underline; }
-  .modern-footer__inner .public-footer__disclaimer { width: 100%; color: #8492a6; font-size: 12px; }
+  .modern-footer__inner .public-footer__disclaimer { width: 100%; color: #5b6472; font-size: 12px; } /* 578: #8492a6 was 3.2:1 */
 </style>

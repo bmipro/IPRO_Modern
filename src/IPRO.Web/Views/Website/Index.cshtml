@@ -139,6 +139,16 @@
               <label class="form-label fw-semibold">Site Title</label>
               <input name="SiteTitle" class="form-control" value="@siteTitle" placeholder="John Smith Insurance Adviser" required />
             </div>
+            @* 578: the language the website is written in, so a screen reader reads it with the right voice
+               (WCAG 3.1.1). A single page in another language is set on that page. *@
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="SiteLanguage">Website language</label>
+              <select name="SiteLanguage" id="SiteLanguage" class="form-select" aria-describedby="siteLanguageHelp">
+                <option value="@IPRO.Entities.WebsiteLanguages.English" selected="@(IPRO.Entities.WebsiteLanguages.Normalize(Model?.SiteLanguage) == IPRO.Entities.WebsiteLanguages.English)">English</option>
+                <option value="@IPRO.Entities.WebsiteLanguages.French" selected="@(IPRO.Entities.WebsiteLanguages.Normalize(Model?.SiteLanguage) == IPRO.Entities.WebsiteLanguages.French)">French (Français)</option>
+              </select>
+              <div class="form-text" id="siteLanguageHelp">The language your pages are written in, for screen readers. iPro's own words on your site, such as form labels, stay in English for now.</div>
+            </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Website Themes</label>
               <div class="theme-gallery" role="group" aria-label="Website themes">

@@ -13,6 +13,8 @@ public class AgentWebsite
     public string TagLine { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
     public string ThemeColor { get; set; } = "#003366";
+    // 578: the language the website is written in, "en" or "fr" (WebsiteLanguages); <html lang>.
+    public string SiteLanguage { get; set; } = WebsiteLanguages.English;
     public string FontFamilyOverride { get; set; } = string.Empty;
     public int HeadingFontSizeOverride { get; set; }
     public int BodyFontSizeOverride { get; set; }

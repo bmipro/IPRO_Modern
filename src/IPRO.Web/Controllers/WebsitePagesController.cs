@@ -462,13 +462,14 @@ public class WebsitePagesController : Controller
             PollVoteByBlockId = pollVoteByBlockId,
             FormsByBlockId = formsByBlockId,
             DidYouKnowByBlockId = didYouKnowByBlockId,
-            ArticleContentByBlockId = articleContentByBlockId
+            ArticleContentByBlockId = articleContentByBlockId,
+            PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, page)
         };
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     [RequestSizeLimit(8 * 1024 * 1024)]
-    public async Task<IActionResult> UploadImage(int pageId, IFormFile? image)
+    public async Task<IActionResult> UploadImage(int pageId, IFormFile? image, string? description = null)
     {
         var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == pageId);
         if (page == null) return NotFound();
@@ -528,11 +529,29 @@ public class WebsitePagesController : Controller
             OriginalFileName = Path.GetFileName(image.FileName),
             BlobUrl = url,
             ContentType = expectedContentType,
-            FileSize = image.Length
+            FileSize = image.Length,
+            Description = IPRO.Web.Infrastructure.PictureDescriptions.Clean(description)   // 578
         });
         await _db.SaveChangesAsync();
         TempData["Success"] = "Image uploaded and added to your media library.";
         return RedirectToAction(nameof(Edit), new { id = pageId });
+    }
+
+    // 578: what a library picture shows, read to visitors who cannot see it wherever the picture is used
+    // (its alt text). Empty means decoration.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DescribeImage(int id, int pageId, string? description)
+    {
+        var page = await OwnedPages().FirstOrDefaultAsync(p => p.Id == pageId);
+        if (page == null) return NotFound();
+        var asset = await _db.WebsiteMediaAssets.FirstOrDefaultAsync(a => a.Id == id && a.AgentWebsiteId == page.AgentWebsiteId);
+        if (asset == null) return NotFound();
+        asset.Description = IPRO.Web.Infrastructure.PictureDescriptions.Clean(description);
+        await _db.SaveChangesAsync();
+        TempData["Success"] = asset.Description.Length > 0
+            ? $"Picture described as \"{asset.Description}\"."
+            : "Description removed: the picture is treated as decoration.";
+        return RedirectToAction(nameof(Edit), null, new { id = pageId }, "image-library");
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -784,7 +803,7 @@ public class WebsitePagesController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SavePage(int id, string title, string slug, string navigationLabel,
         string metaTitle, string metaDescription, int? parentPageId, bool showInNavigation, bool isPublished, bool isHomePage,
-        string starterPreset = "blank", string? oldAddresses = null)
+        string starterPreset = "blank", string? oldAddresses = null, string? pageLanguage = null)
     {
         var website = await GetWebsiteAsync();
         if (website == null) return RedirectToAction("Index", "Website");
@@ -866,6 +885,8 @@ public class WebsitePagesController : Controller
         page.MetaTitle = metaTitle?.Trim() ?? string.Empty;
         page.MetaDescription = metaDescription?.Trim() ?? string.Empty;
         page.OldAddresses = IPRO.Web.Infrastructure.OldAddresses.Store(keptOldAddresses);
+        // 578: the page's own language ("" = the website's); a form that does not send it leaves it as it is.
+        if (pageLanguage != null) page.Language = WebsiteLanguages.NormalizePage(pageLanguage);
         page.ParentPageId = parentPageId;
         page.ShowInNavigation = showInNavigation;
         page.IsPublished = isPublished;
@@ -913,6 +934,7 @@ public class WebsitePagesController : Controller
             NavigationLabel = source.NavigationLabel + " Copy",
             MetaTitle = source.MetaTitle,
             MetaDescription = source.MetaDescription,
+            Language = source.Language,
             ShowInNavigation = false,
             IsPublished = false,
             SortOrder = await _db.WebsitePages.CountAsync(p => p.AgentWebsiteId == source.AgentWebsiteId),

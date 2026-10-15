@@ -28,4 +28,10 @@ public class PublicWebsiteViewModel
     public Dictionary<int, DidYouKnowBlockData> DidYouKnowByBlockId { get; set; } = new();
     public Dictionary<int, Article> ArticleContentByBlockId { get; set; } = new();
     public Dictionary<int, BlogBlockData> BlogByBlockId { get; set; } = new();
+    // 578: what the page's library pictures show, by address (PictureDescriptions), for their alt text.
+    public Dictionary<string, string> PictureDescriptions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A picture's alt text: its description, or empty (decoration) when it has none.</summary>
+    public string PictureDescription(string? url) =>
+        !string.IsNullOrWhiteSpace(url) && PictureDescriptions.TryGetValue(url, out var description) ? description : string.Empty;
 }

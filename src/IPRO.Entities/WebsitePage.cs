@@ -17,6 +17,8 @@ public class WebsitePage
     /// sent to this page for good.
     /// </summary>
     public string OldAddresses { get; set; } = string.Empty;
+    // 578: this page's own language when it differs from the website's ("en" or "fr"); empty = the website's.
+    public string Language { get; set; } = string.Empty;
     public bool IsHomePage { get; set; }
     public bool ShowInNavigation { get; set; } = true;
     public bool IsPublished { get; set; } = true;

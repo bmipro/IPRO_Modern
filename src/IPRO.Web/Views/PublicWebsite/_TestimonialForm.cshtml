@@ -1,5 +1,6 @@
 @model IPRO.Web.Models.TestimonialFormViewModel
 @using Microsoft.AspNetCore.DataProtection
+@using IPRO.Web.Infrastructure
 @inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
 @{
     var formId = $"testimonial-form-{Guid.NewGuid():N}";
@@ -16,8 +17,22 @@
     var captchaToken = DataProtectionProvider
         .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
         .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}"); // nonce -> single-use (422g)
+    var submittedHere = submitted == "testimonial";
+    // 578: this form as the visitor left it, when the server turned it down (never the security answer).
+    var retry = isPreview || submittedHere ? null : PublicFormRetry.Find(TempData, PublicFormRetry.TestimonialForm, Context.Items);
+    string FieldId(string field) => $"{formId}-{field}";
+    // The problem shows beside the field, aria-hidden so that it stays out of the label's name; the
+    // field's aria-describedby is how a screen reader hears it.
+    void FieldProblem(string field)
+    {
+        var problem = retry?.ProblemWith(field);
+        if (problem != null)
+        {
+            <span class="website-form-error" id="@PublicFormRetry.ErrorId(formId, field)" aria-hidden="true">@problem.Text</span>
+        }
+    }
 }
-<div class="website-lead-form-shell">
+<div class="website-lead-form-shell" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">
   @if (submitted == "testimonial")
   {
     <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> Thank you for taking the time to share your feedback. It will appear here once reviewed.</div>
@@ -25,9 +40,9 @@
   }
   else
   {
-    @if (TempData["PublicFormError"] is string formError)
+    @if (retry != null)
     {
-      <div class="website-lead-error" role="alert">@formError</div>
+      @await Html.PartialAsync("_PublicFormProblems", new PublicFormRetry.Box(retry, formId, null))
     }
     @if (isPreview)
     {
@@ -41,19 +56,21 @@
       <input type="hidden" name="CaptchaToken" value="@captchaToken" />
       <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
       <div class="website-lead-grid">
-        <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
-        <label><span>Last name</span><input name="LastName" maxlength="80" autocomplete="family-name" /></label>
-        <label><span>Email *</span><input type="email" name="Email" maxlength="200" autocomplete="email" required /></label>
-        <label class="website-lead-full"><span>Your testimonial *</span><textarea name="Body" maxlength="2000" rows="4" required></textarea></label>
+        <label><span>First name *</span><input name="FirstName" id="@FieldId("FirstName")" value="@retry?.Value("FirstName")" maxlength="80" autocomplete="given-name" required aria-invalid="@PublicFormRetry.Invalid(retry, "FirstName")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "FirstName")" />@{ FieldProblem("FirstName"); }</label>
+        <label><span>Last name</span><input name="LastName" id="@FieldId("LastName")" value="@retry?.Value("LastName")" maxlength="80" autocomplete="family-name" aria-invalid="@PublicFormRetry.Invalid(retry, "LastName")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "LastName")" />@{ FieldProblem("LastName"); }</label>
+        <label><span>Email *</span><input type="email" name="Email" id="@FieldId("Email")" value="@retry?.Value("Email")" maxlength="200" autocomplete="email" required aria-invalid="@PublicFormRetry.Invalid(retry, "Email")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "Email")" />@{ FieldProblem("Email"); }</label>
+        <label class="website-lead-full"><span>Your testimonial *</span><textarea name="Body" id="@FieldId("Body")" maxlength="2000" rows="4" required aria-invalid="@PublicFormRetry.Invalid(retry, "Body")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "Body")">@retry?.Value("Body")</textarea>@{ FieldProblem("Body"); }</label>
       </div>
       <label class="website-lead-captcha">
         <span>Security check *</span>
         <span class="website-lead-captcha-row">
           <span class="website-lead-captcha-question">What is @captchaLeft + @captchaRight?</span>
-          <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
+          <input name="CaptchaAnswer" id="@FieldId("CaptchaAnswer")" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required aria-invalid="@PublicFormRetry.Invalid(retry, "CaptchaAnswer")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "CaptchaAnswer")" />
         </span>
+        @{ FieldProblem("CaptchaAnswer"); }
       </label>
-      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>I agree that this testimonial may be reviewed and published on this website.</span></label>
+      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" id="@FieldId("ConsentGiven")" value="true" checked="@(retry?.Consent == true ? "checked" : null)" required aria-invalid="@PublicFormRetry.Invalid(retry, "ConsentGiven")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "ConsentGiven")" /><span>I agree that this testimonial may be reviewed and published on this website.</span></label>
+      @{ FieldProblem("ConsentGiven"); }
       <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas fa-paper-plane"></i> Submit</button>
     </form>
   }
@@ -63,15 +80,15 @@
   .website-lead-form{display:grid;gap:16px;}
   .website-lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .website-lead-form label{display:grid;gap:6px;font:700 13px/1.4 Arial,sans-serif;color:inherit;}
-  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#17223a;font:400 16px/1.4 Arial,sans-serif;} /* 16px, not 15: mobile Safari zooms the page on focus for any control under 16px and does not zoom back out (2026-08-31 mobile sweep). */
-  .website-lead-form input:focus,.website-lead-form textarea:focus{outline:3px solid color-mix(in srgb,var(--site-theme,#1457d9) 20%,transparent);border-color:var(--site-theme,#1457d9);}
+  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea{width:100%;padding:11px 12px;border:1px solid #76839a;border-radius:6px;background:#fff;color:#17223a;font:400 16px/1.4 Arial,sans-serif;} /* 16px, not 15: mobile Safari zooms the page on focus for any control under 16px and does not zoom back out (2026-08-31 mobile sweep). */
+  .website-lead-form input:focus,.website-lead-form textarea:focus{outline:3px solid var(--site-theme-ink,var(--site-theme,#1457d9));outline-offset:1px;border-color:var(--site-theme-ink,var(--site-theme,#1457d9));} /* 578: 3:1 (WCAG 1.4.11) */
   .website-lead-full{grid-column:1/-1;}
   .website-lead-captcha-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .website-lead-captcha-question{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:6px;background:color-mix(in srgb,var(--site-theme,#1457d9) 10%,#fff);border:1px solid color-mix(in srgb,var(--site-theme,#1457d9) 30%,#cbd5e1);font:800 14px Arial,sans-serif;color:#17223a;}
   .website-lead-captcha input{max-width:110px;}
   .website-lead-consent{display:flex!important;grid-template-columns:auto 1fr!important;align-items:start;gap:9px!important;font-weight:400!important;}
   .website-lead-consent input{margin-top:3px;}
-  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 3px rgb(0 0 0/.25);border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:#fff;font:800 14px Arial,sans-serif;}
+  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 3px rgb(0 0 0/.25);border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:var(--site-theme-on,#fff);font:800 14px Arial,sans-serif;}
   .website-lead-success,.website-lead-error{padding:14px;border-radius:6px;font:700 14px/1.5 Arial,sans-serif;}
   .website-lead-success{background:#dcfce7;color:#166534;border:1px solid #86efac;}
   .website-lead-error{margin-bottom:12px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}

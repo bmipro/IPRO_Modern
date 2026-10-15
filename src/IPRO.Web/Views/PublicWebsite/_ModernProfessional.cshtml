@@ -20,6 +20,11 @@
         HeroStyle = website.HeroStyleOverride
     });
     var theme = design.AccentColor;
+    // 578: readable text with any colour the owner picks (WCAG 1.4.3): the colour itself where its
+    // text reads, else a deeper shade or dark text (AccentContrast). #eef4ff is this design's palest
+    // tint under coloured text, also its --site-theme-soft.
+    var tint = "#eef4ff";
+    var accent = IPRO.Entities.AccentContrast.For(theme, tint, design.BackgroundColor);
     var background = design.BackgroundColor;
     var fontFamily = design.FontFamily;
     var sectionSpace = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px";
@@ -30,7 +35,7 @@
         + "&businessType=" + Uri.EscapeDataString(agent.BusinessType);
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.Page(ViewData)">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -39,9 +44,12 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet" />
   <style>
     :root {
-      --site-theme: @theme;
+      --site-theme: @accent.Fill;
+      --site-theme-on: @accent.OnFill;
+      --site-theme-band: @accent.Band;
+      --site-theme-ink: @accent.Ink;
       --site-theme-deep: #07142f;
-      --site-theme-soft: #eef4ff;
+      --site-theme-soft: @tint;
       --section-space: @sectionSpace;
       --button-radius: @buttonRadius;
       --heading-font-size: @(design.HeadingFontSize)px;
@@ -60,7 +68,7 @@
       background:
         linear-gradient(110deg, rgba(8, 21, 48, .94), rgba(8, 21, 48, .2)),
         radial-gradient(circle at 80% 20%, rgba(255,255,255,.18), transparent 28%),
-        linear-gradient(135deg, var(--site-theme-deep), var(--site-theme, #1457d9));
+        linear-gradient(135deg, var(--site-theme-deep), var(--site-theme-band, #1457d9));
       color: #fff;
     }
     .site-logo {
@@ -90,7 +98,7 @@
     .btn-theme {
       background: var(--site-theme, #1457d9);
       border-color: var(--site-theme, #1457d9);
-      color: #fff;
+      color: var(--site-theme-on, #fff);
       box-shadow: 0 12px 26px rgba(0,0,0,.2);
     }
     .btn-theme:hover {
@@ -110,7 +118,7 @@
       color: #e5edff;
     }
     .section-band a {
-      color: var(--site-theme, #1457d9);
+      color: var(--site-theme-ink, var(--site-theme, #1457d9));
     }
     .contact-link {
       color: #fff;
@@ -121,6 +129,8 @@
   @await Html.PartialAsync("_ManagedPageStyles")
 </head>
 <body class="header-@design.HeaderStyle hero-@design.HeroLayout hero-style-@design.HeroStyle buttons-@design.ButtonStyle">
+  @* 578: the first thing a keyboard reaches, past the menu to the page (WCAG 2.4.1). *@
+  <a class="site-skip-link" href="#main-content">@IPRO.Web.Infrastructure.SiteLanguageMarkup.SkipLink(IPRO.Web.Infrastructure.SiteLanguageMarkup.Page(ViewData))</a>
   @if (ViewBag.IsUnsavedPreview == true)
   {
     <div class="template-preview-banner unsaved-preview-banner"><i class="fas fa-pen me-2"></i>Unsaved preview — showing your current changes to this block. Nothing has been saved yet.</div>
@@ -147,7 +157,7 @@
   }
   else
   {
-  <main class="site-hero">
+  <main class="site-hero" id="main-content">
     <div class="container py-5">
       <div class="row align-items-center g-5">
         <div class="col-lg-7">

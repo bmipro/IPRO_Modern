@@ -8,6 +8,8 @@ public class Article
     public string Summary { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
+    // 578: what the picture shows (its alt text); empty means decoration.
+    public string ImageDescription { get; set; } = string.Empty;
     // A5-M-QUOTA: captured at upload so article images count against FileUploadCapacity like
     // everything else. Rows from before 2026-08-20 hold 0 (size never recorded); documented.
     public long ImageSizeBytes { get; set; }

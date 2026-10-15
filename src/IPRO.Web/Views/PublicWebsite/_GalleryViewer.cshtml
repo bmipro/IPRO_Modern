@@ -7,17 +7,17 @@
 @{
     var prefix = ViewData["GalleryPrefix"] as string ?? "mp";
 }
-<div class="site-lightbox site-lightbox--@prefix" id="site-lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
+<div class="site-lightbox site-lightbox--@prefix" id="site-lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)" hidden>
   <div class="site-lightbox__count" aria-live="polite"></div>
-  <button type="button" class="site-lightbox__close" aria-label="Close">&times;</button>
-  <button type="button" class="site-lightbox__prev" aria-label="Previous photo">&#8249;</button>
-  <figure><img src="" alt="" /><figcaption hidden></figcaption></figure>
-  <button type="button" class="site-lightbox__next" aria-label="Next photo">&#8250;</button>
+  <button type="button" class="site-lightbox__close" aria-label="Close" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">&times;</button>
+  <button type="button" class="site-lightbox__prev" aria-label="Previous photo" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">&#8249;</button>
+  <figure lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.PageInsideEnglish(ViewData)"><img src="" alt="" /><figcaption hidden></figcaption></figure>
+  <button type="button" class="site-lightbox__next" aria-label="Next photo" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">&#8250;</button>
 </div>
 <style>
   .site-gallery__cell { margin: 0; }
   .site-gallery__item { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: zoom-in; }
-  .site-gallery__item:focus-visible { outline: 3px solid var(--site-theme, #1457d9); outline-offset: 3px; }
+  .site-gallery__item:focus-visible { outline: 3px solid var(--site-theme-ink, var(--site-theme, #1457d9)); outline-offset: 3px; }
   /* height:auto: the width/height attributes reserve the photo's shape while it loads, but as a fixed
      height they would override each layout's own shape (the grid's 4:3, the masonry's natural one). */
   .site-gallery__item img { display: block; height: auto; }
@@ -42,7 +42,7 @@
   .site-slideshow__thumb { flex: 0 0 auto; width: 64px; height: 64px; padding: 0; border: 2px solid transparent; border-radius: 4px; background: none; cursor: pointer; opacity: .65; transition: opacity .15s, border-color .15s; }
   .site-slideshow__thumb img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
   .site-slideshow__thumb:hover { opacity: 1; }
-  .site-slideshow__thumb:focus-visible { opacity: 1; outline: 3px solid var(--site-theme, #1457d9); outline-offset: 2px; }
+  .site-slideshow__thumb:focus-visible { opacity: 1; outline: 3px solid var(--site-theme-ink, var(--site-theme, #1457d9)); outline-offset: 2px; }
   .site-slideshow__thumb.is-current { opacity: 1; border-color: var(--site-theme, #172033); }
   .site-slideshow__prev, .site-slideshow__next { position: absolute; top: calc(min(68vh, 560px, 85vw) / 2); transform: translateY(-50%); width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255,255,255,.9); color: #172033; font-size: 26px; line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
   .site-slideshow__prev { left: 12px; }
@@ -144,6 +144,15 @@
     if (e.key === 'Escape') close();
     else if (e.key === 'ArrowLeft' && items.length > 1) show(index - 1);
     else if (e.key === 'ArrowRight' && items.length > 1) show(index + 1);
+    else if (e.key === 'Tab') {
+      // 578: Tab stays inside the open viewer (WCAG 2.4.3); it went on behind the dark overlay.
+      var buttons = Array.prototype.filter.call(box.querySelectorAll('button'), function (b) { return b.getClientRects().length > 0; });
+      if (!buttons.length) return;
+      var at = buttons.indexOf(document.activeElement);
+      var next = e.shiftKey ? (at <= 0 ? buttons.length - 1 : at - 1) : (at === -1 || at === buttons.length - 1 ? 0 : at + 1);
+      e.preventDefault();
+      buttons[next].focus();
+    }
   });
   swipe(box, function () { if (items.length > 1) show(index + 1); }, function () { if (items.length > 1) show(index - 1); });
 

@@ -44,8 +44,12 @@
           })
         </div>
         <div class="col-12">
-          <label class="form-label fw-semibold">Image (optional)</label>
-          <input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
+          <label class="form-label fw-semibold" for="articleImage">Image (optional)</label>
+          <input type="file" name="image" id="articleImage" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
+          @* 578: what the picture shows, read to visitors who cannot see it (its alt text). *@
+          <label class="form-label small fw-semibold mt-2 mb-1" for="imageDescription">Describe the picture <span class="text-muted fw-normal">(optional)</span></label>
+          <input type="text" name="ImageDescription" id="imageDescription" class="form-control" maxlength="300" value="@Model.ImageDescription" placeholder="e.g. A couple reviewing a retirement plan" />
+          <div class="form-text">Read aloud to visitors who cannot see the picture. Leave it empty if the picture is only decoration.</div>
         </div>
         <div class="col-12 form-check">
           <input type="checkbox" name="IsPublished" value="true" class="form-check-input" id="isPublished" />

@@ -46,6 +46,8 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "AgentWebsites", "HeaderSettingsJson", "ALTER TABLE `AgentWebsites` ADD COLUMN `HeaderSettingsJson` longtext CHARACTER SET utf8mb4 NULL");
             // 552: the custom domain as the adviser writes it in their emails (AgentSiteAddress).
             await EnsureTableColumnAsync(db, "AgentWebsites", "CustomDomainDisplay", "ALTER TABLE `AgentWebsites` ADD COLUMN `CustomDomainDisplay` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            // 578: the language the website is written in (WebsiteLanguages).
+            await EnsureTableColumnAsync(db, "AgentWebsites", "SiteLanguage", "ALTER TABLE `AgentWebsites` ADD COLUMN `SiteLanguage` varchar(5) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'en'");
             await db.Database.ExecuteSqlRawAsync(
                 "UPDATE `AgentWebsites` SET `HeaderSettingsJson` = {0} WHERE `HeaderSettingsJson` IS NULL OR `HeaderSettingsJson` = ''",
                 "{}");
@@ -238,6 +240,8 @@ public static class StartupSchemaRepair
             // 553: the addresses a page had on the adviser's previous website (OldAddresses). Here, not with
             // the AgentWebsites columns: this step runs right after WebsiteContentSchema creates the table.
             await EnsureTableColumnAsync(db, "WebsitePages", "OldAddresses", "ALTER TABLE `WebsitePages` ADD COLUMN `OldAddresses` varchar(2000) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            // 578: a page's own language; empty = the website's.
+            await EnsureTableColumnAsync(db, "WebsitePages", "Language", "ALTER TABLE `WebsitePages` ADD COLUMN `Language` varchar(5) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
         }
         finally
         {
@@ -255,6 +259,8 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "ClaimedAt", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `ClaimedAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "ClaimAttempts", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `ClaimAttempts` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "Articles", "ImageSizeBytes", "ALTER TABLE `Articles` ADD COLUMN `ImageSizeBytes` bigint NOT NULL DEFAULT 0");
+            // 578: what the article's picture shows (its alt text).
+            await EnsureTableColumnAsync(db, "Articles", "ImageDescription", "ALTER TABLE `Articles` ADD COLUMN `ImageDescription` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
         }
         finally
         {
@@ -1439,6 +1445,9 @@ public static class StartupSchemaRepair
             "ALTER TABLE `WebsiteBuilderHandovers` ADD COLUMN `HostSectionsJson` longtext CHARACTER SET utf8mb4 NULL");
         await EnsureTableColumnAsync(db, "WebsiteMediaAssets", "ContentSha256",
             "ALTER TABLE `WebsiteMediaAssets` ADD COLUMN `ContentSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        // 578: what the picture shows (its alt text on the website).
+        await EnsureTableColumnAsync(db, "WebsiteMediaAssets", "Description",
+            "ALTER TABLE `WebsiteMediaAssets` ADD COLUMN `Description` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
     }
 
     // 498: the morning follow-ups email's switch and day-claim (AgentFollowUpReminder). A table of its

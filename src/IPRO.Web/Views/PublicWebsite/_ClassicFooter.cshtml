@@ -1,6 +1,6 @@
 @model IPRO.Web.Models.PublicWebsiteViewModel
 <div class="classic-footer-wrap">
-  <footer class="classic-footer">
+  <footer class="classic-footer" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.SiteParts(ViewData)">
     @await Html.PartialAsync("_PublicFooterContent", Model)
   </footer>
 </div>

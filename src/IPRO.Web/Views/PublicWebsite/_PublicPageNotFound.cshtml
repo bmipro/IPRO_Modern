@@ -31,7 +31,7 @@
     font-weight: 800;
     line-height: 1;
     letter-spacing: -.02em;
-    color: var(--site-theme, #1457d9);
+    color: var(--site-theme-ink, var(--site-theme, #1457d9));
     margin-bottom: 6px;
   }
   .public-page-notfound .pnf-art svg { display: block; width: 100%; height: auto; }
@@ -44,17 +44,17 @@
     padding: 12px 24px;
     border: 1px solid var(--site-theme, #1457d9);
     border-radius: var(--button-radius, 7px);
-    color: var(--site-theme, #1457d9);
+    color: var(--site-theme-ink, var(--site-theme, #1457d9));
     text-decoration: none;
     font-weight: 600;
   }
   .public-page-notfound .pnf-btn:hover,
   .public-page-notfound .pnf-btn:focus-visible {
     background: var(--site-theme, #1457d9);
-    color: #fff;
+    color: var(--site-theme-on, #fff);
   }
   .public-page-notfound .pnf-link {
-    color: var(--site-theme, #1457d9);
+    color: var(--site-theme-ink, var(--site-theme, #1457d9));
     text-decoration: none;
     font-weight: 600;
   }
@@ -94,8 +94,8 @@
     .public-page-notfound .pnf-side--r { animation: none; }
   }
 </style>
-<main class="public-page-notfound" style="padding:72px 16px 88px;">
-  <div style="width:min(640px, 100%); margin:0 auto; text-align:center;">
+<main class="public-page-notfound" id="main-content" style="padding:72px 16px 88px;">
+  <div style="width:min(640px, 100%); margin:0 auto; text-align:center;" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">
 
     @* Drawn rather than shipped as an image file: inline SVG inherits the agent's own accent colour
        via --site-theme, so every firm gets its 404 in its own brand instead of a fixed blue stock
@@ -153,10 +153,10 @@
     @if (suggestions.Count > 0)
     {
       <div style="border-top:1px solid rgba(128,128,128,.25); padding-top:24px;">
-        <p style="margin:0 0 14px; font-size:13px; letter-spacing:.08em; text-transform:uppercase; opacity:.55;">
+        <p style="margin:0 0 14px; font-size:13px; letter-spacing:.08em; text-transform:uppercase; opacity:.75;">
           Or try one of these
         </p>
-        <ul style="list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:10px 22px; justify-content:center;">
+        <ul lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.PageInsideEnglish(ViewData)" style="list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:10px 22px; justify-content:center;">
           @foreach (var suggestion in suggestions)
           {
             <li><a href="/@suggestion.Slug" class="pnf-link">@suggestion.Title</a></li>

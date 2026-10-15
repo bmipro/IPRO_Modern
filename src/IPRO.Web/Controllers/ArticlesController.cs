@@ -130,6 +130,7 @@ public class ArticlesController : Controller
             Content = HtmlContentSanitizer.Sanitize((model.Content ?? string.Empty).Trim()),
             ImageUrl = imageUrl,
             ImageSizeBytes = image?.Length ?? 0,
+            ImageDescription = imageUrl.Length > 0 ? IPRO.Web.Infrastructure.PictureDescriptions.Clean(model.ImageDescription) : string.Empty,   // 578
             IsPublished = model.IsPublished,
             PublishedAt = model.IsPublished ? now : null,
             CreatedAt = now,
@@ -207,6 +208,8 @@ public class ArticlesController : Controller
         existing.Title = model.Title.Trim();
         existing.Summary = (model.Summary ?? string.Empty).Trim();
         existing.Content = HtmlContentSanitizer.Sanitize((model.Content ?? string.Empty).Trim());
+        // 578: a picture's description goes with the picture; a removed picture leaves none behind.
+        existing.ImageDescription = existing.ImageUrl.Length > 0 ? IPRO.Web.Infrastructure.PictureDescriptions.Clean(model.ImageDescription) : string.Empty;
         if (model.IsPublished && !existing.IsPublished)
         {
             existing.PublishedAt = DateTime.UtcNow;

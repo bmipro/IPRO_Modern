@@ -10,6 +10,9 @@
 }
 @{
     var agent = Model.Website.AgentUser;
+    // 578: iPro's own English words carry lang="en" on a page in another language (SiteLanguageMarkup).
+    var en = IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData);
+    var pageLang = IPRO.Web.Infrastructure.SiteLanguageMarkup.PageInsideEnglish(ViewData);
     var blocks = Model.CurrentPage?.Blocks.Where(b => b.IsVisible).OrderBy(b => b.SortOrder).ToList() ?? new();
     // Same preview-aware link shape _PublicNavigation uses: the prospect preview's pages were never
     // persisted, so a root-relative "/{slug}" would 404 inside its iframe.
@@ -25,11 +28,11 @@
   .modern-page { background:#fff; }
   .modern-page .mp-section { padding:var(--section-space) 24px; border-bottom:1px solid #e3eaf3; }
   .modern-page .mp-inner { width:min(1120px, 100%); margin:0 auto; }
-  .modern-page .mp-kicker { color:var(--site-theme); font:800 12px/1.3 Arial,sans-serif; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px; }
+  .modern-page .mp-kicker { color:var(--site-theme-ink); font:800 12px/1.3 Arial,sans-serif; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px; }
   .modern-page h1,.modern-page h2 { color:#0c1933; font-weight:850; letter-spacing:0; }
   .modern-page h2.display-6 { font-size:var(--heading-font-size, 22px); }
   .modern-page .mp-lead { max-width:720px; color:#5b6b82; font-size:var(--body-font-size, 18px); line-height:1.65; }
-  .modern-page .mp-hero { min-height:630px; display:flex; align-items:center; color:#fff; border:0; background:linear-gradient(115deg,#07142f 0%,#07142f 48%,var(--site-theme) 100%); }
+  .modern-page .mp-hero { min-height:630px; display:flex; align-items:center; color:#fff; border:0; background:linear-gradient(115deg,#07142f 0%,#07142f 48%,var(--site-theme-band) 100%); }
   body.hero-style-clean .modern-page .mp-hero { background:var(--site-theme-deep); }
   body.hero-style-classic .modern-page .mp-hero { background:var(--site-theme-deep); border-bottom:6px solid var(--site-theme); }
   .modern-page .mp-hero-grid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr); gap:64px; align-items:center; }
@@ -56,7 +59,7 @@
   .modern-page .mp-hero-mark { font-weight:900; font-size:clamp(120px, 16vw, 220px); line-height:1; letter-spacing:-.02em; color:rgba(255,255,255,.22); user-select:none; }
   body.hero-style-clean .modern-page .mp-hero-mark { color:rgba(255,255,255,.28); }
   body.hero-style-classic .modern-page .mp-hero-media { border:2px solid var(--site-theme); }
-  .modern-page .mp-button { display:inline-flex; align-items:center; min-height:48px; margin-top:20px; padding:0 22px; border-radius:var(--button-radius); background:var(--site-theme); color:#fff; text-decoration:none; font-family:Arial,sans-serif; font-weight:800; }
+  .modern-page .mp-button { display:inline-flex; align-items:center; min-height:48px; margin-top:20px; padding:0 22px; border-radius:var(--button-radius); background:var(--site-theme); color:var(--site-theme-on); text-decoration:none; font-family:Arial,sans-serif; font-weight:800; }
   .modern-page .mp-hero .mp-button { background:#fff; color:#07142f; }
   .modern-page .mp-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:30px; }
   .modern-page .mp-card { min-height:148px; padding:24px; border:1px solid #dce5f1; border-radius:8px; background:#fff; box-shadow:0 12px 30px rgba(15,35,70,.06); }
@@ -65,8 +68,8 @@
   .modern-page .mp-split { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,.8fr); gap:56px; align-items:center; }
   .modern-page .mp-split.layout-image-left > img { order:-1; }
   .modern-page .mp-split > img { width:100%; min-width:0; max-height:460px; object-fit:cover; border-radius:8px; }
-  .modern-page .mp-cta { background:var(--site-theme); color:#fff; border:0; }
-  .modern-page .mp-cta h2,.modern-page .mp-cta .mp-lead { color:#fff; }
+  .modern-page .mp-cta { background:var(--site-theme); color:var(--site-theme-on); border:0; }
+  .modern-page .mp-cta h2,.modern-page .mp-cta .mp-lead,.modern-page .mp-cta .mp-kicker { color:var(--site-theme-on); }
   .modern-page .mp-contact-card { padding:28px; border-radius:8px; background:#fff; color:#17223a; }
   .modern-page .mp-avatar { display:block; width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:12px; box-shadow:0 8px 20px rgba(15,35,70,.15); }
   .modern-page .mp-simple-list { list-style:none; padding:0; margin:24px 0 0; max-width:640px; }
@@ -97,7 +100,13 @@
   .modern-page .mp-gallery-slideshow .site-slideshow__slide img { border-radius:8px; }
   @@media(max-width:820px){.modern-page .mp-hero-grid,.modern-page .mp-split{grid-template-columns:1fr;gap:32px}.modern-page .mp-hero{min-height:0}.modern-page .mp-hero h1{font-size:clamp(30px,11vw,44px)}.modern-page .mp-grid,.modern-page .mp-icon-grid,.modern-page .mp-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modern-page .mp-hero-media{min-height:240px}.modern-page .mp-hero-media img{min-height:240px}}
 </style>
-<main class="modern-page">
+<main class="modern-page" id="main-content">
+@if (Model.CurrentPage != null && !blocks.Any(b => b.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero))
+{
+  @* 578: a page without a hero still opens with a level-one heading, its title, for screen-reader users
+     who move from heading to heading; where there is a hero, its headline is that heading. *@
+  <h1 class="visually-hidden">@Model.CurrentPage.Title</h1>
+}
 @foreach (var block in blocks)
 {
   if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
@@ -107,14 +116,14 @@
     <section class="mp-section mp-hero layout-@hero.Layout align-@hero.TextAlignment height-@hero.Height" style="--hero-image-opacity:@imageOpacity">
       <div class="mp-inner mp-hero-grid">
         <div class="mp-hero-copy"><div class="mp-kicker" style="color:#cbd9f5">@agent.CompanyName</div><h1>@block.Heading</h1><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@block.ButtonText <i class="fas fa-arrow-right ms-2"></i></a>}@await Html.PartialAsync("_OpenNow", Model)</div>
-        <div class="mp-hero-media">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="" style="object-position:@hero.ImagePosition" />}else{<div class="mp-hero-mark" aria-hidden="true">@(HeroMonogram(agent))</div>}</div>
+        <div class="mp-hero-media">@if(!string.IsNullOrWhiteSpace(block.ImageUrl)){<img src="@block.ImageUrl" alt="@Model.PictureDescription(block.ImageUrl)" style="object-position:@hero.ImagePosition" />}else{<div class="mp-hero-mark" aria-hidden="true">@(HeroMonogram(agent))</div>}</div>
       </div>
     </section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services)
   {
     var items = block.Body.Split(new[]{'\r','\n'}, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">Services</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>
+    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker" lang="@en">Services</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>
       @if(block.LayoutVariant == "list")
       {
         <ul class="mp-simple-list">@foreach(var item in items){<li><i class="fas fa-circle-check"></i>@item</li>}</ul>
@@ -133,20 +142,20 @@
   {
     if(block.LayoutVariant == "banner")
     {
-      <section class="mp-section mp-cta mp-cta-banner"><div class="mp-inner"><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}<a class="mp-button" style="background:#fff;color:#17223a" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a></div></section>
+      <section class="mp-section mp-cta mp-cta-banner"><div class="mp-inner"><div class="mp-kicker" lang="@en">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}<a class="mp-button" style="background:#fff;color:#17223a" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</span></a></div></section>
     }
     else if(block.LayoutVariant == "card")
     {
-      <section class="mp-section"><div class="mp-inner"><div class="mp-cta-card"><div class="mp-kicker">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a></div></div></section>
+      <section class="mp-section"><div class="mp-inner"><div class="mp-cta-card"><div class="mp-kicker" lang="@en">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</span></a></div></div></section>
     }
     else
     {
-      <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div><a class="mp-button" style="background:#fff;color:#17223a" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</a></div></div></section>
+      <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" lang="@en">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div><a class="mp-button" style="background:#fff;color:#17223a" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "/contact" : block.ButtonUrl)"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Get in touch" : block.ButtonText)</span></a></div></div></section>
     }
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.NewsletterSignup)
   {
-    <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" style="color:#fff">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })</div></div></section>
+    <section class="mp-section mp-cta"><div class="mp-inner mp-split"><div><div class="mp-kicker" lang="@en">Take the next step</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p>@if(!string.IsNullOrWhiteSpace(block.Body)){<p>@block.Body</p>}</div><div>@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, BlockId = block.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter })</div></div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.AgentInfo)
   {
@@ -180,7 +189,7 @@
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ContactForm)
   {
     var mpContactSettings = IPRO.Entities.WebsiteContactFormSettings.FromJson(block.SettingsJson);
-    <section class="mp-section mp-alt"><div class="mp-inner mp-split"><div><div class="mp-kicker">Contact</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><p>@block.Body</p><div class="mt-4">@if(mpContactSettings.ShowPhoto && !string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="mp-avatar" />}<strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div>@agent.CompanyName</div>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<div><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}</div>@await Html.PartialAsync("_BusinessHours", Model, new ViewDataDictionary(ViewData) { ["HoursPlace"] = "contact" })</div><div class="mp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>
+    <section class="mp-section mp-alt"><div class="mp-inner mp-split"><div><div class="mp-kicker" lang="@en">Contact</div><h2 class="display-6">@block.Heading</h2><p class="mp-lead">@block.Subheading</p><p>@block.Body</p><div class="mt-4">@if(mpContactSettings.ShowPhoto && !string.IsNullOrWhiteSpace(agent.PhotoUrl)){<img src="@agent.PhotoUrl" alt="" class="mp-avatar" />}<strong>@($"{agent.FirstName} {agent.LastName}".Trim())</strong><div>@agent.CompanyName</div>@if(!string.IsNullOrWhiteSpace(agent.Phone)){<div><i class="fas fa-phone me-2"></i><a href="tel:@agent.Phone">@agent.Phone</a></div>}</div>@await Html.PartialAsync("_BusinessHours", Model, new ViewDataDictionary(ViewData) { ["HoursPlace"] = "contact" })</div><div class="mp-contact-card">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, BlockId = block.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.Contact })</div></div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.TestimonialForm)
   {
@@ -217,7 +226,7 @@
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.LeadMagnet)
   {
-    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.LeadMagnet, LeadMagnetBlockId = block.Id })</div></div></section>
+    <section class="mp-section mp-alt"><div class="mp-inner"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, BlockId = block.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.LeadMagnet, LeadMagnetBlockId = block.Id })</div></div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.DidYouKnow)
   {
@@ -230,15 +239,15 @@
       @foreach (var teaser in dykData.Teasers)
       {
         <li class="dyk-card">
-          <h4 class="dyk-card-title"><i class="fas fa-lightbulb me-2" style="color:var(--site-theme,#1457d9);"></i>@teaser.Title</h4>
+          <h3 class="dyk-card-title"><i class="fas fa-lightbulb me-2" style="color:var(--site-theme,#1457d9);" aria-hidden="true"></i>@teaser.Title</h3>
           <p class="dyk-card-excerpt">@teaser.Excerpt</p>
-          <button type="button" class="dyk-readmore" data-dyk-show="dyk-form-@block.Id" data-dyk-hide="dyk-cards-@block.Id"><i class="fas fa-circle-plus"></i> Read More</button>
+          <button type="button" class="dyk-readmore" data-dyk-show="dyk-form-@block.Id" data-dyk-hide="dyk-cards-@block.Id" lang="@en"><i class="fas fa-circle-plus" aria-hidden="true"></i> Read More<span class="visually-hidden">: <span lang="@pageLang">@teaser.Title</span>, by email</span></button>
         </li>
       }
       </ul>
       </div>
     }
-    <div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.DidYouKnow, DidYouKnowBlockId = block.Id })</div></div></section>
+    <div class="mp-contact-card" style="max-width:640px">@await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel { PageId = Model.CurrentPage?.Id, BlockId = block.Id, SubmissionType = IPRO.Entities.WebsiteLeadTypes.DidYouKnow, DidYouKnowBlockId = block.Id })</div></div></section>
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.ArticleContent)
   {
@@ -248,7 +257,7 @@
       <section class="mp-section"><div class="mp-inner" style="max-width:760px">
         @if (!string.IsNullOrWhiteSpace(articleContent.ImageUrl))
         {
-          <img src="@articleContent.ImageUrl" alt="" style="width:100%;border-radius:12px;margin-bottom:24px;object-fit:cover;max-height:420px" />
+          <img src="@articleContent.ImageUrl" alt="@articleContent.ImageDescription" style="width:100%;border-radius:12px;margin-bottom:24px;object-fit:cover;max-height:420px" />
         }
         <h2 class="display-6">@articleContent.Title</h2>
         <div class="mp-lead">@Html.Raw(articleContent.Content)</div>
@@ -268,16 +277,16 @@
         {
           var post = blog.SelectedPost;
           <article style="margin-top:24px">
-            @if(!string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="" style="width:100%;border-radius:12px;margin-bottom:20px;object-fit:cover;max-height:420px" />}
+            @if(!string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="@post.ImageDescription" style="width:100%;border-radius:12px;margin-bottom:20px;object-fit:cover;max-height:420px" />}
             <h3 class="display-6" style="margin-bottom:6px">@post.Title</h3>
-            @if(post.PublishedAt.HasValue){<div class="mp-kicker">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
+            @if(post.PublishedAt.HasValue){<div class="mp-kicker" lang="@en">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
             <div style="margin-top:18px">@Html.Raw(post.Content)</div>
           </article>
-          <p style="margin-top:28px"><a class="mp-button" href="@Context.Request.Path">&larr; All posts</a></p>
+          <p style="margin-top:28px"><a class="mp-button" href="@Context.Request.Path" lang="@en">&larr; All posts</a></p>
         }
         else if (blog.IsEmpty)
         {
-          <p class="mp-lead" style="margin-top:16px">No posts yet &mdash; check back soon.</p>
+          <p class="mp-lead" style="margin-top:16px" lang="@en">No posts yet &mdash; check back soon.</p>
         }
         else
         {
@@ -285,12 +294,12 @@
             @foreach (var post in blog.Posts)
             {
               <article style="display:grid;gap:14px">
-                @if(blog.ShowImages && !string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="" style="width:100%;border-radius:12px;object-fit:cover;max-height:260px" loading="lazy" />}
+                @if(blog.ShowImages && !string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="@post.ImageDescription" style="width:100%;border-radius:12px;object-fit:cover;max-height:260px" loading="lazy" />}
                 <div>
                   <h3 style="margin:0 0 4px">@post.Title</h3>
-                  @if(post.PublishedAt.HasValue){<div class="mp-kicker">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
+                  @if(post.PublishedAt.HasValue){<div class="mp-kicker" lang="@en">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
                   @if(!string.IsNullOrWhiteSpace(post.Summary)){<p style="margin:10px 0 0">@post.Summary</p>}
-                  <p style="margin:12px 0 0"><a href="@(Context.Request.Path)?post=@post.Id">Read more &rarr;</a></p>
+                  <p style="margin:12px 0 0"><a href="@(Context.Request.Path)?post=@post.Id" lang="@en">Read more &rarr;</a></p>
                 </div>
               </article>
             }
@@ -327,18 +336,18 @@
     if (mpReview.Rating - mpFull >= 0.75m) { mpFull++; mpHalf = false; }
     if (block.LayoutVariant == "banner")
     {
-      <section class="mp-section mp-cta mp-cta-banner"><div class="mp-inner"><div class="mp-kicker" style="color:#fff">@(string.IsNullOrWhiteSpace(block.Subheading) ? "Trusted by clients" : block.Subheading)</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}
-        <div style="font-size:1.6rem;color:#fff">@for(var i=0;i<5;i++){if(i<mpFull){<i class="fas fa-star"></i>}else if(i==mpFull && mpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <p class="mp-lead">@mpReview.Rating.ToString("0.0") <span style="opacity:.85">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></p>
-        @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button" style="background:#fff;color:#17223a" href="@mpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
+      <section class="mp-section mp-cta mp-cta-banner"><div class="mp-inner"><div class="mp-kicker"><span lang="@(string.IsNullOrWhiteSpace(block.Subheading) ? en : null)">@(string.IsNullOrWhiteSpace(block.Subheading) ? "Trusted by clients" : block.Subheading)</span></div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}
+        <div style="font-size:1.6rem">@for(var i=0;i<5;i++){if(i<mpFull){<i class="fas fa-star"></i>}else if(i==mpFull && mpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+        <p class="mp-lead">@mpReview.Rating.ToString("0.0") <span style="opacity:.85" lang="@en">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></p>
+        @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button" style="background:#fff;color:#17223a" href="@mpReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </div></section>
     }
     else
     {
       <section class="mp-section mp-alt"><div class="mp-inner" style="text-align:center"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:420px;margin:0 auto;text-align:center">
         <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<mpFull){<i class="fas fa-star"></i>}else if(i==mpFull && mpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <div class="fw-bold fs-4 mt-2">@mpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></div>
-        @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button mt-3" href="@mpReview.ReviewUrl" target="_blank" rel="noopener">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</a>}
+        <div class="fw-bold fs-4 mt-2">@mpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal" lang="@en">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></div>
+        @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button mt-3" href="@mpReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </div></div></section>
     }
     @await Html.PartialAsync("_ReviewQuotes", mpReview)
@@ -382,7 +391,7 @@
     var hasImage = !string.IsNullOrWhiteSpace(block.ImageUrl);
     if (hasImage)
     {
-      <section class="mp-section"><div class="mp-inner mp-split @(block.LayoutVariant == "image-left" ? "layout-image-left" : "")"><div><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2><div class="mp-lead">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "#" : block.ButtonUrl)">@block.ButtonText</a>}</div><img src="@block.ImageUrl" alt="" /></div></section>
+      <section class="mp-section"><div class="mp-inner mp-split @(block.LayoutVariant == "image-left" ? "layout-image-left" : "")"><div><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2><div class="mp-lead">@block.Body</div>@if(!string.IsNullOrWhiteSpace(block.ButtonText)){<a class="mp-button" href="@(string.IsNullOrWhiteSpace(block.ButtonUrl) ? "#" : block.ButtonUrl)">@block.ButtonText</a>}</div><img src="@block.ImageUrl" alt="@Model.PictureDescription(block.ImageUrl)" /></div></section>
     }
     else
     {

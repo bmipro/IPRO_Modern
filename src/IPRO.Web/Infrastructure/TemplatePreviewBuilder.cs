@@ -50,6 +50,7 @@ public static class TemplatePreviewBuilder
             SiteTitle = website.SiteTitle ?? string.Empty,
             TagLine = website.TagLine ?? string.Empty,
             LogoUrl = website.LogoUrl ?? string.Empty,
+            SiteLanguage = website.SiteLanguage,   // 578
             ThemeColor = useDefaults
                 ? WebsiteTemplateDesign.FromTemplate(template).AccentColor
                 : website.ThemeColor,

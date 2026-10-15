@@ -120,6 +120,7 @@ public class WebsiteController : Controller
         }
         model.SiteTitle = model.SiteTitle?.Trim() ?? string.Empty;
         model.TagLine = model.TagLine?.Trim() ?? string.Empty;
+        model.SiteLanguage = WebsiteLanguages.Normalize(model.SiteLanguage);   // 578
         model.ThemeColor = applyTemplateDefaults || existing is null
             ? WebsiteTemplateDesign.FromTemplate(selectedTemplate).AccentColor
             : NormalizeThemeColor(model.ThemeColor);
@@ -197,6 +198,7 @@ public class WebsiteController : Controller
                 HeroStyleOverride = model.HeroStyleOverride,
                 CustomDomain = model.CustomDomain,
                 CustomDomainDisplay = model.CustomDomainDisplay,
+                SiteLanguage = model.SiteLanguage,
                 LogoUrl = model.LogoUrl
             });
         }
@@ -215,6 +217,7 @@ public class WebsiteController : Controller
             existing.TemplateId = model.TemplateId;
             existing.CustomDomain = model.CustomDomain;
             existing.CustomDomainDisplay = model.CustomDomainDisplay;   // 552
+            existing.SiteLanguage = model.SiteLanguage;   // 578
             // Capture the logo being replaced so it can be removed after the new one is safely stored.
             // Without this every re-upload stranded the previous file forever: agent-logos was holding
             // more blobs than there are agents, including four copies of the same logo. The agent-photo

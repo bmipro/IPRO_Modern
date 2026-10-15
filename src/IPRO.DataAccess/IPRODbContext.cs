@@ -165,6 +165,8 @@ public class IPRODbContext : DbContext
 
             // 552: the domain as the adviser writes it in their emails.
             e.Property(w => w.CustomDomainDisplay).HasMaxLength(255);
+            // 578: "en" or "fr".
+            e.Property(w => w.SiteLanguage).HasMaxLength(5);
         });
 
         modelBuilder.Entity<AgentDomain>(e =>
@@ -204,6 +206,7 @@ public class IPRODbContext : DbContext
             e.Property(p => p.MetaTitle).HasMaxLength(180);
             e.Property(p => p.MetaDescription).HasMaxLength(320);
             e.Property(p => p.OldAddresses).HasMaxLength(2000);
+            e.Property(p => p.Language).HasMaxLength(5);
             e.HasOne(p => p.AgentWebsite)
              .WithMany(w => w.Pages)
              .HasForeignKey(p => p.AgentWebsiteId)
@@ -228,12 +231,16 @@ public class IPRODbContext : DbContext
              .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // 578: what an article's picture shows.
+        modelBuilder.Entity<Article>(e => e.Property(a => a.ImageDescription).HasMaxLength(300));
+
         modelBuilder.Entity<WebsiteMediaAsset>(e =>
         {
             e.Property(a => a.OriginalFileName).HasMaxLength(255).IsRequired();
             e.Property(a => a.BlobUrl).HasMaxLength(1000).IsRequired();
             e.Property(a => a.ContentType).HasMaxLength(100).IsRequired();
             e.Property(a => a.ContentSha256).HasMaxLength(64);
+            e.Property(a => a.Description).HasMaxLength(300);
             e.HasOne(a => a.AgentWebsite)
              .WithMany(w => w.MediaAssets)
              .HasForeignKey(a => a.AgentWebsiteId)

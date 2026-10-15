@@ -7,6 +7,9 @@ public class WebsiteLeadFormViewModel
     public int? PageId { get; set; }
     public string SubmissionType { get; set; } = IPRO.Entities.WebsiteLeadTypes.Contact;
     public string ReturnPath { get; set; } = "/";
+    // 578: the block the form is drawn in, so a turned-down form comes back on that block alone (two
+    // newsletter blocks on one page are two forms). Only names the form; nothing is looked up by it.
+    public int? BlockId { get; set; }
     public int? LeadMagnetBlockId { get; set; }
     public int? DidYouKnowBlockId { get; set; }
 

@@ -390,6 +390,7 @@ public static class BuilderImportService
             row.MetaTitle = after.MetaTitle;
             row.MetaDescription = after.MetaDescription;
             row.OldAddresses = after.OldAddresses;
+            row.Language = after.Language;
             row.ShowInNavigation = after.ShowInNavigation;
             row.IsPublished = after.IsPublished;
             row.UpdatedAt = now;
@@ -514,6 +515,7 @@ public static class BuilderImportService
             row.MetaTitle = page.MetaTitle;
             row.MetaDescription = page.MetaDescription;
             row.OldAddresses = page.OldAddresses;
+            row.Language = page.Language;
             row.IsHomePage = page.IsHomePage;
             row.ShowInNavigation = page.ShowInNavigation;
             row.IsPublished = page.IsPublished;
@@ -692,6 +694,8 @@ public sealed class SiteSnapshot
         public string MetaTitle { get; set; } = string.Empty;
         public string MetaDescription { get; set; } = string.Empty;
         public string OldAddresses { get; set; } = string.Empty;
+        // 578: a page's own language. Absent from snapshots taken before 578, which read as "the website's".
+        public string Language { get; set; } = string.Empty;
         public bool IsHomePage { get; set; }
         public bool ShowInNavigation { get; set; }
         public bool IsPublished { get; set; }
@@ -730,6 +734,7 @@ public sealed class SiteSnapshot
             MetaTitle = p.MetaTitle,
             MetaDescription = p.MetaDescription,
             OldAddresses = p.OldAddresses,
+            Language = p.Language,
             IsHomePage = p.IsHomePage,
             ShowInNavigation = p.ShowInNavigation,
             IsPublished = p.IsPublished,

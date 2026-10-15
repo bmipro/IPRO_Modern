@@ -1,5 +1,6 @@
 @model IPRO.Web.Models.WebsiteLeadFormViewModel
 @using Microsoft.AspNetCore.DataProtection
+@using IPRO.Web.Infrastructure
 @inject Microsoft.AspNetCore.DataProtection.IDataProtectionProvider DataProtectionProvider
 @{
     var isNewsletter = Model.SubmissionType == IPRO.Entities.WebsiteLeadTypes.Newsletter;
@@ -35,8 +36,21 @@
     var captchaToken = DataProtectionProvider
         .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
         .Protect($"{captchaLeft + captchaRight}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}"); // nonce -> single-use (422g)
+    // 578: this form as the visitor left it, when the server turned it down (never the security answer).
+    var retry = isPreview || submitted == expectedResult ? null : PublicFormRetry.Find(TempData, PublicFormRetry.LeadForm(Model, Model.SubmissionType), Context.Items);
+    string FieldId(string field) => $"{formId}-{field}";
+    // The problem shows beside the field, aria-hidden so that it stays out of the label's name; the
+    // field's aria-describedby is how a screen reader hears it.
+    void FieldProblem(string field)
+    {
+        var problem = retry?.ProblemWith(field);
+        if (problem != null)
+        {
+            <span class="website-form-error" id="@PublicFormRetry.ErrorId(formId, field)" aria-hidden="true">@problem.Text</span>
+        }
+    }
 }
-<div class="website-lead-form-shell@(isDidYouKnow ? " dyk-form-panel" : null)" id="@(isDidYouKnow ? $"dyk-form-{Model.DidYouKnowBlockId}" : null)" hidden="@(isDidYouKnow && submitted != expectedResult ? "hidden" : null)">
+<div class="website-lead-form-shell@(isDidYouKnow ? " dyk-form-panel" : null)" id="@(isDidYouKnow ? $"dyk-form-{Model.DidYouKnowBlockId}" : null)" hidden="@(isDidYouKnow && submitted != expectedResult && retry == null ? "hidden" : null)" lang="@IPRO.Web.Infrastructure.SiteLanguageMarkup.English(ViewData)">
   @if (submitted == expectedResult)
   {
     @if (isLeadMagnet && !string.IsNullOrEmpty(dlToken))
@@ -57,9 +71,9 @@
   }
   else
   {
-    @if (TempData["PublicFormError"] is string formError)
+    @if (retry != null)
     {
-      <div class="website-lead-error" role="alert">@formError</div>
+      @await Html.PartialAsync("_PublicFormProblems", new PublicFormRetry.Box(retry, formId, isDidYouKnow ? $"dyk-cards-{Model.DidYouKnowBlockId}" : null))
     }
     @if (isPreview)
     {
@@ -68,12 +82,13 @@
     @if (isDidYouKnow)
     {
       <button type="button" class="dyk-back-link" data-dyk-show="dyk-cards-@Model.DidYouKnowBlockId" data-dyk-hide="dyk-form-@Model.DidYouKnowBlockId"><i class="fas fa-arrow-left"></i> Back to articles</button>
-      <p class="dyk-form-intro">Enter your details below and we'll email you the full article(s) shortly.</p>
+      <p class="dyk-form-intro" tabindex="-1">Enter your details below and we'll email you the full article(s) shortly.</p>
     }
     <form id="@formId" method="post" action="/PublicWebsite/SubmitLead" class="website-lead-form">
       @Html.AntiForgeryToken()
       <input type="hidden" name="SubmissionType" value="@Model.SubmissionType" />
       <input type="hidden" name="PageId" value="@Model.PageId" />
+      <input type="hidden" name="BlockId" value="@Model.BlockId" />
       <input type="hidden" name="ReturnPath" value="@publicReturnPath" />
       <input type="hidden" name="FormStartedAt" value="@DateTimeOffset.UtcNow.ToUnixTimeSeconds()" />
       <input type="hidden" name="CaptchaToken" value="@captchaToken" />
@@ -87,26 +102,28 @@
       }
       <div class="website-lead-honeypot" aria-hidden="true"><label>Leave this field blank<input name="HoneypotField" tabindex="-1" autocomplete="off" /></label></div>
       <div class="website-lead-grid">
-        <label><span>First name *</span><input name="FirstName" maxlength="80" autocomplete="given-name" required /></label>
+        <label><span>First name *</span><input name="FirstName" id="@FieldId("FirstName")" value="@retry?.Value("FirstName")" maxlength="80" autocomplete="given-name" required aria-invalid="@PublicFormRetry.Invalid(retry, "FirstName")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "FirstName")" />@{ FieldProblem("FirstName"); }</label>
         @if (showLastName)
         {
-          <label><span>Last name</span><input name="LastName" maxlength="80" autocomplete="family-name" /></label>
+          <label><span>Last name</span><input name="LastName" id="@FieldId("LastName")" value="@retry?.Value("LastName")" maxlength="80" autocomplete="family-name" aria-invalid="@PublicFormRetry.Invalid(retry, "LastName")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "LastName")" />@{ FieldProblem("LastName"); }</label>
         }
-        <label><span>Email *</span><input type="email" name="Email" maxlength="200" autocomplete="email" required /></label>
+        <label><span>Email *</span><input type="email" name="Email" id="@FieldId("Email")" value="@retry?.Value("Email")" maxlength="200" autocomplete="email" required aria-invalid="@PublicFormRetry.Invalid(retry, "Email")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "Email")" />@{ FieldProblem("Email"); }</label>
         @if (showFullFields)
         {
-          <label><span>Phone</span><input name="Phone" maxlength="40" autocomplete="tel" /></label>
-          <label class="website-lead-full"><span>How can we help?</span><textarea name="Message" maxlength="4000" rows="4"></textarea></label>
+          <label><span>Phone</span><input name="Phone" id="@FieldId("Phone")" value="@retry?.Value("Phone")" maxlength="40" autocomplete="tel" aria-invalid="@PublicFormRetry.Invalid(retry, "Phone")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "Phone")" />@{ FieldProblem("Phone"); }</label>
+          <label class="website-lead-full"><span>How can we help?</span><textarea name="Message" id="@FieldId("Message")" maxlength="4000" rows="4" aria-invalid="@PublicFormRetry.Invalid(retry, "Message")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "Message")">@retry?.Value("Message")</textarea>@{ FieldProblem("Message"); }</label>
         }
       </div>
       <label class="website-lead-captcha">
         <span>Security check *</span>
         <span class="website-lead-captcha-row">
           <span class="website-lead-captcha-question">What is @captchaLeft + @captchaRight?</span>
-          <input name="CaptchaAnswer" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required />
+          <input name="CaptchaAnswer" id="@FieldId("CaptchaAnswer")" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" required aria-invalid="@PublicFormRetry.Invalid(retry, "CaptchaAnswer")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "CaptchaAnswer")" />
         </span>
+        @{ FieldProblem("CaptchaAnswer"); }
       </label>
-      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" value="true" required /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : isLeadMagnet ? $"I agree that {consentParty} may use my information to follow up about this download." : isDidYouKnow ? "I agree to receive these articles by email and understand I can unsubscribe later." : $"I agree that {consentParty} may use my information to respond to this request.")</span></label>
+      <label class="website-lead-consent"><input type="checkbox" name="ConsentGiven" id="@FieldId("ConsentGiven")" value="true" checked="@(retry?.Consent == true ? "checked" : null)" required aria-invalid="@PublicFormRetry.Invalid(retry, "ConsentGiven")" aria-describedby="@PublicFormRetry.DescribedBy(retry, formId, "ConsentGiven")" /><span>@(isNewsletter ? "I agree to receive newsletters and understand I can unsubscribe later." : isLeadMagnet ? $"I agree that {consentParty} may use my information to follow up about this download." : isDidYouKnow ? "I agree to receive these articles by email and understand I can unsubscribe later." : $"I agree that {consentParty} may use my information to respond to this request.")</span></label>
+      @{ FieldProblem("ConsentGiven"); }
       <button type="submit" class="website-lead-submit" disabled="@(isPreview ? "disabled" : null)" title="@(isPreview ? "Disabled in preview -- test on your live site" : null)"><i class="fas @(isNewsletter ? "fa-envelope" : isLeadMagnet ? "fa-download" : isDidYouKnow ? "fa-envelope" : "fa-paper-plane")"></i> @(isNewsletter ? "Subscribe" : isLeadMagnet ? "Get the Download" : isDidYouKnow ? "Email Me the Article(s)" : "Send message")</button>
     </form>
   }
@@ -127,6 +144,18 @@
       if (showEl) {
         showEl.hidden = false;
         showEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // 578: the button that had focus is now hidden, so focus fell to the top of the page (WCAG
+        // 2.4.3). It goes to the sentence that opens the form, and "Back to articles" returns it to the
+        // Read More that was pressed.
+        if (trigger.classList.contains('dyk-readmore')) {
+          showEl.dykOpener = trigger;
+          var intro = showEl.querySelector('.dyk-form-intro');
+          if (intro) intro.focus({ preventScroll: true });
+        } else {
+          var back = hideEl && hideEl.dykOpener;
+          var target = back && showEl.contains(back) ? back : showEl.querySelector('.dyk-readmore');
+          if (target) target.focus({ preventScroll: true });
+        }
       }
     });
   })();
@@ -137,8 +166,8 @@
   .website-lead-form{display:grid;gap:16px;}
   .website-lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .website-lead-form label{display:grid;gap:6px;font:700 13px/1.4 Arial,sans-serif;color:inherit;}
-  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#17223a;font:400 16px/1.4 Arial,sans-serif;} /* 16px, not 15: mobile Safari zooms the page on focus for any control under 16px and does not zoom back out (2026-08-31 mobile sweep). */
-  .website-lead-form input:focus,.website-lead-form textarea:focus{outline:3px solid color-mix(in srgb,var(--site-theme,#1457d9) 20%,transparent);border-color:var(--site-theme,#1457d9);}
+  .website-lead-form input:not([type=checkbox]),.website-lead-form textarea{width:100%;padding:11px 12px;border:1px solid #76839a;border-radius:6px;background:#fff;color:#17223a;font:400 16px/1.4 Arial,sans-serif;} /* 16px, not 15: mobile Safari zooms the page on focus for any control under 16px and does not zoom back out (2026-08-31 mobile sweep). */
+  .website-lead-form input:focus,.website-lead-form textarea:focus{outline:3px solid var(--site-theme-ink,var(--site-theme,#1457d9));outline-offset:1px;border-color:var(--site-theme-ink,var(--site-theme,#1457d9));} /* 578: field edges and focus ring 3:1 (WCAG 1.4.11); the edge was #cbd5e1, 1.5:1 */
   .website-lead-full{grid-column:1/-1;}
   .website-lead-captcha-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .website-lead-captcha-question{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:6px;background:color-mix(in srgb,var(--site-theme,#1457d9) 10%,#fff);border:1px solid color-mix(in srgb,var(--site-theme,#1457d9) 30%,#cbd5e1);font:800 14px Arial,sans-serif;color:#17223a;}
@@ -148,7 +177,7 @@
   @* White outline + shadow: on a white card the outline is invisible (unchanged look), but when the
      block sits on a card painted the SITE THEME color (Modern's dark CTA card), a theme-colored
      button dissolves into it and reads as plain text -- the outline keeps it a button everywhere. *@
-  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 3px rgb(0 0 0/.25);border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:#fff;font:800 14px Arial,sans-serif;}
+  .website-lead-submit{justify-self:start;display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 3px rgb(0 0 0/.25);border-radius:var(--button-radius,6px);background:var(--site-theme,#1457d9);color:var(--site-theme-on,#fff);font:800 14px Arial,sans-serif;}
   .website-lead-submit:disabled{opacity:.55;cursor:not-allowed;}
   .website-lead-preview-note{padding:10px 14px;margin-bottom:2px;border-radius:6px;background:#fef9c3;color:#854d0e;border:1px solid #fde68a;font:700 13px/1.5 Arial,sans-serif;}
   .website-lead-success,.website-lead-error{padding:14px;border-radius:6px;font:700 14px/1.5 Arial,sans-serif;}
@@ -156,7 +185,8 @@
   .website-lead-error{margin-bottom:12px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
   .website-lead-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
   .dyk-back-link{display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;padding:0;border:0;background:none;font:700 13px Arial,sans-serif;color:var(--muted,#5e6b80);cursor:pointer;}
-  .dyk-back-link:hover{color:var(--site-theme,#1457d9);}
+  .dyk-back-link:hover{color:var(--site-theme-ink,var(--site-theme,#1457d9));}
   .dyk-form-intro{margin:0 0 16px;font:400 14px/1.5 Arial,sans-serif;color:var(--muted,#5e6b80);}
+  .dyk-form-intro:focus{outline:none;}
   @@media(max-width:640px){.website-lead-grid{grid-template-columns:1fr}.website-lead-full{grid-column:auto}}
 </style>
