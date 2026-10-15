@@ -81,6 +81,16 @@ public class AccentContrast578Tests
         Assert.Equal(AccentContrast.For("#0EA5E9", "#f2f6fc").Ink, AccentContrast.For("#0EA5E9", "#f2f6fc", "#101010").Ink);
     }
 
+    // The owner's choice (2026-10-15, option 1): light colours keep themselves with dark text, and My
+    // Website says so under the colour picker, in his words.
+    [Fact]
+    public void The_owners_choice_is_kept_and_My_Website_says_so()
+    {
+        Assert.True(AccentContrast.KeepLightColours);
+        var view = System.IO.File.ReadAllText(System.IO.Path.Combine(PublicSitePages.RepoRoot(), "src", "IPRO.Web", "Views", "Website", "Index.cshtml"));
+        Assert.Contains("We adjust text on your colour so it stays readable.", view);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
