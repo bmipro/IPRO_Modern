@@ -11,6 +11,11 @@
     var linked = Model.Images.Count - created.Count;
     var blocked = plan == null || plan.Problems.Count > 0;
     var live = Model.Website.IsPublished;
+    // 581: whether a page removed in the builder could be one of the package's new pages.
+    var anyNewPage = plan != null && plan.Pages.Any(p => p.Change == PageChange.Added);
+    // 581: which page a page of the package at a new address is, as the operator said or else as the
+    // plan reads it: what its choice shows (a choice the plan could not honour stays shown, beside the problem).
+    int ChosenRow(PlannedPage item) => Model.Moved.TryGetValue(item.Page.Slug, out var said) ? said : item.IsMoved ? item.Page.Id : 0;
     string When(DateTime utc) => IPRO.Admin.Infrastructure.AdminClock.Format(utc, Model.Zone);
 }
 
@@ -104,8 +109,35 @@ else
                                     <div class="small text-muted mt-1">Published and shown in the menu, like any new page.</div>
                                     break;
                                 case PageChange.Replaced:
-                                    <span class="badge bg-primary">Replaced</span>
-                                    <div class="small text-muted mt-1">Its @item.SectionsBefore.Count section@(item.SectionsBefore.Count == 1 ? "" : "s") give@(item.SectionsBefore.Count == 1 ? "s" : "") way to the package's. Its search title and description, and whether it is published and in the menu, stay as they are.</div>
+                                    @if (item.IsMoved)
+                                    {
+                                        @* 581: a page the designer gave a new address, on the row of the page it was. *@
+                                        <span class="badge bg-primary">Moved</span>
+                                        <div class="small text-muted mt-1">This is the page that was at /@item.MovedFrom, at a new address. @(item.MovedBy switch
+                                            {
+                                                MoveMatch.ShortenedLabel => "iPro knows it by the shortened menu label the builder was given for that page.",
+                                                MoveMatch.SameTitle => "iPro takes it for that page because it has that page's title, and no other page does. If that is wrong, choose \"No: a new page\" below.",
+                                                MoveMatch.SameMenuLabel => "iPro takes it for that page because it has that page's menu label, and no other page does. If that is wrong, choose \"No: a new page\" below.",
+                                                _ => "You said so below."
+                                            }) It keeps that page's place: its search title and description, whether it is published and in the menu, its language, its old addresses and its visits. Its @item.SectionsBefore.Count section@(item.SectionsBefore.Count == 1 ? "" : "s") give@(item.SectionsBefore.Count == 1 ? "s" : "") way to the package's.</div>
+                                        @foreach (var note in item.MoveNotes)
+                                        {
+                                            <div class="small mt-1" style="color:#8a5a00"><i class="fas fa-circle-info me-1"></i>@note</div>
+                                        }
+                                        @if (item.OldAddressKept)
+                                        {
+                                            <div class="small text-success mt-1"><i class="fas fa-check me-1"></i>Links to /@item.MovedFrom keep arriving: they are sent on to /@pg.Slug.</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i>@item.OldAddressNote</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">Replaced</span>
+                                        <div class="small text-muted mt-1">Its @item.SectionsBefore.Count section@(item.SectionsBefore.Count == 1 ? "" : "s") give@(item.SectionsBefore.Count == 1 ? "s" : "") way to the package's. Its search title and description, and whether it is published and in the menu, stay as they are.</div>
+                                    }
                                     @if (item.ChangedSinceHandover)
                                     {
                                         <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>Changed in iPro after the hand-over.</strong> What the customer changed on this page since then is replaced by the package's version@(item.LabelKept ? ", apart from its menu label, which stays as the site has it" : "").</div>
@@ -130,6 +162,12 @@ else
                                     <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="keep" value="@pg.Id" id="keep-@pg.Id" />
                                         <label class="form-check-label small" for="keep-@pg.Id">Keep this page after all</label></div>
                                     @if (item.SectionsBefore.Count > 0) { <div class="small text-muted mt-1">With its sections: @Names(item.SectionsBefore).</div> }
+                                    @foreach (var line in item.SettingsLost) { <div class="small text-danger mt-1">@line</div> }
+                                    @if (anyNewPage)
+                                    {
+                                        @* Every page removed in the builder is one a page at a new address can be (a MoveCandidate). *@
+                                        <div class="small text-muted mt-1"><i class="fas fa-circle-info me-1"></i>If one of the package's new pages is this page at a new address, choose it on that page's line: it then keeps all of this, and links to /@pg.Slug keep arriving.</div>
+                                    }
                                     @if (item.ChangedSinceHandover)
                                     {
                                         <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i><strong>Changed in iPro after the hand-over.</strong> The customer worked on this page since then; removing it loses that work. Tick "Keep this page after all" if in doubt.</div>
@@ -140,7 +178,24 @@ else
                                     <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="without" value="@pg.Id" id="without-@pg.Id" checked />
                                         <label class="form-check-label small" for="without-@pg.Id">Remove this page</label></div>
                                     @if (item.SectionsBefore.Count > 0) { <div class="small text-muted mt-1">With its sections: @Names(item.SectionsBefore).</div> }
+                                    @foreach (var line in item.SettingsLost) { <div class="small text-danger mt-1">@line</div> }
                                     break;
+                            }
+                            @* 581: a new page, or one taken for a page of the site at a new address, can be said to be which page it is. *@
+                            @if ((item.Change == PageChange.Added || item.IsMoved) && !pg.IsHomePage && plan.MoveCandidates.Count > 0)
+                            {
+                                var chosenRow = ChosenRow(item);
+                                <div class="mt-2">
+                                    <label class="form-label small mb-1" for="moved-@pg.Slug">Is this a page of the site at a new address?</label>
+                                    <select class="form-select form-select-sm" id="moved-@pg.Slug" name="moved">
+                                        <option value="@(pg.Slug):0">No: a new page</option>
+                                        @foreach (var candidate in plan.MoveCandidates)
+                                        {
+                                            <option value="@(pg.Slug):@candidate.RowId" selected="@(chosenRow == candidate.RowId)">Yes: "@candidate.Title", which was at /@candidate.Slug</option>
+                                        }
+                                    </select>
+                                    <div class="small text-muted mt-1">The page it is keeps its search title and description, whether it is published and in the menu, its language and its old addresses, and links to its address keep arriving. After changing this, press "Update this page and the looks with these choices".</div>
+                                </div>
                             }
                             @* 577: a menu label the builder was given shortened, and what becomes of it. *@
                             @if (item.LabelSent.Length > 0)
@@ -182,6 +237,12 @@ else
                 }
                 </tbody>
             </table></div>
+            @* 581: a page kept after all and then chosen for a page at a new address has no tick box while
+               it is that page; its tick travels on, so that undoing the choice keeps it again. *@
+            @foreach (var keptId in Model.Keep.Where(id => !plan.Pages.Any(p => p.Page.Id == id && (p.Change is PageChange.Kept or PageChange.Removed))))
+            {
+                <input type="hidden" name="keep" value="@keptId" />
+            }
         </section>
 
         <section class="card border-0 shadow-sm mb-4">

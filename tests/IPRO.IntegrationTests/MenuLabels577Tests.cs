@@ -236,11 +236,12 @@ public class MenuLabels577Tests
         var pension = At(slugs[Pension]);
         Assert.Equal(("Pensions and job changes", true, true), (pension.Page.NavigationLabel, pension.LabelKept, pension.ChangedSinceHandover));
         // Given a new address in the builder: still that page's label (the customer's, as the site has
-        // it), on the new address; and the page left behind is not said to lose the customer's work.
+        // it), on the new address, and not said to lose the customer's work. 581: and still that page,
+        // on its own row, found by its shortened label; nothing is left behind at the old address.
         var rrsp = At("rrsp-or-tfsa");
-        Assert.Equal((PageChange.Added, "RRSP or TFSA?", true), (rrsp.Change, rrsp.Page.NavigationLabel, rrsp.LabelKept));
-        var left = plan.Pages.Single(p => p.Page.Slug == slugs[RrspOrTfsa]);
-        Assert.Equal((PageChange.Removed, true, false), (left.Change, left.RemovedInBuilder, left.ChangedSinceHandover));
+        Assert.Equal((PageChange.Replaced, "RRSP or TFSA?", true, false), (rrsp.Change, rrsp.Page.NavigationLabel, rrsp.LabelKept, rrsp.ChangedSinceHandover));
+        Assert.Equal((slugs[RrspOrTfsa], MoveMatch.ShortenedLabel), (rrsp.MovedFrom, rrsp.MovedBy));
+        Assert.DoesNotContain(plan.Pages, p => p.Page.Slug == slugs[RrspOrTfsa]);
         // Removed in iPro meanwhile and brought back: its label as it was.
         var selfEmployed = At(slugs[SelfEmployed]);
         Assert.Equal((PageChange.Added, SelfEmployed, true), (selfEmployed.Change, selfEmployed.Page.NavigationLabel, selfEmployed.LabelKept));
@@ -349,20 +350,22 @@ public class MenuLabels577Tests
     }
 
     [Fact]
-    public void A_page_given_a_new_address_leaves_its_old_row_red_only_when_more_than_its_label_changed()
+    public void A_page_given_a_new_address_is_red_only_when_more_than_its_label_changed()
     {
-        // The old row of a page moved in the builder is "removed in the builder". When the customer's one
+        // A page moved in the builder lands on its own row, found by its shortened label (581; before,
+        // its old row was "removed in the builder" and the mark stood there). When the customer's one
         // change to it was the menu label, that label goes on with the page at its new address: nothing
-        // is lost, so the row is not marked. When more changed, it is.
+        // is lost, so the page is not marked. When more changed, it is.
         var shortQuestions = SiteHandoverBuilder.BuilderLabel(Questions);
         var site = new[] { SitePage(1, "home", "Home", home: true), SitePage(2, "questions", "Choosing an adviser") };
         foreach (var onlyLabel in new[] { true, false })
         {
             var plan = Plan(site, new[] { new ShortenedLabel("questions", 2, Questions, shortQuestions, onlyLabel) },
                 new BuilderPage[] { PackagePage("home", "Home", true), PackagePage("choosing", shortQuestions) }, changed: new HashSet<int> { 2 });
-            Assert.Equal(("Choosing an adviser", true), (Single(plan, "choosing").Page.NavigationLabel, Single(plan, "choosing").LabelKept));
-            var left = plan.Pages.Single(p => p.Page.Slug == "questions");
-            Assert.Equal((PageChange.Removed, true, !onlyLabel), (left.Change, left.RemovedInBuilder, left.ChangedSinceHandover));
+            var moved = Single(plan, "choosing");
+            Assert.Equal((2, "Choosing an adviser", true, "questions"), (moved.Page.Id, moved.Page.NavigationLabel, moved.LabelKept, moved.MovedFrom));
+            Assert.Equal((PageChange.Replaced, !onlyLabel), (moved.Change, moved.ChangedSinceHandover));
+            Assert.DoesNotContain(plan.Pages, p => p.Page.Slug == "questions");
         }
     }
 

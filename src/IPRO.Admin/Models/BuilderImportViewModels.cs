@@ -42,6 +42,9 @@ public sealed class BuilderImportReviewViewModel
     public IReadOnlySet<int> Keep { get; init; } = new HashSet<int>();
     // 576: the sections of replaced pages the operator keeps, by their rows (SectionGoing.BlockId).
     public IReadOnlySet<int> KeepSections { get; init; } = new HashSet<int>();
+    // 581: the operator's word on package pages at a new address (package address -> row, 0 = a new
+    // page); a page not named is matched as the plan can tell. The plan already reflects it.
+    public IReadOnlyDictionary<string, int> Moved { get; init; } = new Dictionary<string, int>();
     // The address of the look for one page: this, with the page's slug appended.
     public string LookAddress { get; init; } = string.Empty;
     public string Zone { get; init; } = string.Empty;

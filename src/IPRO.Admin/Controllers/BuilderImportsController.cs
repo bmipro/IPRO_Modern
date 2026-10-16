@@ -158,7 +158,8 @@ public class BuilderImportsController : Controller
     // without: the ids of the pages to remove; keep: the ids of pages removed in the builder that
     // are to stay after all. Both comma-separated ("12,15"), as the look's address carries them.
     // sections (576): the rows of the sections of replaced pages to keep ("812,815").
-    public async Task<IActionResult> Review(int id, int? design, string? without, string? keep = null, string? sections = null)
+    // moved (581): which page of the site each package page at a new address is ("about-us:12,team:0").
+    public async Task<IActionResult> Review(int id, int? design, string? without, string? keep = null, string? sections = null, string? moved = null)
     {
         var import = await _db.WebsiteBuilderImports.FirstOrDefaultAsync(i => i.Id == id);
         if (import == null) return NotFound();
@@ -167,7 +168,8 @@ public class BuilderImportsController : Controller
         var removed = BuilderImportService.ParseIds(without);
         var kept = BuilderImportService.ParseIds(keep);
         var keptSections = BuilderImportService.ParseIds(sections);
-        var planned = await BuilderImportService.PlanAsync(_db, import, removed, kept, keptSections);
+        var moves = BuilderImportService.ParseMoves(moved);
+        var planned = await BuilderImportService.PlanAsync(_db, import, removed, kept, keptSections, moves);
         if (planned == null) return NotFound();
 
         var designs = await _db.WebsiteTemplates.AsNoTracking().Where(t => t.IsActive || t.Id == planned.Site.TemplateId).OrderBy(t => t.Name).ToListAsync();
@@ -180,6 +182,7 @@ public class BuilderImportsController : Controller
         if (removed.Count > 0) look += "&without=" + string.Join(",", removed.OrderBy(x => x));
         if (kept.Count > 0) look += "&keep=" + string.Join(",", kept.OrderBy(x => x));
         if (keptSections.Count > 0) look += "&sections=" + string.Join(",", keptSections.OrderBy(x => x));
+        if (moves.Count > 0) look += "&moved=" + Uri.EscapeDataString(BuilderImportService.JoinMoves(moves)!);
 
         return View(new BuilderImportReviewViewModel
         {
@@ -195,6 +198,7 @@ public class BuilderImportsController : Controller
             Without = removed,
             Keep = kept,
             KeepSections = keptSections,
+            Moved = moves,
             LookAddress = look + "&page=",
             Zone = AdminClock.Zone(_configuration)
         });
@@ -204,11 +208,11 @@ public class BuilderImportsController : Controller
     // them into the review's own address so the looks and the "bring it in" button all read the same
     // choices.
     [HttpPost, ValidateAntiForgeryToken]
-    public IActionResult Choose(int id, int? design, int[]? without, int[]? keep = null, int[]? sections = null) =>
-        RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections) });
+    public IActionResult Choose(int id, int? design, int[]? without, int[]? keep = null, int[]? sections = null, string[]? moved = null) =>
+        RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections), moved = JoinedMoves(moved) });
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Apply(int id, int? design, int[]? without, int[]? keep = null, string? plan = null, int[]? sections = null)
+    public async Task<IActionResult> Apply(int id, int? design, int[]? without, int[]? keep = null, string? plan = null, int[]? sections = null, string[]? moved = null)
     {
         var import = await _db.WebsiteBuilderImports.FirstOrDefaultAsync(i => i.Id == id);
         if (import == null) return NotFound();
@@ -218,12 +222,13 @@ public class BuilderImportsController : Controller
         var removed = (without ?? Array.Empty<int>()).ToHashSet();
         var kept = (keep ?? Array.Empty<int>()).ToHashSet();
         var keptSections = (sections ?? Array.Empty<int>()).Where(x => x > 0).ToHashSet();
+        var moves = BuilderImportService.ParseMoves(moved);
         int? switchTo = design.HasValue && design != site.TemplateId ? design : null;
         BuilderImportService.ApplyResult result;
         try
         {
             // plan: what the review screen showed, posted back with the button (574).
-            result = await BuilderImportService.ApplyAsync(_db, import, removed, switchTo, CurrentAdminUsername, kept, plan ?? string.Empty, keptSections);
+            result = await BuilderImportService.ApplyAsync(_db, import, removed, switchTo, CurrentAdminUsername, kept, plan ?? string.Empty, keptSections, moves);
         }
         catch (DbUpdateException ex)
         {
@@ -240,7 +245,7 @@ public class BuilderImportsController : Controller
             TempData["Error"] = "The package was not brought in. " + string.Join(" ", result.Problems);
             var stillWaiting = await _db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.Id == id && i.Status == WebsiteBuilderImportStatus.Pending);
             return stillWaiting
-                ? RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections) })
+                ? RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections), moved = JoinedMoves(moved) })
                 : RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
         }
 
@@ -248,8 +253,10 @@ public class BuilderImportsController : Controller
             Short($"Brought Template Builder package \"{import.FileName}\" (import id {import.Id}) into agent id {import.AgentUserId}'s website: " +
                   $"{import.PageCount} page(s) from the package{(switchTo.HasValue ? $", design switched to template id {switchTo}" : string.Empty)}" +
                   $"{(removed.Count > 0 ? $", pages removed by choice: ids {string.Join(" ", removed.OrderBy(x => x))}" : string.Empty)}" +
-                  $"{(kept.Count > 0 ? $", pages kept though removed in the builder: ids {string.Join(" ", kept.OrderBy(x => x))}" : string.Empty)}" +
-                  $"{(result.KeptSections > 0 ? $", {result.KeptSections} section(s) of replaced pages kept though not in the package" : string.Empty)}. " +
+                  $"{(kept.Except(result.MovedPageIds).Any() ? $", pages kept though removed in the builder: ids {string.Join(" ", kept.Except(result.MovedPageIds).OrderBy(x => x))}" : string.Empty)}" +
+                  $"{(result.KeptSections > 0 ? $", {result.KeptSections} section(s) of replaced pages kept though not in the package" : string.Empty)}" +
+                  $"{(result.MovedPageIds.Count > 0 ? $", pages at a new address kept as the page they were: ids {string.Join(" ", result.MovedPageIds.OrderBy(x => x))}" : string.Empty)}" +
+                  $"{(result.MovedWithoutOldAddress.Count > 0 ? $" (old address not forwarded for ids {string.Join(" ", result.MovedWithoutOldAddress.OrderBy(x => x))})" : string.Empty)}. " +
                   "The site as it was is kept and can be put back."));
         TempData["Success"] = site.IsPublished
             ? "The package is on the site and live now. If it is not right, \"Put the previous site back\" below undoes it."
@@ -353,6 +360,9 @@ public class BuilderImportsController : Controller
 
     private static string? Joined(int[]? ids) =>
         ids == null || ids.Length == 0 ? null : string.Join(",", ids.Where(id => id > 0).Distinct().OrderBy(id => id));
+
+    // 581: the review's choices on pages at a new address, one "slug:row" per page, as one value.
+    private static string? JoinedMoves(string[]? moved) => BuilderImportService.JoinMoves(BuilderImportService.ParseMoves(moved));
 
     // An audit entry quotes what a package or a page says about itself: kept inside the audit log's
     // own column (500 characters; a longer line failed the write and the request with it).

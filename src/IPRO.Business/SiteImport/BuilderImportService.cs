@@ -33,6 +33,10 @@ public static class BuilderImportService
     {
         // 576: how many sections of replaced pages were kept though the package did not have them.
         public int KeptSections { get; init; }
+        // 581: the rows of the pages at a new address written as the page they were, and those of them
+        // whose old address does not arrive at them (PlannedPage.OldAddressNote).
+        public IReadOnlyList<int> MovedPageIds { get; init; } = Array.Empty<int>();
+        public IReadOnlyList<int> MovedWithoutOldAddress { get; init; } = Array.Empty<int>();
         public static ApplyResult Failed(params string[] problems) => new(false, problems);
         public static ApplyResult Done() => new(true, Array.Empty<string>());
     }
@@ -179,9 +183,10 @@ public static class BuilderImportService
     // The stored package read again and laid over the site as it is now. Plan is null when the
     // package no longer passes (Package.Problems says why).
     // keepSectionIds (576): the sections of replaced pages the operator keeps, by their rows (SectionGoing.BlockId).
+    // movedFrom (581): the operator's word on each package page at a new address (ParseMoves).
     public static async Task<PlanResult?> PlanAsync(
         IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int>? removePageIds = null, IReadOnlySet<int>? keepPageIds = null,
-        IReadOnlySet<int>? keepSectionIds = null)
+        IReadOnlySet<int>? keepSectionIds = null, IReadOnlyDictionary<string, int>? movedFrom = null)
     {
         var site = await db.AgentWebsites.AsNoTracking().Include(w => w.AgentUser).Include(w => w.Template)
             .FirstOrDefaultAsync(w => w.Id == import.AgentWebsiteId);
@@ -275,9 +280,36 @@ public static class BuilderImportService
         }
 
         var plan = SiteImportPlan.Build(package.Template, urls, site, pages, removePageIds ?? new HashSet<int>(), handedOver, keepPageIds, problems,
-            rowBySlug, changed, logoChanged, carried, SiteHandoverService.HostSections(handover), keepSectionIds, labels);
+            rowBySlug, changed, logoChanged, carried, SiteHandoverService.HostSections(handover), keepSectionIds, labels, movedFrom);
         return new PlanResult(package, plan, site, handover);
     }
+
+    // 581: "about-us:12,team:0" as the operator's word on package pages at a new address: the page at
+    // that address of the package is the site's page on row 12; the one at "team" is a new page. Read
+    // the same way by the review's address, its form and the look's address. Anything else is ignored.
+    public static Dictionary<string, int> ParseMoves(IEnumerable<string?>? choices)
+    {
+        var moves = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var part in (choices ?? Array.Empty<string?>())
+                     .SelectMany(c => (c ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+        {
+            var colon = part.LastIndexOf(':');
+            if (colon <= 0) continue;
+            var slug = part[..colon];
+            if (slug.Length > BuilderContract.MaxSlug || !BuilderContract.Slug.IsMatch(slug)) continue;
+            if (!int.TryParse(part[(colon + 1)..], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var rowId)) continue;
+            moves.TryAdd(slug, rowId);
+            // A package has at most this many pages; more would only make the review's address longer.
+            if (moves.Count == BuilderContract.MaxPages) break;
+        }
+        return moves;
+    }
+
+    public static Dictionary<string, int> ParseMoves(string? list) => ParseMoves(new[] { list });
+
+    // The same choices as one value for an address: "about-us:12,team:0", in the order of the addresses.
+    public static string? JoinMoves(IReadOnlyDictionary<string, int> moves) =>
+        moves.Count == 0 ? null : string.Join(",", moves.OrderBy(m => m.Key, StringComparer.Ordinal).Select(m => $"{m.Key}:{m.Value}"));
 
     // "12,15" as a set of ids: the pages to remove or to keep, as the review's address and the look's
     // address both carry them. One reading, so the two cannot come to mean different pages.
@@ -303,7 +335,7 @@ public static class BuilderImportService
     // switches the site to that design.
     public static async Task<ApplyResult> ApplyAsync(
         IPRODbContext db, WebsiteBuilderImport import, IReadOnlySet<int> removePageIds, int? templateId, string appliedBy, IReadOnlySet<int>? keepPageIds = null,
-        string? reviewedPlan = null, IReadOnlySet<int>? keepSectionIds = null)
+        string? reviewedPlan = null, IReadOnlySet<int>? keepSectionIds = null, IReadOnlyDictionary<string, int>? movedFrom = null)
     {
         Track(db, import);
         if (templateId.HasValue && !await db.WebsiteTemplates.AnyAsync(t => t.Id == templateId.Value && t.IsActive))
@@ -322,7 +354,7 @@ public static class BuilderImportService
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Applied));
         if (claimed != 1) return ApplyResult.Failed("This package has already been brought in or dropped.");
 
-        var planned = await PlanAsync(db, import, removePageIds, keepPageIds, keepSectionIds);
+        var planned = await PlanAsync(db, import, removePageIds, keepPageIds, keepSectionIds, movedFrom);
         if (planned == null) return ApplyResult.Failed("The customer's website no longer exists.");
         if (planned.Plan == null) return new ApplyResult(false, planned.Package.Problems.Select(p => $"{p.Where}: {p.Message}").ToList());
         if (planned.Plan.Problems.Count > 0) return new ApplyResult(false, planned.Plan.Problems);
@@ -356,6 +388,15 @@ public static class BuilderImportService
         // Parents are set once every page has its row; clearing them here keeps the delete above from
         // racing the database's own "set null".
         foreach (var live in plan.Pages.Where(p => p.Change is PageChange.Kept or PageChange.Replaced)) rowById[live.Page.Id].ParentPageId = null;
+        // 581: and a replaced page whose address changes steps out of the way first. Two pages can now
+        // trade addresses (the designer made About the home page, and the old home page's address is
+        // where a moved page goes), and one save of both would meet the site's own "one page per address".
+        foreach (var moving in plan.Pages.Where(p => p.Change == PageChange.Replaced && !string.Equals(rowById[p.Page.Id].Slug, p.Page.Slug, StringComparison.Ordinal)))
+        {
+            // An underscore no page address can hold (the editor and the contract allow a-z, 0-9 and "-"),
+            // so the step aside can never meet a real page of the site (581 re-check).
+            rowById[moving.Page.Id].Slug = $"_importing_{moving.Page.Id}";
+        }
         await db.SaveChangesAsync();
 
         var idFor = new Dictionary<int, WebsitePage>();
@@ -435,7 +476,12 @@ public static class BuilderImportService
         import.PreviewKeyExpiresAt = null;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
-        return ApplyResult.Done() with { KeptSections = plan.Pages.Sum(p => p.SectionsGoing.Count(g => g.Kept)) };
+        return ApplyResult.Done() with
+        {
+            KeptSections = plan.Pages.Sum(p => p.SectionsGoing.Count(g => g.Kept)),
+            MovedPageIds = plan.Pages.Where(p => p.IsMoved).Select(p => p.Page.Id).ToList(),
+            MovedWithoutOldAddress = plan.Pages.Where(p => p.IsMoved && !p.OldAddressKept).Select(p => p.Page.Id).ToList()
+        };
     }
 
     // The newest package that went in and has not been taken back out: the only one whose "before" is
@@ -491,7 +537,7 @@ public static class BuilderImportService
         {
             row.ParentPageId = null;
             // Out of the way of every address the old pages are about to take back.
-            row.Slug = $"restoring-{row.Id}";
+            row.Slug = $"_restoring_{row.Id}";   // 581 re-check: an address no real page can have
         }
         await db.SaveChangesAsync();
 

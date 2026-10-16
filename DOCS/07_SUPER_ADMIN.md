@@ -411,6 +411,26 @@ and the list of published articles and active forms the builder may place. In th
      A label the customer changed in iPro meanwhile, and the designer left alone, stays the customer's,
      and a page whose only change in iPro is that label is not marked red. A page the designer gave
      another address keeps its own label too, when its shortened label tells which page it is.
+   - a page the designer gave **another address** in the builder is **moved**, not new, when iPro can
+     tell which page it was: by its shortened menu label (above), or by its title, or by its menu label,
+     when exactly one page that did not come back and exactly one new page share it. It takes that
+     page's place: its search title and description, whether it is published and in the menu, its
+     language, its old addresses, its visits and the pages under it all stay, and links to the old
+     address keep arriving (they are sent on to the new one). The line says **Moved**, the address it
+     had and how iPro knew, and, in amber, what it keeps that visitors notice: not published, not in the
+     menu, a language of its own. It says in red when links to the old address will not arrive: the
+     page is not published (they arrive once it is), another page has that address afterwards (the
+     home page, say), or the page already lists 12 old addresses, the most a page answers to (remove
+     one in the page editor afterwards and add the old address there). Every new page, and every moved
+     one, has a choice **Is this a page of the site at a new address?** listing the pages that did not
+     come back: pick one to say the new page is that page, or **No: a new page** to undo iPro's reading.
+     Two pages cannot be the same page: the screen says so, shows both choices, and writes nothing.
+   - a page **removed** says in red what goes with it that its sections do not show: its search title
+     and description, its own language, the old addresses it answers to, and where links to its
+     address go afterwards (nowhere, or the page that has that address then). A page removed in the
+     builder that was hidden from the menu or not published says so when the package has new pages (a
+     new page comes back published and in the menu), with how to keep all of it: choose the page on
+     the new page's line.
 
    A replaced page's sections are replaced as a set.
    - **A locked box that came back** is its section again, as the site has it now, where the designer
@@ -427,15 +447,18 @@ and the list of published articles and active forms the builder may place. In th
      that the builder cannot carry (a map, a gallery, a price list, reviews). Tick the box to keep that
      section as the site has it now: it goes to the end of its page. Left unticked, it goes with the
      page's old sections. A page cannot be kept past 40 sections: the screen says so and writes nothing.
-   - **A page the designer gave another address, or made the home page,** is not replaced where it
-     stands: the page under its old address shows as **removed in the builder** (with the kinds of
-     section it has) and the new address as a **new page**, published and in the menu like any new
-     page, also when the old one was not. Its locked boxes that came back are on the new page; the
-     old page's line says so, in amber, for each. A box the designer removed from such a page has no
-     tick box of its own: it goes with the old page. Keep the old page (tick **Keep this page after
-     all**) to keep that section, and tidy the two pages up in the page editor afterwards. For a page
-     made the home page that tick is refused (the home page takes its address): put the section back
-     in the page editor afterwards, or ask the designer to put the box back.
+   - **A page the designer moved** (above) is replaced where it stands, so its sections are named and
+     kept like any replaced page's. **A page the designer gave another address that iPro could not
+     tell, and you did not choose, or one made the home page,** is not replaced where it stands: the
+     page under its old address shows as **removed in the builder** (with the kinds of section it has,
+     and what else goes with it) and the new address as a **new page**, published and in the menu like
+     any new page, also when the old one was not. Its locked boxes that came back are on the new page;
+     the old page's line says so, in amber, for each. A box the designer removed from such a page has
+     no tick box of its own: it goes with the old page. Choose the old page on the new page's line to
+     keep that section (it is then a moved page), or keep the old page (tick **Keep this page after
+     all**) and tidy the two pages up in the page editor afterwards. For a page made the home page that
+     tick is refused (the home page takes its address): put the section back in the page editor
+     afterwards, or ask the designer to put the box back.
 
    **Look** opens a page as it would be, in the customer's own design, in a new tab. A look works for an
    hour. Menu links inside a look are not live, so open each page from the list. The strip at the top of
@@ -447,8 +470,8 @@ and the list of published articles and active forms the builder may place. In th
    **The design:** leave the site's design as it is, or switch to another on the way in. Colours and
    fonts are the site's own (My Website); they do not come from the builder.
 
-   After ticking a box or changing the design, press **Update this page and the looks with these
-   choices**.
+   After ticking a box, choosing which page a new page is, or changing the design, press **Update this
+   page and the looks with these choices**.
 
    **Bring it in** writes exactly what this screen shows. Pressed after a box was ticked or cleared and
    not yet updated, or after the customer changed the site so that it would do something else, it writes

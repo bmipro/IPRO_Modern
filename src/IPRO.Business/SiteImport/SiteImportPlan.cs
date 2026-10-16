@@ -29,6 +29,20 @@ public sealed record SectionGoing(int BlockId, string BlockType, string Title, b
 // changed in iPro since, and its menu label is all that changed.
 public sealed record ShortenedLabel(string Slug, int RowId, string Label, string SentLabel, bool OnlyLabelChanged = false);
 
+// 581: how the plan knew which page of the site a package page at a new address is.
+public enum MoveMatch
+{
+    None,
+    ShortenedLabel,   // it carries the menu label the builder was given shortened for that page (577)
+    SameTitle,        // it has that page's title, and no other such page on either side has it
+    SameMenuLabel,    // it has that page's menu label, and no other such page on either side has it
+    Chosen            // the operator said so on the review
+}
+
+// 581: a page of the site that went to the builder and did not come back at its address: a page of
+// the package at a new address can be it. RowId is its row, Slug its address on the site today.
+public sealed record MoveCandidate(int RowId, string Slug, string Title);
+
 public sealed class PlannedPage
 {
     // The page as it will be, sections included (for a removed page: as it is now). A page that does
@@ -70,6 +84,24 @@ public sealed class PlannedPage
     // own, the shortened one (Page.NavigationLabel equals LabelSent then).
     public string LabelSent { get; init; } = string.Empty;
     public bool LabelKept { get; init; }
+    // 581: a page the designer gave a new address, on the row of the page it was. MovedFrom: that page's
+    // address on the site ("" for every other page); MovedBy: how the plan knew (None: not moved). It
+    // keeps what the builder never showed, as any replaced page does, and MovedFrom joins its old
+    // addresses, so links to it keep arriving (553). OldAddressKept: they do, from the moment it is
+    // brought in; when they do not, OldAddressNote says why in a plain sentence (the page is not
+    // published, it has no room for another old address, another page has that address). MoveNotes:
+    // what it keeps that a visitor would notice and the designer could not see (not published, not in
+    // the menu, a language of its own).
+    public string MovedFrom { get; init; } = string.Empty;
+    public MoveMatch MovedBy { get; init; }
+    public bool IsMoved => MovedBy != MoveMatch.None;
+    public bool OldAddressKept { get; init; }
+    public string OldAddressNote { get; init; } = string.Empty;
+    public IReadOnlyList<string> MoveNotes { get; init; } = Array.Empty<string>();
+    // 581: for a removed page, in plain sentences, what goes with it that its list of sections does not
+    // show: its search title and description, its own language, the old addresses it answers to, that it
+    // is hidden from visitors or from the menu, and where links to its address go afterwards.
+    public IReadOnlyList<string> SettingsLost { get; init; } = Array.Empty<string>();
 }
 
 public enum LogoChange { Unchanged, Set, Replaced, Removed }
@@ -87,6 +119,13 @@ public sealed class SiteImportPlan
     // if the site has changed in between so that the plan is no longer the one that was read, the
     // write refuses and the review is shown again.
     public string Fingerprint { get; init; } = string.Empty;
+    // 581: the pages of the site a package page at a new address can be said to be (empty for a site
+    // built from scratch, and when every page that went to the builder came back at its address).
+    public IReadOnlyList<MoveCandidate> MoveCandidates { get; init; } = Array.Empty<MoveCandidate>();
+
+    // 581: how many old addresses a page answers to. The public site reads no more
+    // (IPRO.Web.Infrastructure.OldAddresses.MaxEntries; a test holds the two together).
+    public const int OldAddressLimit = 12;
 
     // The site's pages afterwards, in menu order, as the public site would load them.
     public IReadOnlyList<WebsitePage> PagesAfter =>
@@ -117,7 +156,11 @@ public sealed class SiteImportPlan
         IReadOnlyList<HandoverHostSection>? hostSections = null,
         IReadOnlySet<int>? keepSectionIds = null,
         // 577. shortenedLabels: the pages whose menu label the builder was given shortened.
-        IReadOnlyList<ShortenedLabel>? shortenedLabels = null)
+        IReadOnlyList<ShortenedLabel>? shortenedLabels = null,
+        // 581. movedFrom: the operator's word on a package page at a new address, by that address: the
+        // row of the page it is (MoveCandidate.RowId), or 0 for a new page. A page not named is
+        // matched as the plan can tell.
+        IReadOnlyDictionary<string, int>? movedFrom = null)
     {
         bool Carried(string type) => carriedTypes == null ? BuilderContract.BlockTypes.Contains(type, StringComparer.Ordinal) : carriedTypes.Contains(type);
         IReadOnlyList<string> Lost(IReadOnlyList<string> before) => before.Where(t => !Carried(t)).ToList();
@@ -167,6 +210,55 @@ public sealed class SiteImportPlan
                 if (row == null) continue;
                 rowFor[page] = row;
                 taken.Add(row.Id);
+            }
+        }
+
+        // 1a (581). A page the designer gave a new address. A package carries no page's identity, only
+        // its address, so such a page matched nothing above. It used to come back as a new page with
+        // iPro's defaults while the page it was went as "removed in the builder", and with it everything
+        // the builder never showed: its search title and description, whether it is published and in
+        // the menu, its language, its old addresses; and its address stopped arriving. What the designer
+        // could not have meant to change is not changed: it lands on that page's row when the plan can
+        // tell which page it is. First by the shortened menu label the builder was given for it (577),
+        // which iPro wrote and nothing else carries; then by its title, then by its menu label, each only
+        // when it points one way (one such page of the site, one package page at a new address). The
+        // operator's word on the review decides over all three. Only a return has such pages: one that
+        // went to the builder and whose row nothing above took.
+        var candidates = handedOverPageIds == null ? new List<WebsitePage>()
+            : currentPages.Where(r => handedOverPageIds.Contains(r.Id) && !taken.Contains(r.Id)).OrderBy(r => r.SortOrder).ThenBy(r => r.Id).ToList();
+        var movedTo = new Dictionary<BuilderPage, (WebsitePage Row, MoveMatch By)>(ReferenceEqualityComparer.Instance);
+        if (candidates.Count > 0)
+        {
+            var movable = template.Pages.Where(p => !rowFor.ContainsKey(p) && !p.IsHomePage).ToList();
+            var guessed = GuessMoves(movable, template.Pages, candidates, shortenedLabels ?? Array.Empty<ShortenedLabel>());
+            var said = movedFrom ?? new Dictionary<string, int>();
+            bool Repeats(BuilderPage page) => guessed.TryGetValue(page, out var guess) && said.GetValueOrDefault(page.Slug) == guess.Row.Id;
+            // A choice the operator made comes before one that only repeats the plan's reading (the form
+            // posts every page's choice), so the reading cannot take the row the operator gave another page.
+            foreach (var page in movable.OrderBy(Repeats))
+            {
+                if (!said.TryGetValue(page.Slug, out var rowId) || rowId == 0) continue;
+                // A row that is not one of these any more reads as "a new page": the review then shows that.
+                var row = candidates.FirstOrDefault(r => r.Id == rowId);
+                if (row == null) continue;
+                var other = movedTo.FirstOrDefault(m => m.Value.Row.Id == row.Id).Key;
+                if (other != null)
+                {
+                    problems.Add($"\"{other.Title}\" and \"{page.Title}\" are both said to be the page that was at \"/{row.Slug}\". Choose it for one of them only.");
+                    continue;
+                }
+                // The operator's word that agrees with the plan's own reading is that reading.
+                movedTo[page] = (row, Repeats(page) ? guessed[page].By : MoveMatch.Chosen);
+            }
+            foreach (var (page, guess) in guessed)
+            {
+                if (said.ContainsKey(page.Slug) || movedTo.Values.Any(m => m.Row.Id == guess.Row.Id)) continue;
+                movedTo[page] = guess;
+            }
+            foreach (var (page, move) in movedTo)
+            {
+                rowFor[page] = move.Row;
+                taken.Add(move.Row.Id);
             }
         }
 
@@ -243,9 +335,11 @@ public sealed class SiteImportPlan
         // the one page that carries it word for word, when it is one record's alone and that page lands
         // on that record's row or on none (it was given another address, or the designer made another
         // page the home page, which then lands on the home row whatever either side calls it). A page
-        // that lands on another page's row is that page, whatever label it carries. Then, for a label the
-        // designer changed or one shared, the page on its row at its address, or still carrying the
-        // label; and last the page at its address.
+        // that lands on another page's row is that page, whatever label it carries, unless it is there
+        // only as a page at a new address (1a): then the shortened label is still that record's, and
+        // comes back whole rather than cut (581: the operator may say a page is another than the one whose
+        // label it carries). Then, for a label the designer changed or one shared, the page on its row at
+        // its address, or still carrying the label; and last the page at its address.
         var labels = shortenedLabels ?? Array.Empty<ShortenedLabel>();
         var labelOf = new Dictionary<BuilderPage, ShortenedLabel>(ReferenceEqualityComparer.Instance);
         var labelTaken = new HashSet<ShortenedLabel>(ReferenceEqualityComparer.Instance);
@@ -258,7 +352,7 @@ public sealed class SiteImportPlan
             var records = labels.Where(l => string.Equals(l.SentLabel, page.NavigationLabel, StringComparison.Ordinal)).ToList();
             var carriers = template.Pages.Count(p => string.Equals(p.NavigationLabel, page.NavigationLabel, StringComparison.Ordinal));
             if (records.Count != 1 || carriers != 1) continue;
-            if (!rowFor.TryGetValue(page, out var row) || row.Id == records[0].RowId) Claim(page, records[0]);
+            if (!rowFor.TryGetValue(page, out var row) || row.Id == records[0].RowId || movedTo.ContainsKey(page)) Claim(page, records[0]);
         }
         foreach (var page in template.Pages)
         {
@@ -288,6 +382,23 @@ public sealed class SiteImportPlan
             if (kept && label.OnlyLabelChanged) labelCarried.Add(label.RowId);
         }
 
+        // The site's other pages, and which of them go (3, below): known here already, so that where a
+        // link goes afterwards can be said (581).
+        var others = currentPages.Where(r => !taken.Contains(r.Id)).ToList();
+        var removedInBuilder = others
+            .Where(r => handedOverPageIds != null && handedOverPageIds.Contains(r.Id) && !(keepPageIds?.Contains(r.Id) ?? false))
+            .Select(r => r.Id).ToHashSet();
+        var removed = others.Where(r => removePageIds.Contains(r.Id) || removedInBuilder.Contains(r.Id)).Select(r => r.Id).ToHashSet();
+        // 581: where a link to an address of the site goes afterwards. A page that lives at the address
+        // comes first (the package's pages and the pages that stay); else a page that stays and lists it
+        // among its old addresses (553), as the public site reads them; else nothing.
+        var livesAt = template.Pages.GroupBy(p => p.Slug, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Title, StringComparer.OrdinalIgnoreCase);
+        foreach (var row in others.Where(r => !removed.Contains(r.Id))) livesAt.TryAdd(row.Slug, row.Title);
+        var titleAfter = rowFor.ToDictionary(m => m.Value.Id, m => m.Key.Title);
+        string? ListedBy(string address, int exceptRowId) => currentPages
+            .Where(r => r.Id != exceptRowId && !removed.Contains(r.Id) && Addresses(r.OldAddresses).Take(OldAddressLimit).Contains(address, StringComparer.OrdinalIgnoreCase))
+            .Select(r => titleAfter.GetValueOrDefault(r.Id) ?? r.Title).FirstOrDefault();
+
         // 2. The package's pages as they will be.
         var planned = new List<PlannedPage>();
         var bySlug = new Dictionary<string, WebsitePage>(StringComparer.Ordinal);
@@ -297,6 +408,36 @@ public sealed class SiteImportPlan
             // 577: the menu label, as 1c worked it out for a page whose label went shortened.
             var shortLabel = labelOf.GetValueOrDefault(source);
             var (navigationLabel, labelKept) = labelAfter.TryGetValue(source, out var labelled) ? labelled : (source.NavigationLabel, false);
+            // 581 (re-check): the address a page leaves joins its old addresses only when no other page
+            // has it afterwards or already lists it: the page editor would never store such an address,
+            // and the customer's next save would warn about it or drop it from the other page.
+            var oldAddresses = row != null && !string.Equals(row.Slug, source.Slug, StringComparison.OrdinalIgnoreCase)
+                    && (livesAt.ContainsKey(row.Slug) || ListedBy(row.Slug, row.Id) != null)
+                ? row.OldAddresses ?? string.Empty
+                : OldAddressesAfter(row, source.Slug);
+            // 581: a page at a new address on the row of the page it was (1a): whether links to the
+            // address it had arrive, and what it keeps that a visitor would notice.
+            var moved = movedTo.TryGetValue(source, out var move);
+            var oldAddressNote = string.Empty;
+            var moveNotes = new List<string>();
+            if (moved)
+            {
+                var from = move.Row.Slug;
+                var listed = ListedBy(from, move.Row.Id);
+                if (livesAt.TryGetValue(from, out var livesThere))
+                    oldAddressNote = $"Links to /{from} reach \"{livesThere}\", the page at that address afterwards, not this one.";
+                else if (listed != null)
+                    oldAddressNote = $"Links to /{from} may go to \"{listed}\" instead: it already lists that address among its old addresses. Remove it there in the page editor (Page Settings, Old addresses) if they should arrive here.";
+                else if (!Addresses(oldAddresses).Take(OldAddressLimit).Contains(from, StringComparer.OrdinalIgnoreCase))
+                    oldAddressNote = $"Links to /{from} will find nothing: the page already lists {OldAddressLimit} old addresses, the most a page answers to. " +
+                        $"Afterwards, remove one in the page editor (Page Settings, Old addresses) and add /{from} there.";
+                else if (!move.Row.IsPublished)
+                    oldAddressNote = $"Links to /{from} will be sent on to /{source.Slug} once the page is published; until then they find nothing, as the page itself does.";
+                if (!move.Row.IsPublished) moveNotes.Add("On the site it is not published, and it stays so: visitors see it only once the customer publishes it.");
+                if (!move.Row.ShowInNavigation) moveNotes.Add("It is not in the menu on the site, and it stays out of it.");
+                var language = WebsiteLanguages.NormalizePage(move.Row.Language);
+                if (language.Length > 0) moveNotes.Add($"It keeps its own language ({LanguageName(language)}).");
+            }
             var page = new WebsitePage
             {
                 Id = row?.Id ?? TempId(),
@@ -310,7 +451,7 @@ public sealed class SiteImportPlan
                 // gets iPro's defaults.
                 MetaTitle = row?.MetaTitle ?? string.Empty,
                 MetaDescription = row?.MetaDescription ?? string.Empty,
-                OldAddresses = OldAddressesAfter(row, source.Slug),
+                OldAddresses = oldAddresses,
                 Language = row?.Language ?? string.Empty,
                 ShowInNavigation = row?.ShowInNavigation ?? true,
                 IsPublished = row?.IsPublished ?? true,
@@ -425,7 +566,12 @@ public sealed class SiteImportPlan
                 // 577: a page whose only change in iPro is its menu label, which goes on (1c), loses nothing.
                 ChangedSinceHandover = row != null && (changedSinceHandover?.Contains(row.Id) ?? false) && !labelCarried.Contains(row.Id),
                 LabelSent = shortLabel?.SentLabel ?? string.Empty,
-                LabelKept = labelKept
+                LabelKept = labelKept,
+                MovedFrom = moved ? move.Row.Slug : string.Empty,
+                MovedBy = moved ? move.By : MoveMatch.None,
+                OldAddressKept = moved && oldAddressNote.Length == 0,
+                OldAddressNote = oldAddressNote,
+                MoveNotes = moveNotes
             });
         }
         if (unknownBoxes.Count > 0)
@@ -440,12 +586,17 @@ public sealed class SiteImportPlan
         }
 
         // 3. The site's other pages: kept as they are, or removed -- because the operator said so,
-        //    or because the page went to the builder and was removed there.
-        var others = currentPages.Where(r => !taken.Contains(r.Id)).ToList();
-        var removedInBuilder = others
-            .Where(r => handedOverPageIds != null && handedOverPageIds.Contains(r.Id) && !(keepPageIds?.Contains(r.Id) ?? false))
-            .Select(r => r.Id).ToHashSet();
-        var removed = others.Where(r => removePageIds.Contains(r.Id) || removedInBuilder.Contains(r.Id)).Select(r => r.Id).ToHashSet();
+        //    or because the page went to the builder and was removed there (others, removed: above).
+        //    581: a removed page says where links to it go afterwards, and, when the package has new
+        //    pages, that it was hidden (one of them may be it).
+        var newPagesComeBack = planned.Any(p => p.Change == PageChange.Added);
+        string LinksTo(WebsitePage row)
+        {
+            var slug = row.Slug.Trim('/');
+            if (livesAt.TryGetValue(slug, out var title)) return $"Links to /{slug} reach \"{title}\", the page at that address afterwards.";
+            var listed = ListedBy(slug, row.Id);
+            return listed != null ? $"Links to /{slug} go to \"{listed}\", which lists that address among its old addresses." : $"Links to /{slug} will find nothing afterwards.";
+        }
         var parentOf = currentPages.ToDictionary(r => r.Id, r => r.ParentPageId);
         foreach (var row in others)
         {
@@ -457,7 +608,8 @@ public sealed class SiteImportPlan
                     RemovedInBuilder = removedInBuilder.Contains(row.Id), ChangedOnSite = row.UpdatedAt,
                     // 577: not when its one change, its menu label, goes on with the page at its new address.
                     ChangedSinceHandover = (changedSinceHandover?.Contains(row.Id) ?? false) && !labelCarried.Contains(row.Id),
-                    BoxNotes = ElsewhereNotes(row, stays: false)
+                    BoxNotes = ElsewhereNotes(row, stays: false),
+                    SettingsLost = SettingsOf(row, newPagesComeBack && removedInBuilder.Contains(row.Id), row.IsHomePage || string.IsNullOrWhiteSpace(row.Slug) ? null : LinksTo(row))
                 });
                 continue;
             }
@@ -551,8 +703,85 @@ public sealed class SiteImportPlan
         {
             Pages = ordered, Problems = problems, LogoUrlAfter = logoAfter, Logo = logo,
             LogoChangedSinceHandover = logoChangedSinceHandover && logo != LogoChange.Unchanged,
-            Fingerprint = FingerprintOf(ordered, problems, logo, logoAfter)
+            Fingerprint = FingerprintOf(ordered, problems, logo, logoAfter),
+            MoveCandidates = candidates.Select(r => new MoveCandidate(r.Id, r.Slug, r.Title)).ToList()
         };
+    }
+
+    // 581: which package page at a new address (pages) is which page of the site (rows), where nothing
+    // but the words tell (1a). Each reading pairs a page only when it points one way: one page of the
+    // package and one of the site, of those still unpaired. allPages: every page of the package.
+    private static Dictionary<BuilderPage, (WebsitePage Row, MoveMatch By)> GuessMoves(
+        IReadOnlyList<BuilderPage> pages, IReadOnlyList<BuilderPage> allPages, IReadOnlyList<WebsitePage> rows, IReadOnlyList<ShortenedLabel> labels)
+    {
+        var found = new Dictionary<BuilderPage, (WebsitePage Row, MoveMatch By)>(ReferenceEqualityComparer.Instance);
+        var used = new HashSet<int>();
+        foreach (var page in pages)
+        {
+            // The shortened label, word for word: one record's alone, and no other page of the package
+            // carries it (as 1c reads it).
+            var records = labels.Where(l => string.Equals(l.SentLabel, page.NavigationLabel, StringComparison.Ordinal)).ToList();
+            if (records.Count != 1 || allPages.Count(p => string.Equals(p.NavigationLabel, page.NavigationLabel, StringComparison.Ordinal)) != 1) continue;
+            var row = rows.FirstOrDefault(r => r.Id == records[0].RowId);
+            if (row == null || !used.Add(row.Id)) continue;
+            found[page] = (row, MoveMatch.ShortenedLabel);
+        }
+        void BySame(Func<BuilderPage, string?> ofPage, Func<WebsitePage, string?> ofRow, MoveMatch by)
+        {
+            var open = pages.Where(p => !found.ContainsKey(p)).Select(p => (Page: p, Words: Words(ofPage(p)))).ToList();
+            var free = rows.Where(r => !used.Contains(r.Id)).Select(r => (Row: r, Words: Words(ofRow(r)))).ToList();
+            foreach (var (page, words) in open)
+            {
+                if (words.Length == 0 || open.Count(p => p.Words == words) != 1) continue;
+                var same = free.Where(r => r.Words == words).ToList();
+                if (same.Count != 1 || !used.Add(same[0].Row.Id)) continue;
+                found[page] = (same[0].Row, by);
+            }
+        }
+        BySame(p => p.Title, r => r.Title, MoveMatch.SameTitle);
+        BySame(p => p.NavigationLabel, r => r.NavigationLabel, MoveMatch.SameMenuLabel);
+        return found;
+    }
+
+    // Words as a reader takes them: the spaces between them and their capitals do not count.
+    private static string Words(string? text) =>
+        string.Join(" ", (text ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
+
+    // The old addresses a page lists (553), one per line, as the public site reads them: no slash at
+    // either end, lower case, each once. (The page editor stores them already in that form, through
+    // IPRO.Web's OldAddresses.Parse, which this project cannot call; this reads what is stored.)
+    private static IEnumerable<string> Addresses(string? field) =>
+        (field ?? string.Empty).Split(new[] { '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(a => a.Trim('/').ToLowerInvariant()).Where(a => a.Length > 0).Distinct();
+
+    private static string LanguageName(string language) => language == WebsiteLanguages.French ? "French" : "English";
+
+    // 581: what a removed page has that its list of sections does not show, and that goes with it. A
+    // page the designer only gave a new address, when the plan cannot tell it is this one, comes back as
+    // a new page without any of it; the review names it before anything is written. hiddenMatters: it
+    // was removed in the builder and the package has new pages, one of which may be it. linksTo: where
+    // links to its address go afterwards (null for a page with none of its own, the home page).
+    private static IReadOnlyList<string> SettingsOf(WebsitePage row, bool hiddenMatters, string? linksTo)
+    {
+        var lines = new List<string>();
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(row.MetaTitle)) parts.Add($"its search title \"{row.MetaTitle.Trim()}\"");
+        if (!string.IsNullOrWhiteSpace(row.MetaDescription)) parts.Add("its search description");
+        var language = WebsiteLanguages.NormalizePage(row.Language);
+        if (language.Length > 0) parts.Add($"its own language ({LanguageName(language)})");
+        var old = Addresses(row.OldAddresses).Take(OldAddressLimit).ToList();
+        if (old.Count > 0) parts.Add($"the old address{(old.Count == 1 ? string.Empty : "es")} it answers to ({string.Join(", ", old.Select(a => "/" + a))})");
+        if (parts.Count > 0)
+        {
+            lines.Add("Also goes with it: " + (parts.Count == 1 ? parts[0] : string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[^1]) + ".");
+        }
+        if (hiddenMatters && (!row.IsPublished || !row.ShowInNavigation))
+        {
+            lines.Add("On the site it is " + (!row.IsPublished && !row.ShowInNavigation ? "neither published nor in the menu"
+                : !row.IsPublished ? "not published" : "not in the menu") + "; a new page of the package comes back published and in the menu.");
+        }
+        if (linksTo != null) lines.Add(linksTo);
+        return lines;
     }
 
     // Everything the review screen says about a plan: each page, what happens to it, what it loses and
@@ -579,7 +808,11 @@ public sealed class SiteImportPlan
                 // site has it at that moment, so what is written can change after the review was read.
                 .Append(item.Change is PageChange.Added or PageChange.Replaced
                     ? string.Join(",", (item.Page.Blocks ?? new List<WebsiteContentBlock>()).OrderBy(b => b.SortOrder).Select(SiteFingerprint.OfSection)) : string.Empty).Append(field)
-                .Append(item.RemovedInBuilder).Append(item.ChangedSinceHandover).Append((char)0x1E);
+                .Append(item.RemovedInBuilder).Append(item.ChangedSinceHandover).Append(field)
+                // 581: which page a page at a new address was, and what a removed page takes with it.
+                .Append(item.MovedFrom).Append(item.MovedBy).Append(item.OldAddressKept).Append(field)
+                .Append(item.OldAddressNote).Append(field).Append(string.Join("|", item.MoveNotes)).Append(field)
+                .Append(string.Join("|", item.SettingsLost)).Append((char)0x1E);
         }
         text.Append(logo).Append(field).Append(logoAfter).Append(field).Append(string.Join(((char)0x1E).ToString(), problems));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()))).ToLowerInvariant()[..32];
@@ -592,15 +825,19 @@ public sealed class SiteImportPlan
     public static string Named(string blockType, string? heading) =>
         WebsiteBlockTypes.DisplayName(blockType) + (string.IsNullOrWhiteSpace(heading) ? string.Empty : $" \"{heading.Trim()}\"");
 
-    // A page that keeps its row but changes its address (only the home page can: it is matched as
-    // the home page, not by address) remembers the address it had, so links and search results that
-    // point at the old one still arrive (553: OldAddresses, one per line).
+    // A page that keeps its row but changes its address (the home page, matched as the home page and
+    // not by address; and, 581, a page the designer gave a new address, matched in 1a) remembers the
+    // address it had, so links and search results that point at the old one still arrive (553:
+    // OldAddresses, one per line).
     private static string OldAddressesAfter(WebsitePage? row, string newSlug)
     {
         var current = row?.OldAddresses ?? string.Empty;
         if (row == null || string.Equals(row.Slug, newSlug, StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(row.Slug)) return current;
         var lines = current.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         if (lines.Contains(row.Slug, StringComparer.OrdinalIgnoreCase)) return current;
+        // 581: a page that already lists as many as the public site reads gets no line it would never
+        // read (the review says so, and what to do).
+        if (Addresses(current).Count() >= OldAddressLimit) return current;
         lines.Add(row.Slug);
         var joined = string.Join("\n", lines);
         return joined.Length <= 2000 ? joined : current;   // the column's size; an address too many is not worth a failed import

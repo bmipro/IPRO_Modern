@@ -1259,11 +1259,13 @@ package") and writes a return ZIP to disk. At integration the same two files tra
   still stops a hand-over is said to iPro's staff instead: a page with no sections of its own, a section
   type the adviser's package no longer includes, a picture that cannot be read.
 - Page settings the contract doesn't carry — SEO title, SEO description, "show in menu", page
-  published — are kept by iPro for every page whose `slug` is unchanged. New pages get iPro's defaults.
+  published — are kept by iPro for every page whose `slug` is unchanged, and (from 2026-10-15) for a
+  page given a new `slug` that iPro can tell, or iPro's staff say, is that page (§12.1). New pages get
+  iPro's defaults.
 - `theme` in the return is the hint it has always been; the adviser confirms the theme on iPro's
   review page.
 
-### 12.1 What iPro's importer does today (2026-10-14)
+### 12.1 What iPro's importer does today (2026-10-15)
 
 A package is brought in by iPro's staff for one customer. It is either a template built from scratch
 (`handoverId: ""`) or the return of that site's newest hand-over.
@@ -1274,7 +1276,19 @@ A package is brought in by iPro's staff for one customer. It is either a templat
 - **The home page is the home page.** The package's home page replaces the site's home page, whatever
   either side calls it; if its address changes, the old address keeps arriving. Every other page is
   matched by `slug`: a match is replaced and keeps the page settings listed above; a page with a new
-  slug is added.
+  slug is added, unless it is a page of the hand-over moved (next).
+- **A page given a new `slug` in the builder is moved, not new,** when iPro can tell which page of the
+  hand-over it is: by its shortened menu label (below), when the hand-over gave that label to one page
+  only and no other page of the return carries it; else by its `title`, else by its `navigationLabel`,
+  each only when exactly one page that did not come back and exactly one page at a new `slug` share it
+  (capitals and spaces aside). It then replaces that page where it stands and keeps the page settings
+  listed above, its language, its old addresses and the pages under it in iPro, and its old address
+  keeps arriving once the page is published (unless another page has that address afterwards). iPro's
+  staff see each such page on the review, with how iPro knew, and may say otherwise, or say which page
+  a new page is where iPro could not tell. A page that does go (removed in the builder, or not chosen)
+  is named on the review with what goes with it that its sections do not show, and where links to its
+  address go afterwards. Nothing changes for the builder: a page's `slug` may be changed freely, and
+  keeping its `title` while doing so is what lets iPro tell without asking.
 - **A page the package does not have:**
   - *built from scratch:* it is kept as it is, after the package's pages in the menu, unless iPro's
     staff choose to remove it;
@@ -1326,6 +1340,12 @@ none of the three (until this document has a value for it).
 
 ## Changelog
 
+- **v0.5, second doc-only revision (2026-10-15)** — a page given a new `slug` in the builder came back
+  as a new page with iPro's defaults, and the page it was went with its SEO title and description, its
+  "show in menu" and "published" settings and its old address, without a word on the review. iPro now
+  takes such a page for the page it was when it can tell (§12, §12.1), and its review names what goes
+  with any page that is removed. Nothing changes for the builder: every package it makes or opens is
+  what it was.
 - **v0.5, doc-only revision (2026-10-14)** — the owner's own site was refused a hand-over: four starter
   articles are named in the menu by titles of 42 to 51 characters. iPro now sends such a label shortened
   at a word, and a label that comes back as it went is the page's own again (§12.1, and the list of what

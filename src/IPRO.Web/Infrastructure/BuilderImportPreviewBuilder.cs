@@ -14,11 +14,12 @@ namespace IPRO.Web.Infrastructure;
 public static class BuilderImportPreviewBuilder
 {
     public static async Task<PublicWebsiteViewModel?> BuildAsync(
-        IPRODbContext db, WebsiteBuilderImport import, string? pageSlug, int? design, string? without, string? keep = null, string? sections = null)
+        IPRODbContext db, WebsiteBuilderImport import, string? pageSlug, int? design, string? without, string? keep = null, string? sections = null,
+        string? moved = null)
     {
         // The same reading of "12,15" the review screen uses, so a look shows the choices it was opened with.
         var planned = await BuilderImportService.PlanAsync(db, import, BuilderImportService.ParseIds(without), BuilderImportService.ParseIds(keep),
-            BuilderImportService.ParseIds(sections));
+            BuilderImportService.ParseIds(sections), BuilderImportService.ParseMoves(moved));
         if (planned?.Plan == null || planned.Plan.Problems.Count > 0) return null;
         var plan = planned.Plan;
 
@@ -59,14 +60,17 @@ public static class BuilderImportPreviewBuilder
 
         // 576: a replaced page drawn in the customer's own design can look like the page it replaces
         // (the same header, colours and kind of sections), so the look says which it is.
-        var change = plan.Pages.First(p => ReferenceEquals(p.Page, current)).Change;
+        var item = plan.Pages.First(p => ReferenceEquals(p.Page, current));
         return new PublicWebsiteViewModel
         {
             Website = site,
             Pages = pages,
             CurrentPage = current,
-            PreviewNote = change switch
+            PreviewNote = item.Change switch
             {
+                // 581: a page at a new address, taken for the page it was.
+                PageChange.Replaced when item.IsMoved =>
+                    $"THIS PAGE COMES FROM THE PACKAGE, at a new address: it would replace the page at /{item.MovedFrom} and keep that page's search settings. Header, menu, colours and fonts are the site's own design, not the builder's.",
                 PageChange.Replaced => "THIS PAGE COMES FROM THE PACKAGE and would replace the one the site has now. Header, menu, colours and fonts are the site's own design, not the builder's.",
                 PageChange.Added => "THIS PAGE IS NEW, from the package. Header, menu, colours and fonts are the site's own design, not the builder's.",
                 _ => "THIS PAGE IS NOT IN THE PACKAGE: it stays exactly as it is now."
