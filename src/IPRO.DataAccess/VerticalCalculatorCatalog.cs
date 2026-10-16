@@ -1,6 +1,8 @@
+using System;
+using System.Collections.Generic;
 using IPRO.Entities;
 
-namespace IPRO.Web.Infrastructure;
+namespace IPRO.DataAccess;
 
 // Which calculators each vertical's Resources section carries, in display order. One map shared by
 // WebsiteStarterResourcesHelper (real provisioning) and ProspectWebsitePreviewBuilder (the zero-write

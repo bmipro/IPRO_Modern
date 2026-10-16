@@ -130,10 +130,22 @@ else
                 <tbody>
                 @foreach (var import in Model.Imports)
                 {
+                    @* 584: "Start the website again" on the agent's page keeps the site the way a package does,
+                       so it is listed here too, in the order the put-backs go. *@
+                    var startedAgain = IPRO.Business.SiteImport.SiteStartAgainService.IsStartAgain(import);
                     <tr>
+                        @if (startedAgain)
+                        {
+                            <td><strong>Started again from the @import.TemplateName</strong><div class="text-muted small">"Start the website again" on the agent's page, not a package</div></td>
+                            <td>@When(import.CreatedAt)<div class="text-muted small">by @import.UploadedBy</div></td>
+                            <td>@import.PageCount page@(import.PageCount == 1 ? "" : "s"), @import.BlockCount section@(import.BlockCount == 1 ? "" : "s")</td>
+                        }
+                        else
+                        {
                         <td><strong>@import.FileName</strong><div class="text-muted small">@import.TemplateName@(import.HandoverId.Length > 0 ? " (a return from the builder)" : " (built from scratch)")</div></td>
                         <td>@When(import.CreatedAt)<div class="text-muted small">by @import.UploadedBy</div></td>
                         <td>@import.PageCount page@(import.PageCount == 1 ? "" : "s"), @import.BlockCount section@(import.BlockCount == 1 ? "" : "s")<div class="text-muted small">@import.NewImageCount new image@(import.NewImageCount == 1 ? "" : "s")</div></td>
+                        }
                         <td>
                             @switch (import.Status)
                             {
@@ -161,6 +173,13 @@ else
                                 <form asp-action="Discard" asp-route-id="@import.Id" method="post">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-sm btn-outline-secondary js-confirm-submit" data-confirm-message="Drop this package? The site was never changed by it. The images it added that nothing uses are removed from the media library.">Drop</button>
+                                </form>
+                            }
+                            else if (import.Id == Model.RestorableId && startedAgain)
+                            {
+                                <form asp-action="Restore" asp-route-id="@import.Id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Put back the pages the website had before it was started again? The starter pages it has now are DELETED, with any change made to the pages since then. The logo, design and business type stay as they are. Articles the start-again took off the website go back on it, and those it added or published come off it (they stay in Articles)."><i class="fas fa-rotate-left me-1"></i>Put the previous pages back</button>
                                 </form>
                             }
                             else if (import.Id == Model.RestorableId)

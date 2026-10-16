@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IPRO.Business.Interfaces;
+using IPRO.Business.SiteImport;
 using IPRO.Admin.Infrastructure;
 using IPRO.Admin.Models;
 using IPRO.Billing;
@@ -73,10 +74,20 @@ public class AgentsController : Controller
         ViewBag.Zone = AdminClock.Zone(HttpContext.RequestServices.GetRequiredService<IConfiguration>());
 
         var warnings = new List<string>();
-        ViewBag.Website = await LoadDetailsPanelAsync(
+        var website = await LoadDetailsPanelAsync(
             () => _websites.GetByAgentIdAsync(id),
             "Website details",
             warnings);
+        ViewBag.Website = website;
+        // 584: a start-again that "Put the previous pages back" undoes, while it is the site's newest
+        // change of pages, and how many pages that brings back.
+        var startedAgain = website == null
+            ? null
+            : await LoadDetailsPanelAsync(() => SiteStartAgainService.PutBackableAsync(_db, website.Id), "Start again", warnings);
+        ViewBag.StartedAgain = startedAgain;
+        ViewBag.StartedAgainPages = startedAgain == null
+            ? 0
+            : await LoadDetailsPanelAsync(() => SiteStartAgainService.PagesKeptAsync(_db, startedAgain.Id), "Start again", warnings);
         var activeSubscription = await LoadDetailsPanelAsync(
             () => _uow.Billings.FirstOrDefaultAsync(b => b.AgentUserId == id && b.Status == BillingStatus.Active),
             "Subscription details",
@@ -298,9 +309,21 @@ public class AgentsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // 584: the form the page's Form section already shows comes first. After "Start the website
+        // again" an adviser can own two forms of that title (the old business type's and the new one's);
+        // the oldest would be the old business type's.
+        var currentPage = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .FirstOrDefaultAsync(_db.WebsitePages, p => p.AgentWebsiteId == website.Id && p.Slug == "request-meeting");
+        var shownFormIds = currentPage == null
+            ? new List<int>()
+            : (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                    .ToListAsync(_db.WebsiteContentBlocks.Where(b => b.WebsitePageId == currentPage.Id && b.BlockType == WebsiteBlockTypes.Form).Select(b => b.SettingsJson)))
+                .Select(json => WebsiteFormSettings.FromJson(json).WebsiteFormId)
+                .ToList();
         var form = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
                 .ToListAsync(_db.WebsiteForms.Where(f => f.AgentUserId == id && f.IsActive && f.Title == meetingTitle)))
-            .OrderBy(f => f.Id)
+            .OrderByDescending(f => shownFormIds.Contains(f.Id))
+            .ThenBy(f => f.Id)
             .FirstOrDefault();
         var reusedExistingForm = form != null;
         form ??= await IPRO.DataAccess.WebsiteFormTemplateCopier.CopyToAgentAsync(_db, template, id);
@@ -363,6 +386,148 @@ public class AgentsController : Controller
             $"({(reusedExistingForm ? "reused the form this agent already had, edits intact" : $"created their own copy of the {template.BusinessType} template")}). Live immediately.";
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    // 584 (2026-10-16): start the adviser's website again from the starter pack of their CURRENT
+    // business type (SiteStartAgainService). Changing the business type under Edit changes no page --
+    // starter pages are made only for a site with none -- so a demo account built from one pack could
+    // not show another. Every page goes and the new pack's pages are written in the same transaction,
+    // so the public site is never empty; the site as it was is kept, and "Put the previous pages back"
+    // on Details undoes it. SuperAdmin only like the two Rebuild buttons (a support admin sees the
+    // button disabled); the screen says what goes and what comes, and the username must be typed.
+    [Authorize(Policy = "SuperAdmin")]
+    public async Task<IActionResult> StartAgain(int id)
+    {
+        if (!IsSuperAdmin) return Forbid();
+        var plan = await SiteStartAgainService.PlanAsync(_db, id);
+        if (plan == null) return await NoWebsiteToStartAgainAsync(id);
+        return View(new AgentStartAgainViewModel { Plan = plan, Zone = AdminZone() });
+    }
+
+    // plan: what the screen showed, posted back with the button; the site is written only when it is
+    // still so. unpublishOtherPackArticles: the tick box (an unticked box posts nothing).
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> StartAgain(int id, string? confirmUserName, bool unpublishOtherPackArticles = false, string? plan = null)
+    {
+        if (!IsSuperAdmin) return Forbid();
+        SiteStartAgainService.Result result;
+        try
+        {
+            result = await SiteStartAgainService.ApplyAsync(_db, id, confirmUserName, unpublishOtherPackArticles, plan, CurrentAdminUsername);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            // The database refused a row (the site changed at the same moment). The transaction went
+            // with it: nothing was written.
+            _logger.LogWarning(ex, "Agent {AgentId}'s website was not started again", id);
+            _db.ChangeTracker.Clear();
+            result = SiteStartAgainService.Result.Failed("The website was being changed at the same moment, so nothing was changed. Read the screen again, then confirm.");
+        }
+
+        if (result.AlreadyDone)
+        {
+            TempData["Success"] = result.Problems.FirstOrDefault();
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        if (!result.Ok)
+        {
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentWebsiteNotStartedAgain",
+                Short($"Agent #{id}'s website was NOT started again: {result.Problems.FirstOrDefault()}"));
+            var again = await SiteStartAgainService.PlanAsync(_db, id);
+            if (again == null) return await NoWebsiteToStartAgainAsync(id);
+            return View(new AgentStartAgainViewModel
+            {
+                Plan = again,
+                Problems = result.Problems,
+                TypedUserName = (confirmUserName ?? string.Empty).Trim(),
+                UnpublishOtherPackArticles = unpublishOtherPackArticles,
+                Zone = AdminZone()
+            });
+        }
+
+        _logger.LogWarning(
+            "Admin {Admin} started agent {AgentId}'s website again from the {BusinessType} starter pack: {PagesRemoved} pages ({SectionsRemoved} sections) removed, " +
+            "{PagesAdded} pages ({SectionsAdded} sections) written, {ArticlesUnpublished} articles unpublished, {ArticlesPublished} published, {ArticlesAdded} articles and {FormsAdded} forms added; the previous pages are kept as import {ImportId}",
+            CurrentAdminUsername, id, result.BusinessType, result.PagesRemoved, result.SectionsRemoved,
+            result.PagesAdded, result.SectionsAdded, result.ArticlesUnpublished, result.ArticlesPublished, result.ArticlesAdded, result.FormsAdded, result.ImportId);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentWebsiteStartedAgain",
+            Short($"Started agent #{id}'s website again from the {result.BusinessType} starter pack: removed {result.PagesRemoved} page(s) with {result.SectionsRemoved} section(s), " +
+                 $"wrote {result.PagesAdded} page(s) with {result.SectionsAdded} section(s), unpublished {result.ArticlesUnpublished} article(s) of another pack, " +
+                 $"published {result.ArticlesPublished} article(s) the new pages show, added {result.ArticlesAdded} article(s) and {result.FormsAdded} form(s). " +
+                 (result.ImportId > 0 ? $"The previous pages are kept (import id {result.ImportId}) and can be put back." : "The website had no pages before, so there is nothing to put back.")));
+        TempData["Success"] = $"The website now has the {result.BusinessType} starter pages ({result.PagesAdded} pages)" +
+            (result.SitePublished ? ", live now. " : ". The website is not published, so visitors see them once it is. ") +
+            (result.ImportId > 0
+                ? $"{result.PagesRemoved} old page{(result.PagesRemoved == 1 ? " was" : "s were")} removed and kept: \"Put the previous pages back\" below undoes this."
+                : "It had no pages before, so there is nothing to put back.") +
+            (result.ArticlesUnpublished > 0 ? $" {result.ArticlesUnpublished} article{(result.ArticlesUnpublished == 1 ? " of another pack was" : "s of another pack were")} taken off the website (still in the adviser's Articles)." : string.Empty);
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 584: undoes a start-again while it is the site's newest change of pages
+    // (BuilderImportService.RestoreAsync: the pages as they were; the logo and design stay as they are).
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> PutBackStartAgain(int id, int importId)
+    {
+        if (!IsSuperAdmin) return Forbid();
+        var import = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .FirstOrDefaultAsync(_db.WebsiteBuilderImports, i => i.Id == importId && i.AgentUserId == id);
+        if (import == null || !SiteStartAgainService.IsStartAgain(import)) return NotFound();
+
+        BuilderImportService.ApplyResult result;
+        try
+        {
+            result = await BuilderImportService.RestoreAsync(_db, import);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            _logger.LogWarning(ex, "Agent {AgentId}'s previous pages (import {ImportId}) were not put back", id, importId);
+            _db.ChangeTracker.Clear();
+            result = BuilderImportService.ApplyResult.Failed("The website was being changed at the same moment, so nothing was put back. Try again.");
+        }
+
+        if (!result.Ok)
+        {
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentWebsiteStartAgainNotPutBack",
+                Short($"Agent #{id}'s previous pages (import id {importId}) were NOT put back: {result.Problems.FirstOrDefault()}"));
+            // RestoreAsync speaks of packages; on this screen it is a start-again.
+            var problem = result.Problems.FirstOrDefault() ?? string.Empty;
+            TempData["Error"] = problem.StartsWith("This package is not on the site", StringComparison.Ordinal)
+                ? "The previous pages are already back (the button was pressed twice, or they were put back already). Nothing more was changed."
+                : "The previous pages were not put back. " + (problem.StartsWith("A newer package has been brought in since", StringComparison.Ordinal)
+                    ? "A Template Builder package was brought in after the website was started again: put that back first, on the Template Builder screen."
+                    : string.Join(" ", result.Problems));
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var published = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .AnyAsync(_db.AgentWebsites, w => w.Id == import.AgentWebsiteId && w.IsPublished);
+        _logger.LogWarning("Admin {Admin} put agent {AgentId}'s previous pages back, undoing the start-again kept as import {ImportId}",
+            CurrentAdminUsername, id, importId);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentWebsiteStartAgainPutBack",
+            Short($"Put agent #{id}'s website back to the pages it had before it was started again from the {import.TemplateName} (import id {importId}); the starter pages written then were removed."));
+        TempData["Success"] = "The website has its previous pages back" + (published ? ", live now." : " (the website is not published, so visitors see them once it is).") +
+            " Its logo, design and business type are as they are now.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // The platform's time zone, as the details screen reads it; Eastern when nothing says otherwise.
+    private string? AdminZone()
+    {
+        var configuration = _services.GetService(typeof(IConfiguration)) as IConfiguration;
+        return configuration == null ? null : AdminClock.Zone(configuration);
+    }
+
+    private async Task<IActionResult> NoWebsiteToStartAgainAsync(int id)
+    {
+        if (await _agents.GetByIdAsync(id) == null) return NotFound();
+        TempData["Error"] = "This agent has no website yet, so there is nothing to start again. A website is made when they sign up or publish.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // The audit row's length, as BuilderImportsController keeps it.
+    private static string Short(string details) => details.Length <= 480 ? details : details[..480] + "...";
 
     public async Task<IActionResult> Edit(int id)
     {

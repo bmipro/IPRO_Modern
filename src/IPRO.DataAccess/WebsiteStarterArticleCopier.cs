@@ -1,8 +1,11 @@
-using IPRO.DataAccess;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace IPRO.Web.Infrastructure;
+namespace IPRO.DataAccess;
 
 // 470 (2026-09-09): the one way to turn starter articles into an agent's own Articles. An article
 // the agent already has under the same title is reused, never duplicated -- the rule

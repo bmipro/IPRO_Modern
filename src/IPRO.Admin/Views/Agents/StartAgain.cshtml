@@ -1,0 +1,206 @@
+@model IPRO.Admin.Models.AgentStartAgainViewModel
+@{
+    // 584: what "Start the website again" would do, said before anything is written.
+    var plan = Model.Plan;
+    var agent = plan.Agent;
+    ViewData["Title"] = $"Start the website again: {agent.UserName}";
+    var name = $"{agent.FirstName} {agent.LastName}".Trim();
+    if (name.Length == 0) { name = agent.UserName; }
+    // An adviser with no business type gets the shared ("All") pack, as a sign-up would.
+    var pack = plan.BusinessType.Length == 0 ? "shared" : plan.BusinessType;
+    string Plural(int count, string one, string many) => count == 1 ? $"{count} {one}" : $"{count} {many}";
+}
+
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-1"><li class="breadcrumb-item"><a href="/Agents">Agents</a></li><li class="breadcrumb-item"><a href="/Agents/Details/@agent.Id">@agent.UserName</a></li><li class="breadcrumb-item active">Start the website again</li></ol></nav>
+<h4 class="fw-bold mb-3">Start @name's website again</h4>
+
+@if (Model.Problems.Count > 0)
+{
+    <div class="alert alert-danger border-0 shadow-sm" role="alert">
+        <div class="fw-semibold mb-1"><i class="fas fa-circle-xmark me-1"></i>Nothing was changed.</div>
+        @foreach (var problem in Model.Problems)
+        {
+            <div>@problem</div>
+        }
+    </div>
+}
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <p class="mb-2">Every page of this website is replaced with the starter pages of the business type <strong>@(plan.BusinessType.Length == 0 ? "(none: the shared pack)" : plan.BusinessType)</strong>, the way a new sign-up gets them. @(plan.Site.IsPublished ? "The new pages are live as soon as you confirm." : "The website is not published, so visitors see nothing until it is.")</p>
+        <p class="mb-0 text-muted small">The business type is set under <a href="/Agents/Edit/@agent.Id">Edit</a>. To use another business type's pack, change it there first, then come back here.</p>
+    </div>
+</div>
+
+@if (!plan.CanStart)
+{
+    <div class="alert alert-warning border-0 shadow-sm" role="alert">
+        @foreach (var problem in plan.Problems)
+        {
+            <div>@problem</div>
+        }
+    </div>
+    <a href="/Agents/Details/@agent.Id" class="btn btn-outline-secondary">Back to the agent</a>
+}
+else
+{
+    @if (plan.PackagesWaiting > 0 || plan.OpenHandoverIssuedAt.HasValue)
+    {
+        <div class="alert alert-warning border-0 shadow-sm" role="alert">
+            <div class="fw-semibold mb-1"><i class="fas fa-file-import me-1"></i>Template Builder work for this website is still out.</div>
+            @if (plan.PackagesWaiting > 0)
+            {
+                <div>@Plural(plan.PackagesWaiting, "package waits", "packages wait") for review. Brought in after this, a package replaces the starter pages (its review shows what it does).</div>
+            }
+            @if (plan.OpenHandoverIssuedAt.HasValue)
+            {
+                <div>The website was handed to the Template Builder on @IPRO.DataAccess.AgentLocalTime.FromUtc(plan.OpenHandoverIssuedAt.Value, Model.Zone).ToString("MMM d, yyyy") and nothing has come back from it yet. A package that comes back from it is checked against the website as it is then: the starter pages, not the pages that go now.</div>
+            }
+        </div>
+    }
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
+                <div class="card-body">
+                    <h6 class="fw-bold text-danger">What goes</h6>
+                    @if (plan.PageCountGoing == 0)
+                    {
+                        <p class="mb-0">The website has no pages now, so nothing goes.</p>
+                    }
+                    else
+                    {
+                        <p class="mb-2">All @Plural(plan.PageCountGoing, "page", "pages") of the website and their @Plural(plan.SectionCountGoing, "section", "sections"), with any change made to them:</p>
+                        <ul class="mb-2">
+                            @foreach (var going in plan.PagesGoing)
+                            {
+                                <li>
+                                    @going.Title @(going.IsHomePage ? "(home page)" : $"(/{going.Slug})")
+                                    @if (going.PagesUnder > 0) { <span class="text-muted">and @Plural(going.PagesUnder, "page", "pages") under it</span> }
+                                    @if (!going.IsPublished) { <span class="badge bg-light text-muted">not published</span> }
+                                </li>
+                            }
+                        </ul>
+                        @if (plan.LinksToNowhere.Count > 0)
+                        {
+                            <p class="mb-1 text-danger small">@(plan.LinksToNowhere.Count == 1 ? "A link" : "Links") added by hand will find no page afterwards:</p>
+                            <ul class="small text-danger mb-2">
+                                @foreach (var link in plan.LinksToNowhere)
+                                {
+                                    <li>@link</li>
+                                }
+                            </ul>
+                        }
+                        <p class="small text-muted mb-0">Visits and leads stay, but no longer show which of these pages they came from (a lead keeps the address it was sent from).</p>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                <div class="card-body">
+                    <h6 class="fw-bold text-success">What comes instead</h6>
+                    <p class="mb-2">The @pack starter pages, in this order:</p>
+                    <ol class="mb-2">
+                        @foreach (var title in plan.StarterPages)
+                        {
+                            <li>@title</li>
+                        }
+                        @if (plan.HasResources)
+                        {
+                            <li>Resources: @Plural(plan.ResourcesArticleCount, "article", "articles")@(plan.ResourcesGroups.Count > 0 ? $" in {string.Join(", ", plan.ResourcesGroups)}" : "")@(plan.CalculatorCount > 0 ? $", and {Plural(plan.CalculatorCount, "calculator", "calculators")}" : "")</li>
+                        }
+                    </ol>
+                    @if (plan.MeetingFormComing)
+                    {
+                        <p class="small mb-1">Request Meeting carries a new "@IPRO.DataAccess.WebsiteStarterFormSeeder.MeetingFormTitle" form for @pack, added to the agent's forms.</p>
+                    }
+                    <p class="small mb-1">Articles: @Plural(plan.NewArticleCount, "new article is", "new articles are") added to the agent's Articles@(plan.ReusedArticleCount > 0 ? $"; {Plural(plan.ReusedArticleCount, "article", "articles")} they already have {(plan.ReusedArticleCount == 1 ? "is" : "are")} used, with any edits made to {(plan.ReusedArticleCount == 1 ? "it" : "them")}" : "").</p>
+                    @if (plan.PackArticlesToPublish.Count > 0)
+                    {
+                        <p class="small mb-1">@Plural(plan.PackArticlesToPublish.Count, "of these is", "of these are") among the agent's articles but not published; the new pages show @(plan.PackArticlesToPublish.Count == 1 ? "it" : "them"), so @(plan.PackArticlesToPublish.Count == 1 ? "it is" : "they are") published with them, as a new sign-up's are:</p>
+                        <ul class="small mb-0">
+                            @foreach (var article in plan.PackArticlesToPublish)
+                            {
+                                <li>@article.Title</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
+                <div class="card-body">
+                    <h6 class="fw-bold">What stays as it is</h6>
+                    <ul class="mb-0">
+                        <li>The design, colours, logo, header and footer</li>
+                        <li>The website's title, tagline and domains</li>
+                        <li>The media library</li>
+                        <li>The agent's @Plural(plan.FormsKept, "form", "forms") and their answers</li>
+                        <li>Contacts, clients and leads</li>
+                        <li>The agent's articles (see below for those of another pack)</li>
+                        <li>The business type (@pack)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form asp-action="StartAgain" asp-route-id="@agent.Id" method="post" autocomplete="off" id="start-again-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="plan" value="@plan.Fingerprint" />
+
+        @if (plan.OtherPackArticles.Count > 0)
+        {
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold">@Plural(plan.OtherPackArticles.Count, "published article comes", "published articles come") from another business type's starter pack</h6>
+                    <p class="mb-2">@(plan.OtherPackArticles.Count == 1 ? "It is" : "They are") not in the @pack pack. Left published, @(plan.OtherPackArticles.Count == 1 ? "it shows" : "they show") in the new website's blog and article lists.</p>
+                    <ul class="mb-3">
+                        @foreach (var article in plan.OtherPackArticles)
+                        {
+                            <li>@article.Title <span class="text-muted small">(@article.FromPack)</span></li>
+                        }
+                    </ul>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="unpublishOtherPackArticles" name="unpublishOtherPackArticles" value="true" checked="@(Model.UnpublishOtherPackArticles ? "checked" : null)" />
+                        <label class="form-check-label" for="unpublishOtherPackArticles">Take @(plan.OtherPackArticles.Count == 1 ? "this article" : $"these {plan.OtherPackArticles.Count} articles") off the website (unpublish). @(plan.OtherPackArticles.Count == 1 ? "It stays" : "They stay") in the agent's Articles and can be published again. A Did You Know email about @(plan.OtherPackArticles.Count == 1 ? "it" : "them") that is still waiting to go is not sent.</label>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="fw-bold">Undo</h6>
+                @if (plan.PageCountGoing == 0)
+                {
+                    <p class="mb-0">The website has no pages now, so there is nothing to keep and nothing to put back afterwards.</p>
+                }
+                else
+                {
+                <p class="mb-0">Before anything is written, the pages as they are now are kept. <strong>Put the previous pages back</strong> on the agent's page undoes this while it is the website's newest change of pages (a Template Builder package brought in afterwards is put back first, on the Template Builder screen). Putting them back removes the starter pages and any change made to them, and gives the articles back the state they had. The logo, design and business type stay as they are then.</p>
+                }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm border-start border-4 border-danger">
+            <div class="card-body">
+                <label for="confirmUserName" class="form-label fw-semibold">To confirm, type the agent's username: <code>@agent.UserName</code></label>
+                <input type="text" class="form-control mb-3" style="max-width:24rem" id="confirmUserName" name="confirmUserName" value="@Model.TypedUserName" required spellcheck="false" autocapitalize="off" />
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-danger" id="start-again-button"><i class="fas fa-arrows-rotate me-1"></i>Start the website again</button>
+                    <a href="/Agents/Details/@agent.Id" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </form>
+    <script nonce="@Context.GetCspNonce()">
+    // One press: a second one would only be told the site already changed (the server knows it too).
+    document.getElementById('start-again-form')?.addEventListener('submit', () => {
+        const button = document.getElementById('start-again-button');
+        if (button) { setTimeout(() => { button.disabled = true; button.textContent = 'Starting the website again...'; }, 0); }
+    });
+    </script>
+}

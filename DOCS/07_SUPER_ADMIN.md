@@ -347,6 +347,49 @@ keeps their edits, and rebuilding twice does not leave duplicate articles behind
 created themselves *underneath* Resources is part of that tree and will be removed, so check with the
 agent first if they may have added their own pages there. The action is recorded in the audit log.
 
+## Start an Agent's Website Again
+
+A website gets its starter pages once, when it has no page at all. Changing an agent's **Business Type**
+under Edit therefore changes no page: a site built from the insurance pack keeps its insurance pages.
+**Start the website again** on the agent details screen (next to the two Rebuild buttons) replaces every
+page with the starter pack of the agent's *current* business type, exactly as a new sign-up of that type
+gets it: the starter pages, Request Meeting with that business type's meeting form, Resources with its
+articles and calculators, and Did You Know sections showing real articles. It is written at once, so the
+public site is never empty. Use it for a demo account of another vertical, or when an agent's business
+type really changes. SuperAdmin only; support admins see the button disabled.
+
+1. Set the business type first: **Edit**, Business Type, Save. The details screen shows it under Profile.
+2. Press **Start the website again**. A screen says what goes (every page, listed, with how many pages sit
+   under each, and any link added by hand to the header button, menu or footer that will then find no page), what
+   comes instead (the starter pages in order, Resources, the new meeting form, how many articles are new)
+   and what stays as it is. If Template Builder work for the site is still out (a package waiting for
+   review, or a hand-over nothing has come back from), it says so: such a package, brought in later,
+   replaces the starter pages.
+3. If some of the agent's published articles came from another business type's starter pack (for example
+   insurance articles on a site that is becoming a mortgage site), they are listed with a tick box, on by
+   default, to take them off the website. They are unpublished, never deleted, and stay in the agent's
+   Articles. The agent's own articles are never listed. Articles of the new pack that the agent already has
+   but are not published (for example after switching from insurance to mortgage and back) are listed too:
+   they are published with the new pages, as a new sign-up's are, so no Resources page comes up empty.
+4. Type the agent's username exactly as shown and press **Start the website again**. Pressing it twice does
+   nothing more; the screen says so.
+
+What stays: the design, colours, logo, header and footer; the website's title, tagline and domains; the
+media library; the agent's forms (the new meeting form is added beside them; **Rebuild Request Meeting**
+afterwards keeps the form the page shows); contacts, clients and leads; the agent's articles; the business
+type. Visits and leads no longer show which of the old pages they came from (a lead keeps the address).
+
+**Undo.** Before anything is written, the pages as they are are kept. A blue box on the agent details
+screen then offers **Put the previous pages back**: the starter pages go (with any change made to them)
+and the old pages return exactly as they were. The logo, design and business type stay as they are now;
+articles the start-again took off the website go back on it, and those it added or published come off it
+(they stay in Articles); the meeting form it added stays in Forms. A website that had no page before has
+nothing to put back, so no box appears. Changes of a site's pages are put back newest first: if a
+Template Builder package was brought in afterwards, put that back first (the Template Builder screen lists
+the start-again too). If the website or the starter pack changed while the screen was open, nothing is
+written and the screen shows the new state. Every start-again and put-back is recorded in the audit log
+with its counts.
+
 ## Bring In a Site From the Template Builder
 
 A site built in the Template Builder (the separate page builder; for now it is used internally, on the

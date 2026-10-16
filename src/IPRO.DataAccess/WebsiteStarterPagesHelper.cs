@@ -1,30 +1,21 @@
-using IPRO.DataAccess;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace IPRO.Web.Infrastructure;
+namespace IPRO.DataAccess;
 
+// 584 (2026-10-16): moved here from IPRO.Web with WebsiteStarterResourcesHelper, so SuperAdmin's
+// "Start the website again" (IPRO.Admin) builds a site with the very code sign-up uses.
 public static class WebsiteStarterPagesHelper
 {
     public static async Task EnsureStarterPagesAsync(IPRODbContext db, AgentWebsite website, int agentId)
     {
         if (await db.WebsitePages.AnyAsync(p => p.AgentWebsiteId == website.Id)) return;
         var agent = await db.AgentUsers.AsNoTracking().FirstAsync(a => a.Id == agentId);
-        var candidates = await db.WebsiteStarterPages
-            .AsNoTracking()
-            .Include(p => p.Blocks)
-            .Where(p => p.IsActive &&
-                        (p.BusinessType == agent.BusinessType || p.BusinessType == "All") &&
-                        (!p.BillingRuleId.HasValue || p.BillingRuleId == agent.PackageId))
-            .ToListAsync();
-        var selected = candidates
-            .GroupBy(p => p.Slug, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group
-                .OrderByDescending(p => p.BusinessType == agent.BusinessType)
-                .ThenByDescending(p => p.BillingRuleId == agent.PackageId)
-                .First())
-            .OrderBy(p => p.SortOrder)
-            .ToList();
+        var selected = await SelectAsync(db, agent);
         // The Request Meeting page gets the vertical's real "Request a Meeting" form (the owner's
         // 2026-08-15 redesign) instead of the plain contact block it was seeded with. The form must
         // exist BEFORE the page blocks reference its id -- same two-phase shape as EnsureResourcesAsync.
@@ -96,6 +87,28 @@ public static class WebsiteStarterPagesHelper
             });
         }
         await db.SaveChangesAsync();
+    }
+
+    // The starter pages a site of this agent gets: one per address, the agent's own business type and
+    // package before the shared ("All") ones, in the pack's order. 584: the start-again screen lists
+    // them before anything is written.
+    public static async Task<List<WebsiteStarterPage>> SelectAsync(IPRODbContext db, AgentUser agent)
+    {
+        var candidates = await db.WebsiteStarterPages
+            .AsNoTracking()
+            .Include(p => p.Blocks)
+            .Where(p => p.IsActive &&
+                        (p.BusinessType == agent.BusinessType || p.BusinessType == "All") &&
+                        (!p.BillingRuleId.HasValue || p.BillingRuleId == agent.PackageId))
+            .ToListAsync();
+        return candidates
+            .GroupBy(p => p.Slug, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .OrderByDescending(p => p.BusinessType == agent.BusinessType)
+                .ThenByDescending(p => p.BillingRuleId == agent.PackageId)
+                .First())
+            .OrderBy(p => p.SortOrder)
+            .ToList();
     }
 
     // The starter block's chosen starter articles, as the agent's own article ids, in the chosen

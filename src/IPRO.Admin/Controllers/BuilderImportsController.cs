@@ -287,6 +287,8 @@ public class BuilderImportsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id)
     {
+        // 584: a start-again is put back here too; the in-action check matches AgentsController's.
+        if (!User.HasClaim("Role", AdminRoles.SuperAdmin)) return Forbid();
         var import = await _db.WebsiteBuilderImports.FirstOrDefaultAsync(i => i.Id == id);
         if (import == null) return NotFound();
         var blob = Storage();
@@ -307,7 +309,18 @@ public class BuilderImportsController : Controller
             await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportNotRestored",
                 Short($"Agent id {import.AgentUserId}'s website was NOT put back from Template Builder package \"{import.FileName}\" (import id {id}): {result.Problems.FirstOrDefault()}"));
         }
-        if (result.Ok)
+        if (result.Ok && SiteStartAgainService.IsStartAgain(import))
+        {
+            // 584: a start-again (AgentsController.StartAgain) put back from this list.
+            _logger.LogWarning("Admin {Admin} put agent {AgentId}'s previous pages back, undoing the start-again kept as import {ImportId}",
+                CurrentAdminUsername, import.AgentUserId, import.Id);
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentWebsiteStartAgainPutBack",
+                Short($"Put agent #{import.AgentUserId}'s website back to the pages it had before it was started again from the {import.TemplateName} (import id {import.Id}); the starter pages written then were removed."));
+            var published = await _db.AgentWebsites.AsNoTracking().AnyAsync(w => w.Id == import.AgentWebsiteId && w.IsPublished);
+            TempData["Success"] = "The website has its previous pages back" + (published ? ", live now." : " (the website is not published, so visitors see them once it is).") +
+                " Its logo, design and business type are as they are now.";
+        }
+        else if (result.Ok)
         {
             await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportRestored",
                 Short($"Put agent id {import.AgentUserId}'s website back as it was before Template Builder package \"{import.FileName}\" (import id {import.Id}) was brought in."));
@@ -335,7 +348,7 @@ public class BuilderImportsController : Controller
                 // The page lists packages; the long columns are read only where they are used.
                 .Select(i => new WebsiteBuilderImport
                 {
-                    Id = i.Id, AgentUserId = i.AgentUserId, AgentWebsiteId = i.AgentWebsiteId, Status = i.Status, FileName = i.FileName,
+                    Id = i.Id, AgentUserId = i.AgentUserId, AgentWebsiteId = i.AgentWebsiteId, Status = i.Status, FileName = i.FileName, PackageSha256 = i.PackageSha256,
                     TemplateName = i.TemplateName, Theme = i.Theme, HandoverId = i.HandoverId, PageCount = i.PageCount, BlockCount = i.BlockCount,
                     NewImageCount = i.NewImageCount, NewImageBytes = i.NewImageBytes, UploadedBy = i.UploadedBy, AppliedBy = i.AppliedBy,
                     CreatedAt = i.CreatedAt, AppliedAt = i.AppliedAt, ClosedAt = i.ClosedAt

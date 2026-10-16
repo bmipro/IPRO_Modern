@@ -1329,10 +1329,10 @@ public class WebsitePagesController : Controller
     private Task<AgentWebsite?> GetWebsiteAsync() => _db.AgentWebsites.FirstOrDefaultAsync(w => w.AgentUserId == AgentId);
 
     private Task EnsureStarterPagesAsync(AgentWebsite website) =>
-        IPRO.Web.Infrastructure.WebsiteStarterPagesHelper.EnsureStarterPagesAsync(_db, website, AgentId);
+        WebsiteStarterPagesHelper.EnsureStarterPagesAsync(_db, website, AgentId);
 
     private Task EnsureResourcesAsync(AgentWebsite website) =>
-        IPRO.Web.Infrastructure.WebsiteStarterResourcesHelper.EnsureResourcesAsync(_db, website, AgentId);
+        WebsiteStarterResourcesHelper.EnsureResourcesAsync(_db, website, AgentId);
 
     // _PublicNavigation.cshtml renders three levels, so the page tree is capped at three. Every write
     // path routes through ResolveParentAsync rather than repeating the rule inline: the dropdown

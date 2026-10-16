@@ -1,9 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
-using IPRO.DataAccess;
+using System.Threading.Tasks;
 using IPRO.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace IPRO.Web.Infrastructure;
+namespace IPRO.DataAccess;
 
 // "Resources" is not a new navigation mechanism -- it is a real WebsitePage (parent) with one real
 // child WebsitePage per starter article (or per Category, see below), using the same
@@ -12,6 +15,8 @@ namespace IPRO.Web.Infrastructure;
 // starter-block copy (the way EnsureStarterPagesAsync works for Home/About/etc.), because the whole
 // point of these being Articles is that the same content can also be sent as a newsletter later --
 // that only works against a real Article.
+// 584 (2026-10-16): moved here from IPRO.Web, unchanged, so SuperAdmin's "Start the website again"
+// (IPRO.Admin) builds Resources with the very code sign-up uses.
 public static class WebsiteStarterResourcesHelper
 {
     private const string ResourcesSlug = "resources";
@@ -24,20 +29,11 @@ public static class WebsiteStarterResourcesHelper
         if (await db.WebsitePages.AnyAsync(p => p.AgentWebsiteId == website.Id && p.Slug == ResourcesSlug)) return;
 
         var agent = await db.AgentUsers.AsNoTracking().FirstAsync(a => a.Id == agentId);
-        var candidates = await db.WebsiteStarterArticles
-            .AsNoTracking()
-            .Where(a => a.IsActive && (a.BusinessType == agent.BusinessType || a.BusinessType == "All"))
-            .ToListAsync();
+        var selected = await SelectArticlesAsync(db, agent.BusinessType);
         var calculatorEntries = VerticalCalculatorCatalog.ForBusinessType(agent.BusinessType);
         // Calculators come from a code-level catalog, so Resources is worth building even for a
         // vertical that has no starter articles yet.
-        if (candidates.Count == 0 && calculatorEntries.Count == 0) return;
-
-        var selected = candidates
-            .GroupBy(a => a.Title, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.OrderByDescending(a => a.BusinessType == agent.BusinessType).First())
-            .OrderBy(a => a.SortOrder)
-            .ToList();
+        if (selected.Count == 0 && calculatorEntries.Count == 0) return;
 
         // Phase 1: create the real Articles first. ArticleContent's SettingsJson needs each
         // article's real, database-assigned Id, which does not exist until after a SaveChanges --
@@ -304,6 +300,22 @@ public static class WebsiteStarterResourcesHelper
         }
 
         await db.SaveChangesAsync();
+    }
+
+    // The starter articles a Resources section of this business type carries: one per title, the
+    // business type's own before the shared ("All") one, in the pack's order. 584: the start-again
+    // screen lists them, and which of the adviser's articles belong to another pack.
+    public static async Task<List<WebsiteStarterArticle>> SelectArticlesAsync(IPRODbContext db, string businessType)
+    {
+        var candidates = await db.WebsiteStarterArticles
+            .AsNoTracking()
+            .Where(a => a.IsActive && (a.BusinessType == businessType || a.BusinessType == "All"))
+            .ToListAsync();
+        return candidates
+            .GroupBy(a => a.Title, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(a => a.BusinessType == businessType).First())
+            .OrderBy(a => a.SortOrder)
+            .ToList();
     }
 
     private static string Slugify(string title) =>

@@ -515,6 +515,11 @@ public static class BuilderImportService
         }
         var snapshot = SiteSnapshot.FromJson(current.SnapshotJson);
         if (snapshot == null) return ApplyResult.Failed("The record of the previous site cannot be read.");
+        // 584: a site started again when it had no page would be left with none.
+        if (snapshot.StartedAgain != null && snapshot.Pages.Count == 0)
+        {
+            return ApplyResult.Failed("The website had no pages before it was started again, so putting them back would leave it empty. Nothing was changed.");
+        }
 
         // Claimed in the database, as in ApplyAsync: of two requests to put it back, one does.
         var claimed = await db.WebsiteBuilderImports
@@ -595,8 +600,17 @@ public static class BuilderImportService
         {
             rowFor[page.Id].ParentPageId = page.ParentPageId.HasValue && rowFor.TryGetValue(page.ParentPageId.Value, out var parent) ? parent.Id : null;
         }
-        site.LogoUrl = snapshot.LogoUrl;
-        if (await db.WebsiteTemplates.AnyAsync(t => t.Id == snapshot.TemplateId)) site.TemplateId = snapshot.TemplateId;
+        if (snapshot.StartedAgain == null)
+        {
+            site.LogoUrl = snapshot.LogoUrl;
+            if (await db.WebsiteTemplates.AnyAsync(t => t.Id == snapshot.TemplateId)) site.TemplateId = snapshot.TemplateId;
+        }
+        else
+        {
+            // 584: starting a site again changed its pages and articles only; its logo and design stay
+            // as they are now, and its articles get back the state they had.
+            await PutArticlesBackAsync(db, site.AgentUserId, snapshot.StartedAgain, now);
+        }
         site.UpdatedAt = now;
         import.Status = WebsiteBuilderImportStatus.Restored;
         import.ClosedAt = now;
@@ -612,6 +626,24 @@ public static class BuilderImportService
             if (!await BlobReferences.IsReferencedAsync(db, url)) await blob!.DeleteAsync(url);
         }
         return ApplyResult.Done();
+    }
+
+    // 584: the articles a start-again took off the website go back on it, and those it added or
+    // published for the new pack come off it (they stay among the adviser's articles). Only the
+    // adviser's own rows, and only those still in the state the start-again left them in.
+    private static async Task PutArticlesBackAsync(IPRODbContext db, int agentId, SiteSnapshot.StartAgainRecord started, DateTime now)
+    {
+        var unpublished = started.UnpublishedArticleIds;
+        var added = started.AddedArticleIds.Concat(started.RepublishedArticleIds).ToList();
+        if (unpublished.Count == 0 && added.Count == 0) return;
+        var rows = await db.Articles.Where(a => a.AgentUserId == agentId && (unpublished.Contains(a.Id) || added.Contains(a.Id))).ToListAsync();
+        foreach (var article in rows)
+        {
+            var publish = unpublished.Contains(article.Id);
+            if (article.IsPublished == publish) continue;
+            article.IsPublished = publish;
+            article.UpdatedAt = now;
+        }
     }
 
     // Drops a package that was never brought in, and takes back out of the media library the images
@@ -729,6 +761,24 @@ public sealed class SiteSnapshot
     public string LogoUrl { get; set; } = string.Empty;
     public int TemplateId { get; set; }
     public List<PageSnapshot> Pages { get; set; } = new();
+    // 584: set when the site was started again from a starter pack (SiteStartAgainService) rather than
+    // changed by a package; absent from every Template Builder snapshot.
+    public StartAgainRecord? StartedAgain { get; set; }
+
+    public sealed class StartAgainRecord
+    {
+        public string BusinessType { get; set; } = string.Empty;
+        // The adviser's articles it took off the website (another pack's), those it added, and those it
+        // already had that it published because the new pages show them.
+        public List<int> UnpublishedArticleIds { get; set; } = new();
+        public List<int> AddedArticleIds { get; set; } = new();
+        public List<int> RepublishedArticleIds { get; set; } = new();
+        // The forms it added (the meeting form); they stay among the adviser's forms.
+        public List<int> AddedFormIds { get; set; } = new();
+        // What the confirm screen showed (SiteStartAgainService.Plan.Fingerprint), so a second press of
+        // the same screen is known for what it is.
+        public string ReviewedPlan { get; set; } = string.Empty;
+    }
 
     public sealed class PageSnapshot
     {
