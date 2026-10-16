@@ -7,6 +7,7 @@ using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace IPRO.Web.Controllers;
 
@@ -481,6 +482,7 @@ public class WebsiteController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [EnableRateLimiting(EndpointRateLimits.DomainRetry)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RetryDomain(int id)
     {

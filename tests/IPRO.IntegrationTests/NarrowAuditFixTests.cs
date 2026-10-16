@@ -188,21 +188,16 @@ public class NarrowAuditFixTests
     public void The_public_form_limits_sit_well_under_the_hourly_sending_cap()
     {
         // 10 per 5 minutes per IP on three submit endpoints was 120 an hour from one address against
-        // a 100-an-hour subscription cap.
-        using var doc = JsonDocument.Parse(File.ReadAllText(FindRepoFile(@"src\IPRO.Web\appsettings.json")));
-        var rules = doc.RootElement.GetProperty("IpRateLimiting").GetProperty("GeneralRules").EnumerateArray().ToList();
-        var submits = rules.Where(r =>
+        // a 100-an-hour subscription cap. 582: the limit sits on the three actions, not in appsettings.json
+        // (RateLimitByAction582Tests).
+        var (limit, window) = EndpointRateLimits.Policies[EndpointRateLimits.PublicForm];
+        Assert.Equal(TimeSpan.FromMinutes(5), window);
+        Assert.True(limit <= 3, $"{limit} per 5 minutes");
+        foreach (var action in new[] { "SubmitLead", "SubmitCustomForm", "SubmitTestimonial" })
         {
-            var endpoint = r.GetProperty("Endpoint").GetString() ?? string.Empty;
-            return endpoint.EndsWith("/PublicWebsite/SubmitLead", StringComparison.Ordinal)
-                || endpoint.EndsWith("/PublicWebsite/SubmitCustomForm", StringComparison.Ordinal)
-                || endpoint.EndsWith("/PublicWebsite/SubmitTestimonial", StringComparison.Ordinal);
-        }).ToList();
-        Assert.Equal(6, submits.Count);
-        foreach (var rule in submits)
-        {
-            Assert.Equal("5m", rule.GetProperty("Period").GetString());
-            Assert.True(rule.GetProperty("Limit").GetInt32() <= 3, rule.GetProperty("Endpoint").GetString());
+            var method = typeof(IPRO.Web.Controllers.PublicWebsiteController).GetMethod(action)!;
+            Assert.Equal(EndpointRateLimits.PublicForm,
+                System.Reflection.CustomAttributeExtensions.GetCustomAttribute<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>(method)?.PolicyName);
         }
     }
 

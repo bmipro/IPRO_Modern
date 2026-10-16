@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace IPRO.Web.Controllers;
 
@@ -56,6 +57,7 @@ public class AccountController : Controller
         return View();
     }
 
+    [EnableRateLimiting(EndpointRateLimits.SignIn)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password, bool rememberMe = false, string? returnUrl = null)
     {
@@ -93,6 +95,7 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult ForgotPassword() => View();
 
+    [EnableRateLimiting(EndpointRateLimits.PasswordReset)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ForgotPassword(string email)
     {
@@ -173,6 +176,7 @@ public class AccountController : Controller
         return View(new ResetPasswordViewModel { Token = token });
     }
 
+    [EnableRateLimiting(EndpointRateLimits.PasswordReset)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ResetPassword(string token, string newPassword, string confirmPassword)
     {
@@ -269,6 +273,7 @@ public class AccountController : Controller
         });
     }
 
+    [EnableRateLimiting(EndpointRateLimits.Registration)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(AgentRegistrationViewModel model, string verificationCode, bool acceptTerms = false)
     {
@@ -611,7 +616,8 @@ public class AccountController : Controller
     // the exact discount terms back: a promo-code oracle (WEB-H-2, open since the 2026-08-14
     // ultra-audit). Antiforgery costs the legitimate visitor nothing (the token is already on the
     // page they are standing on) while removing the "from anywhere, with no session" property.
-    // Paired with a 5m/5 IP rate-limit rule on this exact endpoint in appsettings.json.
+    // Paired with a limit of 5 in 5 minutes per visitor on the action itself (EndpointRateLimits, 582).
+    [EnableRateLimiting(EndpointRateLimits.PromoCode)]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ValidatePromoCode(string code, int packageId, string? period = null)

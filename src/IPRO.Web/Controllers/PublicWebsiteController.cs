@@ -14,6 +14,8 @@ using System.Net;
 using System.Security;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.RateLimiting;
+using EndpointRateLimits = IPRO.Web.Infrastructure.EndpointRateLimits;
 
 namespace IPRO.Web.Controllers;
 
@@ -189,6 +191,7 @@ public class PublicWebsiteController : Controller
         return Content(xml.ToString(), "application/xml", Encoding.UTF8);
     }
 
+    [EnableRateLimiting(EndpointRateLimits.PublicForm)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SubmitLead(WebsiteLeadFormViewModel model)
     {
@@ -558,6 +561,7 @@ public class PublicWebsiteController : Controller
         return View("StandaloneForm", formData);
     }
 
+    [EnableRateLimiting(EndpointRateLimits.PublicForm)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SubmitCustomForm(WebsiteCustomFormViewModel model)
     {
@@ -750,6 +754,7 @@ public class PublicWebsiteController : Controller
         return LocalRedirect(AddResult(returnPath, "submitted", "form", "formId", form.Id.ToString()));
     }
 
+    [EnableRateLimiting(EndpointRateLimits.PublicForm)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SubmitTestimonial(TestimonialFormViewModel model)
     {

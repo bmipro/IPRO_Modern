@@ -4,6 +4,7 @@ using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace IPRO.Web.Controllers;
 
@@ -28,6 +29,7 @@ public class PreviewController : Controller
         return View();
     }
 
+    [EnableRateLimiting(EndpointRateLimits.Preview)]
     [HttpGet]
     public async Task<IActionResult> Show([FromQuery] ProspectPreviewInput input)
     {
@@ -51,6 +53,7 @@ public class PreviewController : Controller
         return View(prospect);
     }
 
+    [EnableRateLimiting(EndpointRateLimits.Preview)]
     [HttpGet]
     public async Task<IActionResult> Site([FromQuery] ProspectPreviewInput input)
     {

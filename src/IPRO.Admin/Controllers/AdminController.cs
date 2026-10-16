@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using EndpointRateLimits = IPRO.Admin.Infrastructure.EndpointRateLimits;
 
 namespace IPRO.Admin.Controllers;
 
@@ -30,6 +32,7 @@ public class AdminController : Controller
 
     [HttpGet] public IActionResult Login() => View();
 
+    [EnableRateLimiting(EndpointRateLimits.SignIn)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password)
     {

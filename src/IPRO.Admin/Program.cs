@@ -130,6 +130,9 @@ builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounte
 builder.Services.AddSingleton<IRateLimitConfiguration, IPRO.Admin.Infrastructure.ConnectionOnlyRateLimitConfiguration>();
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddInMemoryRateLimiting();
+// 582: the sign-in limit sits on the action itself ([EnableRateLimiting]), counted after routing however
+// the address is written. The library above keeps only the general per-address rule. See EndpointRateLimits.
+builder.Services.AddEndpointRateLimits();
 
 builder.Services.AddControllersWithViews()
     .AddMvcOptions(o => o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true);
@@ -174,6 +177,7 @@ app.UseIpRateLimiting();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();

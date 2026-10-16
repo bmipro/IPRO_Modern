@@ -4,6 +4,8 @@ using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using EndpointRateLimits = IPRO.Web.Infrastructure.EndpointRateLimits;
 
 namespace IPRO.Web.Controllers;
 
@@ -81,6 +83,7 @@ public class PollVoteController : Controller
         return View();
     }
 
+    [EnableRateLimiting(EndpointRateLimits.PollVote)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Vote(PollVoteSubmissionViewModel model)
     {
@@ -168,6 +171,7 @@ public class PollVoteController : Controller
     // recorded as a Website recipient: no client, no email, no token they could reuse.
     private const int WebsiteVotesPerSurveyPerHour = 300;
 
+    [EnableRateLimiting(EndpointRateLimits.PollVote)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> WebsiteVote(IPRO.Web.Models.WebsitePollVoteSubmission model)
     {

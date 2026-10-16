@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using EndpointRateLimits = IPRO.Web.Infrastructure.EndpointRateLimits;
 
 namespace IPRO.Web.Controllers;
 
@@ -31,6 +33,7 @@ public class ClientPortalAccountController : Controller
         return View();
     }
 
+    [EnableRateLimiting(EndpointRateLimits.SignIn)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string email, string password, string? returnUrl = null)
     {

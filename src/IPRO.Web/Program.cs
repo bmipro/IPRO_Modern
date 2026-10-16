@@ -215,6 +215,10 @@ builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounte
 builder.Services.AddSingleton<IRateLimitConfiguration, IPRO.Web.Infrastructure.ConnectionOnlyRateLimitConfiguration>();
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddInMemoryRateLimiting();
+// 582: the limits on sign-in, registration, password reset and the public forms sit on the actions
+// themselves ([EnableRateLimiting]), counted after routing however the address is written. The library
+// above keeps only the general per-address rule. See EndpointRateLimits.
+builder.Services.AddEndpointRateLimits();
 builder.Services.AddControllersWithViews()
     .AddMvcOptions(o => o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true);
 builder.Services.Configure<Microsoft.AspNetCore.Mvc.Razor.RazorViewEngineOptions>(o =>
@@ -349,6 +353,7 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseRouting();
+app.UseRateLimiter();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
