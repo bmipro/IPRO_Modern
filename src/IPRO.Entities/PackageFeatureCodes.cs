@@ -52,4 +52,7 @@ public static class PackageFeatureCodes
     // gets an Azure managed certificate that renews itself, whatever the package; the owner wanted
     // the packages to say so.
     public const string SslCertificate = "ssl_certificate";
+    // 580 (2026-10-15): a catalogue line too -- every website on every package carries the
+    // accessibility work of 578 and its statement (579); the owner wanted the packages to say so.
+    public const string Accessibility = "accessibility";
 }

@@ -147,7 +147,7 @@ public class HomeUnderItsOwnName507Tests
     [Theory]
     [InlineData("www.iproadvisers.com,iproadvisers.com", "www.iproadvisers.com", "/")]
     [InlineData(Live, "www.iproadvisers.com", "/Account/Login")]
-    [InlineData(Live, "www.ipromortgages.com", "/terms")]
+    [InlineData(Live, "www.ipromortgages.com", "/Account/Register")]   // 580: /terms is served in place now
     public void A_forward_is_not_remembered_for_ever(string aliasHosts, string host, string path)
     {
         var context = Request(host, path);

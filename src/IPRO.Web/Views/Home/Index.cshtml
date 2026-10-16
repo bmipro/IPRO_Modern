@@ -236,7 +236,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
    on the page. Collapsed, it shows the package headers (names, prices, setup fee -- the actual
    pricing), the first six feature rows, and the CTA row; the toggle reveals the rest. The
    :not(:last-child) exemption is the CTA row -- Get started must never be hidden. *@
-#ipro-concept-two .i2-plan-table.i2-collapsed tbody tr:nth-child(n+7):not(:last-child) { display: none; }
+#ipro-concept-two .i2-plan-table.i2-collapsed tbody tr:nth-child(n+8):not(:last-child) { display: none; }
 #ipro-concept-two .i2-pricing-toggle { display: block; margin: 18px auto 0; cursor: pointer; background: none; }
 #ipro-concept-two .i2-pricing-footer { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 18px; color: var(--ipro2-muted); font-size: .8rem; }
 
@@ -497,7 +497,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
             .OrderBy(f => f.SortOrder)
             .ToList();
           <div class="i2-plan-table-wrap">
-            <table id="i2-plan-table" class="i2-plan-table @(allFeatures.Count > 6 ? "i2-collapsed" : "")" aria-label="IPRO package comparison">
+            <table id="i2-plan-table" class="i2-plan-table @(allFeatures.Count > 7 ? "i2-collapsed" : "")" aria-label="IPRO package comparison">
               <thead>
                 <tr>
                   <th>Included</th>
@@ -573,11 +573,11 @@ body { background: light-dark(#f2f6f8, #10171d); }
               </tbody>
             </table>
           </div>
-          @if (allFeatures.Count > 6)
+          @if (allFeatures.Count > 7)
           {
             <button type="button" id="i2-pricing-toggle" class="i2-action-outline i2-pricing-toggle"
                     aria-expanded="false" aria-controls="i2-plan-table"
-                    data-more="Show the full comparison (@(allFeatures.Count - 6) more rows)">Show the full comparison (@(allFeatures.Count - 6) more rows)</button>
+                    data-more="Show the full comparison (@(allFeatures.Count - 7) more rows)">Show the full comparison (@(allFeatures.Count - 7) more rows)</button>
           }
         }
         else

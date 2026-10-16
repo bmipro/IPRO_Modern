@@ -390,6 +390,10 @@ public static class PackageEntitlementSeeder
         return new List<FeatureDefinition>
         {
             Feature(10, PackageFeatureCodes.InstantWebsite, "Self managed instant website with full content", all, all, all, all),
+            // 580 (2026-10-15): a catalogue line the owner asked for, not something the code gates on --
+            // every website gets 578's accessibility work and 579's statement, whatever the package. Second
+            // in the table so the collapsed comparison (six rows) shows it.
+            Feature(15, PackageFeatureCodes.Accessibility, "Accessible to visitors with disabilities", all, all, all, all),
             Feature(20, PackageFeatureCodes.LeadGenerator, "Automated lead generator", all, all, all, all),
             Feature(30, PackageFeatureCodes.CalendarScheduler, "Calendar scheduler", all, all, all, all),
             // 498: one email each morning listing the follow-ups due and overdue (FollowUpReminderJob).

@@ -17,6 +17,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>@ViewData["Title"] &mdash; IPRO Advisers</title>
 <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+@* 580: the brand names serve these pages under their own name too; search keeps the platform's address. *@
+<link rel="canonical" href="@IPRO.Web.Infrastructure.PlatformAliasHosts.PageUrl(LegalConfig, (Context.Request.Path.Value ?? "/").ToLowerInvariant())"/>
 @if (!reviewComplete && legalDocument)
 {
     <meta name="robots" content="noindex"/>

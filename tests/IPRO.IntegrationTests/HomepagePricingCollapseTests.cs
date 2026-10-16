@@ -20,17 +20,17 @@ public class HomepagePricingCollapseTests
     {
         var razor = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Home\Index.cshtml"));
 
-        // THE rule. `nth-child(n+7)` hides from the seventh row on; `:not(:last-child)` exempts
+        // THE rule. `nth-child(n+8)` hides from the eighth row on (580: seven rows, so the accessibility line pushes nothing off); `:not(:last-child)` exempts
         // the CTA row, which is the last row of the tbody. Drop that exemption and "Get started"
         // disappears the moment the table is collapsed -- the one outcome that would cost signups.
         Assert.Contains(
-            ".i2-plan-table.i2-collapsed tbody tr:nth-child(n+7):not(:last-child) { display: none; }",
+            ".i2-plan-table.i2-collapsed tbody tr:nth-child(n+8):not(:last-child) { display: none; }",
             razor);
 
         // Wiring: the table carries the id the toggle controls, and only collapses when there is
         // actually something to hide.
         Assert.Contains("id=\"i2-plan-table\"", razor);
-        Assert.Contains("allFeatures.Count > 6 ? \"i2-collapsed\" : \"\"", razor);
+        Assert.Contains("allFeatures.Count > 7 ? \"i2-collapsed\" : \"\"", razor);
 
         // The toggle: rendered only when it has a job, and accessible.
         Assert.Contains("id=\"i2-pricing-toggle\"", razor);

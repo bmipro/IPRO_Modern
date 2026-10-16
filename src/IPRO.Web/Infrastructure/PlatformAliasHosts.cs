@@ -39,6 +39,9 @@ namespace IPRO.Web.Infrastructure;
 // name's own front page instead of a 404; a forward from the root keeps the visitor's parameters;
 // and a request served under a brand name remembers the name it came in on (PublicHost), because
 // robots.txt must name that host's own sitemap.
+//
+// 580 (2026-10-15): Terms, Privacy and the accessibility statement are served in place now too
+// (FooterPages, below); the rest of the list above still goes to the platform.
 public static class PlatformAliasHosts
 {
     public const string ConfigKey = "App:AliasHosts";
@@ -144,13 +147,23 @@ public static class PlatformAliasHosts
         return baseUrl + path.ToUriComponent() + query.Value;
     }
 
+    // 580 (2026-10-15): the owner clicked Accessibility at the foot of www.iproaccountants.com and landed
+    // on app.iproadvisers.com. The pages every landing page links at its foot are served under the name
+    // the visitor used, like the landing page itself; their links are relative, so Home leads back to
+    // that name's own front page and Sign in still goes to the platform. Search keeps one address for
+    // each: the legal layout's canonical tag names the platform's (484).
+    private static readonly string[] FooterPages = { "/terms", "/privacy", "/accessibility" };
+
     // What a brand domain serves under its own name: its landing page at "/", the files that page and
-    // the preview frame load (anything with a file extension), and the live preview frame itself.
+    // the preview frame load (anything with a file extension), the live preview frame itself, and the
+    // footer's Terms, Privacy and Accessibility.
     public static bool ServesInPlace(PathString path)
     {
         if (!path.HasValue || path == "/") return true;
         if (path.StartsWithSegments("/Preview/Site", StringComparison.OrdinalIgnoreCase)) return true;
         var value = path.Value!;
+        foreach (var page in FooterPages)
+            if (string.Equals(value.TrimEnd('/'), page, StringComparison.OrdinalIgnoreCase)) return true;
         var lastSegment = value[(value.LastIndexOf('/') + 1)..];
         var dot = lastSegment.LastIndexOf('.');
         return dot > 0 && dot < lastSegment.Length - 1;

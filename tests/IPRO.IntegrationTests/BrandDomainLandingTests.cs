@@ -50,7 +50,13 @@ public class BrandDomainLandingTests
     [InlineData("/Account/Login", false)]
     [InlineData("/Preview", false)]
     [InlineData("/Preview/Show", false)]
-    [InlineData("/terms", false)]
+    // 580: the footer's Terms, Privacy and Accessibility stay under the brand name too.
+    [InlineData("/terms", true)]
+    [InlineData("/privacy", true)]
+    [InlineData("/accessibility", true)]
+    [InlineData("/Accessibility/", true)]
+    [InlineData("/terms/old", false)]
+    [InlineData("/accessibility-help", false)]
     [InlineData("/mortgage", false)]
     [InlineData("/about-us", false)]
     public void What_a_brand_domain_serves_under_its_own_name(string path, bool inPlace)
@@ -96,9 +102,43 @@ public class BrandDomainLandingTests
         Assert.Equal(301, register.Response.StatusCode);
         Assert.Equal("https://app.iproadvisers.com/Account/Register?businessType=Mortgage", register.Response.Headers.Location.ToString());
 
-        var terms = Request("ipromortgages.com", "/terms");
-        Assert.True(PlatformAliasHosts.TryHandle(Config(), terms));
-        Assert.Equal("https://app.iproadvisers.com/terms", terms.Response.Headers.Location.ToString());
+        var login = Request("ipromortgages.com", "/Account/Login");
+        Assert.True(PlatformAliasHosts.TryHandle(Config(), login));
+        Assert.Equal("https://app.iproadvisers.com/Account/Login", login.Response.Headers.Location.ToString());
+    }
+
+    // 580 (2026-10-15): the owner clicked Accessibility at the foot of a brand name's landing page and
+    // landed on app.iproadvisers.com. The footer's pages are served under the name the visitor used.
+    [Theory]
+    [InlineData("www.iproaccountants.com", "/accessibility")]
+    [InlineData("www.ipromortgages.com", "/privacy")]
+    [InlineData("ipromortgages.com", "/terms")]
+    public void The_footer_pages_are_served_under_the_brand_name(string host, string path)
+    {
+        var context = Request(host, path, "?x=1");
+        Assert.False(PlatformAliasHosts.TryHandle(Config(), context));
+        Assert.Equal("app.iproadvisers.com", context.Request.Host.Value);
+        Assert.Equal(path, context.Request.Path.Value);
+        Assert.Equal("?x=1", context.Request.QueryString.Value);
+        Assert.Equal(host, PlatformAliasHosts.PublicHost(context));
+        Assert.Equal(200, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public void A_name_that_only_forwards_still_forwards_its_footer_pages()
+    {
+        // In this configuration iproadvisers.com is written without "=": it serves nothing of its own.
+        var context = Request("iproadvisers.com", "/accessibility");
+        Assert.True(PlatformAliasHosts.TryHandle(Config(), context));
+        Assert.Equal("https://app.iproadvisers.com/accessibility", context.Response.Headers.Location.ToString());
+    }
+
+    [Fact]
+    public void Search_keeps_the_platform_address_of_a_footer_page()
+    {
+        var layout = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Shared\_LegalLayout.cshtml"));
+        Assert.Contains("<link rel=\"canonical\" href=\"@IPRO.Web.Infrastructure.PlatformAliasHosts.PageUrl(LegalConfig, (Context.Request.Path.Value ?? \"/\").ToLowerInvariant())\"/>", layout);
+        Assert.Equal("https://app.iproadvisers.com/accessibility", PlatformAliasHosts.PageUrl(Config(), "/accessibility"));
     }
 
     [Fact]
