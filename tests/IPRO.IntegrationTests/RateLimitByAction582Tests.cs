@@ -456,6 +456,10 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         var uri = new Uri(server.BaseAddress!.GetLeftPart(UriPartial.Authority) + path, new UriCreationOptions { DangerousDisablePathAndQueryCanonicalization = true });
         using var request = new HttpRequestMessage(method, uri);
         request.Headers.TryAddWithoutValidation("X-Test-Visitor", visitor);
+        // A fresh connection per request (2026-10-16): in the release gate one POST went out on a pooled
+        // connection the loopback server had just closed, and a POST is never retried, so the test failed
+        // with "the I/O operation has been aborted" before the server saw it.
+        request.Headers.ConnectionClose = true;
         if (method != HttpMethod.Get) request.Content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string, string>>());
         var response = await server.SendAsync(request);
         return (response.StatusCode, await response.Content.ReadAsStringAsync(), response);
