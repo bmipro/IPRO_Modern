@@ -19,6 +19,11 @@ on:
 # rule 6 documents this group name; change it in BOTH files and the doc together, or not at
 # all. cancel-in-progress stays false: an in-flight deploy must complete (cancelling
 # mid-deploy can leave the site half-updated); the newest queued run then deploys after it.
+# The commit typed into "Run workflow" reaches the shell only as $RELEASE_SHA, never pasted into a
+# script, and the first step refuses anything but a full SHA (a typed value is text from outside).
+env:
+  RELEASE_SHA: ${{ inputs.sha }}
+
 concurrency:
   group: deploy-ipro-production
   cancel-in-progress: false
@@ -36,7 +41,7 @@ jobs:
 
       - name: The commit is on main and is what staging serves
         run: |
-          sha='${{ inputs.sha }}'
+          sha="$RELEASE_SHA"
           echo "$sha" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::give the full 40-character SHA"; exit 1; }
           git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main"; exit 1; }
           serving=$(curl -fsS --max-time 10 'https://ipro-staging-admin.azurewebsites.net/health/version' 2>/dev/null || echo '')
@@ -54,7 +59,7 @@ jobs:
         run: dotnet build IPRO.sln --configuration Release --no-restore
 
       - name: Publish admin app
-        run: dotnet publish src/IPRO.Admin/IPRO.Admin.csproj -c Release -o ./publish-admin -p:SourceRevisionId=${{ inputs.sha }}
+        run: dotnet publish src/IPRO.Admin/IPRO.Admin.csproj -c Release -o ./publish-admin -p:SourceRevisionId=$RELEASE_SHA
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -115,7 +120,7 @@ jobs:
       # answering. Never restart an app that is in the middle of starting.
       - name: Restart only if the new package is not being served yet
         run: |
-          expected='${{ inputs.sha }}'
+          expected="$RELEASE_SHA"
           url='https://admin.iproadvisers.com/health/version'
           for attempt in $(seq 1 9); do
             actual=$(curl -fsS --max-time 10 "$url" 2>/dev/null || echo '')
@@ -133,7 +138,7 @@ jobs:
       # /health only proves the app is up, which it was throughout the incident this guards against.
       - name: Verify the deployed build is actually serving
         run: |
-          expected='${{ inputs.sha }}'
+          expected="$RELEASE_SHA"
           url='https://admin.iproadvisers.com/health/version'
           wait_for_build() {
             echo "waiting for $expected at $url"
