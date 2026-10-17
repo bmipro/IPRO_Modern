@@ -191,6 +191,12 @@ public class BuilderBeta585Tests
 
         var review = Assert.IsType<ViewResult>(await Portal(db, blob, seeded.Site.AgentUserId).Review(importId));
         var model = Assert.IsType<WebsiteBuilderReviewViewModel>(review.Model);
+        var html = await RenderPortalAsync("~/Views/WebsiteBuilder/Review.cshtml", model);
+        Assert.Contains($"action=\"/portal/WebsiteBuilder/Publish/{importId}\"", html);
+        Assert.Contains($"name=\"plan\" value=\"{model.Plan.Fingerprint}\"", html);
+        Assert.Contains("You also changed this page in the page editor after you opened the builder.", html);
+        Assert.Contains("Kept from the page editor, at the end of the page:", html);
+        Assert.Contains("Opening hours", html);
         var about = model.Plan.Pages.Single(p => p.Page.Slug == "about");
         Assert.True(about.ChangedSinceHandover);
         Assert.Contains(about.SectionsGoing, g => g.Title == "Opening hours" && g.Kept);
@@ -300,7 +306,91 @@ public class BuilderBeta585Tests
         Assert.Contains(BuilderImportService.StoredImages(import), i => i.Ref == "assets/blue-sky.jpg" && i.Url == banner.Url && !i.Created);
     }
 
+    [Fact]
+    public async Task The_My_Website_card_says_where_the_adviser_is()
+    {
+        var beta = new AgentBuilderBeta { AgentUserId = 7, Enabled = true, Tenant = "t_" + new string('a', 32) };
+        var draft = new WebsiteBuilderHandover { HandoverId = "h_0123456789abcdef", IssuedAt = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc) };
+        var waiting = new WebsiteBuilderImport { Id = 41, CreatedAt = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc), Source = WebsiteBuilderImportSources.Customer };
+        var applied = new WebsiteBuilderImport { Id = 42, AppliedAt = new DateTime(2026, 10, 3, 12, 0, 0, DateTimeKind.Utc), Source = WebsiteBuilderImportSources.Customer };
+        Task<string> Card(BuilderBeta.State state, bool available = true, params string[] changed) =>
+            RenderPortalAsync("~/Views/Website/_BuilderBetaCard.cshtml", new WebsiteBuilderCardViewModel(state, available, changed, BuilderBeta.KeepDays));
+
+        var fresh = await Card(new BuilderBeta.State(beta, null, null, null));
+        Assert.Contains("Try the new builder (Beta)", fresh);
+        Assert.Contains("action=\"/portal/WebsiteBuilder/Open\"", fresh);
+        Assert.DoesNotContain("Continue my draft", fresh);
+        Assert.Contains("made for a computer", fresh);
+        Assert.Contains("90 days", fresh);
+
+        var open = await Card(new BuilderBeta.State(beta, draft, null, null));
+        Assert.Contains("Continue my draft", open);
+        Assert.Contains("name=\"startFresh\" value=\"true\"", open);
+        Assert.Contains("October 1, 2026", open);
+
+        var staff = await Card(new BuilderBeta.State(beta, draft, waiting, null));
+        Assert.Contains("iPro's team is checking it and will publish it", staff);
+        Assert.DoesNotContain("Review and publish", staff);
+
+        beta.AdviserPublishes = true;
+        var own = await Card(new BuilderBeta.State(beta, draft, waiting, null));
+        Assert.Contains("href=\"/portal/WebsiteBuilder/Review/41\"", own);
+        Assert.Contains("action=\"/portal/WebsiteBuilder/Discard/41\"", own);
+
+        var putBack = await Card(new BuilderBeta.State(beta, null, null, applied), true, "About", "Contact");
+        Assert.Contains("action=\"/portal/WebsiteBuilder/PutBack\"", putBack);
+        Assert.Contains("since October 3, 2026", putBack);
+        Assert.Contains("what you changed since on: About, Contact", putBack);
+
+        beta.Enabled = false;
+        var off = await Card(new BuilderBeta.State(beta, null, null, applied));
+        Assert.Contains("Put my previous site back", off);
+        Assert.DoesNotContain("Try the new builder", off);
+
+        beta.Enabled = true;
+        var unavailable = await Card(new BuilderBeta.State(beta, null, null, null), available: false);
+        Assert.Contains("not available here yet", unavailable);
+        Assert.DoesNotContain("/portal/WebsiteBuilder/Open", unavailable);
+    }
+
+    [Fact]
+    public async Task The_page_that_carries_the_pass_posts_it_and_puts_it_in_no_address()
+    {
+        var page = await RenderPortalAsync("~/Views/WebsiteBuilder/Open.cshtml", new WebsiteBuilderOpenViewModel("https://builder.example.test/open", "PASS"));
+        Assert.Contains("<form id=\"openBuilderForm\" method=\"post\" action=\"https://builder.example.test/open\">", page);
+        Assert.Contains("<input type=\"hidden\" name=\"pass\" value=\"PASS\" />", page);
+        Assert.Contains("document.getElementById(\"openBuilderForm\").submit();", page);
+        Assert.DoesNotContain("?pass=", page);
+    }
+
     // ---------------- helpers ----------------
+
+    // A view of the portal (IPRO.Web) rendered from its compiled form, without a layout, as the
+    // SuperAdmin screens are in BuilderImportScreens571Tests.
+    private static async Task<string> RenderPortalAsync<TModel>(string viewPath, TModel model)
+    {
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(new Microsoft.AspNetCore.Builder.WebApplicationOptions
+        {
+            ApplicationName = typeof(WebsiteBuilderController).Assembly.GetName().Name,
+            ContentRootPath = Path.Combine(RepoRoot(), "src", "IPRO.Web"),
+            EnvironmentName = "Production"
+        });
+        builder.Services.AddControllersWithViews().AddApplicationPart(typeof(WebsiteBuilderController).Assembly);
+        await using var app = builder.Build();
+        using var scope = app.Services.CreateScope();
+        var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        http.SetEndpoint(new Microsoft.AspNetCore.Http.Endpoint(_ => Task.CompletedTask, new Microsoft.AspNetCore.Http.EndpointMetadataCollection(), "render"));
+        var actionContext = new ActionContext(http, new Microsoft.AspNetCore.Routing.RouteData(), new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor());
+        var engine = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Mvc.Razor.IRazorViewEngine>();
+        var found = engine.GetView(executingFilePath: null, viewPath: viewPath, isMainPage: false);
+        Assert.True(found.Success, $"{viewPath} was not found among the portal's compiled views");
+        var viewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary<TModel>(
+            new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary()) { Model = model };
+        await using var writer = new StringWriter();
+        await found.View!.RenderAsync(new Microsoft.AspNetCore.Mvc.Rendering.ViewContext(actionContext, found.View, viewData,
+            new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(http, new NoTempData()), writer, new Microsoft.AspNetCore.Mvc.ViewFeatures.HtmlHelperOptions()));
+        return writer.ToString();
+    }
 
     private static string RepoRoot()
     {

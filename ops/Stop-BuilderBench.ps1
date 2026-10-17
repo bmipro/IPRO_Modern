@@ -1,6 +1,7 @@
 # Stop-BuilderBench.ps1 -- 585: stops the three apps ops\Start-BuilderBench.ps1 started, by their ports,
-# and only a dotnet process listening there. MySQL, the storage emulator and the owner's own builders
-# (5087, 5088) are left alone. The builder's drafts stay in their database and folder for next time.
+# and only a dotnet process listening there, then closes their "Bench ..." windows. MySQL, the storage
+# emulator and the owner's own builders (5087, 5088) are left alone. The builder's drafts stay in their
+# database and folder for next time.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File ops\Stop-BuilderBench.ps1
 param(
@@ -22,3 +23,8 @@ foreach ($port in @($WebPort, $AdminPort, $BuilderPort)) {
         }
     }
 }
+
+# The windows the bench opened, by their titles.
+Get-Process powershell -ErrorAction SilentlyContinue |
+    Where-Object { $_.MainWindowTitle -match "^Bench (portal|SuperAdmin|builder) ($WebPort|$AdminPort|$BuilderPort)$" } |
+    ForEach-Object { Stop-Process -Id $_.Id -Confirm:$false; Write-Host "Closed the window ""$($_.MainWindowTitle)""." }
