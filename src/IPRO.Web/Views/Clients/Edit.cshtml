@@ -1,6 +1,7 @@
 @model IPRO.Entities.Client
 @{
     ViewData["Title"] = "Edit Client";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 588: in the adviser's zone
     var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory>) ?? Enumerable.Empty<IPRO.Entities.ClientCategory>();
     var selectedCategoryIds = (ViewBag.SelectedCategoryIds as HashSet<int>) ?? new HashSet<int>();
 }
@@ -104,15 +105,15 @@
         var optOutReason = IPRO.Entities.EmailOptOut.ReasonOf(Model);
         if (optOutReason == IPRO.Entities.EmailOptOutReason.Bounced)
         {
-          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>An email to this client's address bounced on @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy"), so marketing emails to them are on hold. Correct the address above and save: email to them is switched back on, and this switch works again.</div>
+          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>An email to this client's address bounced on @Local(Model.EmailOptOutAt.Value).ToString("MMM d, yyyy"), so marketing emails to them are on hold. Correct the address above and save: email to them is switched back on, and this switch works again.</div>
         }
         else if (optOutReason == IPRO.Entities.EmailOptOutReason.Complaint)
         {
-          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>This client reported one of your emails as spam on @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy") and is unsubscribed from all email. Turning the newsletter back on here has no effect; only they can, from the preferences link in any message or from their portal.</div>
+          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>This client reported one of your emails as spam on @Local(Model.EmailOptOutAt.Value).ToString("MMM d, yyyy") and is unsubscribed from all email. Turning the newsletter back on here has no effect; only they can, from the preferences link in any message or from their portal.</div>
         }
         else
         {
-          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>This client unsubscribed from all email on @Model.EmailOptOutAt.Value.ToString("MMM d, yyyy"). Turning the newsletter back on here has no effect; only they can, from the preferences link in any message or from their portal.</div>
+          <div class="form-text text-warning-emphasis"><i class="fas fa-circle-info me-1"></i>This client unsubscribed from all email on @Local(Model.EmailOptOutAt.Value).ToString("MMM d, yyyy"). Turning the newsletter back on here has no effect; only they can, from the preferences link in any message or from their portal.</div>
         }
       }
     </div>

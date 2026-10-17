@@ -116,8 +116,9 @@ public class PostedRecord573Tests
                     $"{Path.GetFileName(file)} adds the posted record whole ({match.Value}) without PostedRecord.Clean before it.");
             }
         }
-        // The contact and the newsletter. My Website builds its own record from the form's fields.
-        Assert.Equal(2, found);
+        // None since 588: the contact and the newsletter build their own record from the form's fields, as
+        // My Website does (PostedFields588Tests holds every action that takes a stored record).
+        Assert.Equal(0, found);
         var website = File.ReadAllText(Path.Combine(folder, "WebsiteController.cs"));
         Assert.DoesNotContain("CreateAsync(model)", website);
         Assert.Contains("model.LogoUrl = string.Empty;", website);

@@ -2,6 +2,7 @@
 @{
     var today = ViewBag.Today as DateTime? ?? DateTime.UtcNow.Date;   // 518: the agent's day, from the controller
     var client = ViewBag.Client as IPRO.Entities.Client;
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 588: in the adviser's zone
     var status = (ViewBag.Status as string) ?? "open";
     var page = (int)(ViewBag.Page ?? 1);
     var totalPages = (int)(ViewBag.TotalPages ?? 1);
@@ -78,7 +79,7 @@
               <span class="badge bg-light text-muted rounded-pill">Open</span>
             }
           </td>
-          <td><small class="text-muted">@followUp.CreatedAt.ToString("MMM d, yyyy")</small></td>
+          <td><small class="text-muted">@Local(followUp.CreatedAt).ToString("MMM d, yyyy")</small></td>
           <td>
             <div class="d-flex gap-2 justify-content-end">
               @if (!followUp.IsCompleted)
