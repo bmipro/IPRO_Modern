@@ -37,8 +37,12 @@
     <div class="analytics-chart" role="img" aria-label="Daily website page views">
       @foreach (var point in Model.DailyViews)
       {
-        var height = Math.Max(4m, point.Views * 100m / maxDailyViews);
+        @* 586 (2026-10-17, the owner): each day's page views stand on top of its bar, so the chart reads at a
+           glance; the visitors stay in the bar's tooltip. The tallest bar uses 82% of the height to leave the
+           number room above it. *@
+        var height = Math.Max(4m, point.Views * 82m / maxDailyViews);
         <div class="analytics-bar-wrap" title="@point.Date.ToString("MMM d"): @point.Views views, @point.Visitors visitors">
+          <strong class="analytics-bar-value">@point.Views.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("en-CA"))</strong>
           <div class="analytics-bar" style="height:@height.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"></div>
           <span>@point.Date.ToString(Model.PeriodDays <= 7 ? "ddd" : "M/d")</span>
         </div>
@@ -82,6 +86,7 @@
   .analytics-panel{background:#fff;border:1px solid #dfe6ef;border-radius:6px;padding:22px}
   .analytics-chart{height:260px;display:flex;align-items:flex-end;gap:6px;border-bottom:1px solid #cbd5e1;padding:12px 4px 0;overflow-x:auto}
   .analytics-bar-wrap{height:100%;min-width:24px;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px}.analytics-bar{width:min(30px,80%);background:#1769ff;border-radius:4px 4px 0 0;min-height:4px}.analytics-bar-wrap span{font-size:.72rem;color:#64748b;white-space:nowrap}
+  .analytics-bar-value{font-size:.72rem;font-weight:700;color:#1e293b;white-space:nowrap;line-height:1;margin-bottom:-4px;font-variant-numeric:tabular-nums}
   .analytics-empty{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#64748b;gap:8px;text-align:center}.analytics-empty i{font-size:2.4rem;color:#cbd5e1}
   @@media(max-width:900px){.analytics-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-metrics>div:nth-child(2){border-right:0}.analytics-metrics>div:nth-child(-n+2){border-bottom:1px solid #e7ecf2}}
   @@media(max-width:520px){.analytics-metrics{grid-template-columns:1fr}.analytics-metrics>div{border-right:0!important;border-bottom:1px solid #e7ecf2}.analytics-metrics>div:last-child{border-bottom:0}}
