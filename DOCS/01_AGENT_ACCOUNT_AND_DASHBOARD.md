@@ -10,6 +10,19 @@
 
 If the login fails, verify the username and password. Super Admin can reset the password and require another password change.
 
+### Five Wrong Passwords Lock Sign-In for 15 Minutes
+
+After 5 wrong passwords in a row, signing in with that name is locked for 15 minutes, even with the right password. The sign-in page then says:
+
+> Sign-in with this name is locked for 15 minutes after 5 wrong passwords in a row. To get in sooner, reset your password with "Forgot password?" below. A team member asks the account owner to reset theirs.
+
+- A sign-in that works starts the count again. Your username and your email address are the same account here: wrong passwords with either count together.
+- **Forgot password?** unlocks it at once, and the reset signs you straight in.
+- You get one email when it locks ("Your iPro sign-in was locked for 15 minutes"), and no more than one a day however often it locks again. If it was not you, reset your password.
+- **Change Password** checks your current password the same way: 5 wrong in a row lock your sign-in too.
+- Super Admin can see and clear a lock on your record.
+- A name that is not an account gets the same answers, so the lock does not tell anyone which names exist.
+
 ## Forgot Your Password
 
 1. On the login page, click **Forgot password?**.

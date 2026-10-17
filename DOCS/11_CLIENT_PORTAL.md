@@ -28,6 +28,16 @@ The invite email's activation link and the appointment emails are built on the s
 
 Click **Revoke Access** on the client's profile at any time. This immediately clears their portal password, so they can no longer log in until re-invited.
 
+## When a Client's Sign-In Is Locked
+
+After 5 wrong passwords in a row, a client's portal sign-in is locked for 15 minutes, even with the right password. The sign-in page says:
+
+> Sign-in with this email is locked for 15 minutes after 5 wrong passwords in a row. If you have forgotten your password, ask your advisor to send you a new invitation.
+
+The client gets one email from you about it (replies come to you), and no more than one a day.
+
+While a client is locked, their profile's **Client Portal** card says so, until when, and offers **Send a New Invitation**: the password they choose from it unlocks the sign-in at once. Super Admin can also clear the lock. A client who uses the portal with two advisers has a separate sign-in with each; a lock on one does not stop the other.
+
 ## Portal Messages
 
 1. Select **Portal Messages** in the Agent Portal to see every client conversation, most recent first, with an unread badge.

@@ -20,7 +20,9 @@ public class AdminAuditLogService : IAdminAuditLogService
             AdminUserId = adminUserId,
             AdminUsername = adminUsername,
             Action = action,
-            Details = details
+            // The column holds 500. Longer details (583: an unlock naming a long client email) would fail
+            // the write after the action itself had been done, leaving it unrecorded.
+            Details = details.Length > 500 ? details[..497] + "..." : details
         });
         await _uow.SaveChangesAsync();
     }

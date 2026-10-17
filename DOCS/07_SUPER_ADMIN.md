@@ -8,6 +8,8 @@
 
 The original Azure-application-settings admin credential is automatically created as the first **Super Admin** account the first time the app starts. From then on, admin sign-in is checked against the **Admin Users** list (see below), not the Azure setting directly — additional admin accounts can be created from within the portal. Every login attempt (success or failure) and every admin-account change is written to an audit log.
 
+After 5 wrong passwords in a row an admin name is locked for 15 minutes, even with the right password (a name that is not an admin gets the same answers). Another Super Admin unlocks it under **Admin Users** (see **See and Clear a Sign-In Lock** below) or by resetting its password; the break-glass recovery in the troubleshooting guide unlocks it too. Admin accounts have no email address, so there is no lock email: the lock is in the audit log as **SignInLocked**.
+
 ## Manage Admin Users and Roles
 
 1. Select **Admin Users** (Super Admin only).
@@ -57,6 +59,18 @@ Optional fields such as fax, mobile phone, promotion code, designation, and comp
 2. Click **Reset Password**.
 3. Give the temporary password to the agent securely.
 4. The agent changes it at the next login when the force-change option is enabled.
+
+A temporary password also unlocks a sign-in locked by wrong passwords.
+
+## See and Clear a Sign-In Lock
+
+Every sign-in (advisers, their team members, their clients, admins) locks for 15 minutes after 5 wrong passwords in a row; a sign-in that works starts the count again. The person whose sign-in it is gets one email when it locks (no more than one a day); admins get none, having no email address.
+
+- **An agent:** the agent record's **Profile** card has a **Sign-in** line: "Locked until ..." with **Unlock**, or "Not locked" and how many wrong passwords since the last sign-in.
+- **Their team members and clients:** a **Locked sign-ins** card under the Profile card lists each one locked right now, with **Unlock**.
+- **Admins:** **Admin Users** shows a **Locked until** badge; **Edit** has a **Sign-in** card with **Unlock sign-in**.
+
+Unlock is Super Admin only (Support admins see the button disabled). Each unlock is written to the audit log as **SignInUnlocked**, naming who was unlocked. Locks and unlocks are also written to the container log as warnings ("Sign-in locked for 15 minutes after 5 wrong passwords in a row: ..." and "Sign-in lock cleared (...)"). A new password unlocks at once: the agent's **Forgot password?**, **Reset Password** here or under **Admin Users**, an agent resetting a team member's password, a client's new portal invitation (**Send a New Invitation** on the client's profile).
 
 ## Activate, Deactivate, or Delete an Agent
 

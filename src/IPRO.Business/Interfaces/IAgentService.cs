@@ -7,7 +7,10 @@ public interface IAgentService
     Task<AgentUser?> GetByIdAsync(int id);
     Task<AgentUser?> GetByUsernameAsync(string username);
     Task<AgentUser?> GetByDomainAsync(string domain);
-    Task<AgentUser?> AuthenticateAsync(string username, string password);
+    // 583: finding the account and checking its password are two steps, so the sign-in lock
+    // (SignInLockout) can count between them. Active agents only, by username or email.
+    Task<AgentUser?> FindForSignInAsync(string username);
+    bool PasswordMatches(AgentUser user, string password);
     Task<AgentUser> RegisterAsync(AgentUser user, string plainPassword);
     Task UpdateAsync(AgentUser user);
     Task ChangePasswordAsync(int id, string plainPassword);

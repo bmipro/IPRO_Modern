@@ -25,6 +25,8 @@ At first login the person must choose their own password (at least 8 characters)
 
 If a team member forgets their password, click the key icon on their row. A new temporary password is shown once, the same way as when you added them, and they must choose a new password at their next login.
 
+After 5 wrong passwords in a row a team member's sign-in is locked for 15 minutes, the same rule as yours. Their row on My Team then says "Sign-in locked until ..."; resetting their password with the key icon unlocks it at once. They get one email about it, which tells them to ask you. Their lock does not touch your own sign-in.
+
 ## Deactivate, Reactivate, or Remove
 
 - **Deactivate** stops the person from signing in and frees their seat. Their row stays, so you can **Reactivate** them later, provided a seat is free.

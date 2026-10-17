@@ -89,6 +89,10 @@ public class Client
     [System.ComponentModel.DataAnnotations.MaxLength(500)]
     public string? PortalInviteEmailError { get; set; }
     public DateTime? PortalActivatedAt { get; set; }
+    // 583: the client portal sign-in lock (SignInLockout writes these; a save of this row never does).
+    public int FailedSignInCount { get; set; }
+    public DateTime? SignInLockedUntil { get; set; }
+    public DateTime? SignInLockNoticeAt { get; set; }
     public AgentUser AgentUser { get; set; } = null!;
     public ICollection<ClientCategory> Categories { get; set; } = new List<ClientCategory>();
     public ICollection<ClientComment> Comments { get; set; } = new List<ClientComment>();

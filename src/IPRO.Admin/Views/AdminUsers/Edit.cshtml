@@ -1,6 +1,8 @@
 @model IPRO.Entities.AdminUser
 @{
     ViewData["Title"] = "Edit Admin User";
+    var zone = ViewBag.Zone as string;
+    var signInLocked = IPRO.DataAccess.SignInLockout.IsLocked(Model.SignInLockedUntil, DateTime.UtcNow);
 }
 
 <nav aria-label="breadcrumb">
@@ -62,6 +64,26 @@
             <div class="form-text">At least 8 characters. The admin will need this the next time they sign in.</div>
           </div>
           <button type="submit" class="btn btn-outline-warning">Reset Password</button>
+        </form>
+      </div>
+    </div>
+
+    @* 583: the sign-in lock. 5 wrong passwords in a row lock this name for 15 minutes; a new password
+       above unlocks it too. *@
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">Sign-in</h6>
+        @if (signInLocked)
+        {
+          <p class="text-danger mb-3"><i class="fas fa-lock me-1"></i>Locked until @IPRO.Admin.Infrastructure.AdminClock.Format(Model.SignInLockedUntil!.Value, zone) after 5 wrong passwords in a row.</p>
+        }
+        else
+        {
+          <p class="text-muted mb-3">Not locked.@(Model.FailedSignInCount > 0 ? $" {Model.FailedSignInCount} wrong password{(Model.FailedSignInCount == 1 ? "" : "s")} since the last sign-in; 5 in a row lock it for 15 minutes." : string.Empty)</p>
+        }
+        <form method="post" action="/AdminUsers/UnlockSignIn/@Model.Id">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn @(signInLocked ? "btn-danger" : "btn-outline-secondary")" @(signInLocked || Model.FailedSignInCount > 0 ? "" : "disabled")><i class="fas fa-lock-open me-1"></i>Unlock sign-in</button>
         </form>
       </div>
     </div>

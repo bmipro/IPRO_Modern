@@ -242,6 +242,9 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("FinancialLedgerSchemaGuard.EnsureAsync", () => IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db), db, app.Logger);
 
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteTemplateSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteTemplateSchemaAsync(db), db, app.Logger);
+    // 583: the sign-in lock columns and SignInNameLocks, right after TeamMembers is created and before any
+    // later step can load an account row (EF reads every mapped column). AdminUsers' two: EnsureAdminUserSchemaAsync.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSignInLockoutSchemaAsync", () => StartupSchemaRepair.EnsureSignInLockoutSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteContentSchema.EnsureAsync", () => WebsiteContentSchema.EnsureAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);
@@ -428,6 +431,9 @@ CREATE TABLE IF NOT EXISTS `AdminUsers` (
     try
     {
         await StartupSchemaRepair.EnsureTableColumnAsync(db, "AdminUsers", "PortalAccentColor", "ALTER TABLE `AdminUsers` ADD COLUMN `PortalAccentColor` varchar(20) CHARACTER SET utf8mb4 NULL");
+        // 583: the admin sign-in lock (SignInLockout); no lock email, an admin account has no address.
+        await StartupSchemaRepair.EnsureTableColumnAsync(db, "AdminUsers", "FailedSignInCount", "ALTER TABLE `AdminUsers` ADD COLUMN `FailedSignInCount` int NOT NULL DEFAULT 0");
+        await StartupSchemaRepair.EnsureTableColumnAsync(db, "AdminUsers", "SignInLockedUntil", "ALTER TABLE `AdminUsers` ADD COLUMN `SignInLockedUntil` datetime(6) NULL");
     }
     finally
     {
@@ -550,6 +556,9 @@ static async Task RunAdminRecoveryResetAsync(IPRODbContext db, IConfiguration co
         user.IsActive = true;
         user.Role = AdminRoles.SuperAdmin;
         await db.SaveChangesAsync();
+        // 583: the break-glass password unlocks sign-in too (5 wrong passwords in a row lock it).
+        if (await IPRO.DataAccess.SignInLockout.ClearAsync(db, new IPRO.DataAccess.SignInAccount(IPRO.DataAccess.SignInAccountKind.Admin, user.Id), DateTime.UtcNow))
+            Console.Error.WriteLine($"[AdminRecovery] Sign-in lock cleared for admin '{username}' (it was locked after 5 wrong passwords in a row).");
 
         db.AdminAuditLogEntries.Add(new AdminAuditLogEntry
         {

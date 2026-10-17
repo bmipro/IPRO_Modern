@@ -1722,6 +1722,38 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 583 (2026-10-16): the sign-in lock -- wrong passwords in a row, the end of a lock, and when the lock
+    // email last went out -- on each table people sign in with (SignInLockout), and the count for names
+    // that are no account. AdminUsers gets its two columns in IPRO.Admin's EnsureAdminUserSchemaAsync,
+    // where that table is created.
+    public static async Task EnsureSignInLockoutSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            foreach (var table in new[] { "AgentUsers", "TeamMembers", "Clients" })
+            {
+                await EnsureTableColumnAsync(db, table, "FailedSignInCount", $"ALTER TABLE `{table}` ADD COLUMN `FailedSignInCount` int NOT NULL DEFAULT 0");
+                await EnsureTableColumnAsync(db, table, "SignInLockedUntil", $"ALTER TABLE `{table}` ADD COLUMN `SignInLockedUntil` datetime(6) NULL");
+                await EnsureTableColumnAsync(db, table, "SignInLockNoticeAt", $"ALTER TABLE `{table}` ADD COLUMN `SignInLockNoticeAt` datetime(6) NULL");
+            }
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `SignInNameLocks` (
+        `NameKey` varchar(80) CHARACTER SET utf8mb4 NOT NULL,
+        `FailedSignInCount` int NOT NULL DEFAULT 0,
+        `SignInLockedUntil` datetime(6) NULL,
+        `LastFailedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`NameKey`),
+        KEY `IX_SignInNameLocks_LastFailedAt` (`LastFailedAt`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     // 450 (2026-09-02): anonymous website votes are PollRecipients with Source = Website.
     public static async Task EnsurePollWebsiteVoteSchemaAsync(IPRODbContext db)
     {

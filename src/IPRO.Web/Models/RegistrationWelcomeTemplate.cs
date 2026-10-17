@@ -18,7 +18,7 @@ public static class RegistrationWelcomeTemplate
         var passwordNote = hasTempPassword
             ? "For your security, you will be asked to change this temporary password the first time you sign in."
             // 501: the box above shows a USERNAME and the sign-in page asks for one; the email address
-            // works as well (AgentService.AuthenticateAsync tries both). The sentence said only "email".
+            // works as well (AgentService.FindForSignInAsync tries both). The sentence said only "email".
             : "You sign in with your username or your email address, and the password you chose when you registered. It was never sent by email.";
         var domain = WebUtility.HtmlEncode(model.SetupDomain);
         // 501: https. Every temporary domain is served under the wildcard certificate and the app is

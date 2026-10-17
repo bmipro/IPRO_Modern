@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
+using IPRO.Web.Infrastructure;
 using EndpointRateLimits = IPRO.Web.Infrastructure.EndpointRateLimits;
 
 namespace IPRO.Web.Controllers;
@@ -19,11 +20,15 @@ public class ClientPortalAccountController : Controller
 
     private readonly IPRODbContext _db;
     private readonly IPasswordHasher<Client> _hasher;
+    private readonly ISignInLockNotices _lockNotices;
+    private readonly ILogger<ClientPortalAccountController> _logger;
 
-    public ClientPortalAccountController(IPRODbContext db, IPasswordHasher<Client> hasher)
+    public ClientPortalAccountController(IPRODbContext db, IPasswordHasher<Client> hasher, ISignInLockNotices lockNotices, ILogger<ClientPortalAccountController> logger)
     {
         _db = db;
         _hasher = hasher;
+        _lockNotices = lockNotices;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -37,24 +42,35 @@ public class ClientPortalAccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string email, string password, string? returnUrl = null)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var normalizedEmail = (email?.Trim() ?? string.Empty).ToLowerInvariant();
-        var candidates = await _db.Clients
+        var candidates = normalizedEmail.Length == 0 ? new List<Client>() : (await _db.Clients
             .Include(c => c.AgentUser)
             .Where(c => c.Email.ToLower() == normalizedEmail && c.PortalPasswordHash != null)
-            .ToListAsync();
-
-        var matches = candidates
-            .Where(c => _hasher.VerifyHashedPassword(c, c.PortalPasswordHash!, password) == PasswordVerificationResult.Success)
+            .ToListAsync())
+            // 583: by its letters, as the lock counts an email that is no client (SignInLockout.SameName).
+            .Where(c => SignInLockout.SameName(c.Email, normalizedEmail))
             .ToList();
+
+        // 583: each row is a sign-in of its own (a client with two advisers has two), counted by
+        // SignInLockout: 5 wrong passwords in a row lock it for 15 minutes. A locked row's password is
+        // not checked; an email that is no client counts too, so its fifth try reads the same.
+        var attempt = await SignInLockout.TryAsync(_db, SignInDoor.ClientPortal, normalizedEmail,
+            candidates.Select(c => new SignInCandidate(new SignInAccount(SignInAccountKind.Client, c.Id),
+                () => !string.IsNullOrEmpty(password) && _hasher.VerifyHashedPassword(c, c.PortalPasswordHash!, password) == PasswordVerificationResult.Success)).ToList(),
+            DateTime.UtcNow);
+        SignInLockout.LogLocks(_logger, attempt, SignInDoor.ClientPortal, IPRO.Utility.RateLimitVisitor.Key(HttpContext));
+        foreach (var account in attempt.LockedNow) _lockNotices.Queue(account);
+        var matches = candidates.Where(c => attempt.Matched.Contains(new SignInAccount(SignInAccountKind.Client, c.Id))).ToList();
 
         if (matches.Count == 0)
         {
-            // When no candidate row matches the email, VerifyHashedPassword above never actually
-            // runs (LINQ short-circuits over an empty list) - measurably faster than the
-            // wrong-password case below, which lets an attacker enumerate registered client emails
-            // by timing. A flat delay on every failure swamps that gap.
-            await Task.Delay(1500);
-            ModelState.AddModelError("", "Invalid email or password.");
+            // An email that is no client costs no password check, and a locked one none either - a
+            // refusal for them would come back faster than a real client's wrong password and tell
+            // which emails are registered. Every refusal is answered 1.5 seconds after the request began
+            // (SignInLockout.PadAsync).
+            await SignInLockout.PadAsync(started);
+            ModelState.AddModelError("", attempt.Locked ? SignInMessages.ClientPortalLocked : "Invalid email or password.");
             ViewData["ReturnUrl"] = returnUrl;
             return View();
         }
@@ -126,6 +142,9 @@ public class ClientPortalAccountController : Controller
         client.PortalInviteToken = null;
         client.PortalInviteTokenExpiresAt = null;
         await _db.SaveChangesAsync();
+        // 583: a new invitation is a client's way out of a sign-in lock: the password chosen here unlocks it.
+        if (await SignInLockout.ClearAsync(_db, new SignInAccount(SignInAccountKind.Client, client.Id), DateTime.UtcNow))
+            SignInLockout.LogCleared(_logger, new SignInAccount(SignInAccountKind.Client, client.Id), "new portal invitation");
 
         await SignInClientAsync(client);
         return RedirectToAction("Index", "ClientPortal");

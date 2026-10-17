@@ -3,12 +3,14 @@ using IPRO.Business.Interfaces;
 using IPRO.Admin.Infrastructure;
 using IPRO.Admin.Models;
 using IPRO.Billing;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Admin.Controllers;
 
@@ -134,8 +136,68 @@ public class AgentsController : Controller
                 .ToList(),
             "Billing activity log",
             warnings) ?? new List<OperateLog>();
+        // 583: sign-ins locked right now under this agent -- their team members' and their clients' (the
+        // agent's own lock is on the agent row the page already has).
+        var lockNow = DateTime.UtcNow;
+        ViewBag.LockedTeamMembers = await LoadDetailsPanelAsync(
+            async () => await _db.TeamMembers.AsNoTracking()
+                .Where(t => t.AgentUserId == id && t.SignInLockedUntil != null && t.SignInLockedUntil > lockNow)
+                .OrderBy(t => t.FullName).ToListAsync(),
+            "Locked team member sign-ins",
+            warnings) ?? new List<TeamMember>();
+        ViewBag.LockedClients = await LoadDetailsPanelAsync(
+            async () => await _db.Clients.AsNoTracking()
+                .Where(c => c.AgentUserId == id && c.SignInLockedUntil != null && c.SignInLockedUntil > lockNow)
+                .OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync(),
+            "Locked client portal sign-ins",
+            warnings) ?? new List<Client>();
         ViewBag.DetailsWarnings = warnings;
         return View(agent);
+    }
+
+    // 583: 5 wrong passwords in a row lock a sign-in for 15 minutes. SuperAdmin clears the agent's own,
+    // or one of their team members' or clients' (the account must be this agent's). Recorded in the
+    // audit log, and at Warning in the container log as the lock was.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnlockSignIn(int id, SignInAccountKind kind = SignInAccountKind.Adviser, int accountId = 0)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+
+        string who;
+        SignInAccount account;
+        switch (kind)
+        {
+            case SignInAccountKind.Adviser:
+                account = new SignInAccount(SignInAccountKind.Adviser, agent.Id);
+                who = $"agent '{agent.UserName}'";
+                break;
+            case SignInAccountKind.TeamMember:
+                var member = await _db.TeamMembers.AsNoTracking().FirstOrDefaultAsync(t => t.Id == accountId && t.AgentUserId == id);
+                if (member == null) return NotFound();
+                account = new SignInAccount(SignInAccountKind.TeamMember, member.Id);
+                who = $"team member {member.Email} of agent '{agent.UserName}'";
+                break;
+            case SignInAccountKind.Client:
+                var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == accountId && c.AgentUserId == id);
+                if (client == null) return NotFound();
+                account = new SignInAccount(SignInAccountKind.Client, client.Id);
+                who = $"client {client.Email} (client portal) of agent '{agent.UserName}'";
+                break;
+            default:
+                return NotFound();
+        }
+
+        var wasLocked = await SignInLockout.ClearAsync(_db, account, DateTime.UtcNow);
+        if (wasLocked) SignInLockout.LogCleared(_logger, account, $"unlocked by {CurrentAdminUsername}");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "SignInUnlocked", wasLocked
+            ? $"Unlocked sign-in for {who}."
+            : $"Cleared the wrong-password count for {who} (sign-in was not locked).");
+        TempData["Success"] = wasLocked
+            ? "Sign-in unlocked. They can sign in again now."
+            : "That sign-in was not locked; the count of wrong passwords is back to 0.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     // Resources provisioning only runs when the agent has no page with the "resources" slug, so an
@@ -615,6 +677,10 @@ public class AgentsController : Controller
         agent.PasswordChangedAt = null;
 
         await _agents.UpdateAsync(agent);
+        // 583: a new password unlocks sign-in at once.
+        var signIn = new SignInAccount(SignInAccountKind.Adviser, agent.Id);
+        if (await SignInLockout.ClearAsync(_db, signIn, DateTime.UtcNow))
+            SignInLockout.LogCleared(_logger, signIn, $"temporary password by {CurrentAdminUsername}");
         await LogAsync(id, "ResetPassword", "Temporary password reset by Super Admin");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentResetPassword", $"Temporary password reset for agent '{agent.UserName}'");
 

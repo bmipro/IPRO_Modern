@@ -86,6 +86,11 @@ else
             <td>
               @if (m.IsActive) { <span class="badge bg-success">Active</span> } else { <span class="badge bg-secondary">Deactivated</span> }
               @if (m.MustChangePassword) { <span class="badge bg-warning text-dark" title="They have not signed in with their own password yet.">Temp password</span> }
+              @* 583: 5 wrong passwords in a row lock a sign-in for 15 minutes; a reset (the key button) unlocks it. *@
+              @if (IPRO.DataAccess.SignInLockout.IsLocked(m.SignInLockedUntil, DateTime.UtcNow))
+              {
+                <div class="small text-danger mt-1"><i class="fas fa-lock me-1"></i>Sign-in locked until @AgentTimeZoneHelper.FromUtc(m.SignInLockedUntil!.Value, ViewBag.AgentTimeZone as string).ToString("h:mm tt") after 5 wrong passwords. Resetting the password unlocks it.</div>
+              }
             </td>
             <td><small class="text-muted">@(m.LastLoginAt == null ? "Never" : AgentTimeZoneHelper.FromUtc(m.LastLoginAt.Value, ViewBag.AgentTimeZone as string).ToString("MMM d, yyyy h:mm tt"))</small></td>
             <td class="text-end">

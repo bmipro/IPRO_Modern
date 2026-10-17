@@ -274,7 +274,7 @@ public static class AgentDataEraser
         // A5-M-ERASEATOMIC + audit findings C1/H9/H10 (2026-08-20). The ordering IS the design:
         //
         // 1. LOCKOUT FIRST. The account is deactivated before anything is destroyed --
-        //    AuthenticateAsync refuses inactive agents -- so a partial failure can no longer leave
+        //    FindForSignInAsync refuses inactive agents -- so a partial failure can no longer leave
         //    a working login to an account whose files are already gone.
         // 2. ONE TRANSACTION, ROWS ONLY. The shred commits together or not at all. Nothing slow
         //    happens inside it: the shared-file re-check used to run here, holding write locks

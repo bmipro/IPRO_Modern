@@ -31,7 +31,7 @@ public class ClientPortalTokenSecurityTests
         }
 
         await using var context = db.CreateContext();
-        var controller = new ClientPortalAccountController(context, new PasswordHasher<Client>());
+        var controller = new ClientPortalAccountController(context, new PasswordHasher<Client>(), new RecordingLockNotices(), Microsoft.Extensions.Logging.Abstractions.NullLogger<ClientPortalAccountController>.Instance);
 
         var get = await controller.Activate(token!);
         Assert.IsType<NotFoundResult>(get);
@@ -54,7 +54,7 @@ public class ClientPortalTokenSecurityTests
         }
 
         await using var context = db.CreateContext();
-        var controller = new ClientPortalAccountController(context, new PasswordHasher<Client>());
+        var controller = new ClientPortalAccountController(context, new PasswordHasher<Client>(), new RecordingLockNotices(), Microsoft.Extensions.Logging.Abstractions.NullLogger<ClientPortalAccountController>.Instance);
 
         var get = await controller.Activate(realToken);
         Assert.IsType<ViewResult>(get); // found — renders the activation form
@@ -73,7 +73,7 @@ public class ClientPortalTokenSecurityTests
         }
 
         await using var context = db.CreateContext();
-        var controller = new ClientPortalAccountController(context, new PasswordHasher<Client>());
+        var controller = new ClientPortalAccountController(context, new PasswordHasher<Client>(), new RecordingLockNotices(), Microsoft.Extensions.Logging.Abstractions.NullLogger<ClientPortalAccountController>.Instance);
 
         Assert.IsType<NotFoundResult>(await controller.Activate(expiredToken));
     }

@@ -17,13 +17,15 @@ public class TeamController : Controller
 {
     private readonly IUnitOfWork _uow;
     private readonly IPasswordHasher<TeamMember> _hasher;
+    private readonly ILogger<TeamController> _logger;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     private bool IsTeamMemberSession => User.FindFirst("TeamMemberId") != null;
 
-    public TeamController(IUnitOfWork uow, IPasswordHasher<TeamMember> hasher)
+    public TeamController(IUnitOfWork uow, IPasswordHasher<TeamMember> hasher, ILogger<TeamController> logger)
     {
         _uow = uow;
         _hasher = hasher;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -106,6 +108,10 @@ public class TeamController : Controller
         member.MustChangePassword = true;
         _uow.TeamMembers.Update(member);
         await _uow.SaveChangesAsync();
+        // 583: a new password unlocks sign-in at once -- the team member's way out of a lock.
+        var account = new IPRO.DataAccess.SignInAccount(IPRO.DataAccess.SignInAccountKind.TeamMember, member.Id);
+        if (await IPRO.DataAccess.SignInLockout.ClearAsync(_uow.Context, account, DateTime.UtcNow))
+            IPRO.DataAccess.SignInLockout.LogCleared(_logger, account, "password reset by the account owner");
 
         TempData["TeamTempPassword"] = temporaryPassword;
         TempData["TeamTempPasswordFor"] = $"{member.FullName} ({member.Email})";

@@ -17,4 +17,8 @@ public class AdminUser
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
     public string? PortalAccentColor { get; set; }
+    // 583: the sign-in lock (SignInLockout writes these; a save of this row never does). No lock email:
+    // an admin account has no email address.
+    public int FailedSignInCount { get; set; }
+    public DateTime? SignInLockedUntil { get; set; }
 }

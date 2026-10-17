@@ -1,5 +1,14 @@
 # Troubleshooting and Deployment Checks
 
+## Someone Cannot Sign In: Locked After Wrong Passwords
+
+Since 583 (2026-10-16), 5 wrong passwords in a row lock a sign-in for 15 minutes, even with the right password. The page says "Sign-in with this name (or email) is locked for 15 minutes after 5 wrong passwords in a row." It is not an outage.
+
+- Waiting 15 minutes is enough. A new password unlocks at once: **Forgot password?** for an adviser; the adviser's key icon on **My Team** for a team member; **Send a New Invitation** on the client's profile for a client; **Admin Users -> Reset Password** for an admin.
+- Super Admin can unlock it straight away: the agent record (the agent, their team members, their clients) or **Admin Users -> Edit** (see the Super Admin manual, **See and Clear a Sign-In Lock**).
+- The container log keeps a warning for each lock and each unlock; the lock line says which account and the last visitor address. Many locks of many names from one address are someone guessing, not a customer.
+- If the same account locks again and again, someone keeps guessing its password: the person should choose a new, strong password. They get one email a day at most about it.
+
 ## LOCKED OUT OF SUPERADMIN (break-glass recovery)
 
 **Use this only when nobody can sign in to admin.iproadvisers.com as a Super Admin.** If another

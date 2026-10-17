@@ -5,6 +5,25 @@
     var zone = ViewBag.Zone as string;
     string LocalDate(DateTime utc) => IPRO.DataAccess.AgentLocalTime.FromUtc(utc, zone).ToString("MMM d, yyyy");
     string LocalTime(DateTime utc) => IPRO.Admin.Infrastructure.AdminClock.Format(utc, zone);
+
+    // 583: SuperAdmin clears a sign-in lock; disabled, not hidden, for support admins (the owner's standing rule).
+    // A <form> is a tag helper here, so the function is async (MVC1006).
+    async Task UnlockButton(string kind, int accountId)
+    {
+        <form action="/Agents/UnlockSignIn/@Model.Id" method="post" class="d-inline ms-1">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="kind" value="@kind" />
+            <input type="hidden" name="accountId" value="@accountId" />
+            @if (User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin))
+            {
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0"><i class="fas fa-lock-open me-1"></i>Unlock</button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline-danger py-0" disabled title="SuperAdmin only: lets them sign in again now"><i class="fas fa-lock-open me-1"></i>Unlock</button>
+            }
+        </form>
+    }
 }
 
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
@@ -96,6 +115,8 @@
     var openInvoices = (ViewBag.OpenInvoices as IEnumerable<IPRO.Entities.Invoice> ?? Enumerable.Empty<IPRO.Entities.Invoice>()).ToList();
     var failedPaymentInvoices = (ViewBag.FailedPaymentInvoices as IEnumerable<IPRO.Entities.Invoice> ?? Enumerable.Empty<IPRO.Entities.Invoice>()).ToList();
     var billingLogs = (ViewBag.BillingLogs as IEnumerable<IPRO.Entities.OperateLog> ?? Enumerable.Empty<IPRO.Entities.OperateLog>()).ToList();
+    var lockedTeamMembers = ViewBag.LockedTeamMembers as List<IPRO.Entities.TeamMember> ?? new List<IPRO.Entities.TeamMember>();
+    var lockedClients = ViewBag.LockedClients as List<IPRO.Entities.Client> ?? new List<IPRO.Entities.Client>();
     var paidInvoiceEmailLogs = billingLogs
         .Where(l => l.Action == "InvoiceEmail" || l.Action == "InvoiceEmailFailed")
         .ToList();
@@ -184,9 +205,41 @@
                     <dt class="col-5 text-muted">Promotion</dt><dd class="col-7">@(string.IsNullOrWhiteSpace(Model.PromotionCode) ? "-" : Model.PromotionCode)</dd>
                     <dt class="col-5 text-muted">Joined</dt><dd class="col-7">@LocalDate(Model.CreatedAt)</dd>
                     <dt class="col-5 text-muted">Last Login</dt><dd class="col-7">@(Model.LastLoginAt.HasValue ? LocalTime(Model.LastLoginAt.Value) : "Never")</dd>
+                    @* 583: 5 wrong passwords in a row lock sign-in for 15 minutes; a new password unlocks it too. *@
+                    <dt class="col-5 text-muted">Sign-in</dt>
+                    <dd class="col-7">
+                        @if (IPRO.DataAccess.SignInLockout.IsLocked(Model.SignInLockedUntil, DateTime.UtcNow))
+                        {
+                            <span class="text-danger"><i class="fas fa-lock me-1"></i>Locked until @LocalTime(Model.SignInLockedUntil!.Value) (5 wrong passwords in a row)</span>
+                            await UnlockButton("Adviser", 0);
+                        }
+                        else
+                        {
+                            <span>Not locked@(Model.FailedSignInCount > 0 ? $"; {Model.FailedSignInCount} wrong password{(Model.FailedSignInCount == 1 ? "" : "s")} since the last sign-in" : "")</span>
+                        }
+                    </dd>
                 </dl>
             </div>
         </div>
+        @if (lockedTeamMembers.Count > 0 || lockedClients.Count > 0)
+        {
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-2"><i class="fas fa-lock me-2 text-danger"></i>Locked sign-ins</h6>
+                    <div class="text-muted small mb-2">5 wrong passwords in a row lock a sign-in for 15 minutes.</div>
+                    <ul class="list-unstyled mb-0 small">
+                        @foreach (var member in lockedTeamMembers)
+                        {
+                            <li class="mb-2">Team member @member.FullName (@member.Email), until @LocalTime(member.SignInLockedUntil!.Value) @{ await UnlockButton("TeamMember", member.Id); }</li>
+                        }
+                        @foreach (var client in lockedClients)
+                        {
+                            <li class="mb-2">Client portal: @client.FirstName @client.LastName (@client.Email), until @LocalTime(client.SignInLockedUntil!.Value) @{ await UnlockButton("Client", client.Id); }</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
         <div class="row g-2">
             <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold text-info">@ViewBag.ClientCount</div><div class="text-muted small">Clients</div></div></div>
             <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold @(ViewBag.Subscription != null ? "text-success" : "text-danger")"><i class="fas @(ViewBag.Subscription != null ? "fa-check-circle" : "fa-times-circle")"></i></div><div class="text-muted small">Subscription</div></div></div>

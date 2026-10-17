@@ -34,10 +34,12 @@ public class AccountController : Controller
     private readonly IConfiguration _configuration;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> _teamHasher;
+    private readonly ISignInLockNotices _lockNotices;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory, Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> teamHasher)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory, Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> teamHasher, ISignInLockNotices lockNotices)
     {
         _teamHasher = teamHasher;
+        _lockNotices = lockNotices;
         _agents = agents;
         _email = email;
         _uow = uow;
@@ -61,20 +63,31 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password, bool rememberMe = false, string? returnUrl = null)
     {
-        var user = await _agents.AuthenticateAsync(username, password);
-        if (user == null)
-        {
-            // Not an agent credential -- try team members (a secretary/assistant login working
-            // inside one agent's account, #379). Same form, no separate login page.
-            var teamRedirect = await TryTeamMemberLoginAsync(username, password, rememberMe, returnUrl);
-            if (teamRedirect != null) return teamRedirect;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        // 583: the name finds an agent (username or email) and, on the same form, a team member (a
+        // secretary/assistant login working inside one agent's account, #379); SignInLockout counts the
+        // wrong passwords against whichever it found, or against the name itself when it is no account.
+        var user = await _agents.FindForSignInAsync(username);
+        var member = await FindTeamMemberForSignInAsync(username);
+        var candidates = new List<SignInCandidate>();
+        if (user != null) candidates.Add(new SignInCandidate(new SignInAccount(SignInAccountKind.Adviser, user.Id), () => _agents.PasswordMatches(user, password)));
+        if (member != null) candidates.Add(new SignInCandidate(new SignInAccount(SignInAccountKind.TeamMember, member.Id), () => TeamPasswordMatches(member, password)));
+        var attempt = await SignInLockout.TryAsync(_db, SignInDoor.Portal, username, candidates, DateTime.UtcNow);
+        NoteLocks(attempt, SignInDoor.Portal);
 
-            // AuthenticateAsync returns immediately (skipping password-hash verification entirely)
-            // when the account doesn't exist, which is measurably faster than the wrong-password
-            // case and lets an attacker enumerate valid usernames/emails by timing. A flat delay on
-            // every failure (matching Admin's login) swamps that few-millisecond gap.
-            await Task.Delay(1500);
-            ModelState.AddModelError("", "Invalid username or password."); return View();
+        var agentSignsIn = user != null && attempt.Matched.Contains(new SignInAccount(SignInAccountKind.Adviser, user.Id));
+        if (!agentSignsIn && member != null && attempt.Matched.Contains(new SignInAccount(SignInAccountKind.TeamMember, member.Id)))
+        {
+            return await SignInTeamMemberAndRedirectAsync(member, rememberMe, returnUrl);
+        }
+        if (!agentSignsIn || user == null)
+        {
+            // A name that is no account costs no password check, and a locked one none either, so a
+            // refusal would come back faster for them than for a real account's wrong password and tell
+            // which names exist. Every refusal is answered 1.5 seconds after the request began
+            // (SignInLockout.PadAsync), whatever it took to decide; the sentence is the same for all.
+            await SignInLockout.PadAsync(started);
+            ModelState.AddModelError("", attempt.Locked ? SignInMessages.PortalLocked : "Invalid username or password."); return View();
         }
         var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
         await SignInAgentAsync(user, props);
@@ -197,12 +210,15 @@ public class AccountController : Controller
             return View(new ResetPasswordViewModel { Token = token });
         }
 
+        var wasLocked = SignInLockout.IsLocked(agent.SignInLockedUntil, DateTime.UtcNow);
         var succeeded = await _agents.ResetPasswordByTokenAsync(token, newPassword);
         if (!succeeded)
         {
             ViewBag.TokenValid = false;
             return View(new ResetPasswordViewModel { Token = token });
         }
+        // 583: the reset unlocked sign-in (AgentService.ResetPasswordByTokenAsync); the lock was logged, so is this.
+        if (wasLocked) SignInLockout.LogCleared(_logger, new SignInAccount(SignInAccountKind.Adviser, agent.Id), "forgot-password reset");
 
         var user = await _agents.GetByIdAsync(agent.Id);
         if (user != null)
@@ -939,10 +955,16 @@ public class AccountController : Controller
         // silently lock the real owner out.
         if (!agent.MustChangePassword)
         {
-            if (string.IsNullOrWhiteSpace(currentPassword) ||
-                await _agents.AuthenticateAsync(agent.UserName, currentPassword) == null)
+            // 583: the current password is checked like a sign-in and counts the same way: a session
+            // left open must not be a way to try passwords without limit.
+            var check = string.IsNullOrWhiteSpace(currentPassword) ? null
+                : await SignInLockout.TryAsync(_db, SignInDoor.Portal, agent.UserName,
+                    new[] { new SignInCandidate(new SignInAccount(SignInAccountKind.Adviser, agent.Id), () => _agents.PasswordMatches(agent, currentPassword!)) },
+                    DateTime.UtcNow);
+            if (check != null) NoteLocks(check, SignInDoor.Portal);
+            if (check == null || !check.Succeeded)
             {
-                ModelState.AddModelError("", "Current password is incorrect.");
+                ModelState.AddModelError("", check?.Locked == true ? SignInMessages.ChangePasswordLocked : "Current password is incorrect.");
             }
         }
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
@@ -951,7 +973,9 @@ public class AccountController : Controller
             ModelState.AddModelError("", "Passwords do not match.");
         if (!ModelState.IsValid) return View();
 
-        await _agents.ChangePasswordAsync(id, newPassword);
+        var wasLocked = SignInLockout.IsLocked(agent.SignInLockedUntil, DateTime.UtcNow);
+        await _agents.ChangePasswordAsync(id, newPassword);   // 583: unlocks sign-in too
+        if (wasLocked) SignInLockout.LogCleared(_logger, new SignInAccount(SignInAccountKind.Adviser, id), "new password");
         var user = await _agents.GetByIdAsync(id);
         if (user != null)
         {
@@ -976,11 +1000,15 @@ public class AccountController : Controller
         ViewBag.RequireCurrentPassword = !member.MustChangePassword;
         if (!member.MustChangePassword)
         {
-            if (string.IsNullOrWhiteSpace(currentPassword) ||
-                _teamHasher.VerifyHashedPassword(member, member.PasswordHash, currentPassword)
-                    == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
+            // 583: counted like a sign-in, as the agent's own Change Password is.
+            var check = string.IsNullOrWhiteSpace(currentPassword) ? null
+                : await SignInLockout.TryAsync(_db, SignInDoor.Portal, member.Email,
+                    new[] { new SignInCandidate(new SignInAccount(SignInAccountKind.TeamMember, member.Id), () => TeamPasswordMatches(member, currentPassword)) },
+                    DateTime.UtcNow);
+            if (check != null) NoteLocks(check, SignInDoor.Portal);
+            if (check == null || !check.Succeeded)
             {
-                ModelState.AddModelError("", "Current password is incorrect.");
+                ModelState.AddModelError("", check?.Locked == true ? SignInMessages.ChangePasswordLocked : "Current password is incorrect.");
             }
         }
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
@@ -993,6 +1021,9 @@ public class AccountController : Controller
         member.MustChangePassword = false;
         _uow.TeamMembers.Update(member);
         await _uow.SaveChangesAsync();
+        // 583: a new password unlocks sign-in at once.
+        if (await SignInLockout.ClearAsync(_db, new SignInAccount(SignInAccountKind.TeamMember, member.Id), DateTime.UtcNow))
+            SignInLockout.LogCleared(_logger, new SignInAccount(SignInAccountKind.TeamMember, member.Id), "new password");
 
         var owner = await _uow.AgentUsers.GetByIdAsync(member.AgentUserId);
         if (owner != null)
@@ -1061,25 +1092,37 @@ public class AccountController : Controller
     // ClaimTypes.NameIdentifier is the agent's id, so every controller in the portal works
     // unchanged. The TeamMemberId marker claim is what keeps Billing and Team management
     // owner-only (middleware in Program.cs) and routes ChangePassword at the member's own row.
-    private async Task<IActionResult?> TryTeamMemberLoginAsync(string username, string password, bool rememberMe, string? returnUrl)
+    // An active team member of an active agent, by the email typed (583: found before any password is
+    // checked, so the sign-in lock can count). A member of a deactivated agent is no account here.
+    private async Task<TeamMember?> FindTeamMemberForSignInAsync(string? username)
     {
         var email = (username ?? "").Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(email)) return null;
+        var member = await _db.TeamMembers.Include(t => t.AgentUser)
+            .FirstOrDefaultAsync(t => t.Email == email && t.IsActive && t.AgentUser.IsActive);
+        return member != null && SignInLockout.SameName(member.Email, email) ? member : null;
+    }
 
-        var member = await _uow.TeamMembers.FirstOrDefaultAsync(t => t.Email == email && t.IsActive);
-        if (member == null) return null;
-        if (_teamHasher.VerifyHashedPassword(member, member.PasswordHash, password)
-            == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
-        {
-            return null;
-        }
+    private bool TeamPasswordMatches(TeamMember member, string? password) =>
+        !string.IsNullOrEmpty(password)
+        && _teamHasher.VerifyHashedPassword(member, member.PasswordHash, password)
+            != Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed;
 
-        var owner = await _uow.AgentUsers.GetByIdAsync(member.AgentUserId);
-        if (owner == null || !owner.IsActive) return null;
+    // 583: a lock this attempt set is logged at Warning, and its holder gets the one email.
+    private void NoteLocks(SignInAttempt attempt, SignInDoor door)
+    {
+        SignInLockout.LogLocks(_logger, attempt, door, RateLimitVisitor.Key(HttpContext));
+        foreach (var account in attempt.LockedNow) _lockNotices.Queue(account);
+    }
 
+    private async Task<IActionResult> SignInTeamMemberAndRedirectAsync(TeamMember member, bool rememberMe, string? returnUrl)
+    {
+        var owner = member.AgentUser;
+
+        // Tracked since FindTeamMemberForSignInAsync: only this column is written (an Update() of the
+        // member would write its owner's whole row back too, through the navigation).
         member.LastLoginAt = DateTime.UtcNow;
-        _uow.TeamMembers.Update(member);
-        await _uow.SaveChangesAsync();
+        await _db.SaveChangesAsync();
 
         var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
         await SignInTeamMemberAsync(member, owner, props);

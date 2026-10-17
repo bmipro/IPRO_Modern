@@ -1,4 +1,5 @@
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -25,16 +26,26 @@ public class AgentService : IAgentService
     public Task<AgentUser?> GetByDomainAsync(string domain) =>
         _uow.AgentUsers.FirstOrDefaultAsync(u => u.DomainName == domain);
 
-    public async Task<AgentUser?> AuthenticateAsync(string username, string password)
+    public async Task<AgentUser?> FindForSignInAsync(string username)
     {
         username = username?.Trim() ?? "";
+        if (username.Length == 0) return null;
         var normalizedEmail = username.ToLowerInvariant();
-        var user = await GetByUsernameAsync(username)
-            ?? await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
-        if (user == null || !user.IsActive) return null;
-        var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
-        return result == PasswordVerificationResult.Success ? user : null;
+        // 583: the database's comparison also takes "jose" with an accent for "jose"; the sign-in lock counts a name
+        // that is no account by its letters (SignInLockout.SameName), so an account is found the same way.
+        var byName = await GetByUsernameAsync(username);
+        var user = byName != null && SignInLockout.SameName(byName.UserName, username) ? byName : null;
+        if (user == null)
+        {
+            var byEmail = await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+            user = byEmail != null && SignInLockout.SameName(byEmail.Email, username) ? byEmail : null;
+        }
+        return user == null || !user.IsActive ? null : user;
     }
+
+    public bool PasswordMatches(AgentUser user, string password) =>
+        !string.IsNullOrEmpty(password)
+        && _hasher.VerifyHashedPassword(user, user.PasswordHash, password) == PasswordVerificationResult.Success;
 
     public async Task<AgentUser> RegisterAsync(AgentUser user, string plainPassword)
     {
@@ -61,6 +72,8 @@ public class AgentService : IAgentService
         user.PasswordChangedAt = DateTime.UtcNow;
         _uow.AgentUsers.Update(user);
         await _uow.SaveChangesAsync();
+        // 583: a new password unlocks sign-in at once.
+        await SignInLockout.ClearAsync(_uow.Context, new SignInAccount(SignInAccountKind.Adviser, id), DateTime.UtcNow);
     }
 
     public async Task<AgentUser?> InitiatePasswordResetAsync(string email)
@@ -98,6 +111,8 @@ public class AgentService : IAgentService
         user.PasswordResetTokenExpiresAt = null;
         _uow.AgentUsers.Update(user);
         await _uow.SaveChangesAsync();
+        // 583: the forgot-password reset is the honest person's way out of a sign-in lock.
+        await SignInLockout.ClearAsync(_uow.Context, new SignInAccount(SignInAccountKind.Adviser, user.Id), DateTime.UtcNow);
         return true;
     }
 

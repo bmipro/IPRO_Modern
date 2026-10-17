@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using IPRO.Admin.Infrastructure;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -14,12 +16,14 @@ public class AdminUsersController : Controller
     private readonly IUnitOfWork _uow;
     private readonly IPasswordHasher<AdminUser> _hasher;
     private readonly IAdminAuditLogService _auditLog;
+    private readonly ILogger<AdminUsersController> _logger;
 
-    public AdminUsersController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher, IAdminAuditLogService auditLog)
+    public AdminUsersController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher, IAdminAuditLogService auditLog, ILogger<AdminUsersController> logger)
     {
         _uow = uow;
         _hasher = hasher;
         _auditLog = auditLog;
+        _logger = logger;
     }
 
     private string CurrentAdminUsername => User.Identity?.Name ?? "unknown";
@@ -29,6 +33,7 @@ public class AdminUsersController : Controller
     public async Task<IActionResult> Index()
     {
         var users = await _uow.AdminUsers.GetAllAsync();
+        ViewBag.Zone = AdminClock.Zone(HttpContext.RequestServices.GetRequiredService<IConfiguration>());
         return View(users.OrderBy(u => u.Username));
     }
 
@@ -90,6 +95,7 @@ public class AdminUsersController : Controller
     {
         var user = await _uow.AdminUsers.GetByIdAsync(id);
         if (user == null) return NotFound();
+        ViewBag.Zone = AdminClock.Zone(HttpContext.RequestServices.GetRequiredService<IConfiguration>());
         return View(user);
     }
 
@@ -178,9 +184,34 @@ public class AdminUsersController : Controller
         user.PasswordHash = _hasher.HashPassword(user, newPassword);
         _uow.AdminUsers.Update(user);
         await _uow.SaveChangesAsync();
+        // 583: a new password unlocks sign-in at once.
+        var account = new SignInAccount(SignInAccountKind.Admin, user.Id);
+        if (await SignInLockout.ClearAsync(_uow.Context, account, DateTime.UtcNow))
+            SignInLockout.LogCleared(_logger, account, $"password reset by {CurrentAdminUsername}");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AdminUserPasswordReset", $"Reset password for '{user.Username}'.");
 
         TempData["Success"] = $"Password reset for {user.Username}.";
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    // 583: 5 wrong passwords in a row lock an admin name for 15 minutes; another Super Admin clears it
+    // here. Recorded in the audit log, and at Warning in the container log as the lock was.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnlockSignIn(int id)
+    {
+        var user = await _uow.AdminUsers.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        var account = new SignInAccount(SignInAccountKind.Admin, user.Id);
+        var wasLocked = await SignInLockout.ClearAsync(_uow.Context, account, DateTime.UtcNow);
+        if (wasLocked) SignInLockout.LogCleared(_logger, account, $"unlocked by {CurrentAdminUsername}");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "SignInUnlocked", wasLocked
+            ? $"Unlocked sign-in for admin '{user.Username}'."
+            : $"Cleared the wrong-password count for admin '{user.Username}' (sign-in was not locked).");
+
+        TempData["Success"] = wasLocked
+            ? $"{user.Username} can sign in again."
+            : $"{user.Username}'s sign-in was not locked; the count of wrong passwords is back to 0.";
         return RedirectToAction(nameof(Edit), new { id });
     }
 

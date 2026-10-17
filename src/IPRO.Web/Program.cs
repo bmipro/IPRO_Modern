@@ -91,6 +91,8 @@ builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>
 builder.Services.AddScoped<IPasswordHasher<Client>, PasswordHasher<Client>>();
 builder.Services.AddScoped<IPasswordHasher<TeamMember>, PasswordHasher<TeamMember>>();
 builder.Services.AddScoped<IAgentService, AgentService>();
+// 583: the one email a sign-in lock sends, after the sign-in has answered.
+builder.Services.AddSingleton<IPRO.Web.Infrastructure.ISignInLockNotices>(sp => new IPRO.Web.Infrastructure.SignInLockNotices(sp.GetRequiredService<IServiceScopeFactory>()));
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
@@ -586,6 +588,9 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("FinancialLedgerSchemaGuard.EnsureAsync", () => IPRO.DataAccess.FinancialLedgerSchemaGuard.EnsureAsync(db), db, app.Logger);
 
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteTemplateSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteTemplateSchemaAsync(db), db, app.Logger);
+    // 583: the sign-in lock columns and SignInNameLocks, right after TeamMembers is created and before any
+    // later step can load an account row (EF reads every mapped column).
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSignInLockoutSchemaAsync", () => StartupSchemaRepair.EnsureSignInLockoutSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteContentSchema.EnsureAsync", () => WebsiteContentSchema.EnsureAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);

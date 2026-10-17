@@ -187,6 +187,16 @@
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Revoke portal access for @Model.FirstName?">Revoke Access</button>
           </form>
+          @* 583: 5 wrong passwords in a row lock the client's portal sign-in for 15 minutes; a new invitation
+             lets them choose a new password, which unlocks it. *@
+          @if (IPRO.DataAccess.SignInLockout.IsLocked(Model.SignInLockedUntil, DateTime.UtcNow))
+          {
+            <div class="small text-danger mt-2 mb-2"><i class="fas fa-lock me-1"></i>@Model.FirstName's sign-in is locked until @IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(Model.SignInLockedUntil!.Value, ViewBag.AgentTimeZone as string).ToString("h:mm tt") after 5 wrong passwords in a row. A new invitation lets them choose a new password and sign in straight away.</div>
+            <form asp-action="InvitePortal" asp-route-id="@Model.Id" method="post">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn btn-sm btn-outline-success js-confirm-submit" data-confirm-message="Send @Model.FirstName a new invitation? Their current password stops working; they choose a new one from the email.">Send a New Invitation</button>
+            </form>
+          }
         }
         else if (!string.IsNullOrWhiteSpace(Model.PortalInviteToken))
         {

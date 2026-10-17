@@ -35,6 +35,8 @@ public class IPRODbContext : DbContext
     public DbSet<ProvinceTaxRate> ProvinceTaxRates => Set<ProvinceTaxRate>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<NumberSequence> NumberSequences => Set<NumberSequence>();
+    // 583: wrong passwords typed with a name that is no account (SignInLockout).
+    public DbSet<SignInNameLock> SignInNameLocks => Set<SignInNameLock>();
     public DbSet<AgentFollowUpReminder> AgentFollowUpReminders => Set<AgentFollowUpReminder>();
     // 523 (slice 3): the adviser's invoice-reminder schedule, and the stages sent per invoice.
     public DbSet<ClientInvoiceReminderSettings> ClientInvoiceReminderSettings => Set<ClientInvoiceReminderSettings>();
@@ -631,6 +633,40 @@ public class IPRODbContext : DbContext
         {
             e.HasKey(n => n.Key);
             e.Property(n => n.Key).HasMaxLength(120);
+        });
+
+        // 583: the sign-in lock columns belong to SignInLockout's own statements. A save of a row
+        // loaded earlier (an adviser's client edit, SuperAdmin's agent Edit, a sign-in's LastLoginAt)
+        // writes every column it holds, and would put back a count read before the wrong passwords
+        // that came since -- or clear a lock set a moment ago. Ignore = never written by a save.
+        modelBuilder.Entity<AgentUser>(e =>
+        {
+            e.Property(u => u.FailedSignInCount).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(u => u.SignInLockedUntil).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(u => u.SignInLockNoticeAt).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+        });
+        modelBuilder.Entity<TeamMember>(e =>
+        {
+            e.Property(t => t.FailedSignInCount).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(t => t.SignInLockedUntil).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(t => t.SignInLockNoticeAt).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+        });
+        modelBuilder.Entity<Client>(e =>
+        {
+            e.Property(c => c.FailedSignInCount).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(c => c.SignInLockedUntil).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(c => c.SignInLockNoticeAt).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+        });
+        modelBuilder.Entity<AdminUser>(e =>
+        {
+            e.Property(a => a.FailedSignInCount).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(a => a.SignInLockedUntil).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+        });
+        modelBuilder.Entity<SignInNameLock>(e =>
+        {
+            e.HasKey(n => n.NameKey);
+            e.Property(n => n.NameKey).HasMaxLength(80);
+            e.HasIndex(n => n.LastFailedAt);
         });
 
         // 452: the invoice's email log. Cascades with the invoice; ProviderMessageId is indexed because

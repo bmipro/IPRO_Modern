@@ -36,6 +36,11 @@ public class AgentUser
     public DateTime? PasswordChangedAt { get; set; }
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiresAt { get; set; }
+    // 583: wrong passwords in a row, the end of a sign-in lock, and when the lock email last went out.
+    // SignInLockout's own statements write these; a save of this row never does (IPRODbContext).
+    public int FailedSignInCount { get; set; }
+    public DateTime? SignInLockedUntil { get; set; }
+    public DateTime? SignInLockNoticeAt { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }

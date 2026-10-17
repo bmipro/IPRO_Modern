@@ -104,6 +104,7 @@ public class ClientsController : Controller
         ViewBag.Comments = comments;
         ViewBag.Timeline = BuildClientTimeline(client, comments);
         ViewBag.PortalAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 583: a portal lock's time
         // 457: the client portal's address on THIS agent's domain, shown on the card whether the
         // client is invited or active, so the agent always has it to hand.
         var clientPortalBase = await ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration);
@@ -482,6 +483,18 @@ public class ClientsController : Controller
         // messages, an account, a key) is dropped before the row is added; categories come from the
         // database below.
         IPRO.DataAccess.PostedRecord.Clean(_db, model);
+        // 583: a new contact has no portal sign-in until they are invited and choose a password themselves
+        // (InvitePortal, then Activate). A posted password hash or invitation would skip both, and the
+        // Client Portal package check with them; the sign-in lock's own columns are SignInLockout's.
+        model.PortalPasswordHash = null;
+        model.PortalInviteToken = null;
+        model.PortalInviteTokenExpiresAt = null;
+        model.PortalInviteEmailedAt = null;
+        model.PortalInviteEmailError = null;
+        model.PortalActivatedAt = null;
+        model.FailedSignInCount = 0;
+        model.SignInLockedUntil = null;
+        model.SignInLockNoticeAt = null;
         model.AgentUserId = AgentId;
         model.CreatedAt = DateTime.UtcNow;
         model.UpdatedAt = DateTime.UtcNow;

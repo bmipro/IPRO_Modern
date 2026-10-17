@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IPRO.Business.Interfaces;
+using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authentication;
@@ -18,12 +19,18 @@ public class AdminController : Controller
     private readonly IUnitOfWork _uow;
     private readonly IPasswordHasher<AdminUser> _hasher;
     private readonly IAdminAuditLogService _auditLog;
+    private readonly ILogger<AdminController> _logger;
 
-    public AdminController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher, IAdminAuditLogService auditLog)
+    // 583: the same sentence for every admin name and for a name that is no admin.
+    public const string LockedMessage =
+        "Sign-in with this name is locked for 15 minutes after 5 wrong passwords in a row. Another Super Admin can unlock it under Admin Users.";
+
+    public AdminController(IUnitOfWork uow, IPasswordHasher<AdminUser> hasher, IAdminAuditLogService auditLog, ILogger<AdminController> logger)
     {
         _uow = uow;
         _hasher = hasher;
         _auditLog = auditLog;
+        _logger = logger;
     }
 
     // 492 (owner): /Admin and /Admin/ used to answer 404 on the admin host. The root is the dashboard,
@@ -36,17 +43,32 @@ public class AdminController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var normalizedUsername = (username ?? string.Empty).Trim();
         var user = await _uow.AdminUsers.FirstOrDefaultAsync(u => u.Username == normalizedUsername);
+        if (user != null && !SignInLockout.SameName(user.Username, normalizedUsername)) user = null;   // 583: by its letters
 
-        var verified = user != null && user.IsActive &&
-            _hasher.VerifyHashedPassword(user, user.PasswordHash, password ?? string.Empty) == PasswordVerificationResult.Success;
+        // 583: 5 wrong passwords in a row lock the name for 15 minutes (SignInLockout); a locked
+        // account's password is not checked, and a name that is no admin counts the same way.
+        var candidates = user != null && user.IsActive
+            ? new[] { new SignInCandidate(new SignInAccount(SignInAccountKind.Admin, user.Id),
+                () => _hasher.VerifyHashedPassword(user, user.PasswordHash, password ?? string.Empty) == PasswordVerificationResult.Success) }
+            : Array.Empty<SignInCandidate>();
+        var attempt = await SignInLockout.TryAsync(_uow.Context, SignInDoor.Admin, normalizedUsername, candidates, DateTime.UtcNow);
+        SignInLockout.LogLocks(_logger, attempt, SignInDoor.Admin, IPRO.Utility.RateLimitVisitor.Key(HttpContext));
+        var verified = attempt.Succeeded;
 
         if (!verified)
         {
-            await _auditLog.LogAsync(user?.Id ?? 0, user?.Username ?? "unknown", "LoginFailed", $"Failed login attempt for username '{normalizedUsername}'.");
-            await Task.Delay(1500); // Slow brute force
-            ModelState.AddModelError("", "Invalid credentials.");
+            var shownName = normalizedUsername.Length > 100 ? normalizedUsername[..100] : normalizedUsername;
+            await _auditLog.LogAsync(user?.Id ?? 0, user?.Username ?? "unknown", "LoginFailed",
+                $"Failed login attempt for username '{shownName}'.{(attempt.Locked ? " Sign-in for this name is locked." : string.Empty)}");
+            if (attempt.LockedNow.Count > 0 || attempt.UnknownNameLockedNow)
+                await _auditLog.LogAsync(user?.Id ?? 0, user?.Username ?? "unknown", "SignInLocked",
+                    $"Sign-in for '{shownName}' locked for 15 minutes after 5 wrong passwords in a row.");
+            // Every refusal answers 1.5 seconds after the request began, however little it took to decide.
+            await SignInLockout.PadAsync(started);
+            ModelState.AddModelError("", attempt.Locked ? LockedMessage : "Invalid credentials.");
             return View();
         }
 

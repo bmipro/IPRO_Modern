@@ -18,5 +18,9 @@ public class TeamMember
     public bool MustChangePassword { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
+    // 583: the sign-in lock (SignInLockout writes these; a save of this row never does).
+    public int FailedSignInCount { get; set; }
+    public DateTime? SignInLockedUntil { get; set; }
+    public DateTime? SignInLockNoticeAt { get; set; }
     public AgentUser AgentUser { get; set; } = null!;
 }
