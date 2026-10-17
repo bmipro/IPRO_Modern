@@ -21,6 +21,8 @@ public sealed class BuilderImportIndexViewModel
     public double StorageUsedMb { get; init; }
     public int StorageLimitMb { get; init; }
     public string Zone { get; init; } = string.Empty;
+    // 585: the new builder (Beta) for this customer (null: never switched on).
+    public AgentBuilderBeta? Beta { get; init; }
 }
 
 public sealed class BuilderImportReviewViewModel

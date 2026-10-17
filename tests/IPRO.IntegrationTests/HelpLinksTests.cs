@@ -18,7 +18,7 @@ public class HelpLinksTests
     // website, sign-in, webhooks, status pages, prospect previews, token-link endpoints.
     private static readonly HashSet<string> NotAgentScreens = new(StringComparer.OrdinalIgnoreCase)
     {
-        "AzureEmailEvents", "ClientDocument", "ClientPortal", "ClientPortalAccount", "ClientPortalAppointments",
+        "AzureEmailEvents", "BuilderApi", "ClientDocument", "ClientPortal", "ClientPortalAccount", "ClientPortalAppointments",
         "ClientPortalDocuments", "ClientPortalMessages", "ClientPortalPreferences", "ClientPortalProfile",
         "EmailPreferences", "EmailTracking", "Error", "Home", "PaymentsWebhook", "PollVote", "Preview", "PublicWebsite", "SesEmailEvents", "TestimonialRequest",
     };

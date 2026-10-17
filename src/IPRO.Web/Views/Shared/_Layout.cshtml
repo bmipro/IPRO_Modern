@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 @inject IPRO.Business.Interfaces.IPackageEntitlementService PackageEntitlements
+@inject Microsoft.Extensions.Configuration.IConfiguration StagingLayoutConfiguration
 @{
     var navAccess = new Dictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>();
     var isAccessGated = false;
@@ -174,6 +175,11 @@
     </style>
 </head>
 <body>
+@if (IPRO.Utility.StagingGuard.IsStaging(StagingLayoutConfiguration))
+{
+  @* 585: a staging copy says so on every screen. *@
+  <div role="note" style="background:#ffd23f;color:#1d1d1d;text-align:center;font-weight:700;padding:6px 12px;">STAGING: a test copy of iPro. Nothing here is real; email goes only to test addresses.</div>
+}
 @if (User.Identity?.IsAuthenticated == true)
 {
 <aside class="agent-sidebar" id="agentSidebar">

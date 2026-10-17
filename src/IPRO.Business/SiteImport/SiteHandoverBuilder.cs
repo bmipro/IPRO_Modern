@@ -31,10 +31,20 @@ public sealed record HandoverImage(string Ref, string Url, string Sha256, long B
 // 577: a menu label longer than the builder takes (contract section 3: 40 characters) goes shortened.
 // SentLabel is what the builder was given, Label the page's own label then; both are null for a page
 // whose own label went (and the record of such a page reads as it did before 577).
+// 585: Sections, the rows of the page's sections at the hand-over ("12,15,18"), so a section added in
+// iPro since is known for one when the package comes back (null on a record made before 585). A string,
+// not a list, so two records of the same page are equal.
 public sealed record HandoverPage(
     int Id, string Slug, string Fingerprint = "",
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Label = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SentLabel = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SentLabel = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Sections = null)
+{
+    public IReadOnlySet<int> SectionIds() =>
+        (Sections ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => int.TryParse(part, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id) ? id : 0)
+            .Where(id => id > 0).ToHashSet();
+}
 
 public sealed record HandoverForm(WebsiteForm Form, IReadOnlyList<WebsiteFormField> Fields, IReadOnlyDictionary<int, IReadOnlyList<string>> Options);
 
@@ -473,8 +483,8 @@ public static class SiteHandoverBuilder
             FileName = $"ipro-handover-{templateName}-{issuedAt:yyyyMMdd-HHmm}.zip",
             Delivered = delivered,
             Pages = pagesOut.Select(p => shortenedIds.Contains(p.Page.Id)
-                ? new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id], p.Page.NavigationLabel ?? string.Empty, sentLabel[p.Page.Id])
-                : new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id])).ToList(),
+                ? new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id], p.Page.NavigationLabel ?? string.Empty, sentLabel[p.Page.Id], SectionIds(p.Page))
+                : new HandoverPage(p.Page.Id, p.Page.Slug, fingerprints[p.Page.Id], Sections: SectionIds(p.Page))).ToList(),
             LogoUrl = input.Site.LogoUrl ?? string.Empty,
             AllowedBlockTypes = allowed,
             ArticleIds = articleIds.OrderBy(id => id).ToList(),
@@ -482,6 +492,10 @@ public static class SiteHandoverBuilder
             HostSections = hostSections
         };
     }
+
+    // 585: the rows of a page's sections as it is handed over (HandoverPage.Sections).
+    private static string SectionIds(WebsitePage page) =>
+        string.Join(",", page.Blocks.Select(b => b.Id).Where(id => id > 0).OrderBy(id => id).Select(id => id.ToString(System.Globalization.CultureInfo.InvariantCulture)));
 
     // Section 4.10: a locked box. Every field empty; the section it stands for is named by number.
     private static Dictionary<string, object?> HostBlock(int id, int sortOrder, bool isVisible) => new()

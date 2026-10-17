@@ -160,7 +160,12 @@ public sealed class SiteImportPlan
         // 581. movedFrom: the operator's word on a package page at a new address, by that address: the
         // row of the page it is (MoveCandidate.RowId), or 0 for a new page. A page not named is
         // matched as the plan can tell.
-        IReadOnlyDictionary<string, int>? movedFrom = null)
+        IReadOnlyDictionary<string, int>? movedFrom = null,
+        // 585. sectionsAtHandover: for a page that is the row it was at the hand-over, the rows of the
+        // sections it had then. A section of a kind the builder carries that is not among them was added
+        // in iPro after the hand-over: the package cannot have it, so it is named like a host section
+        // the package does not bring back, and can be kept.
+        IReadOnlyDictionary<int, IReadOnlySet<int>>? sectionsAtHandover = null)
     {
         bool Carried(string type) => carriedTypes == null ? BuilderContract.BlockTypes.Contains(type, StringComparer.Ordinal) : carriedTypes.Contains(type);
         IReadOnlyList<string> Lost(IReadOnlyList<string> before) => before.Where(t => !Carried(t)).ToList();
@@ -543,6 +548,21 @@ public sealed class SiteImportPlan
                     copy.Id = TempId();
                     copy.WebsitePageId = page.Id;
                     page.Blocks.Add(copy);
+                }
+                // 585: a section of a kind the builder carries, added in iPro after the hand-over.
+                if (sectionsAtHandover != null && sectionsAtHandover.TryGetValue(row.Id, out var then))
+                {
+                    foreach (var added in row.Blocks.Where(x => Carried(x.BlockType) && !then.Contains(x.Id)).OrderBy(x => x.SortOrder).ThenBy(x => x.Id))
+                    {
+                        var kept = keepSectionIds?.Contains(added.Id) ?? false;
+                        going.Add(new SectionGoing(added.Id, added.BlockType, added.Heading ?? string.Empty, RemovedInBuilder: false, Kept: kept,
+                            Says: SiteFingerprint.OfSection(added)));
+                        if (!kept) continue;
+                        var copy = HandoverHostSection.Copy(added, next++);
+                        copy.Id = TempId();
+                        copy.WebsitePageId = page.Id;
+                        page.Blocks.Add(copy);
+                    }
                 }
                 if (going.Any(g => g.Kept) && page.Blocks.Count > BuilderContract.MaxBlocksPerPage)
                 {

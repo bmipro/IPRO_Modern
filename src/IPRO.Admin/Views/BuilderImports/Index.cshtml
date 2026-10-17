@@ -16,6 +16,37 @@
     <div class="text-muted">For @business. A site built in the builder is exported as one .zip file; this is where it comes into iPro.</div>
 </div>
 
+@* 585: the new builder (Beta) for this customer. *@
+<section class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3"><strong>The new builder (Beta) for this customer</strong>
+        @if (Model.Beta?.Enabled == true) { <span class="badge bg-success ms-1">On</span> } else { <span class="badge bg-light text-muted ms-1">Off</span> }
+    </div>
+    <div class="card-body">
+        <form asp-action="SetBeta" method="post" class="d-flex flex-wrap gap-4 align-items-center">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="agentId" value="@Model.Agent.Id" />
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="betaEnabled" name="enabled" value="true" @(Model.Beta?.Enabled == true ? "checked" : "") />
+                <label class="form-check-label" for="betaEnabled">On: they see "Try the new builder (Beta)" under My Website</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="betaAdviserPublishes" name="adviserPublishes" value="true" @(Model.Beta?.AdviserPublishes == true ? "checked" : "") />
+                <label class="form-check-label" for="betaAdviserPublishes">They publish what they send themselves (otherwise it waits below for review)</label>
+            </div>
+            <button type="submit" class="btn btn-outline-primary">Save</button>
+        </form>
+        @if (Model.Beta != null)
+        {
+            <div class="text-muted small mt-2">Last changed @When(Model.Beta.ChangedAt) by @Model.Beta.ChangedBy.</div>
+        }
+        <ul class="text-muted small mt-3 mb-0">
+            <li>They get in from My Website with no second password. Turning it off ends their sessions in the builder at once; their website is not touched, and their draft stays in the builder (it is deleted after @IPRO.Business.SiteImport.BuilderBeta.KeepDays days unopened).</li>
+            <li>What they send arrives in the list below as "sent by the customer". Bring it in the usual way; they get an email when it is live. If they publish themselves, it goes in from their own review.</li>
+            <li>Whatever they make, the previous site can be put back: by them under My Website, or here.</li>
+        </ul>
+    </div>
+</section>
+
 @if (Model.Website == null)
 {
     <div class="alert alert-warning border-0 shadow-sm">This customer has no website yet, so there is nowhere to bring a site in. It is created the first time they open My Website.</div>
@@ -142,7 +173,7 @@ else
                         }
                         else
                         {
-                        <td><strong>@import.FileName</strong><div class="text-muted small">@import.TemplateName@(import.HandoverId.Length > 0 ? " (a return from the builder)" : " (built from scratch)")</div></td>
+                        <td><strong>@(import.Source == WebsiteBuilderImportSources.Customer ? "Sent by the customer from the new builder" : import.FileName)</strong><div class="text-muted small">@import.TemplateName@(import.HandoverId.Length > 0 ? " (a return from the builder)" : " (built from scratch)")</div></td>
                         <td>@When(import.CreatedAt)<div class="text-muted small">by @import.UploadedBy</div></td>
                         <td>@import.PageCount page@(import.PageCount == 1 ? "" : "s"), @import.BlockCount section@(import.BlockCount == 1 ? "" : "s")<div class="text-muted small">@import.NewImageCount new image@(import.NewImageCount == 1 ? "" : "s")</div></td>
                         }

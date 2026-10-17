@@ -1448,6 +1448,53 @@ public static class StartupSchemaRepair
         // 578: what the picture shows (its alt text on the website).
         await EnsureTableColumnAsync(db, "WebsiteMediaAssets", "Description",
             "ALTER TABLE `WebsiteMediaAssets` ADD COLUMN `Description` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        // 585: a package the adviser sent from the builder (Beta), and not a SuperAdmin's upload.
+        await EnsureTableColumnAsync(db, "WebsiteBuilderImports", "Source",
+            "ALTER TABLE `WebsiteBuilderImports` ADD COLUMN `Source` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+
+        // 585: the builder for customers (Beta): the switch per adviser (AgentBuilderBeta), the passes
+        // and sessions iPro gave the builder (WebsiteBuilderSession) and the erasures still owed to it
+        // (BuilderTenantErasure). Mirrors the EF model.
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AgentBuilderBeta` (
+        `AgentUserId` int NOT NULL,
+        `Enabled` tinyint(1) NOT NULL,
+        `AdviserPublishes` tinyint(1) NOT NULL,
+        `Tenant` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+        `ChangedAt` datetime(6) NOT NULL,
+        `ChangedBy` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        UNIQUE KEY `IX_AgentBuilderBeta_Tenant` (`Tenant`)
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `WebsiteBuilderSessions` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `AgentWebsiteId` int NOT NULL,
+        `Kind` varchar(10) CHARACTER SET utf8mb4 NOT NULL,
+        `TokenSha256` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `StartFresh` tinyint(1) NOT NULL,
+        `HandoverId` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `ExpiresAt` datetime(6) NOT NULL,
+        `UsedAt` datetime(6) NULL,
+        `EndedAt` datetime(6) NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_WebsiteBuilderSessions_TokenSha256` (`TokenSha256`),
+        KEY `IX_WebsiteBuilderSessions_AgentUserId` (`AgentUserId`),
+        KEY `IX_WebsiteBuilderSessions_ExpiresAt` (`ExpiresAt`)
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `BuilderTenantErasures` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `Tenant` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `Attempts` int NOT NULL,
+        `LastAttemptAt` datetime(6) NULL,
+        `LastError` varchar(300) CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_BuilderTenantErasures_Tenant` (`Tenant`)
+    ) CHARACTER SET=utf8mb4;");
     }
 
     // 498: the morning follow-ups email's switch and day-claim (AgentFollowUpReminder). A table of its

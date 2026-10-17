@@ -133,6 +133,10 @@ builder.Services.AddScoped<IEmailService>(sp => new RoutingEmailService(
     sp.GetRequiredService<SesEmailService>(),
     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EmailSettings>>(),
     sp.GetRequiredService<ILogger<RoutingEmailService>>()));
+// 585: a staging copy of iPro (App:Environment "Staging") does not start with settings that could reach a
+// real person or real money (StagingGuard), and emails only the addresses Email:OnlyTo names.
+StagingGuard.ThrowIfUnsafe(builder.Configuration);
+builder.Services.RestrictEmailTo(StagingGuard.OnlyTo(builder.Configuration));
 // 531: Amazon's delivery reports arrive through SNS; nothing in them is believed until it is signed.
 builder.Services.AddSingleton<IPRO.Web.Infrastructure.ISnsTrust>(sp =>
     new IPRO.Web.Infrastructure.SnsTrust(sp.GetRequiredService<IHttpClientFactory>()));
@@ -299,6 +303,19 @@ app.UseWhen(
     ctx => IPRO.Utility.StatusPagePolicy.ShouldRender(ctx.Request.Path.Value, ctx.Request.Headers.Accept.ToString()),
     branch => branch.UseStatusCodePagesWithReExecute("/error/{0}"));
 
+// 585: nothing a staging copy serves is for search engines.
+if (StagingGuard.IsStaging(app.Configuration))
+{
+    app.Use(async (context, next) =>
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+            return Task.CompletedTask;
+        });
+        await next();
+    });
+}
 app.UseSecurityHeaders();
 app.UseIpRateLimiting();
 app.UseHttpsRedirection();
@@ -546,6 +563,8 @@ RecurringJob.AddOrUpdate<CertificateExpiryJob>("certificate-expiry", job => job.
 // 474 (2026-09-11): a gzipped SQL dump of the whole database to the private db-backups container,
 // 30-day retention. 06:15 UTC is 02:15 Eastern, the quietest hour.
 RecurringJob.AddOrUpdate<DatabaseDumpJob>("database-dump", job => job.RunAsync(), "15 6 * * *");
+// 585: the new builder (Beta): erasures owed to it, looks whose hour is over, spent passes.
+RecurringJob.AddOrUpdate<BuilderBetaJob>("builder-beta", job => job.RunAsync(), "*/10 * * * *");
 }
 
 using (var scope = app.Services.CreateScope())

@@ -94,6 +94,11 @@
     </style>
 </head>
 <body>
+@if (IPRO.Utility.StagingGuard.IsStaging(AdminLayoutConfiguration))
+{
+  @* 585: a staging copy says so on every screen. *@
+  <div role="note" style="background:#ffd23f;color:#1d1d1d;text-align:center;font-weight:700;padding:6px 12px;">STAGING: a test copy of iPro. Nothing here is real; email goes only to test addresses.</div>
+}
 
 <!-- Sidebar -->
 <aside class="admin-sidebar">

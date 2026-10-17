@@ -513,3 +513,25 @@ Show your social profiles in the body of a page, larger than the footer icons (a
 3. Under **Layout**, choose **Icons only** or **Icons with names**.
 
 The block always shows the same links as the footer, so there is nothing to keep in sync. If the footer has no links yet, the block shows nothing to visitors and a reminder to you in the editor preview. Each link opens in a new tab.
+
+## Try the New Builder (Beta)
+
+The new website builder lets you change your pages visually: type on the page itself, add, move and hide sections, and see each page as it looks on a computer, a tablet and a phone. It is a Beta: iPro switches it on for you. When it is on, **My Website** has a **New website builder (Beta)** card.
+
+1. On **My Website**, click **Try the new builder (Beta)**. The builder opens with your website as it is now. You do not sign in again.
+2. Change your pages. **Save** keeps your draft; **Undo** and **Redo** (or Ctrl+Z and Ctrl+Y) step back and forward. Your draft stays in the builder between visits.
+3. Click **See it on my site** to see a page as your website would show it, in its own colours, fonts, header and menu. It opens in a new tab, works for an hour, and changes nothing.
+4. Click **Send to iPro**. Nothing on your website changes yet. While the Beta is new, iPro's team checks what you send and publishes it, and you get an email when it is live. If iPro has let you publish yourself, you go to a review: each page says what will happen, with a **Look** at each, and **Publish** makes it live.
+
+Good to know:
+
+- **Your website stays ordinary iPro pages.** The page editor keeps working on everything the builder made, and you can switch between the two.
+- **Put my previous site back** on the card undoes your changes from the builder, all at once. The card lists any page you changed since, because those changes go too.
+- **While you have a draft in the builder**, changes you make in the page editor to the same pages are replaced when the draft is published (the Pages list reminds you). A section you add in the page editor meanwhile is kept, at the end of its page.
+- **Continue my draft** reopens your draft; **Start again from my live site** replaces it with your website as it is now.
+- **Colours, fonts, the header and the menu** are set on **My Website**, as before. The builder shows your pages in them, and changes the words, pictures and sections.
+- Sections the builder does not have (a calculator, a map, a gallery, reviews and others) show as locked boxes: you can move, hide or remove them there, and change what they say in the page editor.
+- The builder offers your own pictures, the shared starter banners and a few pictures made for the builder. A new picture you upload counts against your storage.
+- The builder is made for a computer. On a phone, use the page editor.
+- A draft you do not open for 90 days is deleted. Your website is not affected.
+- A website with more than 30 pages, a page with more than 40 sections, or more than 40 MB of pictures cannot be opened in the builder; the builder says why.

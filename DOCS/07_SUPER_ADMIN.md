@@ -561,6 +561,40 @@ Good to know:
 - Article and custom-form sections cannot come from a from-scratch package: they point at one customer's
   own article or form. Add them in the page editor after the package is in.
 
+## The New Builder for Customers (Beta)
+
+The builder can be offered to a customer, who then edits their own website in it from **My Website**.
+It is switched on one customer at a time, on the agent's **Template Builder** screen, in the panel
+**The new builder (Beta) for this customer**:
+
+- **On** shows them a **New website builder (Beta)** card on My Website with **Try the new builder
+  (Beta)**. They get in with no second password: iPro gives their browser a pass that works once, for
+  ten minutes, and the builder's server trades it for a session of at most twelve hours.
+- **They publish what they send themselves** (off by default). Off: what they send arrives in the
+  list on this screen as **Sent by the customer from the new builder**, waiting for review; iPro's
+  mailbox (`Signups:NotificationEmail`, else `Support:NotificationEmail`) gets an email; review it
+  and **Bring it in** as usual, and the customer gets an email that it is live. On: they review it
+  themselves on a short page of their own (each page says what will happen, with a **Look**) and
+  publish it.
+- **Turning it off** ends their sessions in the builder at once. Their website is not touched, and
+  their draft stays in the builder; a draft not opened for 90 days is deleted.
+
+Good to know:
+
+- The review of a customer's package opens with every section they did not remove in the builder
+  ticked to stay: a section they added in the page editor while their draft was open is kept, at the
+  end of its page. Their own review keeps those the same way.
+- **Put my previous site back** is on their card as long as the builder's package is the newest on
+  the site, also after the Beta is turned off. It is the same put-back as on this screen.
+- While a customer has a draft open, their page list in the portal says that publishing it replaces
+  what they change there on the same pages.
+- "See it on my site" in the builder makes a look that works for an hour. Such looks are not listed
+  here and go by themselves.
+- Deleting the agent asks the builder to erase their draft (a job repeats the request until the
+  builder confirms it).
+- The builder's address is `Builder:BaseUrl` in the portal's settings and its shared key
+  `Builder:ServiceKey`. Without an address the card says the builder is not available yet.
+
 ## Monitor Domain Automation
 
 1. Select **Domains**.

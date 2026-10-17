@@ -14,6 +14,17 @@ public static class WebsiteBuilderImportStatus
     public const string Applied = "Applied";       // its pages are the site's pages
     public const string Discarded = "Discarded";   // dropped before it was brought in
     public const string Restored = "Restored";     // brought in, then the previous site was put back
+    // 585: "See it on my site" from the builder: stored only so the customer can look at it, never
+    // brought in; dropped when a newer one is made, when the site is sent, or after its look lapses.
+    public const string Preview = "Preview";
+}
+
+// 585: where a package came from. "" = a SuperAdmin uploaded it; Customer = the adviser sent it from the
+// builder (Beta), with the session iPro gave the builder.
+public static class WebsiteBuilderImportSources
+{
+    public const string Staff = "";
+    public const string Customer = "customer";
 }
 
 public class WebsiteBuilderImport
@@ -45,4 +56,6 @@ public class WebsiteBuilderImport
     // The one-hour key a SuperAdmin's "look at it" link carries. Empty = no look is open.
     public string PreviewKey { get; set; } = string.Empty;
     public DateTime? PreviewKeyExpiresAt { get; set; }
+    // 585: WebsiteBuilderImportSources.
+    public string Source { get; set; } = WebsiteBuilderImportSources.Staff;
 }

@@ -1,0 +1,99 @@
+name: Deploy main to STAGING (ipro-staging-web, ipro-staging-admin)
+# 585 (the owner's decision of 2026-10-17, "Builder + staging together"): every push to main goes to the
+# staging copy of iPro first, never to production. The owner checks it there; production is released
+# from the two "Release ... to production" workflows, by hand, for a commit staging is serving.
+#
+# Staging has its own database and storage and, by StagingGuard, emails only test addresses and takes
+# only PayPal sandbox money. Nothing here reaches production's apps.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+# One staging deploy at a time across both apps: web and admin run schema repair against the same
+# staging database at startup (the reason production's two workflows share a group too).
+concurrency:
+  group: deploy-ipro-staging
+  cancel-in-progress: false
+env:
+  STAGING_RESOURCE_GROUP: ipro-builder-staging
+  STAGING_WEB_APP: ipro-staging-web
+  STAGING_ADMIN_APP: ipro-staging-admin
+  STAGING_WEB_URL: https://ipro-staging-web.azurewebsites.net
+  STAGING_ADMIN_URL: https://ipro-staging-admin.azurewebsites.net
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+      - name: Restore dependencies
+        run: dotnet restore IPRO.sln
+      - name: Build
+        run: dotnet build IPRO.sln --configuration Release
+      - name: Publish both apps
+        run: |
+          dotnet publish src/IPRO.Web/IPRO.Web.csproj -c Release -o ./publish-web -p:SourceRevisionId=${{ github.sha }}
+          dotnet publish src/IPRO.Admin/IPRO.Admin.csproj -c Release -o ./publish-admin -p:SourceRevisionId=${{ github.sha }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: ./publish-web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: admin
+          path: ./publish-admin
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: ./web
+      - uses: actions/download-artifact@v4
+        with:
+          name: admin
+          path: ./admin
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_125A52B329834373956E555A056DFA8A }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F94B3760110944BDB097E394CD3F9702 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2102CCD4C4DB4B7590BD6CA997D6A93C }}
+      - name: Deploy the portal to staging
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.STAGING_WEB_APP }}
+          package: ./web
+      - name: Wait for the portal to serve this commit
+        run: |
+          for attempt in $(seq 1 30); do
+            actual=$(curl -fsS --max-time 10 "$STAGING_WEB_URL/health/version" 2>/dev/null || echo '')
+            if [ "$actual" = "${{ github.sha }}" ]; then echo "portal serving after $attempt check(s)"; exit 0; fi
+            if [ "$attempt" = "9" ]; then az webapp restart --name "$STAGING_WEB_APP" --resource-group "$STAGING_RESOURCE_GROUP"; fi
+            sleep 10
+          done
+          echo "::error::the staging portal is not serving ${{ github.sha }}"; exit 1
+      - name: Deploy SuperAdmin to staging
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.STAGING_ADMIN_APP }}
+          package: ./admin
+      - name: Wait for SuperAdmin to serve this commit
+        run: |
+          for attempt in $(seq 1 30); do
+            actual=$(curl -fsS --max-time 10 "$STAGING_ADMIN_URL/health/version" 2>/dev/null || echo '')
+            if [ "$actual" = "${{ github.sha }}" ]; then echo "SuperAdmin serving after $attempt check(s)"; exit 0; fi
+            if [ "$attempt" = "9" ]; then az webapp restart --name "$STAGING_ADMIN_APP" --resource-group "$STAGING_RESOURCE_GROUP"; fi
+            sleep 10
+          done
+          echo "::error::staging SuperAdmin is not serving ${{ github.sha }}"; exit 1

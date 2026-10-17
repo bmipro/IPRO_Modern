@@ -1,10 +1,15 @@
 name: Build and deploy ASP.Net Core app to Azure Web App - ipro-prod-admin
 
+# 585 (the owner's decision of 2026-10-17): production is no longer deployed by a push to main. A push
+# deploys STAGING (staging.yml); production is released from here, by hand, for one commit that is on
+# main and that staging is serving -- the build the owner checked there. Run it from the Actions tab
+# ("Run workflow", the commit's full SHA), the portal first, then SuperAdmin.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "The commit to release: its full SHA, on main, and the one staging is serving"
+        required: true
 
 # ONE deployment at a time ACROSS BOTH APPS — this group name is shared with
 # main_ipro-prod-web.yml on purpose (A2-H6). Web and Admin run schema repair against the SAME
@@ -25,6 +30,17 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+
+      - name: The commit is on main and is what staging serves
+        run: |
+          sha='${{ inputs.sha }}'
+          echo "$sha" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::give the full 40-character SHA"; exit 1; }
+          git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main"; exit 1; }
+          serving=$(curl -fsS --max-time 10 'https://ipro-staging-admin.azurewebsites.net/health/version' 2>/dev/null || echo '')
+          [ "$serving" = "$sha" ] || { echo "::error::staging serves '${serving:-nothing}', not $sha: deploy it to staging and check it there first"; exit 1; }
 
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
@@ -38,7 +54,7 @@ jobs:
         run: dotnet build IPRO.sln --configuration Release --no-restore
 
       - name: Publish admin app
-        run: dotnet publish src/IPRO.Admin/IPRO.Admin.csproj -c Release -o ./publish-admin -p:SourceRevisionId=${{ github.sha }}
+        run: dotnet publish src/IPRO.Admin/IPRO.Admin.csproj -c Release -o ./publish-admin -p:SourceRevisionId=${{ inputs.sha }}
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -99,7 +115,7 @@ jobs:
       # answering. Never restart an app that is in the middle of starting.
       - name: Restart only if the new package is not being served yet
         run: |
-          expected='${{ github.sha }}'
+          expected='${{ inputs.sha }}'
           url='https://admin.iproadvisers.com/health/version'
           for attempt in $(seq 1 9); do
             actual=$(curl -fsS --max-time 10 "$url" 2>/dev/null || echo '')
@@ -117,7 +133,7 @@ jobs:
       # /health only proves the app is up, which it was throughout the incident this guards against.
       - name: Verify the deployed build is actually serving
         run: |
-          expected='${{ github.sha }}'
+          expected='${{ inputs.sha }}'
           url='https://admin.iproadvisers.com/health/version'
           wait_for_build() {
             echo "waiting for $expected at $url"

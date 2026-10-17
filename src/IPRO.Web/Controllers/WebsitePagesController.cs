@@ -47,6 +47,9 @@ public class WebsitePagesController : Controller
             .OrderBy(p => p.SortOrder)
             .ThenBy(p => p.Title)
             .ToListAsync();
+        // 585: a draft of this site is open in the new builder (Beta): publishing it replaces what is
+        // changed here meanwhile on the same pages, so the list says so.
+        ViewBag.BuilderDraftSince = (await IPRO.Business.SiteImport.BuilderBeta.StateAsync(_db, website, DateTime.UtcNow)).OpenDraft?.IssuedAt;
         return View(pages);
     }
 

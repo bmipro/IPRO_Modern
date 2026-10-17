@@ -101,6 +101,9 @@ public class PublicWebsiteController : Controller
         // The three designs show a banner on a preview; this one says what this preview is, and
         // (576) whether the page shown comes from the package or stays as it is.
         ViewBag.PreviewBanner = "A look at a Template Builder package before it is brought in. " + model.PreviewNote + " Nothing on the site has changed.";
+        // 585: an adviser's own "See it on my site" from the builder is told it in their words.
+        if (import.Source == IPRO.Entities.WebsiteBuilderImportSources.Customer)
+            ViewBag.PreviewBanner = "This is how your website would show this page with your changes from the new builder. Nothing on your website has changed. Close this tab to go back to the builder.";
         Response.Headers.CacheControl = "no-store";
         Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
         return View("~/Views/PublicWebsite/Index.cshtml", model);

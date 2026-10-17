@@ -110,6 +110,11 @@
   </div>
 </div>
 
+@if (ViewBag.BuilderBeta is IPRO.Web.Models.WebsiteBuilderCardViewModel builderBeta)
+{
+  <partial name="_BuilderBetaCard" model="builderBeta" />
+}
+
 @if (templateRetired)
 {
   <div class="alert alert-warning border-0 shadow-sm mb-4">

@@ -16,6 +16,10 @@ public class IPRODbContext : DbContext
     public DbSet<WebsiteMediaAsset> WebsiteMediaAssets => Set<WebsiteMediaAsset>();
     public DbSet<WebsiteBuilderImport> WebsiteBuilderImports => Set<WebsiteBuilderImport>();
     public DbSet<WebsiteBuilderHandover> WebsiteBuilderHandovers => Set<WebsiteBuilderHandover>();
+    // 585: the builder for customers (Beta).
+    public DbSet<AgentBuilderBeta> AgentBuilderBetas => Set<AgentBuilderBeta>();
+    public DbSet<WebsiteBuilderSession> WebsiteBuilderSessions => Set<WebsiteBuilderSession>();
+    public DbSet<BuilderTenantErasure> BuilderTenantErasures => Set<BuilderTenantErasure>();
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<WebsiteStarterArticle> WebsiteStarterArticles => Set<WebsiteStarterArticle>();
@@ -447,8 +451,37 @@ public class IPRODbContext : DbContext
             e.Property(i => i.UploadedBy).HasMaxLength(100);
             e.Property(i => i.AppliedBy).HasMaxLength(100);
             e.Property(i => i.PreviewKey).HasMaxLength(64);
+            e.Property(i => i.Source).HasMaxLength(20).HasDefaultValue(WebsiteBuilderImportSources.Staff);
             e.HasIndex(i => i.AgentUserId);
             e.HasIndex(i => i.AgentWebsiteId);
+        });
+
+        // 585: the builder for customers (Beta). The switch, one row per adviser keyed by the adviser
+        // (no navigation, no foreign key: it goes with the account through AgentDataEraser); the passes
+        // and sessions iPro gave the builder, found by their token's hash; and the erasures still owed.
+        modelBuilder.Entity<AgentBuilderBeta>(e =>
+        {
+            e.ToTable("AgentBuilderBeta");
+            e.HasKey(b => b.AgentUserId);
+            e.Property(b => b.AgentUserId).ValueGeneratedNever();
+            e.Property(b => b.Tenant).HasMaxLength(40);
+            e.Property(b => b.ChangedBy).HasMaxLength(100);
+            e.HasIndex(b => b.Tenant).IsUnique();
+        });
+        modelBuilder.Entity<WebsiteBuilderSession>(e =>
+        {
+            e.Property(s => s.Kind).HasMaxLength(10);
+            e.Property(s => s.TokenSha256).HasMaxLength(64);
+            e.Property(s => s.HandoverId).HasMaxLength(20);
+            e.HasIndex(s => s.TokenSha256).IsUnique();
+            e.HasIndex(s => s.AgentUserId);
+            e.HasIndex(s => s.ExpiresAt);
+        });
+        modelBuilder.Entity<BuilderTenantErasure>(e =>
+        {
+            e.Property(x => x.Tenant).HasMaxLength(40);
+            e.Property(x => x.LastError).HasMaxLength(300);
+            e.HasIndex(x => x.Tenant);
         });
 
         // 572: sites handed to the Template Builder; found by the hand-over's id when a package comes

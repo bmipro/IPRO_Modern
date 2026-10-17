@@ -1,0 +1,105 @@
+@model IPRO.Web.Models.WebsiteBuilderReviewViewModel
+@using IPRO.Business.SiteImport
+@{
+    ViewData["Title"] = "Review your changes";
+    var plan = Model.Plan;
+    var blocked = plan.Problems.Count > 0;
+    string Address(string slug) => "/" + slug;
+}
+@* 585: an adviser's own review of what they sent from the new builder (Beta), for an adviser a
+   SuperAdmin lets publish. The choices iPro's staff have on their review are made here the safe way:
+   everything the adviser did not remove in the builder is kept. *@
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-eye me-2 text-primary"></i>Review your changes</h2>
+    <div class="text-muted">What publishing would do to your website, page by page. Nothing has changed yet.</div>
+  </div>
+  <a href="/portal/Website" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>My Website</a>
+</div>
+
+@if (blocked)
+{
+  <div class="alert alert-danger border-0 shadow-sm">
+    <strong>This cannot be published as it is.</strong>
+    <ul class="mb-0 mt-2">@foreach (var problem in plan.Problems) { <li>@problem</li> }</ul>
+  </div>
+}
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <p class="mb-3">Look at each page as your website would show it. <strong>Look</strong> opens in a new tab and works for an hour.</p>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th scope="col">Page</th><th scope="col">What happens</th><th scope="col"><span class="visually-hidden">Look</span></th></tr></thead>
+        <tbody>
+        @foreach (var item in plan.Pages)
+        {
+          var row = item.Page;
+          var kept = item.SectionsGoing.Where(g => g.Kept).ToList();
+          <tr>
+            <td><strong>@row.Title</strong><div class="small text-muted">@Address(row.Slug)</div></td>
+            <td>
+              @switch (item.Change)
+              {
+                case PageChange.Added:
+                  <span>A new page.</span>
+                  break;
+                case PageChange.Replaced when item.IsMoved:
+                  <span>Updated with your changes, at its new address (it was @Address(item.MovedFrom)).</span>
+                  break;
+                case PageChange.Replaced:
+                  <span>Updated with your changes.</span>
+                  break;
+                case PageChange.Removed:
+                  <span>Removed: you took it out in the builder.</span>
+                  break;
+                default:
+                  <span>Stays as it is.</span>
+                  break;
+              }
+              @if (item.ChangedSinceHandover && item.Change != PageChange.Kept)
+              {
+                <div class="small text-danger mt-1">You also changed this page in the page editor after you opened the builder. Publishing replaces those changes.</div>
+              }
+              @if (kept.Count > 0)
+              {
+                <div class="small text-muted mt-1">Kept from the page editor, at the end of the page: @string.Join(", ", kept.Select(g => SiteImportPlan.Named(g.BlockType, g.Title))).</div>
+              }
+              @foreach (var note in item.SettingsLost.Concat(item.MoveNotes).Concat(item.BoxNotes))
+              {
+                <div class="small text-muted mt-1">@note</div>
+              }
+            </td>
+            <td class="text-end">
+              @if (item.Change != PageChange.Removed && !blocked)
+              {
+                <a class="btn btn-sm btn-outline-primary" href="@(Model.LookAddress + Uri.EscapeDataString(row.Slug))" target="_blank" rel="noopener">Look</a>
+              }
+            </td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+    @if (plan.LogoChangedSinceHandover)
+    {
+      <p class="small text-danger mt-3 mb-0">You changed your logo after you opened the builder. Publishing puts back the logo the builder has.</p>
+    }
+  </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2">
+  @if (!blocked)
+  {
+    <form method="post" action="/portal/WebsiteBuilder/Publish/@Model.Import.Id">
+      @Html.AntiForgeryToken()
+      <input type="hidden" name="plan" value="@plan.Fingerprint" />
+      <button type="submit" class="btn btn-success js-confirm-submit" data-confirm-message="@(Model.SitePublished ? "Publish these changes? They are live on your website at once. You can put your previous site back afterwards." : "Bring these changes into your website? It is not published yet, so visitors see them once you publish it.")"><i class="fas fa-rocket me-1"></i>Publish</button>
+    </form>
+  }
+  <form method="post" action="/portal/WebsiteBuilder/Discard/@Model.Import.Id">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="btn btn-outline-secondary js-confirm-submit" data-confirm-message="Drop what you sent? Your website does not change, and your draft stays in the builder.">Drop it</button>
+  </form>
+</div>
+<p class="small text-muted mt-3">Colours, fonts, the header and the menu are your website's own, set under My Website. The builder changes the words, pictures and sections of your pages.</p>

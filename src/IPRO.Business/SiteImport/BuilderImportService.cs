@@ -52,6 +52,8 @@ public static class BuilderImportService
             .Select(a => a.ContentSha256)
             .Distinct()
             .ToListAsync()).ToHashSet(StringComparer.Ordinal);
+        // 585: a starter banner is never stored (StoreAsync links the shared file), so it uses no storage.
+        known.UnionWith(WebsiteStarterBannerHashes.FileBySha256.Keys);
         // A limit of zero or less means no limit, as in the page editor's own upload.
         var remaining = storageLimitBytes <= 0
             ? long.MaxValue
@@ -112,6 +114,13 @@ public static class BuilderImportService
             foreach (var image in package.Images.Values.OrderBy(i => i.Ref, StringComparer.Ordinal))
             {
                 if (byHash.ContainsKey(image.Sha256)) continue;
+                // 585: one of the page editor's own starter banners (the builder offers them too) is
+                // linked to the shared file, as the page editor links it, and never stored again.
+                if (WebsiteStarterBannerHashes.UrlFor(image.Sha256) is { } banner)
+                {
+                    byHash[image.Sha256] = (banner, 0);
+                    continue;
+                }
                 using var stream = new MemoryStream(image.Bytes, writable: false);
                 var url = await blob.UploadAsync(stream, image.FileName, MediaContainer, image.ContentType, isPrivate: false);
                 var asset = new WebsiteMediaAsset
@@ -230,6 +239,8 @@ public static class BuilderImportService
         HashSet<int>? handedOver = null;
         Dictionary<string, int>? rowBySlug = null;
         HashSet<int>? changed = null;
+        // 585: for each page that is the same row it was at the hand-over, the rows of the sections it had then.
+        Dictionary<int, IReadOnlySet<int>>? sectionsThen = null;
         var labels = new List<ShortenedLabel>();
         var logoChanged = false;
         // What this package could carry: a hand-over's own list, or (built from scratch) the types
@@ -246,6 +257,11 @@ public static class BuilderImportService
             handedOver = new HashSet<int>();
             rowBySlug = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             changed = new HashSet<int>();
+            sectionsThen = new Dictionary<int, IReadOnlySet<int>>();
+            // A package of this hand-over already brought in (or put back) wrote every section of its
+            // pages again: from then on no section can be told from one added since.
+            var rewritten = await db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.AgentWebsiteId == site.Id && i.Id != import.Id
+                && i.HandoverId == handover.HandoverId && (i.Status == WebsiteBuilderImportStatus.Applied || i.Status == WebsiteBuilderImportStatus.Restored));
             foreach (var was in recorded)
             {
                 // The row the page is today: its own, or -- after a put-back, which gives every page a
@@ -260,6 +276,11 @@ public static class BuilderImportService
                     continue;
                 }
                 rowBySlug[was.Slug] = row.Id;
+                // Only on its own row, and only while at least one of its sections then is still there:
+                // a put-back, a package brought in or a page rebuilt in SuperAdmin writes the sections of
+                // a page again under new rows, and then none of them could be told from one added since.
+                var then = was.SectionIds();
+                if (!rewritten && then.Count > 0 && row.Id == was.Id && row.Blocks.Any(b => then.Contains(b.Id))) sectionsThen[row.Id] = then;
                 var said = was.Fingerprint ?? string.Empty;
                 // A hand-over made before fingerprints were kept falls back on the times, sections included.
                 var differs = said.Length > 0
@@ -280,7 +301,7 @@ public static class BuilderImportService
         }
 
         var plan = SiteImportPlan.Build(package.Template, urls, site, pages, removePageIds ?? new HashSet<int>(), handedOver, keepPageIds, problems,
-            rowBySlug, changed, logoChanged, carried, SiteHandoverService.HostSections(handover), keepSectionIds, labels, movedFrom);
+            rowBySlug, changed, logoChanged, carried, SiteHandoverService.HostSections(handover), keepSectionIds, labels, movedFrom, sectionsThen);
         return new PlanResult(package, plan, site, handover);
     }
 
@@ -682,6 +703,49 @@ public static class BuilderImportService
         return true;
     }
 
+    // 585: drops a "See it on my site" look (status Preview), the way a waiting package is dropped: its
+    // pictures leave the media library unless something still uses them. False when it is not a look.
+    public static async Task<bool> DropPreviewAsync(IPRODbContext db, IBlobStorageService blob, WebsiteBuilderImport import)
+    {
+        Track(db, import);
+        var freed = new List<string>();
+        await using (var transaction = await db.Database.BeginTransactionAsync())
+        {
+            await HoldSiteAsync(db, import.AgentWebsiteId);
+            var claimed = await db.WebsiteBuilderImports
+                .Where(i => i.Id == import.Id && i.Status == WebsiteBuilderImportStatus.Preview)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Discarded));
+            if (claimed != 1) return false;
+            freed = await ReleaseImagesAsync(db, import);
+            import.Status = WebsiteBuilderImportStatus.Discarded;
+            import.ClosedAt = DateTime.UtcNow;
+            import.PreviewKey = string.Empty;
+            import.PreviewKeyExpiresAt = null;
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        foreach (var url in freed)
+        {
+            if (!await BlobReferences.IsReferencedAsync(db, url)) await blob.DeleteAsync(url);
+        }
+        return true;
+    }
+
+    // 585: the looks whose hour is over, dropped (a job runs this; a new look or a send drops the old
+    // ones at once). Returns how many went.
+    public static async Task<int> DropStalePreviewsAsync(IPRODbContext db, IBlobStorageService blob, DateTime now)
+    {
+        var stale = await db.WebsiteBuilderImports
+            .Where(i => i.Status == WebsiteBuilderImportStatus.Preview && (i.PreviewKeyExpiresAt == null || i.PreviewKeyExpiresAt < now))
+            .ToListAsync();
+        var dropped = 0;
+        foreach (var import in stale)
+        {
+            if (await DropPreviewAsync(db, blob, import)) dropped++;
+        }
+        return dropped;
+    }
+
     // The pictures this package added to the media library that nothing uses: their rows go here, and
     // the caller deletes each file afterwards if nothing references it. Used when a package is
     // dropped and when one is put back.
@@ -693,7 +757,8 @@ public static class BuilderImportService
         // Another package of this site that links the same image (it arrived with identical bytes).
         var others = await db.WebsiteBuilderImports.AsNoTracking()
             .Where(i => i.AgentWebsiteId == import.AgentWebsiteId && i.Id != import.Id
-                        && (i.Status == WebsiteBuilderImportStatus.Pending || i.Status == WebsiteBuilderImportStatus.Applied))
+                        && (i.Status == WebsiteBuilderImportStatus.Pending || i.Status == WebsiteBuilderImportStatus.Applied
+                            || i.Status == WebsiteBuilderImportStatus.Preview))
             .Select(i => i.AssetMapJson)
             .ToListAsync();
         var linkedElsewhere = others
@@ -739,8 +804,9 @@ public static class BuilderImportService
         key is { Length: 48 } && key.All(c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
 
     // Only a package still waiting has a look; once it is brought in the site itself is the look.
+    // 585: and a customer's "See it on my site" (status Preview), which is nothing but a look.
     public static bool LookIsOpen(WebsiteBuilderImport import, string? key, DateTime utcNow) =>
-        import.Status == WebsiteBuilderImportStatus.Pending
+        (import.Status == WebsiteBuilderImportStatus.Pending || import.Status == WebsiteBuilderImportStatus.Preview)
         && LookKeyLooksRight(key)
         && import.PreviewKey.Length == key!.Length
         && import.PreviewKeyExpiresAt.HasValue && import.PreviewKeyExpiresAt.Value >= utcNow

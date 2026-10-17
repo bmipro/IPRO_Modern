@@ -115,6 +115,8 @@ public static class AgentDataEraser
         // -- Website --
         ("WebsiteBuilderImports",       "AgentUserId = @agentId"), // 571: the record of a builder import goes with the adviser
         ("WebsiteBuilderHandovers",     "AgentUserId = @agentId"), // 572: and so does the record of a site handed to the builder
+        ("WebsiteBuilderSessions",      "AgentUserId = @agentId"), // 585: the passes and sessions iPro gave the builder for them
+        ("AgentBuilderBeta",            "AgentUserId = @agentId"), // 585: their Beta switch (the builder is told to erase their draft: see RunAsync)
         ("WebsiteContentBlocks",        "WebsitePageId IN (SELECT Id FROM WebsitePages WHERE AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId))"),
         ("WebsitePages",                "AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId)"),
         ("WebsiteMediaAssets",          "AgentWebsiteId IN (SELECT Id FROM AgentWebsites WHERE AgentUserId = @agentId)"),
@@ -299,6 +301,18 @@ public static class AgentDataEraser
         {
 
         var toDelete = eraseFinancialRecords ? Map.Concat(FinancialMap) : Map.AsEnumerable();
+
+        // 585: the builder (Beta) may hold a draft of this adviser's site, under the name iPro gave them
+        // (AgentBuilderBeta.Tenant). It is asked to erase it by a job that keeps asking until it has
+        // (BuilderTenantErasures), and the request is written here, with the shred, before the
+        // switch's row that holds the name is deleted.
+        if (execute && await TableExistsAsync(db, "AgentBuilderBeta", ct) && await TableExistsAsync(db, "BuilderTenantErasures", ct))
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO `BuilderTenantErasures` (`Tenant`, `CreatedAt`, `Attempts`, `LastError`) " +
+                "SELECT `Tenant`, UTC_TIMESTAMP(6), 0, '' FROM `AgentBuilderBeta` WHERE `AgentUserId` = {0}",
+                new object[] { agentId }, ct);
+        }
 
         foreach (var (table, where) in toDelete)
         {

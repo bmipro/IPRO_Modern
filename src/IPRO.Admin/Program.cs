@@ -74,6 +74,10 @@ else
 {
     builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 }
+// 585: a staging copy of iPro (App:Environment "Staging") does not start with settings that could reach a
+// real person or real money (StagingGuard), and emails only the addresses Email:OnlyTo names.
+StagingGuard.ThrowIfUnsafe(builder.Configuration);
+builder.Services.RestrictEmailTo(StagingGuard.OnlyTo(builder.Configuration));
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
@@ -172,6 +176,19 @@ app.UseWhen(
     ctx => IPRO.Utility.StatusPagePolicy.ShouldRender(ctx.Request.Path.Value, ctx.Request.Headers.Accept.ToString()),
     branch => branch.UseStatusCodePagesWithReExecute("/error/{0}"));
 
+// 585: nothing a staging copy serves is for search engines.
+if (StagingGuard.IsStaging(app.Configuration))
+{
+    app.Use(async (context, next) =>
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+            return Task.CompletedTask;
+        });
+        await next();
+    });
+}
 app.UseSecurityHeaders();
 app.UseIpRateLimiting();
 app.UseHttpsRedirection();

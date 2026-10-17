@@ -60,6 +60,27 @@ public class BuilderImportsController : Controller
         return model == null ? NotFound() : View(model);
     }
 
+    // 585: the new builder (Beta) for this customer: on or off, and whether they publish what they send
+    // themselves or iPro's staff review it first (the owner's decision 3 C: staff first). Turning it off
+    // ends their sessions in the builder at once; their website is not touched either way.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetBeta(int agentId, bool enabled, bool adviserPublishes)
+    {
+        if (!await _db.AgentUsers.AsNoTracking().AnyAsync(a => a.Id == agentId)) return NotFound();
+        var before = await BuilderBeta.FindAsync(_db, agentId);
+        var row = await BuilderBeta.SetAsync(_db, agentId, enabled, enabled && adviserPublishes, CurrentAdminUsername);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderBetaChanged",
+            Short($"The new builder (Beta) for agent id {agentId}: {(row.Enabled ? "ON" : "OFF")}" +
+                  $"{(row.Enabled ? (row.AdviserPublishes ? ", the customer publishes what they send" : ", iPro's staff review what they send") : string.Empty)}" +
+                  $" (was {(before?.Enabled == true ? "on" : "off")}{(before?.Enabled == true && before.AdviserPublishes ? ", publishing themselves" : string.Empty)})."));
+        TempData["Success"] = row.Enabled
+            ? (row.AdviserPublishes
+                ? "The new builder is on for this customer. They review and publish what they send."
+                : "The new builder is on for this customer. What they send waits here for review.")
+            : "The new builder is off for this customer. Their sessions in it have ended; their website is unchanged.";
+        return RedirectToAction(nameof(Index), new { agentId });
+    }
+
     // 572: the package of this site as it is now, for the builder to open. A site that does not fit
     // the contract is not handed over; the reasons are listed instead.
     [HttpPost, ValidateAntiForgeryToken]
@@ -171,6 +192,19 @@ public class BuilderImportsController : Controller
         var moves = BuilderImportService.ParseMoves(moved);
         var planned = await BuilderImportService.PlanAsync(_db, import, removed, kept, keptSections, moves);
         if (planned == null) return NotFound();
+        // 585: what a customer sent from the builder opens with every section they did not remove there
+        // ticked to stay (one they added in the page editor meanwhile, say), as their own review keeps
+        // them. Choices made on the screen since ("sections" given, "none" for none) are left as made.
+        if (sections == null && import.Source == WebsiteBuilderImportSources.Customer && planned.Plan != null)
+        {
+            var defaults = planned.Plan.Pages.SelectMany(p => p.SectionsGoing).Where(g => !g.RemovedInBuilder).Select(g => g.BlockId).ToHashSet();
+            if (defaults.Count > 0)
+            {
+                keptSections = defaults;
+                planned = await BuilderImportService.PlanAsync(_db, import, removed, kept, keptSections, moves);
+                if (planned == null) return NotFound();
+            }
+        }
 
         var designs = await _db.WebsiteTemplates.AsNoTracking().Where(t => t.IsActive || t.Id == planned.Site.TemplateId).OrderBy(t => t.Name).ToListAsync();
         if (design.HasValue && (design == planned.Site.TemplateId || designs.All(d => d.Id != design))) design = null;
@@ -209,7 +243,8 @@ public class BuilderImportsController : Controller
     // choices.
     [HttpPost, ValidateAntiForgeryToken]
     public IActionResult Choose(int id, int? design, int[]? without, int[]? keep = null, int[]? sections = null, string[]? moved = null) =>
-        RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections), moved = JoinedMoves(moved) });
+        // 585: "none" when every section box is cleared, so the review does not fall back on its defaults.
+        RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections) ?? "none", moved = JoinedMoves(moved) });
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Apply(int id, int? design, int[]? without, int[]? keep = null, string? plan = null, int[]? sections = null, string[]? moved = null)
@@ -248,6 +283,9 @@ public class BuilderImportsController : Controller
                 ? RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections), moved = JoinedMoves(moved) })
                 : RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
         }
+
+        // 585: a customer who sent their site from the builder hears that it is live.
+        if (import.Source == WebsiteBuilderImportSources.Customer) await TellCustomerItIsLiveAsync(import);
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportApplied",
             Short($"Brought Template Builder package \"{import.FileName}\" (import id {import.Id}) into agent id {import.AgentUserId}'s website: " +
@@ -333,6 +371,21 @@ public class BuilderImportsController : Controller
         return RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
     }
 
+    private async Task TellCustomerItIsLiveAsync(WebsiteBuilderImport import)
+    {
+        try
+        {
+            var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == import.AgentUserId);
+            if (agent == null || string.IsNullOrWhiteSpace(agent.Email)) return;
+            var notice = IPRO.Email.BuilderBetaNotice.Published(agent, _configuration);
+            await _services.GetRequiredService<IPRO.Email.IEmailService>().SendAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(), notice.Subject, notice.Html, notice.Text);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "The customer was not told that builder package {ImportId} is live", import.Id);
+        }
+    }
+
     private async Task<BuilderImportIndexViewModel?> IndexModelAsync(
         int agentId, IReadOnlyList<ImportProblem>? problems = null, string refusedFileName = "", IReadOnlyList<string>? handoverBlockers = null)
     {
@@ -342,7 +395,8 @@ public class BuilderImportsController : Controller
         var imports = site == null
             ? new List<WebsiteBuilderImport>()
             : await _db.WebsiteBuilderImports.AsNoTracking()
-                .Where(i => i.AgentWebsiteId == site.Id)
+                // 585: a customer's "See it on my site" is a look, not a package: not listed.
+                .Where(i => i.AgentWebsiteId == site.Id && i.Status != WebsiteBuilderImportStatus.Preview)
                 .OrderByDescending(i => i.Id)
                 .Take(30)
                 // The page lists packages; the long columns are read only where they are used.
@@ -351,7 +405,7 @@ public class BuilderImportsController : Controller
                     Id = i.Id, AgentUserId = i.AgentUserId, AgentWebsiteId = i.AgentWebsiteId, Status = i.Status, FileName = i.FileName, PackageSha256 = i.PackageSha256,
                     TemplateName = i.TemplateName, Theme = i.Theme, HandoverId = i.HandoverId, PageCount = i.PageCount, BlockCount = i.BlockCount,
                     NewImageCount = i.NewImageCount, NewImageBytes = i.NewImageBytes, UploadedBy = i.UploadedBy, AppliedBy = i.AppliedBy,
-                    CreatedAt = i.CreatedAt, AppliedAt = i.AppliedAt, ClosedAt = i.ClosedAt
+                    CreatedAt = i.CreatedAt, AppliedAt = i.AppliedAt, ClosedAt = i.ClosedAt, Source = i.Source
                 })
                 .ToListAsync();
         var capacity = await _entitlements.GetAccessAsync(agentId, PackageFeatureCodes.FileUploadCapacity);
@@ -367,7 +421,8 @@ public class BuilderImportsController : Controller
             HandoverBlockers = handoverBlockers ?? Array.Empty<string>(),
             StorageUsedMb = AgentStorage.ToMb(await AgentStorage.TotalBytesAsync(_db, agentId)),
             StorageLimitMb = AgentStorage.DisplayLimitMb(capacity.LimitValue),
-            Zone = AdminClock.Zone(_configuration)
+            Zone = AdminClock.Zone(_configuration),
+            Beta = await BuilderBeta.FindAsync(_db, agentId)
         };
     }
 

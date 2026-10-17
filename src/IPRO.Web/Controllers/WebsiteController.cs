@@ -45,7 +45,21 @@ public class WebsiteController : Controller
 
         var website = await _websites.GetByAgentIdAsync(AgentId);
         await LoadWebsiteContextAsync(website?.TemplateId);
+        // 585: the new builder (Beta) card, for an adviser a SuperAdmin switched it on for (or whose
+        // site has changes from it that can still be put back).
+        ViewBag.BuilderBeta = website == null ? null : await BuilderBetaCardAsync(website);
         return View(website);
+    }
+
+    private async Task<IPRO.Web.Models.WebsiteBuilderCardViewModel?> BuilderBetaCardAsync(AgentWebsite website)
+    {
+        var state = await IPRO.Business.SiteImport.BuilderBeta.StateAsync(_db, website, DateTime.UtcNow);
+        if (state.Beta?.Enabled != true && state.PutBack == null) return null;
+        var changed = state.PutBack == null
+            ? (IReadOnlyList<string>)Array.Empty<string>()
+            : await IPRO.Business.SiteImport.BuilderBeta.ChangedSinceAsync(_db, state.PutBack);
+        return new IPRO.Web.Models.WebsiteBuilderCardViewModel(state, WebsiteBuilderController.BuilderBaseUrl(_configuration) != null,
+            changed, IPRO.Business.SiteImport.BuilderBeta.KeepDays);
     }
 
     [HttpPost, ValidateAntiForgeryToken]

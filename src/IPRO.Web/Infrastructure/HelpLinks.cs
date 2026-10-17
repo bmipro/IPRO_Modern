@@ -52,6 +52,8 @@ public static class HelpLinks
         ["MarketingCalendar"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("marketing-calendar", "Help: the marketing calendar") },
         ["EmailActivity"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("email-activity", "Help: email activity") },
 
+        // 585: the new website builder (Beta): its review and its way in.
+        ["WebsiteBuilder"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("website-builder", "Help: the new builder (Beta)", "try-the-new-builder-beta") },
         ["Website"] = new(StringComparer.OrdinalIgnoreCase)
         {
             ["*"] = Article("website-builder", "Help: your website", "open-website-management"),
