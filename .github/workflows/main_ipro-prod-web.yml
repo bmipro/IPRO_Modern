@@ -60,6 +60,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    # 585: production's deployment identity trusts this repository only in its "production" environment
+    # (a federated credential for Environment "production", DOCS/BUILDER_AND_STAGING_RUNBOOK.md step A7),
+    # which asks the owner's approval before this job runs. A push to main, or any other job, gets no
+    # token that can deploy production.
+    environment: production
     permissions:
       id-token: write
       contents: read

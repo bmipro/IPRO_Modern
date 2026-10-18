@@ -1233,13 +1233,21 @@ this section applies to it, and no package changes because of it.
 
 **Who talks to whom.** The adviser's browser carries one thing from iPro to the builder: a one-time
 pass, in a form post. Everything else is the builder's **server** talking to iPro's, with the pass or
-the session token as a bearer token (`Authorization: Bearer <token>`). Neither token ever goes into an
-address, a log or the browser. iPro keeps only the SHA-256 of each.
+the session token as a bearer token (`Authorization: Bearer <token>`) **and** the secret the two servers
+share in the header `X-Ipro-Service-Key` (at least 32 characters; iPro's `Builder:ServiceKey`, the
+builder's `Hosting:ServiceKey`). Without that header, or with a wrong one, iPro's `builder-api`
+addresses answer `404`: they exist for the builder's server alone. Neither token ever goes into an
+address, a log or the browser. iPro keeps only the SHA-256 of each. The builder follows no redirect
+from iPro, and takes nothing but iPro's own answer, as described below, for an answer.
 
 1. **Open.** On My Website the adviser presses "Try the new builder (Beta)", "Continue my draft" or
    "Start again from my live site". iPro answers with a page whose form posts itself to
    `POST <builder>/open` with one field, `pass`: 32 random bytes, base64url without padding (43
-   characters). A pass works **once**, for **10 minutes**.
+   characters). A pass works **once**, for **10 minutes**, and not at all once the Beta was switched
+   off after it was issued. The builder takes the post only from iPro's own page: the browser's
+   `Origin` (or, without one, its `Referer`) must be iPro's address or one of the other names iPro's
+   portal answers on (the builder's `Hosting:IproOrigins`); anything else is refused before iPro is
+   asked.
 2. **Session.** The builder's server sends `POST <ipro>/builder-api/session` with the pass as bearer
    token. iPro answers `200` and:
 
@@ -1248,34 +1256,60 @@ address, a log or the browser. iPro keeps only the SHA-256 of each.
    | `tenant` | `t_` and 32 lower-case hex digits: the builder's name for this adviser, the same every time, pointing at nothing in iPro. Keep the adviser's draft and files under it |
    | `sessionToken` | 43 characters; the only credential the builder holds from here on |
    | `sessionExpiresAt` | ISO 8601 UTC, 12 hours after issue: the latest the session lasts |
-   | `handoverId` | the hand-over of the draft to continue, or `""` |
-   | `startFresh` | `true`: make a fresh draft (step 3). `false`: continue the draft of `handoverId` if the builder still has it, else make a fresh one |
+   | `current` | `{ handoverId, state, at }`: the site's newest hand-over (`""` when there is none), and where it stands: `"open"` (a package of it can still be sent), `"published"` (a package of it is on the website since `at`) or `"putBack"` (one went on and was taken back off at `at`) |
+   | `startFresh` | `true`: the adviser chose "Start again from my live site" |
    | `adviser` | the business name, for "Editing …" only |
    | `publishing` | `"staff"` (iPro's staff review what is sent) or `"adviser"` (the adviser reviews and publishes it) |
    | `returnTo` | the address of My Website on iPro's host, for "Back to iPro" |
    | `look` | `{ accent, background, font, headingSize, bodySize, buttons }`: the site's own colours (`#rrggbb`), font list, sizes in pixels and button shape (`rounded`, `square`, `pill`), so the canvas can draw the site as it looks. Display only: nothing of it travels back |
 
    `401 { "message": … }` for a pass that is unknown, used or expired, or when the Beta is no longer on
-   for the adviser or the account is closed. The builder shows the message and a link back.
-3. **Package.** `GET <ipro>/builder-api/handover` with the session token: `200`, the §9 hand-over
-   package of the site **as it is now**, made for this session. From then on the session works on that
-   hand-over: §9's "only the newest hand-over of a site can come back" applies, and a package of any
-   other hand-over is refused at steps 5 and 6. `422 { "message", "reasons": [ … ] }` when the site
-   cannot be handed over; each reason is a sentence for the adviser.
-4. **Still valid?** `GET <ipro>/builder-api/session` with the session token: `200` while the session
-   stands, `401` once it is over, ended, the Beta was switched off or the account closed. The builder
-   asks at least every **5 minutes** and ends its own session on `401`; when iPro cannot be reached it
-   carries on and asks again within the minute. The builder also ends a session unused for 2 hours.
+   for the adviser, the account is closed, its billing needs attention or its package no longer
+   includes the website. The builder shows the message and a link back.
+
+   **What the builder opens.** It decides, from what it holds and from `current`: it **continues** the
+   adviser's draft when `startFresh` is `false`, the draft is of `current.handoverId` and
+   `current.state` is `"open"`. Otherwise (no draft, the adviser chose to start again, the draft's
+   changes went onto the website or were put back, or the site was handed over again since) it makes a
+   **fresh** draft from a new hand-over (step 3), and the draft it had becomes the newest of the
+   adviser's versions: nothing the adviser made is thrown away. Restoring that version carries it onto
+   the new hand-over (its `handoverId` and `contractVersion` follow the new one, and each locked box
+   becomes the new hand-over's box of the same kind and title, else is removed), so it can be sent.
+   The editor says which of these happened. The builder records the adviser (`tenant`) before it writes
+   any of their files.
+   A session starts bound to `current.handoverId` while `current.state` is `"open"` (the draft the
+   builder continues is of that one), and to none otherwise.
+3. **Package.** `GET <ipro>/builder-api/handover` with the session token: `200` with
+   `Content-Type: application/zip`, the §9 hand-over package of the site **as it is now**, made for
+   this session. From then on the session works on that hand-over: §9's "only the newest hand-over of a
+   site can come back" applies, and a package of any other hand-over is refused at steps 5 and 6. What
+   the adviser sent or looked at of an earlier hand-over, and is still waiting, is withdrawn (it could
+   no longer be brought in). `422 { "message", "reasons": [ … ] }` when the site cannot be handed over;
+   each reason is a sentence for the adviser.
+4. **Still valid?** `GET <ipro>/builder-api/session` with the session token: `200 { "sessionExpiresAt" }`
+   while the session stands, `401` once it is over, ended, the Beta was switched off, the account
+   closed, its billing needs attention or its package no longer includes the website. The builder asks
+   at least every **5 minutes** and ends its own session on `401`. Only iPro's `200` with
+   `sessionExpiresAt` confirms a session; anything else (unreachable, busy, a redirect, a page that is
+   not iPro's answer) confirms nothing: the builder carries on, asks again within the minute, and ends
+   the session once **15 minutes** have passed since iPro last confirmed it. The builder also ends a
+   session unused for 2 hours (its editor keeps it in use while the adviser works, and saves their
+   changes when they step away or before the session's end).
 5. **See it on my site.** `POST <ipro>/builder-api/preview[?page=<slug>]` with the session token and a
    return-format ZIP (§1) as the body: `200 { "previewUrl", "expiresAt" }`. The address shows the page
-   (`page`, else the home page) through the site's real design, works for an hour, writes nothing to
-   the site and is hidden from search engines. Each preview replaces the one before it.
+   (`page`, else the home page) through the site's real design, with every section publishing would
+   keep, works for an hour, writes nothing to the site (its new pictures are files of its own, never
+   rows of the media library, and go with it) and is hidden from search engines. Each preview replaces
+   the one before it.
 6. **Send.** `POST <ipro>/builder-api/return` with the session token and the return ZIP: `202` and
    `{ "publishing": "staff", "message" }`, or `{ "publishing": "adviser", "reviewUrl", "message" }`
-   for an adviser who reviews it (the builder sends them there). Nothing on the site changes at this
-   step; publishing always happens in iPro, never in the builder. A send replaces the adviser's earlier
-   send that is still waiting. `422 { "message", "errors": [ { "page", "message" } ] }` when the package
-   breaks a rule of §7 (`page` names where, in iPro's words) or is not of the session's hand-over.
+   for an adviser who reviews it (the builder sends them there). Only that `202` with `publishing` is a
+   send that reached iPro. Nothing on the site changes at this step; publishing always happens in
+   iPro, never in the builder. A send replaces the adviser's earlier send that is still waiting (only an
+   earlier one: two arriving at once never drop each other). `422 { "message", "errors": [ { "page",
+   "message" } ] }` when the package breaks a rule of §7 (`page` names where, in iPro's words), is not
+   of the session's hand-over, or is of a hand-over whose changes already went onto the website (step 5
+   is refused the same way): the adviser opens the builder again, which opens the site as it is now.
 7. **Erase.** When an adviser's account is deleted, iPro calls `POST <builder>/internal/erase` with
    `{ "tenant": "t_…" }` and the header `X-Ipro-Service-Key` (a secret the two share, at least 32
    characters). The builder deletes that adviser's draft, versions, files and sessions and answers
@@ -1283,9 +1317,15 @@ address, a log or the browser. iPro keeps only the SHA-256 of each.
 
 Rules for the builder: it never asks the browser who the adviser is (the tenant comes from step 2
 only); a request without a session it opened gets nothing of any adviser; it keeps an adviser's draft
-for 90 days after their last visit and then deletes it; it offers no picture collection whose licence
-the owner has not confirmed; addresses iPro gives (`returnTo`, `previewUrl`, `reviewUrl`) are followed
-only when they are on iPro's own host.
+for 90 days after their last visit and then deletes it (iPro counts the same 90 days from the same
+visit, for "Continue my draft"); it offers no picture collection whose licence the owner has not
+confirmed; addresses iPro gives (`returnTo`, `previewUrl`, `reviewUrl`) are followed only when they are
+on iPro's own host; it loads no script or style from another server.
+
+Rules for iPro: while the Beta is on for an adviser, iPro's staff make no hand-over of that site
+themselves (the adviser's open draft could no longer be sent); the builder's server reaches iPro from
+one address for every adviser, so iPro's limit per address does not count `builder-api` (the service
+key decides there, and the builder limits each adviser's calls).
 
 ## 12. Round trip — what the host keeps and what it refuses (new in v0.4)
 
@@ -1382,6 +1422,12 @@ none of the three (until this document has a value for it).
   the session; a preview can name its page; iPro can ask the builder to erase an adviser. The paths
   changed from the placeholders (`/builder/...` became `/builder-api/...`). No package changes: every
   package the builder makes or opens is what it was, and a builder working from files is unaffected.
+  Revised the same day after three independent reviews: every `builder-api` call carries the servers'
+  shared key; iPro says where the site's newest hand-over stands (`current`, in place of `handoverId`)
+  and the builder decides whether a draft is continued, keeping a draft it does not continue as a
+  version; only iPro's own answers count, and an unconfirmed session ends after 15 minutes; `/open`
+  takes a post from iPro's page only; a hand-over whose changes went onto the website cannot be sent
+  again; a look writes no row to the media library; iPro makes no staff hand-over while the Beta is on.
 - **v0.5, second doc-only revision (2026-10-15)** — a page given a new `slug` in the builder came back
   as a new page with iPro's defaults, and the page it was went with its SEO title and description, its
   "show in menu" and "published" settings and its old address, without a word on the review. iPro now

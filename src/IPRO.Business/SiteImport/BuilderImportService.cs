@@ -82,10 +82,19 @@ public static class BuilderImportService
             SiteHandoverService.HostSections(handover).Select(h => h.Id).ToHashSet());
     }
 
+    // status and source (585): a package a customer sent from the builder is stored as theirs at once,
+    // and a "See it on my site" look (status Preview) is stored as a look with its key for the hour, in
+    // the same write: there is never a moment when either reads as a SuperAdmin's upload. A look's new
+    // pictures are files of their own and never rows of the media library: a look writes nothing to the
+    // site, and its files go when it is dropped (ReleaseImagesAsync).
     public static async Task<WebsiteBuilderImport> StoreAsync(
-        IPRODbContext db, IBlobStorageService blob, AgentWebsite site, BuilderPackage package, string fileName, string uploadedBy)
+        IPRODbContext db, IBlobStorageService blob, AgentWebsite site, BuilderPackage package, string fileName, string uploadedBy,
+        string status = WebsiteBuilderImportStatus.Pending, string source = WebsiteBuilderImportSources.Staff)
     {
         if (!package.IsValid) throw new InvalidOperationException("Only a package that passed every rule is stored.");
+        if (status is not (WebsiteBuilderImportStatus.Pending or WebsiteBuilderImportStatus.Preview))
+            throw new ArgumentException("A package is stored waiting, or as a look.", nameof(status));
+        var look = status == WebsiteBuilderImportStatus.Preview;
         var template = package.Template!;
 
         // Every picture the site already stores, by its content: the media library's, and for a
@@ -108,6 +117,7 @@ public static class BuilderImportService
         // The images and the package's row are recorded together or not at all. Storage is outside
         // the transaction: what was uploaded for a package that was not recorded is taken back out.
         var created = new List<WebsiteMediaAsset>();
+        var lookFiles = new List<(string Sha256, string Url, long Bytes)>();
         await using var transaction = await db.Database.BeginTransactionAsync();
         try
         {
@@ -123,6 +133,12 @@ public static class BuilderImportService
                 }
                 using var stream = new MemoryStream(image.Bytes, writable: false);
                 var url = await blob.UploadAsync(stream, image.FileName, MediaContainer, image.ContentType, isPrivate: false);
+                if (look)
+                {
+                    lookFiles.Add((image.Sha256, url, image.Length));
+                    byHash[image.Sha256] = (url, 0);
+                    continue;
+                }
                 var asset = new WebsiteMediaAsset
                 {
                     AgentWebsiteId = site.Id,
@@ -139,7 +155,7 @@ public static class BuilderImportService
             await db.SaveChangesAsync();
             foreach (var asset in created) byHash[asset.ContentSha256] = (asset.BlobUrl, asset.Id);
 
-            var createdHashes = created.Select(a => a.ContentSha256).ToHashSet(StringComparer.Ordinal);
+            var createdHashes = created.Select(a => a.ContentSha256).Concat(lookFiles.Select(f => f.Sha256)).ToHashSet(StringComparer.Ordinal);
             var stored = package.Images.Values
                 .OrderBy(i => i.Ref, StringComparer.Ordinal)
                 .Select(i => new StoredImage(i.Ref, byHash[i.Sha256].Url, byHash[i.Sha256].MediaAssetId, createdHashes.Contains(i.Sha256), i.Sha256, i.Length))
@@ -148,7 +164,8 @@ public static class BuilderImportService
             {
                 AgentUserId = site.AgentUserId,
                 AgentWebsiteId = site.Id,
-                Status = WebsiteBuilderImportStatus.Pending,
+                Status = status,
+                Source = source,
                 FileName = Clip(Path.GetFileName(fileName), 200),
                 PackageSha256 = package.Sha256,
                 TemplateName = template.TemplateName,
@@ -156,13 +173,18 @@ public static class BuilderImportService
                 HandoverId = template.HandoverId,
                 PageCount = template.Pages.Count,
                 BlockCount = template.Pages.Sum(p => p.Blocks.Count),
-                NewImageCount = created.Count,
-                NewImageBytes = created.Sum(a => a.FileSize),
+                NewImageCount = created.Count + lookFiles.Count,
+                NewImageBytes = created.Sum(a => a.FileSize) + lookFiles.Sum(f => f.Bytes),
                 TemplateJson = package.TemplateJson,
                 AssetMapJson = JsonSerializer.Serialize(stored),
                 UploadedBy = Clip(uploadedBy, 100),
                 CreatedAt = DateTime.UtcNow
             };
+            if (look)
+            {
+                import.PreviewKey = NewLookKey();
+                import.PreviewKeyExpiresAt = import.CreatedAt.Add(LookLifetime);
+            }
             db.WebsiteBuilderImports.Add(import);
             await db.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -176,6 +198,7 @@ public static class BuilderImportService
                 db.Entry(asset).State = EntityState.Detached;
                 await blob.DeleteAsync(asset.BlobUrl);
             }
+            foreach (var file in lookFiles) await blob.DeleteAsync(file.Url);
             throw;
         }
     }
@@ -748,29 +771,39 @@ public static class BuilderImportService
 
     // The pictures this package added to the media library that nothing uses: their rows go here, and
     // the caller deletes each file afterwards if nothing references it. Used when a package is
-    // dropped and when one is put back.
+    // dropped and when one is put back. 585: a look's own files (never rows of the media library) go
+    // the same way. A picture this package added that another package of the site still links becomes
+    // that package's own, so it leaves with the last of them rather than staying for ever.
     private static async Task<List<string>> ReleaseImagesAsync(IPRODbContext db, WebsiteBuilderImport import)
     {
         var freed = new List<string>();
         var site = await db.AgentWebsites.AsNoTracking().FirstOrDefaultAsync(w => w.Id == import.AgentWebsiteId);
         var mine = StoredImages(import).Where(i => i.Created).ToList();
-        // Another package of this site that links the same image (it arrived with identical bytes).
-        var others = await db.WebsiteBuilderImports.AsNoTracking()
+        // Other packages of this site that link the same image (they arrived with identical bytes).
+        var others = await db.WebsiteBuilderImports
             .Where(i => i.AgentWebsiteId == import.AgentWebsiteId && i.Id != import.Id
                         && (i.Status == WebsiteBuilderImportStatus.Pending || i.Status == WebsiteBuilderImportStatus.Applied
                             || i.Status == WebsiteBuilderImportStatus.Preview))
-            .Select(i => i.AssetMapJson)
+            .OrderBy(i => i.Id)
             .ToListAsync();
-        var linkedElsewhere = others
-            .SelectMany(json => StoredImages(new WebsiteBuilderImport { AssetMapJson = json }))
-            .Select(i => i.Url)
-            .ToHashSet(StringComparer.Ordinal);
 
         foreach (var image in mine)
         {
-            if (linkedElsewhere.Contains(image.Url)) continue;
+            var heir = others.FirstOrDefault(other => StoredImages(other).Any(i => i.Url == image.Url));
+            if (heir != null)
+            {
+                heir.AssetMapJson = JsonSerializer.Serialize(StoredImages(heir)
+                    .Select(i => i.Url == image.Url ? i with { Created = true, MediaAssetId = image.MediaAssetId } : i).ToList());
+                continue;
+            }
             if (site != null && string.Equals(site.LogoUrl, image.Url, StringComparison.Ordinal)) continue;
             if (await db.WebsiteContentBlocks.AnyAsync(b => b.WebsitePage.AgentWebsiteId == import.AgentWebsiteId && b.ImageUrl == image.Url)) continue;
+            if (image.MediaAssetId == 0)
+            {
+                // A look's own file.
+                freed.Add(image.Url);
+                continue;
+            }
             var asset = await db.WebsiteMediaAssets.FirstOrDefaultAsync(a => a.Id == image.MediaAssetId && a.AgentWebsiteId == import.AgentWebsiteId);
             if (asset == null) continue;
             db.WebsiteMediaAssets.Remove(asset);
@@ -793,12 +826,14 @@ public static class BuilderImportService
         var now = DateTime.UtcNow;
         if (import.PreviewKey.Length == 0 || import.PreviewKeyExpiresAt == null || import.PreviewKeyExpiresAt < now.AddMinutes(20))
         {
-            import.PreviewKey = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+            import.PreviewKey = NewLookKey();
             import.PreviewKeyExpiresAt = now.Add(LookLifetime);
             await db.SaveChangesAsync();
         }
         return import.PreviewKey;
     }
+
+    private static string NewLookKey() => Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
 
     public static bool LookKeyLooksRight(string? key) =>
         key is { Length: 48 } && key.All(c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'));

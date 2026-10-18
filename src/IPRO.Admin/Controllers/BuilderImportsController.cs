@@ -62,7 +62,8 @@ public class BuilderImportsController : Controller
 
     // 585: the new builder (Beta) for this customer: on or off, and whether they publish what they send
     // themselves or iPro's staff review it first (the owner's decision 3 C: staff first). Turning it off
-    // ends their sessions in the builder at once; their website is not touched either way.
+    // ends their sessions: the builder closes at its next check with iPro, within five minutes. Their
+    // website is not touched either way; what they sent and is waiting stays here for review.
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SetBeta(int agentId, bool enabled, bool adviserPublishes)
     {
@@ -73,11 +74,14 @@ public class BuilderImportsController : Controller
             Short($"The new builder (Beta) for agent id {agentId}: {(row.Enabled ? "ON" : "OFF")}" +
                   $"{(row.Enabled ? (row.AdviserPublishes ? ", the customer publishes what they send" : ", iPro's staff review what they send") : string.Empty)}" +
                   $" (was {(before?.Enabled == true ? "on" : "off")}{(before?.Enabled == true && before.AdviserPublishes ? ", publishing themselves" : string.Empty)})."));
+        var waiting = !row.Enabled && await _db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.AgentUserId == agentId
+            && i.Status == WebsiteBuilderImportStatus.Pending && i.Source == WebsiteBuilderImportSources.Customer);
         TempData["Success"] = row.Enabled
             ? (row.AdviserPublishes
                 ? "The new builder is on for this customer. They review and publish what they send."
                 : "The new builder is on for this customer. What they send waits here for review.")
-            : "The new builder is off for this customer. Their sessions in it have ended; their website is unchanged.";
+            : "The new builder is off for this customer. Their builder closes within five minutes; their website is unchanged."
+              + (waiting ? " What they sent is still waiting below: bring it in or drop it (they get an email either way)." : string.Empty);
         return RedirectToAction(nameof(Index), new { agentId });
     }
 
@@ -88,6 +92,13 @@ public class BuilderImportsController : Controller
     {
         var site = await _db.AgentWebsites.Include(w => w.AgentUser).Include(w => w.Template).FirstOrDefaultAsync(w => w.AgentUserId == agentId);
         if (site == null) return NotFound();
+        // 585: a customer with the new builder (Beta) on works on their own hand-over; a newer one made
+        // here would stop what they have open from being sent. Switch the Beta off first.
+        if (await BuilderBeta.IsOnAsync(_db, agentId))
+        {
+            TempData["Error"] = "This customer has the new builder (Beta) on, so their site is handed over there, to them. A hand-over made here would stop their draft from being sent. Switch the Beta off first if iPro is to work on the site.";
+            return RedirectToAction(nameof(Index), new { agentId });
+        }
 
         var allowed = SiteHandoverService.AllowedBlockTypes(
             articles: (await _entitlements.GetAccessAsync(agentId, PackageFeatureCodes.Newsletters)).IsIncluded,
@@ -279,13 +290,14 @@ public class BuilderImportsController : Controller
                 Short($"Template Builder package \"{import.FileName}\" (import id {id}) was NOT brought into agent id {import.AgentUserId}'s website: {result.Problems.FirstOrDefault()}"));
             TempData["Error"] = "The package was not brought in. " + string.Join(" ", result.Problems);
             var stillWaiting = await _db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.Id == id && i.Status == WebsiteBuilderImportStatus.Pending);
+            // 585: "none" when every section box was cleared, as Choose sends it, so the review comes back as it was left.
             return stillWaiting
-                ? RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections), moved = JoinedMoves(moved) })
+                ? RedirectToAction(nameof(Review), new { id, design, without = Joined(without), keep = Joined(keep), sections = Joined(sections) ?? "none", moved = JoinedMoves(moved) })
                 : RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
         }
 
-        // 585: a customer who sent their site from the builder hears that it is live.
-        if (import.Source == WebsiteBuilderImportSources.Customer) await TellCustomerItIsLiveAsync(import);
+        // 585: a customer who sent their site from the builder hears that it is on their website.
+        if (import.Source == WebsiteBuilderImportSources.Customer) await TellCustomerAsync(import, dropped: false, site.IsPublished);
 
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportApplied",
             Short($"Brought Template Builder package \"{import.FileName}\" (import id {import.Id}) into agent id {import.AgentUserId}'s website: " +
@@ -313,7 +325,10 @@ public class BuilderImportsController : Controller
         {
             await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "BuilderImportDiscarded",
                 Short($"Dropped Template Builder package \"{import.FileName}\" (import id {import.Id}) for agent id {import.AgentUserId} without bringing it in."));
-            TempData["Success"] = "The package was dropped. The site was never changed by it.";
+            // 585: a customer who sent it from the builder hears that it will not be published.
+            var customer = import.Source == WebsiteBuilderImportSources.Customer;
+            if (customer) await TellCustomerAsync(import, dropped: true, sitePublished: false);
+            TempData["Success"] = "The package was dropped. The site was never changed by it." + (customer ? " The customer was told by email." : string.Empty);
         }
         else
         {
@@ -371,18 +386,20 @@ public class BuilderImportsController : Controller
         return RedirectToAction(nameof(Index), new { agentId = import.AgentUserId });
     }
 
-    private async Task TellCustomerItIsLiveAsync(WebsiteBuilderImport import)
+    private async Task TellCustomerAsync(WebsiteBuilderImport import, bool dropped, bool sitePublished)
     {
         try
         {
             var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == import.AgentUserId);
             if (agent == null || string.IsNullOrWhiteSpace(agent.Email)) return;
-            var notice = IPRO.Email.BuilderBetaNotice.Published(agent, _configuration);
+            var notice = dropped
+                ? IPRO.Email.BuilderBetaNotice.Dropped(agent, import, _configuration)
+                : IPRO.Email.BuilderBetaNotice.Published(agent, _configuration, sitePublished);
             await _services.GetRequiredService<IPRO.Email.IEmailService>().SendAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(), notice.Subject, notice.Html, notice.Text);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "The customer was not told that builder package {ImportId} is live", import.Id);
+            _logger.LogWarning(ex, "The customer was not told about builder package {ImportId}", import.Id);
         }
     }
 

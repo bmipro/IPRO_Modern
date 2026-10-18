@@ -290,6 +290,11 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         ["ClientPortalAccountController.Activate"] = "the random token from the invitation decides; nothing to guess",
         ["ClientPortalAccountController.ChooseAccount"] = "acts only on the accounts this browser has just signed in to (kept in its session)",
         ["ClientPortalAccountController.Logout"] = "signs the visitor out; nothing to guess",
+        // 585: the builder's server alone, from one address: the secret the two servers share decides
+        // (no key, no door), then a one-time pass or a session token; the builder limits each customer.
+        ["BuilderApiController.Open"] = "the builder's server only: the shared service key decides, then a one-time pass",
+        ["BuilderApiController.Preview"] = "the builder's server only: the shared service key decides, then the session token",
+        ["BuilderApiController.Return"] = "the builder's server only: the shared service key decides, then the session token",
         // No method named, so a post reaches them too.
         ["NewsletterController.Unsubscribe"] = "the random token in the link decides; nothing to guess",
         ["AccountController.Logout"] = "signs the visitor out; nothing to guess",
@@ -308,6 +313,24 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         ["AdminController.Error"] = "the error page",
         ["ErrorController.Status"] = "the error page",
     };
+
+    // 585: the builder's server reaches iPro from one address for every adviser at once, so iPro's
+    // 120-a-minute limit per address does not count its doors (the service key decides there); every
+    // other address is counted as before, the same visitor included.
+    [Fact]
+    public async Task The_builders_doors_are_not_counted_against_one_address_and_everything_else_is()
+    {
+        var visitor = NewVisitor();
+        for (var i = 0; i < 125; i++)
+            Assert.Contains("BuilderApiController.Open (", await ReachedAsync(_servers.Web, HttpMethod.Post, "/builder-api/session", visitor));
+        for (var i = 0; i < 120; i++)
+            Assert.Contains("HomeController.Index (", await ReachedAsync(_servers.Web, HttpMethod.Get, "/", visitor));
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await SendAsync(_servers.Web, HttpMethod.Get, "/", visitor)).Status);
+
+        using var settings = JsonDocument.Parse(Read(@"src\IPRO.Web\appsettings.json"));
+        Assert.Equal(new[] { "*:/builder-api/*" },
+            settings.RootElement.GetProperty("IpRateLimiting").GetProperty("EndpointWhitelist").EnumerateArray().Select(e => e.GetString()).ToArray());
+    }
 
     [Fact]
     public void Every_anonymous_post_in_both_apps_carries_a_limit_or_a_stated_reason()

@@ -20,6 +20,10 @@ public class AgentBuilderBeta
     public string Tenant { get; set; } = string.Empty;
     public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
     public string ChangedBy { get; set; } = string.Empty;
+    // When the adviser last opened the builder (a pass traded for a session). The builder keeps a draft
+    // for BuilderBeta.KeepDays after the last visit and erases it then; My Website counts the same days
+    // from here, so "Continue my draft" is offered exactly while the builder still holds one.
+    public DateTime? LastOpenedAt { get; set; }
 }
 
 public static class WebsiteBuilderSessionKinds

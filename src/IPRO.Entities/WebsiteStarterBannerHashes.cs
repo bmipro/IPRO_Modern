@@ -3,7 +3,8 @@ namespace IPRO.Entities;
 // 585: the content hash (SHA-256, lower-case hex, as the importer writes it) of each starter banner the page editor offers. The new
 // builder (Beta) offers the same pictures; one that comes back from it is recognised by its bytes and
 // linked to the shared banner, as the page editor links it, instead of being stored again against the
-// adviser's storage. StarterBannerHashes585Tests holds this list to the files themselves.
+// adviser's storage. BuilderBeta585Tests (A_starter_banner_is_known_by_its_bytes) holds this list to
+// the files themselves.
 public static class WebsiteStarterBannerHashes
 {
     public static IReadOnlyDictionary<string, string> FileBySha256 { get; } = new Dictionary<string, string>(StringComparer.Ordinal)

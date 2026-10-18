@@ -30,20 +30,50 @@ public class StagingGuard585Tests
         var unsafeStaging = Settings(("App:Environment", "Staging"), ("PayPal:IsSandbox", "false"),
             ("AzureDomainAutomation:Enabled", "true"), ("APPLICATIONINSIGHTS_CONNECTION_STRING", "InstrumentationKey=x"));
         var problems = StagingGuard.Problems(unsafeStaging);
-        Assert.Equal(4, problems.Count);
+        Assert.Equal(6, problems.Count);
         Assert.Contains(problems, p => p.Contains("Email:OnlyTo"));
         Assert.Contains(problems, p => p.Contains("PayPal:IsSandbox"));
         Assert.Contains(problems, p => p.Contains("AzureDomainAutomation:Enabled"));
         Assert.Contains(problems, p => p.Contains("APPLICATIONINSIGHTS_CONNECTION_STRING"));
+        Assert.Contains(problems, p => p.StartsWith("App:BaseUrl is not set"));
+        Assert.Contains(problems, p => p.StartsWith("Signups:AdminBaseUrl is not set"));
         Assert.Throws<InvalidOperationException>(() => StagingGuard.ThrowIfUnsafe(unsafeStaging));
 
         // PayPal must say sandbox outright: missing is not safe.
-        Assert.Single(StagingGuard.Problems(Settings(("App:Environment", "staging"), ("Email:OnlyTo", "test@iproadvisers.com"))));
+        var noPayPal = Safe().Where(s => s.Key != "PayPal:IsSandbox").ToArray();
+        Assert.Contains("PayPal:IsSandbox", Assert.Single(StagingGuard.Problems(Settings(noPayPal))));
 
-        var safe = Settings(("App:Environment", "Staging"), ("Email:OnlyTo", "test@iproadvisers.com, @example.test"),
-            ("PayPal:IsSandbox", "true"), ("AzureDomainAutomation:Enabled", "false"));
-        Assert.Empty(StagingGuard.Problems(safe));
-        StagingGuard.ThrowIfUnsafe(safe);
+        StagingGuard.ThrowIfUnsafe(Settings(Safe()));
+        Assert.Empty(StagingGuard.Problems(Settings(Safe())));
+    }
+
+    // The settings of a staging copy set up as the runbook says.
+    private static (string Key, string Value)[] Safe() => new[]
+    {
+        ("App:Environment", "Staging"), ("Email:OnlyTo", "test@iproadvisers.com, @example.test"),
+        ("PayPal:IsSandbox", "true"), ("AzureDomainAutomation:Enabled", "false"),
+        ("App:BaseUrl", "https://ipro-staging-web.azurewebsites.net"), ("Signups:AdminBaseUrl", "https://ipro-staging-admin.azurewebsites.net"),
+        ("ConnectionStrings:DefaultConnection", "Server=ipro-mysql-staging.mysql.database.azure.com;Database=ipro_staging"),
+        ("Azure:StorageAccountName", "iprostoragestaging")
+    };
+
+    [Theory]
+    // Every name Application Insights reads a connection from.
+    [InlineData("ApplicationInsights:ConnectionString", "InstrumentationKey=x", "ApplicationInsights:ConnectionString is set")]
+    [InlineData("APPINSIGHTS_INSTRUMENTATIONKEY", "0000", "APPINSIGHTS_INSTRUMENTATIONKEY is set")]
+    [InlineData("ApplicationInsights:InstrumentationKey", "0000", "ApplicationInsights:InstrumentationKey is set")]
+    // An ending that is a whole public mail service.
+    [InlineData("Email:OnlyTo", "test@iproadvisers.com, @Gmail.com", "Email:OnlyTo has @gmail.com")]
+    // Links that would lead into production.
+    [InlineData("App:BaseUrl", "https://www.iproadvisers.com", "App:BaseUrl is www.iproadvisers.com, production's")]
+    [InlineData("Signups:AdminBaseUrl", "https://admin.iproadvisers.com/", "Signups:AdminBaseUrl is admin.iproadvisers.com, production's")]
+    // Production's data.
+    [InlineData("ConnectionStrings:DefaultConnection", "Server=ipro-mysql-prod.mysql.database.azure.com;Database=ipro", "names production's database server")]
+    [InlineData("Azure:StorageConnectionString", "AccountName=iprostorageprod;AccountKey=x", "Azure:StorageConnectionString names production's storage")]
+    public void A_staging_copy_never_reaches_production_by_its_settings(string key, string value, string said)
+    {
+        var settings = Safe().Where(s => s.Key != key).Append((key, value)).ToArray();
+        Assert.Contains(said, Assert.Single(StagingGuard.Problems(Settings(settings))));
     }
 
     [Fact]

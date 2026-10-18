@@ -16,7 +16,8 @@ namespace IPRO.Web.Controllers;
 // one-time pass and nothing else (BuilderBeta, CONTRACT.md section 11).
 //
 //   Open      "Try the new builder", "Continue my draft" or "Start again from my live site": a pass,
-//             carried to the builder by a form that sends itself.
+//             carried to the builder by a form that sends itself. Only "Start again" says anything
+//             to the builder (startFresh); whether a draft is continued is the builder's to decide.
 //   Review    what the adviser sent, page by page, with a look at each, for an adviser a SuperAdmin
 //             lets publish (the owner's decision 3 C; otherwise iPro's staff review it).
 //   Publish   brings it in, keeping everything the adviser did not remove in the builder.
@@ -62,11 +63,8 @@ public class WebsiteBuilderController : Controller
             return RedirectToAction("Index", "Website");
         }
 
-        var now = DateTime.UtcNow;
-        var state = await BuilderBeta.StateAsync(_db, gate.Site!, now);
-        var continueId = !startFresh && state.OpenDraft != null ? state.OpenDraft.HandoverId : string.Empty;
-        var pass = await BuilderBeta.IssuePassAsync(_db, gate.Site!, startFresh, continueId, now);
-        _logger.LogInformation("Agent {AgentId} opened the builder ({Kind})", AgentId, continueId.Length > 0 ? "continue" : "fresh");
+        var pass = await BuilderBeta.IssuePassAsync(_db, gate.Site!, startFresh, DateTime.UtcNow);
+        _logger.LogInformation("Agent {AgentId} opened the builder ({Kind})", AgentId, startFresh ? "start again" : "open");
         Response.Headers.CacheControl = "no-store";
         return View(new WebsiteBuilderOpenViewModel(builder + "/open", pass));
     }
@@ -221,6 +219,6 @@ public class WebsiteBuilderController : Controller
         return keep.Count == 0 ? first : await BuilderImportService.PlanAsync(_db, import, keepSectionIds: keep);
     }
 
-    private static HashSet<int> KeptSections(SiteImportPlan plan) =>
+    internal static HashSet<int> KeptSections(SiteImportPlan plan) =>
         plan.Pages.SelectMany(p => p.SectionsGoing).Where(g => !g.RemovedInBuilder).Select(g => g.BlockId).ToHashSet();
 }

@@ -31,7 +31,13 @@ database stopped when not in use.** The builder's database on production's serve
 
 **How releases work afterwards:** a push to main deploys **staging** (both apps), never production. You
 check staging. Production is released from GitHub's Actions tab, "Run workflow", with the commit's SHA:
-it refuses a commit staging is not serving. The builder works the same way in its own repository.
+it refuses a commit staging is not serving, and waits for your approval in GitHub before it deploys.
+The builder works the same way in its own repository.
+
+**Three deployment identities, not one** (step A7): staging's can deploy the staging apps and nothing
+else; production iPro's works only from GitHub's "production" environment, which asks you first; the
+production builder's can deploy `ipro-builder` and nothing else. So a push to main, or a change to a
+workflow file, can never put anything on production by itself.
 
 **What keeps staging away from real people and real money** (built into iPro, and checked at start-up:
 a staging copy set up wrongly does not start, and says why):
@@ -39,7 +45,9 @@ a staging copy set up wrongly does not start, and says why):
 - it emails only the addresses in `Email__OnlyTo` (every other email is written to its log, not sent);
 - PayPal is the sandbox only;
 - it never touches customers' domains;
-- no Application Insights;
+- no Application Insights (none of its settings, under any of their names);
+- its links lead to staging, never production (`App__BaseUrl` and `Signups__AdminBaseUrl` must be
+  staging's own), and it refuses production's database server and storage by name;
 - search engines are told to stay away, and every screen says STAGING;
 - its data starts empty: the schema and the starter content are made at its first start, and no
   production data is ever copied in.
@@ -71,17 +79,40 @@ a staging copy set up wrongly does not start, and says why):
 
    Do the same on `ipro-mysql-staging` (another new password). The builder makes its own tables at its
    first start.
-7. **Deployment rights:** the identity GitHub deploys with (the app registration behind iPro's
-   `AZUREAPPSERVICE_CLIENTID_...` secret) gets **Website Contributor** on the resource group
-   `ipro-builder-staging` (Access control (IAM) > Add role assignment). On that app registration,
-   **Certificates & secrets > Federated credentials > Add**: GitHub Actions, organization `bmipro`,
-   repository `IPRO.TemplateBuilder`, entity **Branch**, branch `main`.
+7. **Deployment rights: three identities.** Each is an app registration (Microsoft Entra ID > App
+   registrations > New registration; no secret is ever made for them: GitHub signs in with a
+   federated credential). Rights are given **on each app**, not on the resource group (the app's
+   Access control (IAM) > Add role assignment > **Website Contributor**).
+
+   a. **Staging** (`ipro-deploy-staging`, new): Website Contributor on `ipro-staging-web`,
+      `ipro-staging-admin` and `ipro-builder-staging`, and nothing else. Federated credentials
+      (Certificates & secrets > Federated credentials > Add > GitHub Actions): organization `bmipro`,
+      repository `IPRO_Modern`, entity **Branch**, branch `main`; and a second one for repository
+      `IPRO.TemplateBuilder`, entity **Branch**, branch `main`.
+   b. **Production builder** (`ipro-deploy-builder`, new): Website Contributor on `ipro-builder` only.
+      Federated credential: repository `IPRO.TemplateBuilder`, entity **Branch**, branch `main`. (That
+      repository is private, where GitHub's free plan has no environments; its production workflow runs
+      only when you start it, and only for a commit the staging builder serves. Check in its GitHub
+      settings, Collaborators, that nobody but you can write to it.)
+   c. **Production iPro** (the existing app registration behind `AZUREAPPSERVICE_CLIENTID_...`): add a
+      federated credential for repository `IPRO_Modern`, entity **Environment**, environment
+      `production`. In GitHub, `IPRO_Modern` > Settings > Environments > New environment `production`,
+      tick **Required reviewers** and add yourself. Its rights stay as they are (production's apps; it
+      gets nothing on the new group). **Do this before the first production release** (Part E): the
+      release workflows now run in that environment, and without this credential Azure refuses them.
+      After that first release has worked, delete this identity's old credential for entity
+      **Branch** `main`, so that nothing started by a push can get production's token.
+
+   Then the Actions secrets (IDs, not passwords): in `IPRO_Modern`, `AZURE_STAGING_CLIENT_ID` (the
+   Application (client) ID of a.); in `IPRO.TemplateBuilder`, `AZURE_STAGING_CLIENT_ID` (a.),
+   `AZURE_PRODUCTION_CLIENT_ID` (b.), `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`.
 8. **Sign-in in front of staging:** on `ipro-staging-admin` and on `ipro-staging-web`, **Authentication >
    Add identity provider > Microsoft**, as you did for production's SuperAdmin on 2026-09-12
    (DOCS/14 and TODO 482: require authentication, only you assigned). Then tell me, and on your word I
    exclude the addresses that must stay open: `/health,/health/version` on both, and `/builder-api` on
-   `ipro-staging-web` (the staging builder's server talks to it). The two builders need no such step:
-   nobody gets into a builder without a session from iPro.
+   `ipro-staging-web` (the staging builder's server talks to it; without the exclusion it gets the
+   sign-in page, takes that for no answer, and ends every session after 15 minutes). The two builders
+   need no such step: nobody gets into a builder without a session from iPro.
 
 ## Part B: settings (each app's Configuration > Application settings)
 
@@ -96,6 +127,8 @@ You paste every value. Names with `__` are written exactly so. Then tell me and 
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `ConnectionStrings__DefaultConnection` | staging MySQL, database `ipro_staging` (the same form as production's) |
 | `App__BaseUrl`, `App__PortalBaseUrl` | `https://ipro-staging-web.azurewebsites.net` |
+| `Signups__AdminBaseUrl` | `https://ipro-staging-admin.azurewebsites.net` (the links in staging's notices) |
+| `Signups__NotificationEmail` | your test address (where staging's "site sent for review" notices go) |
 | `Azure__StorageAccountName`, `Azure__StorageConnectionString` | the staging storage account's |
 | `Email__OnlyTo` | your test addresses, for example `test@iproadvisers.com` |
 | `PayPal__IsSandbox` | `true` |
@@ -113,7 +146,8 @@ sent at all until you want staging emails at your test address; then add it, and
 **`ipro-staging-admin`:** `App__Environment` = `Staging`, `ASPNETCORE_ENVIRONMENT` = `Production`, the
 same `ConnectionStrings__DefaultConnection`, `Azure__*`, `Email__OnlyTo`, `PayPal__IsSandbox` = `true`
 (and the sandbox `PayPal__ClientId`/`ClientSecret`), `AzureDomainAutomation__Enabled` = `false`,
-`App__PortalBaseUrl` = `https://ipro-staging-web.azurewebsites.net`, `WEBSITE_RUN_FROM_PACKAGE` = `1`,
+`App__BaseUrl` and `App__PortalBaseUrl` = `https://ipro-staging-web.azurewebsites.net`,
+`Signups__AdminBaseUrl` = `https://ipro-staging-admin.azurewebsites.net`, `WEBSITE_RUN_FROM_PACKAGE` = `1`,
 and `Admin__Username` / `Admin__Password`: the first SuperAdmin of the empty staging database (choose a
 new password; it is made once at the first start).
 
@@ -126,14 +160,23 @@ new password; it is made once at the first start).
 | `Hosting__Database` | `MySql` |
 | `ConnectionStrings__Builder` | `Server=ipro-mysql-prod.mysql.database.azure.com;Database=ipro_builder;User=ipro_builder;Password=...;SslMode=Required` |
 | `Hosting__IproBaseUrl` | `https://app.iproadvisers.com` |
+| `Hosting__IproOrigins__0` | only if advisers also open My Website at another address (for example `https://www.iproaccountants.com`): that address; `__1`, `__2` for more. Otherwise leave it out |
 | `Hosting__ServiceKey` | a new random key (B5), the same as production iPro's `Builder__ServiceKey` later |
 | `AllowedHosts` | `builder.iproadvisers.com` |
-| `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | `true` |
+
+(The builder reads Azure's forwarded headers itself, so the session cookie is always the secure kind.)
 
 **`ipro-builder-staging`:** the same names, with `ConnectionStrings__Builder` pointing at
 `ipro-mysql-staging` (its `ipro_builder` login), `Hosting__IproBaseUrl` =
 `https://ipro-staging-web.azurewebsites.net`, its own `Hosting__ServiceKey` (the staging portal's), and
 `AllowedHosts` = `ipro-builder-staging.azurewebsites.net`.
+
+Every call between the two servers carries this key: iPro's builder doors do not exist for a caller
+without it, and a builder whose key is missing or shorter than 32 characters does not start.
+
+**Later, not needed for the Beta:** the builder's key ring (`/home/builder-data/keys`, which protects
+the session tokens iPro gives it) is kept on the app's own disk, readable by anyone who can open the
+app's files in Azure. Protecting it with Azure Key Vault is a later step, if you want it.
 
 **B5. A random key** for `Hosting__ServiceKey` / `Builder__ServiceKey`: in PowerShell on your PC,
 `$b = New-Object byte[] 24; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | ForEach-Object { $_.ToString('x2') })`,
@@ -156,16 +199,15 @@ binding** with an **App Service Managed Certificate**.
 
 1. iPro: this branch merged into main, then pushed. With the new workflows the push deploys **staging
    only**. I check `/health/version` on both staging apps and that staging started its empty database.
-2. The builder: its repository's `main` gets the Beta branch; the push deploys the **staging builder**.
-   In the builder repository's GitHub settings you add three Actions secrets first: `AZURE_CLIENT_ID`,
-   `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (the IDs of the deployment identity in step A7 and of
-   your subscription; they are IDs, not passwords).
+2. The builder: its repository's `main` gets the Beta branch; the push deploys the **staging builder**
+   (with the secrets of step A7 in place first).
 3. You try the whole path on staging (DOCS/BUILDER_BETA_BENCH.md, "Try it", with the staging addresses).
 
 ## Part E: production, each on your word
 
 1. The builder: "Release the builder to PRODUCTION", with the SHA the staging builder serves.
 2. iPro: "Release ... to production" for the portal, then SuperAdmin, with the SHA staging serves.
+   GitHub asks for your approval ("Review deployments") before each deploys. (Step A7c first.)
 3. Production iPro's settings: `Builder__BaseUrl` = `https://builder.iproadvisers.com` and
    `Builder__ServiceKey` (the builder's key). Until they are set, the Beta card says the builder is not
    available, even for an adviser it is switched on for.

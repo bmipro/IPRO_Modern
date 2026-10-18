@@ -11,4 +11,9 @@ public sealed record WebsiteBuilderOpenViewModel(string Action, string Pass);
 public sealed record WebsiteBuilderReviewViewModel(WebsiteBuilderImport Import, SiteImportPlan Plan, string LookAddress, bool SitePublished);
 
 // 585: the "New builder (Beta)" card on My Website. Null State = the Beta is not on for this adviser.
-public sealed record WebsiteBuilderCardViewModel(BuilderBeta.State State, bool Available, IReadOnlyList<string> ChangedSincePublish, int KeepDays);
+public sealed record WebsiteBuilderCardViewModel(BuilderBeta.State State, bool Available, IReadOnlyList<string> ChangedSincePublish, int KeepDays, string TimeZone = "")
+{
+    // A day as the adviser reads it: their own time zone (AgentLocalTime), not the server's.
+    public string Day(DateTime utc) =>
+        IPRO.DataAccess.AgentLocalTime.FromUtc(utc, TimeZone).ToString("MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture);
+}

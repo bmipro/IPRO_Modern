@@ -1463,9 +1463,13 @@ public static class StartupSchemaRepair
         `Tenant` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
         `ChangedAt` datetime(6) NOT NULL,
         `ChangedBy` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+        `LastOpenedAt` datetime(6) NULL,
         PRIMARY KEY (`AgentUserId`),
         UNIQUE KEY `IX_AgentBuilderBeta_Tenant` (`Tenant`)
     ) CHARACTER SET=utf8mb4;");
+        // A table made on 2026-10-17 (the test bench), before the last visit was kept.
+        await EnsureTableColumnAsync(db, "AgentBuilderBeta", "LastOpenedAt",
+            "ALTER TABLE `AgentBuilderBeta` ADD COLUMN `LastOpenedAt` datetime(6) NULL");
         await db.Database.ExecuteSqlRawAsync(@"
     CREATE TABLE IF NOT EXISTS `WebsiteBuilderSessions` (
         `Id` int NOT NULL AUTO_INCREMENT,

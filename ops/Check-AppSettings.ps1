@@ -13,6 +13,12 @@ param(
     [string[]]$Forbid = @()
 )
 
+# Under "powershell -File", "-Forbid A,B" arrives as ONE string "A,B" (only "-Command" makes it a list),
+# so every entry is split on commas and spaces here: a forbidden name never slips through as part of a
+# longer one.
+$Expect = @($Expect | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ })
+$Forbid = @($Forbid | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ })
+
 $json = az webapp config appsettings list --name $App --resource-group $ResourceGroup -o json 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $json) { Write-Host "Could not read the settings of $App (signed in? the right resource group?)." -ForegroundColor Red; exit 1 }
 $settings = $json | ConvertFrom-Json

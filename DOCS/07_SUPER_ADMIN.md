@@ -573,11 +573,17 @@ It is switched on one customer at a time, on the agent's **Template Builder** sc
 - **They publish what they send themselves** (off by default). Off: what they send arrives in the
   list on this screen as **Sent by the customer from the new builder**, waiting for review; iPro's
   mailbox (`Signups:NotificationEmail`, else `Support:NotificationEmail`) gets an email; review it
-  and **Bring it in** as usual, and the customer gets an email that it is live. On: they review it
-  themselves on a short page of their own (each page says what will happen, with a **Look**) and
-  publish it.
-- **Turning it off** ends their sessions in the builder at once. Their website is not touched, and
-  their draft stays in the builder; a draft not opened for 90 days is deleted.
+  and **Bring it in** as usual, and the customer gets an email that it is on their website. **Drop**
+  it instead and they get an email saying it was not published (their draft stays in the builder). On:
+  they review it themselves on a short page of their own (each page says what will happen, with a
+  **Look**) and publish it.
+- **Turning it off** ends their sessions: the builder closes at its next check with iPro, within five
+  minutes (until then their open editor can still save their draft, but sends nothing). Their website
+  is not touched, and their draft stays in the builder; a draft not opened for 90 days is deleted.
+  What they sent and is still waiting stays in the list here, for you to bring in or drop.
+- **While it is on, Hand over is refused for that customer.** Their site is handed over to them, in
+  the builder; a hand-over made here would stop their open draft from being sent. Turn the Beta off
+  first if iPro is to work on the site.
 
 Good to know:
 
@@ -587,13 +593,21 @@ Good to know:
 - **Put my previous site back** is on their card as long as the builder's package is the newest on
   the site, also after the Beta is turned off. It is the same put-back as on this screen.
 - While a customer has a draft open, their page list in the portal says that publishing it replaces
-  what they change there on the same pages.
+  what they change there in the sections the draft has.
+- A customer's draft is never thrown away by the builder: when it cannot be sent as it is (its changes
+  went in, the site was put back, or it was handed over again), the builder opens the site as it is now
+  and keeps the draft as a version the customer can restore. A second send of a draft whose changes
+  already went in is refused.
+- The builder stops a session at once when the customer's billing needs attention or their package no
+  longer includes the website, as the portal does.
 - "See it on my site" in the builder makes a look that works for an hour. Such looks are not listed
-  here and go by themselves.
+  here and go by themselves; their new pictures are never added to the customer's media library.
 - Deleting the agent asks the builder to erase their draft (a job repeats the request until the
   builder confirms it).
 - The builder's address is `Builder:BaseUrl` in the portal's settings and its shared key
-  `Builder:ServiceKey`. Without an address the card says the builder is not available yet.
+  `Builder:ServiceKey` (at least 32 characters, the builder's `Hosting:ServiceKey`): every call between
+  the two carries it, and without it the builder can neither open a session nor send. Without an
+  address the card says the builder is not available yet.
 
 ## Monitor Domain Automation
 

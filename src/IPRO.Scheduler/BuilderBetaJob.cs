@@ -13,6 +13,10 @@ namespace IPRO.Scheduler;
 //      it). The builder is asked to erase it, with the key the two share, until it says it has.
 //   2. Looks: a "See it on my site" whose hour is over is dropped, pictures and all.
 //   3. Passes and sessions over for a day are deleted (only their hashes were ever kept).
+// One run at a time: a run still erasing (30 seconds a call while the builder is down) is never joined
+// by the next one asking again for the same erasures.
+[Hangfire.DisableConcurrentExecution(timeoutInSeconds: 600)]
+[Hangfire.AutomaticRetry(Attempts = 0)]
 public class BuilderBetaJob
 {
     private readonly IPRODbContext _db;

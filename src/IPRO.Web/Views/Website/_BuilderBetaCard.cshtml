@@ -2,13 +2,15 @@
 @{
     // 585: the new website builder (Beta), for an adviser a SuperAdmin switched it on for. The card
     // says where they are: nothing yet, a draft in the builder, something sent and waiting, or changes
-    // from the builder on the site that can be put back.
+    // from the builder on the site that can be put back. After the Beta is switched off it still shows
+    // what is theirs: a package waiting, and the put-back.
     var state = Model.State;
     var on = state.Beta?.Enabled == true;
     var waiting = state.Waiting;
     var draft = state.OpenDraft;
-    var adviserPublishes = state.Beta?.AdviserPublishes == true;
-    string Day(DateTime utc) => utc.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture);
+    var adviserPublishes = on && state.Beta?.AdviserPublishes == true;
+    var startAgain = "Start again from your live site? The builder opens your website as it is now. The draft you have is kept there, under Versions."
+        + (waiting != null ? " What you sent and is waiting is withdrawn." : string.Empty);
 }
 <div id="newBuilder" class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-white border-0 pt-4 px-4">
@@ -18,36 +20,39 @@
     @if (on)
     {
       <p class="mb-3">Change your pages in a visual builder: type on the page, add and move sections, and see it on a computer, tablet or phone. What you make there comes back as ordinary pages, so the page editor keeps working, and you can put your previous site back.</p>
+    }
 
+    @if (waiting != null && (on ? Model.Available : true))
+    {
+      <div class="alert alert-info border-0 mb-3">
+        @if (adviserPublishes)
+        {
+          <div>You sent your site from the builder on @Model.Day(waiting.CreatedAt). Review it and publish it when you are ready.</div>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <a class="btn btn-sm btn-primary" href="/portal/WebsiteBuilder/Review/@waiting.Id"><i class="fas fa-eye me-1"></i>Review and publish</a>
+            <form method="post" action="/portal/WebsiteBuilder/Discard/@waiting.Id">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="btn btn-sm btn-outline-secondary js-confirm-submit" data-confirm-message="Drop what you sent? Your website does not change, and your draft stays in the builder.">Drop it</button>
+            </form>
+          </div>
+        }
+        else
+        {
+          <div>You sent your site from the builder on @Model.Day(waiting.CreatedAt). iPro's team is checking it and will publish it; you will get an email. Your website does not change until then.</div>
+        }
+      </div>
+    }
+
+    @if (on)
+    {
       @if (!Model.Available)
       {
         <p class="text-muted mb-0">The new builder is not available here yet.</p>
       }
       else
       {
-        @if (waiting != null)
-        {
-          <div class="alert alert-info border-0 mb-3">
-            @if (adviserPublishes)
-            {
-              <div>You sent your site from the builder on @Day(waiting.CreatedAt). Review it and publish it when you are ready.</div>
-              <div class="d-flex flex-wrap gap-2 mt-2">
-                <a class="btn btn-sm btn-primary" href="/portal/WebsiteBuilder/Review/@waiting.Id"><i class="fas fa-eye me-1"></i>Review and publish</a>
-                <form method="post" action="/portal/WebsiteBuilder/Discard/@waiting.Id">
-                  @Html.AntiForgeryToken()
-                  <button type="submit" class="btn btn-sm btn-outline-secondary js-confirm-submit" data-confirm-message="Drop what you sent? Your website does not change, and your draft stays in the builder.">Drop it</button>
-                </form>
-              </div>
-            }
-            else
-            {
-              <div>You sent your site from the builder on @Day(waiting.CreatedAt). iPro's team is checking it and will publish it; you will get an email. Your website does not change until then.</div>
-            }
-          </div>
-        }
-
         <div class="d-flex flex-wrap gap-2">
-          @if (draft != null)
+          @if (state.HasDraft)
           {
             <form method="post" action="/portal/WebsiteBuilder/Open">
               @Html.AntiForgeryToken()
@@ -56,7 +61,7 @@
             <form method="post" action="/portal/WebsiteBuilder/Open">
               @Html.AntiForgeryToken()
               <input type="hidden" name="startFresh" value="true" />
-              <button type="submit" class="btn btn-outline-primary js-confirm-submit" data-confirm-message="Start again from your live site? Your draft in the builder is replaced by your website as it is now.">Start again from my live site</button>
+              <button type="submit" class="btn btn-outline-primary js-confirm-submit" data-confirm-message="@startAgain">Start again from my live site</button>
             </form>
           }
           else
@@ -70,7 +75,7 @@
         <ul class="small text-muted mt-3 mb-0 ps-3">
           @if (draft != null)
           {
-            <li>Your draft was started on @Day(draft.IssuedAt). Changes you make in the page editor to the same pages are replaced when your draft is published.</li>
+            <li>Your draft was started on @Model.Day(draft.IssuedAt). When it is published, a section you add in the page editor meanwhile is kept, and changes you make there to the sections your draft has are replaced.</li>
           }
           <li>The builder is made for a computer. On a phone, use the page editor.</li>
           <li>Colours, fonts and the header are set here, under Website Settings; the builder shows your site in them.</li>
@@ -81,15 +86,16 @@
 
     @if (state.PutBack != null)
     {
-      <div class="@(on ? "border-top pt-3 mt-3" : string.Empty)">
-        <p class="mb-2">Your website has your changes from the new builder@(state.PutBack.AppliedAt.HasValue ? " since " + Day(state.PutBack.AppliedAt.Value) : string.Empty).</p>
+      <div class="@(on || waiting != null ? "border-top pt-3 mt-3" : string.Empty)">
+        <p class="mb-2">Your website has your changes from the new builder@(state.PutBack.AppliedAt.HasValue ? " since " + Model.Day(state.PutBack.AppliedAt.Value) : string.Empty).</p>
+        <p class="small text-muted mb-2">Putting your previous site back brings back your whole website as it was before them: its pages, its logo and its design.</p>
         @if (Model.ChangedSincePublish.Count > 0)
         {
-          <p class="small text-danger mb-2">Putting your previous site back also undoes what you changed since on: @string.Join(", ", Model.ChangedSincePublish.Take(10))@(Model.ChangedSincePublish.Count > 10 ? ", ..." : string.Empty).</p>
+          <p class="small text-danger mb-2">That also undoes what you changed since on: @string.Join(", ", Model.ChangedSincePublish.Take(10))@(Model.ChangedSincePublish.Count > 10 ? ", ..." : string.Empty).</p>
         }
         <form method="post" action="/portal/WebsiteBuilder/PutBack">
           @Html.AntiForgeryToken()
-          <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Put your previous site back? Your website goes back to how it was before your changes from the new builder@(Model.ChangedSincePublish.Count > 0 ? ", and what you changed since on those pages is lost" : string.Empty).">Put my previous site back</button>
+          <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Put your previous site back? Your website goes back to how it was before your changes from the new builder: its pages, its logo and its design@(Model.ChangedSincePublish.Count > 0 ? ", and what you changed since is lost" : string.Empty).">Put my previous site back</button>
         </form>
       </div>
     }

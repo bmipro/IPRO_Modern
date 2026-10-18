@@ -48,8 +48,11 @@ public class WebsitePagesController : Controller
             .ThenBy(p => p.Title)
             .ToListAsync();
         // 585: a draft of this site is open in the new builder (Beta): publishing it replaces what is
-        // changed here meanwhile on the same pages, so the list says so.
-        ViewBag.BuilderDraftSince = (await IPRO.Business.SiteImport.BuilderBeta.StateAsync(_db, website, DateTime.UtcNow)).OpenDraft?.IssuedAt;
+        // changed here meanwhile in the sections it has, so the list says so (in the adviser's own day).
+        var draftSince = (await IPRO.Business.SiteImport.BuilderBeta.StateAsync(_db, website, DateTime.UtcNow)).OpenDraft?.IssuedAt;
+        ViewBag.BuilderDraftSince = draftSince.HasValue
+            ? IPRO.DataAccess.AgentLocalTime.FromUtc(draftSince.Value, await _db.AgentUsers.AsNoTracking().Where(a => a.Id == website.AgentUserId).Select(a => a.TimeZone).FirstOrDefaultAsync())
+            : (DateTime?)null;
         return View(pages);
     }
 

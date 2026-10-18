@@ -519,16 +519,17 @@ The block always shows the same links as the footer, so there is nothing to keep
 The new website builder lets you change your pages visually: type on the page itself, add, move and hide sections, and see each page as it looks on a computer, a tablet and a phone. It is a Beta: iPro switches it on for you. When it is on, **My Website** has a **New website builder (Beta)** card.
 
 1. On **My Website**, click **Try the new builder (Beta)**. The builder opens with your website as it is now. You do not sign in again.
-2. Change your pages. **Save** keeps your draft; **Undo** and **Redo** (or Ctrl+Z and Ctrl+Y) step back and forward. Your draft stays in the builder between visits.
+2. Change your pages. **Save** keeps your draft; **Undo** and **Redo** (or Ctrl+Z and Ctrl+Y) step back and forward. Your draft stays in the builder between visits. If you step away with unsaved changes, the builder saves them after ten minutes; a session lasts at most 12 hours, and the builder tells you a quarter of an hour before it ends.
 3. Click **See it on my site** to see a page as your website would show it, in its own colours, fonts, header and menu. It opens in a new tab, works for an hour, and changes nothing.
-4. Click **Send to iPro**. Nothing on your website changes yet. While the Beta is new, iPro's team checks what you send and publishes it, and you get an email when it is live. If iPro has let you publish yourself, you go to a review: each page says what will happen, with a **Look** at each, and **Publish** makes it live.
+4. Click **Send to iPro**. Nothing on your website changes yet. While the Beta is new, iPro's team checks what you send and publishes it, and you get an email when it is live (or an email saying it was not published, if they drop it). If iPro has let you publish yourself, you go to a review: each page says what will happen, with a **Look** at each, and **Publish** makes it live.
 
 Good to know:
 
 - **Your website stays ordinary iPro pages.** The page editor keeps working on everything the builder made, and you can switch between the two.
-- **Put my previous site back** on the card undoes your changes from the builder, all at once. The card lists any page you changed since, because those changes go too.
-- **While you have a draft in the builder**, changes you make in the page editor to the same pages are replaced when the draft is published (the Pages list reminds you). A section you add in the page editor meanwhile is kept, at the end of its page.
-- **Continue my draft** reopens your draft; **Start again from my live site** replaces it with your website as it is now.
+- **Put my previous site back** on the card undoes your changes from the builder, all at once: your whole website goes back to how it was before them, its pages, its logo and its design. The card lists the pages you changed since, because those changes go too.
+- **While you have a draft in the builder**, changes you make in the page editor to the sections your draft has are replaced when the draft is published (the Pages list reminds you). A section you add in the page editor meanwhile is kept, at the end of its page. (Not on a page that had no sections when your draft started, or whose sections were all deleted since; there, the page as your draft has it is what goes on the website.)
+- **Continue my draft** reopens your draft. **Start again from my live site** opens your website as it is now; the draft you had is kept, as the newest of your **Versions** in the builder, and what you sent and is still waiting is withdrawn.
+- **Your draft is never thrown away.** When the builder cannot carry on with your draft as it is (its changes are already on your website, you put your previous site back, or your site was opened for the builder again since), it opens your website as it is now, says why, and keeps your draft as the newest of your **Versions**: restore it there to carry on with it. After you publish, the builder opens your website as it is now the next time, with your published changes in it.
 - **Colours, fonts, the header and the menu** are set on **My Website**, as before. The builder shows your pages in them, and changes the words, pictures and sections.
 - Sections the builder does not have (a calculator, a map, a gallery, reviews and others) show as locked boxes: you can move, hide or remove them there, and change what they say in the page editor.
 - The builder offers your own pictures, the shared starter banners and a few pictures made for the builder. A new picture you upload counts against your storage.

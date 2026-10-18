@@ -45,11 +45,16 @@ Drafts made in the builder stay for next time (its database `ipro_builder_bench`
 5. **Back in SuperAdmin**, the agent's Template Builder list shows **Sent by the customer from the new
    builder**. Review it, look at the pages, **Bring it in**. (The "it is live" email goes nowhere from
    this PC unless your local settings send mail.)
-6. **On My Website** the card now offers **Put my previous site back**.
+6. **On My Website** the card now offers **Put my previous site back**, and **Continue my draft**:
+   press it, and the builder opens your website as it is now (with your published changes) and says the
+   draft you sent is the newest of your **Versions**.
 7. To try the other path, tick **They publish what they send themselves** in SuperAdmin, open the
    builder again, send, and the builder takes you to your own review page with **Publish**.
 
 Things to try on purpose: open the builder, then change the same page in the page editor (the page list
 warns you, and publishing replaces that change); add a section in the page editor while a draft is
-open (it is kept); switch the Beta off while the builder is open (within five minutes the builder says
-the session ended); close the builder and press **Continue my draft** the next day.
+open (it is kept, on the look too); switch the Beta off while the builder is open (within five minutes
+the builder says the session ended); close the builder and press **Continue my draft** the next day;
+press **Start again from my live site** and restore your old draft from **Versions** (it can be sent);
+put your previous site back, then **Continue my draft** (the builder says so and keeps your draft);
+leave the editor alone for ten minutes with a change unsaved (it saves it).

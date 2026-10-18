@@ -15,12 +15,17 @@ namespace IPRO.Business.SiteImport;
 // browser a one-time pass, which works once and for ten minutes, to carry to the builder; the builder's
 // server trades it here for a session of at most twelve hours. iPro keeps only the SHA-256 of each, and
 // a session stops working the moment the Beta is switched off, the account is closed, or it is over.
+//
+// Whether the adviser's draft is continued is the builder's to decide (it alone knows what it holds):
+// iPro tells it where the site's newest hand-over stands (CurrentAsync), and the builder continues a
+// draft of that hand-over while nothing of it has gone onto the website. Otherwise it opens the site
+// afresh and keeps the draft as a version. A pass says only whether the adviser chose to start again.
 public static class BuilderBeta
 {
     public static readonly TimeSpan PassLifetime = TimeSpan.FromMinutes(10);
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(12);
-    // A draft the adviser has not opened for this long is deleted by the builder (and no longer offered
-    // as "Continue my draft" here).
+    // A draft the adviser has not opened for this long is deleted by the builder, which counts from
+    // the last visit, as AgentBuilderBeta.LastOpenedAt does here.
     public const int KeepDays = 90;
     // What the hand-over record says made it, when the adviser opened the builder themselves.
     public const string CustomerIssuer = "the customer, in the builder (Beta)";
@@ -33,23 +38,38 @@ public static class BuilderBeta
         await db.AgentBuilderBetas.AsNoTracking().AnyAsync(b => b.AgentUserId == agentId && b.Enabled);
 
     // A SuperAdmin's switch. The adviser's name for the builder is made the first time and kept. Turning
-    // the Beta off ends every session the adviser has, so the builder shuts within minutes; their draft
-    // stays with the builder (it is erased after KeepDays unopened, or with the account).
+    // the Beta off ends every session the adviser has: the builder stops at its next check with iPro,
+    // within five minutes. Their draft stays with the builder (it is erased after KeepDays unopened, or
+    // with the account).
     public static async Task<AgentBuilderBeta> SetAsync(IPRODbContext db, int agentId, bool enabled, bool adviserPublishes, string changedBy)
     {
-        var row = await db.AgentBuilderBetas.FirstOrDefaultAsync(b => b.AgentUserId == agentId);
-        if (row == null)
+        for (var attempt = 1; ; attempt++)
         {
-            row = new AgentBuilderBeta { AgentUserId = agentId, Tenant = "t_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant() };
-            db.AgentBuilderBetas.Add(row);
+            var row = await db.AgentBuilderBetas.FirstOrDefaultAsync(b => b.AgentUserId == agentId);
+            var created = row == null;
+            if (row == null)
+            {
+                row = new AgentBuilderBeta { AgentUserId = agentId, Tenant = "t_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant() };
+                db.AgentBuilderBetas.Add(row);
+            }
+            row.Enabled = enabled;
+            row.AdviserPublishes = adviserPublishes;
+            row.ChangedAt = DateTime.UtcNow;
+            row.ChangedBy = changedBy.Length <= 100 ? changedBy : changedBy[..100];
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException) when (created && attempt == 1)
+            {
+                // Two SuperAdmins switching the same adviser on at the same moment: the other made the
+                // row. It is read again and changed instead.
+                db.Entry(row).State = EntityState.Detached;
+                continue;
+            }
+            if (!enabled) await EndSessionsAsync(db, agentId, DateTime.UtcNow);
+            return row;
         }
-        row.Enabled = enabled;
-        row.AdviserPublishes = adviserPublishes;
-        row.ChangedAt = DateTime.UtcNow;
-        row.ChangedBy = changedBy.Length <= 100 ? changedBy : changedBy[..100];
-        await db.SaveChangesAsync();
-        if (!enabled) await EndSessionsAsync(db, agentId, DateTime.UtcNow);
-        return row;
     }
 
     public static Task<int> EndSessionsAsync(IPRODbContext db, int agentId, DateTime now) =>
@@ -57,11 +77,49 @@ public static class BuilderBeta
             .Where(s => s.AgentUserId == agentId && s.EndedAt == null && s.ExpiresAt > now)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.EndedAt, now));
 
+    // ---- where the site's newest hand-over stands ----
+
+    public static class HandoverStates
+    {
+        // A package of it can still come back.
+        public const string Open = "open";
+        // A package of it is on the website.
+        public const string Published = "published";
+        // A package of it went onto the website and was taken back off.
+        public const string PutBack = "putBack";
+    }
+
+    // The site's newest hand-over ("" when there is none yet), whether a package of it can still be
+    // sent, and when it went onto (or came off) the website.
+    public sealed record CurrentHandover(string HandoverId, string State, DateTime? At);
+
+    public static async Task<CurrentHandover> CurrentAsync(IPRODbContext db, int websiteId)
+    {
+        var latest = await SiteHandoverService.LatestAsync(db, websiteId);
+        if (latest == null) return new CurrentHandover(string.Empty, HandoverStates.Open, null);
+        var went = await db.WebsiteBuilderImports.AsNoTracking()
+            .Where(i => i.AgentWebsiteId == websiteId && i.HandoverId == latest.HandoverId
+                && (i.Status == WebsiteBuilderImportStatus.Applied || i.Status == WebsiteBuilderImportStatus.Restored))
+            .OrderByDescending(i => i.AppliedAt).ThenByDescending(i => i.Id)
+            .Select(i => new { i.Status, i.AppliedAt, i.ClosedAt })
+            .ToListAsync();
+        var on = went.FirstOrDefault(i => i.Status == WebsiteBuilderImportStatus.Applied);
+        if (on != null) return new CurrentHandover(latest.HandoverId, HandoverStates.Published, on.AppliedAt);
+        if (went.Count > 0) return new CurrentHandover(latest.HandoverId, HandoverStates.PutBack, went[0].ClosedAt ?? went[0].AppliedAt);
+        return new CurrentHandover(latest.HandoverId, HandoverStates.Open, null);
+    }
+
+    // Whether a package of this hand-over already went onto the website (and is there, or was put
+    // back): what a second one would replace can no longer be told apart from what the first wrote, so
+    // the builder's doors refuse it and the builder opens the site afresh next time.
+    public static Task<bool> IsSpentAsync(IPRODbContext db, int websiteId, string handoverId) =>
+        db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.AgentWebsiteId == websiteId && i.HandoverId == handoverId
+            && (i.Status == WebsiteBuilderImportStatus.Applied || i.Status == WebsiteBuilderImportStatus.Restored));
+
     // ---- the pass and the session ----
 
-    // A pass for this adviser's site. startFresh: they chose to start again from the live site;
-    // continueHandoverId: the hand-over of the draft they continue ("" for a fresh one).
-    public static async Task<string> IssuePassAsync(IPRODbContext db, AgentWebsite site, bool startFresh, string continueHandoverId, DateTime now)
+    // A pass for this adviser's site. startFresh: they chose "Start again from my live site".
+    public static async Task<string> IssuePassAsync(IPRODbContext db, AgentWebsite site, bool startFresh, DateTime now)
     {
         var token = NewToken();
         db.WebsiteBuilderSessions.Add(new WebsiteBuilderSession
@@ -70,8 +128,8 @@ public static class BuilderBeta
             AgentWebsiteId = site.Id,
             Kind = WebsiteBuilderSessionKinds.Pass,
             TokenSha256 = Hash(token),
-            StartFresh = startFresh || continueHandoverId.Length == 0,
-            HandoverId = startFresh ? string.Empty : continueHandoverId,
+            StartFresh = startFresh,
+            HandoverId = string.Empty,
             CreatedAt = now,
             ExpiresAt = now.Add(PassLifetime)
         });
@@ -79,10 +137,15 @@ public static class BuilderBeta
         return token;
     }
 
-    public sealed record Granted(WebsiteBuilderSession Session, string Token, AgentBuilderBeta Beta, AgentWebsite Site, AgentUser Agent);
+    public sealed record Granted(WebsiteBuilderSession Session, string Token, AgentBuilderBeta Beta, AgentWebsite Site, AgentUser Agent, CurrentHandover Current);
 
     // The pass traded for a session, or the sentence the builder shows instead. A pass works once: it
-    // is claimed in the database, so two requests carrying it cannot both get a session.
+    // is claimed in the database, so two requests carrying it cannot both get a session. A pass whose
+    // sessions were ended (the Beta switched off after it was issued) is spent too.
+    //
+    // The session starts bound to the site's newest hand-over while a package of it can still come back
+    // (the draft the builder continues is of that one), and to none otherwise, until the builder fetches
+    // a fresh hand-over.
     public static async Task<(Granted? Granted, string Refusal)> RedeemPassAsync(IPRODbContext db, string? pass, DateTime now)
     {
         const string spent = "This link to the builder was already used or has expired. Open the builder again from My Website.";
@@ -90,15 +153,16 @@ public static class BuilderBeta
         var hash = Hash(pass!);
         var row = await db.WebsiteBuilderSessions.AsNoTracking()
             .FirstOrDefaultAsync(s => s.TokenSha256 == hash && s.Kind == WebsiteBuilderSessionKinds.Pass);
-        if (row == null || row.UsedAt != null || row.ExpiresAt <= now) return (null, spent);
+        if (row == null || row.UsedAt != null || row.EndedAt != null || row.ExpiresAt <= now) return (null, spent);
         var claimed = await db.WebsiteBuilderSessions
-            .Where(s => s.Id == row.Id && s.UsedAt == null)
+            .Where(s => s.Id == row.Id && s.UsedAt == null && s.EndedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.UsedAt, now));
         if (claimed != 1) return (null, spent);
 
         var (agent, beta, site, refusal) = await StandingAsync(db, row.AgentUserId, row.AgentWebsiteId);
         if (refusal != null) return (null, refusal);
 
+        var current = await CurrentAsync(db, row.AgentWebsiteId);
         var token = NewToken();
         var session = new WebsiteBuilderSession
         {
@@ -107,18 +171,22 @@ public static class BuilderBeta
             Kind = WebsiteBuilderSessionKinds.Session,
             TokenSha256 = Hash(token),
             StartFresh = row.StartFresh,
-            HandoverId = row.HandoverId,
+            HandoverId = !row.StartFresh && current.State == HandoverStates.Open ? current.HandoverId : string.Empty,
             CreatedAt = now,
             ExpiresAt = now.Add(SessionLifetime)
         };
         db.WebsiteBuilderSessions.Add(session);
         await db.SaveChangesAsync();
-        return (new Granted(session, token, beta!, site!, agent!), string.Empty);
+        // The visit the builder's 90 days count from (and My Website's "Continue my draft").
+        await db.AgentBuilderBetas.Where(b => b.AgentUserId == row.AgentUserId)
+            .ExecuteUpdateAsync(b => b.SetProperty(x => x.LastOpenedAt, now));
+        return (new Granted(session, token, beta!, site!, agent!, current), string.Empty);
     }
 
     // The session a bearer token names, while it still stands: not over, not ended, the Beta still on,
     // the account still open, and the site still the adviser's. Tracked, so the caller can bind it to
-    // the hand-over it fetches.
+    // the hand-over it fetches. (Whether the adviser's package still includes their website, and their
+    // billing, is asked by the caller, which has the entitlements: BuilderApiController.)
     public static async Task<(WebsiteBuilderSession? Session, AgentWebsite? Site, AgentBuilderBeta? Beta)> FindSessionAsync(IPRODbContext db, string? token, DateTime now)
     {
         if (!LooksLikeToken(token)) return (null, null, null);
@@ -144,20 +212,24 @@ public static class BuilderBeta
 
     // ---- what My Website shows ----
 
-    // OpenDraft: the newest hand-over of the site was made for the adviser in the builder and nothing has
-    // been brought in from it yet, so "Continue my draft" can open it again. Waiting: what the adviser
-    // sent and nobody has brought in. PutBack: the package on the site, when it is the adviser's own and
-    // can still be taken back out (only the newest one can).
-    public sealed record State(AgentBuilderBeta? Beta, WebsiteBuilderHandover? OpenDraft, WebsiteBuilderImport? Waiting, WebsiteBuilderImport? PutBack);
+    // HasDraft: the builder holds a draft of this adviser's (they opened it within KeepDays), so the
+    // card offers "Continue my draft" and "Start again from my live site". OpenDraft: the newest
+    // hand-over of the site, when it was made for the adviser in the builder and nothing has gone onto
+    // the website from it (the page editor's list then says changes made there meanwhile are kept).
+    // Waiting: what the adviser sent and nobody has brought in. PutBack: the package on the site, when it
+    // is the adviser's own and can still be taken back out (only the newest one can).
+    public sealed record State(AgentBuilderBeta? Beta, WebsiteBuilderHandover? OpenDraft, WebsiteBuilderImport? Waiting, WebsiteBuilderImport? PutBack)
+    {
+        public bool HasDraft { get; init; }
+    }
 
     public static async Task<State> StateAsync(IPRODbContext db, AgentWebsite site, DateTime now)
     {
         var beta = await FindAsync(db, site.AgentUserId);
+        var hasDraft = beta?.LastOpenedAt is { } opened && opened > now.AddDays(-KeepDays);
         var latest = await SiteHandoverService.LatestAsync(db, site.Id);
         WebsiteBuilderHandover? open = null;
-        if (latest != null && latest.IssuedBy == CustomerIssuer && latest.IssuedAt > now.AddDays(-KeepDays)
-            && !await db.WebsiteBuilderImports.AnyAsync(i => i.AgentWebsiteId == site.Id && i.HandoverId == latest.HandoverId
-                && (i.Status == WebsiteBuilderImportStatus.Applied || i.Status == WebsiteBuilderImportStatus.Restored)))
+        if (hasDraft && latest != null && latest.IssuedBy == CustomerIssuer && !await IsSpentAsync(db, site.Id, latest.HandoverId))
         {
             open = latest;
         }
@@ -171,11 +243,12 @@ public static class BuilderBeta
             .Where(i => i.Id == appliedId && i.Source == WebsiteBuilderImportSources.Customer)
             .Select(i => new WebsiteBuilderImport { Id = i.Id, AgentUserId = i.AgentUserId, AgentWebsiteId = i.AgentWebsiteId, Status = i.Status, AppliedAt = i.AppliedAt, AppliedBy = i.AppliedBy, Source = i.Source })
             .FirstOrDefaultAsync();
-        return new State(beta, open, waiting, putBack);
+        return new State(beta, open, waiting, putBack) { HasDraft = hasDraft };
     }
 
     // The pages changed on the site since a package went in: what "Put my previous site back" would
-    // lose. Read from the kept copy of the site against the site as it is now.
+    // lose. Read from the kept copy of the site against the site as it is now. (A section deleted or
+    // moved in the page editor stamps nothing, so the card also says the whole site goes back.)
     public static async Task<IReadOnlyList<string>> ChangedSinceAsync(IPRODbContext db, WebsiteBuilderImport applied)
     {
         if (applied.AppliedAt == null) return Array.Empty<string>();

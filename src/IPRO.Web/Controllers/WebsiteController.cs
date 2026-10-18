@@ -54,12 +54,15 @@ public class WebsiteController : Controller
     private async Task<IPRO.Web.Models.WebsiteBuilderCardViewModel?> BuilderBetaCardAsync(AgentWebsite website)
     {
         var state = await IPRO.Business.SiteImport.BuilderBeta.StateAsync(_db, website, DateTime.UtcNow);
-        if (state.Beta?.Enabled != true && state.PutBack == null) return null;
+        // Shown while the Beta is on, and after it is switched off while something of it is still the
+        // adviser's: a package waiting, or changes on the site that can be put back.
+        if (state.Beta?.Enabled != true && state.PutBack == null && state.Waiting == null) return null;
         var changed = state.PutBack == null
             ? (IReadOnlyList<string>)Array.Empty<string>()
             : await IPRO.Business.SiteImport.BuilderBeta.ChangedSinceAsync(_db, state.PutBack);
+        var zone = (await _db.AgentUsers.AsNoTracking().Where(a => a.Id == website.AgentUserId).Select(a => a.TimeZone).FirstOrDefaultAsync()) ?? string.Empty;
         return new IPRO.Web.Models.WebsiteBuilderCardViewModel(state, WebsiteBuilderController.BuilderBaseUrl(_configuration) != null,
-            changed, IPRO.Business.SiteImport.BuilderBeta.KeepDays);
+            changed, IPRO.Business.SiteImport.BuilderBeta.KeepDays, zone);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
