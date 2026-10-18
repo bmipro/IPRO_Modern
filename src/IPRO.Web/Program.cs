@@ -527,7 +527,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 19);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 20);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
