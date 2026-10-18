@@ -24,6 +24,14 @@ App Service Plan `ipro-prod-plan`, **Basic B2 Linux, one instance** (2 cores / 3
 > carry credits — these are list prices, not the statement. The `az consumption` API returns cost
 > as `null` for this login, so actual spend could not be read.
 
+## A monthly budget with alerts (2026-10-17, the owner's choice)
+
+The subscription is Pay-As-You-Go with no spending limit and had no budget. Now `ipro-monthly-budget` (Cost Management, whole subscription, billed in CAD): **C$200 a month**, resets monthly, runs to 2034-09-30; alerts to the `ipro-prod-oncall` action group (1 email, 1 SMS; no separate email recipients) at **80% actual (C$160)**, **100% actual** and **100% forecasted**. A budget only warns; it never stops a service. Cost Management's own figures that day: September C$106 (the highest month so far), forecast at most C$99 a month before the uptime-check trim; the builder + staging plan (about US$42) brings the expected month to about C$140. Verified with `az consumption budget show` and the Consumption budgets API.
+
+## Uptime checks trimmed (2026-10-17, the owner's choice)
+
+The two Application Insights standard availability tests (`app-health-ipro-prod-web-insights`, `admin-health-ipro-prod-admin-insights`) ran every 5 minutes from 5 locations each (three US, plus Hong Kong/France or Singapore/North Europe): about 86,400 executions a month at US$0.00056 (Canada East list) = ~US$48, half the monthly bill. Now: every **15 minutes** from **East US, West US, Central US, North Central US and South Central US** (Azure has no test location in Canada), about US$16/month. Their metric alert rules: **3** of 5 locations must fail (Microsoft: threshold = locations - 2) over a **15-minute lookback** (a 5-minute lookback with 15-minute tests would open and close the alert between runs), evaluated every minute; the action group `ipro-prod-oncall` (1 email, 1 SMS) is unchanged. Done in the portal with the owner watching; verified with `az monitor app-insights web-test list` and `az monitor metrics alert list`.
+
 ## Done and verified (2026-08-07)
 
 ### 64-bit workers — `use32BitWorkerProcess: false`, both apps
