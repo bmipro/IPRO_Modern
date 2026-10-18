@@ -22,40 +22,53 @@ public class ClientPortalAccountController : Controller
     private readonly IPasswordHasher<Client> _hasher;
     private readonly ISignInLockNotices _lockNotices;
     private readonly ILogger<ClientPortalAccountController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public ClientPortalAccountController(IPRODbContext db, IPasswordHasher<Client> hasher, ISignInLockNotices lockNotices, ILogger<ClientPortalAccountController> logger)
+    // 586: the configuration names iPro's own addresses (ClientPortalSignInScope); none given = none known.
+    public ClientPortalAccountController(IPRODbContext db, IPasswordHasher<Client> hasher, ISignInLockNotices lockNotices, ILogger<ClientPortalAccountController> logger,
+        IConfiguration? configuration = null)
     {
         _db = db;
         _hasher = hasher;
         _lockNotices = lockNotices;
         _logger = logger;
+        _configuration = configuration ?? new ConfigurationBuilder().Build();
     }
 
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {
         ViewData["ReturnUrl"] = returnUrl;
+        // 586: the adviser a link on iPro's shared address names goes back with the form.
+        ViewData["Adviser"] = ClientPortalSignInScope.AdviserFromLink(HttpContext?.Request.Query[ClientPortalSignInScope.AdviserParameter].ToString());
         return View();
     }
 
     [EnableRateLimiting(EndpointRateLimits.SignIn)]
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(string email, string password, string? returnUrl = null)
+    public async Task<IActionResult> Login(string email, string password, string? returnUrl = null, string? adviser = null)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var normalizedEmail = (email?.Trim() ?? string.Empty).ToLowerInvariant();
-        var candidates = normalizedEmail.Length == 0 ? new List<Client>() : (await _db.Clients
+        // 586: one adviser's clients, never every adviser's (ClientPortalSignInScope): the adviser whose own
+        // address this is, else the one the link names, else (below) the oldest record's.
+        var scope = await ClientPortalSignInScope.ForRequestAsync(_db, _configuration, Request.Host.Host, adviser, _logger);
+        var signIns = normalizedEmail.Length == 0 ? new List<Client>() : (await _db.Clients
             .Include(c => c.AgentUser)
             .Where(c => c.Email.ToLower() == normalizedEmail && c.PortalPasswordHash != null)
+            .Where(c => scope == null || c.AgentUserId == scope)
             .ToListAsync())
             // 583: by its letters, as the lock counts an email that is no client (SignInLockout.SameName).
             .Where(c => SignInLockout.SameName(c.Email, normalizedEmail))
             .ToList();
+        var adviserId = scope ?? signIns.OrderBy(c => c.Id).Select(c => (int?)c.AgentUserId).FirstOrDefault();
+        var candidates = signIns.Where(c => c.AgentUserId == adviserId).ToList();
 
         // 583: each row is a sign-in of its own (a client with two advisers has two), counted by
         // SignInLockout: 5 wrong passwords in a row lock it for 15 minutes. A locked row's password is
-        // not checked; an email that is no client counts too, so its fifth try reads the same.
-        var attempt = await SignInLockout.TryAsync(_db, SignInDoor.ClientPortal, normalizedEmail,
+        // not checked; an email that is no client counts too, so its fifth try reads the same -- per
+        // adviser since 586 (ClientPortalSignInScope.LockName).
+        var attempt = await SignInLockout.TryAsync(_db, SignInDoor.ClientPortal, ClientPortalSignInScope.LockName(scope, normalizedEmail),
             candidates.Select(c => new SignInCandidate(new SignInAccount(SignInAccountKind.Client, c.Id),
                 () => !string.IsNullOrEmpty(password) && _hasher.VerifyHashedPassword(c, c.PortalPasswordHash!, password) == PasswordVerificationResult.Success)).ToList(),
             DateTime.UtcNow);
@@ -72,6 +85,7 @@ public class ClientPortalAccountController : Controller
             await SignInLockout.PadAsync(started);
             ModelState.AddModelError("", attempt.Locked ? SignInMessages.ClientPortalLocked : "Invalid email or password.");
             ViewData["ReturnUrl"] = returnUrl;
+            ViewData["Adviser"] = ClientPortalSignInScope.AdviserFromLink(adviser);
             return View();
         }
 
@@ -160,10 +174,15 @@ public class ClientPortalAccountController : Controller
     private async Task<Client?> FindByInviteTokenAsync(string token)
     {
         if (string.IsNullOrWhiteSpace(token)) return null;
-        return await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c =>
+        var client = await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c =>
             c.PortalInviteToken == token
             && c.PortalInviteTokenExpiresAt != null
             && c.PortalInviteTokenExpiresAt > DateTime.UtcNow);
+        // 586: an invitation opens on its adviser's own address or on iPro's shared one (where we send it),
+        // never on another adviser's: a client is signed in only where their adviser's clients are.
+        if (client != null && await ClientPortalSignInScope.AdviserForHostAsync(_db, _configuration, HttpContext?.Request.Host.Host, _logger) is { } hostAdviser
+            && hostAdviser != client.AgentUserId) return null;
+        return client;
     }
 
     // 455 (2026-09-02): the logout form renders on pages authorized with the ClientPortal scheme,
@@ -177,6 +196,10 @@ public class ClientPortalAccountController : Controller
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync("ClientPortal");
+        // 586: on iPro's shared address the sign-in page they return to names their adviser.
+        if (ClientPortalSignInScope.AdviserFromLink(User.FindFirstValue("AgentUserId")) is { } adviser
+            && await ClientPortalSignInScope.AdviserForHostAsync(_db, _configuration, Request.Host.Host, _logger) == null)
+            return RedirectToAction(nameof(Login), new { adviser });
         return RedirectToAction(nameof(Login));
     }
 

@@ -9,6 +9,19 @@ Since 583 (2026-10-16), 5 wrong passwords in a row lock a sign-in for 15 minutes
 - The container log keeps a warning for each lock and each unlock; the lock line says which account and the last visitor address. Many locks of many names from one address are someone guessing, not a customer.
 - If the same account locks again and again, someone keeps guessing its password: the person should choose a new, strong password. They get one email a day at most about it.
 
+## A Client's Right Password Is Refused on the Client Portal
+
+Since 586 (2026-10-17) a client's portal sign-in belongs to their adviser: the page checks the password against one adviser's clients only (Client Portal guide, **A client's sign-in is yours alone**). So a right password is refused when:
+
+- the client is signing in on **another adviser's** domain or free site;
+- the address names another adviser (`?adviser=<n>` is not their adviser's number);
+- the address names no adviser and the same email is on an **older** client record with a portal password at another adviser (the person is a client of both, or someone gave another record that email).
+
+The answer is the same each time: give the client the sign-in address on their profile under **Client Portal** (the adviser's domain, or the shared address with `?adviser=<n>`). Wrong tries count only with the adviser the page chose.
+
+- iPro's own addresses are never treated as an adviser's: the names in the `App:BaseUrl`, `App:PlatformDomains` and `App:AliasHosts` settings (with or without `www.`), the free-site zone, the admin host and the App Service's own name. A new name iPro starts to serve goes into those settings when it goes live.
+- A domain counts as an adviser's only once Azure has bound it. For the few minutes a domain check fails, a live domain answers as the shared address does: the link's `?adviser=`, else the oldest record.
+
 ## LOCKED OUT OF SUPERADMIN (break-glass recovery)
 
 **Use this only when nobody can sign in to admin.iproadvisers.com as a Super Admin.** If another

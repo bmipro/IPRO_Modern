@@ -23,6 +23,7 @@ body{background:linear-gradient(135deg,#0f3d2e 0%,#0f7a52 100%);min-height:100vh
   { <div class="alert alert-danger">@Html.ValidationSummary()</div> }
   <form asp-action="Login" method="post">
     <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+    <input type="hidden" name="adviser" value="@ViewData["Adviser"]" />
     <div class="mb-3">
       <label class="form-label fw-semibold">Email</label>
       <input type="email" name="email" class="form-control form-control-lg" placeholder="you@example.com" required/>

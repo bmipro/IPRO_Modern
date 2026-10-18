@@ -110,7 +110,7 @@ public class ClientsController : Controller
         // 457: the client portal's address on THIS agent's domain, shown on the card whether the
         // client is invited or active, so the agent always has it to hand.
         var clientPortalBase = await ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration);
-        ViewBag.ClientPortalLoginUrl = ClientPortalUrls.LoginUrl(clientPortalBase);
+        ViewBag.ClientPortalLoginUrl = ClientPortalUrls.LoginUrl(clientPortalBase, AgentId, _configuration);
         ViewBag.ClientPortalActivateUrl = string.IsNullOrWhiteSpace(client.PortalInviteToken)
             ? null
             : ClientPortalUrls.ActivateUrl(clientPortalBase, client.PortalInviteToken);
