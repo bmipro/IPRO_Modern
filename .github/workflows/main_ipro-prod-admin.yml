@@ -72,8 +72,8 @@ jobs:
     needs: build
     # 585: production's deployment identity trusts this repository only in its "production" environment
     # (a federated credential for Environment "production", DOCS/BUILDER_AND_STAGING_RUNBOOK.md step A7),
-    # which asks the owner's approval before this job runs. A push to main, or any other job, gets no
-    # token that can deploy production.
+    # which asks the owner's approval before this job runs. Once the identity's old branch credential is
+    # deleted (runbook A7c), a push to main, or any other job, gets no token that can deploy production.
     environment: production
     permissions:
       # id-token is for the Azure login below, which the restart step needs. The deploy itself still
@@ -92,6 +92,7 @@ jobs:
         with:
           app-name: 'ipro-prod-admin'
           slot-name: 'Production'
+          # 585: an environment secret of "production" (runbook step A7d), so only this approved job reads it.
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_IPRO_PROD_ADMIN }}
           package: .
 

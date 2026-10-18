@@ -1271,10 +1271,14 @@ from iPro, and takes nothing but iPro's own answer, as described below, for an a
    adviser's draft when `startFresh` is `false`, the draft is of `current.handoverId` and
    `current.state` is `"open"`. Otherwise (no draft, the adviser chose to start again, the draft's
    changes went onto the website or were put back, or the site was handed over again since) it makes a
-   **fresh** draft from a new hand-over (step 3), and the draft it had becomes the newest of the
-   adviser's versions: nothing the adviser made is thrown away. Restoring that version carries it onto
-   the new hand-over (its `handoverId` and `contractVersion` follow the new one, and each locked box
-   becomes the new hand-over's box of the same kind and title, else is removed), so it can be sent.
+   **fresh** draft from a new hand-over (step 3), and the draft it had is kept among the adviser's
+   versions (the three newest such "kept drafts" stay beyond the ten that roll away): nothing the
+   adviser made is thrown away. Restoring a kept draft carries it onto the new hand-over, so it can be
+   sent: its `handoverId` and `contractVersion` follow the new one; each locked box becomes the new
+   hand-over's box of the same kind and title (on the same page first, anywhere after), else is
+   removed; and what the new hand-over has that the draft's own hand-over and the draft do not (a page,
+   or a section, added on the website meanwhile) is added to it, at the end of its page, within §3's
+   limits.
    The editor says which of these happened. The builder records the adviser (`tenant`) before it writes
    any of their files.
    A session starts bound to `current.handoverId` while `current.state` is `"open"` (the draft the
@@ -1292,7 +1296,8 @@ from iPro, and takes nothing but iPro's own answer, as described below, for an a
    at least every **5 minutes** and ends its own session on `401`. Only iPro's `200` with
    `sessionExpiresAt` confirms a session; anything else (unreachable, busy, a redirect, a page that is
    not iPro's answer) confirms nothing: the builder carries on, asks again within the minute, and ends
-   the session once **15 minutes** have passed since iPro last confirmed it. The builder also ends a
+   the session once iPro has given no answer of its own for **15 minutes** (counted from its first
+   missed answer; a Save arriving at that moment is still kept). The builder also ends a
    session unused for 2 hours (its editor keeps it in use while the adviser works, and saves their
    changes when they step away or before the session's end).
 5. **See it on my site.** `POST <ipro>/builder-api/preview[?page=<slug>]` with the session token and a

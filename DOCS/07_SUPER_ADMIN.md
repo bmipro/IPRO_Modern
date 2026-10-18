@@ -596,10 +596,12 @@ Good to know:
   what they change there in the sections the draft has.
 - A customer's draft is never thrown away by the builder: when it cannot be sent as it is (its changes
   went in, the site was put back, or it was handed over again), the builder opens the site as it is now
-  and keeps the draft as a version the customer can restore. A second send of a draft whose changes
-  already went in is refused.
-- The builder stops a session at once when the customer's billing needs attention or their package no
-  longer includes the website, as the portal does.
+  and keeps the draft as a "Kept draft" version the customer can restore (restoring it brings in what
+  was added on the site since, at the end of its pages). A second send of a draft whose changes already
+  went in is refused, and so is bringing in a package when the customer sent a newer one since.
+- When the customer's billing needs attention or their package no longer includes the website, the
+  builder refuses at once to show or send anything, and closes at its next check with iPro (within five
+  minutes), as for the Beta switched off.
 - "See it on my site" in the builder makes a look that works for an hour. Such looks are not listed
   here and go by themselves; their new pictures are never added to the customer's media library.
 - Deleting the agent asks the builder to erase their draft (a job repeats the request until the

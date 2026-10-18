@@ -397,6 +397,19 @@ public static class BuilderImportService
             .Where(i => i.Id == import.Id && i.Status == WebsiteBuilderImportStatus.Pending)
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Applied));
         if (claimed != 1) return ApplyResult.Failed("This package has already been brought in or dropped.");
+        // 585: a customer's package goes in only while it is the newest they sent (two sends at once can
+        // both wait), and only while nothing of its hand-over has gone in (a second package of it could
+        // not be told from what the first wrote): the builder's doors refuse such a package too.
+        if (import.Source == WebsiteBuilderImportSources.Customer)
+        {
+            if (await db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.AgentWebsiteId == import.AgentWebsiteId && i.Id > import.Id
+                    && i.Source == WebsiteBuilderImportSources.Customer && i.Status == WebsiteBuilderImportStatus.Pending))
+                return ApplyResult.Failed("The customer sent a newer version after this one. Bring that one in, or drop this one.");
+            if (await db.WebsiteBuilderImports.AsNoTracking().AnyAsync(i => i.AgentWebsiteId == import.AgentWebsiteId && i.Id != import.Id
+                    && i.HandoverId == import.HandoverId
+                    && (i.Status == WebsiteBuilderImportStatus.Applied || i.Status == WebsiteBuilderImportStatus.Restored)))
+                return ApplyResult.Failed("Changes from this same draft already went onto the website. Drop this package: the builder opens the website as it is now next time.");
+        }
 
         var planned = await PlanAsync(db, import, removePageIds, keepPageIds, keepSectionIds, movedFrom);
         if (planned == null) return ApplyResult.Failed("The customer's website no longer exists.");

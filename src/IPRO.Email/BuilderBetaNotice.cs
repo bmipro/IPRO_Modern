@@ -42,7 +42,7 @@ public static class BuilderBetaNotice
     {
         var link = $"{WebAppUrlHelper.GetWebAppBaseUrl(configuration)}/portal/Website";
         var first = string.IsNullOrWhiteSpace(agent.FirstName) ? "Hello" : $"Hello {agent.FirstName.Trim()}";
-        var sent = import.CreatedAt.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture);
+        var sent = IPRO.DataAccess.AgentLocalTime.FromUtc(import.CreatedAt, agent.TimeZone).ToString("MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture);
         var lead = $"{first}, iPro's team did not publish the site you sent from the new website builder on {sent}. Your website has not changed.";
         var closing = "Your draft is still in the builder: open it from My Website, change what is needed and send it again. If you are not sure why it was not published, reply to this email.";
         return new SignupNotice.Notice("Your website changes were not published", Html("Your website changes were not published", lead, closing, link, "Open My Website"), $"{lead}\n\n{closing}\n\n{link}\n");

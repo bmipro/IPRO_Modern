@@ -627,6 +627,67 @@ public class BuilderBeta585Tests
         Assert.Contains("Your draft is still in the builder", dropped.Text);
     }
 
+    [Fact]
+    public async Task Only_the_newest_of_what_a_customer_sent_goes_in_and_never_twice_from_one_draft()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var blob = new BuilderImport571Tests.MemoryBlob();
+        var seeded = await SeedAsync(db, blob);
+        var token = await SessionAsync(db, seeded.Site);
+        var file = Assert.IsType<FileContentResult>(await Api(db, blob, new RecordingEmail(), token).Handover());
+        await Api(db, blob, new RecordingEmail(), token, SiteHandoverReturn572Tests.Return(file.FileContents, t => SiteHandoverReturn572Tests.Block(t, "about", 0)["heading"] = "First")).Return();
+        var first = await db.WebsiteBuilderImports.SingleAsync();
+        // Two sends at once can both wait (the later one's tidy-up missed the earlier): as if so.
+        await Api(db, blob, new RecordingEmail(), token, SiteHandoverReturn572Tests.Return(file.FileContents, t => SiteHandoverReturn572Tests.Block(t, "about", 0)["heading"] = "Second")).Return();
+        await db.WebsiteBuilderImports.Where(i => i.Id == first.Id).ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, WebsiteBuilderImportStatus.Pending));
+        db.ChangeTracker.Clear();
+
+        var older = await db.WebsiteBuilderImports.SingleAsync(i => i.Id == first.Id);
+        var refused = await BuilderImportService.ApplyAsync(db, older, new HashSet<int>(), null, "owner");
+        Assert.False(refused.Ok);
+        Assert.Contains("sent a newer version after this one", refused.Problems.Single());
+        db.ChangeTracker.Clear();
+        Assert.Equal(WebsiteBuilderImportStatus.Pending, (await db.WebsiteBuilderImports.AsNoTracking().SingleAsync(i => i.Id == first.Id)).Status);
+
+        var newer = await db.WebsiteBuilderImports.SingleAsync(i => i.Id != first.Id);
+        Assert.True((await BuilderImportService.ApplyAsync(db, newer, new HashSet<int>(), null, "owner")).Ok);
+        db.ChangeTracker.Clear();
+        // The older one of the same draft can no longer go in after it.
+        var again = await BuilderImportService.ApplyAsync(db, await db.WebsiteBuilderImports.SingleAsync(i => i.Id == first.Id), new HashSet<int>(), null, "owner");
+        Assert.False(again.Ok);
+        Assert.Contains("Changes from this same draft already went onto the website", again.Problems.Single());
+    }
+
+    [Fact]
+    public async Task The_builder_opens_only_from_iPros_own_address_and_only_with_its_key()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var blob = new BuilderImport571Tests.MemoryBlob();
+        var seeded = await SeedAsync(db, blob);
+        await BuilderBeta.SetAsync(db, seeded.Site.AgentUserId, enabled: true, adviserPublishes: false, "owner");
+
+        // On an adviser's own domain (which answers /portal too) no pass is issued: they are sent home.
+        var elsewhere = Portal(db, blob, seeded.Site.AgentUserId);
+        elsewhere.ControllerContext.HttpContext.Request.Host = new HostString("www.someadviser.example");
+        Assert.IsType<RedirectToActionResult>(await elsewhere.Open());
+        Assert.Contains("Sign in at portal.example.test", (string)elsewhere.TempData["Error"]!);
+        Assert.False(await db.WebsiteBuilderSessions.AnyAsync());
+
+        var home = Portal(db, blob, seeded.Site.AgentUserId);
+        home.ControllerContext.HttpContext.Request.Host = new HostString("portal.example.test");
+        Assert.IsType<ViewResult>(await home.Open());
+        Assert.Single(await db.WebsiteBuilderSessions.ToListAsync());
+
+        // Without the key the two servers share, the builder is not offered at all.
+        Assert.Null(WebsiteBuilderController.BuilderBaseUrl(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Builder:BaseUrl"] = "https://builder.example.test", ["Builder:ServiceKey"] = "too-short"
+        }).Build()));
+        Assert.Equal("https://builder.example.test", WebsiteBuilderController.BuilderBaseUrl(Configuration()));
+    }
+
     // ---------------- helpers ----------------
 
     private static (IPRO.Admin.Controllers.BuilderImportsController Controller, Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataDictionary TempData) Admin(

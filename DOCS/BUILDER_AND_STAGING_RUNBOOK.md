@@ -36,8 +36,12 @@ The builder works the same way in its own repository.
 
 **Three deployment identities, not one** (step A7): staging's can deploy the staging apps and nothing
 else; production iPro's works only from GitHub's "production" environment, which asks you first; the
-production builder's can deploy `ipro-builder` and nothing else. So a push to main, or a change to a
-workflow file, can never put anything on production by itself.
+production builder's can deploy `ipro-builder` and nothing else. So a push to iPro's main, or a change
+to one of its workflow files, cannot put anything on production iPro without your approval in GitHub
+(once SuperAdmin's deploy secret is moved into that environment too, step A7d). **The builder is the
+exception:** its repository is private, and GitHub's free plan has no approvals for private
+repositories, so whoever can push to the builder's main branch could also deploy the production builder
+by changing a workflow. Today that is only you; keep it so (step A7b).
 
 **What keeps staging away from real people and real money** (built into iPro, and checked at start-up:
 a staging copy set up wrongly does not start, and says why):
@@ -102,6 +106,13 @@ a staging copy set up wrongly does not start, and says why):
       release workflows now run in that environment, and without this credential Azure refuses them.
       After that first release has worked, delete this identity's old credential for entity
       **Branch** `main`, so that nothing started by a push can get production's token.
+   d. **SuperAdmin's deploy secret.** Production SuperAdmin is deployed with a publish profile (the
+      secret `AZUREAPPSERVICE_PUBLISHPROFILE_IPRO_PROD_ADMIN`), not with the identity above. Today it
+      is a repository secret, which any workflow can read. Move it into the environment: in
+      `IPRO_Modern` > Settings > Environments > `production` > **Add environment secret**, the same
+      name, the value from `ipro-prod-admin` > Overview > **Download publish profile**; then delete the
+      repository secret of that name (Settings > Secrets and variables > Actions). From then on only
+      the approved production job can read it.
 
    Then the Actions secrets (IDs, not passwords): in `IPRO_Modern`, `AZURE_STAGING_CLIENT_ID` (the
    Application (client) ID of a.); in `IPRO.TemplateBuilder`, `AZURE_STAGING_CLIENT_ID` (a.),
@@ -110,9 +121,9 @@ a staging copy set up wrongly does not start, and says why):
    Add identity provider > Microsoft**, as you did for production's SuperAdmin on 2026-09-12
    (DOCS/14 and TODO 482: require authentication, only you assigned). Then tell me, and on your word I
    exclude the addresses that must stay open: `/health,/health/version` on both, and `/builder-api` on
-   `ipro-staging-web` (the staging builder's server talks to it; without the exclusion it gets the
-   sign-in page, takes that for no answer, and ends every session after 15 minutes). The two builders
-   need no such step: nobody gets into a builder without a session from iPro.
+   `ipro-staging-web` (the staging builder's server talks to it; without the exclusion every opening of
+   the staging builder fails with "iPro's answer could not be read"). The two builders need no such
+   step: nobody gets into a builder without a session from iPro.
 
 ## Part B: settings (each app's Configuration > Application settings)
 

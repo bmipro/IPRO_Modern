@@ -47,7 +47,7 @@ Drafts made in the builder stay for next time (its database `ipro_builder_bench`
    this PC unless your local settings send mail.)
 6. **On My Website** the card now offers **Put my previous site back**, and **Continue my draft**:
    press it, and the builder opens your website as it is now (with your published changes) and says the
-   draft you sent is the newest of your **Versions**.
+   draft you sent is kept under **Versions**, as **Kept draft**.
 7. To try the other path, tick **They publish what they send themselves** in SuperAdmin, open the
    builder again, send, and the builder takes you to your own review page with **Publish**.
 

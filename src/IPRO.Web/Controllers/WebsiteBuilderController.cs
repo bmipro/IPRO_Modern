@@ -43,11 +43,13 @@ public class WebsiteBuilderController : Controller
 
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    // The builder's address, or null where it is not set up (the card then says the Beta is not
-    // available here, and nothing posts anywhere).
+    // The builder's address, or null where it is not set up: no address, or no key the two servers share
+    // (every call between them needs it). The card then says the Beta is not available here, and
+    // nothing posts anywhere.
     public static string? BuilderBaseUrl(IConfiguration configuration)
     {
         var value = configuration["Builder:BaseUrl"]?.Trim().TrimEnd('/');
+        if ((configuration["Builder:ServiceKey"] ?? string.Empty).Length < 32) return null;
         return Uri.TryCreate(value, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp) ? value : null;
     }
 
@@ -60,6 +62,15 @@ public class WebsiteBuilderController : Controller
         if (builder == null)
         {
             TempData["Error"] = "The new builder is not available here yet.";
+            return RedirectToAction("Index", "Website");
+        }
+        // The builder takes a pass only from iPro's own address (its post must come from there), so on
+        // any other one (an adviser's own domain also answers /portal) the adviser is sent there instead.
+        var portal = WebAppUrlHelper.GetWebAppBaseUrl(_configuration);
+        if (Request.Host.HasValue && Uri.TryCreate(portal, UriKind.Absolute, out var home)
+            && !string.Equals(Request.Host.Host, home.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = $"The new builder opens from iPro's own address. Sign in at {home.Host} and open it from My Website there.";
             return RedirectToAction("Index", "Website");
         }
 
