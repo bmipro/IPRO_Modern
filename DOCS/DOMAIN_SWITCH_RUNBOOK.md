@@ -121,6 +121,12 @@ MSYS_NO_PATHCONV=1 az webapp config appsettings set -n ipro-prod-web -g ipro-pro
 (That is the value as set on the switch day. Since 507 the live value writes the advisers pair as
 `www.iproadvisers.com=/,iproadvisers.com=/`, in that order: the first one is the home page's public address.)
 
+**A domain iPro has not served before** (a new registration, not a new name under iproadvisers.com,
+iproaccountants.com, ipromortgages.com, 247advisers.com or crm.to) also goes on `OwnDomains` in
+`src/IPRO.Utility/PlatformHostNames.cs`, released BEFORE it is bound (589). That list is what stops an
+adviser adding the name as their own custom domain, and what stops the domain automation in BOTH apps from
+binding or deleting it; the admin app has no `App__AliasHosts`.
+
 (`MSYS_NO_PATHCONV=1` or Git Bash rewrites `=/accountants` as a Windows path; `-o none` because the
 command otherwise prints every app setting.) **Prove it before DNS moves** by asking the app directly
 for each name -- the certificate check is skipped for THIS test only, because no certificate exists yet:

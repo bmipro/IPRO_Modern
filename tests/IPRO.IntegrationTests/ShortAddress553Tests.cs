@@ -42,6 +42,10 @@ namespace IPRO.IntegrationTests;
 //   - An address of the previous website finds its page: listed on the page (Old addresses), or the
 //     same words spelled the old site's way ("bread-&-pastries", "services.html").
 //   - Forwarding still counts as a working short address; the screens say which way it is connected.
+//
+// In ConfigHazardTests' collection (589): DomainCheckService.ResolveHook is one seam for the whole process,
+// and PlatformDomainGuard589Tests sets it too.
+[Collection(ConfigHazardTests.AzureStatics)]
 public class ShortAddress553Tests : IDisposable
 {
     private const string Platform = "40.89.19.0";

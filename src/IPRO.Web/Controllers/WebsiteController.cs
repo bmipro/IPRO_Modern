@@ -677,6 +677,29 @@ public class WebsiteController : Controller
                  + "add a custom domain only for a domain you own and control.";
         }
 
+        // 589: and none of iPro's other names -- the platform's own address, the brand names, the admin host,
+        // the App Service's own name (PlatformHostNames). Removing such a row sent Azure a DELETE for that
+        // name's binding and certificate on the production web app.
+        if (variants.Any(v => PlatformHostNames.IsPlatformHost(v, _configuration)))
+        {
+            return $"{normalized} is one of IPRO's own addresses, so it cannot be your custom domain. "
+                 + "Add a domain you own and control.";
+        }
+
+        // 589's review: the domain automation also refuses a name that differs from one of iPro's only in a dot
+        // or a dash (its certificate would carry the same name), and anything that is no host name at all; say
+        // so now rather than leave a domain that can never connect.
+        if (variants.Any(v => PlatformHostNames.SharesCertificateNameWithPlatformHost(v, _configuration)))
+        {
+            return $"{normalized} is too close to one of IPRO's own addresses to be connected here. "
+                 + "Add a domain you own and control.";
+        }
+
+        if (variants.Any(v => !PlatformHostNames.TryCanonicalHost(v, out _)))
+        {
+            return "Enter a valid domain name.";
+        }
+
         if (await _db.AgentDomains.AnyAsync(d => d.AgentUserId != agentId &&
                 (variants.Contains(d.DomainName.ToLower())
                  || variants.Contains(d.RootDomain.ToLower())
@@ -735,7 +758,9 @@ public class WebsiteController : Controller
         var portIndex = value.IndexOf(':');
         if (portIndex >= 0)
         {
-            value = value[..portIndex];
+            // 589's review: and trimmed again, or "example.com.:443" kept its dot -- a name the claim check
+            // compares as different from another adviser's example.com, and the domain automation reads as it.
+            value = value[..portIndex].Trim().Trim('.');
         }
 
         return ShouldUseWwwHost(value) ? "www." + value : value;

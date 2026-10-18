@@ -117,6 +117,16 @@ Local image paths under `/images` and `/uploads` are valid. Do not paste a files
 
 After changing credentials or role assignments, restart Web and Admin, wait for Azure propagation, then click **Recheck**.
 
+## A Domain Is "One of IPRO's Own Addresses"
+
+My Website refuses to add iPro's own names as an adviser's custom domain (589, 2026-10-18): the platform's address, the brand names and every name under iproadvisers.com, iproaccountants.com, ipromortgages.com, 247advisers.com and crm.to, the names in the `App:BaseUrl`, `App:PlatformDomains`, `App:AliasHosts` and `App:AdminDomain` settings (with or without `www.`), `*.azurewebsites.net` and `localhost`. Before 589 an adviser with extra domains could add one, and removing it sent Azure a DELETE for that name's binding and certificate on the web app.
+
+- A name that differs from one of iPro's only in a dot or a dash (`app-iproadvisers.com`, `best-iproaccountants.com`) is refused too, as "too close to one of IPRO's own addresses": its certificate would have the same name.
+- A name that is no host name at all (a backslash, a percent sign, a space, a control or invisible character, a single word) gets "Enter a valid domain name.", and so does a name written with look-alike characters (full-width letters, an ideographic full stop) or accents. Only letters, digits, hyphens and dots are stored and sent to Azure, exactly as stored: a look-alike spelling of another adviser's domain would otherwise reach that adviser's binding. A domain with accents is entered in its `xn--` form (the ASCII or Punycode name the registrar shows).
+- A row from before 589 that names one: the domain check marks it failed with the same sentence and never looks it up, probes it or asks Azure about it. The adviser removes it with **Remove**; the row goes and nothing is sent to Azure.
+- The domain automation (both apps: My Website, the domain check, Super Admin's erasure of an adviser) refuses such a name whatever a row says, with a Warning in the log: `Azure domain automation refused to remove <name>`.
+- A new domain iPro registers and serves goes on the list in `src/IPRO.Utility/PlatformHostNames.cs` (`OwnDomains`) in the release that binds it; the admin app has none of the `App:` settings.
+
 ## PayPal Invalid Client
 
 1. Confirm `PayPal__IsSandbox` matches the credential type.

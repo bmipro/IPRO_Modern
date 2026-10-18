@@ -19,6 +19,8 @@ The agent should not alter temporary-domain DNS records.
 6. Make the short address (the root domain, without `www`) reach the site too: point it straight at IPRO with two DNS records, or forward it at the registrar. See **Point the short address straight at IPRO** below. IPRO checks it automatically and shows it as its own **Short address** row; the `www` site works either way.
 7. Wait for DNS propagation.
 
+A custom domain is a domain you own. IPRO's own addresses cannot be added: www.iProAdvisers.com, www.iProAccountants.com, www.iProMortgages.com and every name under them (app., admin. and so on), the free sites' 247advisers.com, and the hosting's own `azurewebsites.net` names. My Website answers that the name is one of IPRO's own addresses. A domain with accents is entered in its `xn--` form (the ASCII or Punycode name your registrar shows).
+
 IPRO checks pending domains automatically. Agents can also click **Retry** beside a domain to recheck it immediately (about every 2 minutes at most). Super Admin can also select **Recheck**.
 
 Once the Connection status panel shows **Found**, **Connected**, **Secured** and the short address reads **Connected** or **Forwarding OK**, the two registrar instruction cards fold away behind **Show the setup steps (for adding another domain)**. They come back on their own if anything stops being green.
