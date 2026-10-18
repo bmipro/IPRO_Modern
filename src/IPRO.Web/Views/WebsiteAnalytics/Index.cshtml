@@ -37,7 +37,7 @@
     <div class="analytics-chart" role="img" aria-label="Daily website page views">
       @foreach (var point in Model.DailyViews)
       {
-        @* 586 (2026-10-17, the owner): each day's page views stand on top of its bar, so the chart reads at a
+        @* 587 (2026-10-17, the owner): each day's page views stand on top of its bar, so the chart reads at a
            glance; the visitors stay in the bar's tooltip. The tallest bar uses 82% of the height to leave the
            number room above it. *@
         var height = Math.Max(4m, point.Views * 82m / maxDailyViews);
