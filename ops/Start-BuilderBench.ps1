@@ -84,7 +84,7 @@ $copies = @(
 foreach ($copy in $copies) {
     $out = Join-Path $apps $copy.Name
     if ($SkipPublish) {
-        if (-not (Test-Path (Join-Path $out $copy.Dll))) { Write-Host "No published $($copy.Name) under $apps: run without -SkipPublish." -ForegroundColor Red; exit 1 }
+        if (-not (Test-Path (Join-Path $out $copy.Dll))) { Write-Host "No published $($copy.Name) under ${apps}: run without -SkipPublish." -ForegroundColor Red; exit 1 }
         continue
     }
     Write-Host "Publishing the $($copy.Name)..." -ForegroundColor Cyan
