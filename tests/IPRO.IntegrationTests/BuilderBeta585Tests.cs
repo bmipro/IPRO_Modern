@@ -754,7 +754,7 @@ public class BuilderBeta585Tests
 
     // A view of the portal (IPRO.Web) rendered from its compiled form, without a layout, as the
     // SuperAdmin screens are in BuilderImportScreens571Tests.
-    private static async Task<string> RenderPortalAsync<TModel>(string viewPath, TModel model)
+    internal static async Task<string> RenderPortalAsync<TModel>(string viewPath, TModel model)
     {
         var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(new Microsoft.AspNetCore.Builder.WebApplicationOptions
         {

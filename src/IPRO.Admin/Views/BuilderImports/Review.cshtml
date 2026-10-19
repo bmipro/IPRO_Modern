@@ -13,6 +13,16 @@
     var live = Model.Website.IsPublished;
     // 581: whether a page removed in the builder could be one of the package's new pages.
     var anyNewPage = plan != null && plan.Pages.Any(p => p.Change == PageChange.Added);
+    // 585: a return's pages the customer did not change are folded away below the others; the pages that
+    // change come first, then those that stay as they are.
+    var unchanged = plan?.Pages.Where(p => p.Unchanged).ToList() ?? new List<PlannedPage>();
+    var listed = plan?.Pages.Where(p => !p.Unchanged).OrderBy(p => p.Change == PageChange.Kept ? 1 : 0).ToList() ?? new List<PlannedPage>();
+    // 577: what becomes of a menu label the builder was given shortened (said on a folded page too).
+    string LabelNote(PlannedPage item) => item.LabelKept
+        ? $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\". It came back unchanged, so the page keeps its own: \"{item.Page.NavigationLabel}\"."
+        : item.Page.NavigationLabel != item.LabelSent
+        ? $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\", and the designer changed it to \"{item.Page.NavigationLabel}\". The menu shows that from now on."
+        : $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\". The page has no menu label of its own on the site, so the menu shows this one from now on; change it on the customer's Website Menu screen if it should read otherwise.";
     // 581: which page a page of the package at a new address is, as the operator said or else as the
     // plan reads it: what its choice shows (a choice the plan could not honour stays shown, beside the problem).
     int ChosenRow(PlannedPage item) => Model.Moved.TryGetValue(item.Page.Slug, out var said) ? said : item.IsMoved ? item.Page.Id : 0;
@@ -95,7 +105,7 @@ else
             <div class="table-responsive"><table class="table align-middle mb-0">
                 <thead><tr><th style="width:24%">Page</th><th>What happens</th><th style="width:26%">Sections afterwards</th><th class="text-end" style="width:9%"></th></tr></thead>
                 <tbody>
-                @foreach (var item in plan.Pages)
+                @foreach (var item in listed)
                 {
                     var pg = item.Page;
                     <tr class="@(item.Change == PageChange.Removed ? "table-danger" : "")">
@@ -132,6 +142,24 @@ else
                                         {
                                             <div class="small text-danger mt-1"><i class="fas fa-triangle-exclamation me-1"></i>@item.OldAddressNote</div>
                                         }
+                                        @if (item.Changes is { Count: > 0 })
+                                        {
+                                            <ul class="small mb-0 mt-1 ps-3">@foreach (var line in item.Changes) { <li>@line</li> }</ul>
+                                        }
+                                    }
+                                    else if (item.Changes != null)
+                                    {
+                                        @* 585: a return: what the customer changed on this page, against the site as it is now. *@
+                                        <span class="badge bg-primary">Changed</span>
+                                        @if (item.Changes.Count > 0)
+                                        {
+                                            <ul class="small mb-0 mt-1 ps-3">@foreach (var line in item.Changes) { <li>@line</li> }</ul>
+                                        }
+                                        else
+                                        {
+                                            <div class="small text-muted mt-1">Nothing a visitor sees on this page changes.</div>
+                                        }
+                                        <div class="small text-muted mt-1">Its search title and description, and whether it is published and in the menu, stay as they are.</div>
                                     }
                                     else
                                     {
@@ -200,11 +228,7 @@ else
                             @* 577: a menu label the builder was given shortened, and what becomes of it. *@
                             @if (item.LabelSent.Length > 0)
                             {
-                                <div class="small text-muted mt-1"><i class="fas fa-circle-info me-1"></i>@(item.LabelKept
-                                    ? $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\". It came back unchanged, so the page keeps its own: \"{pg.NavigationLabel}\"."
-                                    : pg.NavigationLabel != item.LabelSent
-                                    ? $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\", and the designer changed it to \"{pg.NavigationLabel}\". The menu shows that from now on."
-                                    : $"Menu label: the builder showed it shortened, as \"{item.LabelSent}\". The page has no menu label of its own on the site, so the menu shows this one from now on; change it on the customer's Website Menu screen if it should read otherwise.")</div>
+                                <div class="small text-muted mt-1"><i class="fas fa-circle-info me-1"></i>@LabelNote(item)</div>
                             }
                             @* 576: each section of this page that the package does not bring back, with the choice to keep it. *@
                             @foreach (var going in item.SectionsGoing)
@@ -237,6 +261,20 @@ else
                 }
                 </tbody>
             </table></div>
+            @if (unchanged.Count > 0)
+            {
+                @* 585: nothing on these pages changes: folded away, each with its look. *@
+                <details class="card-body border-top py-3">
+                    <summary class="small"><strong>No change</strong>: @unchanged.Count page@(unchanged.Count == 1 ? "" : "s") the customer did not change. Bringing it in leaves @(unchanged.Count == 1 ? "it as it is" : "them as they are").</summary>
+                    <ul class="small mb-0 mt-2">
+                        @foreach (var item in unchanged)
+                        {
+                            <li>@item.Page.Title <span class="text-muted">/@(item.Page.IsHomePage ? "" : item.Page.Slug)</span>@if (!blocked) { <text> </text><a target="_blank" rel="noopener" href="@(Model.LookAddress + Uri.EscapeDataString(item.Page.Slug))">Look</a> }
+                                @if (item.LabelSent.Length > 0) { <div class="text-muted">@LabelNote(item)</div> }</li>
+                        }
+                    </ul>
+                </details>
+            }
             @* 581: a page kept after all and then chosen for a page at a new address has no tick box while
                it is that page; its tick travels on, so that undoing the choice keeps it again. *@
             @foreach (var keptId in Model.Keep.Where(id => !plan.Pages.Any(p => p.Page.Id == id && (p.Change is PageChange.Kept or PageChange.Removed))))

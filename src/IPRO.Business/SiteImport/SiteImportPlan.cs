@@ -102,6 +102,15 @@ public sealed class PlannedPage
     // show: its search title and description, its own language, the old addresses it answers to, that it
     // is hidden from visitors or from the menu, and where links to its address go afterwards.
     public IReadOnlyList<string> SettingsLost { get; init; } = Array.Empty<string>();
+    // 585 (the owner's bench walk-through): for a replaced page of a return, what bringing it in changes on
+    // it, in plain sentences (PageChanges), apart from the sections named one by one (SectionsGoing).
+    // Empty: nothing a visitor sees changes. Null: not compared (a page that is not replaced, and every
+    // page of a site built from scratch, whose sections all give way to the package's).
+    public IReadOnlyList<string>? Changes { get; init; }
+    // 585: a replaced page of a return on which nothing changes and nothing needs a word: the reviews
+    // fold it away under "No change".
+    public bool Unchanged => Change == PageChange.Replaced && Changes is { Count: 0 } && !IsMoved && SectionsGoing.Count == 0
+                             && BoxNotes.Count == 0 && !ChangedSinceHandover && (LabelSent.Length == 0 || LabelKept);
 }
 
 public enum LogoChange { Unchanged, Set, Replaced, Removed }
@@ -530,6 +539,7 @@ public sealed class SiteImportPlan
             // section the builder cannot carry that is no box's (1b). For a site built from scratch
             // that is all of them. Each is named by its own row, and a kept one stays as the site has it.
             var going = new List<SectionGoing>();
+            var fromPackage = page.Blocks.Count;
             if (row != null)
             {
                 var next = page.Blocks.Count == 0 ? 0 : page.Blocks.Max(x => x.SortOrder) + 1;
@@ -573,11 +583,21 @@ public sealed class SiteImportPlan
                 }
             }
 
+            // 585: for a return, what this changes on the page, section by section, apart from the sections
+            // named one by one with a choice (going, and the kept copies of them at the end of the page).
+            IReadOnlyList<string>? changes = null;
+            if (row != null && template.HandoverId.Length > 0)
+            {
+                var named = going.Select(g => g.BlockId).ToHashSet();
+                changes = PageChanges.Between(row, row.Blocks.Where(x => !named.Contains(x.Id)), page, page.Blocks.Take(fromPackage));
+            }
+
             bySlug[source.Slug] = page;
             planned.Add(new PlannedPage
             {
                 Page = page,
                 Change = row == null ? PageChange.Added : PageChange.Replaced,
+                Changes = changes,
                 SectionsBefore = row == null ? Array.Empty<string>() : SectionTypes(row),
                 SectionsLost = going.Where(g => !g.Kept).Select(g => g.BlockType).ToList(),
                 SectionsGoing = going,

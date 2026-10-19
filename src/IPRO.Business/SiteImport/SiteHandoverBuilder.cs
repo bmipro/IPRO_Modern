@@ -571,7 +571,7 @@ public static class SiteHandoverBuilder
     }
 
     // iPro's page editor takes "Tel:" and "MAILTO:" as typed; the contract writes a scheme in lower case.
-    private static string LowerScheme(string url)
+    internal static string LowerScheme(string url)
     {
         foreach (var scheme in new[] { "https://", "mailto:", "tel:" })
         {

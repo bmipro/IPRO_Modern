@@ -5,6 +5,10 @@
     var plan = Model.Plan;
     var blocked = plan.Problems.Count > 0;
     string Address(string slug) => "/" + slug;
+    // 585: the pages they did not change are folded away below the others; the pages that change come
+    // first, then those that stay as they are.
+    var unchanged = plan.Pages.Where(p => p.Unchanged).ToList();
+    var listed = plan.Pages.Where(p => !p.Unchanged).OrderBy(p => p.Change == PageChange.Kept ? 1 : 0).ToList();
 }
 @* 585: an adviser's own review of what they sent from the new builder (Beta), for an adviser a
    SuperAdmin lets publish. The choices iPro's staff have on their review are made here the safe way:
@@ -32,7 +36,7 @@
       <table class="table align-middle mb-0">
         <thead><tr><th scope="col">Page</th><th scope="col">What happens</th><th scope="col"><span class="visually-hidden">Look</span></th></tr></thead>
         <tbody>
-        @foreach (var item in plan.Pages)
+        @foreach (var item in listed)
         {
           var row = item.Page;
           var kept = item.SectionsGoing.Where(g => g.Kept).ToList();
@@ -48,7 +52,7 @@
                   <span>Updated with your changes, at its new address (it was @Address(item.MovedFrom)).</span>
                   break;
                 case PageChange.Replaced:
-                  <span>Updated with your changes.</span>
+                  <span>Updated with your changes@(item.Changes is { Count: > 0 } ? ":" : ".")</span>
                   break;
                 case PageChange.Removed:
                   <span>Removed: you took it out in the builder.</span>
@@ -56,6 +60,10 @@
                 default:
                   <span>Stays as it is.</span>
                   break;
+              }
+              @if (item.Changes is { Count: > 0 })
+              {
+                <ul class="small mb-0 mt-1 ps-3">@foreach (var line in item.Changes) { <li>@line</li> }</ul>
               }
               @if (item.ChangedSinceHandover && item.Change != PageChange.Kept)
               {
@@ -81,6 +89,18 @@
         </tbody>
       </table>
     </div>
+    @if (unchanged.Count > 0)
+    {
+      <details class="mt-3">
+        <summary class="small"><strong>No change</strong>: @unchanged.Count page@(unchanged.Count == 1 ? "" : "s") you did not change. Publishing leaves @(unchanged.Count == 1 ? "it as it is" : "them as they are").</summary>
+        <ul class="small mb-0 mt-2">
+          @foreach (var item in unchanged)
+          {
+            <li>@item.Page.Title <span class="text-muted">@Address(item.Page.Slug)</span>@if (!blocked) { <text> </text><a href="@(Model.LookAddress + Uri.EscapeDataString(item.Page.Slug))" target="_blank" rel="noopener">Look</a> }</li>
+          }
+        </ul>
+      </details>
+    }
     @if (plan.LogoChangedSinceHandover)
     {
       <p class="small text-danger mt-3 mb-0">You changed your logo after you opened the builder. Publishing puts back the logo the builder has.</p>
