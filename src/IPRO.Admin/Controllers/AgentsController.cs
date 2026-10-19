@@ -788,6 +788,13 @@ public class AgentsController : Controller
             {
                 try
                 {
+                    // 591: the agent's rows are gone; a host another agent's row still names is that agent's site.
+                    if (await AgentDomainHosts.StillNamedAsync(_db, host))
+                    {
+                        _logger.LogWarning("Azure unbind of {Host} skipped while deleting agent {AgentId}: another domain row still names it", IPRO.Utility.PlatformHostNames.Printable(host), id);
+                        continue;
+                    }
+
                     var unbind = await _azureDomains.RemoveDomainAsync(host);
                     if (!unbind.Success)
                     {

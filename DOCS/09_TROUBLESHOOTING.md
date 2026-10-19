@@ -127,6 +127,15 @@ My Website refuses to add iPro's own names as an adviser's custom domain (589, 2
 - The domain automation (both apps: My Website, the domain check, Super Admin's erasure of an adviser) refuses such a name whatever a row says, with a Warning in the log: `Azure domain automation refused to remove <name>`.
 - A new domain iPro registers and serves goes on the list in `src/IPRO.Utility/PlatformHostNames.cs` (`OwnDomains`) in the release that binds it; the admin app has none of the `App:` settings.
 
+## A Certificate Was Left Alone Because It Belongs to Another Address
+
+Each adviser's domain gets an App Service managed certificate. Until 591 (2026-10-18) its name was `managed-` + the domain with its dots as dashes, cut at 80 characters, and two different domains could share one: `www.abc-def.com` and `www-abc.def.com`, or two long names that agree on their first 72 characters. Removing one could delete the other adviser's certificate, and connecting one could order the other's again for itself.
+
+- Before it orders or deletes a certificate, the domain automation reads it from Azure and touches it only when its `canonicalName` is that very domain. A certificate ordered for another domain is left alone, with a Warning in the log: `Azure domain automation did not delete certificate <certificate> for <domain>: it was ordered for <other domain>` (or `did not order`). Nothing is wrong with either site; the line says which name was protected.
+- A certificate ordered since 591 is named `managed--` (two hyphens, a start no older name has) + the start of the dashed domain + `-` + 16 letters and digits of its hash (`ManagedCertificateNames.For` in `src/IPRO.Utility`). One ordered before keeps its old name and is still found, renewed and removed under it. To find a domain's certificate under either name, look it up by its address: `az webapp config ssl list -g <rg> --query "[?contains(hostNames, 'www.their-domain.ca')].{name:name, thumbprint:thumbprint}" -o table`.
+- Removing a domain (My Website, or Super Admin's delete of an adviser) sends Azure nothing for a name another domain row still names: `Azure cleanup of <name> skipped after removal: another domain row still names it`.
+- `ops/sql/certificate-name-collisions.sql` (read-only) lists the domain names in a database that share an old certificate name, or two rows that name the same address.
+
 ## PayPal Invalid Client
 
 1. Confirm `PayPal__IsSandbox` matches the credential type.
@@ -1231,7 +1240,7 @@ it with a 90-day manual chore, plus an alert, a runbook and a doc rewrite built 
 az resource list --resource-type "Microsoft.Web/certificates" --query "[].name" -o tsv
 ```
 
-If `managed-www-<something>` rows exist with thumbprints, managed certificates work here and the
+If `managed-www-<something>` (or, since 591, `managed--www-<something>`) rows exist with thumbprints, managed certificates work here and the
 problem is elsewhere. That one command would have prevented the whole detour.
 
 `ops/New-AgentCert.ps1` exists as a fallback for genuine failures. It is **not** the standard path —

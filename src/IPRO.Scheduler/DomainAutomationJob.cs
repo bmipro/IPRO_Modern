@@ -165,11 +165,14 @@ public class DomainAutomationJob
         // the durable record either way.
         domain.CertificateAlertSentAt = DateTime.UtcNow;
 
+        // 591: a certificate ordered since 591 has a name of its own; one ordered before keeps the old name.
+        var certificateName = IPRO.Utility.ManagedCertificateNames.For(overdueHost);
+        var olderCertificateName = IPRO.Utility.ManagedCertificateNames.Legacy(overdueHost);
         _logger.LogWarning(
             "Domain {Domain} (agent {AgentUserId}) has been bound with no certificate for over {Hours}h. " +
-            "Managed certificate issuance appears stuck; check the managed-{Slug} certificate resource in Azure",
+            "Managed certificate issuance appears stuck; check the {CertificateName} certificate resource in Azure (ordered before 591: {OlderCertificateName})",
             overdueHost, domain.AgentUserId, CertificateGracePeriod.TotalHours,
-            overdueHost.Replace('.', '-'));
+            certificateName, olderCertificateName);
 
         var to = _configuration["Email:NotificationEmail"];
         if (string.IsNullOrWhiteSpace(to) || to.StartsWith("CHANGE_THIS_", StringComparison.OrdinalIgnoreCase))
@@ -213,7 +216,11 @@ public class DomainAutomationJob
                   certificate for the wrong name, so browsers block it.
                 </p>
                 <p><strong>Check this first.</strong> The managed certificate may exist and simply not be bound:</p>
-                <pre style="background:#f6f8fb;padding:12px;border-radius:6px;font-size:13px">az resource show --ids /subscriptions/&lt;sub&gt;/resourceGroups/&lt;rg&gt;/providers/Microsoft.Web/certificates/managed-{host.Replace('.', '-')} --query properties.thumbprint</pre>
+                <pre style="background:#f6f8fb;padding:12px;border-radius:6px;font-size:13px">az resource show --ids /subscriptions/&lt;sub&gt;/resourceGroups/&lt;rg&gt;/providers/Microsoft.Web/certificates/{WebUtility.HtmlEncode(certificateName)} --query "[properties.canonicalName, properties.thumbprint]"</pre>
+                <p style="color:#475569;font-size:13px">
+                  A certificate ordered by an older version of IPRO has the name <code>{WebUtility.HtmlEncode(olderCertificateName)}</code> instead.
+                  Either one is this domain's only when its canonicalName is <strong>{host}</strong>.
+                </p>
                 <p style="color:#475569;font-size:13px">
                   If it has a thumbprint, bind it — do not issue a new one. On 2026-08-06 a perfectly
                   good auto-renewing managed certificate was displaced by a hand-issued Let's Encrypt

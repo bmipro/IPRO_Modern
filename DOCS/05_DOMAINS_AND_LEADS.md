@@ -192,10 +192,10 @@ serves a certificate for the wrong name. So the portal shows amber and says so, 
 simply failed to bind, *before* issuing anything:
 
 ```
-az resource show --ids /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Web/certificates/managed-www-their-domain-ca --query properties.thumbprint
+az webapp config ssl list -g <rg> --query "[?contains(hostNames, 'www.their-domain.ca')].{name:name, thumbprint:thumbprint}" -o table
 ```
 
-If it has a thumbprint, bind that. Only if no managed certificate exists should you fall back to
+It finds the certificate by the address it was made for, whatever its name: a new one is called `managed--www-their-domain-ca-` followed by 16 letters and digits, and one ordered before October 2026 keeps the older name `managed-www-their-domain-ca` (the alert gives both). If it has a thumbprint, bind that. Only if no managed certificate exists should you fall back to
 `ops/New-AgentCert.ps1`, which produces a Let's Encrypt certificate that does **not** auto-renew.
 
 > **Learn from 2026-08-06.** `www.ouritems.ca` was diagnosed as "managed certificates don't work on this

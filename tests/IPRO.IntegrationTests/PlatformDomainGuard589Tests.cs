@@ -235,7 +235,9 @@ public class PlatformDomainGuard589Tests : IDisposable
             Assert.Empty(azure.Requests);
             Assert.Contains(log.Lines, l => l.Level == LogLevel.Warning && l.Text.Contains("app.iproadvisers.com", StringComparison.Ordinal));
 
-            // An adviser's own name: the binding and its certificate go, as before.
+            // An adviser's own name: the binding and its certificate go, as before (591: the certificate is
+            // deleted once Azure says it was ordered for this name).
+            azure.Certificates["managed-www-smith589-example-test"] = "www.smith589.example.test";
             Assert.True((await service.RemoveDomainAsync("www.smith589.example.test")).Success);
             Assert.Contains(azure.Requests, r => r.Method == HttpMethod.Delete && r.Url.Contains("/hostNameBindings/www.smith589.example.test?"));
             Assert.Contains(azure.Requests, r => r.Method == HttpMethod.Delete && r.Url.Contains("/certificates/managed-www-smith589-example-test?"));
@@ -594,10 +596,12 @@ public class PlatformDomainGuard589Tests : IDisposable
     }
 
     // Stands in for login.microsoftonline.com and management.azure.com: every request recorded, each
-    // answered the way Azure answers a request it accepts.
+    // answered the way Azure answers a request it accepts. 591: a certificate name is read before it is
+    // deleted; it holds a certificate (for the host given) only when the test put one there.
     private sealed class RecordingAzure : HttpMessageHandler, IHttpClientFactory
     {
         public List<(HttpMethod Method, string Url)> Requests { get; } = new();
+        public Dictionary<string, string> Certificates { get; } = new();
 
         public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
 
@@ -605,6 +609,13 @@ public class PlatformDomainGuard589Tests : IDisposable
         {
             var url = request.RequestUri!.ToString();
             Requests.Add((request.Method, url));
+            var certificate = request.RequestUri.AbsolutePath.Split("/certificates/").Skip(1).FirstOrDefault();
+            if (request.Method == HttpMethod.Get && certificate != null)
+            {
+                return Task.FromResult(Certificates.TryGetValue(certificate, out var host)
+                    ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"properties\":{\"canonicalName\":\"" + host + "\"}}", Encoding.UTF8, "application/json") }
+                    : new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("{\"error\":{\"code\":\"ResourceNotFound\"}}", Encoding.UTF8, "application/json") });
+            }
             var body = url.Contains("login.microsoftonline.com") ? "{\"access_token\":\"token\",\"expires_in\":3600}" : "{\"properties\":{}}";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
         }

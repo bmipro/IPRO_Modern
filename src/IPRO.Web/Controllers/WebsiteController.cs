@@ -470,6 +470,13 @@ public class WebsiteController : Controller
             if (string.IsNullOrWhiteSpace(host)) continue;
             try
             {
+                // 591: a host another domain row still names is that row's binding and certificate.
+                if (await AgentDomainHosts.StillNamedAsync(_db, host))
+                {
+                    _logger.LogWarning("Azure cleanup of {Domain} skipped after removal: another domain row still names it", PlatformHostNames.Printable(host));
+                    continue;
+                }
+
                 await _azureDomains.RemoveDomainAsync(host);
             }
             catch (Exception ex)

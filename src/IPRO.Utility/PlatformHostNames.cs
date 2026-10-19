@@ -34,9 +34,11 @@ public static class PlatformHostNames
         return Forms(host).Any(name => domains.Any(domain => name == domain || name.EndsWith("." + domain, StringComparison.Ordinal)));
     }
 
-    // The certificate the domain automation names for a host is managed-<host with dots as dashes>, so two
-    // names that differ only in where their dots and dashes are share one: app-iproadvisers.com would order
-    // or delete the certificate of app.iproadvisers.com. Such a name is refused like iPro's own.
+    // The certificate the domain automation named for a host before 591 was managed-<host with dots as dashes>,
+    // so two names that differ only in where their dots and dashes are shared one: app-iproadvisers.com would
+    // have ordered or deleted the certificate of app.iproadvisers.com. Such a name is still refused like iPro's
+    // own. (Since 591 every certificate is read before it is ordered or deleted, and touched only when it was
+    // ordered for that very host; ManagedCertificateNames.)
     public static bool SharesCertificateNameWithPlatformHost(string? host, IConfiguration? configuration = null)
     {
         var domains = Domains(configuration).Select(Undash).ToList();
