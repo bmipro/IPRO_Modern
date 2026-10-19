@@ -105,7 +105,7 @@ public class PortalRequestsController : Controller
             // 460: "from your client portal" now says where that is -- the agent's own domain when
             // one is attached, otherwise the platform (ClientPortalUrls, the same rule as the invite).
             var loginUrl = IPRO.Web.Infrastructure.ClientPortalUrls.LoginUrl(
-                await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration));
+                await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration), AgentId, _configuration);
             var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
             // 542: a letter from the adviser -- greeted, signed, with the phone to call.
             var html = ClientLetter.Html(adviser, request.Client.FirstName, new[]
@@ -147,7 +147,7 @@ public class PortalRequestsController : Controller
         if (!string.IsNullOrWhiteSpace(request.Client.Email))
         {
             var loginUrl = IPRO.Web.Infrastructure.ClientPortalUrls.LoginUrl(
-                await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration));
+                await IPRO.Web.Infrastructure.ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration), AgentId, _configuration);
             var adviser = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
             // 542: a letter from the adviser -- greeted, signed, with the phone to call.
             var html = ClientLetter.Html(adviser, request.Client.FirstName, new[]

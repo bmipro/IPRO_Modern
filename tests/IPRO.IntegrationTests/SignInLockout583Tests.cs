@@ -266,12 +266,14 @@ public class SignInLockoutClients583Tests
     }
 
     // The review's finding: an adviser can give their own client the email of another adviser's client
-    // and a password of their choosing (the activation link is on the client's profile). Each guess at
-    // the other client's password then opens the adviser's own row -- and must still count as a wrong
-    // password for the other client, or the guessing would be free (and a right guess shows both
-    // accounts to choose from).
+    // and a password of their choosing (the activation link is on the client's profile). 583 counted each
+    // guess that opened the adviser's own row as a wrong password for the other client, so the guessing
+    // was not free. 586 closed the path itself: a password is checked against one adviser's clients only,
+    // so the guesses never reach the other client -- here the guesser's row is the older, and the shared
+    // address with no adviser in the link goes to it -- and at the other adviser's own sign-in a guess
+    // counts as anyone's would.
     [Fact]
-    public async Task A_password_that_opens_one_advisers_client_counts_as_wrong_at_the_others()
+    public async Task Guesses_through_a_planted_row_never_reach_the_other_advisers_client_and_count_there_as_anyones()
     {
         await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
         var guesser = await Lock583.SeedAgentAsync(testDb, "guesser", "guesser@example.com");
@@ -287,22 +289,27 @@ public class SignInLockoutClients583Tests
             var answer = await Lock583.ClientPortal(db, notices, new RecordingLogger()).Login("jo@example.com", "guess-" + i);
             Assert.IsType<RedirectToActionResult>(answer);                       // into their own row
         }
-        Assert.NotNull(await Lock583.LockedUntilAsync(testDb, "Clients", victim));
-        Assert.Equal(new SignInAccount(SignInAccountKind.Client, victim), Assert.Single(notices.Queued));
-        Assert.Equal(0, await Lock583.CountAsync(testDb, "Clients", ownRow));
+        Assert.Equal(0, await Lock583.CountAsync(testDb, "Clients", victim));
+        Assert.Null(await Lock583.LockedUntilAsync(testDb, "Clients", victim));
+        Assert.Empty(notices.Queued);
 
-        // The right guess now finds the other client locked and unchecked: the guesser gets their own row
-        // and no choice of accounts, so nothing says the guess was right.
+        // The right guess opens only the guesser's own row: no choice of accounts, so nothing says it was right.
         await Lock583.SetPortalPasswordAsync(testDb, ownRow, "the-real-one");
         await using (var db = testDb.CreateContext())
         {
             var answer = await Lock583.ClientPortal(db, notices, new RecordingLogger()).Login("jo@example.com", "the-real-one");
             Assert.IsType<RedirectToActionResult>(answer);   // not the ChooseAccount view
         }
+        Assert.Equal(0, await Lock583.CountAsync(testDb, "Clients", victim));
+
+        // At the other adviser's sign-in a guess is a wrong password for their client, as anyone's is.
+        Assert.Equal("Invalid email or password.", await Lock583.ClientRefusalAsync(testDb, "jo@example.com", "guess-6", notices, new RecordingLogger(), adviser: other.ToString()));
+        Assert.Equal(1, await Lock583.CountAsync(testDb, "Clients", victim));
+        Assert.Equal(0, await Lock583.CountAsync(testDb, "Clients", ownRow));
     }
 
     [Fact]
-    public async Task A_client_of_two_advisers_with_one_password_signs_in_to_either_and_one_lock_does_not_stop_the_other()
+    public async Task A_client_of_two_advisers_has_a_sign_in_with_each_and_one_lock_does_not_stop_the_other()
     {
         await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
         var first = await Lock583.SeedAgentAsync(testDb, "first", "first@example.com");
@@ -310,21 +317,20 @@ public class SignInLockoutClients583Tests
         var atFirst = await Lock583.SeedClientAsync(testDb, first, "jo@example.com", "same-password");
         var atSecond = await Lock583.SeedClientAsync(testDb, second, "jo@example.com", "same-password");
 
-        // One password for both: both match, the client chooses, nothing is counted against either.
-        await using (var db = testDb.CreateContext())
-        {
-            var view = Assert.IsType<ViewResult>(await Lock583.ClientPortal(db, new RecordingLockNotices(), new RecordingLogger()).Login("jo@example.com", "same-password"));
-            Assert.Equal("ChooseAccount", view.ViewName);
-        }
+        // 586: one sign-in with each adviser, never both at once. With no adviser in the link the older
+        // record decides (no choice of advisers is offered); the link each adviser hands out names its own.
+        Assert.IsType<RedirectToActionResult>(await Lock583.ClientSignInAsync(testDb, "jo@example.com", "same-password"));
+        Assert.IsType<RedirectToActionResult>(await Lock583.ClientSignInAsync(testDb, "jo@example.com", "same-password", adviser: second.ToString()));
         Assert.Equal(0, await Lock583.CountAsync(testDb, "Clients", atFirst));
         Assert.Equal(0, await Lock583.CountAsync(testDb, "Clients", atSecond));
 
-        // One row locked does not stop the other's own password; a wrong one counts on the open row and
-        // reads as the lock (the person may be typing the locked row's password).
+        // One locked does not stop the other, and a wrong password counts only with the adviser it was typed for.
         await Lock583.SetLockAsync(testDb, "Clients", atSecond, count: 5, lockedUntil: DateTime.UtcNow.AddMinutes(10));
         Assert.IsType<RedirectToActionResult>(await Lock583.ClientSignInAsync(testDb, "jo@example.com", "same-password"));
-        Assert.Equal(SignInMessages.ClientPortalLocked, await Lock583.ClientRefusalAsync(testDb, "jo@example.com", "wrong", new RecordingLockNotices(), new RecordingLogger()));
+        Assert.Equal(SignInMessages.ClientPortalLocked, await Lock583.ClientRefusalAsync(testDb, "jo@example.com", "same-password", new RecordingLockNotices(), new RecordingLogger(), adviser: second.ToString()));
+        Assert.Equal("Invalid email or password.", await Lock583.ClientRefusalAsync(testDb, "jo@example.com", "wrong", new RecordingLockNotices(), new RecordingLogger()));
         Assert.Equal(1, await Lock583.CountAsync(testDb, "Clients", atFirst));
+        Assert.Equal(5, await Lock583.CountAsync(testDb, "Clients", atSecond));
     }
 
     [Fact]
@@ -955,18 +961,19 @@ internal static class Lock583
     public static ClientPortalAccountController ClientPortal(IPRODbContext db, RecordingLockNotices notices, RecordingLogger log) =>
         Prepare(new ClientPortalAccountController(db, new PasswordHasher<Client>(), notices, log.For<ClientPortalAccountController>()));
 
-    public static async Task<string?> ClientRefusalAsync(TestDatabase testDb, string email, string password, RecordingLockNotices notices, RecordingLogger log)
+    // `adviser` is the ?adviser=<id> of the shared address's sign-in link (586); none = a link without one.
+    public static async Task<string?> ClientRefusalAsync(TestDatabase testDb, string email, string password, RecordingLockNotices notices, RecordingLogger log, string? adviser = null)
     {
         await using var db = testDb.CreateContext();
-        var result = await ClientPortal(db, notices, log).Login(email, password);
+        var result = await ClientPortal(db, notices, log).Login(email, password, null, adviser);
         Assert.IsType<ViewResult>(result);
         return Error(result);
     }
 
-    public static async Task<IActionResult> ClientSignInAsync(TestDatabase testDb, string email, string password)
+    public static async Task<IActionResult> ClientSignInAsync(TestDatabase testDb, string email, string password, string? adviser = null)
     {
         await using var db = testDb.CreateContext();
-        return await ClientPortal(db, new RecordingLockNotices(), new RecordingLogger()).Login(email, password);
+        return await ClientPortal(db, new RecordingLockNotices(), new RecordingLogger()).Login(email, password, null, adviser);
     }
 
     private static AdminController Admin(IPRODbContext db, RecordingLogger log) =>

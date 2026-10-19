@@ -1,6 +1,7 @@
 @model IEnumerable<IPRO.Entities.Client>
 @{
     ViewData["Title"] = "My Clients";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 588: in the adviser's zone
     var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory>) ?? Enumerable.Empty<IPRO.Entities.ClientCategory>();
     var selectedAccountTypeId = ViewBag.AccountTypeId as int?;
     var selectedNewsletter = ViewBag.Newsletter as string;
@@ -155,7 +156,7 @@
                             <span class="badge bg-light text-muted rounded-pill">No</span>
                         }
                     </td>
-                    <td><small class="text-muted">@c.CreatedAt.ToString("MMM d, yyyy")</small></td>
+                    <td><small class="text-muted">@Local(c.CreatedAt).ToString("MMM d, yyyy")</small></td>
                     <td>
                         <div class="d-flex gap-1">
                             <a href="/portal/Clients/Details/@c.Id" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>

@@ -26,7 +26,8 @@ namespace IPRO.IntegrationTests;
 public class ConfigHazardTests : IDisposable
 {
     // 553: SiteNameProvider is one seam for the whole process and test classes run in parallel;
-    // every class that sets it shares this collection, so they take turns.
+    // every class that sets it shares this collection, so they take turns. So does every class that
+    // sets DomainCheckService.ResolveHook (589).
     public const string AzureStatics = "AzureDomainAutomationService statics";
 
     public ConfigHazardTests() => AzureDomainAutomationService.SiteNameProvider =

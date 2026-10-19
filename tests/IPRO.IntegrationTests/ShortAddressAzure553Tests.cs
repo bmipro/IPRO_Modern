@@ -35,7 +35,8 @@ public class ShortAddressAzure553Tests : IDisposable
         var service = NewService(azure);
 
         // First pass: the binding, then the certificate order -- which has no thumbprint yet.
-        var first = await service.EnsureRootDomainAsync("Shop553.Example.Test.");
+        // Capitals are fine; a trailing dot is refused since 589 (the name must be exactly the one stored).
+        var first = await service.EnsureRootDomainAsync("Shop553.Example.Test");
         Assert.True(first.Success);
         Assert.True(first.BindingCreated);
         Assert.False(first.SslBound);

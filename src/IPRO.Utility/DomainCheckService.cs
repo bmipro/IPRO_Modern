@@ -1,5 +1,6 @@
 using System.Net;
 using IPRO.Entities;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace IPRO.Utility;
@@ -44,6 +45,7 @@ public class DomainCheckService : IDomainCheckService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IAzureDomainAutomationService _azureDomains;
     private readonly ILogger<DomainCheckService> _logger;
+    private readonly IConfiguration? _configuration;
 
     // The platform's own addresses, per CNAME target, for the life of this check run: one job run
     // checks up to fifty domains that all point at the same target.
@@ -52,11 +54,13 @@ public class DomainCheckService : IDomainCheckService
     public DomainCheckService(
         IHttpClientFactory httpClientFactory,
         IAzureDomainAutomationService azureDomains,
-        ILogger<DomainCheckService> logger)
+        ILogger<DomainCheckService> logger,
+        IConfiguration? configuration = null)
     {
         _httpClientFactory = httpClientFactory;
         _azureDomains = azureDomains;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task<bool> CheckAsync(AgentDomain domain, CancellationToken cancellationToken = default)
@@ -65,9 +69,30 @@ public class DomainCheckService : IDomainCheckService
         domain.UpdatedAt = DateTime.UtcNow;
         domain.LastError = string.Empty;
 
-        await CheckDomainAsync(domain, cancellationToken);
-        await CheckRootDomainAsync(domain, cancellationToken);
-        await CheckCaaAsync(domain, cancellationToken);
+        // 589: a row naming one of iPro's own addresses is never an adviser's domain, whatever it says (a row
+        // from before My Website refused them), and neither is a row whose name is no host name at all.
+        // Nothing is looked up, fetched or asked of Azure: a probe of iPro's own address finds iPro's page,
+        // which the check used to read as "bound".
+        if (RefusalFor(domain) is { } refusal)
+        {
+            domain.DnsStatus = AgentDomainStatus.Failed;
+            domain.AzureBindingStatus = AgentDomainStatus.Failed;
+            domain.SslStatus = AgentDomainStatus.Failed;
+            // Nothing of the short address is the adviser's either: no binding to delete, no certificate to wait for.
+            domain.RootDnsStatus = AgentDomainStatus.NotConfigured;
+            domain.RootAzureBindingStatus = AgentDomainStatus.NotConfigured;
+            domain.RootSslStatus = AgentDomainStatus.NotConfigured;
+            domain.RootRedirectsToWww = false;
+            domain.RootLastError = string.Empty;
+            domain.LastError = refusal;
+            _logger.LogWarning("Custom domain {Domain} (row {Id}) refused before any check: {Reason}", PlatformHostNames.Printable(domain.DomainName), domain.Id, refusal);
+        }
+        else
+        {
+            await CheckDomainAsync(domain, cancellationToken);
+            await CheckRootDomainAsync(domain, cancellationToken);
+            await CheckCaaAsync(domain, cancellationToken);
+        }
 
         var fullyBound = domain.DnsStatus == AgentDomainStatus.Bound &&
                           domain.AzureBindingStatus == AgentDomainStatus.Bound &&
@@ -95,6 +120,23 @@ public class DomainCheckService : IDomainCheckService
         }
 
         return fullyBound;
+    }
+
+    // 589: why a row may not be checked at all, in the adviser's words, or null.
+    private string? RefusalFor(AgentDomain domain)
+    {
+        var names = new[] { domain.DomainName, domain.WwwDomain, domain.RootDomain }.Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
+        if (names.Any(name => PlatformHostNames.IsPlatformHost(name, _configuration) || PlatformHostNames.SharesCertificateNameWithPlatformHost(name, _configuration)))
+        {
+            return "This is one of IPRO's own addresses, or too close to one, so it cannot be your website address. Remove it and add a domain you own.";
+        }
+
+        if (names.Count == 0 || names.Any(name => !PlatformHostNames.TryCanonicalHost(name, out _)))
+        {
+            return "This is not a valid domain name, so it cannot be used as a website address. Remove it and add it again, for example www.yourname.com.";
+        }
+
+        return null;
     }
 
     // 506: while a certificate is still wanted, read the domain's CAA records. A list that leaves

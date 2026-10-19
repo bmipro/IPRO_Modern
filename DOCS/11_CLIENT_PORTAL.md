@@ -18,11 +18,21 @@ While the invite is pending, the card also says whether the invite email actuall
 The client portal is on **your own domain** when you have connected one and it is live; otherwise it is on the platform host. The sign-in address is shown on the client's profile under **Client Portal**, both while the invite is pending and once the client is active:
 
 ```
-https://<your-domain>/ClientPortalAccount/Login        (a connected custom domain)
-https://app.iproadvisers.com/ClientPortalAccount/Login  (no custom domain attached)
+https://<your-domain>/ClientPortalAccount/Login                      (a connected custom domain)
+https://app.iproadvisers.com/ClientPortalAccount/Login?adviser=<n>   (no custom domain attached; <n> is your adviser number)
 ```
 
 The invite email's activation link and the appointment emails are built on the same address (TODO 457/460, 2026-09-02). Your free `<name>.247advisers.com` site also serves the portal, but links we send clients do not use it.
+
+### A client's sign-in is yours alone
+
+Since 2026-10-17 (TODO 586) a client's portal sign-in reaches your clients only: the sign-in page checks a password against one adviser's clients, never every adviser's. Which adviser:
+
+- on your own domain (once it is live) or your free site: you (the address decides);
+- on iPro's shared address: the adviser the address names (`?adviser=<n>`). The address on the client's profile and in our emails carries it;
+- on the shared address with no adviser in it (a link sent before 2026-10-17, a bookmark, the page a client is sent to when their session has run out): the adviser with the oldest client record for that email that has a portal password. For nearly every client that is you, so those links keep working.
+
+An invitation link opens on your own address or on the shared one, not on another adviser's. If a client says their right password is refused, give them the sign-in address shown on their profile.
 
 ## Revoke Portal Access
 
@@ -36,7 +46,7 @@ After 5 wrong passwords in a row, a client's portal sign-in is locked for 15 min
 
 The client gets one email from you about it (replies come to you), and no more than one a day.
 
-While a client is locked, their profile's **Client Portal** card says so, until when, and offers **Send a New Invitation**: the password they choose from it unlocks the sign-in at once. Super Admin can also clear the lock. A client who uses the portal with two advisers has a separate sign-in with each; a lock on one does not stop the other.
+While a client is locked, their profile's **Client Portal** card says so, until when, and offers **Send a New Invitation**: the password they choose from it unlocks the sign-in at once. Super Admin can also clear the lock. A client who uses the portal with two advisers has a separate sign-in with each, signed in to from that adviser's own address or the sign-in link that names them; a lock on one does not stop the other.
 
 ## Portal Messages
 

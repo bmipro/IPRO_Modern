@@ -9,6 +9,19 @@ Since 583 (2026-10-16), 5 wrong passwords in a row lock a sign-in for 15 minutes
 - The container log keeps a warning for each lock and each unlock; the lock line says which account and the last visitor address. Many locks of many names from one address are someone guessing, not a customer.
 - If the same account locks again and again, someone keeps guessing its password: the person should choose a new, strong password. They get one email a day at most about it.
 
+## A Client's Right Password Is Refused on the Client Portal
+
+Since 586 (2026-10-17) a client's portal sign-in belongs to their adviser: the page checks the password against one adviser's clients only (Client Portal guide, **A client's sign-in is yours alone**). So a right password is refused when:
+
+- the client is signing in on **another adviser's** domain or free site;
+- the address names another adviser (`?adviser=<n>` is not their adviser's number);
+- the address names no adviser and the same email is on an **older** client record with a portal password at another adviser (the person is a client of both, or someone gave another record that email).
+
+The answer is the same each time: give the client the sign-in address on their profile under **Client Portal** (the adviser's domain, or the shared address with `?adviser=<n>`). Wrong tries count only with the adviser the page chose.
+
+- iPro's own addresses are never treated as an adviser's: the names in the `App:BaseUrl`, `App:PlatformDomains` and `App:AliasHosts` settings (with or without `www.`), the free-site zone, the admin host and the App Service's own name. A new name iPro starts to serve goes into those settings when it goes live.
+- A domain counts as an adviser's only once Azure has bound it. For the few minutes a domain check fails, a live domain answers as the shared address does: the link's `?adviser=`, else the oldest record.
+
 ## LOCKED OUT OF SUPERADMIN (break-glass recovery)
 
 **Use this only when nobody can sign in to admin.iproadvisers.com as a Super Admin.** If another
@@ -103,6 +116,16 @@ Local image paths under `/images` and `/uploads` are valid. Do not paste a files
 - Empty JSON response: the Azure API may have returned success without a body; deploy the current response-handling code.
 
 After changing credentials or role assignments, restart Web and Admin, wait for Azure propagation, then click **Recheck**.
+
+## A Domain Is "One of IPRO's Own Addresses"
+
+My Website refuses to add iPro's own names as an adviser's custom domain (589, 2026-10-18): the platform's address, the brand names and every name under iproadvisers.com, iproaccountants.com, ipromortgages.com, 247advisers.com and crm.to, the names in the `App:BaseUrl`, `App:PlatformDomains`, `App:AliasHosts` and `App:AdminDomain` settings (with or without `www.`), `*.azurewebsites.net` and `localhost`. Before 589 an adviser with extra domains could add one, and removing it sent Azure a DELETE for that name's binding and certificate on the web app.
+
+- A name that differs from one of iPro's only in a dot or a dash (`app-iproadvisers.com`, `best-iproaccountants.com`) is refused too, as "too close to one of IPRO's own addresses": its certificate would have the same name.
+- A name that is no host name at all (a backslash, a percent sign, a space, a control or invisible character, a single word) gets "Enter a valid domain name.", and so does a name written with look-alike characters (full-width letters, an ideographic full stop) or accents. Only letters, digits, hyphens and dots are stored and sent to Azure, exactly as stored: a look-alike spelling of another adviser's domain would otherwise reach that adviser's binding. A domain with accents is entered in its `xn--` form (the ASCII or Punycode name the registrar shows).
+- A row from before 589 that names one: the domain check marks it failed with the same sentence and never looks it up, probes it or asks Azure about it. The adviser removes it with **Remove**; the row goes and nothing is sent to Azure.
+- The domain automation (both apps: My Website, the domain check, Super Admin's erasure of an adviser) refuses such a name whatever a row says, with a Warning in the log: `Azure domain automation refused to remove <name>`.
+- A new domain iPro registers and serves goes on the list in `src/IPRO.Utility/PlatformHostNames.cs` (`OwnDomains`) in the release that binds it; the admin app has none of the `App:` settings.
 
 ## PayPal Invalid Client
 

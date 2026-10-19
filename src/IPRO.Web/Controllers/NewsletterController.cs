@@ -85,12 +85,20 @@ public class NewsletterController : Controller
             return View(model);
         }
 
-        // 573: the posted newsletter is its own fields only; no sends, recipients or account ride in.
-        IPRO.DataAccess.PostedRecord.Clean(_db, model);
-        model.AgentUserId = AgentId;
-        model.SentAt = null;
-        model.TotalRecipients = model.TotalSent = model.TotalOpened = model.TotalClicked = 0;
-        var nl = await _newsletters.CreateAsync(model);
+        // 588: the stored newsletter is made from the fields a person types on this form (573 emptied the
+        // posted record's relations; its sidebar buttons and send date still came from the post). Sidebar
+        // buttons are added one at a time by AddSidebarCta, which takes http and https addresses only; the
+        // status, dates and counts are the server's.
+        var newsletter = new NewsLetter
+        {
+            AgentUserId = AgentId,
+            Subject = model.Subject,
+            HtmlBody = model.HtmlBody,
+            TextBody = model.TextBody,
+            BannerUrl = model.BannerUrl,
+            Edition = model.Edition
+        };
+        var nl = await _newsletters.CreateAsync(newsletter);
         TempData["Success"] = "Newsletter draft saved.";
         return RedirectToAction(nameof(Preview), new { id = nl.Id });
     }
@@ -423,13 +431,19 @@ public class NewsletterController : Controller
         var owned = await _newsletters.GetByIdAsync(article.NewsLetterId);
         if (owned == null || owned.AgentUserId != AgentId) return NotFound();
 
-        var existing = await _newsletters.GetArticlesAsync(article.NewsLetterId);
-        article.SortOrder = existing.Count();
-        article.ImageUrl = NormalizeUrl(article.ImageUrl);
-        article.Content = HtmlContentSanitizer.Sanitize(article.Content);
-        await _newsletters.AddArticleAsync(article);
+        var existing = await _newsletters.GetArticlesAsync(owned.Id);
+        // 588: the article is the three fields a person types. Adding the posted record itself also added
+        // whatever the request named around it: a newsletter in another adviser's account, an account.
+        await _newsletters.AddArticleAsync(new NewsLetterArticle
+        {
+            NewsLetterId = owned.Id,
+            Title = article.Title ?? string.Empty,
+            Content = HtmlContentSanitizer.Sanitize(article.Content ?? string.Empty),
+            ImageUrl = NormalizeUrl(article.ImageUrl),
+            SortOrder = existing.Count()
+        });
         TempData["Success"] = "Article added.";
-        return RedirectToAction(nameof(Edit), new { id = article.NewsLetterId });
+        return RedirectToAction(nameof(Edit), new { id = owned.Id });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

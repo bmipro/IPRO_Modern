@@ -4,10 +4,10 @@ using Xunit;
 
 namespace IPRO.IntegrationTests;
 
-// 586 (2026-10-17): the owner, looking at Website Analytics: "on top of each blue column there should be a
+// 587 (2026-10-17): the owner, looking at Website Analytics: "on top of each blue column there should be a
 // number ... the way it is not informing right away". Each day's page views now stand on top of its bar
 // (the bar measures views; the visitors stay in the bar's tooltip), and the tallest bar leaves room for it.
-public class AnalyticsBarLabels586Tests
+public class AnalyticsBarLabels587Tests
 {
     [Fact]
     public void Each_bar_carries_its_page_views_on_top()

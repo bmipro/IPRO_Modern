@@ -38,6 +38,14 @@ public static class ClientPortalUrls
 
     public static string LoginUrl(string baseUrl) => $"{baseUrl.TrimEnd('/')}/ClientPortalAccount/Login";
 
+    // 586: the sign-in address we hand a client. On iPro's shared address it names the adviser
+    // (?adviser=<id>): that address is every adviser's, and a client's sign-in is their adviser's alone
+    // (ClientPortalSignInScope). On the adviser's own domain the address says it all.
+    public static string LoginUrl(string baseUrl, int agentId, IConfiguration configuration) =>
+        string.Equals(baseUrl.TrimEnd('/'), WebAppUrlHelper.GetWebAppBaseUrl(configuration).TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+            ? $"{LoginUrl(baseUrl)}?{ClientPortalSignInScope.AdviserParameter}={agentId}"
+            : LoginUrl(baseUrl);
+
     public static string ActivateUrl(string baseUrl, string token) =>
         $"{baseUrl.TrimEnd('/')}/ClientPortalAccount/Activate?token={System.Net.WebUtility.UrlEncode(token)}";
 }

@@ -9,6 +9,13 @@ public static class DomainErrorTranslator
             return string.Empty;
         }
 
+        // 589: written for the adviser already (DomainCheckService, AzureDomainAutomationService). First: the
+        // sentence names the domain, and a domain may contain any of the words looked for below.
+        if (Contains(rawError, "IPRO's own addresses") || Contains(rawError, "not a valid domain name"))
+        {
+            return rawError;
+        }
+
         if (Contains(rawError, "AuthorizationFailed"))
         {
             return "IPRO could not complete the Azure setup for this domain due to a permissions issue on our side. Our team has been notified — no action needed from you.";

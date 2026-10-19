@@ -88,6 +88,7 @@ public class ClientsController : Controller
             .Where(c => c.AgentUserId == AgentId)
             .OrderBy(c => c.Name)
             .ToListAsync();
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 588: the Added date, the adviser's day
         return View(await query.OrderByDescending(c => c.CreatedAt).ToListAsync());
     }
 
@@ -99,16 +100,17 @@ public class ClientsController : Controller
             .Include(c => c.LifeEvents)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
-        ViewBag.Today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId)).Date;   // 518: the agent's day
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 583, 588: every time on the profile
+        string agentTimeZone = ViewBag.AgentTimeZone;
+        ViewBag.Today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, agentTimeZone).Date;   // 518: the agent's day
         var comments = (await _clients.GetCommentsAsync(id)).ToList();
         ViewBag.Comments = comments;
-        ViewBag.Timeline = BuildClientTimeline(client, comments);
+        ViewBag.Timeline = BuildClientTimeline(client, comments, agentTimeZone);
         ViewBag.PortalAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientPortal);
-        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 583: a portal lock's time
         // 457: the client portal's address on THIS agent's domain, shown on the card whether the
         // client is invited or active, so the agent always has it to hand.
         var clientPortalBase = await ClientPortalUrls.GetBaseUrlAsync(_db, AgentId, _configuration);
-        ViewBag.ClientPortalLoginUrl = ClientPortalUrls.LoginUrl(clientPortalBase);
+        ViewBag.ClientPortalLoginUrl = ClientPortalUrls.LoginUrl(clientPortalBase, AgentId, _configuration);
         ViewBag.ClientPortalActivateUrl = string.IsNullOrWhiteSpace(client.PortalInviteToken)
             ? null
             : ClientPortalUrls.ActivateUrl(clientPortalBase, client.PortalInviteToken);
@@ -312,8 +314,10 @@ public class ClientsController : Controller
             .FirstOrDefaultAsync(c => c.Id == id && c.AgentUserId == AgentId);
         if (client == null) return NotFound();
 
-        var today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId)).Date;   // 518: the agent's day
+        var agentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
+        var today = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, agentTimeZone).Date;   // 518: the agent's day
         ViewBag.Today = today;
+        ViewBag.AgentTimeZone = agentTimeZone;   // 588: the Created dates, the adviser's day
         var query = _db.ClientFollowUps
             .Where(f => f.ClientId == id);
 
@@ -479,30 +483,18 @@ public class ClientsController : Controller
             return View(model);
         }
 
-        // 573: the posted contact is its own fields only. Whatever else the request named (documents,
-        // messages, an account, a key) is dropped before the row is added; categories come from the
-        // database below.
-        IPRO.DataAccess.PostedRecord.Clean(_db, model);
-        // 583: a new contact has no portal sign-in until they are invited and choose a password themselves
-        // (InvitePortal, then Activate). A posted password hash or invitation would skip both, and the
-        // Client Portal package check with them; the sign-in lock's own columns are SignInLockout's.
-        model.PortalPasswordHash = null;
-        model.PortalInviteToken = null;
-        model.PortalInviteTokenExpiresAt = null;
-        model.PortalInviteEmailedAt = null;
-        model.PortalInviteEmailError = null;
-        model.PortalActivatedAt = null;
-        model.FailedSignInCount = 0;
-        model.SignInLockedUntil = null;
-        model.SignInLockNoticeAt = null;
-        model.AgentUserId = AgentId;
-        model.CreatedAt = DateTime.UtcNow;
-        model.UpdatedAt = DateTime.UtcNow;
-        await ApplyCategoriesAsync(model, categoryIds);
-        await _db.Clients.AddAsync(model);
+        // 588: the stored contact is made from the fields a person types on this form, and nothing else the
+        // request named. 573 emptied the posted record's relations and 583 its portal sign-in, but the
+        // email-preferences link, the opt-out record, the greetings opt-in and the birthday markers still
+        // came from the post. Now everything the form does not show starts as the server's: no portal
+        // sign-in until InvitePortal, no preferences token until the first email, no opt-out. Categories
+        // come from the database below.
+        var client = NewContactFrom(model);
+        await ApplyCategoriesAsync(client, categoryIds);
+        await _db.Clients.AddAsync(client);
         await _db.SaveChangesAsync();
 
-        TempData["Success"] = $"{model.FirstName} {model.LastName} added successfully.";
+        TempData["Success"] = $"{client.FirstName} {client.LastName} added successfully.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -513,6 +505,7 @@ public class ClientsController : Controller
             .FirstOrDefaultAsync(c => c.Id == id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
         await LoadAccountTypesAsync(client.Categories.Select(c => c.Id));
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 588: the opt-out date, the adviser's day
         return View(client);
     }
 
@@ -930,6 +923,15 @@ public class ClientsController : Controller
         }
     }
 
+    // 588: a new contact from the form's own fields (the ones Edit copies); the rest is the server's.
+    private Client NewContactFrom(Client posted)
+    {
+        var now = DateTime.UtcNow;
+        var client = new Client { AgentUserId = AgentId, CreatedAt = now, UpdatedAt = now };
+        ApplyClientFields(client, posted);
+        return client;
+    }
+
     private static void ApplyClientFields(Client client, Client model)
     {
         client.FirstName = model.FirstName;
@@ -1102,7 +1104,8 @@ public class ClientsController : Controller
         }
     }
 
-    private static List<ClientTimelineItem> BuildClientTimeline(Client client, IEnumerable<ClientComment> comments)
+    // 588: the stamps are UTC; the list is ordered by them and shown in the adviser's own zone.
+    private static List<ClientTimelineItem> BuildClientTimeline(Client client, IEnumerable<ClientComment> comments, string agentTimeZone)
     {
         var items = new List<ClientTimelineItem>
         {
@@ -1165,15 +1168,15 @@ public class ClientsController : Controller
                     Icon = "fa-check",
                     ColorClass = "text-success bg-success-subtle",
                     Title = $"Follow-up completed: {followUp.Title}",
-                    Details = $"Completed on {followUp.CompletedAt.Value:MMM d, yyyy}",
+                    Details = $"Completed on {AgentTimeZoneHelper.FromUtc(followUp.CompletedAt.Value, agentTimeZone):MMM d, yyyy}",
                     Url = IPRO.Utility.PortalPaths.To($"/Clients/FollowUps/{client.Id}?status=completed")
                 });
             }
         }
 
-        return items
-            .OrderByDescending(i => i.OccurredAt)
-            .ToList();
+        var ordered = items.OrderByDescending(i => i.OccurredAt).ToList();
+        foreach (var item in ordered) item.OccurredAt = AgentTimeZoneHelper.FromUtc(item.OccurredAt, agentTimeZone);
+        return ordered;
     }
 
     private async Task TryDeleteGoogleEventAsync(string googleEventId)

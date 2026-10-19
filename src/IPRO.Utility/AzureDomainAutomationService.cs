@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -11,17 +12,20 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly AzureDomainAutomationOptions _options;
     private readonly ILogger<AzureDomainAutomationService> _logger;
+    private readonly IConfiguration? _configuration;
     private string? _accessToken;
     private DateTimeOffset _accessTokenExpiresAt;
 
     public AzureDomainAutomationService(
         IHttpClientFactory httpClientFactory,
         IOptions<AzureDomainAutomationOptions> options,
-        ILogger<AzureDomainAutomationService> logger)
+        ILogger<AzureDomainAutomationService> logger,
+        IConfiguration? configuration = null)
     {
         _httpClientFactory = httpClientFactory;
         _options = options.Value;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public bool IsConfigured => _options.HasRequiredBindingSettings;
@@ -57,6 +61,34 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
         return true;
     }
 
+    // 589: iPro's own names (PlatformHostNames) are never bound, re-bound or deleted here, whatever row or
+    // caller asks: an adviser's My Website removal, the admin app's erasure of an adviser, the domain check.
+    // A re-bind is no safer than a delete: its first PUT names no certificate, which can take HTTPS off a
+    // live name, and its certificate order replaces whatever certificate already has that name. Checked
+    // before every switch below, so a refusal is logged with automation off too.
+    //
+    // 589's review: and only a host name goes to Azure, exactly as it is stored (PlatformHostNames.TryCanonicalHost).
+    // A stored name with anything else in it -- a backslash, a percent sign, a zero-width character, full-width
+    // letters a resolver would read as another adviser's domain -- is refused, never converted: nothing here can
+    // know how Azure would read it, and a converted name is no longer the one the claim check compared.
+    internal AzureDomainAutomationResult? Refusal(string? hostName, string action, out string canonical)
+    {
+        if (!PlatformHostNames.TryCanonicalHost(hostName, out canonical))
+        {
+            _logger.LogWarning("Azure domain automation refused to {Action} {HostName}: it is not a valid host name", action, PlatformHostNames.Printable(hostName));
+            return AzureDomainAutomationResult.Skipped("That is not a valid domain name, so it cannot be connected as a website address.");
+        }
+
+        if (PlatformHostNames.IsPlatformHost(canonical, _configuration) ||
+            PlatformHostNames.SharesCertificateNameWithPlatformHost(canonical, _configuration))
+        {
+            _logger.LogWarning("Azure domain automation refused to {Action} {HostName}: it is one of iPro's own addresses, or shares a certificate name with one", action, canonical);
+            return AzureDomainAutomationResult.Skipped($"{canonical} is one of IPRO's own addresses, or too close to one, so it cannot be connected as a website address.");
+        }
+
+        return null;
+    }
+
     public Task<AzureDomainAutomationResult> EnsureDomainAsync(string hostName, CancellationToken cancellationToken = default) =>
         EnsureHostAsync(hostName, CNameRecord, cancellationToken);
 
@@ -73,11 +105,18 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
 
     private async Task<AzureDomainAutomationResult> EnsureHostAsync(string hostName, string dnsRecordType, CancellationToken cancellationToken)
     {
+        var stored = hostName;   // 589: the guard reads the name exactly as stored, untrimmed
         hostName = (hostName ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(hostName))
         {
             return AzureDomainAutomationResult.Failed("Domain name is missing.");
         }
+
+        if (Refusal(stored, "bind", out var canonical) is { } refused)
+        {
+            return refused;
+        }
+        hostName = canonical;
 
         if (!_options.Enabled)
         {
@@ -169,11 +208,18 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
 
     public async Task<AzureDomainAutomationResult> RemoveDomainAsync(string hostName, CancellationToken cancellationToken = default)
     {
+        var stored = hostName;   // 589: the guard reads the name exactly as stored, untrimmed
         hostName = (hostName ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(hostName))
         {
             return AzureDomainAutomationResult.Skipped("Domain name is missing.");
         }
+
+        if (Refusal(stored, "remove", out var canonical) is { } refused)
+        {
+            return refused;
+        }
+        hostName = canonical;
 
         // 492 (audit L5): the same switch AddDomainAsync honours. With automation off, nothing here
         // may delete a live binding or certificate either.
