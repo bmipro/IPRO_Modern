@@ -592,17 +592,24 @@ public class BuilderBeta585Tests
         var file = Assert.IsType<FileContentResult>(await Api(db, blob, new RecordingEmail(), token).Handover());
         byte[] Edited() => SiteHandoverReturn572Tests.Return(file.FileContents, t => SiteHandoverReturn572Tests.Block(t, "about", 0)["heading"] = "Ours");
 
-        // Two looks, then the send: the second look drops the first, and the send the second.
+        // Two looks, then two sends: each look is dropped by what came next, and the first send by the second.
         await Api(db, blob, new RecordingEmail(), token, Edited()).Preview("home");
         await Api(db, blob, new RecordingEmail(), token, Edited()).Preview("about");
         await Api(db, blob, new RecordingEmail(), token, Edited()).Return();
-        Assert.Equal(2, await db.WebsiteBuilderImports.CountAsync(i => i.Status == WebsiteBuilderImportStatus.Discarded));
+        await Api(db, blob, new RecordingEmail(), token, Edited()).Return();
+        Assert.Equal(3, await db.WebsiteBuilderImports.CountAsync(i => i.Status == WebsiteBuilderImportStatus.Discarded));
 
         var (admin, _) = Admin(db, blob, new RecordingEmail());
         var model = Assert.IsType<IPRO.Admin.Models.BuilderImportIndexViewModel>(Assert.IsType<ViewResult>(await admin.Index(seeded.Site.AgentUserId)).Model);
-        var sent = Assert.Single(model.Imports);
-        Assert.Equal(WebsiteBuilderImportStatus.Pending, sent.Status);
-        Assert.Equal(WebsiteBuilderImportSources.Customer, sent.Source);
+        Assert.Equal(new[] { WebsiteBuilderImportStatus.Pending, WebsiteBuilderImportStatus.Discarded }, model.Imports.Select(i => i.Status));
+        Assert.All(model.Imports, i => Assert.Equal(WebsiteBuilderImportSources.SentFileName, i.FileName));
+        // The first send was replaced by the customer's own newer send, not dropped by iPro's staff: said so.
+        Assert.True(model.ReplacedBySend(model.Imports[1]));
+        Assert.False(model.ReplacedBySend(model.Imports[0]));
+        var html = await BuilderImportScreens571Tests.RenderAsync("~/Views/BuilderImports/Index.cshtml", model);
+        Assert.Contains("Replaced</span>", html);
+        Assert.Contains("by the customer's newer send", html);
+        Assert.DoesNotContain(">Dropped<", html);
     }
 
     [Fact]

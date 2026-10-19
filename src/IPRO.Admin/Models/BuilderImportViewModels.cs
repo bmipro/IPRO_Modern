@@ -23,6 +23,12 @@ public sealed class BuilderImportIndexViewModel
     public string Zone { get; init; } = string.Empty;
     // 585: the new builder (Beta) for this customer (null: never switched on).
     public AgentBuilderBeta? Beta { get; init; }
+
+    // 585: a send of the customer's that their own newer send replaced (it is dropped the moment the
+    // newer one is stored), not one iPro's staff dropped.
+    public bool ReplacedBySend(WebsiteBuilderImport import) =>
+        import.Source == WebsiteBuilderImportSources.Customer && import.Status == WebsiteBuilderImportStatus.Discarded && import.ClosedAt.HasValue
+        && Imports.Any(newer => newer.Id > import.Id && newer.Source == WebsiteBuilderImportSources.Customer && newer.CreatedAt <= import.ClosedAt.Value);
 }
 
 public sealed class BuilderImportReviewViewModel

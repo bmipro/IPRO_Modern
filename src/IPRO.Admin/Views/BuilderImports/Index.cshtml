@@ -191,6 +191,10 @@ else
                                     <span class="badge bg-secondary">Taken back out</span>
                                     <div class="text-muted small">@(import.ClosedAt.HasValue ? When(import.ClosedAt.Value) : "")</div>
                                     break;
+                                case WebsiteBuilderImportStatus.Discarded when Model.ReplacedBySend(import):
+                                    <span class="badge bg-light text-muted">Replaced</span>
+                                    <div class="text-muted small">by the customer's newer send</div>
+                                    break;
                                 default:
                                     <span class="badge bg-light text-muted">Dropped</span>
                                     break;
