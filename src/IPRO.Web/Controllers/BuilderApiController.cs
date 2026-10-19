@@ -202,7 +202,7 @@ public class BuilderApiController : Controller
         try
         {
             // Stored as the adviser's, and a look as a look with its key, in one write.
-            import = await BuilderImportService.StoreAsync(_db, blob, site, read, preview ? "see-it-on-my-site.zip" : "sent-from-the-builder.zip", BuilderBeta.CustomerSender,
+            import = await BuilderImportService.StoreAsync(_db, blob, site, read, preview ? WebsiteBuilderImportSources.LookFileName : WebsiteBuilderImportSources.SentFileName, BuilderBeta.CustomerSender,
                 preview ? WebsiteBuilderImportStatus.Preview : WebsiteBuilderImportStatus.Pending, WebsiteBuilderImportSources.Customer);
         }
         catch (Exception ex) when (ex is Azure.RequestFailedException or IOException or InvalidOperationException or DbUpdateException)

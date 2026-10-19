@@ -412,8 +412,10 @@ public class BuilderImportsController : Controller
         var imports = site == null
             ? new List<WebsiteBuilderImport>()
             : await _db.WebsiteBuilderImports.AsNoTracking()
-                // 585: a customer's "See it on my site" is a look, not a package: not listed.
-                .Where(i => i.AgentWebsiteId == site.Id && i.Status != WebsiteBuilderImportStatus.Preview)
+                // 585: a customer's "See it on my site" is a look, not a package: not listed, open or dropped
+                // (a dropped look is Discarded, and read as a send of theirs that was dropped).
+                .Where(i => i.AgentWebsiteId == site.Id && i.Status != WebsiteBuilderImportStatus.Preview
+                            && !(i.Source == WebsiteBuilderImportSources.Customer && i.FileName == WebsiteBuilderImportSources.LookFileName))
                 .OrderByDescending(i => i.Id)
                 .Take(30)
                 // The page lists packages; the long columns are read only where they are used.

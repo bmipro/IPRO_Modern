@@ -25,6 +25,10 @@ public static class WebsiteBuilderImportSources
 {
     public const string Staff = "";
     public const string Customer = "customer";
+    // The names a customer's packages are stored under (they name none): what they sent, and a "See it on
+    // my site" look, which stays known as a look once it is dropped (its status then reads Discarded).
+    public const string SentFileName = "sent-from-the-builder.zip";
+    public const string LookFileName = "see-it-on-my-site.zip";
 }
 
 public class WebsiteBuilderImport

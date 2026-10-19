@@ -579,6 +579,32 @@ public class BuilderBeta585Tests
         Assert.Single(await db.BuilderTenantErasures.ToListAsync());
     }
 
+    // 585 (the owner's bench walk-through, 2026-10-19): SuperAdmin listed each "See it on my site" the
+    // customer had made, once a newer look or the send dropped it, as a send of theirs that was dropped.
+    [Fact]
+    public async Task SuperAdmin_lists_what_the_customer_sent_and_none_of_their_looks()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var blob = new BuilderImport571Tests.MemoryBlob();
+        var seeded = await SeedAsync(db, blob);
+        var token = await SessionAsync(db, seeded.Site);
+        var file = Assert.IsType<FileContentResult>(await Api(db, blob, new RecordingEmail(), token).Handover());
+        byte[] Edited() => SiteHandoverReturn572Tests.Return(file.FileContents, t => SiteHandoverReturn572Tests.Block(t, "about", 0)["heading"] = "Ours");
+
+        // Two looks, then the send: the second look drops the first, and the send the second.
+        await Api(db, blob, new RecordingEmail(), token, Edited()).Preview("home");
+        await Api(db, blob, new RecordingEmail(), token, Edited()).Preview("about");
+        await Api(db, blob, new RecordingEmail(), token, Edited()).Return();
+        Assert.Equal(2, await db.WebsiteBuilderImports.CountAsync(i => i.Status == WebsiteBuilderImportStatus.Discarded));
+
+        var (admin, _) = Admin(db, blob, new RecordingEmail());
+        var model = Assert.IsType<IPRO.Admin.Models.BuilderImportIndexViewModel>(Assert.IsType<ViewResult>(await admin.Index(seeded.Site.AgentUserId)).Model);
+        var sent = Assert.Single(model.Imports);
+        Assert.Equal(WebsiteBuilderImportStatus.Pending, sent.Status);
+        Assert.Equal(WebsiteBuilderImportSources.Customer, sent.Source);
+    }
+
     [Fact]
     public async Task SuperAdmin_makes_no_hand_over_while_the_beta_is_on_and_tells_the_customer_what_it_drops()
     {
