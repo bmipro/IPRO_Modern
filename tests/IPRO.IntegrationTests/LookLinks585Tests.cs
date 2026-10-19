@@ -92,6 +92,39 @@ public class LookLinks585Tests
         Assert.StartsWith("There is no page at /no-such-page in this look, so it shows the home page.", (string)missing.ViewData["PreviewBanner"]!);
     }
 
+    // 585 (the owner's bench walk-through, finding 4): "See it on my site" says it is how the website will
+    // show the page, so its footer is the live footer, the link to the site's accessibility statement (579)
+    // included, and the look shows that statement as the site does. (Elsewhere on iPro's host a preview
+    // leaves the link out: there /accessibility is iPro's own statement.)
+    [Fact]
+    public async Task A_looks_footer_links_the_sites_accessibility_statement_and_the_look_shows_it()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var blob = new BuilderImport571Tests.MemoryBlob();
+        var seeded = await SiteHandoverReturn572Tests.SeedFittingSiteAsync(db, blob);
+        var handover = await SiteHandoverService.BuildAsync(db, blob, seeded.Site, SiteHandoverService.AllowedBlockTypes(true, true, true), 0);
+        await SiteHandoverService.RecordAsync(db, seeded.Site, handover, "owner");
+        var zip = SiteHandoverReturn572Tests.Return(handover.Zip, _ => { });
+        var package = BuilderPackageReader.Read(zip, await BuilderImportService.ContextAsync(db, seeded.Site, 0, handover.HandoverId));
+        Assert.True(package.IsValid, string.Join(" ", package.Problems.Select(p => p.Message)));
+        var import = await BuilderImportService.StoreAsync(db, blob, seeded.Site, package, "site.zip", "owner");
+        var key = await BuilderImportService.LookKeyAsync(db, import);
+        db.ChangeTracker.Clear();
+        var look = $"/PublicWebsite/PreviewBuilderImport?id={import.Id}&amp;key={key}";
+
+        var home = Assert.IsType<ViewResult>(await Portal(db, blob).PreviewBuilderImport(import.Id, key, null, null, null, null));
+        Assert.Contains($"<a href=\"{look}&amp;page=accessibility\"", await RenderAsync(home));
+
+        var portal = Portal(db, blob);
+        var statement = Assert.IsType<ViewResult>(await portal.PreviewBuilderImport(import.Id, key, "accessibility", null, null, null));
+        Assert.True(Assert.IsType<PublicWebsiteViewModel>(statement.Model).AccessibilityStatement);
+        Assert.DoesNotContain("There is no page", (string)portal.ViewData["PreviewBanner"]!);
+        var html = await RenderAsync(statement);
+        Assert.Contains("<h1>Accessibility</h1>", html);
+        Assert.Contains($"<a href=\"{look}&amp;page=accessibility\" aria-current=\"page\"", html);
+    }
+
     private static PublicWebsiteController Portal(IPRO.DataAccess.IPRODbContext db, IPRO.Utility.IBlobStorageService blob) => new(
         db, new PackageEntitlementService(new UnitOfWork(db), db), null!, NullLogger<PublicWebsiteController>.Instance, new ConfigurationBuilder().Build(),
         DataProtectionProvider.Create($"look-links-{Guid.NewGuid():N}"), blob, new MemoryCache(new MemoryCacheOptions()), null!)

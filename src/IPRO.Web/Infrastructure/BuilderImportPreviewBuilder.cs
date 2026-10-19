@@ -41,9 +41,12 @@ public static class BuilderImportPreviewBuilder
         var asked = slug.Length == 0 ? null : all.FirstOrDefault(p => string.Equals(p.Slug, slug, StringComparison.OrdinalIgnoreCase));
         var current = asked ?? all.FirstOrDefault(p => p.IsHomePage) ?? all.FirstOrDefault();
         if (current == null) return null;
+        // 585: the site's accessibility statement (579), which the live site answers at /accessibility when
+        // no page of its own is there: the look's footer links it, so the look shows it the same way.
+        var statement = asked == null && AccessibilityStatement.IsAddress(slug);
         // 585: a link to a page the look does not have shows the home page, and the banner says so (only
         // an address of a page's shape is repeated back).
-        var missing = slug.Length > 0 && asked == null && System.Text.RegularExpressions.Regex.IsMatch(slug, "\\A[a-z0-9][a-z0-9-]{0,59}\\z") ? slug : null;
+        var missing = !statement && slug.Length > 0 && asked == null && System.Text.RegularExpressions.Regex.IsMatch(slug, "\\A[a-z0-9][a-z0-9-]{0,59}\\z") ? slug : null;
 
         // A visitor sees published pages; the page being looked at is shown whether or not it is.
         var pages = all
@@ -67,8 +70,9 @@ public static class BuilderImportPreviewBuilder
         {
             Website = site,
             Pages = pages,
-            CurrentPage = current,
-            PreviewNote = item.Change switch
+            CurrentPage = statement ? null : current,
+            AccessibilityStatement = statement,
+            PreviewNote = statement ? "THIS IS THE SITE'S ACCESSIBILITY STATEMENT, which every website on iPro has: it is not part of the package." : item.Change switch
             {
                 // 581: a page at a new address, taken for the page it was.
                 PageChange.Replaced when item.IsMoved =>

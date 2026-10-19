@@ -9,8 +9,11 @@
     var copyrightName = string.IsNullOrWhiteSpace(footer.CopyrightText) ? fallbackName : footer.CopyrightText;
     var agentLoginUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/Account/Login";
     // 579: the statement link, except in a preview: those are drawn on the platform's own host, where
-    // /accessibility is iPro's statement, not this site's.
-    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true || ViewBag.IsProspectPreview == true;
+    // /accessibility is iPro's statement, not this site's. 585: a look at a Template Builder package
+    // keeps the site's links in the look (LookLinks), and shows the site's statement there, so its
+    // footer is the live one, the statement link included.
+    var inLook = ViewBag.LookLinks is IPRO.Web.Infrastructure.LookLinks;
+    var isPreview = !inLook && (ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true || ViewBag.IsProspectPreview == true);
     var linkStatement = !isPreview && !IPRO.Web.Infrastructure.AccessibilityStatement.IsLinked(footer.LegalLinks);
     // 465: the icon map is shared with the Social links block (SocialPlatformIcons).
 }
