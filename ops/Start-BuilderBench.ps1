@@ -15,12 +15,16 @@
 # Nothing here touches the owner's own builders (ports 5087 and 5088) or anything on the internet.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File ops\Start-BuilderBench.ps1
+#         ... -PublishOnly   publish the three copies and start nothing (to have a checked build ready)
+#         ... -SkipPublish   start the copies already published, as they are
 param(
     [string]$BuilderRepo = "C:\Users\admin\Projects\bb",
     [string]$BenchRoot = "C:\Users\admin\Projects\bb-bench",
     [int]$WebPort = 5110,
     [int]$AdminPort = 5210,
-    [int]$BuilderPort = 5310
+    [int]$BuilderPort = 5310,
+    [switch]$PublishOnly,
+    [switch]$SkipPublish
 )
 
 $ErrorActionPreference = "Stop"
@@ -79,6 +83,10 @@ $copies = @(
 )
 foreach ($copy in $copies) {
     $out = Join-Path $apps $copy.Name
+    if ($SkipPublish) {
+        if (-not (Test-Path (Join-Path $out $copy.Dll))) { Write-Host "No published $($copy.Name) under $apps: run without -SkipPublish." -ForegroundColor Red; exit 1 }
+        continue
+    }
     Write-Host "Publishing the $($copy.Name)..." -ForegroundColor Cyan
     if (Test-Path $out) { Remove-Item -Recurse -Force $out }
     dotnet publish $copy.Project -c Debug -o $out -v q -nologo | Out-Null
@@ -87,6 +95,16 @@ foreach ($copy in $copies) {
 # A working copy's App_Data is not the bench's (the builder keeps its own under data).
 $builderAppData = Join-Path $apps "builder\App_Data"
 if (Test-Path $builderAppData) { Remove-Item -Recurse -Force $builderAppData }
+# Which commits the copies are, so whoever starts them can tell (written at publish, shown at start).
+$built = Join-Path $apps "BUILT-FROM.txt"
+if (-not $SkipPublish) {
+    "iPro    $((git -C $repo rev-parse --short HEAD).Trim()) $((git -C $repo rev-parse --abbrev-ref HEAD).Trim())`r`nbuilder $((git -C $BuilderRepo rev-parse --short HEAD).Trim()) $((git -C $BuilderRepo rev-parse --abbrev-ref HEAD).Trim())`r`npublished $(Get-Date -Format 'yyyy-MM-dd HH:mm')" | Set-Content -Encoding ascii $built
+}
+if (Test-Path $built) { Get-Content $built | ForEach-Object { Write-Host "  $_" } }
+if ($PublishOnly) {
+    Write-Host "Published; nothing started. Start them with ops\Start-BuilderBench.ps1 -SkipPublish." -ForegroundColor Green
+    exit 0
+}
 
 $portal = "http://localhost:$WebPort"
 $admin = "http://localhost:$AdminPort"
