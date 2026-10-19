@@ -107,6 +107,11 @@ public class PublicWebsiteController : Controller
             ViewBag.PreviewBanner = import.Status == IPRO.Entities.WebsiteBuilderImportStatus.Preview
                 ? "This is how your website would show this page with your changes from the new builder. Nothing on your website has changed. Close this tab to go back to the builder."
                 : "A look at what was sent from the new builder, before it is published. " + model.PreviewNote + " Nothing on the website has changed.";
+        // 585 (the owner's bench walk-through): the look's links to the site's own pages stay in the look
+        // (LookLinks, applied by PublicWebsite/Index.cshtml), and a page it does not have is said so.
+        ViewBag.LookLinks = IPRO.Web.Infrastructure.LookLinks.For(id, key!, design, without, keep, sections, moved, model.CurrentPage?.Slug ?? string.Empty);
+        if (model.PreviewMissingPage != null)
+            ViewBag.PreviewBanner = $"There is no page at /{model.PreviewMissingPage} in this look, so it shows the home page. " + (string)ViewBag.PreviewBanner;
         Response.Headers.CacheControl = "no-store";
         Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
         return View("~/Views/PublicWebsite/Index.cshtml", model);

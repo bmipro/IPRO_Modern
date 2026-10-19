@@ -8,7 +8,17 @@
     IPRO.Web.Infrastructure.SiteLanguageMarkup.Set(ViewData, Model.Website, Model.CurrentPage);
     ViewData["PictureDescriptions"] = Model.PictureDescriptions;   // 578, for _PriceList
 }
-@if (design.Renderer == "classic-sidebar")
+@if (ViewBag.LookLinks is IPRO.Web.Infrastructure.LookLinks lookLinks)
+{
+    // 585: a look at a Template Builder package: the page is drawn as below, and its links to the site's
+    // own pages then point into the same look (on iPro's host, "/about" is not the site's page).
+    var drawn = await Html.PartialAsync(design.Renderer == "classic-sidebar" ? "_ClassicSidebar"
+        : design.Renderer == "editorial-visual" ? "_EditorialVisual" : "_ModernProfessional", Model);
+    using var lookWriter = new System.IO.StringWriter();
+    drawn.WriteTo(lookWriter, System.Text.Encodings.Web.HtmlEncoder.Default);
+    @Html.Raw(lookLinks.Rewrite(lookWriter.ToString()))
+}
+else if (design.Renderer == "classic-sidebar")
 {
     @await Html.PartialAsync("_ClassicSidebar", Model)
 }

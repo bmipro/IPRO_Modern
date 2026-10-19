@@ -38,10 +38,12 @@ public static class BuilderImportPreviewBuilder
 
         var slug = (pageSlug ?? string.Empty).Trim().Trim('/').ToLowerInvariant();
         var all = plan.PagesAfter;
-        var current = (slug.Length == 0 ? null : all.FirstOrDefault(p => string.Equals(p.Slug, slug, StringComparison.OrdinalIgnoreCase)))
-                      ?? all.FirstOrDefault(p => p.IsHomePage)
-                      ?? all.FirstOrDefault();
+        var asked = slug.Length == 0 ? null : all.FirstOrDefault(p => string.Equals(p.Slug, slug, StringComparison.OrdinalIgnoreCase));
+        var current = asked ?? all.FirstOrDefault(p => p.IsHomePage) ?? all.FirstOrDefault();
         if (current == null) return null;
+        // 585: a link to a page the look does not have shows the home page, and the banner says so (only
+        // an address of a page's shape is repeated back).
+        var missing = slug.Length > 0 && asked == null && System.Text.RegularExpressions.Regex.IsMatch(slug, "\\A[a-z0-9][a-z0-9-]{0,59}\\z") ? slug : null;
 
         // A visitor sees published pages; the page being looked at is shown whether or not it is.
         var pages = all
@@ -75,6 +77,7 @@ public static class BuilderImportPreviewBuilder
                 PageChange.Added => "THIS PAGE IS NEW, from the package. Header, menu, colours and fonts are the site's own design, not the builder's.",
                 _ => "THIS PAGE IS NOT IN THE PACKAGE: it stays exactly as it is now."
             },
+            PreviewMissingPage = missing,
             ApprovedTestimonials = testimonials,
             PollResultsByBlockId = await PollResultsBuilder.BuildAsync(db, agentId, current, isOwnerPreview: true),
             PollVoteByBlockId = await PollVoteBuilder.BuildAsync(db, agentId, current, new HashSet<int>(), isOwnerPreview: true),
