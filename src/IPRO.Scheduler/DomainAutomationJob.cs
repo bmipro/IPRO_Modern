@@ -16,23 +16,45 @@ public class DomainAutomationJob
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
     private readonly ILogger<DomainAutomationJob> _logger;
+    private readonly IAzureDomainAutomationService? _azureDomains;
 
     public DomainAutomationJob(
         IPRODbContext db,
         IDomainCheckService domainCheck,
         IEmailService email,
         IConfiguration configuration,
-        ILogger<DomainAutomationJob> logger)
+        ILogger<DomainAutomationJob> logger,
+        IAzureDomainAutomationService? azureDomains = null)
     {
         _db = db;
         _domainCheck = domainCheck;
         _email = email;
         _configuration = configuration;
         _logger = logger;
+        _azureDomains = azureDomains;
     }
 
+    // 592: one run at a time. A run asks DNS resolvers and Azure, each with a timeout, for up to 75 rows; a slow
+    // run must not overlap the next one and ask Azure for the same removals twice.
+    // No automatic retries either: the next run is five minutes away, and a run that waited for the lock and gave
+    // up would otherwise be queued again, up to ten times.
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 10 * 60)]
+    [Hangfire.AutomaticRetry(Attempts = 0)]
     public async Task RunAsync()
     {
+        // 592: first, the addresses that stopped being an adviser's and are still to be removed from Azure.
+        if (_azureDomains != null)
+        {
+            try
+            {
+                await DomainCleanupQueue.RunDueAsync(_db, _azureDomains, _configuration, _logger);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Removing released domain addresses from Azure failed this run; the next run asks again");
+            }
+        }
+
         var now = DateTime.UtcNow;
 
         // Fully-bound domains used to be excluded outright, which froze the root-domain forwarding
@@ -92,10 +114,20 @@ public class DomainAutomationJob
             {
                 await _domainCheck.CheckAsync(domain);
                 await AlertIfCertificateIsOverdueAsync(domain);
+                // 592: saved one by one. A row removed while it was being checked (its adviser's Remove, or another
+                // adviser proving the name) must not cost the other rows of the run their results.
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogWarning(ex, "Domain {DomainId} was removed while it was being checked; its result is dropped", domain.Id);
+                _db.Entry(domain).State = EntityState.Detached;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Domain automation check failed for domain {DomainId}", domain.Id);
+                // 592: left tracked, its unsaved changes would fail every later save of this run.
+                _db.Entry(domain).State = EntityState.Detached;
             }
         }
 

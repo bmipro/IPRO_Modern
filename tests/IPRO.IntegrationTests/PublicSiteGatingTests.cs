@@ -223,6 +223,9 @@ public class PublicSiteGatingTests
         };
         db.Add(website);
         await db.SaveChangesAsync();
+        // 592: a custom domain is served through its proven domain row, not the website's own field.
+        db.Add(new AgentDomain { AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = host, WwwDomain = host, RootDomain = host, IsPrimary = true, OwnershipVerifiedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         return new Seed(agent.Id, website.Id, billingId, host);
     }

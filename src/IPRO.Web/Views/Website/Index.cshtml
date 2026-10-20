@@ -423,6 +423,15 @@
           </div>
         }
         <div class="collapse @(setupDone ? "" : "show")" id="registrarSteps">
+        @if (primaryDomain != null && IPRO.Utility.DomainOwnershipProof.IsNeeded(primaryDomain))
+        {
+          @* 592: the record that proves the domain is this adviser's goes on the same DNS screen, in the same visit. *@
+          <div class="alert alert-warning border-0 small py-2 mb-3">
+            <i class="fas fa-key me-1"></i>
+            <strong>Also add the TXT record that proves @IPRO.Utility.DomainOwnershipProof.ProvenName(primaryDomain) is yours</strong>
+            &mdash; it is shown beside the domain in the domain manager below. Nothing is connected until we see it.
+          </div>
+        }
         @* Both registrar actions are shown together, on purpose. Presenting only the CNAME and then
            reporting "Root domain: Not forwarding" afterwards meant agents believed they were finished,
            and found out later that anyone typing the address without "www" never reached their site.
@@ -583,7 +592,25 @@
                       }
                     </div>
                   </div>
-                  @if (!string.IsNullOrWhiteSpace(domain.LastError))
+                  @if (IPRO.Utility.DomainOwnershipProof.IsNeeded(domain))
+                  {
+                    @* 592: nothing is connected for a domain until whoever controls its DNS has said it is this
+                       adviser's: the TXT record below, made for this account and this domain only. *@
+                    <div class="alert alert-warning border-0 small mt-2 mb-0 py-2">
+                      <div><strong>Prove @IPRO.Utility.DomainOwnershipProof.ProvenName(domain) is yours.</strong> Add this record where the domain's DNS is managed (the same screen as the CNAME), then click <strong>Check now</strong>. Nothing is connected until we see it.</div>
+                      <div class="bg-white rounded p-2 font-monospace small mt-2">
+                        <div><span class="text-muted">Type&nbsp;&nbsp;</span>TXT</div>
+                        <div class="text-break"><span class="text-muted">Name&nbsp;&nbsp;</span>@IPRO.Utility.DomainOwnershipProof.NameToType(domain)</div>
+                        <div class="text-break"><span class="text-muted">Value&nbsp;</span>@domain.VerificationToken</div>
+                      </div>
+                      @if (IPRO.Utility.DomainOwnershipProof.NameToType(domain) != IPRO.Utility.DomainOwnershipProof.RecordLabel)
+                      {
+                        <div class="text-muted mt-1">If the DNS screen adds its own domain to the end of the name by itself, type only the part in front of that domain.</div>
+                      }
+                      <div class="text-muted mt-1">The value is made for your account and this domain only. If you remove the domain and add it again, it changes.</div>
+                    </div>
+                  }
+                  else if (!string.IsNullOrWhiteSpace(domain.LastError))
                   {
                     <div class="small @(domainDnsReady ? "text-danger" : "text-muted")">@IPRO.Utility.DomainErrorTranslator.ToAgentMessage(domain.LastError)</div>
                   }

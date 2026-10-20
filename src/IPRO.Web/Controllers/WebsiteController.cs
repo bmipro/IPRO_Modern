@@ -2,6 +2,7 @@ using System.Security.Claims;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Scheduler;
 using IPRO.Utility;
 using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -179,6 +180,20 @@ public class WebsiteController : Controller
             }
         }
 
+        // 592: a name another adviser holds unproven moves here only on this adviser's own published record
+        // (TakeOverUnprovenClaimsAsync), and before anything of this save is written.
+        (string? Error, string Token, bool ProvenNow)? claim = null;
+        if (!string.IsNullOrWhiteSpace(model.CustomDomain) &&
+            !await _db.AgentDomains.AnyAsync(d => d.AgentUserId == AgentId && d.DomainName == model.CustomDomain))
+        {
+            claim = await TakeOverUnprovenClaimsAsync(model.CustomDomain, AgentId);
+            if (claim.Value.Error != null && existing?.CustomDomain != model.CustomDomain)
+            {
+                TempData["Error"] = claim.Value.Error;
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         if (existing == null)
         {
             // 573: a first save writes the fields this form has, and nothing else the request named
@@ -242,9 +257,15 @@ public class WebsiteController : Controller
             }
         }
 
-        if (existing != null)
+        // 592: an unchanged custom domain that another account holds unproven (an older website's field with no row
+        // of its own) does not stop the rest of the settings from saving; the name itself waits for a record.
+        if (existing != null && claim?.Error == null)
         {
-            await SyncPrimaryDomainAsync(existing, model.CustomDomain);
+            await SyncPrimaryDomainAsync(existing, model.CustomDomain, claim?.Token, claim?.ProvenNow == true);
+        }
+        else if (claim?.Error != null)
+        {
+            TempData["Warning"] = claim.Value.Error;
         }
 
         TempData["Success"] = "Website settings saved!";
@@ -291,6 +312,20 @@ public class WebsiteController : Controller
     private async Task LoadWebsiteContextAsync(int? selectedTemplateId)
     {
         var agent = await _agents.GetByIdAsync(AgentId);
+        // 592: a domain still to be proven always has a value to show (a row saved by the version before 592
+        // during its release has none yet).
+        // Only where it is still empty: a value already shown is never replaced under the adviser.
+        var withoutToken = await _db.AgentDomains
+            .Where(d => d.AgentUserId == AgentId && d.OwnershipVerifiedAt == null && d.VerificationToken == "")
+            .Select(d => new { d.Id, d.DomainName })
+            .ToListAsync();
+        foreach (var row in withoutToken)
+        {
+            var token = await DomainClaimTokens.GetOrCreateAsync(_db, AgentId, DomainOwnershipProof.ProvenNameOf(row.DomainName), DomainOwnershipProof.NewToken());
+            await _db.AgentDomains
+                .Where(d => d.Id == row.Id && d.VerificationToken == "")
+                .ExecuteUpdateAsync(set => set.SetProperty(d => d.VerificationToken, token));
+        }
         ViewBag.Templates = await _db.WebsiteTemplates
             .AsNoTracking()
             .Where(t => t.IsActive || t.Id == selectedTemplateId)
@@ -347,6 +382,8 @@ public class WebsiteController : Controller
         return allowed.Contains(normalized) ? normalized : string.Empty;
     }
 
+    // 592: each add can drop a lapsed claim and ask Azure to remove its addresses; each remove asks Azure.
+    [EnableRateLimiting(EndpointRateLimits.DomainRetry)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddDomain(string domainName)
     {
@@ -388,6 +425,13 @@ public class WebsiteController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        var takeover = await TakeOverUnprovenClaimsAsync(normalized, AgentId);
+        if (takeover.Error != null)
+        {
+            TempData["Error"] = takeover.Error;
+            return RedirectToAction(nameof(Index));
+        }
+
         var parts = BuildDomainParts(normalized);
         _db.AgentDomains.Add(new AgentDomain
         {
@@ -400,6 +444,8 @@ public class WebsiteController : Controller
             DnsStatus = AgentDomainStatus.PendingDns,
             AzureBindingStatus = AgentDomainStatus.BindingPending,
             SslStatus = AgentDomainStatus.BindingPending,
+            VerificationToken = takeover.Token,                                    // 592
+            OwnershipVerifiedAt = takeover.ProvenNow ? DateTime.UtcNow : null,     // 592: moved here on its record
             IsPrimary = currentCount == 0,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -412,10 +458,13 @@ public class WebsiteController : Controller
             await _websites.UpdateAsync(existingWebsite);
         }
 
-        TempData["Success"] = $"{normalized} was added to your domain queue.";
+        TempData["Success"] = takeover.ProvenNow
+            ? $"{normalized} was added to your domain queue. Its TXT record shows it is yours."
+            : $"{normalized} was added to your domain queue. Add the TXT record shown beside it to prove it is yours.";
         return RedirectToAction(nameof(Index));
     }
 
+    [EnableRateLimiting(EndpointRateLimits.DomainRetry)]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveDomain(int id, string confirmDomainName)
     {
@@ -433,13 +482,14 @@ public class WebsiteController : Controller
         }
 
         var domainNameForCleanup = domain.DomainName;
-        // 553: a short address that was pointed straight at the platform has a binding and a
-        // certificate of its own in Azure; they go with the domain.
-        var rootForCleanup = ShortAddressState.HasShortAddress(domain) &&
-                             domain.RootAzureBindingStatus != AgentDomainStatus.NotConfigured
-            ? domain.RootDomain
-            : null;
         var wasPrimary = domain.IsPrimary;
+        // 592: the domain's addresses in Azure -- 553's short address too, when it was pointed straight at the
+        // platform -- are written down in the same save that removes the row, and removed from Azure until Azure
+        // confirms (DomainCleanupQueue). Asking once and dropping the answer is how www.411trades.com stayed bound
+        // after it left its adviser's account, ready for the next adviser to take over.
+        var cleanups = DomainCleanupQueue.Add(_db, domain, DomainCleanupReasons.RemovedByAdviser);
+        // The adviser's value for the name goes too: the record they published must not prove it again later.
+        await DomainClaimTokens.ForgetAsync(_db, AgentId, DomainOwnershipProof.ProvenName(domain), domain.Id);
         _db.AgentDomains.Remove(domain);
         await _db.SaveChangesAsync();
 
@@ -465,25 +515,9 @@ public class WebsiteController : Controller
             await _websites.UpdateAsync(website);
         }
 
-        foreach (var host in new[] { domainNameForCleanup, rootForCleanup })
-        {
-            if (string.IsNullOrWhiteSpace(host)) continue;
-            try
-            {
-                // 591: a host another domain row still names is that row's binding and certificate.
-                if (await AgentDomainHosts.StillNamedAsync(_db, host))
-                {
-                    _logger.LogWarning("Azure cleanup of {Domain} skipped after removal: another domain row still names it", PlatformHostNames.Printable(host));
-                    continue;
-                }
-
-                await _azureDomains.RemoveDomainAsync(host);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Best-effort Azure cleanup failed for {Domain} after removal", host);
-            }
-        }
+        // 591: a host another domain row still names is that row's binding and certificate (DomainCleanupQueue
+        // keeps it). A removal Azure does not confirm now is asked again by the domain job.
+        await DomainCleanupQueue.AttemptAsync(_db, _azureDomains, _configuration, _logger, cleanups);
 
         TempData["Success"] = $"{domainNameForCleanup} was removed.";
         return RedirectToAction(nameof(Index));
@@ -514,7 +548,16 @@ public class WebsiteController : Controller
         }
 
         var bound = await _domainCheck.CheckAsync(domain);
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // 592: moved to the account whose record is published while it was being checked.
+            TempData["Error"] = "That domain could not be found.";
+            return RedirectToAction(nameof(Index));
+        }
 
         // Always say what was found, including the forwarding result. Previously a successful check
         // that left forwarding unchanged produced a message about binding only, so the button looked
@@ -570,7 +613,7 @@ public class WebsiteController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task SyncPrimaryDomainAsync(AgentWebsite website, string customDomain)
+    private async Task SyncPrimaryDomainAsync(AgentWebsite website, string customDomain, string? claimToken = null, bool provenNow = false)
     {
         var currentPrimary = await _db.AgentDomains
             .Where(d => d.AgentUserId == AgentId && d.IsPrimary)
@@ -611,6 +654,9 @@ public class WebsiteController : Controller
                 DnsStatus = AgentDomainStatus.PendingDns,
                 AzureBindingStatus = AgentDomainStatus.BindingPending,
                 SslStatus = AgentDomainStatus.BindingPending,
+                // 592: the adviser's value for the name, kept across removals.
+                VerificationToken = claimToken ?? await DomainClaimTokens.GetOrCreateAsync(_db, AgentId, DomainOwnershipProof.ProvenNameOf(customDomain), DomainOwnershipProof.NewToken()),
+                OwnershipVerifiedAt = provenNow ? DateTime.UtcNow : null,
                 IsPrimary = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -707,7 +753,8 @@ public class WebsiteController : Controller
             return "Enter a valid domain name.";
         }
 
-        if (await _db.AgentDomains.AnyAsync(d => d.AgentUserId != agentId &&
+        // 592: proven rows only; another adviser's unproven row is TakeOverUnprovenClaimsAsync's to decide.
+        if (await _db.AgentDomains.AnyAsync(d => d.AgentUserId != agentId && d.OwnershipVerifiedAt != null &&
                 (variants.Contains(d.DomainName.ToLower())
                  || variants.Contains(d.RootDomain.ToLower())
                  || variants.Contains(d.WwwDomain.ToLower()))))
@@ -720,12 +767,126 @@ public class WebsiteController : Controller
             return "That domain is already in use by another IPRO account.";
         }
 
-        if (await _db.AgentWebsites.AnyAsync(w => w.AgentUserId != agentId && variants.Contains(w.CustomDomain.ToLower())))
+        // 592: a website whose adviser's claim to the name is an unproven row is that row's case, as above.
+        if (await _db.AgentWebsites.AnyAsync(w => w.AgentUserId != agentId && variants.Contains(w.CustomDomain.ToLower()) &&
+                !_db.AgentDomains.Any(d => d.AgentUserId == w.AgentUserId && d.OwnershipVerifiedAt == null &&
+                    (variants.Contains(d.DomainName.ToLower()) || variants.Contains(d.RootDomain.ToLower()) || variants.Contains(d.WwwDomain.ToLower())))))
         {
             return "That custom domain is already connected to another IPRO account.";
         }
 
         return null;
+    }
+
+    // 592: what to do with a name another adviser's UNPROVEN row holds (any of its three forms). The claim check
+    // above lets such a row through, so the real owner is never locked out by an account that added their domain
+    // and never proved it; it moves only on the strength of a record:
+    //   - the holder's own record is published: the domain is theirs; their row is proven now, this one refused;
+    //   - this adviser's record (their value for this name, DomainClaimTokens) is published: the holder's rows are
+    //     dropped like a Remove of theirs, and this adviser's row is created proven;
+    //   - neither: refused, with the record that would move it here.
+    // Called after every other refusal and the package checks, so a request that is refused anyway changes nothing.
+    // Returns this adviser's value for the name, and whether the row is to be created proven.
+    private async Task<(string? Error, string Token, bool ProvenNow)> TakeOverUnprovenClaimsAsync(string normalized, int agentId)
+    {
+        var parts = BuildDomainParts(normalized);
+        var variants = new[] { normalized, parts.Root, parts.Www }
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+        var provenName = DomainOwnershipProof.ProvenNameOf(normalized);
+        var token = await DomainClaimTokens.GetOrCreateAsync(_db, agentId, provenName, DomainOwnershipProof.NewToken());
+
+        var holders = await _db.AgentDomains.AsNoTracking()
+            .Where(d => d.AgentUserId != agentId && d.OwnershipVerifiedAt == null &&
+                        (variants.Contains(d.DomainName.ToLower()) || variants.Contains(d.RootDomain.ToLower()) || variants.Contains(d.WwwDomain.ToLower())))
+            .ToListAsync();
+        if (holders.Count == 0) return (null, token, false);
+
+        // Each look asks two public DNS resolvers; an adviser gets a handful of them in ten minutes, not a stream.
+        if (!TakeoverLooks.Allow(agentId, DateTime.UtcNow))
+        {
+            return ("We checked that domain's DNS several times just now. Please wait a few minutes and try again.", token, false);
+        }
+
+        foreach (var holder in holders.Where(h => !string.IsNullOrWhiteSpace(h.VerificationToken) &&
+                                                  DomainOwnershipProof.Covers(h, h.RootDomain) && DomainOwnershipProof.Covers(h, h.WwwDomain)))
+        {
+            if (await _domainCheck.IsOwnershipPublishedAsync(DomainOwnershipProof.ProvenName(holder), holder.VerificationToken) == true)
+            {
+                await _db.AgentDomains.Where(d => d.Id == holder.Id && d.OwnershipVerifiedAt == null)
+                    .ExecuteUpdateAsync(set => set.SetProperty(d => d.OwnershipVerifiedAt, DateTime.UtcNow));
+                _logger.LogWarning("Custom domain {Domain} (row {Id}, agent {Owner}) proven by its record when agent {Agent} tried to add it",
+                    PlatformHostNames.Printable(holder.DomainName), holder.Id, holder.AgentUserId, agentId);
+                return ("That custom domain is already connected to another IPRO account.", token, false);
+            }
+        }
+
+        if (await _domainCheck.IsOwnershipPublishedAsync(provenName, token) != true)
+        {
+            return ($"Another IPRO account has added {provenName} but has not proven it is theirs. If the domain is yours, add this " +
+                    $"TXT record where its DNS is managed, then add the domain again: it then moves to your account. " +
+                    $"Name: {DomainOwnershipProof.NameToTypeFor(provenName)}  Value: {token}", token, false);
+        }
+
+        // All the holders or none: one of them proving it in the meantime keeps every one of them.
+        await using var move = await _db.Database.BeginTransactionAsync();
+        foreach (var holder in holders)
+        {
+            // Only while it is still unproven: a holder that proved it in the meantime keeps it.
+            var dropped = await _db.AgentDomains.Where(d => d.Id == holder.Id && d.OwnershipVerifiedAt == null).ExecuteDeleteAsync();
+            if (dropped != 1)
+            {
+                await move.RollbackAsync();
+                _db.ChangeTracker.Clear();
+                return ("That custom domain is already connected to another IPRO account.", token, false);
+            }
+
+            _logger.LogWarning("Unproven domain {Domain} (row {Id}, agent {Owner}) moved to agent {Agent}, whose own record is published",
+                PlatformHostNames.Printable(holder.DomainName), holder.Id, holder.AgentUserId, agentId);
+            // Its addresses are left to the domain job, ten minutes on: by then this adviser's proven row names them and
+            // keeps them. The holder's value for the name goes with its row.
+            DomainCleanupQueue.Add(_db, holder, DomainCleanupReasons.UnprovenClaimMoved, TimeSpan.FromMinutes(10));
+            await DomainClaimTokens.ForgetAsync(_db, holder.AgentUserId, DomainOwnershipProof.ProvenName(holder), holder.Id);
+            var website = await _db.AgentWebsites.FirstOrDefaultAsync(w => w.AgentUserId == holder.AgentUserId);
+            if (website != null && string.Equals(website.CustomDomain, holder.DomainName, StringComparison.OrdinalIgnoreCase))
+            {
+                var next = await _db.AgentDomains.Where(d => d.AgentUserId == holder.AgentUserId).OrderBy(d => d.DomainName).FirstOrDefaultAsync();
+                if (next != null)
+                {
+                    next.IsPrimary = true;
+                    next.UpdatedAt = DateTime.UtcNow;
+                }
+                website.CustomDomain = next?.DomainName ?? string.Empty;
+                website.CustomDomainDisplay = string.Empty;
+            }
+            await _db.SaveChangesAsync();
+        }
+
+        await move.CommitAsync();
+        return (null, token, true);
+    }
+
+    // 592: how often one adviser's attempts to add a name another account holds unproven may ask DNS (two public
+    // resolvers per look, up to five seconds each). Per app instance; the add itself is rate limited as well.
+    internal static class TakeoverLooks
+    {
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, Queue<DateTime>> Recent = new();
+        internal const int PerWindow = 10;
+        internal static readonly TimeSpan Window = TimeSpan.FromMinutes(10);
+
+        internal static bool Allow(int agentId, DateTime utcNow)
+        {
+            var times = Recent.GetOrAdd(agentId, _ => new Queue<DateTime>());
+            lock (times)
+            {
+                while (times.Count > 0 && utcNow - times.Peek() > Window) times.Dequeue();
+                if (times.Count >= PerWindow) return false;
+                times.Enqueue(utcNow);
+                return true;
+            }
+        }
     }
 
     private static (string Root, string Www) BuildDomainParts(string domain)

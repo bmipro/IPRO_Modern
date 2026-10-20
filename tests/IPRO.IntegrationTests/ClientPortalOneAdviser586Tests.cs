@@ -332,7 +332,7 @@ public class ClientPortalOneAdviser586Tests
         Assert.Equal(kim, await SignedInAsync(testDb, "www.pending-adviser.test", "kim@example.com", Real));
 
         await using (var db = testDb.CreateContext())
-            await db.Database.ExecuteSqlRawAsync("UPDATE `AgentDomains` SET `AzureBindingStatus` = {0} WHERE `Id` = {1}", AgentDomainStatus.Bound, domainId);
+            await db.Database.ExecuteSqlRawAsync("UPDATE `AgentDomains` SET `AzureBindingStatus` = {0}, `OwnershipVerifiedAt` = UTC_TIMESTAMP(6) WHERE `Id` = {1}", AgentDomainStatus.Bound, domainId);   // 592: bound only once proven
         Assert.Equal(Invalid, await RefusalAsync(testDb, "www.pending-adviser.test", "kim@example.com", Real));
     }
 
@@ -392,7 +392,8 @@ public class ClientPortalOneAdviser586Tests
             AgentUserId = agentId, AgentWebsiteId = website.Id,
             DomainName = host, WwwDomain = host, RootDomain = host.Replace("www.", ""),
             AzureBindingStatus = bound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending,
-            SslStatus = bound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending, IsPrimary = true
+            SslStatus = bound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending, IsPrimary = true,
+            OwnershipVerifiedAt = bound ? DateTime.UtcNow : null   // 592: a live domain is a proven one
         });
         await db.SaveChangesAsync();
         return (await db.AgentDomains.AsNoTracking().SingleAsync(d => d.AgentWebsiteId == website.Id)).Id;

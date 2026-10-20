@@ -500,6 +500,7 @@ public class CertificateNameCollision591Tests : IDisposable
         AgentUserId = agentId, AgentWebsiteId = websiteId, DomainName = name, RootDomain = root, WwwDomain = www,
         DnsTarget = "ipro-prod-web.azurewebsites.net", IsPrimary = true,
         DnsStatus = AgentDomainStatus.Bound, AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound,
+        OwnershipVerifiedAt = DateTime.UtcNow,   // 592: a live domain is a proven one
     };
 
     // An adviser whose package has a website and extra domains (no limit), with a saved website.

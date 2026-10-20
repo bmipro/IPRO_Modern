@@ -63,11 +63,12 @@ public static class ClientPortalSignInScope
         var domains = await db.AgentDomains.AsNoTracking()
             .Where(d => matches.Contains(d.DomainName.ToLower()) || matches.Contains(d.RootDomain.ToLower()) || matches.Contains(d.WwwDomain.ToLower()))
             .OrderBy(d => d.Id)
-            .Select(d => new { d.AgentUserId, d.AgentWebsiteId, d.AzureBindingStatus })
+            .Select(d => new { d.AgentUserId, d.AgentWebsiteId, d.AzureBindingStatus, d.OwnershipVerifiedAt })
             .ToListAsync();
         if (domains.Count > 0)
         {
-            var bound = domains.FirstOrDefault(d => d.AzureBindingStatus == AgentDomainStatus.Bound);
+            // 592: and only once the adviser has proven the domain is theirs.
+            var bound = domains.FirstOrDefault(d => d.AzureBindingStatus == AgentDomainStatus.Bound && d.OwnershipVerifiedAt != null);
             if (bound == null) return null;   // named, never bound: not this adviser's address (yet)
             if (bound.AgentUserId > 0) return bound.AgentUserId;
             return await db.AgentWebsites.AsNoTracking()
@@ -76,12 +77,9 @@ public static class ClientPortalSignInScope
                 .FirstOrDefaultAsync();
         }
 
-        // An older site known only by its website's own field, as the public site still finds it.
-        return await db.AgentWebsites.AsNoTracking()
-            .Where(w => matches.Contains(w.CustomDomain.ToLower()))
-            .OrderBy(w => w.Id)
-            .Select(w => (int?)w.AgentUserId)
-            .FirstOrDefaultAsync();
+        // 592: a name only a website's own field holds (CustomDomain, with no domain row) is nobody's address any
+        // more, as on the public site: that field is written before its row and proves nothing.
+        return null;
     }
 
     // iPro's own names, with or without www.: the shared address (App:BaseUrl's host and

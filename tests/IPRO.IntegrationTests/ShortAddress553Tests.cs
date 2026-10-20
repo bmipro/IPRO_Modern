@@ -617,12 +617,14 @@ public class ShortAddress553Tests : IDisposable
             Task.FromResult(table.TryGetValue(host, out var found) ? found : Array.Empty<IPAddress>());
     }
 
+    // 592: an adviser's domain whose ownership was proven (its TXT record seen); these tests are about what comes after.
     private static AgentDomain NewDomain(string root) => new()
     {
         DomainName = "www." + root,
         WwwDomain = "www." + root,
         RootDomain = root,
         DnsTarget = Target,
+        OwnershipVerifiedAt = DateTime.UtcNow,
     };
 
     private static List<WebsitePage> BakeryPages() => new()
@@ -696,7 +698,16 @@ public class ShortAddress553Tests : IDisposable
     private static async Task<string> LiveSiteAsync(IPRODbContext db, List<WebsitePage> pages)
     {
         var host = ($"www.live553-{Guid.NewGuid():N}")[..24] + ".example.test";
-        await SiteAsync(db, pages, host, paid: true);
+        var (agentId, websiteId) = await SiteAsync(db, pages, host, paid: true);
+        // 592: a custom domain is served through its proven domain row, not the website's own field.
+        db.Add(new AgentDomain
+        {
+            AgentUserId = agentId, AgentWebsiteId = websiteId, DomainName = host, WwwDomain = host, RootDomain = host[4..],
+            DnsTarget = Target, IsPrimary = true, OwnershipVerifiedAt = DateTime.UtcNow,
+            DnsStatus = AgentDomainStatus.Bound, AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound,
+        });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
         return host;
     }
 
@@ -711,7 +722,7 @@ public class ShortAddress553Tests : IDisposable
             AgentUserId = agentId, AgentWebsiteId = websiteId,
             DomainName = name, WwwDomain = name, RootDomain = root, DnsTarget = Target,
             DnsStatus = AgentDomainStatus.Bound, AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound,
-            IsPrimary = true,
+            IsPrimary = true, OwnershipVerifiedAt = DateTime.UtcNow,   // 592
         };
         db.Add(domain);
         await db.SaveChangesAsync();

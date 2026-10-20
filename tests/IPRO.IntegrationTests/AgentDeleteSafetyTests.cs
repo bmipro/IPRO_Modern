@@ -250,7 +250,8 @@ public class AgentDeleteSafetyTests
             DomainName = host,
             WwwDomain = $"www.{host}",
             RootDomain = host,
-            AzureBindingStatus = AgentDomainStatus.Bound
+            AzureBindingStatus = AgentDomainStatus.Bound,
+            OwnershipVerifiedAt = DateTime.UtcNow   // 592: a live domain is a proven one
         });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

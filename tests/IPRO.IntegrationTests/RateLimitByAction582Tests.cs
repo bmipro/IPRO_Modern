@@ -375,6 +375,8 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             ["PollVoteController.Vote"] = WebLimits.PollVote,
             ["PollVoteController.WebsiteVote"] = WebLimits.PollVote,
             ["WebsiteController.RetryDomain"] = WebLimits.DomainRetry,
+            ["WebsiteController.AddDomain"] = WebLimits.DomainRetry,      // 592: each can ask Azure
+            ["WebsiteController.RemoveDomain"] = WebLimits.DomainRetry,
             ["PreviewController.Show"] = WebLimits.Preview,
             ["PreviewController.Site"] = WebLimits.Preview,
             ["AdminController.Login"] = AdminLimits.SignIn,

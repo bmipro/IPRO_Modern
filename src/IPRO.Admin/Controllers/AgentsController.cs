@@ -731,8 +731,9 @@ public class AgentsController : Controller
         // post-shred unbind failure leaves only a dangling binding on the Azure app (the site
         // already serves the not-published page), logged for manual cleanup -- annoying,
         // recoverable, and invisible to the customer. Same reasoning as ROWS BEFORE FILES.
-        var domainsToUnbind = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-            .ToListAsync(_db.AgentDomains.Where(d => d.AgentUserId == id));
+        // 592: the list is no longer read here. The shred writes the domains' addresses down (DomainCleanups) in
+        // its own transaction, and the domain job asks Azure again for any that do not go through below -- the
+        // "manual cleanup" of a dangling binding never happened, and www.411trades.com was taken over that way.
         // Lazily resolved for the same reason the blob service is (see the _services comment above).
         var _azureDomains = _services.GetService<IPRO.Utility.IAzureDomainAutomationService>();
 
@@ -777,35 +778,16 @@ public class AgentsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // H11: the shred has committed -- NOW the Azure bindings may go. Per-host failures are
-        // logged and never block the rest; the dangling-binding cleanup is manual by design.
-        foreach (var domain in _azureDomains == null ? new List<IPRO.Entities.AgentDomain>() : domainsToUnbind)
+        // H11: the shred has committed -- NOW the Azure bindings may go: the addresses the shred wrote down,
+        // each once (553's short address only when it was ever pointed straight at the platform). 591: a host
+        // another agent's row still names is that agent's site and stays. 592: whatever Azure does not confirm
+        // now -- or everything, when the automation is not available here -- the domain job asks for again
+        // until it does.
+        if (_azureDomains != null)
         {
-            // 553: a short address pointed straight at the platform has its own binding and
-            // certificate in Azure. Only when one was ever made: a forwarded name has nothing there.
-            var rootHost = domain.RootAzureBindingStatus != IPRO.Entities.AgentDomainStatus.NotConfigured ? domain.RootDomain : null;
-            foreach (var host in new[] { domain.DomainName, domain.WwwDomain, rootHost }.Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h!).Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    // 591: the agent's rows are gone; a host another agent's row still names is that agent's site.
-                    if (await AgentDomainHosts.StillNamedAsync(_db, host))
-                    {
-                        _logger.LogWarning("Azure unbind of {Host} skipped while deleting agent {AgentId}: another domain row still names it", IPRO.Utility.PlatformHostNames.Printable(host), id);
-                        continue;
-                    }
-
-                    var unbind = await _azureDomains.RemoveDomainAsync(host);
-                    if (!unbind.Success)
-                    {
-                        _logger.LogError("Azure unbind failed for {Host} while deleting agent {AgentId}: {Message}", host, id, unbind.Message);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Azure unbind threw for {Host} while deleting agent {AgentId}", host, id);
-                }
-            }
+            var released = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .ToListAsync(_db.DomainCleanups.Where(c => c.FormerAgentUserId == id && c.DoneAt == null));
+            await IPRO.Scheduler.DomainCleanupQueue.AttemptAsync(_db, _azureDomains, _services.GetService<IConfiguration>(), _logger, released);
         }
 
         // ONLY the eraser's filtered list may be deleted -- report.Blobs excludes files another
@@ -1073,6 +1055,18 @@ public class AgentsController : Controller
             if (domain.IndexOfAny(new[] { '/', ':', '?', '#', '@', ' ' }) >= 0)
             {
                 ModelState.AddModelError("", "Setup domain must be a bare domain name (like agentname.247advisers.com) - no http://, paths, ports or spaces.");
+                return;
+            }
+            // 592: the setup domain is the free site's address. Any other name set here would be served as this
+            // agent's site with no proof that the agent owns it (a binding left behind in Azure is enough); an
+            // agent's own domain is added on their My Website page, where they prove it. Checked only when the
+            // value changes, so an older record is not refused for an unrelated edit.
+            var zone = (_services.GetService<IConfiguration>()?["App:TemporarySiteRootDomain"] ?? "247advisers.com").Trim().ToLowerInvariant();
+            var current = (await _uow.AgentUsers.FirstOrDefaultAsync(a => a.Id == id))?.DomainName ?? string.Empty;
+            if (!string.Equals(current, domain, StringComparison.OrdinalIgnoreCase) &&
+                !domain.EndsWith("." + zone, StringComparison.Ordinal))
+            {
+                ModelState.AddModelError("", $"Setup domain must be under {zone} (like agentname.{zone}). An agent's own domain is added on their My Website page, where they prove it is theirs.");
                 return;
             }
             if (domain is "247advisers.com" or "www.247advisers.com" or "iproadvisers.com"

@@ -132,6 +132,7 @@ public class PublicWebsiteController : Controller
         var healthy = await _db.AgentDomains.AsNoTracking().AnyAsync(d =>
             d.AgentWebsiteId == website.Id &&
             (d.DomainName.ToLower() == custom || d.WwwDomain.ToLower() == custom || d.RootDomain.ToLower() == custom) &&
+            d.OwnershipVerifiedAt != null &&   // 592: proven to be this adviser's
             d.AzureBindingStatus == AgentDomainStatus.Bound &&
             (d.SslStatus == AgentDomainStatus.Bound || d.SslStatus == "SslBound"));
 
@@ -914,13 +915,20 @@ public class PublicWebsiteController : Controller
         if (string.IsNullOrWhiteSpace(host)) return null;
 
         var hostMatches = BuildHostMatches(host);
+        // 592: a proven row first (DomainOwnershipProof); a host only unproven rows name is served by nobody, not
+        // even through the website's own CustomDomain below. A domain row alone used to be enough: with an
+        // earlier adviser's binding still in Azure and the domain's DNS still on us, adding the name put this
+        // adviser's pages on someone else's domain at once (www.411trades.com, 2026-10-19).
         var domainMatch = await _db.AgentDomains
             .Include(d => d.AgentWebsite).ThenInclude(w => w.AgentUser)
             .Include(d => d.AgentWebsite).ThenInclude(w => w.Template)
+            .OrderByDescending(d => d.OwnershipVerifiedAt != null)
+            .ThenBy(d => d.Id)
             .FirstOrDefaultAsync(d =>
                 hostMatches.Contains(d.DomainName.ToLower()) ||
                 hostMatches.Contains(d.RootDomain.ToLower()) ||
                 hostMatches.Contains(d.WwwDomain.ToLower()));
+        if (domainMatch != null && domainMatch.OwnershipVerifiedAt == null) return null;
 
         if (domainMatch?.AgentWebsite != null && (domainMatch.AgentWebsite.IsPublished || !requirePublished))
         {
@@ -947,11 +955,15 @@ public class PublicWebsiteController : Controller
             }
         }
 
+        // The free site, by its adviser's own address. 592: no longer by the website's CustomDomain field: it is
+        // written by the settings form before the domain row (a name it holds with no row of its own -- a failed
+        // save, a removed row -- was served with no proof at all). Every custom domain is served through its
+        // proven row above.
         return await _db.AgentWebsites
             .Include(w => w.AgentUser)
             .Include(w => w.Template)
             .FirstOrDefaultAsync(w => (w.IsPublished || !requirePublished) &&
-                (hostMatches.Contains(w.CustomDomain.ToLower()) || hostMatches.Contains(w.AgentUser.DomainName.ToLower())));
+                hostMatches.Contains(w.AgentUser.DomainName.ToLower()));
     }
 
     private async Task<IActionResult> BuildWebsiteViewAsync(IPRO.Entities.AgentWebsite website, string? slug)

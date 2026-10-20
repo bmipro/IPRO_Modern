@@ -60,6 +60,18 @@ public class AgentDomain
     /// </summary>
     public string CaaBlockingName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 592: the value this adviser publishes in a TXT record (_ipro-verify, IPRO.Utility.DomainOwnershipProof) to
+    /// prove the domain is theirs. One per row: another adviser's row for the same name has another value.
+    /// </summary>
+    public string VerificationToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 592: when IPRO saw that TXT record. Null = not proven: nothing is bound, secured or served for this row.
+    /// Rows that existed when 592 was released carry the release time with no token (proven by being there).
+    /// </summary>
+    public DateTime? OwnershipVerifiedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public AgentUser AgentUser { get; set; } = null!;

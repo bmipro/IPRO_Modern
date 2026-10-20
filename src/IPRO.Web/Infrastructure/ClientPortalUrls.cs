@@ -28,6 +28,7 @@ public static class ClientPortalUrls
             var healthy = await db.AgentDomains.AsNoTracking().AnyAsync(d =>
                 d.AgentWebsiteId == custom.Id &&
                 (d.DomainName.ToLower() == host || d.WwwDomain.ToLower() == host || d.RootDomain.ToLower() == host) &&
+                d.OwnershipVerifiedAt != null &&   // 592: proven to be this adviser's
                 d.AzureBindingStatus == AgentDomainStatus.Bound &&
                 (d.SslStatus == AgentDomainStatus.Bound || d.SslStatus == "SslBound"));
             if (healthy) return $"https://{host}";

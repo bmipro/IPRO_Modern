@@ -9,6 +9,12 @@ public static class DomainErrorTranslator
             return string.Empty;
         }
 
+        // 592: the proof of ownership sentence names the record and its value; it is the instruction itself.
+        if (Contains(rawError, DomainOwnershipProof.RecordLabel))
+        {
+            return rawError;
+        }
+
         // 589: written for the adviser already (DomainCheckService, AzureDomainAutomationService). First: the
         // sentence names the domain, and a domain may contain any of the words looked for below.
         if (Contains(rawError, "IPRO's own addresses") || Contains(rawError, "not a valid domain name"))

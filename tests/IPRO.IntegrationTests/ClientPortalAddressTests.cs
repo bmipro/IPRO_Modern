@@ -172,7 +172,8 @@ public class ClientPortalAddressTests
             DomainName = customDomain, WwwDomain = customDomain, RootDomain = customDomain.Replace("www.", ""),
             AzureBindingStatus = bound ? AgentDomainStatus.Bound : AgentDomainStatus.BindingPending,
             SslStatus = bound ? (sslStatus ?? AgentDomainStatus.Bound) : AgentDomainStatus.BindingPending,
-            IsPrimary = true
+            IsPrimary = true,
+            OwnershipVerifiedAt = DateTime.UtcNow   // 592: a live domain is a proven one
         });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

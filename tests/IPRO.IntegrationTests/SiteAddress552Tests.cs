@@ -36,7 +36,7 @@ public class SiteAddress552Tests
         {
             AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = "www.4ipro.com", RootDomain = "4ipro.com", WwwDomain = "www.4ipro.com",
             DnsStatus = AgentDomainStatus.DnsReady, AzureBindingStatus = AgentDomainStatus.BindingPending, SslStatus = AgentDomainStatus.BindingPending,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, OwnershipVerifiedAt = DateTime.UtcNow,   // 592: a live domain is a proven one
         };
         db.Add(domain);
         await db.SaveChangesAsync();
@@ -98,7 +98,7 @@ public class SiteAddress552Tests
         {
             AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = "www.4ipro.com", RootDomain = "4ipro.com", WwwDomain = "www.4ipro.com",
             DnsStatus = AgentDomainStatus.DnsReady, AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, OwnershipVerifiedAt = DateTime.UtcNow,   // 592: a live domain is a proven one
         });
         var client = new Client { AgentUserId = agent.Id, FirstName = "Bob", LastName = "Moore", Email = "bob552@example.test" };
         db.Add(client);

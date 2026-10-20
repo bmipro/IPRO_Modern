@@ -99,6 +99,7 @@ public static class PortalUrlHelper
                 (d.DomainName.ToLower() == normalized ||
                  d.WwwDomain.ToLower() == normalized ||
                  d.RootDomain.ToLower() == normalized) &&
+                d.OwnershipVerifiedAt != null &&   // 592: proven to be an adviser's
                 d.AzureBindingStatus == AgentDomainStatus.Bound);
             if (isBoundCustomDomain)
             {

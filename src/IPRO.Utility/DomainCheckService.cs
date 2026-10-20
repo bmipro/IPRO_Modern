@@ -87,6 +87,19 @@ public class DomainCheckService : IDomainCheckService
             domain.LastError = refusal;
             _logger.LogWarning("Custom domain {Domain} (row {Id}) refused before any check: {Reason}", PlatformHostNames.Printable(domain.DomainName), domain.Id, refusal);
         }
+        else if (await OwnershipWaitAsync(domain, cancellationToken) is { } waiting)
+        {
+            // 592: not proven to be this adviser's (DomainOwnershipProof). Nothing is resolved, fetched or asked
+            // of Azure, and nothing reads as connected: an earlier adviser's binding may still be in Azure with
+            // the domain's DNS pointed at us, and binding or probing it now would hand that domain to this row.
+            // The short address's binding fields are left as they are: a binding recorded there must stay on
+            // record so that removing the domain still removes it.
+            domain.DnsStatus = AgentDomainStatus.PendingDns;
+            domain.AzureBindingStatus = AgentDomainStatus.BindingPending;
+            domain.SslStatus = AgentDomainStatus.BindingPending;
+            domain.RootRedirectsToWww = false;
+            domain.LastError = waiting;
+        }
         else
         {
             await CheckDomainAsync(domain, cancellationToken);
@@ -137,6 +150,73 @@ public class DomainCheckService : IDomainCheckService
         }
 
         return null;
+    }
+
+    // 592: null when the row is proven to be its adviser's (now or before), else the sentence that says what to add.
+    private async Task<string?> OwnershipWaitAsync(AgentDomain domain, CancellationToken cancellationToken)
+    {
+        if (!DomainOwnershipProof.IsNeeded(domain)) return null;
+
+        if (!DomainOwnershipProof.Covers(domain, domain.RootDomain) || !DomainOwnershipProof.Covers(domain, domain.WwwDomain))
+        {
+            _logger.LogWarning("Custom domain {Domain} (row {Id}) not checked: its short address {Root} or www name {Www} is not one of its own names",
+                PlatformHostNames.Printable(domain.DomainName), domain.Id, PlatformHostNames.Printable(domain.RootDomain), PlatformHostNames.Printable(domain.WwwDomain));
+            return "This domain's record is not consistent, so it cannot be connected. Remove it and add it again (proof of ownership: _ipro-verify).";
+        }
+
+        // A row without a value (saved by the version before 592 during its release) gets one when My Website opens,
+        // and only there: a value made here could replace the one the adviser is copying.
+        if (string.IsNullOrWhiteSpace(domain.VerificationToken))
+        {
+            return DomainOwnershipProof.InstructionWithoutValue(domain);
+        }
+
+        // Not asked before the domain's own name resolves: the adviser adds the CNAME and this record in the same
+        // visit, and a public resolver asked too early remembers "no such record" for the zone's negative TTL
+        // (three hours on one registrar, ops/domain-switch/dns-check.sh), however often Check now is clicked.
+        IPAddress[] addresses;
+        try { addresses = await ResolveHook(domain.DomainName, cancellationToken); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { addresses = Array.Empty<IPAddress>(); }
+        if (addresses.Length == 0)
+        {
+            return DomainOwnershipProof.Instruction(domain);
+        }
+
+        var seen =await DomainOwnershipProof.IsPublishedAsync(domain, DomainOwnershipProof.LookupHook ?? LookUpTxtAsync, cancellationToken);
+        if (seen == true)
+        {
+            domain.OwnershipVerifiedAt = DateTime.UtcNow;
+            // Warning: Information never reaches the container log, and this is the record of when and how a
+            // domain became this adviser's.
+            _logger.LogWarning("Custom domain {Domain} (row {Id}, agent {AgentUserId}) proven by its {Record} TXT record",
+                PlatformHostNames.Printable(domain.DomainName), domain.Id, domain.AgentUserId, DomainOwnershipProof.RecordName(domain));
+            return null;
+        }
+
+        return DomainOwnershipProof.Instruction(domain);
+    }
+
+    public Task<bool?> IsOwnershipPublishedAsync(string provenName, string token, CancellationToken cancellationToken = default) =>
+        DomainOwnershipProof.IsPublishedAsync(provenName, token, DomainOwnershipProof.LookupHook ?? LookUpTxtAsync, cancellationToken);
+
+    // One resolver's JSON answer for a TXT question (the address is built by DomainOwnershipProof). Null on any failure.
+    private async Task<string?> LookUpTxtAsync(string address, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            var client = _httpClientFactory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Get, address);
+            request.Headers.Accept.ParseAdd("application/dns-json");
+            using var response = await client.SendAsync(request, timeout.Token);
+            return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(timeout.Token) : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation(ex, "TXT lookup {Address} did not answer", address);
+            return null;
+        }
     }
 
     // 506: while a certificate is still wanted, read the domain's CAA records. A list that leaves
