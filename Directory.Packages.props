@@ -33,6 +33,9 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="[8.0.2]" />
     <PackageVersion Include="PayPalCheckoutSdk" Version="[1.0.4]" />
     <PackageVersion Include="Markdig" Version="[0.37.0]" />
+    <!-- 593: the QR code on the two-step sign-in set-up page (an authenticator app reads it). QRCoder is
+         MIT-licensed and fully managed; only its code generator is used, and the page draws the SVG itself. -->
+    <PackageVersion Include="QRCoder" Version="[1.8.0]" />
     <!-- 535: gallery photos resized and stripped of their metadata on upload. SkiaSharp is MIT-licensed
          (Microsoft); the Linux native library comes from the NoDependencies package, since App Service's
          .NET image has no fontconfig and the gallery draws no text. -->

@@ -1754,6 +1754,80 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 593 (2026-10-20): two-step sign-in (TwoStepStore). New tables only, but every portal sign-in and every
+    // signed-in portal request reads them (AgentCookieRevalidator), so the portal app does not start
+    // without them (Program.cs: TwoStepSignInTablesExistAsync after a failed step): a missing table would
+    // otherwise answer every adviser with an error page while the deploy check saw a healthy app.
+    public static async Task EnsureTwoStepSignInSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepSignIns` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `TeamMemberId` int NOT NULL DEFAULT 0,
+        `Method` varchar(10) CHARACTER SET utf8mb4 NOT NULL,
+        `ProtectedSecret` varchar(1000) CHARACTER SET utf8mb4 NULL,
+        `Stamp` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `EnabledAt` datetime(6) NOT NULL,
+        `LastUsedStep` bigint NOT NULL DEFAULT 0,
+        `FailedCodeCount` int NOT NULL DEFAULT 0,
+        `CodeLockedUntil` datetime(6) NULL,
+        `WrongCodes` int NOT NULL DEFAULT 0,
+        `CodeLockNoticeAt` datetime(6) NULL,
+        `EmailCodeHash` varchar(128) CHARACTER SET utf8mb4 NULL,
+        `EmailCodeExpiresAt` datetime(6) NULL,
+        `EmailCodeSentAt` datetime(6) NULL,
+        `EmailCodesSent` int NOT NULL DEFAULT 0,
+        `EmailCodesSince` datetime(6) NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_TwoStepSignIns_AgentUserId_TeamMemberId` (`AgentUserId`, `TeamMemberId`)
+    ) CHARACTER SET=utf8mb4;");
+
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepRecoveryCodes` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `TeamMemberId` int NOT NULL DEFAULT 0,
+        `CodeHash` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `UsedAt` datetime(6) NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_TwoStepRecoveryCodes_AgentUserId_TeamMemberId` (`AgentUserId`, `TeamMemberId`)
+    ) CHARACTER SET=utf8mb4;");
+
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepSetupCodes` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `TeamMemberId` int NOT NULL DEFAULT 0,
+        `CodeHash` varchar(128) CHARACTER SET utf8mb4 NULL,
+        `ExpiresAt` datetime(6) NULL,
+        `SentAt` datetime(6) NULL,
+        `SentCount` int NOT NULL DEFAULT 0,
+        `SentSince` datetime(6) NULL,
+        `WrongCount` int NOT NULL DEFAULT 0,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_TwoStepSetupCodes_AgentUserId_TeamMemberId` (`AgentUserId`, `TeamMemberId`)
+    ) CHARACTER SET=utf8mb4;");
+
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepRequirements` (
+        `AgentUserId` int NOT NULL,
+        `RequiredAt` datetime(6) NOT NULL,
+        `RequiredBy` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`AgentUserId`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
+    public static async Task<bool> TwoStepSignInTablesExistAsync(IPRODbContext db)
+    {
+        // Names compared case-blind: the local Windows MySQL lower-cases them, Azure keeps the case.
+        var found = await db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS `Value` FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() " +
+            "AND LOWER(TABLE_NAME) IN ('twostepsignins', 'twosteprecoverycodes', 'twostepsetupcodes', 'twosteprequirements')").ToListAsync();
+        return found.Single() == 4;
+    }
+
     // 450 (2026-09-02): anonymous website votes are PollRecipients with Source = Website.
     public static async Task EnsurePollWebsiteVoteSchemaAsync(IPRODbContext db)
     {

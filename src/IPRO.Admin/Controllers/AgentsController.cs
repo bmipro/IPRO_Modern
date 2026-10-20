@@ -162,6 +162,16 @@ public class AgentsController : Controller
                 .OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync(),
             "Locked client portal sign-ins",
             warnings) ?? new List<Client>();
+        // 593: two-step sign-in -- the agent's own, whether it is required, and their team members' that are on.
+        ViewBag.TwoStep = await LoadDetailsPanelAsync(() => TwoStepStore.FindAsync(_db, TwoStepAccount.Adviser(id)), "Two-step sign-in", warnings);
+        ViewBag.TwoStepRequired = await LoadDetailsPanelAsync(() => TwoStepStore.IsRequiredAsync(_db, id), "Two-step sign-in", warnings);
+        ViewBag.TwoStepTeam = await LoadDetailsPanelAsync(
+            async () => await (from t in _db.TwoStepSignIns.AsNoTracking()
+                               join m in _db.TeamMembers.AsNoTracking() on t.TeamMemberId equals m.Id
+                               where t.AgentUserId == id && t.TeamMemberId != 0 && m.AgentUserId == id
+                               orderby m.FullName
+                               select new TwoStepTeamRow(m.Id, m.FullName, m.Email, t.Method, t.CodeLockedUntil, t.WrongCodes)).ToListAsync(),
+            "Two-step sign-in", warnings) ?? new List<TwoStepTeamRow>();
         ViewBag.DetailsWarnings = warnings;
         return View(agent);
     }
@@ -201,6 +211,10 @@ public class AgentsController : Controller
         }
 
         var wasLocked = await SignInLockout.ClearAsync(_db, account, DateTime.UtcNow);
+        // 593: and a lock after 5 wrong two-step codes (its own lock: a new password does not end it).
+        if (account.Kind != SignInAccountKind.Client
+            && await TwoStepStore.ClearCodeLockAsync(_db, account.Kind == SignInAccountKind.Adviser ? TwoStepAccount.Adviser(agent.Id) : TwoStepAccount.Member(agent.Id, account.Id), DateTime.UtcNow))
+            wasLocked = true;
         if (wasLocked) SignInLockout.LogCleared(_logger, account, $"unlocked by {CurrentAdminUsername}");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "SignInUnlocked", wasLocked
             ? $"Unlocked sign-in for {who}."
@@ -208,6 +222,113 @@ public class AgentsController : Controller
         TempData["Success"] = wasLocked
             ? "Sign-in unlocked. They can sign in again now."
             : "That sign-in was not locked; the count of wrong passwords is back to 0.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 593: two-step sign-in is optional, and SuperAdmin can require it for one adviser's account: the
+    // adviser and each of their team members then set it up before using the portal (the portal sends
+    // them to its set-up page). Recorded in the audit log.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequireTwoStep(int id, bool required)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+        var changed = await TwoStepStore.SetRequiredAsync(_db, id, required, CurrentAdminUsername, DateTime.UtcNow);
+        if (changed)
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, required ? "TwoStepRequired" : "TwoStepNotRequired",
+                required ? $"Required two-step sign-in for agent '{agent.UserName}' and their team members."
+                         : $"Two-step sign-in is optional again for agent '{agent.UserName}' and their team members.");
+        TempData["Success"] = required
+            ? "Two-step sign-in is required for this account: the adviser and each team member set it up the next time they use the portal."
+            : "Two-step sign-in is optional again for this account. Anyone who has it on keeps it.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 593: someone lost their phone and their recovery codes. Their two-step sign-in is turned off (every
+    // session of theirs ends at the next page), the reset is in the audit log, and they are emailed. The
+    // account must be this agent's, as for UnlockSignIn.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetTwoStep(int id, SignInAccountKind kind = SignInAccountKind.Adviser, int accountId = 0)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+
+        TwoStepAccount account;
+        TwoStepLetters.Person person;
+        TeamMember? member = null;
+        string who;
+        switch (kind)
+        {
+            case SignInAccountKind.Adviser:
+                account = TwoStepAccount.Adviser(agent.Id);
+                person = TwoStepLetters.ForAdviser(agent);
+                who = $"agent '{agent.UserName}'";
+                break;
+            case SignInAccountKind.TeamMember:
+                member = await _db.TeamMembers.FirstOrDefaultAsync(t => t.Id == accountId && t.AgentUserId == id);
+                if (member == null) return NotFound();
+                account = TwoStepAccount.Member(agent.Id, member.Id);
+                person = TwoStepLetters.ForTeamMember(member, agent);
+                who = $"team member {member.Email} of agent '{agent.UserName}'";
+                break;
+            default:
+                return NotFound();
+        }
+
+        var row = await TwoStepStore.FindAsync(_db, account);
+        if (row == null)
+        {
+            TempData["Success"] = "Two-step sign-in was not on for that sign-in; nothing to reset.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        // Held after 20 wrong codes: whoever was guessing has the password. The reset gives a temporary
+        // password in the same action (as My Team does), and FIRST: a reset that left the password would
+        // hand the login to the guesser between two clicks (the second re-check of 593).
+        string? temporaryPassword = null;
+        if (TwoStepStore.IsCodeHeld(row))
+        {
+            temporaryPassword = BuildTemporaryPassword();
+            if (member != null)
+            {
+                member.PasswordHash = new PasswordHasher<TeamMember>().HashPassword(member, temporaryPassword);
+                member.MustChangePassword = true;
+                await _db.SaveChangesAsync();   // tracked: these columns only
+            }
+            else
+            {
+                agent.PasswordHash = _hasher.HashPassword(agent, temporaryPassword);
+                agent.MustChangePassword = true;
+                agent.PasswordChangedAt = null;
+                await _agents.UpdateAsync(agent);
+            }
+            await SignInLockout.ClearAsync(_db, account.SignIn, DateTime.UtcNow);
+        }
+        await TwoStepStore.DisableAsync(_db, account);
+        _logger.LogWarning("Two-step sign-in reset by {Admin}: {Kind} {Id}", CurrentAdminUsername, kind, kind == SignInAccountKind.Adviser ? agent.Id : accountId);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "TwoStepReset", temporaryPassword == null
+            ? $"Reset two-step sign-in for {who}."
+            : $"Reset two-step sign-in for {who}; it was locked after 20 wrong codes, so a temporary password was issued too.");
+
+        var sent = false;
+        if (!string.IsNullOrWhiteSpace(person.Email) && _services.GetService<IPRO.Email.IEmailService>() is { } email)
+        {
+            var letter = TwoStepLetters.Reset(person, byOwner: false);
+            try
+            {
+                sent = (await email.SendDetailedAsync(letter.To, letter.ToName, letter.Subject, letter.Html)).Success;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "The two-step reset email for {Kind} {Id} failed", kind, accountId);
+            }
+        }
+        TempData["Success"] = (sent
+            ? "Two-step sign-in reset. Their password alone signs them in until they set it up again; they have been emailed."
+            : "Two-step sign-in reset. Their password alone signs them in until they set it up again. The email to them could not be sent: tell them yourself.")
+            + (temporaryPassword == null ? "" :
+                $" It was locked after 20 wrong codes, so someone has their password: their temporary password is now {temporaryPassword} (give it to them securely; they choose a new one when they sign in).");
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -948,6 +1069,12 @@ public class AgentsController : Controller
     // powers the preview screen. Add new agent-owned tables there, not here.
 
     private static string BuildTemporaryPassword() => EncryptionService.GenerateToken(12);
+
+    // 593: a team member with two-step sign-in on, for the agent record's Two-step card.
+    public sealed record TwoStepTeamRow(int Id, string FullName, string Email, string Method, DateTime? CodeLockedUntil, int WrongCodes)
+    {
+        public bool Held => WrongCodes >= TwoStepStore.WrongCodesBeforeHold;
+    }
 
     private static AgentEditViewModel ToEditModel(AgentUser agent) => new()
     {

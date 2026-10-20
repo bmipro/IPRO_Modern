@@ -31,6 +31,11 @@ public interface ISignInLockNotices
     // Sends the lock email after the sign-in has answered: the answer must not wait for it, or the
     // time it took would say the name was an account.
     void Queue(SignInAccount account);
+
+    // 593: the email when wrong two-step codes lock the second step -- in other words: the password was
+    // right. Its own once-a-day and its own 20 an hour (the review of 593: a password lock that day, or other
+    // accounts' locks that hour, must not keep this one from going).
+    void QueueCodeLock(TwoStepAccount account);
 }
 
 public sealed class SignInLockNotices : ISignInLockNotices
@@ -43,6 +48,7 @@ public sealed class SignInLockNotices : ISignInLockNotices
     private readonly IServiceScopeFactory _scopes;
     private readonly Func<DateTime> _now;
     private readonly Queue<DateTime> _sentLastHour = new();
+    private readonly Queue<DateTime> _codeLocksSentLastHour = new();
 
     public SignInLockNotices(IServiceScopeFactory scopes, Func<DateTime>? now = null)
     {
@@ -51,14 +57,19 @@ public sealed class SignInLockNotices : ISignInLockNotices
     }
 
     // One of this hour's MaxPerHour, or false when they are used up.
-    public bool TryTakeHourlySlot()
+    public bool TryTakeHourlySlot() => TakeSlot(_sentLastHour);
+
+    // 593: the two-step lock emails' own MaxPerHour.
+    public bool TryTakeCodeLockHourlySlot() => TakeSlot(_codeLocksSentLastHour);
+
+    private bool TakeSlot(Queue<DateTime> sent)
     {
         var now = _now();
-        lock (_sentLastHour)
+        lock (sent)
         {
-            while (_sentLastHour.Count > 0 && _sentLastHour.Peek() <= now.AddHours(-1)) _sentLastHour.Dequeue();
-            if (_sentLastHour.Count >= MaxPerHour) return false;
-            _sentLastHour.Enqueue(now);
+            while (sent.Count > 0 && sent.Peek() <= now.AddHours(-1)) sent.Dequeue();
+            if (sent.Count >= MaxPerHour) return false;
+            sent.Enqueue(now);
             return true;
         }
     }
@@ -88,6 +99,118 @@ public sealed class SignInLockNotices : ISignInLockNotices
                 // had, so there is nothing to log with.
             }
         });
+    }
+
+    public void QueueCodeLock(TwoStepAccount account)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _scopes.CreateScope();
+                var services = scope.ServiceProvider;
+                var logger = services.GetRequiredService<ILogger<SignInLockNotices>>();
+                try
+                {
+                    await SendCodeLockAsync(services.GetRequiredService<IPRODbContext>(), services.GetRequiredService<IEmailService>(),
+                        services.GetRequiredService<IConfiguration>(), logger, account, DateTime.UtcNow, TryTakeCodeLockHourlySlot);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "The two-step lock email for {Account} failed", TwoStepNotices.Describe(account));
+                }
+            }
+            catch
+            {
+                // As Queue above.
+            }
+        });
+    }
+
+    // 593: the two-step lock's email: one a day per person and 20 an hour, as the password lock's (SendAsync
+    // below), but counted apart from it.
+    public static async Task<EmailSendResult?> SendCodeLockAsync(IPRODbContext db, IEmailService email, IConfiguration configuration,
+        ILogger logger, TwoStepAccount account, DateTime now, Func<bool>? hourlySlot = null)
+    {
+        var row = await TwoStepStore.FindAsync(db, account);
+        if (!TwoStepStore.IsCodeLocked(row, DateTime.UtcNow)) return null;
+        var held = TwoStepStore.IsCodeHeld(row);
+        LockEmail? message;
+        if (account.IsTeamMember)
+        {
+            var member = await db.TeamMembers.AsNoTracking().Include(t => t.AgentUser)
+                .FirstOrDefaultAsync(t => t.Id == account.TeamMemberId && t.AgentUserId == account.AgentUserId);
+            message = member == null || string.IsNullOrWhiteSpace(member.Email) ? null : ForTeamMemberCodes(member, member.AgentUser, held);
+        }
+        else
+        {
+            var agent = await db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == account.AgentUserId);
+            message = agent == null || string.IsNullOrWhiteSpace(agent.Email) ? null : ForAdviserCodes(agent, PortalUrlHelper.GetAgentPortalBaseUrl(configuration), held);
+        }
+        if (message == null) return null;
+
+        // The held email ("call iPro support") goes even when a 15-minute lock's used the day's one: a hold
+        // happens once (no code is tried after it), and it is the email that says what to do.
+        if (!held && !await TwoStepStore.ClaimCodeLockNoticeAsync(db, account, now)) return null;
+        if (hourlySlot != null && !hourlySlot())
+        {
+            await TwoStepStore.ReleaseCodeLockNoticeAsync(db, account, now);
+            logger.LogWarning("Two-step lock email to {Account} not sent: {Max} lock emails went out in the last hour (many sign-ins locked at once is someone guessing)",
+                TwoStepNotices.Describe(account), MaxPerHour);
+            return null;
+        }
+        var result = await email.SendDetailedAsync(message.To, message.ToName, message.Subject, message.Html);
+        if (result.Success)
+        {
+            logger.LogInformation("Two-step lock email sent to {Account}", TwoStepNotices.Describe(account));
+        }
+        else
+        {
+            await TwoStepStore.ReleaseCodeLockNoticeAsync(db, account, now);
+            logger.LogWarning("Two-step lock email to {Account} was not sent: {Message}", TwoStepNotices.Describe(account), result.Message);
+        }
+        return result;
+    }
+
+    // The code lock tells the person what the password lock cannot: their password was typed correctly.
+    // `held`: 20 wrong codes since the last right one -- locked until iPro support unlocks it.
+    public static LockEmail ForAdviserCodes(AgentUser agent, string portalBaseUrl, bool held = false)
+    {
+        var resetUrl = $"{portalBaseUrl.TrimEnd('/')}/Account/ForgotPassword";
+        var name = $"{agent.FirstName} {agent.LastName}".Trim();
+        var html = Letter(agent.FirstName, held
+            ? new[]
+            {
+                $"Someone typed your iPro password correctly, then 20 wrong two-step sign-in codes, so sign-in to your account is locked until iPro support unlocks it. Without your code, your password alone doesn't get anyone in.",
+                "Someone knows your password: reset it now, and choose one you don't use anywhere else.",
+                $"Then call iPro support at {TwoStepLetters.SupportPhone} to unlock your sign-in."
+            }
+            : new[]
+            {
+                "Someone typed your iPro password correctly, then a wrong two-step sign-in code 5 times in a row, so we locked sign-in to your account for 15 minutes. Without your code, your password alone doesn't get anyone in.",
+                "If it was you, you can try again after 15 minutes.",
+                "If it wasn't you, someone knows your password: reset it now, and choose one you don't use anywhere else."
+            },
+            "Reset my password", resetUrl);
+        return new LockEmail(agent.Email.Trim(), name.Length == 0 ? agent.Email.Trim() : name, Subject, html);
+    }
+
+    public static LockEmail ForTeamMemberCodes(TeamMember member, AgentUser? owner, bool held = false)
+    {
+        var ownerName = owner == null ? "the account owner" : WebUtility.HtmlEncode($"{owner.FirstName} {owner.LastName}".Trim());
+        if (ownerName.Length == 0) ownerName = "the account owner";
+        var business = WebUtility.HtmlEncode(AdviserSender.BusinessName(owner));
+        var account = business.Length == 0 ? "the iPro account" : $"{business}'s iPro account";
+        var html = Letter(member.FullName, new[]
+            {
+                held
+                    ? $"Someone typed your password for your sign-in ({WebUtility.HtmlEncode(member.Email)}) to {account} correctly, then 20 wrong two-step sign-in codes, so it is locked until it is reset. Without your code, your password alone doesn't get anyone in."
+                    : $"Someone typed your password for your sign-in ({WebUtility.HtmlEncode(member.Email)}) to {account} correctly, then a wrong two-step sign-in code 5 times in a row, so we locked it for 15 minutes. Without your code, your password alone doesn't get anyone in.",
+                held ? $"Ask {ownerName} to reset your password and your two-step sign-in on the My Team page." : "If it was you, you can try again after 15 minutes.",
+                $"If it wasn't you, someone knows your password: ask {ownerName} to reset it on the My Team page right away."
+            },
+            null, null);
+        return new LockEmail(member.Email.Trim(), string.IsNullOrWhiteSpace(member.FullName) ? member.Email.Trim() : member.FullName.Trim(), Subject, html);
     }
 
     // One email when a sign-in locks, and no more than one a day however often it locks again

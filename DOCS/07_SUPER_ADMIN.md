@@ -72,6 +72,24 @@ Every sign-in (advisers, their team members, their clients, admins) locks for 15
 
 Unlock is Super Admin only (Support admins see the button disabled). Each unlock is written to the audit log as **SignInUnlocked**, naming who was unlocked. Locks and unlocks are also written to the container log as warnings ("Sign-in locked for 15 minutes after 5 wrong passwords in a row: ..." and "Sign-in lock cleared (...)"). A new password unlocks at once: the agent's **Forgot password?**, **Reset Password** here or under **Admin Users**, an agent resetting a team member's password, a client's new portal invitation (**Send a New Invitation** on the client's profile).
 
+
+## Two-Step Sign-In
+
+Advisers and their team members can turn on two-step sign-in (a code from an authenticator app, or by email, after the password; ten recovery codes for a lost phone). It is optional for everyone. Production Super Admin sign-in is not part of it: the admin site sits behind Microsoft Entra sign-in, so its second step is an Entra setting (Conditional Access or security defaults in the Azure portal).
+
+The agent record has a **Two-step sign-in** card under the Profile card:
+
+- **Agent:** "Off", or "On (authenticator app / email codes) since ..." with **Reset two-step**. A line "Locked until ... (5 wrong codes in a row)" with **Unlock** appears while the second step is locked.
+- **Required:** **Require two-step sign-in** makes it compulsory for this account: the agent and each team member are sent to the set-up page until it is on (they can still change their password and sign out). **Make optional** undoes it; anyone who has it on keeps it. Written to the audit log as **TwoStepRequired** / **TwoStepNotRequired**.
+- **Team members with it on:** each with **Reset**, and **Unlock** while locked.
+
+**Reset two-step** is for someone who lost their phone and their recovery codes. Confirm who is asking first (call them back on the number on file): a reset lets their password alone sign them in. It turns their two-step sign-in off, signs out every browser where they were signed in, writes **TwoStepReset** to the audit log naming who, and emails them ("Two-step sign-in was reset for your iPro account"). If the account requires it, they set it up again at their next sign-in. If it was locked after 20 wrong codes (someone has their password), the same click also gives them a temporary password, shown once at the top of the page; give it to them securely. An agent can also reset a team member's on **My Team**.
+
+**Unlock** (the same button as for a password lock) also ends a lock caused by 5 wrong codes in a row, and the longer one after 20 wrong codes without a right one ("Locked until ... (5 wrong codes in a row)" stays on the card until you unlock it; that person's password is known to someone, so they should change it first). A new password does not end that lock on purpose: whoever has the password and the inbox could otherwise reset, guess five more codes, and reset again. The lock email for codes tells the person their password was typed correctly, and to change it.
+
+A new password (theirs, **Reset Password** here, or an agent's reset of a team member) signs out every browser where that person was signed in; so do new recovery codes. Changing an agent's login email in the portal needs their password (and a code with two-step sign-in on), and the old address is told; team members cannot change it.
+
+Locks, resets and every turn-on and turn-off are warnings in the container log ("Two-step sign-in locked for 15 minutes after 5 wrong codes in a row: ...", "Two-step sign-in reset by ...", "Two-step sign-in turned on/off ...").
 ## Activate, Deactivate, or Delete an Agent
 
 - **Activate** restores access.

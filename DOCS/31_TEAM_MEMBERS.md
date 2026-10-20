@@ -27,6 +27,17 @@ If a team member forgets their password, click the key icon on their row. A new 
 
 After 5 wrong passwords in a row a team member's sign-in is locked for 15 minutes, the same rule as yours. Their row on My Team then says "Sign-in locked until ..."; resetting their password with the key icon unlocks it at once. They get one email about it, which tells them to ask you. Their lock does not touch your own sign-in.
 
+
+## Two-Step Sign-In for Team Members
+
+Each team member can turn on two-step sign-in for their own login (user menu, **Two-Step Sign-In**), the same way you do: after their password, a code from an authenticator app or by email. The Dashboard reminds them until it is on. If iPro requires two-step sign-in for your account, it is required for each team member too: the portal opens the set-up page for them until it is on.
+
+- My Team shows a **Two-step on** badge for each member who has it on.
+- A member who lost their phone and their recovery codes asks you: click the shield icon on their row (**Reset two-step sign-in**). Their password alone then signs them in until they set it up again, and they get an email saying you reset it.
+- 5 wrong codes in a row lock their sign-in for 15 minutes, as wrong passwords do. Resetting their password does **not** end that lock (the code is what was wrong); it ends on its own after 15 minutes, or iPro support can clear it.
+- **Remove** also removes their two-step sign-in and recovery codes.
+- 20 wrong codes without a right one keep their sign-in locked until it is reset: someone has their password. Reset their password (key icon) and their two-step sign-in (shield icon).
+- A team member cannot change your account's login email on the profile page.
 ## Deactivate, Reactivate, or Remove
 
 - **Deactivate** stops the person from signing in and frees their seat. Their row stays, so you can **Reactivate** them later, provided a seat is free.

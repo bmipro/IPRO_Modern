@@ -2233,8 +2233,8 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         var agent = await _uow.AgentUsers.GetByIdAsync(userId);
         if (agent == null || agent.PackageId == billingRuleId) return;
 
+        // Tracked (GetByIdAsync): the caller's save writes this column alone, never the whole row (593).
         agent.PackageId = billingRuleId;
-        _uow.AgentUsers.Update(agent);
     }
 
     private async Task<BillingChangeResult> BeginPaidChangeAsync(

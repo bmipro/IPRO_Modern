@@ -369,6 +369,11 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             ["AccountController.ForgotPassword"] = WebLimits.PasswordReset,
             ["AccountController.ResetPassword"] = WebLimits.PasswordReset,
             ["AccountController.ValidatePromoCode"] = WebLimits.PromoCode,
+            // 593: the code page counts like the sign-in page; each emailed code like a password-reset email.
+            ["TwoStepController.Verify"] = WebLimits.SignIn,
+            ["TwoStepController.SendCode"] = WebLimits.PasswordReset,
+            ["TwoStepController.StartEmail"] = WebLimits.PasswordReset,
+            ["TwoStepController.EmailMeACode"] = WebLimits.PasswordReset,
             ["PublicWebsiteController.SubmitLead"] = WebLimits.PublicForm,
             ["PublicWebsiteController.SubmitCustomForm"] = WebLimits.PublicForm,
             ["PublicWebsiteController.SubmitTestimonial"] = WebLimits.PublicForm,

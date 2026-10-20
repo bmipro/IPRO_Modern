@@ -93,6 +93,14 @@ builder.Services.AddScoped<IPasswordHasher<TeamMember>, PasswordHasher<TeamMembe
 builder.Services.AddScoped<IAgentService, AgentService>();
 // 583: the one email a sign-in lock sends, after the sign-in has answered.
 builder.Services.AddSingleton<IPRO.Web.Infrastructure.ISignInLockNotices>(sp => new IPRO.Web.Infrastructure.SignInLockNotices(sp.GetRequiredService<IServiceScopeFactory>()));
+// 593: two-step sign-in -- its emails, and the gate every right password passes through.
+builder.Services.AddSingleton<IPRO.Web.Infrastructure.ITwoStepNotices>(sp => new IPRO.Web.Infrastructure.TwoStepNotices(sp.GetRequiredService<IServiceScopeFactory>()));
+builder.Services.AddScoped(sp => new IPRO.Web.Infrastructure.TwoStepGate(
+    sp.GetRequiredService<IPRODbContext>(),
+    sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+    sp.GetRequiredService<IPRO.Web.Infrastructure.ITwoStepNotices>(),
+    sp.GetRequiredService<IPRO.Web.Infrastructure.ISignInLockNotices>(),
+    sp.GetRequiredService<ILogger<IPRO.Web.Infrastructure.TwoStepGate>>()));
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
@@ -386,6 +394,17 @@ app.Use(async (context, next) =>
         return;
     }
 
+    // 593: SuperAdmin requires two-step sign-in for this account and this person has none yet
+    // (AgentCookieRevalidator marks the request): the two-step pages, Change Password and Sign out only,
+    // until it is on. The two-step pages are the person's own account, open to a billing-gated one too.
+    var canUseTwoStep = path.StartsWith("/TwoStep", StringComparison.OrdinalIgnoreCase);
+    var twoStepSetupRequired = isAuthenticated && context.Items.ContainsKey(IPRO.Web.Infrastructure.TwoStepGate.SetupRequiredItem);
+    if (twoStepSetupRequired && !canChangePassword && !canLogout && !canUseTwoStep)
+    {
+        context.Response.Redirect(IPRO.Web.Infrastructure.TwoStepGate.SetupPath);
+        return;
+    }
+
     // No active subscription and outside the trial + grace window (or never on a trial at all):
     // every tab except Billing (and Account, so they can still log out) is blocked until they
     // subscribe. Checked here rather than baked into the auth cookie because access needs to stop
@@ -408,7 +427,8 @@ app.Use(async (context, next) =>
         || path.StartsWith("/Account/SetPortalAccentColor", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("/Account/UploadPhoto", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("/Account/RemovePhoto", StringComparison.OrdinalIgnoreCase)
-        || canChangePassword;
+        || canChangePassword
+        || canUseTwoStep;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
 
     // Team members (#379) act as their agent everywhere EXCEPT the owner-only controls: Billing
@@ -591,6 +611,12 @@ using (var scope = app.Services.CreateScope())
     // 583: the sign-in lock columns and SignInNameLocks, right after TeamMembers is created and before any
     // later step can load an account row (EF reads every mapped column).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSignInLockoutSchemaAsync", () => StartupSchemaRepair.EnsureSignInLockoutSchemaAsync(db), db, app.Logger);
+    // 593: two-step sign-in's tables. Every portal sign-in and signed-in request reads them, so if the step
+    // failed AND they are not there, the app does not start (the deploy check then fails where it is seen);
+    // a step that failed on tables already there (a lock wait) costs nothing, as for any other step.
+    if (!await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTwoStepSignInSchemaAsync", () => StartupSchemaRepair.EnsureTwoStepSignInSchemaAsync(db), db, app.Logger)
+        && !await StartupSchemaRepair.TwoStepSignInTablesExistAsync(db))
+        throw new InvalidOperationException("The two-step sign-in tables are missing and could not be made; the portal cannot sign anyone in without them.");
     await StartupGuard.RunStepAsync("WebsiteContentSchema.EnsureAsync", () => WebsiteContentSchema.EnsureAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);

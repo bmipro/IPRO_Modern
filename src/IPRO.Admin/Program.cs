@@ -245,6 +245,8 @@ using (var scope = app.Services.CreateScope())
     // 583: the sign-in lock columns and SignInNameLocks, right after TeamMembers is created and before any
     // later step can load an account row (EF reads every mapped column). AdminUsers' two: EnsureAdminUserSchemaAsync.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSignInLockoutSchemaAsync", () => StartupSchemaRepair.EnsureSignInLockoutSchemaAsync(db), db, app.Logger);
+    // 593: two-step sign-in's tables.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTwoStepSignInSchemaAsync", () => StartupSchemaRepair.EnsureTwoStepSignInSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteContentSchema.EnsureAsync", () => WebsiteContentSchema.EnsureAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);

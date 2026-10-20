@@ -146,6 +146,11 @@ public static class AgentDataEraser
         ("SupportTickets",              "AgentUserId = @agentId"),
 
         // -- Everything else keyed directly on the agent --
+        // 593: two-step sign-in, the adviser's and their team members' (both carry the adviser's id).
+        ("TwoStepRecoveryCodes",        "AgentUserId = @agentId"),
+        ("TwoStepSignIns",              "AgentUserId = @agentId"),
+        ("TwoStepRequirements",         "AgentUserId = @agentId"),
+        ("TwoStepSetupCodes",           "AgentUserId = @agentId"),
         ("TeamMembers",                 "AgentUserId = @agentId"),
         ("ClientRecycleBinItems",       "AgentUserId = @agentId"), // 472: the bin goes with the agent
         ("Clients",                     "AgentUserId = @agentId"),

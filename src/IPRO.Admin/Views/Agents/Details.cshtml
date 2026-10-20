@@ -128,6 +128,12 @@
     var billingLogs = (ViewBag.BillingLogs as IEnumerable<IPRO.Entities.OperateLog> ?? Enumerable.Empty<IPRO.Entities.OperateLog>()).ToList();
     var lockedTeamMembers = ViewBag.LockedTeamMembers as List<IPRO.Entities.TeamMember> ?? new List<IPRO.Entities.TeamMember>();
     var lockedClients = ViewBag.LockedClients as List<IPRO.Entities.Client> ?? new List<IPRO.Entities.Client>();
+    // 593: two-step sign-in.
+    var twoStep = ViewBag.TwoStep as IPRO.Entities.TwoStepSignIn;
+    var twoStepRequired = ViewBag.TwoStepRequired as bool? ?? false;
+    var twoStepTeam = ViewBag.TwoStepTeam as List<IPRO.Admin.Controllers.AgentsController.TwoStepTeamRow> ?? new List<IPRO.Admin.Controllers.AgentsController.TwoStepTeamRow>();
+    var isSuperAdminHere = User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin);
+    string TwoStepWay(string method) => method == IPRO.Entities.TwoStepMethods.Email ? "email codes" : "authenticator app";
     var paidInvoiceEmailLogs = billingLogs
         .Where(l => l.Action == "InvoiceEmail" || l.Action == "InvoiceEmailFailed")
         .ToList();
@@ -289,6 +295,75 @@
                 </div>
             </div>
         }
+        @* 593: two-step sign-in -- the agent's own and their team members', the requirement, reset and code locks. *@
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-2"><i class="fas fa-shield-halved me-2 text-primary"></i>Two-step sign-in</h6>
+                <dl class="row mb-2 small">
+                    <dt class="col-5 text-muted">Agent</dt>
+                    <dd class="col-7">
+                        @if (twoStep == null)
+                        {
+                            <span>Off</span>
+                        }
+                        else
+                        {
+                            <span class="text-success">On (@TwoStepWay(twoStep.Method)) since @LocalDate(twoStep.EnabledAt)</span>
+                            @if (IPRO.DataAccess.TwoStepStore.IsCodeHeld(twoStep))
+                            {
+                                <div class="text-danger"><i class="fas fa-lock me-1"></i>Locked until you unlock it (20 wrong codes without a right one: someone has their password) @{ await UnlockButton("Adviser", 0); }</div>
+                            }
+                            else if (IPRO.DataAccess.TwoStepStore.IsCodeLocked(twoStep, DateTime.UtcNow))
+                            {
+                                <div class="text-danger"><i class="fas fa-lock me-1"></i>Locked until @LocalTime(twoStep.CodeLockedUntil!.Value) (5 wrong codes in a row) @{ await UnlockButton("Adviser", 0); }</div>
+                            }
+                            <form action="/Agents/ResetTwoStep/@Model.Id" method="post" class="mt-1">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="kind" value="Adviser" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 js-confirm-submit" @(isSuperAdminHere ? "" : "disabled") title="@(isSuperAdminHere ? "They lost their phone and their recovery codes" : "SuperAdmin only")"
+                                        data-confirm-message="Reset two-step sign-in for @Model.UserName? Their password alone will sign them in until they set it up again. They will be emailed, and it is written to the audit log.">Reset two-step</button>
+                            </form>
+                        }
+                    </dd>
+                    <dt class="col-5 text-muted">Required</dt>
+                    <dd class="col-7">
+                        <span>@(twoStepRequired ? "Yes, for the agent and their team members" : "No (optional)")</span>
+                        <form action="/Agents/RequireTwoStep/@Model.Id" method="post" class="mt-1">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="required" value="@(twoStepRequired ? "false" : "true")" />
+                            <button type="submit" class="btn btn-sm btn-outline-primary py-0" @(isSuperAdminHere ? "" : "disabled") title="@(isSuperAdminHere ? "" : "SuperAdmin only")">@(twoStepRequired ? "Make optional" : "Require two-step sign-in")</button>
+                        </form>
+                    </dd>
+                </dl>
+                @if (twoStepTeam.Count > 0)
+                {
+                    <div class="small fw-semibold mb-1">Team members with it on</div>
+                    <ul class="list-unstyled mb-0 small">
+                        @foreach (var row in twoStepTeam)
+                        {
+                            <li class="mb-2">
+                                @row.FullName (@row.Email), @TwoStepWay(row.Method)
+                                @if (row.Held)
+                                {
+                                    <span class="text-danger">, locked until you unlock it (20 wrong codes) @{ await UnlockButton("TeamMember", row.Id); }</span>
+                                }
+                                else if (row.CodeLockedUntil is { } until && until > DateTime.UtcNow)
+                                {
+                                    <span class="text-danger">, locked until @LocalTime(until) @{ await UnlockButton("TeamMember", row.Id); }</span>
+                                }
+                                <form action="/Agents/ResetTwoStep/@Model.Id" method="post" class="d-inline ms-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="kind" value="TeamMember" />
+                                    <input type="hidden" name="accountId" value="@row.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 js-confirm-submit" @(isSuperAdminHere ? "" : "disabled") title="@(isSuperAdminHere ? "" : "SuperAdmin only")"
+                                            data-confirm-message="Reset two-step sign-in for @row.Email? They will be emailed, and it is written to the audit log.">Reset</button>
+                                </form>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
         <div class="row g-2">
             <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold text-info">@ViewBag.ClientCount</div><div class="text-muted small">Clients</div></div></div>
             <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold @(ViewBag.Subscription != null ? "text-success" : "text-danger")"><i class="fas @(ViewBag.Subscription != null ? "fa-check-circle" : "fa-times-circle")"></i></div><div class="text-muted small">Subscription</div></div></div>

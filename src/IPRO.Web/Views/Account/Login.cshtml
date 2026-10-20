@@ -22,6 +22,8 @@ body{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);min-height:100vh
   </div>
   @if (!ViewData.ModelState.IsValid)
   { <div class="alert alert-danger">@Html.ValidationSummary()</div> }
+  @if (TempData["SignInNotice"] is string signInNotice)
+  { <div class="alert alert-info" role="status">@signInNotice</div> }
   <form asp-action="Login" method="post">
     <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
     <div class="mb-3">

@@ -20,6 +20,8 @@ public static class HelpLinks
     {
         ["Dashboard"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: the Dashboard", "use-the-dashboard") },
         ["Account"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: your account", "edit-the-agent-profile") },
+        // 593: two-step sign-in (its own pages, opened from the Dashboard prompt and the account menu).
+        ["TwoStep"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("account-dashboard", "Help: two-step sign-in", "two-step-sign-in") },
         ["Team"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("team-members", "Help: team member logins") },
         ["Billing"] = new(StringComparer.OrdinalIgnoreCase) { ["*"] = Article("billing-invoices", "Help: packages and billing") },
         // 532: Refer a Friend (its own page, opened from Profile and the Dashboard).
