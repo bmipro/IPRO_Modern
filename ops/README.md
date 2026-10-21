@@ -28,6 +28,7 @@ Neither script contains a secret. The PFX password is read at runtime out of `ru
 | `Renew-Certs.ps1` | Renews the two **platform** certs and pushes them to Azure App Service. Needs a person for the DNS TXT step. |
 | `New-AgentCert.ps1` | Issues a first certificate for **any** custom domain — an agent's, on their own registrar. |
 | `domain-switch/` | Git Bash helpers for moving an existing public name onto the platform: `dns-check.sh` (read-only: mail on the bare name, the `asuid` records, CAA, a lagging DNS host), `cert-order.sh` and `cert-wait.sh` (managed certificates; they change production, so the owner's go first). Unlike the scripts above these are the live files, run from the repo. The procedure is [DOCS/DOMAIN_SWITCH_RUNBOOK.md](../DOCS/DOMAIN_SWITCH_RUNBOOK.md). |
+| `sql/` | Read-only SELECTs the owner runs on production himself (Azure Cloud Shell). `certificate-name-collisions.sql` (591) lists domain names that share an old certificate name in Azure; no rows back is the good answer. |
 | `share-cards/` | `make_share_cards.py` (Python with Pillow) draws the three 1200x627 social share cards in `src/IPRO.Web/wwwroot/images/share/` from the logo, the brand colours and each page's own headline. Run it from the repo; the designer can instead replace the three PNGs under the same names. |
 
 ### When an agent binds a custom domain: do nothing
@@ -42,9 +43,11 @@ only after the 3-hour alert from `DomainAutomationJob` fires, and only after che
 certificate does not already exist:
 
 ```
-az resource show --ids /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Web/certificates/managed-www-their-domain-ca --query properties.thumbprint
+az webapp config ssl list -g <rg> --query "[?contains(hostNames, 'www.their-domain.ca')].{name:name, thumbprint:thumbprint}" -o table
 ```
 
+It finds the managed certificate by the address it was made for, under either of its names (since 591 a new
+one is `managed--www-their-domain-ca-<16 letters and digits>`; an older one `managed-www-their-domain-ca`).
 If that returns a thumbprint, **bind it — do not issue a new certificate.**
 
 > On 2026-08-06 this check was skipped. A managed certificate for `www.ouritems.ca` was issuing normally;

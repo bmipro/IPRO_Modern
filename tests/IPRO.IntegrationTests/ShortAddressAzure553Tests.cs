@@ -46,7 +46,9 @@ public class ShortAddressAzure553Tests : IDisposable
         Assert.Contains("\"customHostNameDnsRecordType\":\"A\"", binding.Body);
         Assert.DoesNotContain("sslState", binding.Body);
         var order = azure.Puts.Single(p => p.Url.Contains("/certificates/"));
-        Assert.Contains("/certificates/managed-shop553-example-test?", order.Url);
+        // 591: a new certificate's name ends in the host's own hash (two names can no longer share one).
+        Assert.Contains("/certificates/" + ManagedCertificateNames.For("shop553.example.test") + "?", order.Url);
+        Assert.StartsWith("managed--shop553-example-test-", ManagedCertificateNames.For("shop553.example.test"));
         Assert.Contains("\"canonicalName\":\"shop553.example.test\"", order.Body);
 
         // Second pass: Azure has issued it; the binding is put again with the thumbprint.
@@ -106,9 +108,11 @@ public class ShortAddressAzure553Tests : IDisposable
 
     // Stands in for login.microsoftonline.com and management.azure.com: a token, then every PUT
     // recorded and answered the way Azure answers (a certificate has a thumbprint only once issued).
+    // 591: a certificate name is read (GET) before it is ordered; it holds what was ordered under it.
     private sealed class RecordingAzure : HttpMessageHandler, IHttpClientFactory
     {
         public List<(string Url, string Body)> Puts { get; } = new();
+        public Dictionary<string, string> Ordered { get; } = new();
         public string? Thumbprint { get; set; }
         public string? RefuseBinding { get; set; }
         public string? RefuseCertificate { get; set; }
@@ -123,9 +127,22 @@ public class ShortAddressAzure553Tests : IDisposable
                 return Json("{\"access_token\":\"token\",\"expires_in\":3600}");
             }
 
+            var certificateName = request.RequestUri.AbsolutePath.Split("/certificates/").Skip(1).FirstOrDefault();
+            if (request.Method == HttpMethod.Get && certificateName != null)
+            {
+                return Ordered.TryGetValue(certificateName, out var host)
+                    ? Json("{\"properties\":{\"canonicalName\":\"" + host + "\"" + (Thumbprint == null ? "" : ",\"thumbprint\":\"" + Thumbprint + "\"") + "}}")
+                    : Json("{\"error\":{\"code\":\"ResourceNotFound\",\"message\":\"not found\"}}", HttpStatusCode.NotFound);
+            }
+
             Assert.Equal(HttpMethod.Put, request.Method);
             Puts.Add((url, request.Content == null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken)));
             var certificate = url.Contains("/certificates/");
+            if (certificate && RefuseCertificate == null)
+            {
+                using var order = System.Text.Json.JsonDocument.Parse(Puts[^1].Body);
+                Ordered[certificateName!] = order.RootElement.GetProperty("properties").GetProperty("canonicalName").GetString()!;
+            }
             var refusal = certificate ? RefuseCertificate : RefuseBinding;
             if (refusal != null)
             {

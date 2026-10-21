@@ -92,12 +92,13 @@ public static class ShortAddressRedirect
             var db = services.GetRequiredService<IPRODbContext>();
             var row = await db.AgentDomains.AsNoTracking()
                 .Where(d => d.RootDomain == host && d.DomainName != host)
-                .Select(d => new { d.DomainName, d.AzureBindingStatus, d.SslStatus })
+                .Select(d => new { d.DomainName, d.AzureBindingStatus, d.SslStatus, d.OwnershipVerifiedAt })
                 .FirstOrDefaultAsync();
 
             // "SslBound": rows written before the status scheme settled carry the legacy value (the
             // same allowance the canonical-host rule and ClientPortalUrls make).
             var live = row != null &&
+                       row.OwnershipVerifiedAt != null &&   // 592: proven to be an adviser's
                        row.AzureBindingStatus == AgentDomainStatus.Bound &&
                        (row.SslStatus == AgentDomainStatus.Bound || row.SslStatus == "SslBound");
             target = live ? row!.DomainName.Trim().Trim('.').ToLowerInvariant() : string.Empty;

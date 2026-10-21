@@ -67,6 +67,15 @@ public class DomainsController : Controller
     public async Task<IActionResult> MarkBound(int id)
     {
         var domain = await _db.AgentDomains.GetRequiredAsync(id);
+        // 592: "bound" means served as this adviser's site; the adviser's TXT record must have been seen first
+        // (DomainOwnershipProof). The domain check would undo the mark at its next pass anyway.
+        if (DomainOwnershipProof.IsNeeded(domain))
+        {
+            TempData["Error"] = $"{domain.DomainName} cannot be marked bound: the adviser has not proven it is theirs yet " +
+                                $"(TXT record {DomainOwnershipProof.RecordName(domain)}). Use Recheck once the record is in place.";
+            return RedirectToAction(nameof(Index));
+        }
+
         domain.DnsStatus = AgentDomainStatus.Bound;
         domain.AzureBindingStatus = AgentDomainStatus.Bound;
         domain.SslStatus = AgentDomainStatus.Bound;

@@ -125,6 +125,7 @@ public static class AgentDataEraser
         ("WebsiteSpamAttempts",         "AgentUserId = @agentId"),
         ("AgentWebsites",               "AgentUserId = @agentId"),
         ("AgentDomains",                "AgentUserId = @agentId"),
+        ("DomainClaimTokens",           "AgentUserId = @agentId"), // 592: the adviser's proof values
 
         // -- Agent billing housekeeping (the financial LEDGER lives in FinancialMap below) --
         ("PromotionCodeRedemptions",    "AgentUserId = @agentId"),
@@ -299,6 +300,27 @@ public static class AgentDataEraser
 
         try
         {
+
+        // 592: every address the agent's domain rows hold in Azure is written down for removal there, inside
+        // the shred's transaction: it commits with the rows or not at all. The caller asks Azure after the
+        // commit; whatever does not get through is asked again by the domain job (DomainCleanupQueue) instead
+        // of being left bound with nothing on record -- how www.411trades.com could be taken over.
+        // Without the table nothing would be removed from Azure and nothing would say so, so the shred stops
+        // instead (rolled back below, the adviser locked out but intact; start-up creates the table).
+        if (execute && !await TableExistsAsync(db, "DomainCleanups", ct))
+        {
+            throw new InvalidOperationException("The DomainCleanups table is missing, so the adviser's domains could not be recorded for removal from Azure. Nothing was deleted; restart the app (its start-up creates the table) and try again.");
+        }
+        if (execute)
+        {
+            var domainRows = await db.AgentDomains.AsNoTracking().Where(d => d.AgentUserId == agentId).ToListAsync(ct);
+            foreach (var host in domainRows.SelectMany(AgentDomainHosts.HostsOf).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO `DomainCleanups` (`HostName`, `FormerAgentUserId`, `Reason`, `CreatedAt`, `Attempts`, `LastError`, `Outcome`) VALUES ({0}, {1}, {2}, {3}, 0, '', '')",
+                    new object[] { host, agentId, IPRO.Entities.DomainCleanupReasons.AgentDeleted, DateTime.UtcNow }, ct);
+            }
+        }
 
         var toDelete = eraseFinancialRecords ? Map.Concat(FinancialMap) : Map.AsEnumerable();
 

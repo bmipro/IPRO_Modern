@@ -126,6 +126,22 @@
             {
               <div class="small mt-1"><span class="badge bg-secondary">Auto-retry paused (@domain.RetryCount attempts)</span></div>
             }
+            @* 592: whether the adviser has proven the domain is theirs (their TXT record), which nothing is bound or served without. *@
+            <div class="small mt-1">
+              @if (IPRO.Utility.DomainOwnershipProof.IsNeeded(domain))
+              {
+                <span class="badge bg-warning text-dark">Not proven yet</span>
+                <span class="text-muted">TXT @IPRO.Utility.DomainOwnershipProof.RecordName(domain)</span>
+              }
+              else if (string.IsNullOrEmpty(domain.VerificationToken))
+              {
+                <span class="badge bg-light text-dark">Proven: there before 592</span>
+              }
+              else
+              {
+                <span class="badge bg-success">Proven @domain.OwnershipVerifiedAt!.Value.ToLocalTime().ToString("MMM d, yyyy")</span>
+              }
+            </div>
           </td>
           <td>
             <div class="fw-semibold">@(string.IsNullOrWhiteSpace(item.AgentName) ? $"Agent #{domain.AgentUserId}" : item.AgentName)</div>
@@ -154,7 +170,7 @@
                 @Html.AntiForgeryToken()
                 <button class="btn btn-sm btn-outline-primary" type="submit">Recheck</button>
               </form>
-              @if (domain.AzureBindingStatus != IPRO.Entities.AgentDomainStatus.Bound)
+              @if (domain.AzureBindingStatus != IPRO.Entities.AgentDomainStatus.Bound && !IPRO.Utility.DomainOwnershipProof.IsNeeded(domain))
               {
                 <form method="post" action="/Domains/MarkBound/@domain.Id">
                   @Html.AntiForgeryToken()

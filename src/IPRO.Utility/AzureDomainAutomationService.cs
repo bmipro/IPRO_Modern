@@ -248,16 +248,22 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
 
             if (_options.HasRequiredCertificateSettings)
             {
-                var certificateName = "managed-" + hostName.Replace(".", "-", StringComparison.OrdinalIgnoreCase);
-                if (certificateName.Length > 80)
+                // 591: a certificate name is not this host's alone (ManagedCertificateNames), so each name the
+                // host's certificate may have is read first, and deleted only when it was ordered for this host.
+                // A name that holds nothing is left alone, and one that holds another host's certificate too.
+                foreach (var certificateName in new[] { ManagedCertificateNames.For(hostName), ManagedCertificateNames.Legacy(hostName) })
                 {
-                    certificateName = certificateName[..80];
-                }
+                    var certificate = await GetCertificateAsync(certificateName, cancellationToken);
+                    if (certificate == null) continue;
+                    if (!IsFor(certificate, hostName))
+                    {
+                        LogNotThisHosts(certificateName, certificate, hostName, "delete");
+                        continue;
+                    }
 
-                var certUri = ManagementUri(
-                    $"subscriptions/{_options.SubscriptionId}/resourceGroups/{_options.ResourceGroup}/providers/Microsoft.Web/certificates/{Uri.EscapeDataString(certificateName)}");
-                using var certRequest = new HttpRequestMessage(HttpMethod.Delete, certUri);
-                await SendManagementDeleteAsync(certRequest, cancellationToken);
+                    using var certRequest = new HttpRequestMessage(HttpMethod.Delete, CertificateUri(certificateName));
+                    await SendManagementDeleteAsync(certRequest, cancellationToken);
+                }
             }
 
             return new AzureDomainAutomationResult { Success = true, Message = "Azure hostname binding removed." };
@@ -298,14 +304,8 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
 
     private async Task<string?> EnsureManagedCertificateAsync(string hostName, CancellationToken cancellationToken)
     {
-        var certificateName = "managed-" + hostName.Replace(".", "-", StringComparison.OrdinalIgnoreCase);
-        if (certificateName.Length > 80)
-        {
-            certificateName = certificateName[..80];
-        }
-
-        var uri = ManagementUri(
-            $"subscriptions/{_options.SubscriptionId}/resourceGroups/{_options.ResourceGroup}/providers/Microsoft.Web/certificates/{Uri.EscapeDataString(certificateName)}");
+        var certificateName = await CertificateNameToOrderAsync(hostName, cancellationToken);
+        var uri = CertificateUri(certificateName);
 
         var payload = JsonSerializer.Serialize(new
         {
@@ -334,11 +334,99 @@ public class AzureDomainAutomationService : IAzureDomainAutomationService
             properties.TryGetProperty("thumbprint", out var thumbprint) &&
             thumbprint.ValueKind == JsonValueKind.String)
         {
+            // 591: and the thumbprint goes on this host's binding only when the certificate is this host's.
+            if (properties.TryGetProperty("canonicalName", out var canonical) && canonical.ValueKind == JsonValueKind.String &&
+                !string.Equals(canonical.GetString(), hostName, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Azure answered the certificate order {CertificateName} for {HostName} with a certificate for {CanonicalName}; its thumbprint is not bound",
+                    certificateName, hostName, PlatformHostNames.Printable(canonical.GetString()));
+                throw new InvalidOperationException($"The certificate {certificateName} was issued for another address, so it was not bound.");
+            }
+
             return thumbprint.GetString();
         }
 
         return null;
     }
+
+    // 591: which name to order this host's certificate under. A certificate ordered before 591 keeps its old
+    // name while it was ordered for this host (canonicalName): it may be issuing, or issued and bound, and a
+    // second order would replace nothing and leave two. Everything else is ordered under the host's own name.
+    // A name that holds another host's certificate is never ordered over: that would re-order it for this
+    // host -- another adviser's live certificate -- and the next pass would bind its thumbprint here.
+    private async Task<string> CertificateNameToOrderAsync(string hostName, CancellationToken cancellationToken)
+    {
+        var legacyName = ManagedCertificateNames.Legacy(hostName);
+        var legacy = await GetCertificateAsync(legacyName, cancellationToken);
+        if (legacy != null)
+        {
+            if (IsFor(legacy, hostName)) return legacyName;
+            LogNotThisHosts(legacyName, legacy, hostName, "order");
+        }
+
+        var certificateName = ManagedCertificateNames.For(hostName);
+        var current = await GetCertificateAsync(certificateName, cancellationToken);
+        if (current != null && !IsFor(current, hostName))
+        {
+            LogNotThisHosts(certificateName, current, hostName, "order");
+            throw new InvalidOperationException($"The certificate name {certificateName} already holds a certificate for another address.");
+        }
+
+        return certificateName;
+    }
+
+    // 591: what a certificate name holds in Azure: null when it holds nothing (404), else the host the
+    // certificate was ordered for (properties.canonicalName; null when it names none, e.g. one uploaded by
+    // hand). Any other answer throws: nothing is ordered or deleted on a guess.
+    private async Task<ManagedCertificate?> GetCertificateAsync(string certificateName, CancellationToken cancellationToken)
+    {
+        var token = await GetAccessTokenAsync(cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, CertificateUri(certificateName));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var client = _httpClientFactory.CreateClient();
+        using var response = await client.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"{(int)response.StatusCode} {response.ReasonPhrase}: {ExtractAzureError(body)}");
+        }
+
+        using var json = JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+        string? canonicalName = null;
+        if (json.RootElement.ValueKind == JsonValueKind.Object &&
+            json.RootElement.TryGetProperty("properties", out var properties) &&
+            properties.ValueKind == JsonValueKind.Object &&
+            properties.TryGetProperty("canonicalName", out var canonical) &&
+            canonical.ValueKind == JsonValueKind.String)
+        {
+            canonicalName = canonical.GetString();
+        }
+
+        return new ManagedCertificate(canonicalName);
+    }
+
+    private sealed record ManagedCertificate(string? CanonicalName);
+
+    private static bool IsFor(ManagedCertificate certificate, string hostName) =>
+        !string.IsNullOrEmpty(certificate.CanonicalName) &&
+        string.Equals(certificate.CanonicalName, hostName, StringComparison.OrdinalIgnoreCase);
+
+    // Warning: Information never reaches the container log, and this is the only record of why a certificate
+    // was left alone.
+    private void LogNotThisHosts(string certificateName, ManagedCertificate certificate, string hostName, string action) =>
+        _logger.LogWarning(
+            "Azure domain automation did not {Action} certificate {CertificateName} for {HostName}: it was ordered for {CanonicalName}",
+            action, certificateName, hostName,
+            string.IsNullOrEmpty(certificate.CanonicalName) ? "no address" : PlatformHostNames.Printable(certificate.CanonicalName));
+
+    private string CertificateUri(string certificateName) => ManagementUri(
+        $"subscriptions/{_options.SubscriptionId}/resourceGroups/{_options.ResourceGroup}/providers/Microsoft.Web/certificates/{Uri.EscapeDataString(certificateName)}");
 
     private async Task<HttpResponseMessage> SendManagementAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

@@ -146,6 +146,27 @@ public class AgentDeleteSafetyTests
         Assert.DoesNotContain("forwarded.example", second.Removed);
     }
 
+    [Fact]
+    public async Task A_host_another_adviser_still_names_is_not_unbound_with_the_agent_591()
+    {
+        // 591: a row from before the claim check names the leaving agent's www host as another agent's
+        // domain. Deleting the leaving agent must not delete the other agent's binding and certificate.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var leavingId = await SeedAgentAsync(db, "leaving591");
+        await SeedBoundDomainAsync(db, leavingId, "kept591.example");          // kept591.example + www.kept591.example
+        var stayingId = await SeedAgentAsync(db, "staying591");
+        await SeedBoundDomainAsync(db, stayingId, "www.kept591.example");      // the staying agent's domain
+
+        var azure = new RecordingAzureDomains();
+        await NewController(db, new RecordingBlobStore(), azure).Delete(leavingId);
+
+        Assert.False(await db.AgentUsers.AsNoTracking().AnyAsync(a => a.Id == leavingId));
+        Assert.Contains("kept591.example", azure.Removed);
+        Assert.DoesNotContain("www.kept591.example", azure.Removed);
+        Assert.True(await db.AgentDomains.AsNoTracking().AnyAsync(d => d.AgentUserId == stayingId && d.DomainName == "www.kept591.example"));
+    }
+
     // ---- M14: an erase failure is caught, audited, and leaves locked-out-but-intact ----------
 
     [Fact]
@@ -229,7 +250,8 @@ public class AgentDeleteSafetyTests
             DomainName = host,
             WwwDomain = $"www.{host}",
             RootDomain = host,
-            AzureBindingStatus = AgentDomainStatus.Bound
+            AzureBindingStatus = AgentDomainStatus.Bound,
+            OwnershipVerifiedAt = DateTime.UtcNow   // 592: a live domain is a proven one
         });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

@@ -30,6 +30,7 @@ public static class AgentSiteAddress
             var serving = await db.AgentDomains.AsNoTracking().AnyAsync(d =>
                 d.AgentWebsiteId == site.Id &&
                 (d.DomainName.ToLower() == host || d.WwwDomain.ToLower() == host || d.RootDomain.ToLower() == host) &&
+                d.OwnershipVerifiedAt != null &&   // 592: proven to be this adviser's
                 d.AzureBindingStatus == AgentDomainStatus.Bound &&
                 (d.SslStatus == AgentDomainStatus.Bound || d.SslStatus == "SslBound"));
             if (serving) return Written(host, site.CustomDomainDisplay);

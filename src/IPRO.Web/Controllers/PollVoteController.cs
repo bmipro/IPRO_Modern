@@ -27,6 +27,7 @@ public class PollVoteController : Controller
 
         var boundDomain = await _db.AgentDomains
             .Where(d => d.AgentUserId == agentUserId && d.IsPrimary && d.AzureBindingStatus == AgentDomainStatus.Bound)
+            .Where(d => d.OwnershipVerifiedAt != null)   // 592: proven to be this adviser's
             .FirstOrDefaultAsync();
         if (boundDomain != null && !string.IsNullOrWhiteSpace(boundDomain.DomainName))
         {

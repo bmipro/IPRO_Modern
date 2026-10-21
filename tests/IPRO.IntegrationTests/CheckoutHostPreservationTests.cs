@@ -182,7 +182,8 @@ public class CheckoutHostPreservationTests
             RootDomain = "theirfirm.com",
             WwwDomain = "www.theirfirm.com",
             AzureBindingStatus = azureBindingStatus,
-            SslStatus = sslStatus
+            SslStatus = sslStatus,
+            OwnershipVerifiedAt = DateTime.UtcNow   // 592: a live domain is a proven one
         });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

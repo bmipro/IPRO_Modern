@@ -17,13 +17,47 @@ The agent should not alter temporary-domain DNS records.
    - Name/Host: `www`
    - Value: `ipro-prod-web.azurewebsites.net`
 6. Make the short address (the root domain, without `www`) reach the site too: point it straight at IPRO with two DNS records, or forward it at the registrar. See **Point the short address straight at IPRO** below. IPRO checks it automatically and shows it as its own **Short address** row; the `www` site works either way.
-7. Wait for DNS propagation.
+7. On the same DNS screen, add the TXT record shown beside the domain in **Domain Manager**: it proves the domain is yours. See **Prove the domain is yours (TXT record)** below. Nothing is connected until IPRO has seen it.
+8. Wait for DNS propagation.
 
 A custom domain is a domain you own. IPRO's own addresses cannot be added: www.iProAdvisers.com, www.iProAccountants.com, www.iProMortgages.com and every name under them (app., admin. and so on), the free sites' 247advisers.com, and the hosting's own `azurewebsites.net` names. My Website answers that the name is one of IPRO's own addresses. A domain with accents is entered in its `xn--` form (the ASCII or Punycode name your registrar shows).
 
 IPRO checks pending domains automatically. Agents can also click **Retry** beside a domain to recheck it immediately (about every 2 minutes at most). Super Admin can also select **Recheck**.
 
 Once the Connection status panel shows **Found**, **Connected**, **Secured** and the short address reads **Connected** or **Forwarding OK**, the two registrar instruction cards fold away behind **Show the setup steps (for adding another domain)**. They come back on their own if anything stops being green.
+
+### Prove the domain is yours (TXT record)
+
+A domain name says nothing about who owns it, so since 592 (2026-10-19) IPRO connects a custom domain only
+after whoever controls the domain's DNS has said which IPRO account it is for. When a domain is added,
+**Domain Manager** shows a record made for that account and that domain only:
+
+| Type | Name / Host | Value |
+|---|---|---|
+| TXT | `_ipro-verify` | the value shown beside the domain (`ipro-` followed by 32 letters and digits) |
+
+- The record goes on the short address: for `www.yourfirm.ca` its full name is `_ipro-verify.yourfirm.ca`, and most
+  registrars want only `_ipro-verify` in the Name box. For a sub-domain added as the address itself
+  (`clients.yourfirm.ca`) My Website shows the full name to enter.
+- Until IPRO has seen it, nothing happens for the domain: it is not connected, no certificate is ordered, and
+  the address does not show the website. The row says what to add, and **Check now** looks again at once.
+- IPRO looks for the record once the `www` name itself points at IPRO. If it looked before the record was
+  added, a public DNS resolver can keep answering "no such record" for up to a few hours; it then clears on
+  its own.
+- Once seen, it is not looked for again. It can stay in place: it proves nothing for anyone once the domain is
+  removed from IPRO.
+- Another IPRO account's value proves nothing for this one, and a record left behind after a domain is removed
+  proves nothing for the next account that adds it.
+- A domain another account has added but not proven does not lock out its real owner. Adding it shows the
+  owner their own value for it; once that record is published, adding it again moves the domain to their account
+  (proven at once) and the other account's unproven entry is dropped. If the other account's record is the one
+  published, the domain is theirs and stays. A proven domain never moves this way.
+- Removing a domain forgets its value: adding it again shows a new one, and the old record proves nothing any
+  more (not even for the same account). Replace the record when you add a domain again.
+- Domains that were connected before 15 October 2026 count as proven; nothing changes for them. A domain added on
+  or after that day, or one that never connected, needs the record like a new one.
+- A name only the website's own settings field holds (no row in **Domain Manager**) is not shown as the site any
+  more: every custom domain is served through its proven row.
 
 ### Point the short address straight at IPRO
 
@@ -115,6 +149,10 @@ Wording that can be used directly in onboarding, support replies, or a help page
 > *A CNAME tells the internet "when someone asks for this address, send them to IPRO."* Save it — that's
 > your part done. You don't need to keep the page open.
 >
+> **Also on that screen: prove the domain is yours.** The portal shows one more record beside your domain,
+> made for your account only: Type `TXT`, Name `_ipro-verify`, and the value shown (it starts with `ipro-`).
+> We connect nothing until we see it, so nobody else can connect your domain to their account.
+>
 > **4. Make the short address work too** -- while you're still on your registrar's site. On the same DNS
 > screen, set the two records the portal shows you:
 >
@@ -159,6 +197,7 @@ Admin and support.
 
 | Agent sees | Row | Meaning |
 |---|---|---|
+| **Prove ... is yours** (a box with the TXT record) | Domain manager | 592: the domain's `_ipro-verify` TXT record has not been seen yet. Nothing is connected, secured or shown on the address until it is. |
 | **Waiting** `[PendingDns]` | Your domain | Waiting for the CNAME to resolve. Usually 15–60 minutes, up to 24 hours. |
 | **Found** `[DnsReady]` | Your domain | DNS points at the expected Azure hostname. |
 | **Setting up** `[BindingPending]` | Connection to your site | The custom hostname is not attached yet. |
@@ -192,10 +231,10 @@ serves a certificate for the wrong name. So the portal shows amber and says so, 
 simply failed to bind, *before* issuing anything:
 
 ```
-az resource show --ids /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Web/certificates/managed-www-their-domain-ca --query properties.thumbprint
+az webapp config ssl list -g <rg> --query "[?contains(hostNames, 'www.their-domain.ca')].{name:name, thumbprint:thumbprint}" -o table
 ```
 
-If it has a thumbprint, bind that. Only if no managed certificate exists should you fall back to
+It finds the certificate by the address it was made for, whatever its name: a new one is called `managed--www-their-domain-ca-` followed by 16 letters and digits, and one ordered before October 2026 keeps the older name `managed-www-their-domain-ca` (the alert gives both). If it has a thumbprint, bind that. Only if no managed certificate exists should you fall back to
 `ops/New-AgentCert.ps1`, which produces a Let's Encrypt certificate that does **not** auto-renew.
 
 > **Learn from 2026-08-06.** `www.ouritems.ca` was diagnosed as "managed certificates don't work on this
@@ -239,6 +278,20 @@ IPRO's automatic background check backs off over time for a domain that keeps fa
 5. Remove unused domains with **Remove** — type the exact domain name to confirm, since this cannot be undone.
 
 All bound domains display the same agent website and selected content.
+
+### What happens when a domain is removed
+
+Removing a domain (or Super Admin deleting the agent) also removes the address from IPRO's hosting in Azure:
+its binding, and its certificate when the certificate was made for it. Each address is written down with the
+removal and IPRO keeps asking Azure until Azure confirms; the background domain check does this every five
+minutes at first, then hourly, then daily, so an Azure hiccup or a switched-off setting is caught up on its
+own. An address another domain still uses, and IPRO's own addresses, are never removed.
+
+Until 592 (2026-10-19) a removal that did not get through was forgotten: `www.411trades.com` stayed bound
+after it left its account, its DNS still pointed at IPRO, and another account could add it and show its own
+site there. The TXT proof above now stops that even if a binding is left behind. Bindings left behind
+before 592 are listed by `ops/domain-ownership/orphan-bindings.sh` (read-only); removing one is the owner's
+decision.
 
 ## SSL Automation
 

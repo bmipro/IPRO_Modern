@@ -312,8 +312,10 @@ Deleting then does all of the following, in this order:
 4. Deletes their uploaded files, leaving shared library artwork in place.
 5. Writes the row and file counts into the audit log.
 
-The agent's custom domain is not touched by deletion. Sites are hosted on Azure, and domains are managed
-under **Domains** &mdash; remove the domain there if it should stop resolving.
+The agent's custom domains go with the account: their addresses are removed from the hosting in Azure
+(binding and certificate) after the rows are gone. Each address is written down inside the deletion itself
+and the background domain check keeps asking Azure until Azure confirms (592), so a removal that does not
+go through at once is not forgotten. An address another agent's domain still uses is left alone.
 
 Deletion requires **Super Admin**. After deleting, re-open the preview for the same agent id to confirm
 it reports zero.
@@ -617,7 +619,16 @@ Good to know:
 1. Select **Domains**.
 2. Review DNS, Azure binding, SSL, and last-check statuses.
 3. Click **Recheck** after DNS or Azure permissions are corrected.
-4. Use **Mark Bound** only when the Azure domain and SSL binding have been independently confirmed.
+4. Use **Mark Bound** only when the Azure domain and SSL binding have been independently confirmed. It is
+   refused while the domain shows **Not proven yet**.
+
+The setup domain on **Edit** is the free site's address: a new value must be under `247advisers.com`. An agent's
+own domain is added on their **My Website** page, where they prove it is theirs (592).
+
+Since 592 every domain row also says whether the agent has proven the domain is theirs: **Not proven yet**
+(with the TXT record name IPRO is waiting for, `_ipro-verify.<their domain>`), **Proven** with the date it
+was seen, or **Proven: there before 592** for domains that were connected before 15 October 2026.
+Nothing is connected, secured or served for a domain that is not proven, whatever its other statuses say.
 
 Automation settings require valid tenant ID, client ID, client secret, subscription ID, resource group, web app, App Service plan resource ID, and location. If a required setting is missing, the domain's error message names exactly which setting is blank.
 
