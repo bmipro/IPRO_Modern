@@ -139,7 +139,7 @@
         <form method="post" action="/portal/WebsitePages/UploadImage" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
           @Html.AntiForgeryToken()
           <input type="hidden" name="pageId" value="@sitePage.Id" />
-          <div><label class="form-label small fw-semibold mb-1" for="libraryUploadFile">JPG, PNG, GIF, or WebP (maximum 8 MB)</label><input type="file" name="image" id="libraryUploadFile" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
+          <div><label class="form-label small fw-semibold mb-1" for="libraryUploadFile">JPG, PNG, GIF, or WebP (maximum 8 MB)</label><input type="file" name="image" id="libraryUploadFile" class="form-control" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
           @* 578: asked for when the picture arrives, as the audit recommended; optional, and editable below. *@
           <div><label class="form-label small fw-semibold mb-1" for="libraryUploadDescription">Describe the picture <span class="text-muted fw-normal">(optional)</span></label><input type="text" name="description" id="libraryUploadDescription" class="form-control" maxlength="@IPRO.Web.Infrastructure.PictureDescriptions.MaxLength" placeholder="e.g. Our team outside the Main Street office" /></div>
           <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Upload Image</button>
@@ -760,7 +760,7 @@
           <form method="post" action="/portal/WebsitePages/UploadGalleryImages" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2 js-gallery-upload">
             @Html.AntiForgeryToken()
             <input type="hidden" name="blockId" value="@block.Id" />
-            <div><label class="form-label small fw-semibold mb-1">Add photos: up to @IPRO.Web.Controllers.WebsitePagesController.GalleryBatchMax at a time (JPG, PNG, GIF, or WebP, 15 MB each)</label><input type="file" name="images" multiple class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
+            <div><label class="form-label small fw-semibold mb-1">Add photos: up to @IPRO.Web.Controllers.WebsitePagesController.GalleryBatchMax at a time (JPG, PNG, GIF, or WebP, 15 MB each)</label><input type="file" name="images" multiple class="form-control" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
             <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Add Photos</button>
           </form>
           <div class="form-text">Each photo is resized for the web (1600 pixels on its long side, with a smaller copy for the grid), and its camera details, location included, are removed. The original file is not kept.</div>

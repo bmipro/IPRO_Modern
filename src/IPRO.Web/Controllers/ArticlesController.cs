@@ -283,46 +283,19 @@ public class ArticlesController : Controller
             return (null, "Images must be 8 MB or smaller.");
         }
 
-        var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-        var expectedContentType = extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => string.Empty
-        };
-        if (string.IsNullOrEmpty(expectedContentType) ||
-            !string.Equals(image.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
-        {
-            return (null, "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed.");
-        }
-
+        // 585: judged by what it is, not by its name: a PNG called cover.jpg is a PNG (UploadedPicture).
         await using var stream = image.OpenReadStream();
-        if (!await HasValidImageSignatureAsync(stream, extension))
+        var header = await IPRO.Utility.UploadedPicture.HeaderAsync(stream);
+        var picture = IPRO.Utility.UploadedPicture.Of(header);
+        if (picture == null)
         {
-            return (null, "That file does not contain a valid supported image.");
+            return (null, IPRO.Utility.UploadedPicture.Refusal(header));
         }
-        stream.Position = 0;
-        var url = await _blob.UploadAsync(stream, image.FileName, "article-media", expectedContentType, isPrivate: false);
+        var url = await _blob.UploadAsync(stream, IPRO.Utility.UploadedPicture.StoredName(image.FileName, picture), "article-media", picture.ContentType, isPrivate: false);
         return (url, null);
         // (size is read from IFormFile.Length at the call sites -- see ImageSizeBytes assignments)
     }
 
-    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
-    {
-        var header = new byte[12];
-        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
-        if (read < 6) return false;
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
-            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
-            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
-            _ => false
-        };
-    }
 
     private async Task<IActionResult?> RequireArticlesAccessAsync()
     {

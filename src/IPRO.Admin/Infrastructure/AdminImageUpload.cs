@@ -5,10 +5,10 @@ namespace IPRO.Admin.Infrastructure;
 
 // One image-upload path for every SuperAdmin screen that accepts artwork.
 //
-// The validation here is the same three-part check the agent-facing logo and gallery uploads use:
-// the extension, the browser-declared content type, and the file's actual magic bytes must all
-// agree before anything reaches storage. Extension alone is trivially spoofed, and a declared
-// content type is just a header.
+// The validation here is the same check the agent-facing logo and gallery uploads use. 585 (the
+// owner's bench re-check, 2026-10-21): a picture is judged by its actual first bytes, which decide
+// the type and the ending it is stored under (IPRO.Utility.UploadedPicture); the name and the
+// browser-declared content type, both taken from the name, no longer turn a real picture away.
 //
 // Extracted from ECardDesignsController (2026-08-15) when Starter Content needed the same thing,
 // and that controller was moved onto this in the same change. Copying it would have created a
@@ -31,22 +31,11 @@ public static class AdminImageUpload
         if (file.Length > MaxBytes)
             return new Result(false, "Images must be 8 MB or smaller.", null);
 
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var expectedContentType = extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => string.Empty
-        };
-        if (string.IsNullOrEmpty(expectedContentType) ||
-            !string.Equals(file.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
-            return new Result(false, "Only JPG, JPEG, PNG, GIF and WebP images are allowed.", null);
-
         await using var stream = file.OpenReadStream();
-        if (!await HasValidImageSignatureAsync(stream, extension))
-            return new Result(false, "That file does not contain a valid image.", null);
+        var header = await UploadedPicture.HeaderAsync(stream);
+        var picture = UploadedPicture.Of(header);
+        if (picture == null)
+            return new Result(false, UploadedPicture.Refusal(header), null);
 
         IBlobStorageService blobs;
         try
@@ -63,7 +52,7 @@ public static class AdminImageUpload
         stream.Position = 0;
         try
         {
-            var url = await blobs.UploadAsync(stream, $"{fileNameStem}{extension}", container, expectedContentType, isPrivate: false);
+            var url = await blobs.UploadAsync(stream, $"{fileNameStem}{picture.Extension}", container, picture.ContentType, isPrivate: false);
             return new Result(true, null, url);
         }
         catch (Exception ex)
@@ -74,18 +63,4 @@ public static class AdminImageUpload
         }
     }
 
-    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
-    {
-        var header = new byte[12];
-        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
-        if (read < 6) return false;
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
-            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
-            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
-            _ => false
-        };
-    }
 }

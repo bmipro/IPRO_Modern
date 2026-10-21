@@ -848,32 +848,18 @@ public class AccountController : Controller
             return RedirectToAction(nameof(Profile));
         }
 
-        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
-        var expectedContentType = extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => string.Empty
-        };
-        if (string.IsNullOrEmpty(expectedContentType) ||
-            !string.Equals(photo.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
-        {
-            TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed.";
-            return RedirectToAction(nameof(Profile));
-        }
-
+        // 585: judged by what it is, not by its name: a PNG called me.jpg is a PNG (UploadedPicture).
         await using var stream = photo.OpenReadStream();
-        if (!await HasValidImageSignatureAsync(stream, extension))
+        var header = await IPRO.Utility.UploadedPicture.HeaderAsync(stream);
+        var picture = IPRO.Utility.UploadedPicture.Of(header);
+        if (picture == null)
         {
-            TempData["Error"] = "That file does not contain a valid supported image.";
+            TempData["Error"] = IPRO.Utility.UploadedPicture.Refusal(header);
             return RedirectToAction(nameof(Profile));
         }
-        stream.Position = 0;
 
         var previousPhotoUrl = agent.PhotoUrl;
-        var url = await _blob.UploadAsync(stream, photo.FileName, "agent-photos", expectedContentType, isPrivate: false);
+        var url = await _blob.UploadAsync(stream, IPRO.Utility.UploadedPicture.StoredName(photo.FileName, picture), "agent-photos", picture.ContentType, isPrivate: false);
         agent.PhotoUrl = url;
         await _agents.UpdateAsync(agent);
 
@@ -914,20 +900,6 @@ public class AccountController : Controller
         return RedirectToAction(nameof(Profile));
     }
 
-    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
-    {
-        var header = new byte[12];
-        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
-        if (read < 6) return false;
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
-            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
-            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
-            _ => false
-        };
-    }
 
     [Authorize]
     [HttpPost, ValidateAntiForgeryToken]

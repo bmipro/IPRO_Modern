@@ -47,7 +47,7 @@
           }
           <div class="form-text mb-3">Used on your newsletters and public website. JPG, PNG, GIF, or WebP, up to 8 MB.</div>
           <div class="d-flex flex-column gap-2">
-            <input type="file" name="photo" form="uploadPhotoForm" accept=".jpg,.jpeg,.png,.gif,.webp" class="form-control form-control-sm" required />
+            <input type="file" name="photo" form="uploadPhotoForm" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp" class="form-control form-control-sm" required />
             <button type="submit" form="uploadPhotoForm" class="btn btn-sm btn-outline-primary"><i class="fas fa-upload me-1"></i>Upload Photo</button>
           </div>
           @if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))

@@ -106,8 +106,8 @@ public static class BuilderContract
         _ => string.Empty
     };
 
-    // Section 1, rule 6: the file is what its name says. The same test the page editor's own upload
-    // applies (WebsitePagesController.HasValidImageSignatureAsync).
+    // Section 1, rule 6: the file is what its name says. (585: iPro's own picture uploads judge a
+    // picture by its first bytes alone, IPRO.Utility.UploadedPicture; a package names its files.)
     public static bool HasImageSignature(ReadOnlySpan<byte> bytes, string fileName)
     {
         if (bytes.Length < 6) return false;

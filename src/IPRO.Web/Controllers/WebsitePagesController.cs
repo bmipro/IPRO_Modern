@@ -505,36 +505,22 @@ public class WebsitePagesController : Controller
             return RedirectToAction(nameof(Edit), new { id = pageId });
         }
 
-        var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-        var expectedContentType = extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => string.Empty
-        };
-        if (string.IsNullOrEmpty(expectedContentType) ||
-            !string.Equals(image.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
-        {
-            TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed.";
-            return RedirectToAction(nameof(Edit), new { id = pageId });
-        }
-
+        // 585: judged by what it is, not by its name: a PNG called logo.jpg is a PNG (UploadedPicture).
         await using var stream = image.OpenReadStream();
-        if (!await HasValidImageSignatureAsync(stream, extension))
+        var header = await IPRO.Utility.UploadedPicture.HeaderAsync(stream);
+        var picture = IPRO.Utility.UploadedPicture.Of(header);
+        if (picture == null)
         {
-            TempData["Error"] = "That file does not contain a valid supported image.";
+            TempData["Error"] = IPRO.Utility.UploadedPicture.Refusal(header);
             return RedirectToAction(nameof(Edit), new { id = pageId });
         }
-        stream.Position = 0;
-        var url = await _blob.UploadAsync(stream, image.FileName, "website-media", expectedContentType, isPrivate: false);
+        var url = await _blob.UploadAsync(stream, IPRO.Utility.UploadedPicture.StoredName(image.FileName, picture), "website-media", picture.ContentType, isPrivate: false);
         _db.WebsiteMediaAssets.Add(new WebsiteMediaAsset
         {
             AgentWebsiteId = page.AgentWebsiteId,
             OriginalFileName = Path.GetFileName(image.FileName),
             BlobUrl = url,
-            ContentType = expectedContentType,
+            ContentType = picture.ContentType,
             FileSize = image.Length,
             Description = IPRO.Web.Infrastructure.PictureDescriptions.Clean(description)   // 578
         });
@@ -623,31 +609,20 @@ public class WebsitePagesController : Controller
             if (storageFull) { skipped.Add($"{name} (storage full)"); continue; }
             if (file.Length > GalleryPhotoMaxBytes) { skipped.Add($"{name} (larger than 15 MB)"); continue; }
 
-            var extension = Path.GetExtension(name).ToLowerInvariant();
-            var expectedContentType = extension switch
-            {
-                ".jpg" or ".jpeg" => "image/jpeg",
-                ".png" => "image/png",
-                ".gif" => "image/gif",
-                ".webp" => "image/webp",
-                _ => string.Empty
-            };
-            if (string.IsNullOrEmpty(expectedContentType) ||
-                !string.Equals(file.ContentType, expectedContentType, StringComparison.OrdinalIgnoreCase))
-            {
-                skipped.Add($"{name} (not a JPG, PNG, GIF or WebP photo)");
-                continue;
-            }
-
+            // 585: judged by what it is, not by its name: a PNG called photo.jpg is a PNG (UploadedPicture).
             byte[] original;
+            IPRO.Utility.UploadedPicture.Kind? picture;
             await using (var stream = file.OpenReadStream())
             {
-                if (!await HasValidImageSignatureAsync(stream, extension))
+                var header = await IPRO.Utility.UploadedPicture.HeaderAsync(stream);
+                picture = IPRO.Utility.UploadedPicture.Of(header);
+                if (picture == null)
                 {
-                    skipped.Add($"{name} (not a readable image)");
+                    skipped.Add(IPRO.Utility.UploadedPicture.Describe(header) is { } kind
+                        ? $"{name} ({kind}: save it as PNG or JPG)"
+                        : $"{name} (not a JPG, PNG, GIF or WebP photo)");
                     continue;
                 }
-                stream.Position = 0;
                 using var copy = new MemoryStream();
                 await stream.CopyToAsync(copy);
                 original = copy.ToArray();
@@ -663,7 +638,7 @@ public class WebsitePagesController : Controller
                 // The image library is native code; a server that cannot load it keeps the photo as it
                 // came (the pre-535 behaviour) rather than refusing every upload. /health/imaging says so.
                 photo = new IPRO.Web.Infrastructure.GalleryImages.Photo(
-                    new IPRO.Web.Infrastructure.GalleryImages.Rendition(original, expectedContentType, extension, 0, 0), null, 0, 0);
+                    new IPRO.Web.Infrastructure.GalleryImages.Rendition(original, picture.ContentType, picture.Extension, 0, 0), null, 0, 0);
             }
             if (photo == null)
             {
@@ -1434,20 +1409,6 @@ public class WebsitePagesController : Controller
     private Task<List<WebsiteMediaAsset>> GetMediaAssetsAsync(int websiteId) => _db.WebsiteMediaAssets
         .AsNoTracking().Where(a => a.AgentWebsiteId == websiteId).OrderByDescending(a => a.CreatedAt).ToListAsync();
 
-    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
-    {
-        var header = new byte[12];
-        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
-        if (read < 6) return false;
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
-            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
-            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
-            _ => false
-        };
-    }
 
     private async Task<IActionResult?> RequireWebsiteAccessAsync()
     {

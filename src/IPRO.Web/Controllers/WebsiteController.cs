@@ -98,31 +98,17 @@ public class WebsiteController : Controller
                 return RedirectToAction(nameof(Index));
             }
 
-            var logoExtension = Path.GetExtension(logo.FileName).ToLowerInvariant();
-            var expectedLogoContentType = logoExtension switch
-            {
-                ".jpg" or ".jpeg" => "image/jpeg",
-                ".png" => "image/png",
-                ".gif" => "image/gif",
-                ".webp" => "image/webp",
-                _ => string.Empty
-            };
-            if (string.IsNullOrEmpty(expectedLogoContentType) ||
-                !string.Equals(logo.ContentType, expectedLogoContentType, StringComparison.OrdinalIgnoreCase))
-            {
-                TempData["Error"] = "Only JPG, JPEG, PNG, GIF, and WebP image files are allowed for your logo.";
-                return RedirectToAction(nameof(Index));
-            }
-
+            // 585: judged by what it is, not by its name: a PNG called logo.jpg is a PNG (UploadedPicture).
             await using var logoStream = logo.OpenReadStream();
-            if (!await HasValidImageSignatureAsync(logoStream, logoExtension))
+            var logoHeader = await IPRO.Utility.UploadedPicture.HeaderAsync(logoStream);
+            var logoPicture = IPRO.Utility.UploadedPicture.Of(logoHeader);
+            if (logoPicture == null)
             {
-                TempData["Error"] = "That file does not contain a valid supported image.";
+                TempData["Error"] = IPRO.Utility.UploadedPicture.Refusal(logoHeader);
                 return RedirectToAction(nameof(Index));
             }
-            logoStream.Position = 0;
 
-            model.LogoUrl = await _blob.UploadAsync(logoStream, logo.FileName, "agent-logos", expectedLogoContentType, isPrivate: false);
+            model.LogoUrl = await _blob.UploadAsync(logoStream, IPRO.Utility.UploadedPicture.StoredName(logo.FileName, logoPicture), "agent-logos", logoPicture.ContentType, isPrivate: false);
         }
 
         model.CustomDomain = NormalizeDomain(model.CustomDomain);
@@ -803,18 +789,4 @@ public class WebsiteController : Controller
         return string.IsNullOrWhiteSpace(fullName) ? agent.CompanyName : fullName;
     }
 
-    private static async Task<bool> HasValidImageSignatureAsync(Stream stream, string extension)
-    {
-        var header = new byte[12];
-        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
-        if (read < 6) return false;
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            ".png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
-            ".gif" => System.Text.Encoding.ASCII.GetString(header, 0, 6) is "GIF87a" or "GIF89a",
-            ".webp" => read >= 12 && System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
-            _ => false
-        };
-    }
 }

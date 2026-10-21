@@ -337,9 +337,9 @@ public class Gallery535Tests
 
     // ------------------------------------------------------------------ helpers --
 
-    private sealed record Site(int AgentId, int PageId, int BlockId);
+    internal sealed record Site(int AgentId, int PageId, int BlockId);
 
-    private static async Task<Site> SeedGalleryAsync(IPRODbContext db, int limitMb = 500)
+    internal static async Task<Site> SeedGalleryAsync(IPRODbContext db, int limitMb = 500)
     {
         var rule = new BillingRule { PackageName = $"GA-{Guid.NewGuid():N}"[..20], MonthlyPrice = 90m, AnnualPrice = 900m };
         db.Add(rule);
@@ -387,7 +387,7 @@ public class Gallery535Tests
         return WebsiteGallerySettings.FromJson(json).Images;
     }
 
-    private static WebsitePagesController NewPagesController(IPRODbContext db, int agentId, MemoryBlob blob)
+    internal static WebsitePagesController NewPagesController(IPRODbContext db, int agentId, MemoryBlob blob)
     {
         var controller = new WebsitePagesController(db, new PackageEntitlementService(new UnitOfWork(db), db), blob);
         var context = new DefaultHttpContext
@@ -402,7 +402,7 @@ public class Gallery535Tests
     private static IFormFile FormFile(byte[] bytes, string name, string contentType) =>
         new FormFile(new MemoryStream(bytes), 0, bytes.Length, "images", name) { Headers = new HeaderDictionary(), ContentType = contentType };
 
-    private static byte[] Jpeg(int width, int height, bool noise = false, SKColor? left = null, SKColor? right = null)
+    internal static byte[] Jpeg(int width, int height, bool noise = false, SKColor? left = null, SKColor? right = null)
     {
         using var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Opaque));
         using (var canvas = new SKCanvas(bitmap))
@@ -423,7 +423,7 @@ public class Gallery535Tests
         return data.ToArray();
     }
 
-    private static byte[] Png(int width, int height, bool transparent)
+    internal static byte[] Png(int width, int height, bool transparent)
     {
         using var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, transparent ? SKAlphaType.Premul : SKAlphaType.Opaque));
         using (var canvas = new SKCanvas(bitmap))
@@ -489,7 +489,7 @@ public class Gallery535Tests
         return File.ReadAllText(Path.Combine(dir!, relative));
     }
 
-    private sealed class MemoryBlob : IPRO.Utility.IBlobStorageService
+    internal sealed class MemoryBlob : IPRO.Utility.IBlobStorageService
     {
         public readonly Dictionary<string, byte[]> Files = new();
         public readonly Dictionary<string, string> ContentTypes = new();
