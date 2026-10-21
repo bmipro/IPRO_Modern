@@ -130,12 +130,16 @@ public class PageChanges585Tests
         Assert.Contains("<strong>No change</strong>: 2 pages the customer did not change.", html);
         Assert.DoesNotContain("give way to the package", html);
         Assert.True(html.IndexOf("New section:", StringComparison.Ordinal) < html.IndexOf("<strong>No change</strong>", StringComparison.Ordinal));
+        // Finding 8 (the owner's re-check): since a look keeps its links inside it (LookLinks), its menu works.
+        Assert.Contains("its menu takes you through the other pages of the look.", html);
+        Assert.DoesNotContain("not live", html);
 
         // The adviser's own review, when they publish themselves, says the same.
         var mine = await BuilderBeta585Tests.RenderPortalAsync("~/Views/WebsiteBuilder/Review.cshtml",
             new WebsiteBuilderReviewViewModel(review.Import, review.Plan, "/look?page=", SitePublished: true));
         Assert.Contains("New section: Call To Action &quot;Order a cake&quot;.", mine);
         Assert.Contains("<strong>No change</strong>: 2 pages you did not change.", mine);
+        Assert.Contains("works for an hour; its menu takes you through your other pages.", mine);
         Assert.True(mine.IndexOf("New section:", StringComparison.Ordinal) < mine.IndexOf("<strong>No change</strong>", StringComparison.Ordinal));
     }
 

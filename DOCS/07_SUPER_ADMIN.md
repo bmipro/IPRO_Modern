@@ -518,7 +518,8 @@ and the list of published articles and active forms the builder may place. In th
      afterwards, or ask the designer to put the box back.
 
    **Look** opens a page as it would be, in the customer's own design, in a new tab. A look works for an
-   hour. Menu links inside a look are not live, so open each page from the list. The strip at the top of
+   hour. Its menu, buttons and footer take you through the look's other pages (a page the look does not
+   have shows the home page and says so); links to other sites leave it. The strip at the top of
    a look says which kind of page it is: one that comes from the package, a new one, or one that is not
    in the package and stays as it is. A page from the package can look much like the page it replaces:
    the header, the menu, the colours and the fonts are the site's own design and do not come from the
