@@ -8,8 +8,14 @@ namespace IPRO.Web.Middleware;
 public class SecurityHeadersMiddleware
 {
     private readonly RequestDelegate _next;
+    // 585: in Development, the local storage emulator's address (IPRO.Utility.LocalStorageImages); "" elsewhere.
+    private readonly string _localImages;
 
-    public SecurityHeadersMiddleware(RequestDelegate next) => _next = next;
+    public SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvironment environment, IConfiguration configuration)
+    {
+        _next = next;
+        _localImages = IPRO.Utility.LocalStorageImages.Source(environment.IsDevelopment(), configuration);
+    }
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -52,7 +58,7 @@ public class SecurityHeadersMiddleware
             "default-src 'self'; " +
             $"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tiny.cloud https://cdn.jsdelivr.net/npm/chart.js@4.4.0; " +
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-            "img-src 'self' data: blob: https://*.blob.core.windows.net https://cdn.tiny.cloud; " +
+            "img-src 'self' data: blob: https://*.blob.core.windows.net https://cdn.tiny.cloud" + _localImages + "; " +
             "font-src 'self' https://cdnjs.cloudflare.com; " +
             "connect-src 'self'; " +
             "frame-src 'self' https://www.google.com https://www.youtube-nocookie.com; " +

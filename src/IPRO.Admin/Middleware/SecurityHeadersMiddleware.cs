@@ -11,7 +11,7 @@ public class SecurityHeadersMiddleware
     private readonly RequestDelegate _next;
     private readonly string _imgSrc;
 
-    public SecurityHeadersMiddleware(RequestDelegate next, IConfiguration configuration)
+    public SecurityHeadersMiddleware(RequestDelegate next, IConfiguration configuration, IWebHostEnvironment environment)
     {
         _next = next;
 
@@ -20,7 +20,8 @@ public class SecurityHeadersMiddleware
         // view, so both must be allowed here -- otherwise the browser blocks every thumbnail
         // silently, with a correct URL and no server-side error to show for it.
         var portalOrigin = IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(configuration);
-        _imgSrc = $"img-src 'self' data: blob: {portalOrigin} https://*.blob.core.windows.net; ";
+        // 585: and in Development, the local storage emulator (IPRO.Utility.LocalStorageImages).
+        _imgSrc = $"img-src 'self' data: blob: {portalOrigin} https://*.blob.core.windows.net{IPRO.Utility.LocalStorageImages.Source(environment.IsDevelopment(), configuration)}; ";
     }
 
     public async Task InvokeAsync(HttpContext context)
