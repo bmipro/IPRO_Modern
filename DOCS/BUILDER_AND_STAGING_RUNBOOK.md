@@ -66,10 +66,20 @@ a staging copy set up wrongly does not start, and says why):
    tell me the name you used.) Then in each app, **Configuration > General settings**: Always on **On**,
    HTTPS only **On**, Minimum TLS **1.2**, FTP **Disabled**; **Health check**: path `/health`.
 4. **Staging MySQL:** Azure Database for MySQL flexible server `ipro-mysql-staging`, group
-   `ipro-builder-staging`, Canada East, MySQL 8.0, **Burstable B1ms**, 20 GB, backups 7 days, no high
-   availability. Networking: public access, and tick **Allow public access from any Azure service**
-   (as production has). Choose its admin name and password and keep them in your password manager.
-   Then **Databases > Add**: `ipro_staging` and `ipro_builder` (both utf8mb4).
+   `ipro-builder-staging`, Canada East, **MySQL 8.4** (recommended; 8.0 is also offered), **Burstable
+   B1ms**, 20 GB, backups 7 days, no high availability. Networking: public access, and tick **Allow
+   public access from any Azure service** (as production has). Choose its admin name and password and
+   keep them in your password manager. Then **Databases > Add**: `ipro_staging` and `ipro_builder`
+   (both utf8mb4).
+
+   Why 8.4: production's server is on 8.0, whose standard support at Azure ends on 2026-12-31, and it is
+   to be upgraded to 8.4 (TODO 590). A staging server on 8.4 from the start runs iPro and the builder on
+   8.4 before production moves. Nothing in either needs 8.0: iPro's portal and SuperAdmin ask the server
+   its version when they start; the builder writes SQL of 8.0's kind, which 8.4 accepts; and every
+   connection to Azure's MySQL uses TLS (`SslMode=Required`, as in B), which 8.4's default way of
+   checking passwords (`caching_sha2_password`) needs. A server keeps the version it is created with
+   (Azure upgrades go forward only), so choose 8.4 here rather than upgrade later. (The local MySQL that
+   the bench and every local gate use is 8.0.44: staging is the first place iPro runs on 8.4.)
 5. **Staging storage:** storage account `iprostoragestaging`, Standard, LRS, Canada East, with the same
    **Allow Blob anonymous access** setting as `iprostorageprod` (iPro serves website pictures publicly).
 6. **The builder's database on production's server:** on `ipro-mysql-prod`, **Databases > Add**
@@ -136,7 +146,7 @@ You paste every value. Names with `__` are written exactly so. Then tell me and 
 |---|---|
 | `App__Environment` | `Staging` |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
-| `ConnectionStrings__DefaultConnection` | staging MySQL, database `ipro_staging` (the same form as production's) |
+| `ConnectionStrings__DefaultConnection` | staging MySQL, database `ipro_staging` (the same form as production's, ending `SslMode=Required;`) |
 | `App__BaseUrl`, `App__PortalBaseUrl` | `https://ipro-staging-web.azurewebsites.net` |
 | `Signups__AdminBaseUrl` | `https://ipro-staging-admin.azurewebsites.net` (the links in staging's notices) |
 | `Signups__NotificationEmail` | your test address (where staging's "site sent for review" notices go) |
