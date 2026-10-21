@@ -98,7 +98,10 @@ already proves it is them). Client portal two-step: plan only, about 1.5-2 days,
 
 ## Do this first next session
 
-1. Check his builders: 5087 and 5088 answer (restart with his Start-Builder scripts if not).
+1. His builders were stopped again at close-out (10-20 evening; no crash, their windows gone: most likely
+   because I had started them from my own command window). Ask him to double-click `Start-Builder.cmd` and
+   `Start-Builder-For-Handovers.cmd` in `C:\Users\admin\Projects\ipro-builder-site` (or start them through
+   explorer.exe), then check 5087 and 5088 answer.
 2. **585 re-check** (15 min): `ops\Start-BuilderBench.ps1 -SkipPublish` from the Beta worktree, then walk him
    through `585-walkthrough-recheck.md` in Edge, not the pane.
 3. **593 try** (15 min, his phone) and his four decisions plus the two simplifications.
