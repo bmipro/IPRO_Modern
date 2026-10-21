@@ -645,19 +645,24 @@
                 </div>
               </div>
             </div>
-            <div class="modal fade" id="removeDomainModal-@domain.Id" tabindex="-1" aria-hidden="true">
+            @* 594: the owner did not see what to type in an empty box under a red line. The label above the box
+               says it, the domain shows greyed inside the box, and Remove can be pressed once it is typed as
+               shown (the script at the end; the server checks the same way). *@
+            <div class="modal fade" id="removeDomainModal-@domain.Id" tabindex="-1" aria-labelledby="removeDomainTitle-@domain.Id" aria-hidden="true">
               <div class="modal-dialog">
                 <div class="modal-content">
-                  <form method="post" action="/portal/Website/RemoveDomain/@domain.Id">
+                  <form method="post" action="/portal/Website/RemoveDomain/@domain.Id" data-remove-domain="@domain.DomainName">
                     @Html.AntiForgeryToken()
-                    <div class="modal-header"><h5 class="modal-title">Remove @domain.DomainName?</h5></div>
+                    <div class="modal-header"><h5 class="modal-title" id="removeDomainTitle-@domain.Id">Remove @domain.DomainName?</h5></div>
                     <div class="modal-body">
-                      <p class="text-danger small">This cannot be undone. Type <strong>@domain.DomainName</strong> to confirm.</p>
-                      <input type="text" name="confirmDomainName" class="form-control" required autocomplete="off" />
+                      <p id="removeDomainWhat-@domain.Id"><strong>This cannot be undone.</strong> Your website will stop opening at @domain.DomainName, and using it again means adding it and setting it up from the start.</p>
+                      <label for="removeDomainInput-@domain.Id" class="form-label fw-semibold">Type <strong>@domain.DomainName</strong> here to confirm</label>
+                      <input type="text" id="removeDomainInput-@domain.Id" name="confirmDomainName" class="form-control" placeholder="@domain.DomainName" required autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="removeDomainWhat-@domain.Id removeDomainMismatch-@domain.Id" />
+                      <div id="removeDomainMismatch-@domain.Id" class="form-text text-danger" aria-live="polite" data-remove-domain-mismatch></div>
                     </div>
                     <div class="modal-footer">
                       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                      <button type="submit" class="btn btn-danger">Remove Domain</button>
+                      <button type="submit" class="btn btn-danger" disabled>Remove Domain</button>
                     </div>
                   </form>
                 </div>
@@ -923,6 +928,35 @@
 </style>
 
 @section Scripts {
+<script nonce="@Context.GetCspNonce()">
+// 594: the Remove box. Remove can be pressed once the domain is typed as shown; case and spaces at either end do
+// not matter (RemoveDomain compares the same way). The mismatch line waits until what is typed cannot become the
+// domain, or Enter is pressed, so it never appears halfway through typing. Its own script element: a failure in the
+// page's other script cannot leave Remove disabled for good. Bootstrap closes the box on Escape.
+document.querySelectorAll('[data-remove-domain]').forEach(form => {
+  const modal = form.closest('.modal');
+  const input = form.querySelector('input[name="confirmDomainName"]');
+  const submit = form.querySelector('button[type="submit"]');
+  const mismatch = form.querySelector('[data-remove-domain-mismatch]');
+  const domain = form.dataset.removeDomain.toLowerCase();
+  const typed = () => input.value.trim().toLowerCase();
+  const update = finished => {
+    const text = typed();
+    const matches = text === domain;
+    submit.disabled = !matches;
+    const wrong = text !== '' && !matches && (finished || !domain.startsWith(text));
+    mismatch.textContent = wrong ? 'Type the domain exactly as shown' : '';
+    input.classList.toggle('is-invalid', wrong);
+    if (wrong) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+  };
+  input.addEventListener('input', () => update(false));
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && submit.disabled) { event.preventDefault(); update(true); }
+  });
+  modal.addEventListener('show.bs.modal', () => { input.value = ''; update(false); });
+  modal.addEventListener('shown.bs.modal', () => input.focus());
+});
+</script>
 <script nonce="@Context.GetCspNonce()">
 function updateWebsitePreview() {
   const preview = document.getElementById('websiteTemplatePreview');
