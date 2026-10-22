@@ -464,8 +464,12 @@ public class ShortAddress553Tests : IDisposable
         Assert.True(ShortAddressState.HasShortAddress(forwarded));
 
         // The agent's two panels and SuperAdmin's list all read the one description.
-        var portal = Read(@"src\IPRO.Web\Views\Website\Index.cshtml");
-        Assert.Equal(2, CountOf(portal, "IPRO.Utility.ShortAddressState.Describe("));
+        // 595: the Domain page's row (once live) and each domain's guide (DomainSetupGuide, step 3) replaced the
+        // primary domain's panel on My Website.
+        var portal = Read(@"src\IPRO.Web\Views\Website\Domains.cshtml");
+        Assert.Equal(1, CountOf(portal, "IPRO.Utility.ShortAddressState.Describe("));
+        Assert.DoesNotContain("ShortAddressState", Read(@"src\IPRO.Web\Views\Website\Index.cshtml"));
+        Assert.Contains("var stored = ShortAddressState.Describe(domain);", Read(@"src\IPRO.Utility\DomainSetupGuide.cs"));
         Assert.Contains("IPRO.Utility.ShortAddressState.Describe(domain)", Read(@"src\IPRO.Admin\Views\Domains\Index.cshtml"));
         Assert.DoesNotContain("\"Not forwarding\"", portal);
     }
@@ -473,16 +477,20 @@ public class ShortAddress553Tests : IDisposable
     [Fact]
     public void The_setup_steps_show_the_two_records_first_and_forwarding_one_click_down()
     {
-        var view = Read(@"src\IPRO.Web\Views\Website\Index.cshtml");
-        var step = view.Substring(view.IndexOf("Send the short address to it", StringComparison.Ordinal));
-        var records = step.IndexOf("@websiteAddress", StringComparison.Ordinal);
-        var txt = step.IndexOf("@domainVerificationId", StringComparison.Ordinal);
+        // 595: each domain's guide, step 3. The A record and the TXT record (named asuid in the Name box), then forwarding.
+        var guide = Read(@"src\IPRO.Utility\DomainSetupGuide.cs");
+        var records = guide.IndexOf("new Record(\"root\", \"A\", NameFor(root), root, settings.WebsiteAddress),", StringComparison.Ordinal);
+        var txt = guide.IndexOf("new Record(\"asuid\", \"TXT\", NameFor(\"asuid.\" + root), \"asuid.\" + root, settings.DomainVerificationId),", StringComparison.Ordinal);
+        Assert.True(records > 0 && txt > records, "the A record, then the TXT record");
+        var step = Read(@"src\IPRO.Web\Views\Website\_DomainGuide.cshtml");
+        var shown = step.IndexOf("@foreach (var record in step.Records)", StringComparison.Ordinal);
         var forwarding = step.IndexOf("Or use your registrar's forwarding instead", StringComparison.Ordinal);
-        Assert.True(records > 0 && txt > records && forwarding > txt, "the A record, the TXT record, then forwarding");
-        Assert.Contains("<span class=\"text-muted\">Name&nbsp;&nbsp;</span>asuid", step);
+        Assert.True(shown > 0 && forwarding > shown, "the records, then forwarding");
         Assert.Contains("a registrar forwards your home", step);       // the limit is said, not hidden
-        // Without the two values the steps fall back to forwarding, open.
-        Assert.Contains("@(canPointShortAddress ? \"\" : \"show\")", step);
+        // Without the two values the step falls back to forwarding, open (595: so does an email on the short address).
+        Assert.Contains("var forwardingOpen = !Model.Settings.CanPointShortAddress || guide.MailAtRisk;", step);
+        Assert.Contains("<div class=\"collapse @(forwardingOpen ? \"show\" : \"\") mt-2\"", step);
+        Assert.Equal("asuid", DnsHosts.NameInBox(DnsHosts.Recognise(new[] { "ns1.domaincontrol.com" }), "asuid.yourfirm.ca", "yourfirm.ca"));
 
         // The values ship with the app: the address the platform answers on and its verification id
         // (both are published in every connected domain's DNS).
@@ -556,6 +564,7 @@ public class ShortAddress553Tests : IDisposable
         // The www name's own wait is unchanged.
         var www = NewDomain("www553.example.test");
         www.CreatedAt = now.AddHours(-4);
+        www.OwnershipVerifiedAt = now.AddHours(-4);   // 595: counted from when it was proven and connected
         www.AzureBindingStatus = AgentDomainStatus.Bound;
         www.SslStatus = AgentDomainStatus.BindingPending;
         Assert.Equal((true, (string?)"www.www553.example.test"), DomainAutomationJob.CertificateWait(www, now));

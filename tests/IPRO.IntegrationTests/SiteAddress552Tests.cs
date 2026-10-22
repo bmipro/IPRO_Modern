@@ -152,7 +152,7 @@ public class SiteAddress552Tests
         var website = Read(@"src\IPRO.Web\Controllers\WebsiteController.cs");
         Assert.Contains("if (model.CustomDomainDisplay.Length > 0 && !string.Equals(model.CustomDomainDisplay, model.CustomDomain, StringComparison.OrdinalIgnoreCase))", website);
         Assert.Contains("existing.CustomDomainDisplay = model.CustomDomainDisplay;", website);
-        Assert.Contains("name=\"CustomDomainDisplay\"", Read(@"src\IPRO.Web\Views\Website\Index.cshtml"));
+        Assert.Contains("name=\"CustomDomainDisplay\"", Read(@"src\IPRO.Web\Views\Website\Domains.cshtml"));   // 595: on the Domain page
         Assert.Contains("\"CustomDomainDisplay\", \"ALTER TABLE `AgentWebsites` ADD COLUMN `CustomDomainDisplay` varchar(255)", Read(@"src\IPRO.DataAccess\StartupSchemaRepair.cs"));
         Assert.Contains("### The address on your emails", Read(@"DOCS\05_DOMAINS_AND_LEADS.md"));
     }

@@ -130,6 +130,16 @@ public class AgentsController : Controller
             async () => (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id),
             "Packages",
             warnings)) ?? new Dictionary<int, BillingRule>();
+        // 595: the agent's custom domains, each with the step its guide on My Website is on.
+        ViewBag.DomainGuides = await LoadDetailsPanelAsync(async () =>
+            {
+                var rows = await _db.AgentDomains.AsNoTracking().Where(d => d.AgentUserId == id).OrderByDescending(d => d.IsPrimary).ThenBy(d => d.DomainName).ToListAsync();
+                var guides = await DomainsController.GuidesAsync(_services.GetRequiredService<IPRO.Utility.IDomainCheckService>(), _services.GetService<IConfiguration>(),
+                    _services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(), rows);
+                return rows.Select(d => new AgentDomainViewModel { Domain = d, Guide = guides[d.Id] }).ToList();
+            },
+            "Custom domains",
+            warnings) ?? new List<AgentDomainViewModel>();
         ViewBag.ClientCount = await LoadDetailsPanelAsync(
             () => _uow.Clients.CountAsync(c => c.AgentUserId == id),
             "Client count",

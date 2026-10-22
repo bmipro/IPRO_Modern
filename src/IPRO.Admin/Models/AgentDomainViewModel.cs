@@ -8,4 +8,5 @@ public class AgentDomainViewModel
     public string AgentName { get; set; } = string.Empty;
     public string AgentEmail { get; set; } = string.Empty;
     public string TemporaryDomain { get; set; } = string.Empty;
+    public IPRO.Utility.DomainSetupGuide.Guide? Guide { get; set; }   // 595
 }

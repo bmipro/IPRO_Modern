@@ -227,6 +227,8 @@ public static class StartupSchemaRepair
         await EnsureTableColumnAsync(db, "AgentDomains", "RootAzureBindingStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootAzureBindingStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootSslStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootSslStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootBoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootBoundAt` datetime(6) NULL");
+        // 595: when the www name was bound, the start of its certificate's grace period (null for rows bound before).
+        await EnsureTableColumnAsync(db, "AgentDomains", "BoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `BoundAt` datetime(6) NULL");
         // 506: the name whose CAA records keep DigiCert out (empty = nothing in the way).
         await EnsureTableColumnAsync(db, "AgentDomains", "CaaBlockingName", "ALTER TABLE `AgentDomains` ADD COLUMN `CaaBlockingName` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
         // 592: proof that the domain is the adviser's (a TXT record holding VerificationToken). The column arrives
@@ -246,6 +248,24 @@ public static class StartupSchemaRepair
         UNIQUE KEY `IX_DomainClaimTokens_AgentUserId_ProvenName` (`AgentUserId`, `ProvenName`)
     ) CHARACTER SET=utf8mb4;");
         await FinishDomainOwnershipReleaseAsync(db);
+
+        // 595: when the adviser was emailed that the domain is live, or that it is stuck. Each arrives with the time as
+        // its default, so every row already there counts as told (nobody hears about a domain connected long ago, or one
+        // abandoned months back); then the default goes back to NULL for the rows added from now on.
+        foreach (var column in new[] { "LiveEmailSentAt", "StuckEmailSentAt" })
+        {
+            await EnsureTableColumnAsync(db, "AgentDomains", column, $"ALTER TABLE `AgentDomains` ADD COLUMN `{column}` datetime(6) NULL DEFAULT CURRENT_TIMESTAMP(6)");
+            if (await ColumnHasDefaultAsync(db, "AgentDomains", column))
+            {
+                // Except a domain being set up at the release: added in the last week it still hears when it is live, and
+                // added in the last day it still hears if it is stuck (595's review, L11).
+                var since = DateTime.UtcNow - (column == "LiveEmailSentAt" ? TimeSpan.FromDays(7) : TimeSpan.FromDays(1));
+                await db.Database.ExecuteSqlRawAsync(
+                    $"UPDATE `AgentDomains` SET `{column}` = NULL WHERE `CreatedAt` > {{0}} " +
+                    "AND NOT (`AzureBindingStatus` = 'Bound' AND `SslStatus` IN ('Bound', 'SslBound'))", since);
+                await db.Database.ExecuteSqlRawAsync($"ALTER TABLE `AgentDomains` ALTER COLUMN `{column}` SET DEFAULT NULL");
+            }
+        }
     }
 
     // 592: the release of proof of ownership, finished. The column arrived with the time as its default, so every

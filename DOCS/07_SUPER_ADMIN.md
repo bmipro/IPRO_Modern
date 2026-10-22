@@ -574,6 +574,12 @@ Good to know:
 The setup domain on **Edit** is the free site's address: a new value must be under `247advisers.com`. An agent's
 own domain is added on their **My Website** page, where they prove it is theirs (592).
 
+Since 595 every domain row also shows the step the agent's guide on **My Website** is on (**Step 2 of 4: Point www
+at iPro**, or **Live**), what IPRO sees for that step in the agent's own words, and the company that manages the
+domain's DNS; rows still being set up get a fresh look at DNS when the page opens (the newest eight). The agent's
+page (**Agents**, then the agent) lists the same under **Custom domains**, so support can say "you are on step 2".
+An agent who clicks **I need help** in the guide sends a support ticket with all of it.
+
 Since 592 every domain row also says whether the agent has proven the domain is theirs: **Not proven yet**
 (with the TXT record name IPRO is waiting for, `_ipro-verify.<their domain>`), **Proven** with the date it
 was seen, or **Proven: there before 592** for domains that were connected before 15 October 2026.

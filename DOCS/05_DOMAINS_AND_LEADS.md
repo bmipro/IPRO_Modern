@@ -8,29 +8,76 @@ The agent should not alter temporary-domain DNS records.
 
 ## Add a Custom Domain
 
-1. Open **My Website**.
-2. In **Domain Manager**, enter the root domain or `www` domain.
-3. Click **Add**.
-4. IPRO normalizes the domain to the `www` hostname.
-5. At the registrar, add:
-   - Type: `CNAME`
-   - Name/Host: `www`
-   - Value: `ipro-prod-web.azurewebsites.net`
-6. Make the short address (the root domain, without `www`) reach the site too: point it straight at IPRO with two DNS records, or forward it at the registrar. See **Point the short address straight at IPRO** below. IPRO checks it automatically and shows it as its own **Short address** row; the `www` site works either way.
-7. On the same DNS screen, add the TXT record shown beside the domain in **Domain Manager**: it proves the domain is yours. See **Prove the domain is yours (TXT record)** below. Nothing is connected until IPRO has seen it.
-8. Wait for DNS propagation.
+1. Open the **Domain** page: **Domain** in the menu under Website, the **Domain** button at the top of **My
+   Website**, or **Manage domain** / **Connect your own domain** on My Website's **Your domain** card. Since 595
+   (2026-10-22) domains have this page of their own, at full width; My Website keeps only that card.
+2. Under **Your domains**, enter the root domain or `www` domain (`yourfirm.ca` or `www.yourfirm.ca`).
+3. Click **Add**. IPRO saves it as the `www` name, and the domain's step-by-step guide opens below it, from step 1.
+4. Follow the guide (see **Connect your domain step by step** below). It shows each record to add, with a **Copy**
+   button beside its type, name and value, and ticks each step as soon as the record is seen.
 
-A custom domain is a domain you own. IPRO's own addresses cannot be added: www.iProAdvisers.com, www.iProAccountants.com, www.iProMortgages.com and every name under them (app., admin. and so on), the free sites' 247advisers.com, and the hosting's own `azurewebsites.net` names. My Website answers that the name is one of IPRO's own addresses. A domain with accents is entered in its `xn--` form (the ASCII or Punycode name your registrar shows).
+A custom domain is a domain you own. IPRO's own addresses cannot be added: www.iProAdvisers.com, www.iProAccountants.com, www.iProMortgages.com and every name under them (app., admin. and so on), the free sites' 247advisers.com, and the hosting's own `azurewebsites.net` names. The Domain page answers that the name is one of IPRO's own addresses. A domain with accents is entered in its `xn--` form (the ASCII or Punycode name your registrar shows).
 
-IPRO checks pending domains automatically. Agents can also click **Retry** beside a domain to recheck it immediately (about every 2 minutes at most). Super Admin can also select **Recheck**.
+IPRO checks pending domains automatically. Super Admin can also select **Recheck**.
 
-Once the Connection status panel shows **Found**, **Connected**, **Secured** and the short address reads **Connected** or **Forwarding OK**, the two registrar instruction cards fold away behind **Show the setup steps (for adding another domain)**. They come back on their own if anything stops being green.
+### Connect your domain step by step
+
+Every domain on the **Domain** page has its own guide (595). It opens by itself for a domain just added, from step
+1, whatever other domains are already connected; a domain that is live has its guide folded, one click away
+(**Setup guide**). One step is open at a time. A done step shows a tick and the word **Done**; later steps stay
+visible and can be opened at any time, so all the records can be added in one visit.
+
+1. **Prove it's yours.** A TXT record named `_ipro-verify` with the value made for your account and this domain
+   (see **Prove the domain is yours** below). Nothing is connected until IPRO sees it.
+2. **Point www at iPro.** A CNAME record named `www` with the value `ipro-prod-web.azurewebsites.net`. If `www`
+   points somewhere else today, the guide says exactly where, and that the record is to be edited rather than a
+   second one added.
+3. **The short address (optional, recommended).** An A record for the domain itself (`@`) with the value
+   `40.89.19.0`, and a TXT record named `asuid` (see **Point the short address straight at IPRO** below), or the
+   registrar's forwarding. Before you change anything, the guide checks where the domain's email goes (its MX
+   records): usually somewhere else (Microsoft 365, Google, a mail host), and then it says **Your email is not
+   affected**. When the email lives on the short address itself (a web host with the website and the mail on one
+   server, as cPanel sets it up), it says so in red: pointing the short address at iPro would stop the email, so use
+   the registrar's forwarding instead, or ask us. When it could not tell, it says that, never "not affected". If the
+   short address already points at iPro while the email depends on it, the domain's row says the email may not be
+   arriving (the page looks once for every live domain whose short address points here, even with its guide
+   folded). **Skip this step for now** moves on to step 4.
+4. **iPro finishes.** Connected to your website, then the padlock (security certificate) ordered and in place,
+   then live. IPRO emails you when the domain is live, and once, a day after it was added, if it is still not
+   connected, with what is missing. When the padlock is held up by a record only you can add (a CAA record), or is
+   hours late, this step opens ahead of step 3. "Hours late" is counted from when the domain was proven and
+   connected, not from when it was added (a domain added one day and proven the next is not late at once); IPRO's
+   own overdue-certificate alert counts the same way.
+
+**Where to do it.** The guide reads the domain's name servers and names the company that manages its DNS:
+GoDaddy, Namecheap, Cloudflare, Squarespace (formerly Google Domains), Wix, IONOS, Hover, Tucows/OpenSRS
+resellers, SiteGround, Bluehost, or a web host with cPanel (HostPapa, Web Hosting Canada, HostGator, hosting.com,
+InMotion). It then says where to click there, what goes in the Name box (`@` or empty for the domain itself,
+`www`, `_ipro-verify`, `asuid`; the whole name with a final dot in cPanel), links that company's own help page,
+and warns of its trap for the step: GoDaddy's forwarding locks the `@` record (the guide then says: open the
+domain's Forwarding tab and delete the forwarding; its two A records go away by themselves), Cloudflare's proxy must be set to
+DNS only (grey cloud), Namecheap's URL Redirect hides an extra A record, IONOS adds an AAAA record, Squarespace's
+default records must go. For any other company the wording fits every DNS screen.
+
+**What iPro sees.** Each step says what is there now beside what it should be: "We don't see this record yet",
+"Right now www.yourfirm.ca points to yourfirm.myshopify.com. Edit that record and change its value to ...", "...
+points to iPro but also to ... Delete the other A records". While the guide is open the page looks again about
+every 20 seconds (only while the page is in front and the guide is on screen), and **Check now** looks at once and
+asks IPRO to check the domain fully (15 seconds apart at most; sooner, it says it checked a few seconds ago and
+shows that); neither ever asks you to wait. IPRO asks the domain's own name servers, so a record counts within seconds of being saved. (For a domain
+whose DNS is signed with DNSSEC, the proof in step 1 is still read through the public resolvers, which check the
+signatures; it can then take a few minutes longer.)
+
+**I need help** opens a support ticket already written: the domain, its DNS host, the step you are on, and for
+every record what IPRO expects beside what it sees. Add a line if you like and send it. Super Admin sees the same
+step for each domain (**Domains**, and **Custom domains** on the agent's page), so support can say "you are on
+step 2".
 
 ### Prove the domain is yours (TXT record)
 
 A domain name says nothing about who owns it, so since 592 (2026-10-19) IPRO connects a custom domain only
 after whoever controls the domain's DNS has said which IPRO account it is for. When a domain is added,
-**Domain Manager** shows a record made for that account and that domain only:
+step 1 of the domain's guide on the **Domain** page shows a record made for that account and that domain only:
 
 | Type | Name / Host | Value |
 |---|---|---|
@@ -38,12 +85,14 @@ after whoever controls the domain's DNS has said which IPRO account it is for. W
 
 - The record goes on the short address: for `www.yourfirm.ca` its full name is `_ipro-verify.yourfirm.ca`, and most
   registrars want only `_ipro-verify` in the Name box. For a sub-domain added as the address itself
-  (`clients.yourfirm.ca`) My Website shows the full name to enter.
+  (`clients.yourfirm.ca`) the guide shows the name to enter.
 - Until IPRO has seen it, nothing happens for the domain: it is not connected, no certificate is ordered, and
-  the address does not show the website. The row says what to add, and **Check now** looks again at once.
-- IPRO looks for the record once the `www` name itself points at IPRO. If it looked before the record was
-  added, a public DNS resolver can keep answering "no such record" for up to a few hours; it then clears on
-  its own.
+  the address does not show the website. Step 1 of the domain's guide says what to add, and ticks once it is seen.
+- IPRO asks the domain's own name servers (595), so the record counts the moment it is saved, before `www` points
+  anywhere, when all of them agree. A domain whose DNS is signed (DNSSEC) is proven through the public resolvers,
+  which check the signatures. Only when those servers cannot be reached does it ask public DNS resolvers, and then only once the
+  `www` name points at IPRO: a resolver asked before the record was added can keep answering "no such record" for
+  up to a few hours (ten minutes at GoDaddy).
 - Once seen, it is not looked for again. It can stay in place: it proves nothing for anyone once the domain is
   removed from IPRO.
 - Another IPRO account's value proves nothing for this one, and a record left behind after a domain is removed
@@ -56,7 +105,7 @@ after whoever controls the domain's DNS has said which IPRO account it is for. W
   more (not even for the same account). Replace the record when you add a domain again.
 - Domains that were connected before 15 October 2026 count as proven; nothing changes for them. A domain added on
   or after that day, or one that never connected, needs the record like a new one.
-- A name only the website's own settings field holds (no row in **Domain Manager**) is not shown as the site any
+- A name only the website's own settings field holds (no row under **Your domains**) is not shown as the site any
   more: every custom domain is served through its proven row.
 
 ### Point the short address straight at IPRO
@@ -69,7 +118,7 @@ make it reach the site (553).
 | Type | Name / Host | Value |
 |---|---|---|
 | A | `@` | `40.89.19.0` |
-| TXT | `asuid` | the long code shown in step 2 of the setup steps on **My Website** |
+| TXT | `asuid` | the long code shown in step 3 of the domain's guide on the **Domain** page |
 
 - Ours must be the only A record for `@`: change the one that is there rather than adding a second, and remove
   any AAAA record for `@`.
@@ -109,14 +158,15 @@ profiles and on printed QR codes. To keep them working:
 Once your custom domain is live (connected and secured), your e-cards, e-letters and newsletters show it instead of
 the temporary domain, from the next one sent (552); their previews and the newsletter test send show it too. To have
 it written with your own capitals -- `www.4iPro.com` rather than `www.4ipro.com` -- type it in **Shown in your emails
-as**, next to **Custom Domain** on **My Website**, and save. It must be the same letters as your custom domain; only
+as**, under **The address on your emails** on the **Domain** page, and click **Save**. It must be the same letters as your custom domain; only
 the capitals can differ. Until the domain is live, your emails keep showing the temporary domain, which always serves
-the same site.
+the same site. When you make another domain your primary one (or remove the primary one), what you typed there goes
+with it and your emails use small letters until you type the new one.
 
 ## What to Tell a New Agent
 
-Wording that can be used directly in onboarding, support replies, or a help page. It matches the
-**How this works** panel in the portal.
+Wording that can be used directly in onboarding, support replies, or a help page. Since 595 the portal's own
+guide (above) walks the agent through the same records one step at a time, with their DNS host's wording.
 
 > ### Using your own domain name
 >
@@ -197,7 +247,7 @@ Admin and support.
 
 | Agent sees | Row | Meaning |
 |---|---|---|
-| **Prove ... is yours** (a box with the TXT record) | Domain manager | 592: the domain's `_ipro-verify` TXT record has not been seen yet. Nothing is connected, secured or shown on the address until it is. |
+| **Prove it's yours** (step 1 of the guide, with the TXT record) | Your domains | 592: the domain's `_ipro-verify` TXT record has not been seen yet. Nothing is connected, secured or shown on the address until it is. |
 | **Waiting** `[PendingDns]` | Your domain | Waiting for the CNAME to resolve. Usually 15–60 minutes, up to 24 hours. |
 | **Found** `[DnsReady]` | Your domain | DNS points at the expected Azure hostname. |
 | **Setting up** `[BindingPending]` | Connection to your site | The custom hostname is not attached yet. |
@@ -247,7 +297,7 @@ It finds the certificate by the address it was made for, whatever its name: a ne
 
 Some web hosts publish **CAA** records for a domain: a list of the only companies allowed to issue its security certificate. IPRO's certificates come from **DigiCert**. If your domain has such a list and DigiCert is not on it, the certificate cannot be issued, however long you wait.
 
-IPRO checks this for you while your certificate is pending. When it is the cause, the domain panel on **My Website** shows a red note, **One record is missing at your registrar**, with the record to add:
+IPRO checks this for you while your certificate is pending. When it is the cause, step 4 of the domain's guide on the **Domain** page shows a red note, **One record is missing at your registrar**, with the record to add:
 
 | Type | Name | Value |
 |---|---|---|
@@ -256,23 +306,27 @@ IPRO checks this for you while your certificate is pending. When it is the cause
 1. Sign in where your domain's DNS is managed.
 2. Add the record above **beside** the CAA records already there. Do not remove the others; your host uses them.
 3. Some registrars ask for it in three boxes: flag `0`, tag `issue`, value `digicert.com`.
-4. Go back to **My Website** and click **Check now**. The note disappears on the next check, and the certificate follows within minutes.
+4. Go back to the **Domain** page and click **Check now** in the domain's guide. The note disappears once IPRO has checked again (Check now does that at once; on its own the page looks again every five minutes), and the certificate follows within minutes.
 
 A domain with no CAA records at all needs nothing: any company may issue for it.
 
 ## Retry a Domain Check
 
-1. Open **My Website**.
-2. Beside any domain in **Domain manager**, click **Retry**.
-3. IPRO immediately rechecks DNS and Azure binding for that domain.
-4. Retry is limited to about once every 2 minutes per domain to prevent overload.
+1. Open the **Domain** page and the domain's guide (**Guide** or **Setup guide** beside it).
+2. The guide looks again on its own about every 20 seconds while it is open; **Check now** looks at once and has
+   IPRO check the domain fully, whatever its state, 15 seconds after the last check at the soonest (the background
+   check's included); sooner than that it says so and shows the latest.
+3. When DNS shows something IPRO has not acted on yet (the proof record, `www` pointing here, the short address's
+   two records, a padlock on its way, a CAA record), IPRO goes on to check the domain at once; the background
+   check does the rest every five minutes. The page never asks you to wait: if it checked a moment ago it simply
+   shows what it saw. The page's own checks never use up the background check's retries.
 
-IPRO's automatic background check backs off over time for a domain that keeps failing (checking less often, then eventually pausing automatic checks after a long stretch of failures). Retry always works regardless of how long automatic checking has been paused — clicking it re-arms automatic checking once the domain succeeds.
+IPRO's automatic background check backs off over time for a domain that keeps failing (checking less often, then eventually pausing automatic checks after a long stretch of failures). The guide's checks work regardless, and connecting the domain re-arms automatic checking.
 
 ## Add Multiple Domains
 
 1. Confirm the active package permits additional domains.
-2. Add each domain from **Domain Manager**.
+2. Add each domain under **Your domains** on the **Domain** page.
 3. Configure the `www` CNAME at each registrar.
 4. Select **Primary** beside the preferred domain.
 5. Remove unused domains with **Remove** — type the exact domain name to confirm, since this cannot be undone.
