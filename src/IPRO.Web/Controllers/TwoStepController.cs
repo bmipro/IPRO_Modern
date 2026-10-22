@@ -19,8 +19,9 @@ namespace IPRO.Web.Controllers;
 //  - Verify / SendCode: the second step of signing in. Nobody is signed in yet: the password page left a
 //    protected cookie naming the account (TwoStepGate). A right code signs the person in.
 //  - Index / Setup / StartEmail / Confirm / TurnOff / EmailMeACode / NewRecoveryCodes: the person's own
-//    two-step, signed in. Turning it on, off, or making new recovery codes needs the current password
-//    (counted as 583 counts it); turning it off or new recovery codes also needs a code (counted too).
+//    two-step, signed in. Turning it on needs the code emailed to the account (and, the app way, the app's
+//    code); turning it off or making new recovery codes needs the current password (counted as 583 counts
+//    it) and a code (counted too).
 [Authorize]
 public class TwoStepController : Controller
 {
@@ -179,9 +180,11 @@ public class TwoStepController : Controller
         return View(nameof(Setup), model);
     }
 
-    // The code from the email (and, the app way, the app's code) and the current password: two-step is on.
+    // The code from the email (and, the app way, the app's code): two-step is on. No password (the owner,
+    // 2026-10-21: keep it simple): the emailed code proves the person can read the account's inbox, which a
+    // session left open does not give, and whoever can read that inbox can already reset the password.
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Confirm(string? setupToken, string? code, string? emailCode, string? currentPassword)
+    public async Task<IActionResult> Confirm(string? setupToken, string? code, string? emailCode)
     {
         var person = await CurrentPersonAsync();
         if (person == null) return Redirect("/portal/Account/Login");
@@ -203,9 +206,6 @@ public class TwoStepController : Controller
             again.EmailSent = true;
             return View(nameof(Setup), again);
         }
-
-        var password = await PasswordCheckAsync(person, currentPassword);
-        if (password != PasswordResult.Right) return Again(password == PasswordResult.Locked ? TwoStepMessages.PasswordLocked : TwoStepMessages.WrongPassword);
 
         // The app's code first: checking it uses nothing up, so a typo there does not cost the emailed code.
         long step = 0;

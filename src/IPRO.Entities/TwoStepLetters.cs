@@ -59,7 +59,19 @@ public static class TwoStepLetters
             ? "Two-step sign-in is now on for your iPro sign-in: after your password, iPro will email you a code."
             : "Two-step sign-in is now on for your iPro sign-in: after your password, you will type the code your authenticator app shows.",
         "Keep your recovery codes somewhere safe. Each one gets you in once if you cannot get a code.",
-        Unexpected(person)
+        // Turning it on takes a browser where they were signed in and a code from their inbox, not the password.
+        person.IsTeamMember
+            ? $"If you did not turn it on, someone used a browser where you were signed in, and your email: ask {Owner(person)} to reset your two-step sign-in and your password on the My Team page right away, and change your email's password."
+            : $"If you did not turn it on, someone used a browser where you were signed in, and your email: call iPro support at {SupportPhone} right away (they can reset it), and change your email's password."
+    });
+
+    public const string MemberTurnedOnSubject = "A team member turned on two-step sign-in";
+
+    // To the adviser: one of their team members turned it on (a session and the member's inbox can do that).
+    public static Letter MemberTurnedOn(Person adviser, string memberName, string memberEmail) => Make(adviser, MemberTurnedOnSubject, new[]
+    {
+        $"{WebUtility.HtmlEncode(memberName)} ({WebUtility.HtmlEncode(memberEmail)}) turned on two-step sign-in for their sign-in to {Business(adviser)}. Nothing for you to do.",
+        "If they did not, reset their two-step sign-in and their password on the My Team page (the shield and key icons)."
     });
 
     public const string TurnedOffSubject = "Two-step sign-in was turned off for your iPro account";

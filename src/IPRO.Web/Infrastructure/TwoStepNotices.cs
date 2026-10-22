@@ -60,6 +60,18 @@ public sealed class TwoStepNotices : ITwoStepNotices
                 {
                     var person = await PersonAsync(services.GetRequiredService<IPRODbContext>(), account);
                     if (person == null || string.IsNullOrWhiteSpace(person.Email)) return;
+                    if (notice == TwoStepNotice.TurnedOn && account.IsTeamMember)
+                    {
+                        // 593: the adviser hears too -- a team member's set-up needs their session and inbox only.
+                        var adviser = await PersonAsync(services.GetRequiredService<IPRODbContext>(), TwoStepAccount.Adviser(account.AgentUserId));
+                        if (adviser != null && !string.IsNullOrWhiteSpace(adviser.Email))
+                        {
+                            var told = TwoStepLetters.MemberTurnedOn(adviser, person.FullName, person.Email);
+                            var toldResult = await services.GetRequiredService<IEmailService>().SendDetailedAsync(told.To, told.ToName, told.Subject, told.Html);
+                            if (!toldResult.Success)
+                                logger.LogWarning("Two-step sign-in notice to the adviser of {Account} was not sent: {Message}", Describe(account), toldResult.Message);
+                        }
+                    }
                     var letter = notice switch
                     {
                         TwoStepNotice.TurnedOn => TwoStepLetters.TurnedOn(person, detail ?? TwoStepMethods.App),

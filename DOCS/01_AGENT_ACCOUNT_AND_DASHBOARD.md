@@ -4,7 +4,7 @@
 
 1. Open the Agent Portal.
 2. Enter the assigned username and password.
-3. Select **Remember me** only on a private device.
+3. Tick **Remember me** only on a private device: it keeps you signed in on it for 7 days from signing in, even after closing the browser (otherwise 8 hours).
 4. Click **Sign In**.
 5. If this is the first login, create a new password when prompted.
 
@@ -63,7 +63,7 @@ Your clients' personal and financial information is in iPro. With two-step sign-
    - **Use email codes**, if you do not want an app. This is safer than a password alone, but only as safe as that mailbox.
 3. Click **Email me a code**. Either way, iPro first emails a 6-digit code to the address on your account, to check it is you (it works once, for 10 minutes; at most one a minute and 10 a day).
 4. With an app: in the app, add an account and scan the QR code (if you cannot scan it, type the key shown beside it), then type the code the app shows.
-5. Type the code from the email and your current password, and click **Turn on two-step sign-in**.
+5. Type the code from the email, and click **Turn on two-step sign-in**.
 6. Save the ten **recovery codes** shown next. This is the only time iPro shows them. Each one signs you in once if you cannot get a code (a lost phone, for example). Keep them in a password manager, or print them and put them away.
 
 iPro emails you that two-step sign-in is on. Any other browser where you were signed in is signed out, and asks for a code the next time.
@@ -72,7 +72,7 @@ iPro emails you that two-step sign-in is on. Any other browser where you were si
 
 1. Sign in with your username (or email) and password as usual.
 2. On the **Two-step sign-in** page, type the code your app shows now, or the code iPro just emailed you. An emailed code works once, for 10 minutes; **Email me a new code** sends another (at most one a minute and 5 an hour).
-3. Tick **Don't ask for a code on this device for 30 days** only on your own computer or phone. Your password is still needed every time; a new password, or turning two-step sign-in off, ends it.
+3. **Don't ask for a code on this device for 30 days** is ticked for you: untick it on a shared computer. Your password is still needed every time; a new password, or turning two-step sign-in off, ends it.
 4. Click **Verify**.
 
 - Lost your phone? Type one of your recovery codes in the same box (it looks like `abcde-fghjk`). iPro emails you each time one is used and says how many are left.

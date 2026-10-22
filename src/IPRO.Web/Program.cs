@@ -141,6 +141,13 @@ builder.Services.AddScoped<IEmailService>(sp => new RoutingEmailService(
     sp.GetRequiredService<SesEmailService>(),
     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EmailSettings>>(),
     sp.GetRequiredService<ILogger<RoutingEmailService>>()));
+// 593: on a developer's PC, Email__Provider=Folder keeps every email as a file in Email__Folder instead of
+// sending it (two-step set-up needs its emailed code). Development only; never set it anywhere else (any
+// value but "Azure" means the SendGrid provider above, so mail would stop). The files hold sign-in codes
+// and reset links: with no folder named they go under the user's local app data, never into the repository.
+if (builder.Environment.IsDevelopment() && string.Equals(builder.Configuration["Email:Provider"], "Folder", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<IEmailService>(_ => new FolderEmailService(builder.Configuration["Email:Folder"] is { Length: > 0 } folder
+        ? folder : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ipro-local-mail")));
 // 531: Amazon's delivery reports arrive through SNS; nothing in them is believed until it is signed.
 builder.Services.AddSingleton<IPRO.Web.Infrastructure.ISnsTrust>(sp =>
     new IPRO.Web.Infrastructure.SnsTrust(sp.GetRequiredService<IHttpClientFactory>()));

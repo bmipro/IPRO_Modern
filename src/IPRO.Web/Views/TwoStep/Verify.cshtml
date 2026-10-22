@@ -41,9 +41,11 @@ body{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);min-height:100vh
         Can't get a code? Type one of your recovery codes instead (it looks like <code>abcde-fghjk</code>).
       </div>
     </div>
+    @* 593: ticked unless the person unticks it (the owner, 2026-10-21); a new password or turning two-step off ends it. *@
     <div class="form-check mb-4">
-      <input class="form-check-input" type="checkbox" name="rememberDevice" id="rememberDevice" value="true"/>
+      <input class="form-check-input" type="checkbox" name="rememberDevice" id="rememberDevice" value="true" checked aria-describedby="rememberDevice-help"/>
       <label class="form-check-label" for="rememberDevice">Don't ask for a code on this device for 30 days</label>
+      <div id="rememberDevice-help" class="form-text">Only on your own computer or phone. Untick it on a shared one.</div>
     </div>
     <button type="submit" class="btn btn-primary btn-lg w-100">Verify</button>
   </form>

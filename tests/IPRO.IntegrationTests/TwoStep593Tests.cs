@@ -120,7 +120,7 @@ public class TwoStepCodes593Tests
 public class TwoStepSignIn593Tests
 {
     [Fact]
-    public async Task Setting_up_an_authenticator_needs_the_inbox_the_current_password_and_a_right_code_and_shows_ten_recovery_codes_once()
+    public async Task Setting_up_an_authenticator_needs_the_inbox_and_a_right_code_and_shows_ten_recovery_codes_once()
     {
         await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
         var agentId = await Lock583.SeedAgentAsync(testDb, "patlee", "pat@lee.example.com");
@@ -144,16 +144,17 @@ public class TwoStepSignIn593Tests
         Assert.Equal(setup.ManualKey, again.ManualKey);
         Assert.Single(browser.Notices.Codes, c => c.ForSetup);
 
-        // A wrong password, a wrong app code, or a wrong emailed code: nothing is turned on.
-        var wrongPassword = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed, "not-it")));
-        Assert.Equal(TwoStepMessages.WrongPassword, Assert.IsType<TwoStepSetupViewModel>(wrongPassword.Model).Error);
-        var wrongCode = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.WrongCodeFor(secret), emailed, Lock583.Password)));
+        // A wrong app code, or a wrong or missing emailed code: nothing is turned on. No password is asked
+        // (the owner, 2026-10-21): the emailed code is the proof that it is them.
+        var wrongCode = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.WrongCodeFor(secret), emailed)));
         Assert.Equal(TwoStepMessages.WrongCode, Assert.IsType<TwoStepSetupViewModel>(wrongCode.Model).Error);
-        var wrongEmailed = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed == "000000" ? "111111" : "000000", Lock583.Password)));
+        var wrongEmailed = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed == "000000" ? "111111" : "000000")));
         Assert.Equal(TwoStepMessages.WrongSetupCode, Assert.IsType<TwoStepSetupViewModel>(wrongEmailed.Model).Error);
+        var noEmailed = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), null)));
+        Assert.Equal(TwoStepMessages.WrongSetupCode, Assert.IsType<TwoStepSetupViewModel>(noEmailed.Model).Error);
         Assert.Null(await TwoStep593.RowAsync(testDb, TwoStepAccount.Adviser(agentId)));
 
-        var done = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed, Lock583.Password)));
+        var done = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed)));
         Assert.Equal("RecoveryCodes", done.ViewName);
         var codes = Assert.IsType<TwoStepRecoveryCodesViewModel>(done.Model).Codes;
         Assert.Equal(10, codes.Count);
@@ -425,7 +426,7 @@ public class TwoStepSignIn593Tests
         Assert.True(started.EmailSent);
         Assert.Empty(started.QrSvg);
         var setupCode = Assert.Single(setupBrowser.Notices.Codes, c => c.ForSetup).Code;
-        Assert.Equal("RecoveryCodes", Assert.IsType<ViewResult>(await setupBrowser.TwoStepAsync(c => c.Confirm(started.SetupToken, null, setupCode, Lock583.Password))).ViewName);
+        Assert.Equal("RecoveryCodes", Assert.IsType<ViewResult>(await setupBrowser.TwoStepAsync(c => c.Confirm(started.SetupToken, null, setupCode))).ViewName);
         Assert.Equal(TwoStepMethods.Email, (await TwoStep593.RowAsync(testDb, account))!.Method);
 
         // Signing in sends a code by itself.
@@ -1092,6 +1093,115 @@ public class TwoStepReview593Tests
     }
 }
 
+// ---- the owner's decisions of 2026-10-21 ----------------------------------------------------------------------
+
+public class TwoStepDecisions593Tests
+{
+    // "Remember me" never worked: the box sent "on", which does not bind to a bool. It sends "true" now,
+    // and a ticked box gives a 7-day session -- with two-step on, only after the code.
+    [Fact]
+    public async Task Remember_me_on_the_sign_in_page_binds_and_gives_a_seven_day_session_after_the_code()
+    {
+        var page = await TwoStep593.RenderWebAsync("~/Views/Account/Login.cshtml", (object?)null);
+        Assert.Contains("name=\"rememberMe\" id=\"rememberMe\" value=\"true\"", page);
+        Assert.Equal(true, System.ComponentModel.TypeDescriptor.GetConverter(typeof(bool)).ConvertFromInvariantString("true"));
+
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await Lock583.SeedAgentAsync(testDb, "weekly", "weekly@example.com");
+        var plain = new TwoStepBrowser(testDb);
+        Assert.IsType<RedirectResult>(await plain.AccountAsync(c => c.Login("weekly", Lock583.Password, rememberMe: true)));
+        Assert.True(plain.SignedInProperties!.IsPersistent);
+        Assert.InRange(plain.SignedInProperties.ExpiresUtc!.Value, DateTimeOffset.UtcNow.AddDays(6.9), DateTimeOffset.UtcNow.AddDays(7.1));
+        // Seven days from signing in: the cookie is not renewed as it is used (the re-check of 2026-10-21).
+        Assert.False(plain.SignedInProperties.AllowRefresh);
+        Assert.Null(PortalSignIn.Session(false).AllowRefresh);
+
+        var (secret, _) = await TwoStep593.TurnOnAppAsync(testDb, "weekly");
+        var withCode = new TwoStepBrowser(testDb);
+        Assert.Equal(TwoStepGate.VerifyPath, Assert.IsType<RedirectResult>(await withCode.AccountAsync(c => c.Login("weekly", Lock583.Password, rememberMe: true))).Url);
+        Assert.Null(withCode.SignedIn);   // no long cookie before the code
+        await withCode.TwoStepAsync(c => c.Verify(withCode.CodeFor(secret)));
+        Assert.True(withCode.SignedInProperties!.IsPersistent);
+        Assert.False(withCode.SignedInProperties.AllowRefresh);
+        Assert.InRange(withCode.SignedInProperties.ExpiresUtc!.Value, DateTimeOffset.UtcNow.AddDays(6.9), DateTimeOffset.UtcNow.AddDays(7.1));
+    }
+
+    // Without the password at set-up, the emailed code is what stops someone who holds a session left open:
+    // they cannot turn two-step on (and shut the owner out) without the account's inbox.
+    [Fact]
+    public async Task A_session_holder_without_the_inbox_cannot_turn_it_on()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        var agentId = await Lock583.SeedAgentAsync(testDb, "openSession", "open-session@example.com");
+        var browser = new TwoStepBrowser(testDb);
+        await browser.SignInWithPasswordAsync("openSession");
+
+        var setup = Assert.IsType<TwoStepSetupViewModel>(Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.StartEmail("app"))).Model);
+        var secret = Totp.FromBase32(setup.ManualKey)!;
+        // Guessing the emailed code: five tries and it is spent; the right one then does not work either.
+        var emailed = Assert.Single(browser.Notices.Codes, c => c.ForSetup).Code;
+        for (var n = 0; n < 5; n++)
+        {
+            var guess = (200000 + n).ToString();
+            if (guess == emailed) continue;
+            var refused = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), guess)));
+            Assert.Equal(TwoStepMessages.WrongSetupCode, Assert.IsType<TwoStepSetupViewModel>(refused.Model).Error);
+        }
+        var spent = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed)));
+        Assert.Equal(TwoStepMessages.SetupCodeSpent, Assert.IsType<TwoStepSetupViewModel>(spent.Model).Error);
+        Assert.Null(await TwoStep593.RowAsync(testDb, TwoStepAccount.Adviser(agentId)));
+
+        // Another person's set-up page is no use: the token belongs to the account (and its password).
+        var other = new TwoStepBrowser(testDb);
+        await Lock583.SeedAgentAsync(testDb, "otherAccount", "other-account@example.com");
+        await other.SignInWithPasswordAsync("otherAccount");
+        Assert.IsType<RedirectToActionResult>(await other.TwoStepAsync(c => c.Confirm(setup.SetupToken, other.CodeFor(secret), emailed)));
+        Assert.Null(await TwoStep593.RowAsync(testDb, TwoStepAccount.Adviser(agentId)));
+    }
+
+    // Turning it on takes a browser where they were signed in and the inbox, not the password: the email says
+    // so, and a team member's adviser is told as well (the re-check of 2026-10-21).
+    [Fact]
+    public void The_turned_on_email_gives_the_right_advice_and_the_adviser_hears_about_a_team_member()
+    {
+        var adviser = new TwoStepLetters.Person("pat@lee.example.com", "Pat Lee", "Pat", false, "Pat Lee", "Lee Advisory");
+        var member = new TwoStepLetters.Person("alex@lee.example.com", "Alex Helper", "Alex", true, "Pat Lee", "Lee Advisory");
+        Assert.Contains("someone used a browser where you were signed in, and your email: call iPro support", TwoStepLetters.TurnedOn(adviser, TwoStepMethods.App).Html);
+        Assert.Contains("ask Pat Lee to reset your two-step sign-in and your password", TwoStepLetters.TurnedOn(member, TwoStepMethods.App).Html);
+        var told = TwoStepLetters.MemberTurnedOn(adviser, "Alex Helper", "alex@lee.example.com");
+        Assert.Equal("pat@lee.example.com", told.To);
+        Assert.Contains("Alex Helper (alex@lee.example.com) turned on two-step sign-in", told.Html);
+        Assert.Contains("TwoStepLetters.MemberTurnedOn(adviser, person.FullName, person.Email)", TwoStep593.Read(@"src\IPRO.Web\Infrastructure\TwoStepNotices.cs"));
+        // The local mail folder never defaults into the repository (its files hold codes and reset links).
+        Assert.Contains("Environment.SpecialFolder.LocalApplicationData), \"ipro-local-mail\")", TwoStep593.Read(@"src\IPRO.Web\Program.cs"));
+    }
+
+    // On this PC there is no mail service: Email__Provider=Folder writes each email as a file instead,
+    // and only in Development (a production setting of it is ignored).
+    [Fact]
+    public async Task The_local_mail_folder_keeps_each_email_as_a_file_and_only_in_development()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "ipro593-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            var mail = new IPRO.Email.FolderEmailService(folder);
+            var sent = await mail.SendDetailedAsync("pat@lee.example.com", "Pat Lee", "Your code to turn on two-step sign-in", "<p>123456</p>");
+            Assert.True(sent.Success);
+            var file = Assert.Single(Directory.GetFiles(folder, "*.html"));
+            Assert.Contains("pat@lee.example.com", Path.GetFileName(file));
+            var text = File.ReadAllText(file);
+            Assert.Contains("Your code to turn on two-step sign-in", text);
+            Assert.Contains("<p>123456</p>", text);
+        }
+        finally
+        {
+            if (Directory.Exists(folder)) Directory.Delete(folder, true);
+        }
+        var program = TwoStep593.Read(@"src\IPRO.Web\Program.cs");
+        Assert.Contains("if (builder.Environment.IsDevelopment() && string.Equals(builder.Configuration[\"Email:Provider\"], \"Folder\", StringComparison.OrdinalIgnoreCase))", program);
+    }
+}
+
 // ---- the pages, rendered from the real views --------------------------------------------------------------------
 
 public class TwoStepScreens593Tests
@@ -1126,7 +1236,9 @@ public class TwoStepScreens593Tests
 
         Assert.Contains("Open your authenticator app", pages["verify-app"]);
         Assert.Contains(TwoStepMessages.WrongCode, pages["verify-app"]);
-        Assert.Contains("name=\"rememberDevice\" id=\"rememberDevice\" value=\"true\"", pages["verify-app"]);
+        // Ticked by default, with the reminder beside it (the owner, 2026-10-21).
+        Assert.Contains("name=\"rememberDevice\" id=\"rememberDevice\" value=\"true\" checked", pages["verify-app"]);
+        Assert.Contains("Only on your own computer or phone", pages["verify-app"]);
         Assert.Contains("autocomplete=\"one-time-code\"", pages["verify-app"]);
         Assert.Contains("Call iPro support at " + TwoStepLetters.SupportPhone, pages["verify-app"]);
         Assert.DoesNotContain("Email me a new code", pages["verify-app"]);
@@ -1139,7 +1251,8 @@ public class TwoStepScreens593Tests
         Assert.Contains("<svg", pages["setup-app"]);
         Assert.Contains(Totp.GroupedKey(secret), pages["setup-app"]);
         Assert.Contains("name=\"setupToken\" value=\"token-1\"", pages["setup-app"]);
-        Assert.Contains("name=\"currentPassword\"", pages["setup-app"]);
+        Assert.DoesNotContain("name=\"currentPassword\"", pages["setup-app"]);
+        Assert.DoesNotContain("name=\"currentPassword\"", pages["setup-email"]);
         Assert.Contains("name=\"emailCode\"", pages["setup-app"]);
         Assert.Contains("name=\"code\"", pages["setup-app"]);
         Assert.DoesNotContain("name=\"code\"", pages["setup-email"]);
@@ -1358,7 +1471,7 @@ internal static class TwoStep593
         var setup = Assert.IsType<TwoStepSetupViewModel>(Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.StartEmail("app"))).Model);
         var secret = Totp.FromBase32(setup.ManualKey)!;
         var emailed = browser.Notices.Codes.Last(c => c.ForSetup).Code;
-        var done = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed, Lock583.Password)));
+        var done = Assert.IsType<ViewResult>(await browser.TwoStepAsync(c => c.Confirm(setup.SetupToken, browser.CodeFor(secret), emailed)));
         Assert.Equal("RecoveryCodes", done.ViewName);
         return (secret, Assert.IsType<TwoStepRecoveryCodesViewModel>(done.Model).Codes);
     }

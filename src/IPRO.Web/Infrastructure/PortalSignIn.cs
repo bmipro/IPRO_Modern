@@ -17,9 +17,10 @@ public static class PortalSignIn
     // two-step emails tell people to do when it was not them.
     public const string PasswordClaimType = "PasswordStamp";
 
-    // "Remember me": a week that survives closing the browser; otherwise 8 hours.
+    // "Remember me": a week that survives closing the browser; otherwise 8 hours. The week is from signing in:
+    // the cookie is not renewed as it is used (AllowRefresh), or a remembered session would never end.
     public static AuthenticationProperties Session(bool rememberMe) =>
-        new() { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
+        new() { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8), AllowRefresh = rememberMe ? false : null };
 
     // `twoStepStamp`: the account's two-step stamp when the session passed the second step (or came from a
     // session that had); null when two-step is off. AgentCookieRevalidator compares it on every request.

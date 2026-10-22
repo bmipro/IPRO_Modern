@@ -95,7 +95,7 @@ public class AccountController : Controller
         // to nothing yet (unless this browser is remembered for the account).
         var twoStep = await _twoStep.AfterPasswordAsync(HttpContext, TwoStepAccount.Adviser(user.Id), user.PasswordHash, rememberMe, returnUrl);
         if (twoStep.Next != null) return twoStep.Next;
-        var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
+        var props = PortalSignIn.Session(rememberMe);
         await SignInAgentAsync(user, props, twoStep.Stamp);
         await _agents.UpdateLastLoginAsync(user.Id);
         if (user.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
@@ -1157,7 +1157,7 @@ public class AccountController : Controller
         member.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
+        var props = PortalSignIn.Session(rememberMe);
         await SignInTeamMemberAsync(member, owner, props, twoStep.Stamp);
 
         if (member.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
