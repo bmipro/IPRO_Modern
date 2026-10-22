@@ -12,13 +12,18 @@ without your word. Nothing here touches production iPro until Part E, which is a
 | Piece | Name | Address | What for |
 |---|---|---|---|
 | Server (App Service plan) | `ipro-builder-staging-plan` | | Basic B2, Linux, Canada East: the four apps below |
-| Builder for customers | `ipro-builder` | builder.iproadvisers.com | what advisers open from My Website |
-| Staging builder | `ipro-builder-staging` | ipro-builder-staging.azurewebsites.net | what staging iPro opens |
-| Staging portal | `ipro-staging-web` | ipro-staging-web.azurewebsites.net | iPro's portal, as a test copy |
-| Staging SuperAdmin | `ipro-staging-admin` | ipro-staging-admin.azurewebsites.net | SuperAdmin, as a test copy |
+| Builder for customers | `ipro-builder` | builder.iproadvisers.com (Azure's own: ipro-builder-e5akhkdnawa3h4dp.canadaeast-01.azurewebsites.net) | what advisers open from My Website |
+| Staging builder | `ipro-builder-staging` | ipro-builder-staging-b9bxchcdfnbegfhj.canadaeast-01.azurewebsites.net | what staging iPro opens |
+| Staging portal | `ipro-staging-web` | ipro-staging-web-fqh6htg8a8h7cqd5.canadaeast-01.azurewebsites.net | iPro's portal, as a test copy |
+| Staging SuperAdmin | `ipro-staging-admin` | ipro-staging-admin-h7dtcrc2dncdbahk.canadaeast-01.azurewebsites.net | SuperAdmin, as a test copy |
 | Staging database | `ipro-mysql-staging` | | its own MySQL server, never production's |
 | Staging storage | `iprostoragestaging` | | its own pictures and files |
 | Builder's drafts | database `ipro_builder` | on production's MySQL server | advisers' drafts, with its own login |
+
+Azure now gives every new app a unique default address (its name, a random part, the region:
+`<name>-<random>.canadaeast-01.azurewebsites.net`) and no longer offers the plain `<name>.azurewebsites.net`.
+The four above are the ones Azure gave on 2026-10-22; every value below uses them. (Production's older
+apps, `ipro-prod-web` and `ipro-prod-admin`, keep their plain addresses.)
 
 **Where the advisers' drafts live:** in a database of their own on production's MySQL server, under a
 login that can open that database and nothing else. They get production's backups (7 days, point in
@@ -147,15 +152,15 @@ You paste every value. Names with `__` are written exactly so. Then tell me and 
 | `App__Environment` | `Staging` |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `ConnectionStrings__DefaultConnection` | staging MySQL, database `ipro_staging` (the same form as production's, ending `SslMode=Required;`) |
-| `App__BaseUrl`, `App__PortalBaseUrl` | `https://ipro-staging-web.azurewebsites.net` |
-| `Signups__AdminBaseUrl` | `https://ipro-staging-admin.azurewebsites.net` (the links in staging's notices) |
+| `App__BaseUrl`, `App__PortalBaseUrl` | `https://ipro-staging-web-fqh6htg8a8h7cqd5.canadaeast-01.azurewebsites.net` |
+| `Signups__AdminBaseUrl` | `https://ipro-staging-admin-h7dtcrc2dncdbahk.canadaeast-01.azurewebsites.net` (the links in staging's notices) |
 | `Signups__NotificationEmail` | your test address (where staging's "site sent for review" notices go) |
 | `Azure__StorageAccountName`, `Azure__StorageConnectionString` | the staging storage account's |
 | `Email__OnlyTo` | your test addresses, for example `test@iproadvisers.com` |
 | `PayPal__IsSandbox` | `true` |
 | `PayPal__ClientId`, `PayPal__ClientSecret` | your PayPal **sandbox** app's |
 | `AzureDomainAutomation__Enabled` | `false` |
-| `Builder__BaseUrl` | `https://ipro-builder-staging.azurewebsites.net` |
+| `Builder__BaseUrl` | `https://ipro-builder-staging-b9bxchcdfnbegfhj.canadaeast-01.azurewebsites.net` |
 | `Builder__ServiceKey` | a new random key (step B5), the same as the staging builder's |
 | `WEBSITE_RUN_FROM_PACKAGE` | `1` |
 
@@ -167,8 +172,8 @@ sent at all until you want staging emails at your test address; then add it, and
 **`ipro-staging-admin`:** `App__Environment` = `Staging`, `ASPNETCORE_ENVIRONMENT` = `Production`, the
 same `ConnectionStrings__DefaultConnection`, `Azure__*`, `Email__OnlyTo`, `PayPal__IsSandbox` = `true`
 (and the sandbox `PayPal__ClientId`/`ClientSecret`), `AzureDomainAutomation__Enabled` = `false`,
-`App__BaseUrl` and `App__PortalBaseUrl` = `https://ipro-staging-web.azurewebsites.net`,
-`Signups__AdminBaseUrl` = `https://ipro-staging-admin.azurewebsites.net`, `WEBSITE_RUN_FROM_PACKAGE` = `1`,
+`App__BaseUrl` and `App__PortalBaseUrl` = `https://ipro-staging-web-fqh6htg8a8h7cqd5.canadaeast-01.azurewebsites.net`,
+`Signups__AdminBaseUrl` = `https://ipro-staging-admin-h7dtcrc2dncdbahk.canadaeast-01.azurewebsites.net`, `WEBSITE_RUN_FROM_PACKAGE` = `1`,
 and `Admin__Username` / `Admin__Password`: the first SuperAdmin of the empty staging database (choose a
 new password; it is made once at the first start).
 
@@ -183,14 +188,14 @@ new password; it is made once at the first start).
 | `Hosting__IproBaseUrl` | `https://app.iproadvisers.com` |
 | `Hosting__IproOrigins__0` | only if advisers also open My Website at another address (for example `https://www.iproaccountants.com`): that address; `__1`, `__2` for more. Otherwise leave it out |
 | `Hosting__ServiceKey` | a new random key (B5), the same as production iPro's `Builder__ServiceKey` later |
-| `AllowedHosts` | `builder.iproadvisers.com` |
+| `AllowedHosts` | `builder.iproadvisers.com;ipro-builder-e5akhkdnawa3h4dp.canadaeast-01.azurewebsites.net` (the builder answers only these names; Azure's health check, and the checks before the DNS records of C exist, use the second) |
 
 (The builder reads Azure's forwarded headers itself, so the session cookie is always the secure kind.)
 
 **`ipro-builder-staging`:** the same names, with `ConnectionStrings__Builder` pointing at
 `ipro-mysql-staging` (its `ipro_builder` login), `Hosting__IproBaseUrl` =
-`https://ipro-staging-web.azurewebsites.net`, its own `Hosting__ServiceKey` (the staging portal's), and
-`AllowedHosts` = `ipro-builder-staging.azurewebsites.net`.
+`https://ipro-staging-web-fqh6htg8a8h7cqd5.canadaeast-01.azurewebsites.net`, its own `Hosting__ServiceKey` (the staging portal's), and
+`AllowedHosts` = `ipro-builder-staging-b9bxchcdfnbegfhj.canadaeast-01.azurewebsites.net`.
 
 Every call between the two servers carries this key: iPro's builder doors do not exist for a caller
 without it, and a builder whose key is missing or shorter than 32 characters does not start.
@@ -209,7 +214,7 @@ Checked on 2026-10-17 (read-only): iproadvisers.com's name servers are `ns1/ns2.
 (the cPanel host), and its CAA records include `digicert.com`, so Azure's free certificate can be issued.
 Add two records and touch nothing else (the mail records stay exactly as they are):
 
-1. `CNAME` `builder` -> `ipro-builder.azurewebsites.net`
+1. `CNAME` `builder` -> `ipro-builder-e5akhkdnawa3h4dp.canadaeast-01.azurewebsites.net`
 2. `TXT` `asuid.builder` -> the app's **Custom domain verification ID** (on `ipro-builder`, **Custom
    domains**).
 

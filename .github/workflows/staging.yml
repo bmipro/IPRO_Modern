@@ -19,8 +19,8 @@ env:
   STAGING_RESOURCE_GROUP: ipro-builder-staging
   STAGING_WEB_APP: ipro-staging-web
   STAGING_ADMIN_APP: ipro-staging-admin
-  STAGING_WEB_URL: https://ipro-staging-web.azurewebsites.net
-  STAGING_ADMIN_URL: https://ipro-staging-admin.azurewebsites.net
+  STAGING_WEB_URL: https://ipro-staging-web-fqh6htg8a8h7cqd5.canadaeast-01.azurewebsites.net
+  STAGING_ADMIN_URL: https://ipro-staging-admin-h7dtcrc2dncdbahk.canadaeast-01.azurewebsites.net
 jobs:
   build:
     runs-on: ubuntu-latest

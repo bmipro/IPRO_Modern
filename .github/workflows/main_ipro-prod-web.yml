@@ -40,7 +40,7 @@ jobs:
           sha="$RELEASE_SHA"
           echo "$sha" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::give the full 40-character SHA"; exit 1; }
           git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main"; exit 1; }
-          serving=$(curl -fsS --max-time 10 'https://ipro-staging-web.azurewebsites.net/health/version' 2>/dev/null || echo '')
+          serving=$(curl -fsS --max-time 10 'https://ipro-staging-web-fqh6htg8a8h7cqd5.canadaeast-01.azurewebsites.net/health/version' 2>/dev/null || echo '')
           [ "$serving" = "$sha" ] || { echo "::error::staging serves '${serving:-nothing}', not $sha: deploy it to staging and check it there first"; exit 1; }
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4

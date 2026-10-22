@@ -52,7 +52,7 @@ public class StagingGuard585Tests
     {
         ("App:Environment", "Staging"), ("Email:OnlyTo", "test@iproadvisers.com, @example.test"),
         ("PayPal:IsSandbox", "true"), ("AzureDomainAutomation:Enabled", "false"),
-        ("App:BaseUrl", "https://ipro-staging-web.azurewebsites.net"), ("Signups:AdminBaseUrl", "https://ipro-staging-admin.azurewebsites.net"),
+        ("App:BaseUrl", "https://ipro-staging-web-fqh6htg8a8h7cqd5.canadaeast-01.azurewebsites.net"), ("Signups:AdminBaseUrl", "https://ipro-staging-admin-h7dtcrc2dncdbahk.canadaeast-01.azurewebsites.net"),
         ("ConnectionStrings:DefaultConnection", "Server=ipro-mysql-staging.mysql.database.azure.com;Database=ipro_staging"),
         ("Azure:StorageAccountName", "iprostoragestaging")
     };
