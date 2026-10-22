@@ -30,7 +30,7 @@
 | 591 | Two advisers' domains can no longer share one certificate in Azure (his check empty; the Azure check found all 18 secured addresses on their own certificates) | 924b25b (10-19 web 08:06, admin 08:08) | 2,095 |
 
 Also on `main`: TODO row 590, **upgrade the production MySQL from 8.0 to 8.4 before 2026-12-31** (Azure ends
-standard support then; extended-support charges from 2027-01-01). Local MySQL is already 8.4.
+standard support then; extended-support charges from 2027-01-01). Local MySQL is 8.0.44 (corrected 2026-10-22; this file first said 8.4).
 
 ## Outside the code
 
