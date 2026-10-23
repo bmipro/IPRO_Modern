@@ -25,7 +25,8 @@ public static class DomainOwnershipProof
 
     // Test seam (CaaCheck.LookupHook's shape): a DNS-over-HTTPS resolver's JSON answer for one name's TXT
     // records, or null when it did not answer.
-    public static Func<string, CancellationToken, Task<string?>>? LookupHook { get; set; }
+    // Internal (595's review, L15): nothing in the apps may replace the DNS this proof is read from.
+    internal static Func<string, CancellationToken, Task<string?>>? LookupHook { get; set; }
 
     public static bool IsNeeded(AgentDomain domain) => domain.OwnershipVerifiedAt == null;
 

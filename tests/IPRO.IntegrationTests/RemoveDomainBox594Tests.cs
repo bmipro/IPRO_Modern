@@ -149,13 +149,15 @@ public class RemoveDomainBox594Tests
         var view = View();
         var start = view.IndexOf("<div class=\"modal fade\" id=\"removeDomainModal-@domain.Id\"", StringComparison.Ordinal);
         Assert.True(start >= 0, "the Remove box must still be in My Website's view");
-        var end = view.IndexOf("@if (primaryDomain != null)", start, StringComparison.Ordinal);
+        // 595: the list now ends the card (the primary domain's Connection status panel became each domain's guide).
+        var end = view.IndexOf("@* end of the domain list *@", start, StringComparison.Ordinal);
         Assert.True(end > start);
         return view[start..end];
     }
 
     private static string View() =>
-        File.ReadAllText(Path.Combine(SolutionRoot(), "src", "IPRO.Web", "Views", "Website", "Index.cshtml")).Replace("\r\n", "\n");
+        // 595: the domains, and their Remove box, moved to the Domain page (Website/Domains).
+        File.ReadAllText(Path.Combine(SolutionRoot(), "src", "IPRO.Web", "Views", "Website", "Domains.cshtml")).Replace("\r\n", "\n");
 
     private static string SolutionRoot()
     {

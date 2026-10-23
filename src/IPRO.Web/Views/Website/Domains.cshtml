@@ -1,0 +1,255 @@
+@model IPRO.Entities.AgentWebsite?
+@{
+    // 595 (owner, 2026-10-22: "add a tab with Domain setup instead of having it with website for a long narrow
+    // thing"): the custom domains have a page of their own, at full width, with its own address -- the emails, the
+    // support replies and My Website's summary card link straight here. The list, Add, each domain's step-by-step
+    // guide, I need help, Primary, Remove, and the address shown on the adviser's emails (552).
+    ViewData["Title"] = "Domain";
+    var temporaryDomain = ViewBag.TemporaryDomain as string ?? "";
+    var dnsTarget = ViewBag.WebsiteDnsTarget as string ?? "ipro-prod-web.azurewebsites.net";
+    // 553: the two values that point a short address straight at the platform (an A record and the
+    // TXT record that proves the domain). Without both, a domain's guide offers forwarding only.
+    var websiteAddress = ViewBag.WebsiteAddress as string ?? "";
+    var domainVerificationId = ViewBag.DomainVerificationId as string ?? "";
+    // 595: each domain's guide (WebsiteController.LoadWebsiteContextAsync), and the domain just added, whose guide opens.
+    var guideSettings = IPRO.Utility.DomainSetupGuide.Settings.From(dnsTarget, websiteAddress, domainVerificationId);
+    var domainGuides = ViewBag.DomainGuides as IDictionary<int, IPRO.Utility.DomainSetupGuide.Guide> ?? new Dictionary<int, IPRO.Utility.DomainSetupGuide.Guide>();
+    var openDomainGuide = ViewBag.OpenDomainGuide as int?;
+    var agentDomains = (ViewBag.AgentDomains as IEnumerable<IPRO.Entities.AgentDomain> ?? Enumerable.Empty<IPRO.Entities.AgentDomain>()).ToList();
+    var domainAccess = ViewBag.DomainAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
+    var domainLimit = domainAccess?.LimitValue;
+    var domainLimitText = domainLimit == -1 ? "Unlimited" : (domainLimit?.ToString() ?? "Not available");
+    var canAddDomain = Model != null && domainAccess?.IsIncluded == true && (domainLimit == -1 || agentDomains.Count < (domainLimit ?? 0));
+    var customDomain = Model?.CustomDomain ?? "";
+    var hasCustomDomain = !string.IsNullOrWhiteSpace(customDomain);
+    var shownAs = Model?.CustomDomainDisplay ?? "";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-route me-2 text-primary"></i>Domain</h2>
+    <div class="text-muted">
+      Use your own address (like www.yourfirm.ca) for your website. Add it below and a step-by-step guide opens for it,
+      with the exact records to add and a tick as each one is seen. Your website stays live at
+      <strong>@temporaryDomain</strong> the whole time.
+    </div>
+  </div>
+  <a href="/portal/Website" class="btn btn-outline-primary"><i class="fas fa-globe me-1"></i>My Website</a>
+</div>
+
+@if (Model == null)
+{
+  <div class="alert alert-warning border-0 shadow-sm">Save your website settings on <a href="/portal/Website" class="alert-link">My Website</a> first; then add your domain here.</div>
+}
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+      <div>
+        <h5 class="fw-bold mb-1">Your domains</h5>
+        <div class="small text-muted">Package allowance: @domainLimitText domain(s)</div>
+      </div>
+      <span class="badge bg-light text-dark">@agentDomains.Count used</span>
+    </div>
+
+    <form method="post" action="/portal/Website/AddDomain" class="mb-4 domain-add">
+      @Html.AntiForgeryToken()
+      <label class="form-label fw-semibold" for="addDomainName">Add a domain</label>
+      <div class="input-group">
+        <input id="addDomainName" name="domainName" class="form-control" placeholder="example.com or www.example.com" autocomplete="off" spellcheck="false" autocapitalize="off" @(canAddDomain ? "" : "disabled") />
+        <button class="btn btn-primary" type="submit" @(canAddDomain ? "" : "disabled")>Add</button>
+      </div>
+      @if (domainAccess?.IsIncluded != true)
+      {
+        <div class="form-text text-danger">@domainAccess?.UpgradeMessage</div>
+      }
+      else if (Model != null && !canAddDomain)
+      {
+        <div class="form-text text-danger">Your package domain limit has been reached.</div>
+      }
+    </form>
+
+    @if (!agentDomains.Any())
+    {
+      <div class="text-muted">No custom domains have been added yet.</div>
+    }
+    @foreach (var domain in agentDomains)
+    {
+      var guide = domainGuides.TryGetValue(domain.Id, out var foundGuide) ? foundGuide : IPRO.Utility.DomainSetupGuide.Describe(domain, null, guideSettings, DateTime.UtcNow);
+      // Open: the domain just added; else every domain still being set up. A live domain's guide is one click away.
+      var guideOpen = openDomainGuide == domain.Id || (openDomainGuide == null && !guide.Live && guide.Refusal == null);
+      <div class="border rounded-3 p-3 mb-3 domain-list__item" id="domain-@domain.Id">
+        <div class="fw-semibold text-break">@domain.DomainName @(domain.IsPrimary ? Html.Raw("<span class=\"badge bg-primary ms-1\">Primary</span>") : "")</div>
+        <div class="small mt-1 guide-summary guide-summary--@(guide.Refusal != null ? "refused" : guide.Live ? "live" : "setup")" data-guide-summary="@domain.Id">
+          @if (guide.Refusal != null)
+          {
+            <span class="badge bg-danger">Cannot be connected</span>
+          }
+          else if (guide.Live)
+          {
+            <i class="fas fa-circle-check" aria-hidden="true"></i> <span data-guide-summary-text>Live and secured</span>
+          }
+          else
+          {
+            <span class="badge bg-primary">Setting up</span> <span data-guide-summary-text>@guide.Heading</span>
+          }
+        </div>
+        @* While a domain is being set up, its guide's step 3 speaks for the short address. *@
+        @if (guide.Live && IPRO.Utility.ShortAddressState.HasShortAddress(domain))
+        {
+          var domainShortAddress = IPRO.Utility.ShortAddressState.Describe(domain);
+          <div class="small mt-1">Short address (@domain.RootDomain): <span class="badge @domainShortAddress.Badge">@domainShortAddress.Label</span></div>
+        }
+        @* 595's review (L-e): the short address points at iPro while the email depends on it -- said on the row, not
+           only inside a folded step. The guide's script fills it in from its look (third review, L-2). *@
+        <div class="small mt-1 text-danger fw-semibold" data-guide-mail-row="@domain.Id" hidden="@(!guide.MailBroken)">@(guide.MailBroken ? guide.MailNote : "")</div>
+        <div class="d-flex flex-wrap gap-1 mt-2 pt-2 border-top">
+          <button type="button" class="btn btn-sm btn-outline-primary" data-guide-toggle="@domain.Id" aria-controls="guide-@domain.Id" aria-expanded="@(guideOpen ? "true" : "false")">@(guide.Live ? "Setup guide" : "Guide")</button>
+          @if (!domain.IsPrimary)
+          {
+            <form method="post" action="/portal/Website/SetPrimaryDomain/@domain.Id">
+              @Html.AntiForgeryToken()
+              <button class="btn btn-sm btn-outline-primary" type="submit">Primary</button>
+            </form>
+          }
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeDomainModal-@domain.Id">Remove</button>
+        </div>
+        @await Html.PartialAsync("_DomainGuide", new IPRO.Web.Models.DomainGuideViewModel(domain, guide, guideOpen, openDomainGuide == domain.Id, guideSettings, temporaryDomain))
+      </div>
+      @* 594: the owner did not see what to type in an empty box under a red line. The label above the box
+         says it, the domain shows greyed inside the box, and Remove can be pressed once it is typed as
+         shown (the script at the end; the server checks the same way). *@
+      <div class="modal fade" id="removeDomainModal-@domain.Id" tabindex="-1" aria-labelledby="removeDomainTitle-@domain.Id" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form method="post" action="/portal/Website/RemoveDomain/@domain.Id" data-remove-domain="@domain.DomainName">
+              @Html.AntiForgeryToken()
+              <div class="modal-header"><h5 class="modal-title" id="removeDomainTitle-@domain.Id">Remove @domain.DomainName?</h5></div>
+              <div class="modal-body">
+                <p id="removeDomainWhat-@domain.Id"><strong>This cannot be undone.</strong> Your website will stop opening at @domain.DomainName, and using it again means adding it and setting it up from the start.</p>
+                <label for="removeDomainInput-@domain.Id" class="form-label fw-semibold">Type <strong>@domain.DomainName</strong> here to confirm</label>
+                <input type="text" id="removeDomainInput-@domain.Id" name="confirmDomainName" class="form-control" placeholder="@domain.DomainName" required autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="removeDomainWhat-@domain.Id removeDomainMismatch-@domain.Id" />
+                <div id="removeDomainMismatch-@domain.Id" class="form-text text-danger" aria-live="polite" data-remove-domain-mismatch></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger" disabled>Remove Domain</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    }
+    @* end of the domain list *@
+  </div>
+</div>
+
+@* 552: the address on e-cards, e-letters and newsletters is the custom domain once it is live; written here the
+   adviser's way (www.4iPro.com) -- the same letters, only the capitals differ. On My Website's settings form until 595. *@
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <h5 class="fw-bold mb-2">The address on your emails</h5>
+    @if (hasCustomDomain)
+    {
+      <p class="small mb-2">Your primary domain is <strong>@customDomain</strong>: your website's links and your emails use it. To use another one, click <strong>Primary</strong> beside it above.</p>
+    }
+    <form method="post" action="/portal/Website/DomainDisplay" class="domain-display">
+      @Html.AntiForgeryToken()
+      <label class="form-label fw-semibold" for="CustomDomainDisplay">Shown in your emails as</label>
+      <div class="input-group">
+        <input id="CustomDomainDisplay" name="CustomDomainDisplay" class="form-control" maxlength="255" value="@(Model?.CustomDomainDisplay ?? "")" placeholder="@(hasCustomDomain ? customDomain : "www.YourDomain.com")" aria-describedby="CustomDomainDisplayHelp" autocomplete="off" spellcheck="false" autocapitalize="off" @(Model == null ? "disabled" : "") />
+        <button class="btn btn-outline-primary" type="submit" @(Model == null ? "disabled" : "")>Save</button>
+      </div>
+      <div class="form-text" id="CustomDomainDisplayHelp">Once your custom domain is live, your e-cards, e-letters and newsletters show it instead of the temporary domain. Type it here with your own capitals (for example www.4iPro.com); leave it empty for small letters.</div>
+      @* 595's third review (M-1): one typed before the primary domain changed is not used; say so rather than leave it. *@
+      @if (shownAs.Length > 0 && !string.Equals(shownAs, customDomain, StringComparison.OrdinalIgnoreCase))
+      {
+        <div class="form-text text-danger" data-display-unused>Not used: this is not your primary domain (@(hasCustomDomain ? customDomain : "none yet")). Type your primary domain with your own capitals, or empty the box, and click Save.</div>
+      }
+    </form>
+  </div>
+</div>
+
+<style>
+/* 595: a domain's guide. A tick and the word Done, a number and To do now: never colour alone. */
+.domain-guide { margin-top:.6rem; padding-top:.75rem; border-top:1px solid #e3e8ef; }
+.guide-steps { list-style:none; margin:0 0 .75rem; padding:0; }
+.guide-step { border:1px solid #dbe3ed; border-radius:8px; margin-bottom:.5rem; background:#fff; }
+.guide-step--current { border-color:#1457d9; box-shadow:0 0 0 1px #1457d9; }
+.guide-step__heading { margin:0; font-size:1rem; }
+.guide-step__toggle { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; width:100%; padding:.55rem .7rem; border:0; border-radius:8px; background:transparent; color:#17223a; text-align:left; }
+.guide-step__toggle:hover { background:#f6f8fb; }
+.guide-step__toggle:focus-visible { outline:3px solid #1457d9; outline-offset:2px; }
+.guide-step__icon { display:inline-flex; flex:0 0 1.7rem; height:1.7rem; align-items:center; justify-content:center; border-radius:50%; background:#e9eef5; color:#3b4a63; font-size:.85rem; font-weight:700; }
+.guide-step--current .guide-step__icon { background:#1457d9; color:#fff; }
+.guide-step--done .guide-step__icon { background:#146c43; color:#fff; }
+.guide-step__title { flex:1 1 9rem; font-size:.9rem; font-weight:600; }
+.guide-step__status { flex:0 0 auto; padding:.15rem .5rem; border-radius:999px; background:#eef1f5; color:#3b4a63; font-size:.75rem; font-weight:600; }
+.guide-step--done .guide-step__status { background:#d1e7dd; color:#0f5132; }
+.guide-step--current .guide-step__status { background:#cfe2ff; color:#0a3a8c; }
+.guide-step__body { padding:0 .75rem .75rem; font-size:.875rem; }
+.guide-where { margin-bottom:.5rem; padding:.5rem .65rem; border-radius:6px; background:#f6f8fb; font-size:.85rem; }
+.guide-where__help { color:#0a3f9e; }
+.guide-record { margin:0 0 .5rem; border:1px solid #e3e8ef; border-radius:6px; }
+.guide-record__row { display:flex; gap:.5rem; align-items:baseline; padding:.35rem .6rem; border-top:1px solid #eef1f5; }
+.guide-record__row:first-child { border-top:0; }
+.guide-record dt { flex:0 0 3.2rem; margin:0; color:#52627a; font-size:.8rem; font-weight:600; }
+.guide-record dd { display:flex; flex:1 1 auto; align-items:flex-start; gap:.4rem; min-width:0; margin:0; }
+.guide-record code, .guide-record__value { flex:1 1 auto; min-width:0; }
+.guide-record code { background:transparent; color:#17223a; font-size:.85rem; line-break:anywhere; word-break:break-all; }
+.guide-record .guide-copy { flex:0 0 auto; }
+.guide-copy { min-width:44px; min-height:24px; padding:.1rem .5rem; font-size:.75rem; }
+.guide-mail { margin-bottom:.5rem; padding:.45rem .6rem; border-radius:6px; background:#e8f3ee; }
+.guide-mail--risk { background:#fde7e9; color:#7a1b25; font-weight:600; }
+.guide-seen { margin-bottom:.5rem; padding:.45rem .6rem; border-radius:6px; background:#f6f8fb; }
+.guide-seen--right { background:#e8f3ee; }
+.guide-seen--wrong { background:#fff4e5; }
+.guide-seen__label { font-weight:700; }
+.guide-progress { margin:0 0 .5rem; padding:0; list-style:none; }
+.guide-progress__line { display:flex; gap:.5rem; margin-bottom:.4rem; }
+.guide-progress__icon { flex:0 0 1.2rem; padding-top:.15rem; color:#52627a; font-size:.85rem; text-align:center; }
+.guide-progress--done .guide-progress__icon { color:#146c43; }
+.guide-progress--current .guide-progress__icon { color:#1457d9; }
+.guide-footer { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem .75rem; font-size:.8rem; }
+.guide-footer__actions { display:flex; gap:.4rem; }
+.guide-summary--live { color:#146c43; }
+.guide-summary--refused { color:#b42318; }
+/* The page is wide; the guide reads best at a line length people can follow. */
+.domain-list__item { max-width: 1040px; }
+.domain-add { max-width: 640px; }
+.domain-display { max-width: 640px; }
+</style>
+
+@section Scripts {
+@* 595: each domain's guide: one step open at a time, a fresh look every 20 seconds, Copy buttons, I need help. *@
+<script src="~/js/domain-guide.js" asp-append-version="true"></script>
+<script nonce="@Context.GetCspNonce()">
+// 594: the Remove box. Remove can be pressed once the domain is typed as shown; case and spaces at either end do
+// not matter (RemoveDomain compares the same way). The mismatch line waits until what is typed cannot become the
+// domain, or Enter is pressed, so it never appears halfway through typing. Its own script element: a failure in the
+// page's other script cannot leave Remove disabled for good. Bootstrap closes the box on Escape.
+document.querySelectorAll('[data-remove-domain]').forEach(form => {
+  const modal = form.closest('.modal');
+  const input = form.querySelector('input[name="confirmDomainName"]');
+  const submit = form.querySelector('button[type="submit"]');
+  const mismatch = form.querySelector('[data-remove-domain-mismatch]');
+  const domain = form.dataset.removeDomain.toLowerCase();
+  const typed = () => input.value.trim().toLowerCase();
+  const update = finished => {
+    const text = typed();
+    const matches = text === domain;
+    submit.disabled = !matches;
+    const wrong = text !== '' && !matches && (finished || !domain.startsWith(text));
+    mismatch.textContent = wrong ? 'Type the domain exactly as shown' : '';
+    input.classList.toggle('is-invalid', wrong);
+    if (wrong) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+  };
+  input.addEventListener('input', () => update(false));
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && submit.disabled) { event.preventDefault(); update(true); }
+  });
+  modal.addEventListener('show.bs.modal', () => { input.value = ''; update(false); });
+  modal.addEventListener('shown.bs.modal', () => input.focus());
+});
+</script>
+}

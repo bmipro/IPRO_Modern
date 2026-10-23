@@ -359,6 +359,7 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             [WebLimits.PollVote] = (20, minutes(5)),
             [WebLimits.DomainRetry] = (5, minutes(1)),
             [WebLimits.Preview] = (30, minutes(1)),
+            [WebLimits.DomainGuide] = (60, minutes(1)),                  // 595: per address; 20 per adviser in the action
         }, WebLimits.Policies.ToDictionary(p => p.Key, p => (p.Value.Limit, p.Value.Window)));
         Assert.Equal(new Dictionary<string, (int, TimeSpan)> { [AdminLimits.SignIn] = (10, minutes(5)) },
             AdminLimits.Policies.ToDictionary(p => p.Key, p => (p.Value.Limit, p.Value.Window)));
@@ -379,6 +380,8 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             ["WebsiteController.RetryDomain"] = WebLimits.DomainRetry,
             ["WebsiteController.AddDomain"] = WebLimits.DomainRetry,      // 592: each can ask Azure
             ["WebsiteController.RemoveDomain"] = WebLimits.DomainRetry,
+            ["WebsiteController.DomainGuide"] = WebLimits.DomainGuide,   // 595: the guide's own look, and I need help
+            ["WebsiteController.DomainHelp"] = WebLimits.DomainGuide,
             ["PreviewController.Show"] = WebLimits.Preview,
             ["PreviewController.Site"] = WebLimits.Preview,
             ["AdminController.Login"] = AdminLimits.SignIn,
@@ -389,8 +392,9 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             .Where(a => a.Policy != null)
             .ToList();
         Assert.Equal(expected.OrderBy(e => e.Key), actual.Select(a => new KeyValuePair<string, string>(a.Name, a.Policy!)).OrderBy(e => e.Key));
-        // On the page-changing half only: the sign-in page itself is not counted.
-        Assert.All(actual.Where(a => a.Name != "PreviewController.Show" && a.Name != "PreviewController.Site"),
+        // On the page-changing half only: the sign-in page itself is not counted. (595: I need help is a page that looks
+        // at DNS for the ticket it fills in, counted like the guide's own look.)
+        Assert.All(actual.Where(a => a.Name != "PreviewController.Show" && a.Name != "PreviewController.Site" && a.Name != "WebsiteController.DomainHelp"),
             a => Assert.Contains("POST", a.Method.GetCustomAttributes(true).OfType<IActionHttpMethodProvider>().SelectMany(p => p.HttpMethods)));
     }
 

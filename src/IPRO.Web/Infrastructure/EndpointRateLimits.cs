@@ -33,6 +33,7 @@ public static class EndpointRateLimits
     public const string PollVote = "poll-vote";
     public const string DomainRetry = "domain-retry";
     public const string Preview = "prospect-preview";
+    public const string DomainGuide = "domain-guide";
 
     // How many requests in how long, per action and visitor.
     public static readonly IReadOnlyDictionary<string, (int Limit, TimeSpan Window)> Policies =
@@ -48,6 +49,10 @@ public static class EndpointRateLimits
             // Each retry calls Azure.
             [DomainRetry] = (5, TimeSpan.FromMinutes(1)),
             [Preview] = (30, TimeSpan.FromMinutes(1)),
+            // 595: the Domain page's guide looks again every 20 seconds per guide on screen, plus Check now and I need
+            // help; the looks are cached and the Azure check spaced out behind it. Per address, generously (an office's
+            // advisers share one); each adviser is held to 20 a minute by WebsiteController.GuideLooks.
+            [DomainGuide] = (60, TimeSpan.FromMinutes(1)),
         };
 
     public static IServiceCollection AddEndpointRateLimits(this IServiceCollection services) =>

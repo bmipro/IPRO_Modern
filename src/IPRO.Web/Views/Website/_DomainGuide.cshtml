@@ -1,0 +1,179 @@
+@model IPRO.Web.Models.DomainGuideViewModel
+@using IPRO.Utility
+@{
+    // 595: one domain's "Connect your domain" guide. Rendered from the row and the last look (DomainSetupGuide), then
+    // kept current by /js/domain-guide.js, which asks DomainGuide/{id} about every 20 seconds while the guide is open
+    // and in view, and changes only text, states and which step is open -- never markup from the server, and never
+    // anything that came from DNS other than as text. One step open at a time: the current one; earlier steps show a
+    // tick, later ones stay visible, folded, and can be opened.
+    var guide = Model.Guide;
+    var id = Model.Domain.Id;
+    var prefix = $"guide-{id}";
+    var host = guide.Host;
+    // An unknown DNS screen may want the whole name: show it under the short one (the script updates this per host).
+    var wholeNames = host.Key is "unknown" or "generic";
+    string StateClass(DomainSetupGuide.StepState state) => state switch
+    {
+        DomainSetupGuide.StepState.Done => "done",
+        DomainSetupGuide.StepState.Current => "current",
+        DomainSetupGuide.StepState.NotNeeded => "notneeded",
+        _ => "upcoming",
+    };
+    // A live domain whose short address points here: the page looks once, folded or not, in case its email depends on
+    // the short address (595's third review, L-2).
+    var mailOnce = guide.Live && guide.Refusal == null && ShortAddressState.HasShortAddress(Model.Domain) && ShortAddressState.PointsAtPlatform(Model.Domain);
+    string Checked() => guide.CheckedAtUtc is { } at
+        ? (DateTime.UtcNow - at).TotalSeconds < 60 ? "Checked just now." : $"Checked {(int)(DateTime.UtcNow - at).TotalMinutes} min ago."
+        : "Checking...";
+}
+<section class="domain-guide" id="@prefix" data-domain-guide="@id" data-guide-url="/portal/Website/DomainGuide/@id"
+         data-guide-current="@guide.CurrentStep" data-guide-live="@(guide.Live ? "true" : "false")" data-guide-focus="@(Model.Focus ? "true" : "false")"
+         data-guide-refused="@(guide.Refusal != null ? "true" : "false")" data-guide-mail-once="@(mailOnce ? "true" : "false")" aria-labelledby="@prefix-title" hidden="@(!Model.Open)">
+  @Html.AntiForgeryToken()
+  @* Not a heading of its own: the card's heading is h5 and each step's is h6 (heading order, review L8). *@
+  <p class="h6 fw-bold mb-1" id="@prefix-title">Connect @guide.DomainName</p>
+  @if (guide.Refusal != null)
+  {
+    <div class="alert alert-danger border-0 small py-2 mb-2" role="alert">@guide.Refusal</div>
+  }
+  else
+  {
+    <p class="small text-muted mb-2" data-guide-heading>@guide.Heading</p>
+    <div class="alert alert-warning border-0 small py-2 mb-2" data-guide-problem hidden="@(guide.Problem == null)"><span data-guide-problem-text>@guide.Problem</span></div>
+    <p class="small text-muted mb-2" data-guide-host-line hidden="@(host.Name.Length == 0)">
+      Your domain's DNS is managed at <strong data-guide-host-name>@host.Name</strong>.
+    </p>
+    <ol class="guide-steps" role="list" aria-label="Steps to connect @guide.DomainName">
+      @foreach (var step in guide.Steps)
+      {
+        var state = StateClass(step.State);
+        var isCurrent = step.Number == guide.CurrentStep;
+        var bodyId = $"{prefix}-step-{step.Number}";
+        <li class="guide-step guide-step--@state" data-guide-step="@step.Number" data-guide-key="@step.Key" aria-current="@(isCurrent ? "step" : null)">
+          <h6 class="guide-step__heading">
+            <button type="button" class="guide-step__toggle" id="@bodyId-label" aria-expanded="@(isCurrent ? "true" : "false")" aria-controls="@bodyId">
+              <span class="guide-step__icon" aria-hidden="true" data-guide-icon>@if (step.State == DomainSetupGuide.StepState.Done) { <text>&#x2713;</text> } else { @step.Number }</span>
+              <span class="guide-step__title">Step @step.Number: @step.Title</span>
+              <span class="guide-step__status" data-guide-status>@step.Status</span>
+            </button>
+          </h6>
+          <div class="guide-step__body" id="@bodyId" role="region" aria-labelledby="@bodyId-label" hidden="@(!isCurrent)">
+            @if (step.Key == "prove")
+            {
+              <p class="mb-2">This shows the domain is yours. Add this record where the domain's DNS is managed. Nothing is connected until we see it. The value is made for your account and this domain only: if you remove the domain and add it again, it changes.</p>
+            }
+            else if (step.Key == "www")
+            {
+              <p class="mb-2">This sends visitors of <strong>@guide.DomainName</strong> to your iPro website. If there is already a record with this name, edit it rather than adding a second one: the DNS screen allows only one.</p>
+            }
+            else if (step.Key == "short" && step.State != DomainSetupGuide.StepState.NotNeeded)
+            {
+              <p class="mb-2">So that <strong>@guide.RootDomain</strong> (without www) opens your website too. Recommended: people often leave the www off. Ours must be the only A record for the domain itself, so change the one that is there rather than adding a second, and delete any AAAA record there. Leave every other record, and your nameservers, exactly as they are.</p>
+              @* 595's review (H2): where the domain's email goes is checked, not promised (DomainSetupLook.MailOnShortAddress). *@
+              <p class="guide-mail guide-mail--@(guide.MailAtRisk || guide.MailBroken ? "risk" : "ok")" data-guide-mail hidden="@(guide.MailNote.Length == 0)"><span data-guide-mail-text>@guide.MailNote</span></p>
+            }
+            else if (step.Key == "short")
+            {
+              <p class="mb-2">@guide.DomainName has no separate short address, so there is nothing to do here.</p>
+            }
+
+            @if (step.Records.Count > 0)
+            {
+              <div class="guide-where" data-guide-where>
+                <div><strong>Where:</strong> <span data-guide-host-where>@host.Where</span></div>
+                <a class="guide-where__help" data-guide-host-help href="@(host.HelpUrl.Length > 0 ? host.HelpUrl : null)" target="_blank" rel="noopener noreferrer" hidden="@(host.HelpUrl.Length == 0)"><span data-guide-host-help-name>@host.Name</span>'s help on DNS records<span class="visually-hidden"> (opens in a new tab)</span></a>
+              </div>
+              @foreach (var record in step.Records)
+              {
+                var recordId = $"{prefix}-{record.Key}";
+                <div role="group" aria-label="@record.Type record" class="guide-record">
+                  <dl class="mb-0">
+                    <div class="guide-record__row">
+                      <dt>Type</dt>
+                      <dd><code id="@recordId-type">@record.Type</code> <button type="button" class="btn btn-sm btn-outline-secondary guide-copy" data-copy="@recordId-type" aria-label="Copy the type, @record.Type">Copy</button></dd>
+                    </div>
+                    <div class="guide-record__row">
+                      <dt>Name</dt>
+                      <dd>
+                        @* Not d-block: Bootstrap's display utilities win over the hidden attribute. *@
+                        <div class="guide-record__value">
+                          <code id="@recordId-name" data-guide-name="@record.Key">@record.Name</code><span class="text-muted small" data-guide-name-empty="@record.Key" hidden="@(record.Name.Length > 0)">(leave it empty)</span>
+                          <div class="small text-muted" data-guide-fullname="@record.Key" hidden="@(!wholeNames || record.Name == record.FullName)">If your screen wants the whole name: <code>@record.FullName</code></div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary guide-copy" data-copy="@recordId-name" data-guide-copy-name="@record.Key" aria-label="Copy the @record.Type name" hidden="@(record.Name.Length == 0)">Copy</button>
+                      </dd>
+                    </div>
+                    <div class="guide-record__row">
+                      <dt>Value</dt>
+                      <dd><code id="@recordId-value" class="text-break">@record.Value</code> <button type="button" class="btn btn-sm btn-outline-secondary guide-copy" data-copy="@recordId-value" aria-label="Copy the @record.Type value">Copy</button></dd>
+                    </div>
+                  </dl>
+                </div>
+              }
+              <p class="small text-muted mb-2" data-guide-host-namenote>@host.NameNote</p>
+            }
+
+            <p class="small mb-2" data-guide-tip hidden="@(step.Tip.Length == 0)"><strong>At <span data-guide-tip-host>@(host.Name.Length > 0 ? host.Name : "your DNS host")</span>:</strong> <span data-guide-tip-text>@step.Tip</span></p>
+
+            @if (step.Key == "finish")
+            {
+              <ul class="guide-progress" role="list" data-guide-finish>
+                @foreach (var key in new[] { "connected", "padlock", "short", "live" })
+                {
+                  var line = guide.Finish.FirstOrDefault(p => p.Key == key);
+                  var lineState = line == null ? "upcoming" : StateClass(line.State);
+                  <li class="guide-progress__line guide-progress--@lineState" data-guide-progress="@key" hidden="@(line == null)">
+                    <span class="guide-progress__icon" aria-hidden="true"><i data-guide-progress-icon class="fas @(lineState == "done" ? "fa-check" : lineState == "current" ? "fa-hourglass-half" : "fa-circle fa-2xs")"></i></span>
+                    <span><span class="visually-hidden" data-guide-progress-state>@(lineState == "done" ? "Done:" : lineState == "current" ? "In progress:" : "Not yet:")</span>
+                      <span data-guide-progress-label>@line?.Label</span>
+                      <span class="d-block small text-muted" data-guide-progress-detail>@line?.Detail</span></span>
+                  </li>
+                }
+              </ul>
+              @* 506: the domain's own DNS keeps our certificate authority out; say so, and what to add. *@
+              <div class="alert alert-danger border-0 small mb-2 py-2" data-guide-caa hidden="@(guide.CaaName == null)">
+                <strong>One record is missing at your registrar.</strong>
+                The DNS for <strong data-guide-caa-name>@guide.CaaName</strong> lists which companies may issue its security certificate, and ours (DigiCert) is not on the list, so the padlock cannot be issued. Add this record where your DNS is managed:
+                <div class="table-responsive mt-2"><table class="table table-sm table-bordered bg-white mb-1">
+                  <thead><tr><th scope="col">Type</th><th scope="col">Name</th><th scope="col">Value</th></tr></thead>
+                  <tbody><tr><td>CAA</td><td><code data-guide-caa-box>@(guide.CaaNameInBox ?? "@")</code><span class="text-muted small" data-guide-caa-empty hidden="@(guide.CaaNameInBox != "")">(leave it empty)</span></td><td><code>@IPRO.Utility.CaaCheck.RecordToAdd</code></td></tr></tbody>
+                </table></div>
+                Keep the CAA records that are already there; this one is added beside them. Some registrars ask for it in three boxes: flag <code>0</code>, tag <code>issue</code>, value <code>digicert.com</code>.
+              </div>
+              <p class="small text-muted mb-2">Your website stays live at <a href="https://@Model.TemporaryDomain" target="_blank" rel="noopener">@Model.TemporaryDomain</a> the whole time.</p>
+            }
+
+            <p class="guide-seen guide-seen--@(step.SeenRight == true ? "right" : step.SeenRight == false ? "wrong" : "unknown")" data-guide-seen hidden="@(step.Seen.Length == 0)">
+              <span class="guide-seen__label">What we see:</span> <span data-guide-seen-text>@step.Seen</span>
+            </p>
+
+            @if (step.Key == "short" && step.State != DomainSetupGuide.StepState.NotNeeded)
+            {
+              @* 553: two ways, and the one that keeps every page address comes first. A registrar's forwarding moves the
+                 home address only; a site that used to live on the short address loses every link to its inner pages
+                 that way. Without the two values (Settings.CanPointShortAddress), or when the email lives on the short
+                 address, forwarding is the way, shown open. *@
+              var forwardingOpen = !Model.Settings.CanPointShortAddress || guide.MailAtRisk;
+              <button class="btn btn-link btn-sm p-0" type="button" data-bs-toggle="collapse" data-bs-target="#@prefix-forwarding" data-guide-forwarding-toggle
+                      aria-expanded="@(forwardingOpen ? "true" : "false")" aria-controls="@prefix-forwarding" hidden="@(!Model.Settings.CanPointShortAddress)">Or use your registrar's forwarding instead</button>
+              <div class="collapse @(forwardingOpen ? "show" : "") mt-2" id="@prefix-forwarding" data-guide-forwarding>
+                <div class="small mb-1">Under <strong>Forwarding</strong> or <strong>Redirect</strong>, forward <span class="font-monospace">@guide.RootDomain</span> to <span class="font-monospace">https://@guide.DomainName</span>, permanent (301), masking off.</div>
+                <div class="small text-muted mb-2">One setting instead of two records, with one limit: a registrar forwards your home address only. A link to an inner page on the short address, such as <span class="font-monospace">@guide.RootDomain/services</span>, shows the registrar's "not found" page. Fine for a domain that never had a website; if you are moving an existing website here, use the two records above.</div>
+              </div>
+              <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" data-guide-skip>Skip this step for now</button></div>
+            }
+          </div>
+        </li>
+      }
+    </ol>
+    <div class="guide-footer">
+      <span class="text-muted" data-guide-checked>@Checked()</span>
+      <span class="text-muted">We check again on our own every 20 seconds while this page is open.</span>
+      <span class="guide-footer__actions">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-guide-check>Check now</button>
+        <a class="btn btn-sm btn-outline-secondary" href="/portal/Website/DomainHelp/@id">I need help</a>
+      </span>
+    </div>
+  }
+  <div class="visually-hidden" aria-live="polite" data-guide-announce></div>
+</section>

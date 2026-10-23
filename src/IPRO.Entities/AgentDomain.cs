@@ -47,6 +47,13 @@ public class AgentDomain
     public DateTime? RootBoundAt { get; set; }
 
     /// <summary>
+    /// 595: when the www name was bound (connected): the start of its certificate's grace period. Until 595 that ran
+    /// from CreatedAt, so a domain proven a day after it was added read "taking longer than usual" within minutes of
+    /// being connected (www.411trades.com, 2026-10-22). Null for rows bound before 595 (CertificateClock falls back).
+    /// </summary>
+    public DateTime? BoundAt { get; set; }
+
+    /// <summary>
     /// When IPRO was alerted that this domain is bound but has no certificate. The domain check
     /// runs every 5 minutes and the condition is terminal until a human acts, so without this the
     /// alert would resend forever. Cleared when SSL goes green so a later lapse alerts again.
@@ -71,6 +78,13 @@ public class AgentDomain
     /// Rows that existed when 592 was released carry the release time with no token (proven by being there).
     /// </summary>
     public DateTime? OwnershipVerifiedAt { get; set; }
+
+    /// <summary>
+    /// 595: when the adviser was emailed that the domain is live, and when that it is stuck (a day after it was added,
+    /// with what is missing). Each is sent once. Rows that were there at the release carry the release time.
+    /// </summary>
+    public DateTime? LiveEmailSentAt { get; set; }
+    public DateTime? StuckEmailSentAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
