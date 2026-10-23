@@ -149,15 +149,15 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     // range the front-end actually connects from - omitting it left every request untrusted and
     // silently falling back to that internal hop address instead of the real client IP (caught
     // 2026-07-28 via a RegistrationIpAddress showing 169.254.x.x instead of a real client IP).
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
     foreach (var cidr in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16" })
     {
         var parts = cidr.Split('/');
         var prefix = System.Net.IPAddress.Parse(parts[0]);
         var length = int.Parse(parts[1]);
-        options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, length));
-        options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix.MapToIPv6(), length + 96));
+        options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, length));
+        options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix.MapToIPv6(), length + 96));
     }
 });
 

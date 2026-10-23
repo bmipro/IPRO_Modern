@@ -289,7 +289,7 @@ public class Ses531Tests
         using var rsa = RSA.Create(2048);
         var request = new CertificateRequest("CN=sns.amazonaws.com", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var cert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-        var publicOnly = new X509Certificate2(cert.Export(X509ContentType.Cert));
+        var publicOnly = X509CertificateLoader.LoadCertificate(cert.Export(X509ContentType.Cert));
 
         var unsigned = SnsMessages.Parse(Envelope("Notification", "{\"eventType\":\"Delivery\"}", signatureVersion: version))!;
         var hash = version == "1" ? HashAlgorithmName.SHA1 : HashAlgorithmName.SHA256;
