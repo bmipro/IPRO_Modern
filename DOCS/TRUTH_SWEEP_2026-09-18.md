@@ -90,7 +90,8 @@ import and export on every plan; nightly backups with 30-day retention; data in 
     dates; the adviser's IANA zone for timed ones; convert on the way back) but existing linked events were
     pushed under the old rule and must be re-pushed before the first pull or the pull will move the
     follow-ups, and none of it can be verified without a real Google account: do it WITH the owner, on his
-    calendar. `DOCS/INVARIANTS.md` rule 10 records the convention.
+    calendar. `DOCS/INVARIANTS.md` rule 10 records the convention. **Fixed by 601 (2026-10-24)**, as planned here;
+    the old events are re-written from the stored date at the first sync after the release (INVARIANTS rule 10).
 12. **Same family, small:** the follow-up list, its badges and the dashboard's counts decide "today" with the server's date
     (`DateTime.Today`, UTC in production), so from 8 p.m. Eastern an item due tomorrow already reads "Today".
     `AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, zone).Date` is the adviser's today; about an hour with tests.

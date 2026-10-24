@@ -306,12 +306,12 @@ public class NarrowAuditFixTests
         public Task<(string AccessToken, DateTime ExpiresAt)> RefreshAccessTokenAsync(string refreshToken) => throw new NotSupportedException();
         public Task<GoogleEventListResult> ListEventsAsync(string accessToken, string calendarId, string? syncToken) =>
             Task.FromResult(new GoogleEventListResult(Events, "sync-1", false));
-        public Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime startAtUtc, DateTime? endAtUtc)
+        public Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone)
         {
             Created.Add(title);
             return Task.FromResult($"g-new-{Created.Count}");
         }
-        public Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime startAtUtc, DateTime? endAtUtc) => Task.CompletedTask;
+        public Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone) => Task.CompletedTask;
         public Task DeleteEventAsync(string accessToken, string calendarId, string googleEventId) => Task.CompletedTask;
         public Task RevokeTokenAsync(string token) => Task.CompletedTask;
     }
