@@ -108,24 +108,37 @@ public class RefundsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // 600 (2026-10-24): marking a refund Refunded issues its credit note -- a number from the CN-YYYY-NNNN sequence the
+    // Refer a Friend credit notes use, for the invoice the refunded payment paid -- and emails it to the adviser
+    // (CreditNotes). The owner: "matters for tax filing". A failed email never undoes the marking; the admin is told,
+    // as for a referral reward. A waived refund (MarkWaived) gets no credit note.
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkRefunded(int id, string refundTransactionId)
     {
-        var row = await LoadPendingAsync(id);
-        if (row == null) return NotFound();
+        if (!await _db.SubscriptionChanges.AsNoTracking().AnyAsync(c =>
+                c.Id == id && c.ChangeType == SubscriptionChangeType.Cancel && c.RefundStatus == RefundStatus.Pending))
+            return NotFound();
         if (string.IsNullOrWhiteSpace(refundTransactionId))
         {
             TempData["Error"] = "Enter the PayPal refund transaction id so the refund stays reconcilable.";
             return RedirectToAction(nameof(Index));
         }
 
-        row.RefundStatus = RefundStatus.Refunded;
-        row.RefundResolvedAt = DateTime.UtcNow;
-        row.RefundResolutionNote = $"{row.RefundResolutionNote} | Refunded at PayPal, refund txn {refundTransactionId.Trim()}.";
-        await _db.SaveChangesAsync();
+        var now = DateTime.UtcNow;
+        var row = await CreditNotes.MarkRefundedAsync(_db, id, refundTransactionId, now);
+        if (row == null)
+        {
+            TempData["Error"] = "That refund was marked a moment ago (another tab or another admin); nothing was changed.";
+            return RedirectToAction(nameof(Index));
+        }
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "RefundMarkedRefunded",
-            $"Cancel change #{row.Id} agent #{row.AgentUserId}: {row.RefundGrossAmount:0.00} {row.Currency} gross, refund txn {refundTransactionId.Trim()}");
-        TempData["Success"] = $"Marked refunded: ${row.RefundGrossAmount:N2} {row.Currency} for agent #{row.AgentUserId}.";
+            $"Cancel change #{row.Id} agent #{row.AgentUserId}: {row.RefundGrossAmount:0.00} {row.Currency} gross, refund txn {row.PayPalRefundId}, credit note {row.CreditNoteNumber}{(row.CreditNoteInvoiceNumber.Length > 0 ? $" for invoice {row.CreditNoteInvoiceNumber}" : "")}");
+
+        var emailed = await CreditNotes.SendRefundEmailAsync(_db, _email, _configuration, _logger, row.Id, now);
+        var marked = $"Marked refunded: ${row.RefundGrossAmount:N2} {row.Currency} for agent #{row.AgentUserId}, credit note {row.CreditNoteNumber}.";
+        TempData["Success"] = emailed
+            ? $"{marked} The adviser was emailed the credit note."
+            : $"{marked} The adviser's email did NOT go out -- tell them by phone or a support ticket.";
         return RedirectToAction(nameof(Index));
     }
 

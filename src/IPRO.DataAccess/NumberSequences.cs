@@ -55,6 +55,17 @@ public static class NumberSequences
         throw new InvalidOperationException($"Could not take the next number for '{key}' after {MaxAttempts} attempts.");
     }
 
+    // 600 (2026-10-24): the key's row made if it is missing, seeded exactly as NextAsync would seed it, without taking
+    // a number -- for a caller about to take one inside its OWN transaction. There, NextAsync's first-use path would
+    // seed under the caller's locks: an UPDATE that matched no row leaves a gap lock, and two such callers' seed
+    // INSERTs deadlock, rolling the caller's work back. Seeded beforehand, the increment inside the transaction is
+    // a plain row lock that queues (CreditNotes.MarkRefundedAsync).
+    public static async Task EnsureSeededAsync(IPRODbContext db, string key, Func<Task<long>> seedFromExisting)
+    {
+        if (await db.NumberSequences.AsNoTracking().AnyAsync(n => n.Key == key)) return;
+        await SeedAsync(db, key, await seedFromExisting());
+    }
+
     // Two first-time callers can race to seed; the primary key lets exactly one win and the other
     // simply retries and finds the row. Only the failed entry is detached -- never the caller's
     // other tracked changes (the billing service mints numbers mid-flow).
