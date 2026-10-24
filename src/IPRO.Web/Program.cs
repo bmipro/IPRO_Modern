@@ -546,6 +546,8 @@ RecurringJob.AddOrUpdate<CertificateExpiryJob>("certificate-expiry", job => job.
 // 474 (2026-09-11): a gzipped SQL dump of the whole database to the private db-backups container,
 // 30-day retention. 06:15 UTC is 02:15 Eastern, the quietest hour.
 RecurringJob.AddOrUpdate<DatabaseDumpJob>("database-dump", job => job.RunAsync(), "15 6 * * *");
+// 599 (2026-10-24): a suspended account's yearly data review -- one email to iPro's mailbox when due.
+RecurringJob.AddOrUpdate<SuspendedAccountReviewJob>("suspended-account-review", job => job.RunAsync(), "30 13 * * *");
 }
 
 using (var scope = app.Services.CreateScope())
@@ -591,6 +593,7 @@ using (var scope = app.Services.CreateScope())
     // 583: the sign-in lock columns and SignInNameLocks, right after TeamMembers is created and before any
     // later step can load an account row (EF reads every mapped column).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSignInLockoutSchemaAsync", () => StartupSchemaRepair.EnsureSignInLockoutSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAccountSuspensionSchemaAsync", () => StartupSchemaRepair.EnsureAccountSuspensionSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("WebsiteContentSchema.EnsureAsync", () => WebsiteContentSchema.EnsureAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);

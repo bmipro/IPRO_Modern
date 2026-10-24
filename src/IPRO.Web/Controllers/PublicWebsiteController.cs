@@ -900,7 +900,10 @@ public class PublicWebsiteController : Controller
     {
         var cacheKey = $"public-site-gated:{agentUserId}";
         if (_cache.TryGetValue(cacheKey, out bool gated)) return gated;
-        gated = await _entitlements.IsAccessGatedAsync(agentUserId);
+        // 599 (2026-10-24): a suspended adviser (SuperAdmin -> Deactivate) is offline at once, even inside a
+        // paid-through period -- the suspension cancels billing and takes the site down together.
+        var isActive = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == agentUserId).Select(a => a.IsActive).FirstOrDefaultAsync();
+        gated = !isActive || await _entitlements.IsAccessGatedAsync(agentUserId);
         _cache.Set(cacheKey, gated, TimeSpan.FromMinutes(2));
         return gated;
     }

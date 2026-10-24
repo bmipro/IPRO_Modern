@@ -163,6 +163,7 @@ the capitals can differ. Until the domain is live, your emails keep showing the 
 the same site. When you make another domain your primary one (or remove the primary one), what you typed there goes
 with it and your emails use small letters until you type the new one.
 
+<!-- staff-only -->
 ## What to Tell a New Agent
 
 Wording that can be used directly in onboarding, support replies, or a help page. Since 595 the portal's own
@@ -240,6 +241,8 @@ guide (above) walks the agent through the same records one step at a time, with 
 > - *Short address says Needs attention* -- the line under it says why: usually the TXT record is missing or
 >   mistyped, or the old A record is still there beside ours.
 
+<!-- /staff-only -->
+
 ## Domain Statuses
 
 The agent portal shows plain-language labels; the underlying status values are in brackets for Super
@@ -263,6 +266,7 @@ Admin and support.
 | **Not set up** `[NotConfigured]` | Short address | The bare domain neither points at IPRO nor forwards to `www`. The `www` site still works. |
 | **Failed** `[Failed]` | any | Agents see a plain-language error; Super Admin sees the raw Azure/DNS detail. |
 
+<!-- staff-only -->
 ### Bound-with-no-certificate is normal for a few minutes
 
 Azure issues App Service Managed Certificates **asynchronously**. The first pass through
@@ -310,6 +314,8 @@ IPRO checks this for you while your certificate is pending. When it is the cause
 
 A domain with no CAA records at all needs nothing: any company may issue for it.
 
+<!-- /staff-only -->
+
 ## Retry a Domain Check
 
 1. Open the **Domain** page and the domain's guide (**Guide** or **Setup guide** beside it).
@@ -341,12 +347,16 @@ removal and IPRO keeps asking Azure until Azure confirms; the background domain 
 minutes at first, then hourly, then daily, so an Azure hiccup or a switched-off setting is caught up on its
 own. An address another domain still uses, and IPRO's own addresses, are never removed.
 
+<!-- staff-only -->
 Until 592 (2026-10-19) a removal that did not get through was forgotten: `www.411trades.com` stayed bound
 after it left its account, its DNS still pointed at IPRO, and another account could add it and show its own
 site there. The TXT proof above now stops that even if a binding is left behind. Bindings left behind
 before 592 are listed by `ops/domain-ownership/orphan-bindings.sh` (read-only); removing one is the owner's
 decision.
 
+<!-- /staff-only -->
+
+<!-- staff-only -->
 ## SSL Automation
 
 Once DNS is ready, IPRO uses Azure App Service automation to:
@@ -390,6 +400,8 @@ address does not. Before any change of App Service plan or region, check whether
 if it does, every short address pointed at IPRO must be updated by its owner, and `App:WebsiteAddress` with
 it. The domain check recognises a short address by resolving the CNAME target, never by the setting, so it is
 not fooled by a stale one.
+
+<!-- /staff-only -->
 
 ## Add a Contact Form to a Website Page
 

@@ -40,7 +40,7 @@ public class PortalPrivacy597Tests
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
-        var controller = AsClient(new IPRO.Web.Controllers.ClientPortalAppointmentsController(db), clientId);
+        var controller = AsClient(PortalBatch598Tests.Appointments(db), clientId);
         await controller.Index();
 
         var upcoming = Assert.IsType<List<PortalUpcomingAppointment>>(controller.ViewData["UpcomingAppointments"]);
@@ -58,7 +58,7 @@ public class PortalPrivacy597Tests
         var clientId = await SeedClientAsync(db, agentId);
         var followUpId = await SeedAppointmentAsync(db, clientId, DateTime.UtcNow.Date.AddDays(2), null, completed: false);
 
-        var controller = AsClient(new IPRO.Web.Controllers.ClientPortalAppointmentsController(db), clientId);
+        var controller = AsClient(PortalBatch598Tests.Appointments(db), clientId);
         await controller.Index();
         Assert.Single(Assert.IsType<List<PortalUpcomingAppointment>>(controller.ViewData["UpcomingAppointments"]));
 
@@ -67,7 +67,7 @@ public class PortalPrivacy597Tests
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
-        controller = AsClient(new IPRO.Web.Controllers.ClientPortalAppointmentsController(db), clientId);
+        controller = AsClient(PortalBatch598Tests.Appointments(db), clientId);
         await controller.Index();
         Assert.Empty(Assert.IsType<List<PortalUpcomingAppointment>>(controller.ViewData["UpcomingAppointments"]));
     }

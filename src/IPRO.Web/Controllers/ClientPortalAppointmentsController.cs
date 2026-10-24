@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
+using IPRO.Email;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,9 +13,20 @@ namespace IPRO.Web.Controllers;
 public class ClientPortalAppointmentsController : Controller
 {
     private readonly IPRODbContext _db;
+    private readonly IPackageEntitlementService _entitlements;
+    private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<ClientPortalAppointmentsController> _logger;
     private int ClientId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientPortalAppointmentsController(IPRODbContext db) => _db = db;
+    public ClientPortalAppointmentsController(IPRODbContext db, IPackageEntitlementService entitlements, IEmailService email, IConfiguration configuration, ILogger<ClientPortalAppointmentsController> logger)
+    {
+        _db = db;
+        _entitlements = entitlements;
+        _email = email;
+        _configuration = configuration;
+        _logger = logger;
+    }
 
     public async Task<IActionResult> Index()
     {
@@ -35,12 +48,20 @@ public class ClientPortalAppointmentsController : Controller
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
+        ViewBag.PortalReadOnly = await IPRO.Web.Infrastructure.ClientPortalActivity.IsReadOnlyAsync(_entitlements, User);
         return View(requests);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RequestAppointment(string? notes, DateTime? preferredDate)
     {
+        // 598: read-only while the adviser's plan has no client portal.
+        if (await IPRO.Web.Infrastructure.ClientPortalActivity.IsReadOnlyAsync(_entitlements, User))
+        {
+            TempData["Error"] = IPRO.Web.Infrastructure.ClientPortalActivity.ReadOnlyMessage;
+            return RedirectToAction(nameof(Index));
+        }
+
         _db.PortalAppointmentRequests.Add(new PortalAppointmentRequest
         {
             ClientId = ClientId,
@@ -48,6 +69,7 @@ public class ClientPortalAppointmentsController : Controller
             PreferredDate = preferredDate
         });
         await _db.SaveChangesAsync();
+        await IPRO.Web.Infrastructure.ClientPortalActivity.NotifyAdviserAsync(_db, _email, _configuration, ClientId, IPRO.Web.Infrastructure.ClientPortalActivity.Kind.AppointmentRequest, _logger);
 
         TempData["Success"] = "Your appointment request was sent.";
         return RedirectToAction(nameof(Index));

@@ -1857,6 +1857,22 @@ public static class StartupSchemaRepair
     // email last went out -- on each table people sign in with (SignInLockout), and the count for names
     // that are no account. AdminUsers gets its two columns in IPRO.Admin's EnsureAdminUserSchemaAsync,
     // where that table is created.
+    // 599 (2026-10-24): SuperAdmin's Deactivate became a suspension with a yearly data review.
+    public static async Task EnsureAccountSuspensionSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "AgentUsers", "SuspendedAt", "ALTER TABLE `AgentUsers` ADD COLUMN `SuspendedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "AgentUsers", "DataReviewDueAt", "ALTER TABLE `AgentUsers` ADD COLUMN `DataReviewDueAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "AgentUsers", "DataReviewNoticeSentAt", "ALTER TABLE `AgentUsers` ADD COLUMN `DataReviewNoticeSentAt` datetime(6) NULL");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     public static async Task EnsureSignInLockoutSchemaAsync(IPRODbContext db)
     {
         await db.Database.OpenConnectionAsync();

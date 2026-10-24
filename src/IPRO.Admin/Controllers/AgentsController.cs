@@ -884,11 +884,18 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+        var wasSuspended = agent.SuspendedAt.HasValue;
         agent.IsActive = true;
+        // 599: Activate ends a suspension. Billing stays cancelled; the adviser subscribes again from Billing.
+        agent.SuspendedAt = null;
+        agent.DataReviewDueAt = null;
+        agent.DataReviewNoticeSentAt = null;
         await _agents.UpdateAsync(agent);
         await LogAsync(id, "Activate", "Agent activated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentActivate", $"Agent '{agent.UserName}' activated");
-        TempData["Success"] = $"Agent {agent.UserName} activated.";
+        TempData["Success"] = wasSuspended
+            ? $"Agent {agent.UserName} is active again and can sign in. Their PayPal billing stays cancelled: they subscribe again from Billing, and their website comes back once they have a plan."
+            : $"Agent {agent.UserName} activated.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -903,10 +910,67 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+
+        // 599 (the owner's decision of 2026-10-24): Deactivate is a SUSPENSION. It used to block sign-in
+        // only, while PayPal kept charging and the website stayed up. Billing is cancelled FIRST, the same
+        // way the adviser's own Cancel does it (any refund owed goes to the Refunds queue); if PayPal
+        // refuses, nothing changes. Then sign-in is blocked (adviser, team, clients) and the public site
+        // goes offline. Every row is kept; a year on the owner is emailed to keep or delete.
+        var hasActiveSubscription = (await _uow.Billings.FindAsync(
+            b => b.AgentUserId == id && b.Status == BillingStatus.Active)).Any();
+        if (hasActiveSubscription)
+        {
+            bool cancelled;
+            try { cancelled = await _billing.CancelSubscriptionAsync(id); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PayPal cancellation failed for agent {AgentId}; suspension aborted", id);
+                cancelled = false;
+            }
+            if (!cancelled)
+            {
+                TempData["Error"] = $"Could not cancel {agent.UserName}'s PayPal subscription, so the account was NOT suspended and nothing changed. " +
+                                    "Cancel the subscription in PayPal first, then retry.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+
         await _agents.DeactivateAsync(id);
-        await LogAsync(id, "Deactivate", "Agent deactivated");
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate", $"Agent '{agent.UserName}' deactivated");
-        TempData["Warning"] = $"Agent {agent.UserName} deactivated.";
+        var suspended = await _db.AgentUsers.FirstAsync(a => a.Id == id);
+        var now = DateTime.UtcNow;
+        suspended.SuspendedAt = now;
+        suspended.DataReviewDueAt = now.AddYears(1);
+        suspended.DataReviewNoticeSentAt = null;
+        await _db.SaveChangesAsync();
+
+        var billingNote = hasActiveSubscription ? "PayPal billing cancelled" : "no active PayPal subscription";
+        await LogAsync(id, "Deactivate", $"Agent suspended ({billingNote})");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate",
+            $"Agent '{agent.UserName}' suspended: {billingNote}, website offline, sign-in blocked; data kept, review due {suspended.DataReviewDueAt:yyyy-MM-dd}");
+        TempData["Warning"] = $"{agent.UserName} is suspended: {billingNote}" +
+            (hasActiveSubscription ? " (any refund owed is in Refunds)" : "") +
+            $", website offline, sign-in blocked for them, their team and their clients. All data is kept; you'll be emailed on {suspended.DataReviewDueAt:MMMM d, yyyy} to keep it another year or delete it.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 599: the yearly review's "keep" answer -- another year before the next email.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> KeepSuspendedData(int id)
+    {
+        var agent = await _db.AgentUsers.FirstOrDefaultAsync(a => a.Id == id);
+        if (agent == null) return NotFound();
+        if (agent.IsActive || agent.SuspendedAt == null)
+        {
+            TempData["Error"] = $"{agent.UserName} is not suspended.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        agent.DataReviewDueAt = DateTime.UtcNow.AddYears(1);
+        agent.DataReviewNoticeSentAt = null;
+        await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentKeepSuspendedData",
+            $"Agent '{agent.UserName}': suspended data kept another year, next review {agent.DataReviewDueAt:yyyy-MM-dd}");
+        TempData["Success"] = $"{agent.UserName}'s data is kept for another year; you'll be asked again on {agent.DataReviewDueAt:MMMM d, yyyy}.";
         return RedirectToAction(nameof(Details), new { id });
     }
 

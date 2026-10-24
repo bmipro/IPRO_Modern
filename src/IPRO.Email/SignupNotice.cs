@@ -160,6 +160,9 @@ public static class SignupNotice
 
     private static string Money(decimal amount) => amount.ToString("N2", CultureInfo.InvariantCulture);
 
+    // 599: the suspended-account review links to the same SuperAdmin page.
+    public static string AdminLink(IConfiguration configuration, int agentId) => AgentLink(agentId, configuration);
+
     private static string AgentLink(int agentId, IConfiguration configuration)
     {
         var baseUrl = configuration[AdminBaseUrlSetting];

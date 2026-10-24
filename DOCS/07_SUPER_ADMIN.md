@@ -74,8 +74,18 @@ Unlock is Super Admin only (Support admins see the button disabled). Each unlock
 
 ## Activate, Deactivate, or Delete an Agent
 
-- **Activate** restores access.
-- **Deactivate** blocks access while retaining records.
+- **Suspend** (the button that used to read Deactivate; 599, 2026-10-24) is a real suspension, in this order:
+  1. their PayPal subscription is cancelled, exactly as when an adviser cancels themselves (any refund owed goes to **Refunds**);
+     if PayPal refuses, nothing changes and the page says so;
+  2. sign-in is blocked for the adviser, their team and their clients;
+  3. their public website goes offline at once (not at the end of a paid period).
+
+  Every record and file is kept. The page shows when they were suspended and when the data review is due.
+- **The yearly data review.** A year after a suspension, iPro's mailbox (Signups:NotificationEmail, else Support:NotificationEmail) gets
+  one email per account: keep the data another year, or delete the account. **Keep another year** on the agent's page moves the
+  review a year on; nothing is ever deleted automatically.
+- **Activate** ends a suspension: they can sign in again. Their PayPal billing stays cancelled, so they subscribe again from Billing,
+  and their website comes back once they have a plan.
 - **Delete** permanently removes the agent and dependent information. Use only after confirming retention requirements.
 
 ## Review Agent Billing

@@ -267,9 +267,9 @@ public class WebsiteTemplatesController : Controller
         const string subject = "Your website template has been retired";
         var html = $"""
             <p>Hi there,</p>
-            <p>The website template you are currently using, <strong>{System.Net.WebUtility.HtmlEncode(template.Name)}</strong>, has been retired by 247Advisers.</p>
+            <p>The website template you are currently using, <strong>{System.Net.WebUtility.HtmlEncode(template.Name)}</strong>, has been retired.</p>
             <p>Your website remains online and completely unchanged for now. Whenever you're ready, visit <strong>My Website</strong> in your agent portal to preview and switch to an active template. Your pages, content, and settings are kept when you switch.</p>
-            <p>&mdash; 247Advisers</p>
+            <p>&mdash; The iPro team</p>
             """;
         var text = $"The website template you are currently using, {template.Name}, has been retired. Your website remains online and unchanged. Visit My Website in your agent portal to preview and switch to an active template whenever you're ready.";
 
