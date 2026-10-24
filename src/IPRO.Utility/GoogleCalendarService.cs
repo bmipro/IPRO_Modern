@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -6,7 +7,11 @@ using Microsoft.Extensions.Options;
 
 namespace IPRO.Utility;
 
-public record GoogleCalendarEventData(string GoogleEventId, string Title, DateTime StartAt, DateTime? EndAt, bool IsCancelled);
+// 601 (2026-10-24): StartAt/EndAt are a UTC instant for a timed event and the calendar date for an all-day one
+// (IsAllDay; Google's end date is the day after). TimeZone is the zone the event's start was written in, as
+// Google reports it (null when it sends none) -- the sync job uses it to recognise events the code before 601
+// wrote with timeZone "UTC".
+public record GoogleCalendarEventData(string GoogleEventId, string Title, DateTime StartAt, DateTime? EndAt, bool IsCancelled, bool IsAllDay = false, string? TimeZone = null);
 public record GoogleTokenResult(string AccessToken, string RefreshToken, DateTime ExpiresAt, string AccountEmail);
 public record GoogleEventListResult(IReadOnlyList<GoogleCalendarEventData> Events, string? NextSyncToken, bool RequiresFullResync);
 
@@ -16,8 +21,10 @@ public interface IGoogleCalendarService
     Task<GoogleTokenResult> ExchangeCodeAsync(string code, string redirectUri);
     Task<(string AccessToken, DateTime ExpiresAt)> RefreshAccessTokenAsync(string refreshToken);
     Task<GoogleEventListResult> ListEventsAsync(string accessToken, string calendarId, string? syncToken);
-    Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime startAtUtc, DateTime? endAtUtc);
-    Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime startAtUtc, DateTime? endAtUtc);
+    // 601 (2026-10-24): times are the adviser's own wall clock (a follow-up's DueAt as stored, never converted)
+    // plus the adviser's zone; BuildEventPayload turns them into what Google wants.
+    Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone);
+    Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone);
     Task DeleteEventAsync(string accessToken, string calendarId, string googleEventId);
     Task RevokeTokenAsync(string token);
 }
@@ -214,7 +221,7 @@ public class GoogleCalendarService : IGoogleCalendarService
                     var end = ParseEventDateTime(item, "end");
                     if (start == null) continue;
 
-                    events.Add(new GoogleCalendarEventData(id, title, start.Value, end, false));
+                    events.Add(new GoogleCalendarEventData(id, title, start.Value.Value, end?.Value, false, start.Value.AllDay, start.Value.TimeZone));
                 }
             }
 
@@ -236,10 +243,10 @@ public class GoogleCalendarService : IGoogleCalendarService
         return new GoogleEventListResult(events, nextSyncToken, false);
     }
 
-    public async Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime startAtUtc, DateTime? endAtUtc)
+    public async Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone)
     {
         var client = AuthorizedClient(accessToken);
-        var payload = BuildEventPayload(title, startAtUtc, endAtUtc);
+        var payload = BuildEventPayload(title, localStart, localEnd, zone);
 
         using var response = await client.PostAsync(
             $"{CalendarApiBase}/calendars/{Uri.EscapeDataString(calendarId)}/events",
@@ -256,10 +263,10 @@ public class GoogleCalendarService : IGoogleCalendarService
         return document.RootElement.GetProperty("id").GetString() ?? string.Empty;
     }
 
-    public async Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime startAtUtc, DateTime? endAtUtc)
+    public async Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone)
     {
         var client = AuthorizedClient(accessToken);
-        var payload = BuildEventPayload(title, startAtUtc, endAtUtc);
+        var payload = BuildEventPayload(title, localStart, localEnd, zone, forPatch: true);
 
         var request = new HttpRequestMessage(HttpMethod.Patch, $"{CalendarApiBase}/calendars/{Uri.EscapeDataString(calendarId)}/events/{Uri.EscapeDataString(googleEventId)}")
         {
@@ -304,31 +311,93 @@ public class GoogleCalendarService : IGoogleCalendarService
         return document.RootElement.TryGetProperty("email", out var email) ? email.GetString() ?? string.Empty : string.Empty;
     }
 
-    private static object BuildEventPayload(string title, DateTime startAtUtc, DateTime? endAtUtc)
+    // 601 (2026-10-24): a follow-up's DueAt is the adviser's own wall clock (INVARIANTS rule 10). Until 601 this
+    // sent it as UTC (timeZone "UTC"), so a 2 p.m. appointment landed in a Toronto calendar at 10 a.m. (9 a.m. in
+    // winter) and a follow-up due 24 October at 8 p.m. on the 23rd. Now:
+    // - a timed one goes out as that wall clock with the offset it has ON THAT DATE in the adviser's zone, plus the
+    //   zone's IANA name -- the form Google's own examples use. The offset makes the instant unambiguous (a date
+    //   after the November change carries -05:00 in Toronto, one before it -04:00); the name is the event's zone.
+    // - a date with no time -- midnight, the product's rule for "no time" (FollowUpReminderJob.TimeToday) -- is an
+    //   all-day event on that date (Google's end date is the next day), as TRUTH_SWEEP_2026-09-18 item 11 planned:
+    //   a midnight-to-1 a.m. block would sit above the morning in Google's day view and read as a time.
+    // forPatch: Google's PATCH merges into the event's stored start and end, so the kind not used is sent as null
+    // to clear it -- that is how an event the old code wrote as timed becomes all-day.
+    public static object BuildEventPayload(string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone, bool forPatch = false)
     {
-        var start = DateTime.SpecifyKind(startAtUtc, DateTimeKind.Utc);
-        var end = endAtUtc.HasValue ? DateTime.SpecifyKind(endAtUtc.Value, DateTimeKind.Utc) : start.AddHours(1);
+        if (IsDateOnly(localStart))
+        {
+            return new
+            {
+                summary = title,
+                start = AllDay(localStart.Date, forPatch),
+                end = AllDay(localStart.Date.AddDays(1), forPatch)
+            };
+        }
 
+        var end = localEnd.HasValue && localEnd.Value > localStart ? localEnd.Value : localStart.AddHours(1);
+        var zoneName = GoogleTimeZoneName(zone);
         return new
         {
             summary = title,
-            start = new { dateTime = start.ToString("o"), timeZone = "UTC" },
-            end = new { dateTime = end.ToString("o"), timeZone = "UTC" }
+            start = Timed(localStart, zone, zoneName, forPatch),
+            end = Timed(end, zone, zoneName, forPatch)
         };
     }
 
-    private static DateTime? ParseEventDateTime(JsonElement item, string property)
+    // The product's rule: a DueAt at midnight was typed as a date with no time (the follow-up form, the life-event
+    // job); an appointment keeps the time it was booked for.
+    public static bool IsDateOnly(DateTime localDueAt) => localDueAt.TimeOfDay == TimeSpan.Zero;
+
+    // Google takes IANA names ("America/Toronto"). The adviser's zone is found by an IANA id on every host .NET 6+
+    // runs on; a Windows id is converted, and anything else falls back to UTC (what AgentLocalTime falls back to).
+    public static string GoogleTimeZoneName(TimeZoneInfo zone)
+    {
+        if (zone.HasIanaId) return zone.Id;
+        return TimeZoneInfo.TryConvertWindowsIdToIanaId(zone.Id, out var iana) && !string.IsNullOrEmpty(iana) ? iana : "UTC";
+    }
+
+    private static Dictionary<string, object?> AllDay(DateTime date, bool forPatch)
+    {
+        var node = new Dictionary<string, object?> { ["date"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) };
+        if (forPatch)
+        {
+            node["dateTime"] = null;
+            node["timeZone"] = null;
+        }
+        return node;
+    }
+
+    private static Dictionary<string, object?> Timed(DateTime local, TimeZoneInfo zone, string zoneName, bool forPatch)
+    {
+        var wallClock = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+        var withOffset = new DateTimeOffset(wallClock, zone.GetUtcOffset(wallClock));
+        var node = new Dictionary<string, object?>
+        {
+            ["dateTime"] = withOffset.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
+            ["timeZone"] = zoneName
+        };
+        if (forPatch) node["date"] = null;
+        return node;
+    }
+
+    // 601 (2026-10-24): Google answers a timed event with an offset ("2026-11-03T10:30:00-05:00", or "Z"), which
+    // is read as the instant it names; the sync job turns that into the adviser's wall clock. An all-day event is
+    // a bare date and stays one -- no zone applies to it. The parse is culture-free (DateTime.Parse read the
+    // server's culture before).
+    private static (DateTime Value, bool AllDay, string? TimeZone)? ParseEventDateTime(JsonElement item, string property)
     {
         if (!item.TryGetProperty(property, out var node)) return null;
 
-        if (node.TryGetProperty("dateTime", out var dt) && dt.GetString() is { } dateTimeString)
+        var zone = node.TryGetProperty("timeZone", out var tz) && tz.ValueKind == JsonValueKind.String ? tz.GetString() : null;
+
+        if (node.TryGetProperty("dateTime", out var dt) && dt.ValueKind == JsonValueKind.String && dt.GetString() is { } dateTimeString)
         {
-            return DateTimeOffset.Parse(dateTimeString).UtcDateTime;
+            return (DateTimeOffset.Parse(dateTimeString, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal).UtcDateTime, false, zone);
         }
 
-        if (node.TryGetProperty("date", out var d) && d.GetString() is { } dateString)
+        if (node.TryGetProperty("date", out var d) && d.ValueKind == JsonValueKind.String && d.GetString() is { } dateString)
         {
-            return DateTime.SpecifyKind(DateTime.Parse(dateString), DateTimeKind.Utc);
+            return (DateTime.ParseExact(dateString, "yyyy-MM-dd", CultureInfo.InvariantCulture), true, zone);
         }
 
         return null;

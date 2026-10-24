@@ -879,6 +879,9 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleEventId", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleEventId` varchar(255) CHARACTER SET utf8mb4 NULL");
             // 493: a follow-up the adviser deleted from Google stays off Google (GoogleCalendarSyncJob).
             await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleUnlinkedAt", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleUnlinkedAt` datetime(6) NULL");
+            // 601 (2026-10-24): NULL on every connection that exists at the release, so each one's calendar is read
+            // in full once and the events written before 601 (shifted by the UTC offset) are put right.
+            await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "LocalTimesResyncedAt", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `LocalTimesResyncedAt` datetime(6) NULL");
         }
         finally
         {

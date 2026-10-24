@@ -36,6 +36,7 @@ Follow-ups can be added, completed and deleted. A due date cannot be edited once
 2. Click **Connect Google Calendar** and approve access on Google's screen. You return to Profile with "Connected as your address".
 3. From then on a sync runs every 15 minutes: open follow-ups are created as events on your primary Google calendar, and Google events appear on the Follow-up Calendar as grey, read-only entries.
 4. Renaming or moving a synced event in Google updates the follow-up's title and due date here. Cancelling it in Google unlinks the follow-up rather than deleting it. Deleting a synced follow-up here removes the Google event; completing one leaves the event in place.
+5. Times follow the **Time Zone** on your Profile. A follow-up with a time (a scheduled appointment) appears in Google at that time; one with only a date appears as an all-day event on that date. An event you move in Google comes back here at the same moment, in your Profile time zone. Keep that time zone the same as your Google Calendar's, and both show the same clock.
 
 **Disconnect** is in the same section. Events already synced stay as they are; new changes stop syncing.
 

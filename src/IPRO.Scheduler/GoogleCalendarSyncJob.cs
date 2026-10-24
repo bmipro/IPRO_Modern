@@ -43,8 +43,17 @@ public class GoogleCalendarSyncJob
     {
         var accessToken = await EnsureFreshAccessTokenAsync(connection);
 
-        await PushIproFollowUpsToGoogleAsync(connection, accessToken);
-        await PullGoogleChangesIntoIproAsync(connection, accessToken);
+        // 601 (2026-10-24): the adviser's own zone (Profile), the same one every portal page uses for "today".
+        // A follow-up's DueAt is a wall clock in it and is never converted in the database (INVARIANTS rule 10);
+        // only what goes to Google, and what comes back, is turned to and from Google's instants with it.
+        var agentTimeZone = await _db.AgentUsers.AsNoTracking()
+            .Where(a => a.Id == connection.AgentUserId)
+            .Select(a => a.TimeZone)
+            .FirstOrDefaultAsync();
+        var zone = AgentLocalTime.Zone(agentTimeZone);
+
+        await PushIproFollowUpsToGoogleAsync(connection, accessToken, zone);
+        await PullGoogleChangesIntoIproAsync(connection, accessToken, zone);
 
         connection.LastSyncedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -65,7 +74,7 @@ public class GoogleCalendarSyncJob
         return accessToken;
     }
 
-    private async Task PushIproFollowUpsToGoogleAsync(GoogleCalendarConnection connection, string accessToken)
+    private async Task PushIproFollowUpsToGoogleAsync(GoogleCalendarConnection connection, string accessToken, TimeZoneInfo zone)
     {
         var unsyncedFollowUps = await _db.ClientFollowUps
             .Include(f => f.Client)
@@ -82,7 +91,8 @@ public class GoogleCalendarSyncJob
         {
             try
             {
-                var googleEventId = await _googleCalendar.CreateEventAsync(accessToken, connection.GoogleCalendarId, followUp.Title, followUp.DueAt, null);
+                // 601: DueAt as stored -- the adviser's wall clock -- with their zone; never ToUtc'd first.
+                var googleEventId = await _googleCalendar.CreateEventAsync(accessToken, connection.GoogleCalendarId, followUp.Title, followUp.DueAt, null, zone);
                 followUp.GoogleEventId = googleEventId;
                 anySynced = true;
             }
@@ -102,9 +112,25 @@ public class GoogleCalendarSyncJob
         }
     }
 
-    private async Task PullGoogleChangesIntoIproAsync(GoogleCalendarConnection connection, string accessToken)
+    // 601 (2026-10-24): how the pull knows what changed in Google. There is no per-event comparison (no 'updated'
+    // timestamp, no etag): the sync token makes Google list only the events changed since the last run, and every
+    // listed event linked to a follow-up has always overwritten its title and due time. Two consequences:
+    // - an event the sync itself just wrote comes straight back in the next listing, so reading it back must give
+    //   exactly the stored DueAt (ApplyGoogleTime returns early when it does); and
+    // - "listed" is not "moved by the adviser". The events written before 601 sit in Google shifted by the
+    //   adviser's UTC offset. They are listed again whenever the adviser touches one, whenever Google expires the
+    //   token, on a reconnect -- and once, on purpose, right after the release (below). Read naively they would
+    //   look like moves and drag every DueAt by four or five hours, the very thing TRUTH_SWEEP_2026-09-18 item 11
+    //   warned about. ApplyGoogleTime recognises them instead and re-writes them from the stored DueAt.
+    private async Task PullGoogleChangesIntoIproAsync(GoogleCalendarConnection connection, string accessToken, TimeZoneInfo zone)
     {
-        var result = await _googleCalendar.ListEventsAsync(accessToken, connection.GoogleCalendarId, connection.SyncToken);
+        // 601: one full read per connection after the release, whatever token it holds. With the token alone the
+        // old events would only be put right when the adviser happened to touch them; a full read (the past 30
+        // days to a year ahead, the same window as a first sync) finds them all now, and also re-stores the copies
+        // of the adviser's own events at their own time. Marked done only once the read has been applied, so a
+        // run that fails part-way does it again.
+        var syncToken = connection.LocalTimesResyncedAt == null ? null : connection.SyncToken;
+        var result = await _googleCalendar.ListEventsAsync(accessToken, connection.GoogleCalendarId, syncToken);
 
         if (result.RequiresFullResync)
         {
@@ -133,7 +159,7 @@ public class GoogleCalendarSyncJob
                 else
                 {
                     linkedFollowUp.Title = googleEvent.Title;
-                    linkedFollowUp.DueAt = googleEvent.StartAt;
+                    await ApplyGoogleTimeAsync(linkedFollowUp, googleEvent, connection, accessToken, zone);
                 }
                 continue;
             }
@@ -150,6 +176,11 @@ public class GoogleCalendarSyncJob
                 continue;
             }
 
+            // 601: copies of the adviser's own Google events are kept at their wall clock too -- the Calendar page
+            // files them under StartAt.Date as the adviser's day, so a 9 p.m. dinner stored as UTC showed the next day.
+            var startAt = AdviserTime(googleEvent.StartAt, googleEvent.IsAllDay, zone);
+            DateTime? endAt = googleEvent.EndAt.HasValue ? AdviserTime(googleEvent.EndAt.Value, googleEvent.IsAllDay, zone) : null;
+
             if (externalEvent == null)
             {
                 await _db.ExternalCalendarEvents.AddAsync(new ExternalCalendarEvent
@@ -157,16 +188,16 @@ public class GoogleCalendarSyncJob
                     AgentUserId = connection.AgentUserId,
                     GoogleEventId = googleEvent.GoogleEventId,
                     Title = googleEvent.Title,
-                    StartAt = googleEvent.StartAt,
-                    EndAt = googleEvent.EndAt,
+                    StartAt = startAt,
+                    EndAt = endAt,
                     LastSyncedAt = DateTime.UtcNow
                 });
             }
             else
             {
                 externalEvent.Title = googleEvent.Title;
-                externalEvent.StartAt = googleEvent.StartAt;
-                externalEvent.EndAt = googleEvent.EndAt;
+                externalEvent.StartAt = startAt;
+                externalEvent.EndAt = endAt;
                 externalEvent.LastSyncedAt = DateTime.UtcNow;
             }
         }
@@ -176,6 +207,63 @@ public class GoogleCalendarSyncJob
             connection.SyncToken = result.NextSyncToken;
         }
 
+        connection.LocalTimesResyncedAt ??= DateTime.UtcNow;   // 601: the full read above is done
         await _db.SaveChangesAsync();
     }
+
+    // 601 (2026-10-24): a linked event's time, from Google into the follow-up. Three cases, in this order:
+    // 1. It reads back as the stored DueAt: the sync's own event (or an untouched one). Nothing to do.
+    // 2. It is exactly where the code before 601 put it -- timeZone "UTC" (or none) and its instant equal to DueAt
+    //    read as UTC. The stored DueAt is the truth: it is what every iPro page has shown the adviser all along.
+    //    The follow-up keeps it, and the event is re-written in Google at the adviser's own time (all-day for a
+    //    date with no time), keeping the length it had. If the re-write fails it is only logged: the DueAt is
+    //    still right, and the next time Google lists the event it is tried again.
+    //    Note: under the old code a move made in Google was itself stored as the event's instant read as UTC, so
+    //    such an event also matches here and stays where iPro already shows it (the iPro time, not the drag).
+    // 3. Anything else is the adviser's own move in Google, seen in their own calendar: it becomes the DueAt at
+    //    their wall clock (an old-shaped event dragged elsewhere included). An all-day event is a bare date.
+    private async Task ApplyGoogleTimeAsync(ClientFollowUp followUp, GoogleCalendarEventData googleEvent, GoogleCalendarConnection connection, string accessToken, TimeZoneInfo zone)
+    {
+        var adviserTime = AdviserTime(googleEvent.StartAt, googleEvent.IsAllDay, zone);
+        if (SameSecond(adviserTime, followUp.DueAt)) return;
+
+        if (WrittenBefore601(googleEvent, followUp.DueAt))
+        {
+            DateTime? localEnd = null;
+            if (googleEvent.EndAt is { } endUtc && endUtc > googleEvent.StartAt)
+            {
+                localEnd = followUp.DueAt + (endUtc - googleEvent.StartAt);
+            }
+
+            try
+            {
+                await _googleCalendar.UpdateEventAsync(accessToken, connection.GoogleCalendarId, googleEvent.GoogleEventId, followUp.Title, followUp.DueAt, localEnd, zone);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Google Calendar event {GoogleEventId} written before 601 could not be re-written at the adviser's time (follow-up {FollowUpId}, agent {AgentUserId}); the follow-up keeps its time", googleEvent.GoogleEventId, followUp.Id, connection.AgentUserId);
+            }
+            return;
+        }
+
+        followUp.DueAt = adviserTime;
+    }
+
+    // The shape the code before 601 wrote: DueAt sent as a UTC instant with timeZone "UTC". The sync since 601
+    // always names the adviser's zone, so an event of its own never matches (case 1 above catches an adviser
+    // whose zone IS UTC first).
+    public static bool WrittenBefore601(GoogleCalendarEventData googleEvent, DateTime dueAt) =>
+        !googleEvent.IsAllDay
+        && (googleEvent.TimeZone is null or "UTC" or "Etc/UTC" or "GMT" or "Etc/GMT")
+        && SameSecond(googleEvent.StartAt, dueAt);
+
+    // Google's instant -> the adviser's wall clock; an all-day date is already the adviser's date.
+    private static DateTime AdviserTime(DateTime googleTime, bool allDay, TimeZoneInfo zone) =>
+        allDay
+            ? DateTime.SpecifyKind(googleTime.Date, DateTimeKind.Unspecified)
+            : DateTime.SpecifyKind(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(googleTime, DateTimeKind.Utc), zone), DateTimeKind.Unspecified);
+
+    // Google keeps whole seconds; a stored DueAt can carry fractions (a value typed with seconds, a test's Now).
+    private static bool SameSecond(DateTime a, DateTime b) =>
+        a.Ticks / TimeSpan.TicksPerSecond == b.Ticks / TimeSpan.TicksPerSecond;
 }
