@@ -30,9 +30,11 @@ public class ClientPortalController : Controller
 
     public async Task<IActionResult> Invoices()
     {
+        // 597 (2026-10-24): only documents the adviser actually sent. Drafts (and an estimate converted
+        // back into a draft invoice) used to be listed too, with a link that opened them.
         var invoices = await _db.ClientInvoices
             .AsNoTracking()
-            .Where(i => i.ClientId == ClientId)
+            .Where(i => i.ClientId == ClientId && i.Status != ClientInvoiceStatus.Draft && i.SentAt != null)
             .OrderByDescending(i => i.IssueDate)
             .ToListAsync();
         return View(invoices);

@@ -17,10 +17,16 @@ public class ClientPortalAppointmentsController : Controller
 
     public async Task<IActionResult> Index()
     {
-        ViewBag.UpcomingFollowUps = await _db.ClientFollowUps
-            .AsNoTracking()
-            .Where(f => f.ClientId == ClientId && !f.IsCompleted)
-            .OrderBy(f => f.DueAt)
+        // 597 (2026-10-24): "Upcoming" is the client's own appointments -- requests the adviser scheduled
+        // and has not marked done. It used to list every open follow-up on the client's record, so a
+        // client could read the adviser's private to-dos and life-event reminders by their titles.
+        ViewBag.UpcomingAppointments = await (
+            from r in _db.PortalAppointmentRequests.AsNoTracking()
+            join f in _db.ClientFollowUps.AsNoTracking() on r.ClientFollowUpId equals (int?)f.Id
+            where r.ClientId == ClientId && r.Status == PortalAppointmentRequestStatus.Scheduled
+                && f.ClientId == ClientId && !f.IsCompleted
+            orderby f.DueAt
+            select new IPRO.Web.Models.PortalUpcomingAppointment(f.DueAt, r.Notes))
             .ToListAsync();
 
         var requests = await _db.PortalAppointmentRequests
