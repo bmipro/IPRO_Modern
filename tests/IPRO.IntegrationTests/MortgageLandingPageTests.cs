@@ -95,7 +95,8 @@ public class MortgageLandingPageTests
         foreach (var href in new[] { "/terms", "/privacy", "/accountants", "/mortgage", "/Account/Login", "/Preview" })
             Assert.Contains("href=\"" + href + "\"", footer);
         Assert.Contains("facebook.com/p/iPRO-100071151034796", footer);
-        Assert.Contains("youtube.com/@@AllAdvisers", footer);   // @@ is Razor's literal @
+        Assert.Contains("youtube.com/@@iProAdvisers", footer);   // @@ is Razor's literal @; the active channel (2026-10-24)
+        Assert.DoesNotContain("AllAdvisers", footer);
         Assert.DoesNotContain("/Home/Terms", footer);
         Assert.DoesNotContain("/Home/Privacy", footer);
 
