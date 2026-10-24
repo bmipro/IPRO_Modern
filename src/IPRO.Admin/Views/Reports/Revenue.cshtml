@@ -1,12 +1,16 @@
 @model List<IPRO.Entities.Invoice>
 @using IPRO.DataAccess
+@using IPRO.Admin.Models
 @{
     ViewData["Title"] = "Revenue";
     var agents = (Dictionary<int, IPRO.Entities.AgentUser>)ViewBag.Agents;
-    var billings = (Dictionary<int, IPRO.Entities.Billing>)ViewBag.Billings;
-    var packages = (Dictionary<int, IPRO.Entities.BillingRule>)ViewBag.Packages;
-    var taxByRegion = (List<dynamic>)ViewBag.TaxByRegion;
-    var chartMonths = (List<dynamic>)ViewBag.ChartMonths;
+    // 600 (2026-10-24): the ledger is the invoices AND the credit notes (refunds marked Refunded, Refer a Friend
+    // rewards paid), credit notes negative; the totals, the months and the tax by region net them.
+    var rows = (List<RevenueLedgerRow>)ViewBag.LedgerRows;
+    var taxByRegion = (List<RevenueTaxRegion>)ViewBag.TaxByRegion;
+    var chartMonths = (List<RevenueMonth>)ViewBag.ChartMonths;
+    decimal paidTotal = ViewBag.PaidTotal, creditNotesTotal = ViewBag.CreditNotesTotal, netTotal = ViewBag.NetTotal;
+    int creditNoteCount = ViewBag.CreditNoteCount;
     DateTime from = ViewBag.From, to = ViewBag.To;
     string query = ViewBag.Query;
     string sort = ViewBag.Sort, dir = ViewBag.Dir;
@@ -21,6 +25,9 @@
     // dimmed pair, so it's visible at a glance that the header is clickable (owner request).
     string SortArrow(string column) => sort == column ? (dir == "asc" ? "▲" : "▼") : "";
     var totalDays = (to - from).TotalDays;
+    // "-$339.00": the sign before the dollar, so a credit note reads as money going back.
+    string Money(decimal amount) => (amount < 0 ? "-$" : "$") + Math.Abs(amount).ToString("#,0.00", System.Globalization.CultureInfo.InvariantCulture);
+    string ChartNumber(decimal amount) => amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -50,7 +57,7 @@
   </div>
   <div class="col-auto">
     <label class="form-label small mb-1">Search</label>
-    <input type="text" name="q" value="@query" placeholder="Invoice #, name, email, transaction"
+    <input type="text" name="q" value="@query" placeholder="Invoice or credit note #, name, email, transaction"
            class="form-control form-control-sm" style="min-width:260px;" />
   </div>
   <div class="col-auto">
@@ -63,23 +70,48 @@
 <div class="row g-3 mb-4">
   <div class="col-md-3">
     <div class="card h-100"><div class="card-body">
-      <div class="text-muted small text-uppercase">Revenue (paid)</div>
-      <div class="h3 mb-0 text-success">$@String.Format("{0:N2}", (decimal)ViewBag.PaidTotal)</div>
-      <div class="text-muted small">@ViewBag.PaidCount paid, @ViewBag.UnpaidCount unpaid &middot; selected period</div>
+      <div class="text-muted small text-uppercase">Invoiced (paid)</div>
+      <div class="h5 mb-0">@Money(paidTotal)</div>
+      <div class="text-muted small mb-2">@ViewBag.PaidCount paid, @ViewBag.UnpaidCount unpaid</div>
+      <div class="text-muted small text-uppercase">Credit notes</div>
+      <div class="h5 mb-0 text-danger">@Money(creditNotesTotal)</div>
+      <div class="text-muted small mb-2">@creditNoteCount refunds and referral rewards</div>
+      <div class="text-muted small text-uppercase">Net revenue</div>
+      <div class="h3 mb-0 text-success">@Money(netTotal)</div>
+      <div class="text-muted small">selected period</div>
     </div></div>
   </div>
   <div class="col-md-9">
     <div class="card h-100">
-      <div class="card-header py-2 small fw-bold">Revenue by month (paid invoices, selected period)</div>
+      <div class="card-header py-2 small fw-bold">Revenue by month (paid invoices less credit notes, selected period)</div>
       <div class="card-body py-2">
         <canvas id="revenueChart" height="70"></canvas>
+        @if (chartMonths.Count > 0)
+        {
+          <div class="table-responsive mt-2">
+            <table class="table table-sm small mb-0">
+              <thead><tr><th>Month</th><th class="text-end">Invoiced</th><th class="text-end">Credit notes</th><th class="text-end">Net</th></tr></thead>
+              <tbody>
+              @foreach (var month in chartMonths)
+              {
+                <tr>
+                  <td>@month.Label</td>
+                  <td class="text-end">@Money(month.Invoiced)</td>
+                  <td class="text-end @(month.CreditNotes < 0 ? "text-danger" : "")">@Money(month.CreditNotes)</td>
+                  <td class="text-end fw-bold">@Money(month.Net)</td>
+                </tr>
+              }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     </div>
   </div>
 </div>
 
 <div class="card mb-4">
-  <div class="card-header py-2 small fw-bold">Tax collected by region (paid invoices, selected period)</div>
+  <div class="card-header py-2 small fw-bold">Tax collected by region (paid invoices less credit notes, selected period)</div>
   @if (taxByRegion.Count == 0)
   {
     <div class="card-body text-muted small">No tax collected in this period.</div>
@@ -88,14 +120,16 @@
   {
     <div class="table-responsive">
       <table class="table table-sm mb-0">
-        <thead><tr><th>Region</th><th class="text-end">Taxable amount</th><th class="text-end">Tax collected</th></tr></thead>
+        <thead><tr><th>Region</th><th class="text-end">Taxable amount</th><th class="text-end">Tax collected</th><th class="text-end">Tax credited back</th><th class="text-end">Net tax</th></tr></thead>
         <tbody>
         @foreach (var row in taxByRegion)
         {
           <tr>
             <td>@row.Region</td>
-            <td class="text-end">$@String.Format("{0:N2}", (decimal)row.Taxable)</td>
-            <td class="text-end fw-bold">$@String.Format("{0:N2}", (decimal)row.Tax)</td>
+            <td class="text-end">@Money(row.Taxable)</td>
+            <td class="text-end">@Money(row.Collected)</td>
+            <td class="text-end @(row.Credited < 0 ? "text-danger" : "")">@Money(row.Credited)</td>
+            <td class="text-end fw-bold">@Money(row.NetTax)</td>
           </tr>
         }
         </tbody>
@@ -105,8 +139,9 @@
 </div>
 
 <p class="text-muted small">
-  The permanent ledger: every invoice ever issued, including agents deleted since. Each invoice carries its own
-  bill-to snapshot, so copies can be reprinted at any time without the agent's account.
+  The permanent ledger: every invoice ever issued, including agents deleted since, and every credit note -- a refund
+  marked Refunded in Refunds, or a Refer a Friend reward paid -- as its own row with negative amounts. Each invoice
+  carries its own bill-to snapshot, so copies can be reprinted at any time without the agent's account.
 </p>
 
 <div class="card">
@@ -114,7 +149,7 @@
     <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
-          <th>Invoice #</th>
+          <th>Number</th>
           @* word@(expr), not word@expr -- Razor's email-address heuristic renders the latter as
              literal text when @ directly follows a word character. *@
           <th><a href="@SortUrl("date")" class="text-decoration-none text-dark">Date @(SortArrow("date"))@if (sort != "date") { <span class="opacity-25">▲▼</span> }</a></th>
@@ -125,37 +160,46 @@
         </tr>
       </thead>
       <tbody>
-      @if (Model.Count == 0)
+      @if (rows.Count == 0)
       {
-        <tr><td colspan="10" class="text-muted text-center py-4">No invoices in this period.</td></tr>
+        <tr><td colspan="10" class="text-muted text-center py-4">No invoices or credit notes in this period.</td></tr>
       }
-      @foreach (var i in Model)
+      @foreach (var r in rows)
       {
-        var agent = agents.TryGetValue(i.AgentUserId, out var a) ? a : null;
-        var package = billings.TryGetValue(i.BillingId, out var b) && packages.TryGetValue(b.BillingRuleId, out var p) ? p.PackageName : "";
-        <tr>
-          <td class="fw-bold">@i.InvoiceNumber</td>
-          <td><small>@AgentLocalTime.FromUtc(i.IssuedAt, agent?.TimeZone).ToString("MMM d, yyyy")</small></td>
+        var agent = agents.TryGetValue(r.AgentUserId, out var a) ? a : null;
+        <tr class="@(r.IsCreditNote ? "table-danger" : "")">
+          <td class="fw-bold">
+            @r.Number
+            @if (r.IsCreditNote)
+            {
+              <small class="d-block fw-normal text-muted">@r.CreditKind@(string.IsNullOrEmpty(r.CreditsInvoice) ? "" : ", credits " + r.CreditsInvoice)</small>
+            }
+          </td>
+          <td><small>@AgentLocalTime.FromUtc(r.IssuedAt, agent?.TimeZone ?? r.AdviserTimeZone).ToString("MMM d, yyyy")</small></td>
           <td>
-            @(string.IsNullOrWhiteSpace(i.BillToName) ? (agent?.UserName ?? "(unknown)") : i.BillToName)
-            @if (!string.IsNullOrWhiteSpace(i.BillToCompany)) { <small class="text-muted d-block">@i.BillToCompany</small> }
+            @(string.IsNullOrWhiteSpace(r.BillToName) ? (agent?.UserName ?? "(unknown)") : r.BillToName)
+            @if (!string.IsNullOrWhiteSpace(r.BillToCompany)) { <small class="text-muted d-block">@r.BillToCompany</small> }
           </td>
           <td>
             @if (agent == null)
             {
-              <span class="badge bg-secondary" title="The account was deleted; the invoice is retained.">deleted</span>
+              <span class="badge bg-secondary" title="The account was deleted; the record is retained.">deleted</span>
             }
             else
             {
               <a href="/Agents/Details/@agent.Id">@agent.UserName</a>
             }
           </td>
-          <td><small>@package</small></td>
-          <td class="text-end">$@String.Format("{0:N2}", i.SubTotal)</td>
-          <td class="text-end"><small>$@String.Format("{0:N2}", i.TaxAmount) @i.TaxRegion</small></td>
-          <td class="text-end fw-bold">$@String.Format("{0:N2}", i.Total)</td>
-          <td>@if (i.IsPaid) { <span class="badge bg-success">Paid</span> } else { <span class="badge bg-warning text-dark">Unpaid</span> }</td>
-          <td><a class="btn btn-sm btn-outline-secondary" href="/Reports/Invoice/@i.Id">View / Print</a></td>
+          <td><small>@r.Package</small></td>
+          <td class="text-end">@Money(r.SubTotal)</td>
+          <td class="text-end"><small>@Money(r.Tax) @r.TaxRegion</small></td>
+          <td class="text-end fw-bold">@Money(r.Total)</td>
+          <td>
+            @if (r.IsCreditNote) { <span class="badge bg-danger">Credit note</span> }
+            else if (r.Paid) { <span class="badge bg-success">Paid</span> }
+            else { <span class="badge bg-warning text-dark">Unpaid</span> }
+          </td>
+          <td><a class="btn btn-sm btn-outline-secondary" href="@r.ViewUrl">View / Print</a></td>
         </tr>
       }
       </tbody>
@@ -165,15 +209,20 @@
 
 @section Scripts {
 <script nonce="@Context.GetCspNonce()">
-const labels = [@Html.Raw(string.Join(",", chartMonths.Select(m => $"'{m.Label}'")))];
-const data   = [@Html.Raw(string.Join(",", chartMonths.Select(m => m.Total)))];
+const labels   = [@Html.Raw(string.Join(",", chartMonths.Select(m => $"'{m.Label}'")))];
+const invoiced = [@Html.Raw(string.Join(",", chartMonths.Select(m => ChartNumber(m.Invoiced))))];
+const credited = [@Html.Raw(string.Join(",", chartMonths.Select(m => ChartNumber(m.CreditNotes))))];
+const net      = [@Html.Raw(string.Join(",", chartMonths.Select(m => ChartNumber(m.Net))))];
 new Chart(document.getElementById('revenueChart'), {
-  type: 'bar',
   data: {
     labels,
-    datasets: [{ label: 'Revenue (CAD)', data, backgroundColor: 'rgba(37,99,235,0.7)', borderRadius: 6 }]
+    datasets: [
+      { type: 'bar', label: 'Invoiced (CAD)', data: invoiced, backgroundColor: 'rgba(37,99,235,0.7)', borderRadius: 6 },
+      { type: 'bar', label: 'Credit notes (CAD)', data: credited, backgroundColor: 'rgba(220,38,38,0.7)', borderRadius: 6 },
+      { type: 'line', label: 'Net (CAD)', data: net, borderColor: 'rgba(22,163,74,1)', backgroundColor: 'rgba(22,163,74,1)', tension: 0.2 }
+    ]
   },
-  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v.toLocaleString() } } } }
+  options: { responsive: true, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true, ticks: { callback: v => (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString() } } } }
 });
 </script>
 }

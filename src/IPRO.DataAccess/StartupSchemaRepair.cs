@@ -422,6 +422,28 @@ public static class StartupSchemaRepair
         }
     }
 
+    // 600 (2026-10-24): a refund marked Refunded in SuperAdmin -> Refunds is a credit note (CreditNotes in
+    // IPRO.Billing): its number from the shared CN-YYYY-NNNN sequence, the day it was issued, the invoice it
+    // credits with that invoice's tax region and rate, PayPal's refund id, and when the adviser was emailed.
+    public static async Task EnsureRefundCreditNoteSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteNumber", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteNumber` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteIssuedAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteIssuedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteInvoiceNumber", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteInvoiceNumber` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteTaxRate", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteTaxRate` decimal(7,5) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteTaxRegion", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteTaxRegion` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "PayPalRefundId", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `PayPalRefundId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteEmailSentAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteEmailSentAt` datetime(6) NULL");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     public static async Task EnsureNewsLetterTemplateSchemaAsync(IPRODbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(@"

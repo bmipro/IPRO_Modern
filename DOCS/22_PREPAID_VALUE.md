@@ -67,7 +67,38 @@ due: agent, package/term, months used, **net + HST + gross**, the original PayPa
 to refund against, days remaining in PayPal's ~180-day refund window, and a status the owner
 flips: `Pending → Refunded (txn id)` / `ConvertedToCredit` / `Waived`. Rows are financial
 records: retained by the eraser like invoices, audit-logged, and Refunded amounts appear as
-credit notes against the revenue/tax ledger.
+credit notes against the revenue/tax ledger (built in 600, below).
+
+### Credit notes for refunds (600, 2026-10-24)
+
+The owner, 2026-10-24: "Refunds don't reduce Revenue and get no credit note -> Add credit notes and
+net them in Revenue and the CSV (matters for tax filing)." What happens now:
+
+- **Mark Refunded issues a credit note.** Entering PayPal's refund id and marking a row Refunded
+  (a cancellation refund, or a `[captured-after-end net]` row -- money PayPal took after the
+  subscription had ended) gives it a credit note number from the **same `CN-YYYY-NNNN` sequence as
+  the Refer a Friend credit notes**: one counter per year for both kinds (`NumberSequences`, key
+  `credit-note:YYYY`, seeded the first time from the highest number in either table), so a number is
+  never reused. The row is claimed and numbered in one transaction: a second click or a second admin
+  at the same moment finds nothing left to mark and no second number is taken.
+- **What the credit note records** (copied onto the refund row when it is issued, so it never
+  changes): its number and date, the invoice it credits (the one the refunded PayPal sale paid), that
+  invoice's tax region and rate, PayPal's refund id, and the net / tax / gross already on the row.
+  Columns on `SubscriptionChanges`: `CreditNoteNumber`, `CreditNoteIssuedAt`,
+  `CreditNoteInvoiceNumber`, `CreditNoteTaxRate`, `CreditNoteTaxRegion`, `PayPalRefundId`,
+  `CreditNoteEmailSentAt` (StartupSchemaRepair `EnsureRefundCreditNoteSchemaAsync`, both apps).
+- **The adviser is emailed the credit note** when the row is marked: the supplier block from
+  SuperAdmin -> Company Details, the amount before tax, the tax with its region and rate, the total
+  credited (all negative), the invoice it credits, PayPal's refund id and the payment it was made
+  against. A failed email never undoes the marking or the number; the page says the email did not go
+  out, so the owner tells the adviser another way.
+- **Waived refunds get no credit note** (no money went back).
+- **Revenue nets them.** SuperAdmin -> Revenue shows Invoiced, Credit notes (negative) and Net in the
+  headline and for each month; tax by region subtracts the tax credited back; the ledger lists every
+  credit note (refund and Refer a Friend) as its own row with negative amounts and a printable page;
+  the CSV adds them as rows with negative SubTotal / TaxAmount / Total, plus `Type` and
+  `CreditsInvoice` columns at the end, so a spreadsheet sum nets for a tax filing.
+- Refunds marked Refunded before 600 have no credit note; nothing numbers them after the fact.
 
 ### Refer a Friend rewards (532)
 
@@ -76,7 +107,8 @@ and the adviser's own PayPal payment(s) to refund it against, worked out by the 
 sale it is made against, so a reward bigger than the latest payment is split across the ones before it; money already
 promised back from a sale -- another reward, a cancellation refund -- is taken off what it can still return; only
 payments with at least 14 days left in PayPal's window count). The owner refunds at PayPal and marks the reward
-Refunded with the refund id(s); that issues the credit note (`CN-YYYY-NNNN`) and sends the adviser's "paid" email.
+Refunded with the refund id(s); that issues the credit note (`CN-YYYY-NNNN`, the one sequence refund credit notes
+also use -- 600) and sends the adviser's "paid" email.
 
 ### The 180-day trap (Catch #2)
 
@@ -130,7 +162,8 @@ period re-converts the remaining dollars, which is why the dollars are stored, n
 - **A** — math core + schema + tests (no behaviour change).
 - **B** — cancellation flow uses it: PaidThroughAt honored by gating, honest confirm dialog,
   Cancel SubscriptionChange rows with refund computation.
-- **C** — SuperAdmin refund queue + ledger credit notes + ToS clause.
+- **C** — SuperAdmin refund queue + ledger credit notes + ToS clause. (The credit notes came last:
+  600, 2026-10-24, above.)
 - **D** — downgrade Offer-Both / convert path. SHIPPED 2026-08-20 (branch
   `feat/downgrade-offer-both`). During implementation the "interlocked fixes" list was re-verified
   against the code and most of it was ALREADY CLOSED by `1909426` (2026-08-16, "fix all 16

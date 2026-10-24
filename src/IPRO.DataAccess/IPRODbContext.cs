@@ -746,6 +746,12 @@ public class IPRODbContext : DbContext
             e.Property(c => c.ProratedCharge).HasPrecision(10, 2);
             e.Property(c => c.AmountDue).HasPrecision(10, 2);
             e.Property(c => c.Currency).HasMaxLength(3).IsRequired();
+            // 600: the refund's credit note (StartupSchemaRepair.EnsureRefundCreditNoteSchemaAsync).
+            e.Property(c => c.CreditNoteNumber).HasMaxLength(30);
+            e.Property(c => c.CreditNoteInvoiceNumber).HasMaxLength(64);
+            e.Property(c => c.CreditNoteTaxRate).HasPrecision(7, 5);
+            e.Property(c => c.CreditNoteTaxRegion).HasMaxLength(100);
+            e.Property(c => c.PayPalRefundId).HasMaxLength(200);
         });
 
         // NewsLetter → AgentUser

@@ -250,6 +250,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync", () => StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePrepaidValueSchemaAsync", () => StartupSchemaRepair.EnsurePrepaidValueSchemaAsync(db), db, app.Logger);
+    // 600: the refund credit-note columns on SubscriptionChanges, right after the refund columns themselves.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureRefundCreditNoteSchemaAsync", () => StartupSchemaRepair.EnsureRefundCreditNoteSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync", () => StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync(db), db, app.Logger);
 
     // Starter content is optional: an agent can work without a card design or a letter template,

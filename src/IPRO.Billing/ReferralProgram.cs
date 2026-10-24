@@ -579,15 +579,30 @@ public static class ReferralProgram
         await db.Referrals.Where(r => r.Id == referralId && r.Attention != "")
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Attention, string.Empty).SetProperty(r => r.UpdatedAt, now)) > 0;
 
-    private static async Task<string> NextCreditNoteNumberAsync(IPRODbContext db, DateTime now)
+    // 600 (2026-10-24): the ONE CN-YYYY-NNNN sequence for every credit note iPro issues -- a reward paid here, and a
+    // refund marked Refunded in SuperAdmin -> Refunds (CreditNotes.MarkRefundedAsync). One counter row per year
+    // (NumberSequences: a single atomic UPDATE, so two admins at once never share a number); the first use of a year
+    // seeds it from the highest number EITHER table already holds, so the two kinds never collide.
+    internal static async Task<string> NextCreditNoteNumberAsync(IPRODbContext db, DateTime now)
     {
-        var prefix = $"CN-{now:yyyy}-";
-        var next = await NumberSequences.NextAsync(db, $"credit-note:{now:yyyy}", async () =>
-        {
-            var numbers = await db.Referrals.AsNoTracking().Where(r => r.CreditNoteNumber.StartsWith(prefix)).Select(r => r.CreditNoteNumber).ToListAsync();
-            return numbers.Select(n => long.TryParse(n[prefix.Length..], out var v) ? v : 0L).DefaultIfEmpty(0L).Max();
-        });
+        var prefix = CreditNotePrefix(now);
+        var next = await NumberSequences.NextAsync(db, CreditNoteKey(now), () => HighestCreditNoteAsync(db, prefix));
         return $"{prefix}{next:0000}";
+    }
+
+    // The year's counter made before a caller takes a number inside its own transaction (NumberSequences.EnsureSeededAsync).
+    internal static Task EnsureCreditNoteSequenceAsync(IPRODbContext db, DateTime now) =>
+        NumberSequences.EnsureSeededAsync(db, CreditNoteKey(now), () => HighestCreditNoteAsync(db, CreditNotePrefix(now)));
+
+    private static string CreditNotePrefix(DateTime now) => $"CN-{now:yyyy}-";
+
+    private static string CreditNoteKey(DateTime now) => $"credit-note:{now:yyyy}";
+
+    private static async Task<long> HighestCreditNoteAsync(IPRODbContext db, string prefix)
+    {
+        var numbers = await db.Referrals.AsNoTracking().Where(r => r.CreditNoteNumber.StartsWith(prefix)).Select(r => r.CreditNoteNumber).ToListAsync();
+        numbers.AddRange(await db.SubscriptionChanges.AsNoTracking().Where(c => c.CreditNoteNumber.StartsWith(prefix)).Select(c => c.CreditNoteNumber).ToListAsync());
+        return numbers.Select(n => long.TryParse(n[prefix.Length..], out var v) ? v : 0L).DefaultIfEmpty(0L).Max();
     }
 
     // Needs attention: a possible self-referral not yet looked at, or an earned reward with nothing to refund
