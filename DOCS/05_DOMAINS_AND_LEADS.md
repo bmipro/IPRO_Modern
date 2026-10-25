@@ -42,9 +42,9 @@ visible and can be opened at any time, so all the records can be added in one vi
    short address already points at iPro while the email depends on it, the domain's row says the email may not be
    arriving (the page looks once for every live domain whose short address points here, even with its guide
    folded). **Skip this step for now** moves on to step 4.
-4. **iPro finishes.** Connected to your website, then the padlock (security certificate) ordered and in place,
+4. **iPro finishes.** Connected to your website, then the SSL certificate ordered and in place,
    then live. IPRO emails you when the domain is live, and once, a day after it was added, if it is still not
-   connected, with what is missing. When the padlock is held up by a record only you can add (a CAA record), or is
+   connected, with what is missing. When the SSL certificate is held up by a record only you can add (a CAA record), or is
    hours late, this step opens ahead of step 3. "Hours late" is counted from when the domain was proven and
    connected, not from when it was added (a domain added one day and proven the next is not late at once); IPRO's
    own overdue-certificate alert counts the same way.
@@ -62,11 +62,21 @@ default records must go. For any other company the wording fits every DNS screen
 **What iPro sees.** Each step says what is there now beside what it should be: "We don't see this record yet",
 "Right now www.yourfirm.ca points to yourfirm.myshopify.com. Edit that record and change its value to ...", "...
 points to iPro but also to ... Delete the other A records". While the guide is open the page looks again about
-every 20 seconds (only while the page is in front and the guide is on screen), and **Check now** looks at once and
+every 20 seconds while the page is in front and the guide is on screen (the domain being set up keeps looking once a
+minute while you are in another tab, such as your registrar's), and **Check now** looks at once and
 asks IPRO to check the domain fully (15 seconds apart at most; sooner, it says it checked a few seconds ago and
 shows that); neither ever asks you to wait. IPRO asks the domain's own name servers, so a record counts within seconds of being saved. (For a domain
 whose DNS is signed with DNSSEC, the proof in step 1 is still read through the public resolvers, which check the
 signatures; it can then take a few minutes longer.)
+
+**Seeing where you are (603).** The step you are on is written large at the top ("Step 2 of 4: Point www at iPro")
+with a bar of the four steps under it, and its box is blue, larger and marked **To do now**; steps already done shrink
+to one line with a tick. Under the heading an hourglass turns while IPRO looks ("Checking your domain now..."), and
+between looks the line says when the next one is ("Next check in 18 seconds."); **Check now** shows the hourglass too
+while it works. When a step changes by itself, a green line says so ("Step 1 done. Now step 2: Point www at iPro.")
+until the next change, and the new step glows briefly; when the domain is live the line says it is live and secured
+with SSL. The browser tab's title shows the step too ("Step 2 of 4 | Domain"), then "Live", so you can see it from
+your registrar's tab. With your computer set to reduce motion, nothing turns or glows; the words say the same.
 
 **I need help** opens a support ticket already written: the domain, its DNS host, the step you are on, and for
 every record what IPRO expects beside what it sees. Add a line if you like and send it. Super Admin sees the same
@@ -227,7 +237,7 @@ guide (above) walks the agent through the same records one step at a time, with 
 > alongside the `SOA` and `NS` records every domain must have. So it gets an address record instead, and a
 > TXT record that proves the domain is yours.
 >
-> **5. Your certificate installs itself.** The last step is the padlock in the browser. It's issued and
+> **5. Your certificate installs itself.** The last step is the SSL certificate (the padlock in the browser). It's issued and
 > installed automatically, usually within a few minutes of step 3 completing, and renewed automatically
 > from then on. The portal shows *Securing your site* while it happens and *Secured* when it's done.
 > **There is nothing for you to do, and no second record to add.**
@@ -323,7 +333,7 @@ A domain with no CAA records at all needs nothing: any company may issue for it.
    IPRO check the domain fully, whatever its state, 15 seconds after the last check at the soonest (the background
    check's included); sooner than that it says so and shows the latest.
 3. When DNS shows something IPRO has not acted on yet (the proof record, `www` pointing here, the short address's
-   two records, a padlock on its way, a CAA record), IPRO goes on to check the domain at once; the background
+   two records, an SSL certificate on its way, a CAA record), IPRO goes on to check the domain at once; the background
    check does the rest every five minutes. The page never asks you to wait: if it checked a moment ago it simply
    shows what it saw. The page's own checks never use up the background check's retries.
 

@@ -172,9 +172,9 @@ public class DomainAutomationJob
             await SendToAdviserAsync(domain, $"{domain.DomainName} is live", $"""
                 <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
                   <h1 style="font-size:22px">{www} is live</h1>
-                  <p>Good news: your website now opens at <a href="https://{www}">https://{www}</a>, with its padlock.</p>
+                  <p>Good news: your website now opens at <a href="https://{www}">https://{www}</a>, secured with SSL.</p>
                   {shortAddress}
-                  <p>There is nothing more to do. The padlock renews itself.</p>
+                  <p>There is nothing more to do. The SSL certificate renews itself.</p>
                 </div>
                 """);
         }

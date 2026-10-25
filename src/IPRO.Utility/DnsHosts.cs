@@ -43,7 +43,7 @@ public static class DnsHosts
     private static readonly DnsHost Cloudflare = new("cloudflare", "Cloudflare",
         "Sign in at dash.cloudflare.com, choose your domain, then DNS, then Records, and click Add record.",
         "https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/", ShortNameNote,
-        WwwTip: "Set Proxy status to DNS only (the grey cloud). With the orange cloud on, the padlock can never be issued.",
+        WwwTip: "Set Proxy status to DNS only (the grey cloud). With the orange cloud on, the SSL certificate can never be issued.",
         ShortTip: "Set Proxy status to DNS only (the grey cloud) on the A record too.");
 
     private static readonly DnsHost Squarespace = new("squarespace", "Squarespace (formerly Google Domains)",
