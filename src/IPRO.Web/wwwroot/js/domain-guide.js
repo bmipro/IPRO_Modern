@@ -6,6 +6,12 @@
 // the adviser opened. When a step is done and the adviser is working inside the guide, the keyboard focus moves on to
 // the next step, and a polite live region says so. Everything the server sends is set as text (textContent): some of it
 // is what a domain's own DNS holds.
+//
+// 603 (owner, 2026-10-24: "I did not realize that I was already on my second step"): what the guide does shows too.
+// An hourglass turns while iPro looks and the time to the next look counts down; when a step changes on its own a line
+// says so ("Step 1 done. Now step 2: ...") until the next change, the new step glows once, and the bar of the four steps
+// moves on. The browser tab's title carries the step of the domain being set up, and that guide keeps looking once a
+// minute while the adviser is on the registrar's site in another tab, so the tab says "Live" when it is.
 (function () {
   'use strict';
   if (window.iproDomainGuide) return;
@@ -16,8 +22,11 @@
   var SLOW_INTERVAL = 60000;     // after half an hour with the page open
   var SLOW_AFTER = 30 * 60 * 1000;
   var MAX_INTERVAL = 5 * 60 * 1000;
+  var HIDDEN_INTERVAL = 60000;   // 603: the guide in the tab's title, while the adviser is in another tab
   var SIGNED_OUT = 'Your session has ended. Reload the page to sign in again.';
   var COULD_NOT = 'We could not check just now; we will try again in a moment.';
+  var CHECKING = 'Checking your domain now...';
+  var BASE_TITLE = document.title;
 
   function storage(name) {
     try { return window.sessionStorage.getItem(name); } catch (e) { return null; }
@@ -54,6 +63,11 @@
     this.stopped = false;
     this.inView = true;
     this.announcer = section.querySelector('[data-guide-announce]');
+    this.activity = section.querySelector('[data-guide-activity]');
+    this.nextAt = 0;
+    this.ticker = null;
+    this.titled = false;
+    this.arrivedTimer = null;
     this.bind();
   }
 
@@ -104,6 +118,97 @@
     window.setTimeout(function () { announcer.textContent = message; }, 50);
   };
 
+  // 603: the line under the heading. busy: the hourglass turns while iPro looks; waiting: it stands, and the time to
+  // the next look counts down; done: a tick, nothing left to watch. Not a live region: a countdown would talk every
+  // second (the announcer says what matters).
+  Guide.prototype.setActivity = function (state) {
+    var activity = this.activity;
+    if (!activity) return;
+    activity.className = 'guide-activity guide-activity--' + state;
+    var icon = activity.querySelector('[data-guide-activity-icon]');
+    if (icon) icon.className = 'fas ' + (state === 'done' ? 'fa-circle-check' : state === 'stopped' ? 'fa-circle-exclamation' : 'fa-hourglass-half') + ' guide-activity__icon';
+    var check = this.section.querySelector('[data-guide-check]');
+    if (check) {
+      check.classList.toggle('is-checking', state === 'busy');
+      text(check, state === 'busy' ? 'Checking...' : 'Check now');
+    }
+    this.tick();
+  };
+
+  Guide.prototype.tick = function () {
+    var next = this.activity ? this.activity.querySelector('[data-guide-next]') : null;
+    if (!next) return;
+    if (this.busy || !this.nextAt || !this.watching() || this.section.hidden) { text(next, ''); return; }
+    var seconds = Math.ceil((this.nextAt - Date.now()) / 1000);
+    text(next, seconds > 0 ? 'Next check in ' + seconds + (seconds === 1 ? ' second.' : ' seconds.') : 'Checking again in a moment.');
+  };
+
+  // The countdown's clock: one per guide, only while there is something to count down to.
+  Guide.prototype.startTicker = function () {
+    var guide = this;
+    if (this.ticker !== null) return;
+    this.ticker = window.setInterval(function () {
+      if (!guide.nextAt || !guide.watching()) { window.clearInterval(guide.ticker); guide.ticker = null; guide.tick(); return; }
+      if (document.visibilityState === 'visible') guide.tick();
+    }, 1000);
+  };
+
+  // 603: says on the page what the announcer says aloud, until the next change. back: a step that was done is not seen
+  // any more (a record removed), so the line is amber, not green.
+  Guide.prototype.moved = function (message, back) {
+    var line = this.section.querySelector('[data-guide-moved]');
+    if (!line) return;
+    line.className = 'guide-moved' + (back ? ' guide-moved--back' : '');
+    var icon = line.querySelector('[data-guide-moved-icon]');
+    if (icon) icon.className = 'fas ' + (back ? 'fa-circle-exclamation' : 'fa-circle-check') + ' guide-moved__icon';
+    text(line.querySelector('[data-guide-moved-text]'), message);
+    show(line, true);
+  };
+
+  // The step just reached glows twice (not with reduced motion), and comes into view if it is off the screen.
+  Guide.prototype.arrive = function (number, focused) {
+    var guide = this;
+    var step = this.step(number);
+    if (!step) return;
+    window.clearTimeout(this.arrivedTimer);
+    each(this.section, '.guide-step--arrived', function (element) { element.classList.remove('guide-step--arrived'); });
+    step.classList.add('guide-step--arrived');
+    this.arrivedTimer = window.setTimeout(function () { step.classList.remove('guide-step--arrived'); guide.arrivedTimer = null; }, 2600);
+    if (focused) return;   // open() has already brought it into view with the focus
+    var box = step.getBoundingClientRect();
+    if ((box.top < 0 || box.bottom > window.innerHeight) && step.scrollIntoView) {
+      var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      step.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+    }
+  };
+
+  // The bar of the four steps under the heading: each part as its step, the shown one (step 4 once 3 is skipped) current.
+  Guide.prototype.paintMeter = function (shown) {
+    var guide = this;
+    each(this.section, '[data-guide-meter]', function (part) {
+      var number = part.getAttribute('data-guide-meter');
+      var step = guide.step(number);
+      var state = 'upcoming';
+      if (step) ['done', 'current', 'notneeded', 'upcoming'].forEach(function (name) { if (step.classList.contains('guide-step--' + name)) state = name; });
+      if (String(shown) === number) state = 'current';
+      else if (state === 'current') state = 'notneeded';
+      part.className = 'guide-meter__part guide-meter__part--' + state;
+    });
+  };
+
+  // The tab's title: the step of the domain being set up, so it shows from another tab.
+  Guide.prototype.setTitle = function (shown, live) {
+    if (!this.titled) return;
+    if (this.section.hidden) { document.title = BASE_TITLE; return; }
+    var count = this.steps().length;
+    document.title = (live ? 'Live' : 'Step ' + shown + ' of ' + count) + (BASE_TITLE ? ' | ' + BASE_TITLE : '');
+  };
+
+  // The guide in the tab's title looks once a minute while the adviser is in another tab.
+  Guide.prototype.background = function () {
+    return this.titled && !this.section.hidden && this.inView && document.visibilityState !== 'visible';
+  };
+
   Guide.prototype.bind = function () {
     var guide = this;
     this.steps().forEach(function (step) {
@@ -131,6 +236,10 @@
         guide.markCurrent(4);
         guide.open(4, true);
         guide.announce('Step 3 skipped. Step 4: iPro finishes.');
+        guide.moved('Step 3 skipped. Now step 4: iPro finishes.', false);
+        guide.paintMeter(4);
+        guide.arrive(4, true);
+        guide.setTitle(4, guide.live);
       });
     }
 
@@ -194,18 +303,25 @@
     var guide = this;
     window.clearTimeout(this.timer);
     this.timer = null;
-    if (!this.watching()) return;
-    this.timer = window.setTimeout(function () { guide.timer = null; guide.poll(false); }, delay);
+    this.nextAt = 0;
+    if (!this.watching()) { this.tick(); return; }
+    // In another tab only the guide in the title looks, and once a minute at most (603).
+    var wait = document.visibilityState === 'visible' ? delay : Math.max(delay, HIDDEN_INTERVAL);
+    this.nextAt = Date.now() + wait;
+    this.timer = window.setTimeout(function () { guide.timer = null; guide.poll(false); }, wait);
+    this.tick();
+    this.startTicker();
   };
 
   // once: a single look whatever the guide shows (a live domain's email, below); the timer then carries on as usual.
   Guide.prototype.poll = function (asked, once) {
     var guide = this;
     if (this.busy || this.refused) return;
-    if (!asked && !once && (!this.visible() || !this.watching())) { this.schedule(this.interval); return; }
+    if (!asked && !once && (!(this.visible() || this.background()) || !this.watching())) { this.schedule(this.interval); return; }
     this.busy = true;
     var checked = this.section.querySelector('[data-guide-checked]');
-    text(checked, 'Checking...');
+    text(checked, CHECKING);
+    this.setActivity('busy');
     var button = this.section.querySelector('[data-guide-check]');
     if (button) button.setAttribute('aria-disabled', 'true');
 
@@ -257,6 +373,7 @@
       guide.busy = false;
       if (button) button.removeAttribute('aria-disabled');
       guide.schedule(guide.interval);
+      guide.setActivity(guide.stopped ? 'stopped' : guide.watching() ? 'waiting' : 'done');
     });
   };
 
@@ -270,6 +387,12 @@
     // The row's line under the domain: the step it is on (once live, the page says so when reloaded).
     var summary = document.querySelector('[data-guide-summary="' + this.id + '"] [data-guide-summary-text]');
     if (!data.refusal && !data.live) text(summary, data.heading);
+    // 603: gone live while the page was open: the row says so at once, as it will once the page is reloaded.
+    if (!data.refusal && data.live && !this.live) {
+      text(summary, 'Live and secured');
+      var badge = document.querySelector('[data-guide-summary="' + this.id + '"] .badge');
+      if (badge) { badge.className = 'badge bg-success'; text(badge, 'Live'); }
+    }
     var problem = section.querySelector('[data-guide-problem]');
     if (problem) {
       text(problem.querySelector('[data-guide-problem-text]'), data.problem);
@@ -370,10 +493,15 @@
     // A new current step: open it, say so, and take the focus there if the adviser is working inside the guide.
     var inside = section.contains(document.activeElement);
     var announced = false;
+    this.paintMeter(data.live ? 0 : shown);
+    this.setTitle(shown, !!data.live);
     if (data.live && !this.live) {
       this.announce(data.heading + '.');
       announced = true;
       this.open(4, inside);
+      // Live means proven, pointed and secured (DomainSetupGuide: live needs the certificate).
+      this.moved(data.heading + ', secured with SSL. There is nothing more to do.', false);
+      this.arrive(4, inside);
     } else if (current !== this.current && current > 0) {
       // What is said is what the steps say: only steps now done count as done (a step jumped over is not).
       var title = '';
@@ -389,6 +517,11 @@
       this.announce(done + 'Step ' + shown + ': ' + title + '.');
       announced = true;
       this.open(shown, inside);
+      // 603: the same words on the page, until the next change. Going back (a record no longer seen) is amber.
+      var back = previous > 0 && shown < previous;
+      this.moved(back ? 'Back to step ' + shown + ': ' + title + '. Something this step needs is no longer seen.'
+        : done + 'Now step ' + shown + ': ' + title + '.', back);
+      this.arrive(shown, inside);
     }
     this.current = current;
     this.live = !!data.live;
@@ -428,9 +561,16 @@
       });
     }) : null;
 
+    // 603: the tab's title follows one guide: the domain just added, or else the first open one still being set up.
+    var titled = document.querySelector('[data-domain-guide][data-guide-focus="true"]:not([hidden])')
+      || document.querySelector('[data-domain-guide][data-guide-live="false"][data-guide-refused="false"]:not([hidden])');
     each(document, '[data-domain-guide]', function (section) {
       var guide = new Guide(section);
       guides[guide.id] = guide;
+      if (section === titled) {
+        guide.titled = true;
+        guide.setTitle(guide.current === 3 && guide.skipped() ? 4 : guide.current, guide.live);
+      }
       if (observer) observer.observe(section);
       if (!section.hidden) guide.start(section.getAttribute('data-guide-focus') === 'true');
       // A live domain whose short address points here: one look, open or folded, in case its email depends on the short
@@ -448,6 +588,8 @@
         button.setAttribute('aria-expanded', showIt ? 'true' : 'false');
         window.clearTimeout(guide.timer);
         guide.timer = null;
+        guide.nextAt = 0;
+        guide.setTitle(guide.current, guide.live);
         if (showIt) {
           guide.stopped = false;
           guide.start(true);

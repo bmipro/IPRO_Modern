@@ -38,7 +38,28 @@
   }
   else
   {
-    <p class="small text-muted mb-2" data-guide-heading>@guide.Heading</p>
+    @* 603 (owner, 2026-10-24: "I did not realize that I was already on my second step"): the step the adviser is on,
+       large, with a bar of the four steps under it; a line saying so when a step changes on its own (spoken by the live
+       region below, so not a live region itself); and an hourglass that turns while iPro looks, with the time to the
+       next look. *@
+    <div class="guide-head">
+      <p class="guide-heading mb-0" data-guide-heading>@guide.Heading</p>
+      <div class="guide-meter" aria-hidden="true">
+        @foreach (var step in guide.Steps)
+        {
+          <span class="guide-meter__part guide-meter__part--@StateClass(step.State)" data-guide-meter="@step.Number"></span>
+        }
+      </div>
+    </div>
+    <div class="guide-moved" data-guide-moved hidden>
+      <i class="fas fa-circle-check guide-moved__icon" aria-hidden="true" data-guide-moved-icon></i>
+      <span data-guide-moved-text></span>
+    </div>
+    <div class="guide-activity guide-activity--@(guide.Live ? "done" : "waiting")" data-guide-activity>
+      <i class="fas @(guide.Live ? "fa-circle-check" : "fa-hourglass-half") guide-activity__icon" aria-hidden="true" data-guide-activity-icon></i>
+      <span data-guide-checked>@Checked()</span>
+      <span class="guide-activity__next" data-guide-next></span>
+    </div>
     <div class="alert alert-warning border-0 small py-2 mb-2" data-guide-problem hidden="@(guide.Problem == null)"><span data-guide-problem-text>@guide.Problem</span></div>
     <p class="small text-muted mb-2" data-guide-host-line hidden="@(host.Name.Length == 0)">
       Your domain's DNS is managed at <strong data-guide-host-name>@host.Name</strong>.
@@ -133,7 +154,7 @@
               @* 506: the domain's own DNS keeps our certificate authority out; say so, and what to add. *@
               <div class="alert alert-danger border-0 small mb-2 py-2" data-guide-caa hidden="@(guide.CaaName == null)">
                 <strong>One record is missing at your registrar.</strong>
-                The DNS for <strong data-guide-caa-name>@guide.CaaName</strong> lists which companies may issue its security certificate, and ours (DigiCert) is not on the list, so the padlock cannot be issued. Add this record where your DNS is managed:
+                The DNS for <strong data-guide-caa-name>@guide.CaaName</strong> lists which companies may issue its SSL certificate, and ours (DigiCert) is not on the list, so the SSL certificate cannot be issued. Add this record where your DNS is managed:
                 <div class="table-responsive mt-2"><table class="table table-sm table-bordered bg-white mb-1">
                   <thead><tr><th scope="col">Type</th><th scope="col">Name</th><th scope="col">Value</th></tr></thead>
                   <tbody><tr><td>CAA</td><td><code data-guide-caa-box>@(guide.CaaNameInBox ?? "@")</code><span class="text-muted small" data-guide-caa-empty hidden="@(guide.CaaNameInBox != "")">(leave it empty)</span></td><td><code>@IPRO.Utility.CaaCheck.RecordToAdd</code></td></tr></tbody>
@@ -167,10 +188,9 @@
       }
     </ol>
     <div class="guide-footer">
-      <span class="text-muted" data-guide-checked>@Checked()</span>
       <span class="text-muted">We check again on our own every 20 seconds while this page is open.</span>
       <span class="guide-footer__actions">
-        <button type="button" class="btn btn-sm btn-outline-primary" data-guide-check>Check now</button>
+        <button type="button" class="btn btn-sm btn-outline-primary guide-check" data-guide-check>Check now</button>
         <a class="btn btn-sm btn-outline-secondary" href="/portal/Website/DomainHelp/@id">I need help</a>
       </span>
     </div>

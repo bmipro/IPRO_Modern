@@ -11,7 +11,7 @@ namespace IPRO.Utility;
 //   1. Prove it's yours        -- the 592 TXT record (_ipro-verify)
 //   2. Point www at iPro       -- the CNAME
 //   3. The short address       -- optional, recommended: the A record and TXT asuid (553), or the registrar's forwarding
-//   4. iPro finishes           -- connected, padlock ordered, live
+//   4. iPro finishes           -- connected, SSL ordered, live
 //
 // From the row (what the domain check has done) and a look at DNS (DomainSetupLook: what is there right now), so
 // each step ticks as soon as its record is seen, before the domain check has caught up. Nothing here looks anything
@@ -316,7 +316,7 @@ public static class DomainSetupGuide
             },
             new()
             {
-                Key = "padlock", Label = "Padlock (security certificate)",
+                Key = "padlock", Label = "SSL certificate",
                 State = secured ? StepState.Done : bound ? StepState.Current : StepState.Upcoming,
                 Detail = secured ? "In place. It renews itself."
                     : !bound ? string.Empty
@@ -369,7 +369,7 @@ public static class DomainSetupGuide
             StepState.Current => mailAtRisk ? "Use forwarding" : "Recommended",
             _ => mailAtRisk ? "Use forwarding" : "Optional",
         };
-        step4.Status = live ? "Done" : !step1Done || !step2Done ? "Not started" : !bound ? "Connecting" : !secured ? "Padlock ordered" : "Finishing";
+        step4.Status = live ? "Done" : !step1Done || !step2Done ? "Not started" : !bound ? "Connecting" : !secured ? "SSL ordered" : "Finishing";
 
         return new Guide
         {
@@ -514,7 +514,7 @@ public static class DomainSetupGuide
         foreach (var line in guide.Finish.Where(p => p.State == StepState.Current && p.Detail.Length > 0 && p.Key != "live"))
             missing.Add($"{line.Label}: {line.Detail}");
         if (guide.CaaName != null)
-            missing.Add($"A CAA record at {guide.CaaName}: {CaaCheck.RecordToAdd} (your DNS lists which companies may issue its padlock, and ours is not on it).");
+            missing.Add($"A CAA record at {guide.CaaName}: {CaaCheck.RecordToAdd} (your DNS lists which companies may issue its SSL certificate, and ours is not on it).");
         return missing;
     }
 }
