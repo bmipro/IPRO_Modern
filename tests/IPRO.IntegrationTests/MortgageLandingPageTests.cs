@@ -96,7 +96,8 @@ public class MortgageLandingPageTests
             Assert.Contains("href=\"" + href + "\"", footer);
         Assert.Contains("facebook.com/AllAdvisers/", footer);
         Assert.Contains("youtube.com/@@iProAdvisers", footer);   // @@ is Razor's literal @; the active channel (2026-10-24)
-        Assert.DoesNotContain("AllAdvisers", footer);
+        // The old YouTube channel only: since 605 the active Facebook page is facebook.com/AllAdvisers.
+        Assert.DoesNotContain("youtube.com/@@AllAdvisers", footer);
         Assert.DoesNotContain("/Home/Terms", footer);
         Assert.DoesNotContain("/Home/Privacy", footer);
 

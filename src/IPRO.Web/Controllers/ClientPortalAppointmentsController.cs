@@ -47,6 +47,8 @@ public class ClientPortalAppointmentsController : Controller
             .Where(r => r.ClientId == ClientId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+        // 606: "Scheduled ... at" is the appointment's time now (a move in Google moves it), not the first one.
+        ViewBag.AppointmentTimes = await IPRO.Web.Infrastructure.PortalAppointmentTimes.CurrentAsync(_db, requests);
 
         ViewBag.PortalReadOnly = await IPRO.Web.Infrastructure.ClientPortalActivity.IsReadOnlyAsync(_entitlements, User);
         return View(requests);

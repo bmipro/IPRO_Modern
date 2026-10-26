@@ -63,7 +63,10 @@ public class PortalRequestsController : Controller
 
         ViewBag.Status = status;
         ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);
-        return View(await query.OrderByDescending(r => r.CreatedAt).ToListAsync());
+        var requests = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+        // 606: "Scheduled ... at" is the appointment's time now (a move in Google moves it), not the first one.
+        ViewBag.AppointmentTimes = await PortalAppointmentTimes.CurrentAsync(_db, requests);
+        return View(requests);
     }
 
     [HttpPost, ValidateAntiForgeryToken]

@@ -4,8 +4,10 @@
 
     Every third-party processor named in section 4 was confirmed present in the codebase on
     15 August 2026, and again on 14 September 2026 (489: Azure Communication Services has sent
-    the mail since 30 August, SendGrid is the standby; the Google Calendar paragraph in section 2
-    is what Google's OAuth reviewer reads; clicks are recorded by the platform itself since 488).
+    the mail since 30 August; the Google Calendar paragraph in section 2 is what Google's OAuth
+    reviewer reads; clicks are recorded by the platform itself since 488), and on 26 October 2026
+    (604: Amazon SES, ca-central-1, has carried advisers' email to their clients since 4 October;
+    the suspended standby provider left the table, the owner having said no to it on 29 September).
     If a provider is added or removed, THIS TABLE MUST BE UPDATED -- an undisclosed cross-border
     processor is a PIPEDA problem, not a documentation gap.
 
@@ -26,7 +28,7 @@
   Effective date:
   @if (string.IsNullOrWhiteSpace(effDate)) { <span class="lg-todo">SET ON PUBLICATION</span> }
   else { <strong>@effDate</strong> }
-  &nbsp;&middot;&nbsp; Last updated: 17 September 2026
+  &nbsp;&middot;&nbsp; Last updated: 26 October 2026
 </p>
 
 <h2>The short version</h2>
@@ -149,8 +151,8 @@ may use it for their own purposes.</p>
     <tr><td><strong>Microsoft Azure</strong></td><td>Hosting, database, uploaded files, diagnostic telemetry (Application Insights)</td>
         <td>@if (string.IsNullOrWhiteSpace(dataRegion)) { <span class="lg-todo">CONFIRM REGION</span> } else { @dataRegion }</td></tr>
     <tr><td><strong>PayPal</strong></td><td>Subscription payments and card details</td><td>Canada / United States</td></tr>
-    <tr><td><strong>Microsoft Azure Communication Services</strong></td><td>Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery</td><td>Canada</td></tr>
-    <tr><td><strong>SendGrid (Twilio)</strong></td><td>Standby email delivery, used only if Azure cannot send</td><td>United States</td></tr>
+    <tr><td><strong>Microsoft Azure Communication Services</strong></td><td>Delivering iPro&rsquo;s own email and email that advisers send to their clients, and reporting on delivery</td><td>Canada</td></tr>
+    <tr><td><strong>Amazon Web Services (Amazon SES)</strong></td><td>Delivering email that advisers send to their clients, and reporting on delivery</td><td>Canada</td></tr>
     <tr><td><strong>Anthropic PBC</strong></td><td>AI drafting and daily-assistant content, when you use those features</td><td>United States</td></tr>
     <tr><td><strong>Google</strong></td><td>Calendar synchronisation &mdash; only if you connect your Google Calendar (section 2 says exactly what)</td><td>United States</td></tr>
     <tr><td><strong>Let&rsquo;s Encrypt</strong></td><td>Issuing SSL certificates for custom domains (domain name only)</td><td>International</td></tr>

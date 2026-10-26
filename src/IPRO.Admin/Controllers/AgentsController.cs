@@ -93,6 +93,21 @@ public class AgentsController : Controller
             "Subscription details",
             warnings);
         ViewBag.Subscription = activeSubscription;
+        // 607: the suspended note says what the suspension did to billing, read from its own log entry (Deactivate
+        // writes "PayPal billing cancelled" or "no active PayPal subscription"). It said "Billing cancelled"
+        // for an account that had no subscription (the owner's 599 test, 2026-10-26).
+        if (!agent.IsActive && agent.SuspendedAt.HasValue)
+        {
+            var suspensionEntry = await LoadDetailsPanelAsync(
+                () => _db.OperateLogs.AsNoTracking()
+                    .Where(l => l.AgentUserId == id && l.Module == "Agents" && l.Action == "Deactivate")
+                    .OrderByDescending(l => l.CreatedAt)
+                    .Select(l => l.Description)
+                    .FirstOrDefaultAsync(),
+                "Suspension",
+                warnings);
+            ViewBag.SuspensionBilling = SuspensionBillingNote(suspensionEntry);
+        }
         // 503: the same next charge the agent's own Billing page shows (see NextCharge), so the
         // owner answering "what will I be billed?" reads the number the customer is reading.
         ViewBag.NextCharge = activeSubscription == null
@@ -816,16 +831,19 @@ public class AgentsController : Controller
             }
         }
 
+        // 607: said "PayPal subscription cancelled" every time, also for an account that had none (the owner's
+        // deletion of the 599 test account, 2026-10-26).
+        var paypalNote = hasActiveSubscription ? "PayPal subscription cancelled" : "no PayPal subscription to cancel";
         var financialNote = eraseFinancialRecords
             ? "Financial records erased too (test-agent shred)."
             : $"Financial records retained: {report.RetainedInvoices} invoices ({report.RetainedRows} rows).";
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
-            $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
+            $"Agent '{userName}' (id {id}) permanently deleted; {paypalNote}. " +
             $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{report.Blobs.Count} files removed; " +
             $"{report.SharedBlobsKept.Count} file(s) kept because another agent still references them. {financialNote}");
 
         TempData["Warning"] = $"Agent {userName} deleted: {report.TotalRows} rows across {report.TableCount} tables, " +
-                              $"{blobsDeleted} uploaded files, PayPal subscription cancelled. {financialNote}";
+                              $"{blobsDeleted} uploaded files, {paypalNote}. {financialNote}";
         return RedirectToAction(nameof(Index));
     }
 
@@ -977,6 +995,13 @@ public class AgentsController : Controller
     // ProvisionHosting/PleskLogin removed 2026-08-04 along with the rest of the Plesk integration:
     // agent sites are hosted on Azure now, so there is no control panel to provision against or log
     // into. Agent domains are managed through AgentDomain + the domain automation job instead.
+
+    // 607: the billing half of a suspension's log entry, in the suspended note's words; null when unknown.
+    internal static string? SuspensionBillingNote(string? logEntry) =>
+        logEntry == null ? null
+        : logEntry.Contains("PayPal billing cancelled") ? "PayPal billing cancelled"
+        : logEntry.Contains("no active PayPal subscription") ? "No subscription to cancel"
+        : null;
 
     private async Task LogAsync(int agentId, string action, string desc)
     {

@@ -66,6 +66,42 @@ public class Suspension599Tests
         Assert.Contains("PayPal billing cancelled", controller.TempData["Warning"] as string);
     }
 
+    [Theory]
+    [InlineData(false, "No subscription to cancel")]
+    [InlineData(true, "PayPal billing cancelled")]
+    public async Task The_suspended_note_says_what_happened_to_billing_607(bool activeBilling, string expected)
+    {
+        // 607 (the owner's 599 test, 2026-10-26): the note said "Billing cancelled" for an account with no
+        // subscription. It now reads the suspension's own log entry; this runs the real Deactivate for it.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var agentId = await SeedAgentAsync(db, activeBilling);
+        await NewController(db, Billing(cancelResult: true)).Deactivate(agentId);
+
+        var entry = await db.OperateLogs.AsNoTracking()
+            .Where(l => l.AgentUserId == agentId && l.Module == "Agents" && l.Action == "Deactivate")
+            .Select(l => l.Description).SingleAsync();
+        Assert.Equal(expected, IPRO.Admin.Controllers.AgentsController.SuspensionBillingNote(entry));
+        Assert.Null(IPRO.Admin.Controllers.AgentsController.SuspensionBillingNote(null));
+    }
+
+    [Fact]
+    public void The_suspended_note_sits_under_the_buttons_not_inside_their_row_607()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "IPRO.sln"))) dir = System.IO.Path.GetDirectoryName(dir);
+        Assert.NotNull(dir);
+        var view = System.IO.File.ReadAllText(System.IO.Path.Combine(dir!, @"src\IPRO.Admin\Views\Agents\Details.cshtml"));
+
+        // The buttons' row ends with Delete; the note comes after it, on its own line.
+        var deleteButton = view.IndexOf("<i class=\"fas fa-trash me-1\"></i>Delete</button>", StringComparison.Ordinal);
+        var note = view.IndexOf("Suspended since", StringComparison.Ordinal);
+        Assert.True(deleteButton > 0 && note > deleteButton, "the suspended note is back inside the button row");
+        Assert.DoesNotContain("alert alert-warning w-100 mb-2", view);
+        Assert.DoesNotContain("Billing cancelled, website offline", view);
+        Assert.Contains("ViewBag.SuspensionBilling as string", view);
+    }
+
     [Fact]
     public async Task If_PayPal_will_not_cancel_nothing_changes()
     {
