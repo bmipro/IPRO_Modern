@@ -147,6 +147,8 @@ builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IReferralPayerLookup, PayPalBillingService>();
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
+// 608: the Google sync tells a client when the adviser moves their appointment there.
+builder.Services.AddScoped<IPRO.Scheduler.IAppointmentMoveNotifier, IPRO.Web.Infrastructure.AppointmentMoveNotifier>();
 // 527: Stripe Connect -- the adviser's own processor. The keys are App Service settings; empty
 // means "not set up", and the Payments page says so instead of failing.
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));

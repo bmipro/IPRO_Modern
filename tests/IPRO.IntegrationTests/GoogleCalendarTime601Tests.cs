@@ -214,6 +214,63 @@ public class GoogleCalendarTime601Tests
         Assert.Contains("LocalTimesResyncedAt", File.ReadAllText(FindRepoFile(Path.Combine("src", "IPRO.DataAccess", "StartupSchemaRepair.cs"))));
     }
 
+    // ---- 608: a client's appointment moved in Google, the client is told ------------------------------
+
+    [Fact]
+    public async Task A_clients_appointment_moved_in_google_emails_the_client_once_608()
+    {
+        // The owner, 2026-10-26, after dragging his test appointment from 2:00 AM to 9:00 PM: "yes, email the
+        // client when an appointment moves". The real sync, the real notifier, the fake Google; dates ahead of
+        // today so the move is never "into the past".
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedAsync(db, Toronto);
+        var toronto = AgentLocalTime.Zone(Toronto);
+        string Utc(DateTime wall) => TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(wall, DateTimeKind.Unspecified), toronto).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+        var first = DateTime.Today.AddDays(10).AddHours(2);    // scheduled for 2:00 AM by mistake
+        var moved = DateTime.Today.AddDays(10).AddHours(21);   // dragged in Google to 9:00 PM
+        var appointment = await AddFollowUpAsync(db, seed, "Appointment: Cal Client", first, "g-appt");
+        db.PortalAppointmentRequests.Add(new PortalAppointmentRequest
+        {
+            ClientId = seed.ClientId, Notes = "test 601", Status = PortalAppointmentRequestStatus.Scheduled,
+            ScheduledAt = first, RespondedAt = DateTime.UtcNow, ClientFollowUpId = appointment
+        });
+        await db.SaveChangesAsync();
+        seed.Google.HoldTimed("g-appt", "Appointment: Cal Client", Utc(moved), Utc(moved.AddHours(1)), "America/Toronto");
+        // The adviser's own follow-up moved too: theirs alone, nobody is written to.
+        var ownTask = await AddFollowUpAsync(db, seed, "Call the bank", DateTime.Today.AddDays(11).AddHours(9), "g-own-task");
+        seed.Google.HoldTimed("g-own-task", "Call the bank", Utc(DateTime.Today.AddDays(11).AddHours(15)), Utc(DateTime.Today.AddDays(11).AddHours(16)), "America/Toronto");
+        // An appointment Google still shows where iPro has it: no move, no email.
+        var untouched = await AddFollowUpAsync(db, seed, "Appointment: Cal Client (2)", DateTime.Today.AddDays(12).AddHours(10), "g-still");
+        db.PortalAppointmentRequests.Add(new PortalAppointmentRequest
+        {
+            ClientId = seed.ClientId, Status = PortalAppointmentRequestStatus.Scheduled,
+            ScheduledAt = DateTime.Today.AddDays(12).AddHours(10), RespondedAt = DateTime.UtcNow, ClientFollowUpId = untouched
+        });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        seed.Google.HoldTimed("g-still", "Appointment: Cal Client (2)", Utc(DateTime.Today.AddDays(12).AddHours(10)), Utc(DateTime.Today.AddDays(12).AddHours(11)), "America/Toronto");
+
+        var email = new PortalBatch598Tests.RecordingEmail();
+        var notifier = new IPRO.Web.Infrastructure.AppointmentMoveNotifier(db, email, PortalBatch598Tests.Config(),
+            new ErrorLog<IPRO.Web.Infrastructure.AppointmentMoveNotifier>(seed.Errors));
+        await RunJobAsync(db, seed, notifier);
+
+        Assert.Equal(moved, (await ReloadAsync(db, appointment)).DueAt);
+        var client = await db.Clients.AsNoTracking().SingleAsync(c => c.Id == seed.ClientId);
+        var sent = Assert.Single(email.Sent);
+        Assert.Equal(client.Email, sent.To);
+        Assert.Contains("has moved", sent.Subject);
+        Assert.Contains($"moved to <strong>{IPRO.Web.Infrastructure.AppointmentMoveNotifier.When(moved)}</strong>", sent.Body);
+        Assert.Contains($"It was {IPRO.Web.Infrastructure.AppointmentMoveNotifier.When(first)}.", sent.Body);
+        Assert.Contains("/ClientPortalAccount/Login", sent.Body);
+
+        // The next run finds nothing new in Google: no second letter.
+        await RunJobAsync(db, seed, notifier);
+        Assert.Single(email.Sent);
+    }
+
     // ---- harness ----------------------------------------------------------------------------
 
     private sealed record Seed(int AgentId, int ClientId, FakeGoogle Google, IDataProtectionProvider Protection, List<string> Errors);
@@ -263,13 +320,13 @@ public class GoogleCalendarTime601Tests
     private static async Task<ClientFollowUp> ReloadAsync(IPRODbContext db, int id) =>
         await db.ClientFollowUps.AsNoTracking().SingleAsync(f => f.Id == id);
 
-    private static async Task RunJobAsync(IPRODbContext db, Seed seed)
+    private static async Task RunJobAsync(IPRODbContext db, Seed seed, IAppointmentMoveNotifier? notifier = null)
     {
         var service = new GoogleCalendarService(
             new HandlerFactory(seed.Google),
             Options.Create(new GoogleCalendarSettings { ClientId = "client-id", ClientSecret = "secret" }),
             new ErrorLog<GoogleCalendarService>(seed.Errors));
-        var job = new GoogleCalendarSyncJob(db, service, seed.Protection, new ErrorLog<GoogleCalendarSyncJob>(seed.Errors));
+        var job = new GoogleCalendarSyncJob(db, service, seed.Protection, new ErrorLog<GoogleCalendarSyncJob>(seed.Errors), notifier);
         await job.RunAsync();
         db.ChangeTracker.Clear();
         Assert.True(seed.Errors.Count == 0, "the sync logged errors:\n" + string.Join("\n", seed.Errors));

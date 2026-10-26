@@ -13,9 +13,13 @@ public class GoogleCalendarSyncJob
     private readonly IGoogleCalendarService _googleCalendar;
     private readonly IDataProtector _tokenProtector;
     private readonly ILogger<GoogleCalendarSyncJob> _logger;
+    // 608: who is told when the adviser moves a client's appointment in Google (the web app; none in a bare run).
+    private readonly IAppointmentMoveNotifier? _moveNotifier;
+    private readonly List<(int FollowUpId, DateTime From, DateTime To)> _moved = new();
 
-    public GoogleCalendarSyncJob(IPRODbContext db, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, ILogger<GoogleCalendarSyncJob> logger)
+    public GoogleCalendarSyncJob(IPRODbContext db, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, ILogger<GoogleCalendarSyncJob> logger, IAppointmentMoveNotifier? moveNotifier = null)
     {
+        _moveNotifier = moveNotifier;
         _db = db;
         _googleCalendar = googleCalendar;
         _tokenProtector = dataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1");
@@ -41,6 +45,7 @@ public class GoogleCalendarSyncJob
 
     private async Task SyncConnectionAsync(GoogleCalendarConnection connection)
     {
+        _moved.Clear();
         var accessToken = await EnsureFreshAccessTokenAsync(connection);
 
         // 601 (2026-10-24): the adviser's own zone (Profile), the same one every portal page uses for "today".
@@ -54,6 +59,7 @@ public class GoogleCalendarSyncJob
 
         await PushIproFollowUpsToGoogleAsync(connection, accessToken, zone);
         await PullGoogleChangesIntoIproAsync(connection, accessToken, zone);
+        await NotifyMovesAsync(connection);
 
         connection.LastSyncedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -246,7 +252,29 @@ public class GoogleCalendarSyncJob
             return;
         }
 
+        _moved.Add((followUp.Id, followUp.DueAt, adviserTime));   // 608: told after the pull has saved it
         followUp.DueAt = adviserTime;
+    }
+
+    // 608: each move the pull saved is offered to the web app, which writes to the client when the follow-up is
+    // their appointment. A letter that fails is logged; it never undoes the move or stops the sync.
+    private async Task NotifyMovesAsync(GoogleCalendarConnection connection)
+    {
+        if (_moveNotifier != null)
+        {
+            foreach (var (followUpId, from, to) in _moved)
+            {
+                try
+                {
+                    await _moveNotifier.NotifyAsync(followUpId, from, to);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Telling the client that follow-up {FollowUpId} moved failed (agent {AgentUserId}); the move stands", followUpId, connection.AgentUserId);
+                }
+            }
+        }
+        _moved.Clear();
     }
 
     // The shape the code before 601 wrote: DueAt sent as a UTC instant with timeZone "UTC". The sync since 601
