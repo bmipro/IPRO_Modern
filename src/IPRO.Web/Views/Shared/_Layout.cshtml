@@ -209,7 +209,9 @@
         <a class="nav-link @NavActive("EmailActivity")" href="/portal/EmailActivity" @Html.Raw(GatedNavAttributes())><i class="fas fa-chart-line"></i>Email Activity</a>
 
         <div class="nav-section">Website</div>
-        <a class="nav-link @NavActive("Website", "WebsitePages")" href="/portal/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-globe"></i>My Website</a>
+        @* 595: the custom domains have a page of their own (Website/Domains), lit on its own. *@
+        <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "" : NavActive("Website", "WebsitePages"))" href="/portal/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-globe"></i>My Website</a>
+        <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "active" : "")" href="/portal/Website/Domains" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-route"></i>Domain</a>
         <a class="nav-link @NavActive("WebsiteLeads")" href="/portal/WebsiteLeads" @Html.Raw(GatedNavAttributes())><i class="fas fa-inbox"></i>Website Leads</a>
         <a class="nav-link @NavActive("WebsiteAnalytics")" href="/portal/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking)) @Html.Raw(GatedNavAttributes())><i class="fas fa-chart-line"></i>Analytics</a>
         <a class="nav-link @NavActive("Testimonials")" href="/portal/Testimonials" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.TestimonialManager)) @Html.Raw(GatedNavAttributes())><i class="fas fa-quote-left"></i>Testimonials</a>

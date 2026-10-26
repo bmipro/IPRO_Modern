@@ -93,6 +93,21 @@ public class AgentsController : Controller
             "Subscription details",
             warnings);
         ViewBag.Subscription = activeSubscription;
+        // 607: the suspended note says what the suspension did to billing, read from its own log entry (Deactivate
+        // writes "PayPal billing cancelled" or "no active PayPal subscription"). It said "Billing cancelled"
+        // for an account that had no subscription (the owner's 599 test, 2026-10-26).
+        if (!agent.IsActive && agent.SuspendedAt.HasValue)
+        {
+            var suspensionEntry = await LoadDetailsPanelAsync(
+                () => _db.OperateLogs.AsNoTracking()
+                    .Where(l => l.AgentUserId == id && l.Module == "Agents" && l.Action == "Deactivate")
+                    .OrderByDescending(l => l.CreatedAt)
+                    .Select(l => l.Description)
+                    .FirstOrDefaultAsync(),
+                "Suspension",
+                warnings);
+            ViewBag.SuspensionBilling = SuspensionBillingNote(suspensionEntry);
+        }
         // 503: the same next charge the agent's own Billing page shows (see NextCharge), so the
         // owner answering "what will I be billed?" reads the number the customer is reading.
         ViewBag.NextCharge = activeSubscription == null
@@ -130,6 +145,16 @@ public class AgentsController : Controller
             async () => (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id),
             "Packages",
             warnings)) ?? new Dictionary<int, BillingRule>();
+        // 595: the agent's custom domains, each with the step its guide on My Website is on.
+        ViewBag.DomainGuides = await LoadDetailsPanelAsync(async () =>
+            {
+                var rows = await _db.AgentDomains.AsNoTracking().Where(d => d.AgentUserId == id).OrderByDescending(d => d.IsPrimary).ThenBy(d => d.DomainName).ToListAsync();
+                var guides = await DomainsController.GuidesAsync(_services.GetRequiredService<IPRO.Utility.IDomainCheckService>(), _services.GetService<IConfiguration>(),
+                    _services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(), rows);
+                return rows.Select(d => new AgentDomainViewModel { Domain = d, Guide = guides[d.Id] }).ToList();
+            },
+            "Custom domains",
+            warnings) ?? new List<AgentDomainViewModel>();
         ViewBag.ClientCount = await LoadDetailsPanelAsync(
             () => _uow.Clients.CountAsync(c => c.AgentUserId == id),
             "Client count",
@@ -852,8 +877,9 @@ public class AgentsController : Controller
         // post-shred unbind failure leaves only a dangling binding on the Azure app (the site
         // already serves the not-published page), logged for manual cleanup -- annoying,
         // recoverable, and invisible to the customer. Same reasoning as ROWS BEFORE FILES.
-        var domainsToUnbind = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-            .ToListAsync(_db.AgentDomains.Where(d => d.AgentUserId == id));
+        // 592: the list is no longer read here. The shred writes the domains' addresses down (DomainCleanups) in
+        // its own transaction, and the domain job asks Azure again for any that do not go through below -- the
+        // "manual cleanup" of a dangling binding never happened, and www.411trades.com was taken over that way.
         // Lazily resolved for the same reason the blob service is (see the _services comment above).
         var _azureDomains = _services.GetService<IPRO.Utility.IAzureDomainAutomationService>();
 
@@ -898,35 +924,16 @@ public class AgentsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // H11: the shred has committed -- NOW the Azure bindings may go. Per-host failures are
-        // logged and never block the rest; the dangling-binding cleanup is manual by design.
-        foreach (var domain in _azureDomains == null ? new List<IPRO.Entities.AgentDomain>() : domainsToUnbind)
+        // H11: the shred has committed -- NOW the Azure bindings may go: the addresses the shred wrote down,
+        // each once (553's short address only when it was ever pointed straight at the platform). 591: a host
+        // another agent's row still names is that agent's site and stays. 592: whatever Azure does not confirm
+        // now -- or everything, when the automation is not available here -- the domain job asks for again
+        // until it does.
+        if (_azureDomains != null)
         {
-            // 553: a short address pointed straight at the platform has its own binding and
-            // certificate in Azure. Only when one was ever made: a forwarded name has nothing there.
-            var rootHost = domain.RootAzureBindingStatus != IPRO.Entities.AgentDomainStatus.NotConfigured ? domain.RootDomain : null;
-            foreach (var host in new[] { domain.DomainName, domain.WwwDomain, rootHost }.Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h!).Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    // 591: the agent's rows are gone; a host another agent's row still names is that agent's site.
-                    if (await AgentDomainHosts.StillNamedAsync(_db, host))
-                    {
-                        _logger.LogWarning("Azure unbind of {Host} skipped while deleting agent {AgentId}: another domain row still names it", IPRO.Utility.PlatformHostNames.Printable(host), id);
-                        continue;
-                    }
-
-                    var unbind = await _azureDomains.RemoveDomainAsync(host);
-                    if (!unbind.Success)
-                    {
-                        _logger.LogError("Azure unbind failed for {Host} while deleting agent {AgentId}: {Message}", host, id, unbind.Message);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Azure unbind threw for {Host} while deleting agent {AgentId}", host, id);
-                }
-            }
+            var released = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .ToListAsync(_db.DomainCleanups.Where(c => c.FormerAgentUserId == id && c.DoneAt == null));
+            await IPRO.Scheduler.DomainCleanupQueue.AttemptAsync(_db, _azureDomains, _services.GetService<IConfiguration>(), _logger, released);
         }
 
         // ONLY the eraser's filtered list may be deleted -- report.Blobs excludes files another
@@ -945,16 +952,19 @@ public class AgentsController : Controller
             }
         }
 
+        // 607: said "PayPal subscription cancelled" every time, also for an account that had none (the owner's
+        // deletion of the 599 test account, 2026-10-26).
+        var paypalNote = hasActiveSubscription ? "PayPal subscription cancelled" : "no PayPal subscription to cancel";
         var financialNote = eraseFinancialRecords
             ? "Financial records erased too (test-agent shred)."
             : $"Financial records retained: {report.RetainedInvoices} invoices ({report.RetainedRows} rows).";
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
-            $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
+            $"Agent '{userName}' (id {id}) permanently deleted; {paypalNote}. " +
             $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{report.Blobs.Count} files removed; " +
             $"{report.SharedBlobsKept.Count} file(s) kept because another agent still references them. {financialNote}");
 
         TempData["Warning"] = $"Agent {userName} deleted: {report.TotalRows} rows across {report.TableCount} tables, " +
-                              $"{blobsDeleted} uploaded files, PayPal subscription cancelled. {financialNote}";
+                              $"{blobsDeleted} uploaded files, {paypalNote}. {financialNote}";
         return RedirectToAction(nameof(Index));
     }
 
@@ -1013,11 +1023,18 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+        var wasSuspended = agent.SuspendedAt.HasValue;
         agent.IsActive = true;
+        // 599: Activate ends a suspension. Billing stays cancelled; the adviser subscribes again from Billing.
+        agent.SuspendedAt = null;
+        agent.DataReviewDueAt = null;
+        agent.DataReviewNoticeSentAt = null;
         await _agents.UpdateAsync(agent);
         await LogAsync(id, "Activate", "Agent activated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentActivate", $"Agent '{agent.UserName}' activated");
-        TempData["Success"] = $"Agent {agent.UserName} activated.";
+        TempData["Success"] = wasSuspended
+            ? $"Agent {agent.UserName} is active again and can sign in. Their PayPal billing stays cancelled: they subscribe again from Billing, and their website comes back once they have a plan."
+            : $"Agent {agent.UserName} activated.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -1032,16 +1049,80 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+
+        // 599 (the owner's decision of 2026-10-24): Deactivate is a SUSPENSION. It used to block sign-in
+        // only, while PayPal kept charging and the website stayed up. Billing is cancelled FIRST, the same
+        // way the adviser's own Cancel does it (any refund owed goes to the Refunds queue); if PayPal
+        // refuses, nothing changes. Then sign-in is blocked (adviser, team, clients) and the public site
+        // goes offline. Every row is kept; a year on the owner is emailed to keep or delete.
+        var hasActiveSubscription = (await _uow.Billings.FindAsync(
+            b => b.AgentUserId == id && b.Status == BillingStatus.Active)).Any();
+        if (hasActiveSubscription)
+        {
+            bool cancelled;
+            try { cancelled = await _billing.CancelSubscriptionAsync(id); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PayPal cancellation failed for agent {AgentId}; suspension aborted", id);
+                cancelled = false;
+            }
+            if (!cancelled)
+            {
+                TempData["Error"] = $"Could not cancel {agent.UserName}'s PayPal subscription, so the account was NOT suspended and nothing changed. " +
+                                    "Cancel the subscription in PayPal first, then retry.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+
         await _agents.DeactivateAsync(id);
-        await LogAsync(id, "Deactivate", "Agent deactivated");
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate", $"Agent '{agent.UserName}' deactivated");
-        TempData["Warning"] = $"Agent {agent.UserName} deactivated.";
+        var suspended = await _db.AgentUsers.FirstAsync(a => a.Id == id);
+        var now = DateTime.UtcNow;
+        suspended.SuspendedAt = now;
+        suspended.DataReviewDueAt = now.AddYears(1);
+        suspended.DataReviewNoticeSentAt = null;
+        await _db.SaveChangesAsync();
+
+        var billingNote = hasActiveSubscription ? "PayPal billing cancelled" : "no active PayPal subscription";
+        await LogAsync(id, "Deactivate", $"Agent suspended ({billingNote})");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate",
+            $"Agent '{agent.UserName}' suspended: {billingNote}, website offline, sign-in blocked; data kept, review due {suspended.DataReviewDueAt:yyyy-MM-dd}");
+        TempData["Warning"] = $"{agent.UserName} is suspended: {billingNote}" +
+            (hasActiveSubscription ? " (any refund owed is in Refunds)" : "") +
+            $", website offline, sign-in blocked for them, their team and their clients. All data is kept; you'll be emailed on {suspended.DataReviewDueAt:MMMM d, yyyy} to keep it another year or delete it.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 599: the yearly review's "keep" answer -- another year before the next email.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> KeepSuspendedData(int id)
+    {
+        var agent = await _db.AgentUsers.FirstOrDefaultAsync(a => a.Id == id);
+        if (agent == null) return NotFound();
+        if (agent.IsActive || agent.SuspendedAt == null)
+        {
+            TempData["Error"] = $"{agent.UserName} is not suspended.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        agent.DataReviewDueAt = DateTime.UtcNow.AddYears(1);
+        agent.DataReviewNoticeSentAt = null;
+        await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentKeepSuspendedData",
+            $"Agent '{agent.UserName}': suspended data kept another year, next review {agent.DataReviewDueAt:yyyy-MM-dd}");
+        TempData["Success"] = $"{agent.UserName}'s data is kept for another year; you'll be asked again on {agent.DataReviewDueAt:MMMM d, yyyy}.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
     // ProvisionHosting/PleskLogin removed 2026-08-04 along with the rest of the Plesk integration:
     // agent sites are hosted on Azure now, so there is no control panel to provision against or log
     // into. Agent domains are managed through AgentDomain + the domain automation job instead.
+
+    // 607: the billing half of a suspension's log entry, in the suspended note's words; null when unknown.
+    internal static string? SuspensionBillingNote(string? logEntry) =>
+        logEntry == null ? null
+        : logEntry.Contains("PayPal billing cancelled") ? "PayPal billing cancelled"
+        : logEntry.Contains("no active PayPal subscription") ? "No subscription to cancel"
+        : null;
 
     private async Task LogAsync(int agentId, string action, string desc)
     {
@@ -1200,6 +1281,18 @@ public class AgentsController : Controller
             if (domain.IndexOfAny(new[] { '/', ':', '?', '#', '@', ' ' }) >= 0)
             {
                 ModelState.AddModelError("", "Setup domain must be a bare domain name (like agentname.247advisers.com) - no http://, paths, ports or spaces.");
+                return;
+            }
+            // 592: the setup domain is the free site's address. Any other name set here would be served as this
+            // agent's site with no proof that the agent owns it (a binding left behind in Azure is enough); an
+            // agent's own domain is added on their My Website page, where they prove it. Checked only when the
+            // value changes, so an older record is not refused for an unrelated edit.
+            var zone = (_services.GetService<IConfiguration>()?["App:TemporarySiteRootDomain"] ?? "247advisers.com").Trim().ToLowerInvariant();
+            var current = (await _uow.AgentUsers.FirstOrDefaultAsync(a => a.Id == id))?.DomainName ?? string.Empty;
+            if (!string.Equals(current, domain, StringComparison.OrdinalIgnoreCase) &&
+                !domain.EndsWith("." + zone, StringComparison.Ordinal))
+            {
+                ModelState.AddModelError("", $"Setup domain must be under {zone} (like agentname.{zone}). An agent's own domain is added on their My Website page, where they prove it is theirs.");
                 return;
             }
             if (domain is "247advisers.com" or "www.247advisers.com" or "iproadvisers.com"

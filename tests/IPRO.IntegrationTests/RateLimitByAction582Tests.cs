@@ -226,15 +226,15 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         {
             ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
         };
-        options.KnownNetworks.Clear();
+        options.KnownIPNetworks.Clear();
         options.KnownProxies.Clear();
         foreach (var cidr in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16" })
         {
             var parts = cidr.Split('/');
             var prefix = IPAddress.Parse(parts[0]);
             var length = int.Parse(parts[1]);
-            options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, length));
-            options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix.MapToIPv6(), length + 96));
+            options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, length));
+            options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix.MapToIPv6(), length + 96));
         }
         async Task<string> Counted(string connection, params string[] forwardedFor)
         {
@@ -260,9 +260,11 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         {
             var program = Read($@"src\{app}\Program.cs");
             Assert.Contains("options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;", program);
-            Assert.Contains("options.KnownNetworks.Clear();\n    options.KnownProxies.Clear();", program);
+            // 596: on .NET 10 KnownIPNetworks (System.Net.IPNetwork) is the list KnownNetworks only showed; nothing else changed.
+            Assert.Contains("options.KnownIPNetworks.Clear();\n    options.KnownProxies.Clear();", program);
             Assert.Contains("new[] { \"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\", \"169.254.0.0/16\" }", program);
-            Assert.Contains("options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix.MapToIPv6(), length + 96));", program);
+            Assert.Contains("options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix.MapToIPv6(), length + 96));", program);
+            Assert.DoesNotContain("KnownNetworks", program);
             Assert.DoesNotContain("ForwardLimit", program);                   // only the last entry, Azure's
             Assert.DoesNotContain("KnownProxies.Add", program);
             var forwarded = program.IndexOf("app.UseForwardedHeaders();", StringComparison.Ordinal);
@@ -346,7 +348,7 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
     [Fact]
     public void The_limits_are_the_rules_they_replace_and_sit_on_the_actions_those_rules_named()
     {
-        var minutes = TimeSpan.FromMinutes;
+        Func<double, TimeSpan> minutes = TimeSpan.FromMinutes;   // .NET 9 added FromMinutes(long), so the type is named
         Assert.Equal(new Dictionary<string, (int, TimeSpan)>
         {
             [WebLimits.SignIn] = (10, minutes(5)),
@@ -357,6 +359,7 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             [WebLimits.PollVote] = (20, minutes(5)),
             [WebLimits.DomainRetry] = (5, minutes(1)),
             [WebLimits.Preview] = (30, minutes(1)),
+            [WebLimits.DomainGuide] = (60, minutes(1)),                  // 595: per address; 20 per adviser in the action
         }, WebLimits.Policies.ToDictionary(p => p.Key, p => (p.Value.Limit, p.Value.Window)));
         Assert.Equal(new Dictionary<string, (int, TimeSpan)> { [AdminLimits.SignIn] = (10, minutes(5)) },
             AdminLimits.Policies.ToDictionary(p => p.Key, p => (p.Value.Limit, p.Value.Window)));
@@ -380,6 +383,10 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             ["PollVoteController.Vote"] = WebLimits.PollVote,
             ["PollVoteController.WebsiteVote"] = WebLimits.PollVote,
             ["WebsiteController.RetryDomain"] = WebLimits.DomainRetry,
+            ["WebsiteController.AddDomain"] = WebLimits.DomainRetry,      // 592: each can ask Azure
+            ["WebsiteController.RemoveDomain"] = WebLimits.DomainRetry,
+            ["WebsiteController.DomainGuide"] = WebLimits.DomainGuide,   // 595: the guide's own look, and I need help
+            ["WebsiteController.DomainHelp"] = WebLimits.DomainGuide,
             ["PreviewController.Show"] = WebLimits.Preview,
             ["PreviewController.Site"] = WebLimits.Preview,
             ["AdminController.Login"] = AdminLimits.SignIn,
@@ -390,8 +397,9 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             .Where(a => a.Policy != null)
             .ToList();
         Assert.Equal(expected.OrderBy(e => e.Key), actual.Select(a => new KeyValuePair<string, string>(a.Name, a.Policy!)).OrderBy(e => e.Key));
-        // On the page-changing half only: the sign-in page itself is not counted.
-        Assert.All(actual.Where(a => a.Name != "PreviewController.Show" && a.Name != "PreviewController.Site"),
+        // On the page-changing half only: the sign-in page itself is not counted. (595: I need help is a page that looks
+        // at DNS for the ticket it fills in, counted like the guide's own look.)
+        Assert.All(actual.Where(a => a.Name != "PreviewController.Show" && a.Name != "PreviewController.Site" && a.Name != "WebsiteController.DomainHelp"),
             a => Assert.Contains("POST", a.Method.GetCustomAttributes(true).OfType<IActionHttpMethodProvider>().SelectMany(p => p.HttpMethods)));
     }
 

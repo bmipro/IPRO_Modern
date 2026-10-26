@@ -42,6 +42,12 @@ public class AgentUser
     public DateTime? SignInLockedUntil { get; set; }
     public DateTime? SignInLockNoticeAt { get; set; }
     public bool IsActive { get; set; } = true;
+    // 599 (2026-10-24): SuperAdmin's Deactivate is a suspension -- billing cancelled, site offline, sign-in
+    // blocked, every row kept. A year on (DataReviewDueAt) the owner is emailed once to keep the data
+    // another year or delete the account; Activate clears all three.
+    public DateTime? SuspendedAt { get; set; }
+    public DateTime? DataReviewDueAt { get; set; }
+    public DateTime? DataReviewNoticeSentAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
     // Null = not on a trial. Set at registration when the picked package is a trial package.

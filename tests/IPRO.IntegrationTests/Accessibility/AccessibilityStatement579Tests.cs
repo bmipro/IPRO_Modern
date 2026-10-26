@@ -559,6 +559,9 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
         var website = new AgentWebsite { AgentUserId = agent.Id, TemplateId = template.Id, IsPublished = true, CustomDomain = host };
         db.Add(website);
         await db.SaveChangesAsync();
+        // 592: a custom domain is served through its proven domain row, not the website's own field.
+        db.Add(new AgentDomain { AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = host, WwwDomain = host, RootDomain = host, IsPrimary = true, OwnershipVerifiedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
         db.WebsitePages.Add(new WebsitePage { AgentWebsiteId = website.Id, Slug = "home", Title = "Home", IsHomePage = true, IsPublished = true, SortOrder = 1 });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

@@ -36,7 +36,7 @@ public class SiteAddress552Tests
         {
             AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = "www.4ipro.com", RootDomain = "4ipro.com", WwwDomain = "www.4ipro.com",
             DnsStatus = AgentDomainStatus.DnsReady, AzureBindingStatus = AgentDomainStatus.BindingPending, SslStatus = AgentDomainStatus.BindingPending,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, OwnershipVerifiedAt = DateTime.UtcNow,   // 592: a live domain is a proven one
         };
         db.Add(domain);
         await db.SaveChangesAsync();
@@ -98,7 +98,7 @@ public class SiteAddress552Tests
         {
             AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = "www.4ipro.com", RootDomain = "4ipro.com", WwwDomain = "www.4ipro.com",
             DnsStatus = AgentDomainStatus.DnsReady, AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow, OwnershipVerifiedAt = DateTime.UtcNow,   // 592: a live domain is a proven one
         });
         var client = new Client { AgentUserId = agent.Id, FirstName = "Bob", LastName = "Moore", Email = "bob552@example.test" };
         db.Add(client);
@@ -152,7 +152,7 @@ public class SiteAddress552Tests
         var website = Read(@"src\IPRO.Web\Controllers\WebsiteController.cs");
         Assert.Contains("if (model.CustomDomainDisplay.Length > 0 && !string.Equals(model.CustomDomainDisplay, model.CustomDomain, StringComparison.OrdinalIgnoreCase))", website);
         Assert.Contains("existing.CustomDomainDisplay = model.CustomDomainDisplay;", website);
-        Assert.Contains("name=\"CustomDomainDisplay\"", Read(@"src\IPRO.Web\Views\Website\Index.cshtml"));
+        Assert.Contains("name=\"CustomDomainDisplay\"", Read(@"src\IPRO.Web\Views\Website\Domains.cshtml"));   // 595: on the Domain page
         Assert.Contains("\"CustomDomainDisplay\", \"ALTER TABLE `AgentWebsites` ADD COLUMN `CustomDomainDisplay` varchar(255)", Read(@"src\IPRO.DataAccess\StartupSchemaRepair.cs"));
         Assert.Contains("### The address on your emails", Read(@"DOCS\05_DOMAINS_AND_LEADS.md"));
     }

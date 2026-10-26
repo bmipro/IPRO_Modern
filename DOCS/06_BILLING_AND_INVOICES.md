@@ -64,6 +64,18 @@ Scheduled jobs and PayPal webhooks reconcile recurring subscription status.
 
 Invoices are formatted to fit one Letter-size page. Invoice numbers use the `IPRO-YYYY-000001` pattern. The supplier block (company name, address, GST/HST registration number, billing email and website) is what SuperAdmin -> Company Details holds; the bill-to block is frozen at the time the invoice was issued.
 
+## Refunds and Credit Notes
+
+When iPro refunds you money -- for example the unused part of an annual plan when you cancel, or a payment PayPal took after your subscription had ended -- you receive a **credit note** by email on the day the refund is made. It shows:
+
+- its number (`CN-YYYY-0001` pattern) and date
+- the invoice it credits
+- the amount credited before tax, the tax returned with its region and rate, and the total credited
+- PayPal's refund id and the payment it was refunded against
+- iPro's company details and GST/HST registration number
+
+PayPal shows the refund right away; a card can take a few business days. Keep the credit note with your invoices: it reduces what you paid on the invoice it credits. Refer a Friend rewards get the same kind of credit note, on your **Refer a Friend** page.
+
 ## Tax Calculation
 
 - United States billing addresses receive no Canadian sales tax.

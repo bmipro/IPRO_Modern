@@ -92,8 +92,18 @@ A new password (theirs, **Reset Password** here, or an agent's reset of a team m
 Locks, resets and every turn-on and turn-off are warnings in the container log ("Two-step sign-in locked for 15 minutes after 5 wrong codes in a row: ...", "Two-step sign-in reset by ...", "Two-step sign-in turned on/off ...").
 ## Activate, Deactivate, or Delete an Agent
 
-- **Activate** restores access.
-- **Deactivate** blocks access while retaining records.
+- **Suspend** (the button that used to read Deactivate; 599, 2026-10-24) is a real suspension, in this order:
+  1. their PayPal subscription is cancelled, exactly as when an adviser cancels themselves (any refund owed goes to **Refunds**);
+     if PayPal refuses, nothing changes and the page says so;
+  2. sign-in is blocked for the adviser, their team and their clients;
+  3. their public website goes offline at once (not at the end of a paid period).
+
+  Every record and file is kept. The page shows when they were suspended and when the data review is due.
+- **The yearly data review.** A year after a suspension, iPro's mailbox (Signups:NotificationEmail, else Support:NotificationEmail) gets
+  one email per account: keep the data another year, or delete the account. **Keep another year** on the agent's page moves the
+  review a year on; nothing is ever deleted automatically.
+- **Activate** ends a suspension: they can sign in again. Their PayPal billing stays cancelled, so they subscribe again from Billing,
+  and their website comes back once they have a plan.
 - **Delete** permanently removes the agent and dependent information. Use only after confirming retention requirements.
 
 ## Review Agent Billing
@@ -204,6 +214,29 @@ tax back once the friend stays. It ships **OFF**.
 
 The adviser's side is in `01_AGENT_ACCOUNT_AND_DASHBOARD.md`, "Refer a Friend". Automatic refunds (a switch for the
 rewards alone) are not built yet: manual for now, the owner's choice.
+
+## Refunds (the Refund Queue)
+
+**Refunds** (Super Admin only, under **System**) lists the money owed back. Nothing on the page moves money: you refund
+at PayPal, then mark the row (`22_PREPAID_VALUE.md` has the policy).
+
+1. **Referral rewards to refund**: Refer a Friend rewards, worked out against the adviser's own payments (above).
+2. **Pending**: a cancellation's refund of unused prepaid value, or money PayPal captured after a subscription had
+   ended (the note says "captured-after-end"). Each row shows net + tax + gross, the PayPal transaction to refund
+   against and the days left in PayPal's refund window.
+3. Refund the **gross** amount at PayPal against that transaction, copy PayPal's **refund** transaction id, paste it
+   and select **Mark Refunded (issues a credit note and emails the adviser)**. That (600):
+   - issues a **credit note** numbered from the same `CN-YYYY-NNNN` sequence as Refer a Friend credit notes, for the
+     invoice the refunded payment paid, with that invoice's tax region and rate;
+   - emails it to the adviser (supplier block from **Company Details**, amounts before tax, tax and total, all
+     negative, the invoice it credits and PayPal's refund id). If the email does not go out, the row stays refunded and
+     the green message says so -- tell the adviser by phone or a support ticket;
+   - puts it in **Revenue** as a negative row (below). Clicking twice, or two admins at once, issues one credit note.
+4. **Waive** (a reason is required) when no money goes back; a waived refund gets no credit note.
+5. **Resolved** lists the latest rows with their credit note; select the number to open the credit note to print or
+   save as PDF.
+
+Every action is written to the Audit Log.
 
 ## Manage Trial Packages and Invite Codes
 
@@ -330,8 +363,10 @@ Deleting then does all of the following, in this order:
 4. Deletes their uploaded files, leaving shared library artwork in place.
 5. Writes the row and file counts into the audit log.
 
-The agent's custom domain is not touched by deletion. Sites are hosted on Azure, and domains are managed
-under **Domains** &mdash; remove the domain there if it should stop resolving.
+The agent's custom domains go with the account: their addresses are removed from the hosting in Azure
+(binding and certificate) after the rows are gone. Each address is written down inside the deletion itself
+and the background domain check keeps asking Azure until Azure confirms (592), so a removal that does not
+go through at once is not forgotten. An address another agent's domain still uses is left alone.
 
 Deletion requires **Super Admin**. After deleting, re-open the preview for the same agent id to confirm
 it reports zero.
@@ -584,7 +619,22 @@ Good to know:
 1. Select **Domains**.
 2. Review DNS, Azure binding, SSL, and last-check statuses.
 3. Click **Recheck** after DNS or Azure permissions are corrected.
-4. Use **Mark Bound** only when the Azure domain and SSL binding have been independently confirmed.
+4. Use **Mark Bound** only when the Azure domain and SSL binding have been independently confirmed. It is
+   refused while the domain shows **Not proven yet**.
+
+The setup domain on **Edit** is the free site's address: a new value must be under `247advisers.com`. An agent's
+own domain is added on their **My Website** page, where they prove it is theirs (592).
+
+Since 595 every domain row also shows the step the agent's guide on **My Website** is on (**Step 2 of 4: Point www
+at iPro**, or **Live**), what IPRO sees for that step in the agent's own words, and the company that manages the
+domain's DNS; rows still being set up get a fresh look at DNS when the page opens (the newest eight). The agent's
+page (**Agents**, then the agent) lists the same under **Custom domains**, so support can say "you are on step 2".
+An agent who clicks **I need help** in the guide sends a support ticket with all of it.
+
+Since 592 every domain row also says whether the agent has proven the domain is theirs: **Not proven yet**
+(with the TXT record name IPRO is waiting for, `_ipro-verify.<their domain>`), **Proven** with the date it
+was seen, or **Proven: there before 592** for domains that were connected before 15 October 2026.
+Nothing is connected, secured or served for a domain that is not proven, whatever its other statuses say.
 
 Automation settings require valid tenant ID, client ID, client secret, subscription ID, resource group, web app, App Service plan resource ID, and location. If a required setting is missing, the domain's error message names exactly which setting is blank.
 
@@ -616,6 +666,24 @@ Use the reporting screens to review:
 - Agent statistics
 - Revenue by period
 - Subscription status
+
+### Revenue
+
+**Revenue** shows the selected period (3, 6 or 12 months, or your own dates and a search):
+
+- **Invoiced (paid)**, **Credit notes** (a negative: refunds marked Refunded in **Refunds** and Refer a Friend rewards
+  paid) and **Net revenue**; the same three for each month, in the chart and the table beneath it.
+- **Tax collected by region**: the taxable amount, the tax collected, the tax credited back by credit notes and the
+  net tax -- the figures for a tax filing.
+- **The ledger**: every invoice ever issued and every credit note, a credit note as its own row with negative
+  amounts, marked **Credit note** with the invoice it credits. **View / Print** opens the invoice or the credit note
+  to print or save as PDF.
+- **Export CSV**: the same rows. The columns are as before (InvoiceNumber ... PayPalTransactionId) with **Type**
+  (Invoice / Credit note) and **CreditsInvoice** added at the end. A credit note's SubTotal, TaxAmount and Total are
+  negative, its Paid reads yes (the refund was made) and its PayPalTransactionId is PayPal's refund id, so summing a
+  column nets the credit notes.
+
+Refunds marked Refunded before credit notes existed (600, 2026-10-24) have none and are not in the ledger.
 
 ## Job Scheduler
 

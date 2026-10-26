@@ -58,6 +58,8 @@ public static class HelpLinks
         {
             ["*"] = Article("website-builder", "Help: your website", "open-website-management"),
             ["Domains"] = Article("domains-leads", "Help: domains", "add-a-custom-domain"),
+            // 595: the ticket "I need help" opens from a domain's guide.
+            ["DomainHelp"] = Article("domains-leads", "Help: connecting a domain", "connect-your-domain-step-by-step"),
         },
         ["WebsitePages"] = new(StringComparer.OrdinalIgnoreCase)
         {

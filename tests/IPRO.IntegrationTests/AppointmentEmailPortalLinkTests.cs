@@ -125,7 +125,8 @@ public class AppointmentEmailPortalLinkTests
         {
             AgentUserId = agentId, AgentWebsiteId = website.Id,
             DomainName = host, WwwDomain = host, RootDomain = host.Replace("www.", ""),
-            AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound, IsPrimary = true
+            AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound, IsPrimary = true,
+            OwnershipVerifiedAt = DateTime.UtcNow   // 592: a live domain is a proven one
         });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

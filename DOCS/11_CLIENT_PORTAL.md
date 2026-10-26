@@ -55,6 +55,8 @@ While a client is locked, their profile's **Client Portal** card says so, until 
 
 Clients see the same thread from their side of the portal — it is one continuous conversation per client, not a ticket system.
 
+When a client sends a message, uploads a document or asks for an appointment, you get a short email ("New in your client portal") with a link to it. You get at most one of these an hour; anything else that arrives meanwhile is waiting in the portal. The email never includes the message itself.
+
 ## Portal Requests (Appointments)
 
 Clients can request an appointment from their portal, optionally with a preferred date and notes. These appear under **Portal Requests** in the Agent Portal.
@@ -63,7 +65,7 @@ Clients can request an appointment from their portal, optionally with a preferre
 2. For a pending request, pick the actual date and time (prefilled from the client's preferred date when they gave one, but yours to adjust) and click **Schedule** — this creates a real follow-up on your **Calendar**, and the client is emailed the confirmed date/time.
 3. Click **Decline** to turn down a request — the client is emailed a polite decline notice; no calendar entry is created.
 
-Once scheduled, the client sees the confirmed date/time on their own Appointments page, and it also appears in their "Upcoming" follow-ups list there. The confirmation and decline emails both carry the client portal's sign-in address, and if either email cannot be sent you are told on the Portal Requests page (the appointment itself is still scheduled or declined).
+Once scheduled, the client sees the confirmed date/time on their own Appointments page, under "Upcoming", until you mark that follow-up done. "Upcoming" shows only the client's own appointments — never your other follow-ups for them, which stay private to you. The confirmation and decline emails both carry the client portal's sign-in address, and if either email cannot be sent you are told on the Portal Requests page (the appointment itself is still scheduled or declined).
 
 Rescheduling or cancelling an already-scheduled appointment isn't a separate flow — use the normal follow-up edit/delete tools on the client's Details page, since the appointment *is* a follow-up under the hood.
 
@@ -74,7 +76,7 @@ Both the agent and the client can upload documents into a shared folder per clie
 - Agents upload from the client's profile page, under **Portal Documents**.
 - Clients upload from their own **Documents** page in the portal.
 
-Both sides can download anything uploaded by either party. Files are capped at 20 MB per upload.
+Both sides can download anything uploaded by either party. Files are capped at 20 MB per upload, and a client's uploads count toward your storage just like your own; when it is full, the client is told to send the file another way.
 
 An agent can delete any document for their own clients. A client can only delete documents they themselves uploaded — not ones the agent shared with them, since those may be official records the agent needs kept.
 
@@ -91,7 +93,11 @@ Clients can update their own contact details (name, phone, address) directly fro
 
 ## Invoices
 
-Clients see all estimates/invoices you've sent them under their portal's **Invoices** tab, each linking to the same invoice page used for the standalone signed links.
+Clients see the estimates and invoices you've sent them under their portal's **Invoices** tab, each linking to the same invoice page used for the standalone signed links. Drafts never appear there; a document shows up once you send it.
+
+## When Your Plan No Longer Includes the Client Portal
+
+If you move to a plan without the client portal, or your subscription lapses, your clients can still sign in and **read** everything (messages, documents, invoices, appointments), and change their own contact details and email preferences. They can't send new messages, upload or delete documents, or ask for appointments; the portal tells them to contact you directly. Everything works again as soon as your plan includes the portal.
 
 ## Preferences
 

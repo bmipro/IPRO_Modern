@@ -237,3 +237,20 @@ were kept in step on "the one calendar you choose". There is no chooser -- the c
 the primary Google calendar -- so the sentence now says "your primary Google calendar". Nothing else
 changed; the Azure Communication Services and Google Calendar disclosures of 14 September stand.
 The Last-updated date moved to 17 September 2026 in the page and in this folder's copy.
+
+## 26 October 2026 (604) -- section 4 names Amazon SES; SendGrid is gone
+
+Both copies changed the same way; `PrivacyPolicyTests` keeps them in step. Last updated moved to
+26 October 2026. As in September, nothing here changes what the platform does; the table catches up.
+
+1. **Amazon Web Services (Amazon SES)** is added: since 4 October 2026 (TODO 531) the email an
+   adviser sends to their own clients (invoices, appointment notices and the like) can go out through
+   Amazon SES in AWS's Canada (Central) region, ca-central-1, which also reports delivery back.
+2. **SendGrid (Twilio)** is removed. Twilio suspended iPro's SendGrid account without notice on
+   30 August 2026 (431); production has not sent through it since, and on 29 September the owner
+   decided not to go back. The class is still in the codebase, but no production setting selects it.
+3. **Microsoft Azure Communication Services** now reads "iPro's own email and email that advisers
+   send to their clients", true whichever of the two carries a given adviser stream.
+
+For counsel: a processor added (Canada) and one removed (United States); no new kind of collection.
+The terms and the accessibility statement name no email provider, so neither changed.

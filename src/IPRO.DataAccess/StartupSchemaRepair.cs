@@ -180,6 +180,25 @@ public static class StartupSchemaRepair
         `UpdatedAt` datetime(6) NOT NULL,
         PRIMARY KEY (`Id`)
     ) CHARACTER SET=utf8mb4;");
+        // 592: the record of addresses still to be removed from Azure (DomainCleanup). First, before anything
+        // here that could stop a start-up part-way: removing a domain, or an adviser, needs it.
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `DomainCleanups` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `HostName` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+        `FormerAgentUserId` int NOT NULL,
+        `Reason` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `Attempts` int NOT NULL DEFAULT 0,
+        `LastAttemptAt` datetime(6) NULL,
+        `NextAttemptAt` datetime(6) NULL,
+        `LastError` varchar(1000) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        `DoneAt` datetime(6) NULL,
+        `Outcome` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+        PRIMARY KEY (`Id`),
+        KEY `IX_DomainCleanups_DoneAt_NextAttemptAt` (`DoneAt`, `NextAttemptAt`),
+        KEY `IX_DomainCleanups_FormerAgentUserId` (`FormerAgentUserId`)
+    ) CHARACTER SET=utf8mb4;");
 
         await EnsureTableColumnAsync(db, "AgentDomains", "AgentUserId", "ALTER TABLE `AgentDomains` ADD COLUMN `AgentUserId` int NOT NULL DEFAULT 0");
         await EnsureTableColumnAsync(db, "AgentDomains", "AgentWebsiteId", "ALTER TABLE `AgentDomains` ADD COLUMN `AgentWebsiteId` int NOT NULL DEFAULT 0");
@@ -208,8 +227,120 @@ public static class StartupSchemaRepair
         await EnsureTableColumnAsync(db, "AgentDomains", "RootAzureBindingStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootAzureBindingStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootSslStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootSslStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootBoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootBoundAt` datetime(6) NULL");
+        // 595: when the www name was bound, the start of its certificate's grace period (null for rows bound before).
+        await EnsureTableColumnAsync(db, "AgentDomains", "BoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `BoundAt` datetime(6) NULL");
         // 506: the name whose CAA records keep DigiCert out (empty = nothing in the way).
         await EnsureTableColumnAsync(db, "AgentDomains", "CaaBlockingName", "ALTER TABLE `AgentDomains` ADD COLUMN `CaaBlockingName` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        // 592: proof that the domain is the adviser's (a TXT record holding VerificationToken). The column arrives
+        // with the time as its default, so in the very statement that creates it every row already there counts
+        // as proven: whatever fails after it, no live customer's domain goes dark. FinishDomainOwnershipReleaseAsync
+        // then takes the proof back from the rows that are not live customers.
+        await EnsureTableColumnAsync(db, "AgentDomains", "VerificationToken", "ALTER TABLE `AgentDomains` ADD COLUMN `VerificationToken` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        await EnsureTableColumnAsync(db, "AgentDomains", "OwnershipVerifiedAt", "ALTER TABLE `AgentDomains` ADD COLUMN `OwnershipVerifiedAt` datetime(6) NULL DEFAULT CURRENT_TIMESTAMP(6)");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `DomainClaimTokens` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `ProvenName` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+        `Token` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_DomainClaimTokens_AgentUserId_ProvenName` (`AgentUserId`, `ProvenName`)
+    ) CHARACTER SET=utf8mb4;");
+        await FinishDomainOwnershipReleaseAsync(db);
+
+        // 595: when the adviser was emailed that the domain is live, or that it is stuck. Each arrives with the time as
+        // its default, so every row already there counts as told (nobody hears about a domain connected long ago, or one
+        // abandoned months back); then the default goes back to NULL for the rows added from now on.
+        foreach (var column in new[] { "LiveEmailSentAt", "StuckEmailSentAt" })
+        {
+            await EnsureTableColumnAsync(db, "AgentDomains", column, $"ALTER TABLE `AgentDomains` ADD COLUMN `{column}` datetime(6) NULL DEFAULT CURRENT_TIMESTAMP(6)");
+            if (await ColumnHasDefaultAsync(db, "AgentDomains", column))
+            {
+                // Except a domain being set up at the release: added in the last week it still hears when it is live, and
+                // added in the last day it still hears if it is stuck (595's review, L11).
+                var since = DateTime.UtcNow - (column == "LiveEmailSentAt" ? TimeSpan.FromDays(7) : TimeSpan.FromDays(1));
+                await db.Database.ExecuteSqlRawAsync(
+                    $"UPDATE `AgentDomains` SET `{column}` = NULL WHERE `CreatedAt` > {{0}} " +
+                    "AND NOT (`AzureBindingStatus` = 'Bound' AND `SslStatus` IN ('Bound', 'SslBound'))", since);
+                await db.Database.ExecuteSqlRawAsync($"ALTER TABLE `AgentDomains` ALTER COLUMN `{column}` SET DEFAULT NULL");
+            }
+        }
+    }
+
+    // 592: the release of proof of ownership, finished. The column arrived with the time as its default, so every
+    // row that was there counts as proven (the live customers keep working whatever happens next). This takes the
+    // proof back from the rows that are not live customers: a row made on or after the cut-off, or one whose www
+    // name was never bound nor secured ("SslBound" is the legacy value some rows still carry, as ClientPortalUrls
+    // allows). The cut-off is the day the takeover was used on a real domain: the owner's own test attached
+    // www.411trades.com to another account on 2026-10-15 at 19:07 UTC, and no domain was added or saved between 13
+    // and 15 October (the app's request log). A row with a value of its own was proven by its record and is never
+    // touched. Then the default goes back to NULL, and that is the mark that this was done: a start that stopped
+    // in between does it again (same rows, same result), and once it is done it never runs again -- a live
+    // customer whose statuses read pending later on keeps the proof it was given.
+    //
+    // At every start after that, a row that is still unproven loses whatever "connected" the code before 592 gave
+    // it (bound while one app still ran the old version during the release, or after a rollback): the domain check
+    // would undo it at its next pass, and until then the portal's own address checks would trust it.
+    public static readonly DateTime DomainOwnershipCutoffUtc = new(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc);
+
+    public static async Task FinishDomainOwnershipReleaseAsync(IPRODbContext db)
+    {
+        if (await ColumnHasDefaultAsync(db, "AgentDomains", "OwnershipVerifiedAt"))
+        {
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE `AgentDomains` SET `OwnershipVerifiedAt` = NULL " +
+                    "WHERE `OwnershipVerifiedAt` IS NOT NULL AND `VerificationToken` = '' " +
+                    "AND NOT (`CreatedAt` < {0} AND (`AzureBindingStatus` = 'Bound' OR `SslStatus` IN ('Bound', 'SslBound')))",
+                    DomainOwnershipCutoffUtc);
+                // SET DEFAULT NULL, not DROP DEFAULT: a column with no default at all makes MySQL refuse every INSERT
+                // that leaves it out.
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE `AgentDomains` ALTER COLUMN `OwnershipVerifiedAt` SET DEFAULT NULL");
+            }
+            catch (Exception ex)
+            {
+                // Loud on stderr as well as in the step's log line: until a start finishes this, domain rows that are
+                // no live customer's (added from 15 October on, or never connected) count as proven.
+                Console.Error.WriteLine($"[SchemaRepair] 592 NOT FINISHED: unproven domain rows still count as proven until a start-up finishes this step. {ex.Message}");
+                throw new InvalidOperationException("592: the release of domain ownership proof is not finished; rows that are no live customer's still count as proven. Restart the app to finish it.", ex);
+            }
+        }
+
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE `AgentDomains` SET `DnsStatus` = 'PendingDns', `AzureBindingStatus` = 'BindingPending', `SslStatus` = 'BindingPending', `RootRedirectsToWww` = 0 " +
+            "WHERE `OwnershipVerifiedAt` IS NULL AND (`DnsStatus` = 'Bound' OR `AzureBindingStatus` = 'Bound' OR `SslStatus` IN ('Bound', 'SslBound'))");
+    }
+
+    private static async Task<bool> ColumnHasDefaultAsync(IPRODbContext db, string tableName, string columnName)
+    {
+        var ownsConnection = db.Database.GetDbConnection().State != System.Data.ConnectionState.Open;
+        if (ownsConnection) await db.Database.OpenConnectionAsync();
+        try
+        {
+            await using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = @"
+    SELECT COUNT(1)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = @tableName
+      AND COLUMN_NAME = @columnName
+      AND COLUMN_DEFAULT IS NOT NULL";
+            var tableParameter = command.CreateParameter();
+            tableParameter.ParameterName = "@tableName";
+            tableParameter.Value = tableName;
+            command.Parameters.Add(tableParameter);
+            var columnParameter = command.CreateParameter();
+            columnParameter.ParameterName = "@columnName";
+            columnParameter.Value = columnName;
+            command.Parameters.Add(columnParameter);
+            return Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        }
+        finally
+        {
+            if (ownsConnection) await db.Database.CloseConnectionAsync();
+        }
     }
 
     public static async Task EnsureWebsiteTemplateColumnAsync(IPRODbContext db, string columnName, string alterSql)
@@ -284,6 +415,28 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundWindowEndsAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundWindowEndsAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundResolvedAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundResolvedAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundResolutionNote", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundResolutionNote` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
+    // 600 (2026-10-24): a refund marked Refunded in SuperAdmin -> Refunds is a credit note (CreditNotes in
+    // IPRO.Billing): its number from the shared CN-YYYY-NNNN sequence, the day it was issued, the invoice it
+    // credits with that invoice's tax region and rate, PayPal's refund id, and when the adviser was emailed.
+    public static async Task EnsureRefundCreditNoteSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteNumber", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteNumber` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteIssuedAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteIssuedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteInvoiceNumber", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteInvoiceNumber` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteTaxRate", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteTaxRate` decimal(7,5) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteTaxRegion", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteTaxRegion` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "PayPalRefundId", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `PayPalRefundId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteEmailSentAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteEmailSentAt` datetime(6) NULL");
         }
         finally
         {
@@ -748,6 +901,9 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleEventId", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleEventId` varchar(255) CHARACTER SET utf8mb4 NULL");
             // 493: a follow-up the adviser deleted from Google stays off Google (GoogleCalendarSyncJob).
             await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleUnlinkedAt", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleUnlinkedAt` datetime(6) NULL");
+            // 601 (2026-10-24): NULL on every connection that exists at the release, so each one's calendar is read
+            // in full once and the events written before 601 (shifted by the UTC offset) are put right.
+            await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "LocalTimesResyncedAt", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `LocalTimesResyncedAt` datetime(6) NULL");
         }
         finally
         {
@@ -1726,6 +1882,22 @@ public static class StartupSchemaRepair
     // email last went out -- on each table people sign in with (SignInLockout), and the count for names
     // that are no account. AdminUsers gets its two columns in IPRO.Admin's EnsureAdminUserSchemaAsync,
     // where that table is created.
+    // 599 (2026-10-24): SuperAdmin's Deactivate became a suspension with a yearly data review.
+    public static async Task EnsureAccountSuspensionSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "AgentUsers", "SuspendedAt", "ALTER TABLE `AgentUsers` ADD COLUMN `SuspendedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "AgentUsers", "DataReviewDueAt", "ALTER TABLE `AgentUsers` ADD COLUMN `DataReviewDueAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "AgentUsers", "DataReviewNoticeSentAt", "ALTER TABLE `AgentUsers` ADD COLUMN `DataReviewNoticeSentAt` datetime(6) NULL");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     public static async Task EnsureSignInLockoutSchemaAsync(IPRODbContext db)
     {
         await db.Database.OpenConnectionAsync();

@@ -338,7 +338,11 @@ public class PublicForms578Tests : IClassFixture<EdgeFixture>
         var template = new WebsiteTemplate { TemplateKey = $"tk-{Guid.NewGuid():N}"[..16], Name = "Test", BusinessType = "All" };
         db.Add(template);
         await db.SaveChangesAsync();
-        db.Add(new AgentWebsite { AgentUserId = agent.Id, TemplateId = template.Id, IsPublished = true, CustomDomain = host });
+        var website = new AgentWebsite { AgentUserId = agent.Id, TemplateId = template.Id, IsPublished = true, CustomDomain = host };
+        db.Add(website);
+        await db.SaveChangesAsync();
+        // 592: a custom domain is served through its proven domain row, not the website's own field.
+        db.Add(new AgentDomain { AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = host, WwwDomain = host, RootDomain = host, IsPrimary = true, OwnershipVerifiedAt = DateTime.UtcNow });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         return host;

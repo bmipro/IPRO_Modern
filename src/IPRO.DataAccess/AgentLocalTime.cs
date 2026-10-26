@@ -35,6 +35,11 @@ public static class AgentLocalTime
     public static DateTime? FromUtc(DateTime? utcDateTime, string? agentTimeZone) =>
         utcDateTime.HasValue ? FromUtc(utcDateTime.Value, agentTimeZone) : null;
 
+    // 601 (2026-10-24): the zone itself, for the Google Calendar sync. Google wants the adviser's wall clock,
+    // its offset on that date and the zone's IANA name, and reports moves as instants to be read back in the
+    // same zone -- the one place a follow-up's DueAt meets a real instant (INVARIANTS rule 10).
+    public static TimeZoneInfo Zone(string? agentTimeZone) => FindTimeZone(agentTimeZone);
+
     private static TimeZoneInfo FindTimeZone(string? agentTimeZone)
     {
         var id = ToSystemTimeZoneId(agentTimeZone);

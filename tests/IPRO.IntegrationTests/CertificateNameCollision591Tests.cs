@@ -347,6 +347,7 @@ public class CertificateNameCollision591Tests : IDisposable
         var row = Row(agentId, siteId, host, "alert591.example.test", host);
         row.SslStatus = AgentDomainStatus.BindingPending;
         row.CreatedAt = DateTime.UtcNow.AddHours(-5);
+        row.OwnershipVerifiedAt = DateTime.UtcNow.AddHours(-5);   // 595: the wait counts from when it was proven and connected
         db.Add(row);
         await db.SaveChangesAsync();
 
@@ -500,6 +501,7 @@ public class CertificateNameCollision591Tests : IDisposable
         AgentUserId = agentId, AgentWebsiteId = websiteId, DomainName = name, RootDomain = root, WwwDomain = www,
         DnsTarget = "ipro-prod-web.azurewebsites.net", IsPrimary = true,
         DnsStatus = AgentDomainStatus.Bound, AzureBindingStatus = AgentDomainStatus.Bound, SslStatus = AgentDomainStatus.Bound,
+        OwnershipVerifiedAt = DateTime.UtcNow,   // 592: a live domain is a proven one
     };
 
     // An adviser whose package has a website and extra domains (no limit), with a saved website.

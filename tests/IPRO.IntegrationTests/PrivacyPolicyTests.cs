@@ -55,10 +55,12 @@ public class PrivacyPolicyTests
         Assert.Contains("Azure Communication Services", text);
         // ACS email data location for ipro-prod-email is Canada (read from the resource on 2026-09-14).
         Assert.Contains("and reporting on delivery", text);
-        // SendGrid stays in the codebase as the rollback provider (Email__Provider), so it stays in
-        // the table -- as standby, not as the deliverer.
-        Assert.Contains("SendGrid (Twilio)", text);
-        Assert.Contains("Standby", text);
+        // 604 (2026-10-26): Amazon SES (ca-central-1) has carried advisers' email to their clients since
+        // 2026-10-04, and SendGrid is no provider of iPro's any more (suspended 2026-08-30, the owner's
+        // "no" of 2026-09-29), so the table names the one and not the other.
+        Assert.Contains("Amazon Web Services (Amazon SES)", text);
+        Assert.DoesNotContain("SendGrid", text);
+        Assert.DoesNotContain("Standby", text);
     }
 
     [Theory]
@@ -67,7 +69,8 @@ public class PrivacyPolicyTests
     public void Both_copies_carry_the_same_last_updated_date(string file)
     {
         var text = Read(file);
-        Assert.Contains("Last updated: 17 September 2026", text);   // 493: the calendar wording
+        Assert.Contains("Last updated: 26 October 2026", text);   // 604: Amazon SES in, SendGrid out
+        Assert.DoesNotContain("Last updated: 17 September 2026", text);
         Assert.DoesNotContain("Last updated: 15 August 2026", text);
     }
 
@@ -78,6 +81,8 @@ public class PrivacyPolicyTests
         Assert.Contains("17 September 2026", text);
         Assert.Contains("Azure Communication Services", text);
         Assert.Contains("Google Calendar", text);
+        Assert.Contains("26 October 2026 (604)", text);
+        Assert.Contains("Amazon SES", text);
     }
 
     private static string Read(string relative)

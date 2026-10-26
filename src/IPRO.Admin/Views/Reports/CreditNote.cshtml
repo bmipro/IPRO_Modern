@@ -1,0 +1,97 @@
+@model IPRO.Billing.CreditNoteEntry
+@using IPRO.DataAccess
+@{
+    // 600 (2026-10-24): a credit note -- a refund marked Refunded, or a Refer a Friend reward paid -- in the invoice
+    // print view's layout (Reports/Invoice.cshtml): the supplier from SuperAdmin -> Company Details, who it credits,
+    // the invoice it credits, and the amounts, negative.
+    ViewData["Title"] = Model.Number;
+    var company = ViewBag.Company as BillingCompanyDetails ?? BillingCompanyDetails.From(null, _ => null);
+    var issuedLocal = AgentLocalTime.FromUtc(Model.IssuedAt, Model.AdviserTimeZone);
+    string Money(decimal amount) => (amount < 0 ? "-$" : "$") + Math.Abs(amount).ToString("#,0.00", System.Globalization.CultureInfo.InvariantCulture) + " " + Model.Currency;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
+  <h4 class="fw-bold mb-0"><i class="fas fa-file-invoice-dollar me-2 text-danger"></i>Credit note @Model.Number</h4>
+  <div>
+    @if (Model.AdviserDeleted)
+    {
+      <span class="badge bg-secondary me-2" title="The account was deleted; this credit note is the retained financial record.">agent deleted</span>
+    }
+    <button type="button" id="print-credit-note" class="btn btn-sm btn-outline-primary me-2"><i class="fas fa-print me-1"></i>Print / Save PDF</button>
+    <a href="/Reports/Revenue" class="btn btn-sm btn-outline-secondary">Back to revenue</a>
+  </div>
+</div>
+
+<div class="card mx-auto" style="max-width: 800px;">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <h4 class="fw-bold mb-1">@company.Name</h4>
+        @foreach (var line in company.AddressLines) { <div class="small">@line</div> }
+        @if (!string.IsNullOrWhiteSpace(company.TaxRegistrationNumber)) { <div class="small">GST/HST registration no. @company.TaxRegistrationNumber</div> }
+        <div class="text-muted small">@IPRO.Email.BrandText.WithCapitals(company.Website) &nbsp;|&nbsp; @IPRO.Email.BrandText.WithCapitals(company.Email)</div>
+      </div>
+      <div class="text-end">
+        <h5 class="mb-1">Credit note</h5>
+        <span class="badge bg-success">REFUNDED</span>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-6">
+        <div class="text-muted small text-uppercase fw-bold mb-1">Credit To</div>
+        <div class="fw-bold">@Model.BillToName</div>
+        @if (!string.IsNullOrWhiteSpace(Model.BillToCompany)) { <div>@Model.BillToCompany</div> }
+        @if (!string.IsNullOrWhiteSpace(Model.BillToEmail)) { <div>@Model.BillToEmail</div> }
+        @foreach (var line in Model.BillToAddress) { <div>@line</div> }
+      </div>
+      <div class="col-6">
+        <div class="text-muted small text-uppercase fw-bold mb-1">Credit Note Details</div>
+        <div><strong>Credit note #:</strong> @Model.Number</div>
+        <div><strong>Date:</strong> @issuedLocal.ToString("MMMM d, yyyy")</div>
+        <div><strong>For:</strong> @Model.KindLabel</div>
+        @if (!string.IsNullOrWhiteSpace(Model.CreditsInvoice)) { <div><strong>Credits invoice:</strong> @Model.CreditsInvoice</div> }
+        @if (!string.IsNullOrWhiteSpace(Model.PayPalRefundId)) { <div class="text-break"><strong>PayPal refund:</strong> @Model.PayPalRefundId</div> }
+        @if (!string.IsNullOrWhiteSpace(Model.RefundedAgainst)) { <div class="text-break"><strong>Against PayPal payment:</strong> @Model.RefundedAgainst</div> }
+      </div>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="text-muted small text-uppercase">Description</th>
+          <th class="text-muted small text-uppercase">Tax</th>
+          <th class="text-muted small text-uppercase text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>@Model.Description</td>
+          <td>@Model.TaxLabel</td>
+          <td class="text-end">@Money(-Model.Net)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="ms-auto" style="max-width: 320px;">
+      <div class="d-flex justify-content-between border-bottom py-2"><span>Subtotal</span><strong>@Money(-Model.Net)</strong></div>
+      <div class="d-flex justify-content-between border-bottom py-2"><span>@(Model.Tax > 0 ? Model.TaxLabel : "Tax")</span><strong>@Money(-Model.Tax)</strong></div>
+      <div class="d-flex justify-content-between py-2 fs-5 text-primary"><strong>Total credited</strong><strong>@Money(-Model.Gross)</strong></div>
+      <div class="d-flex justify-content-between py-1 small text-muted"><span>Refunded at PayPal</span><span>@Money(Model.Gross)</span></div>
+    </div>
+    <p class="small text-muted mt-4 mb-0">Please retain this credit note with your invoices. It was generated electronically.</p>
+  </div>
+</div>
+
+<style>
+  @@media print {
+    /* Only the credit note card: no sidebar, no topbar, no buttons, white ground, full width. */
+    .admin-sidebar, .admin-topbar, .d-print-none { display: none !important; }
+    .admin-content { margin: 0 !important; padding: 0 !important; }
+    body { background: #fff !important; }
+    .card { border: none !important; box-shadow: none !important; max-width: 100% !important; }
+  }
+</style>
+<script nonce="@Context.GetCspNonce()">
+  document.getElementById("print-credit-note").addEventListener("click", function () { window.print(); });
+</script>

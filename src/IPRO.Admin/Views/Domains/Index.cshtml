@@ -126,6 +126,47 @@
             {
               <div class="small mt-1"><span class="badge bg-secondary">Auto-retry paused (@domain.RetryCount attempts)</span></div>
             }
+            @* 595: the step of the adviser's guide on the Domain page, and what iPro sees for it, in the adviser's own words. *@
+            @if (item.Guide is { } guide)
+            {
+              <div class="small mt-1">
+                <span class="badge @(guide.Refusal != null ? "bg-danger" : guide.Live ? "bg-success" : "bg-primary")">@(guide.Refusal != null ? "Refused" : guide.Live ? "Live" : $"Step {guide.CurrentStep} of 4")</span>
+                <span>@guide.Heading</span>
+              </div>
+              var currentStep = guide.Steps.FirstOrDefault(s => s.Number == guide.CurrentStep);
+              @if (currentStep != null && currentStep.Seen.Length > 0)
+              {
+                <div class="small text-muted">What iPro sees: @currentStep.Seen</div>
+              }
+              @if (guide.Host.Name.Length > 0)
+              {
+                <div class="small text-muted">DNS managed at @guide.Host.Name</div>
+              }
+              @if (guide.CaaName != null)
+              {
+                <div class="small text-danger">CAA records at @guide.CaaName keep the SSL certificate out: <code>@IPRO.Utility.CaaCheck.RecordToAdd</code> is missing.</div>
+              }
+              @if (guide.MailAtRisk || guide.MailBroken)
+              {
+                <div class="small text-danger">@guide.MailNote</div>
+              }
+            }
+            @* 592: whether the adviser has proven the domain is theirs (their TXT record), which nothing is bound or served without. *@
+            <div class="small mt-1">
+              @if (IPRO.Utility.DomainOwnershipProof.IsNeeded(domain))
+              {
+                <span class="badge bg-warning text-dark">Not proven yet</span>
+                <span class="text-muted">TXT @IPRO.Utility.DomainOwnershipProof.RecordName(domain)</span>
+              }
+              else if (string.IsNullOrEmpty(domain.VerificationToken))
+              {
+                <span class="badge bg-light text-dark">Proven: there before 592</span>
+              }
+              else
+              {
+                <span class="badge bg-success">Proven @domain.OwnershipVerifiedAt!.Value.ToLocalTime().ToString("MMM d, yyyy")</span>
+              }
+            </div>
           </td>
           <td>
             <div class="fw-semibold">@(string.IsNullOrWhiteSpace(item.AgentName) ? $"Agent #{domain.AgentUserId}" : item.AgentName)</div>
@@ -154,7 +195,7 @@
                 @Html.AntiForgeryToken()
                 <button class="btn btn-sm btn-outline-primary" type="submit">Recheck</button>
               </form>
-              @if (domain.AzureBindingStatus != IPRO.Entities.AgentDomainStatus.Bound)
+              @if (domain.AzureBindingStatus != IPRO.Entities.AgentDomainStatus.Bound && !IPRO.Utility.DomainOwnershipProof.IsNeeded(domain))
               {
                 <form method="post" action="/Domains/MarkBound/@domain.Id">
                   @Html.AntiForgeryToken()

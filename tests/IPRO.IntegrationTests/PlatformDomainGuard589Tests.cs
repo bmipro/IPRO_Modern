@@ -94,7 +94,7 @@ public class PlatformDomainGuard589Tests : IDisposable
         {
             controller.TempData.Clear();
             var result = await controller.AddDomain(name);
-            Assert.Equal("Index", Assert.IsType<RedirectToActionResult>(result).ActionName);
+            Assert.Equal("Domains", Assert.IsType<RedirectToActionResult>(result).ActionName);   // 595: the Domain page
             Assert.Contains("one of IPRO's own addresses", controller.TempData["Error"] as string ?? "(no error for " + name + ")");
         }
 
@@ -202,7 +202,7 @@ public class PlatformDomainGuard589Tests : IDisposable
         var azure = new RecordingAzure();
         var log = new RecordingLogger();
         var service = Service(azure, log, new ConfigurationBuilder().Build());
-        var controller = Controller(db, agentId, ProductionConfig(), service);
+        var controller = Controller(db, agentId, ProductionConfig(), service, log.For<WebsiteController>());
 
         await controller.RemoveDomain(main.Id, "app.iproadvisers.com");
         await controller.RemoveDomain(brand.Id, "www.iproaccountants.com");
@@ -211,8 +211,9 @@ public class PlatformDomainGuard589Tests : IDisposable
         db.ChangeTracker.Clear();
         Assert.False(await db.AgentDomains.AnyAsync(d => d.AgentUserId == agentId));
         // The whole name and what follows it: "www.iproaccountants.com" must not stand in for the short address.
+        // 592: refused by the removal queue (DomainCleanupQueue) before the automation is asked at all.
         foreach (var host in new[] { "app.iproadvisers.com", "www.iproaccountants.com", "iproaccountants.com" })
-            Assert.Contains(log.Lines, l => l.Level == LogLevel.Warning && l.Text.Contains("refused to remove " + host + ":", StringComparison.Ordinal));
+            Assert.Contains(log.Lines, l => l.Level == LogLevel.Warning && l.Text.Contains("Azure cleanup of " + host + " not attempted:", StringComparison.Ordinal));
     }
 
     // -------------------------------------------------------------- the automation --
@@ -571,12 +572,12 @@ public class PlatformDomainGuard589Tests : IDisposable
         log.For<AzureDomainAutomationService>(),
         config);
 
-    private static WebsiteController Controller(IPRODbContext db, int agentId, IConfiguration config, IAzureDomainAutomationService azure)
+    private static WebsiteController Controller(IPRODbContext db, int agentId, IConfiguration config, IAzureDomainAutomationService azure, ILogger<WebsiteController>? logger = null)
     {
         var controller = new WebsiteController(
             new WebsiteService(new UnitOfWork(db)), new NullBlob(), new PackageEntitlementService(new UnitOfWork(db), db),
             new AgentService(new UnitOfWork(db), new PasswordHasher<AgentUser>()), config, db,
-            new ScriptedCheck(), azure, NullLogger<WebsiteController>.Instance);
+            new ScriptedCheck(), azure, logger ?? NullLogger<WebsiteController>.Instance);
         var context = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, agentId.ToString(CultureInfo.InvariantCulture)) }, "test"))

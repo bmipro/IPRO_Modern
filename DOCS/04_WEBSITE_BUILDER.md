@@ -3,7 +3,10 @@
 ## Open Website Management
 
 1. Select **My Website** in the Agent Portal.
-2. Review the published status, temporary domain, custom domains, template, logo, site title, tagline, and theme color.
+2. Review the published status, temporary domain, template, logo, site title, tagline, and theme color. The **Your
+   domain** card says where your custom domain stands; the domains themselves are on the **Domain** page (the
+   **Domain** button at the top, or **Domain** in the menu), with a step-by-step guide for each (see
+   [05_DOMAINS_AND_LEADS.md](05_DOMAINS_AND_LEADS.md)).
 
 ## Change the Template
 

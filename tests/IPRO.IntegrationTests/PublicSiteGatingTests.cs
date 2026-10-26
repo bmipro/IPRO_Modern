@@ -53,6 +53,25 @@ public class PublicSiteGatingTests
     }
 
     [Fact]
+    public async Task A_suspended_agents_site_is_offline_at_once_even_while_billing_is_active()
+    {
+        // 599 (2026-10-24): SuperAdmin's Deactivate is a suspension. The site goes down with it, not at the
+        // end of a paid-through period.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedPublishedSiteAsync(db, billingStatus: BillingStatus.Active);
+        var agent = await db.AgentUsers.SingleAsync(a => a.Id == seed.AgentId);
+        agent.IsActive = false;
+        agent.SuspendedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var controller = NewController(db, seed.Host);
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        Assert.Equal("NotFound", view.ViewName);
+    }
+
+    [Fact]
     public async Task M13_an_active_agents_site_stays_online()
     {
         // The pin in the other direction: the gate must not take paying customers offline.
@@ -222,6 +241,9 @@ public class PublicSiteGatingTests
             CustomDomain = host
         };
         db.Add(website);
+        await db.SaveChangesAsync();
+        // 592: a custom domain is served through its proven domain row, not the website's own field.
+        db.Add(new AgentDomain { AgentUserId = agent.Id, AgentWebsiteId = website.Id, DomainName = host, WwwDomain = host, RootDomain = host, IsPrimary = true, OwnershipVerifiedAt = DateTime.UtcNow });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         return new Seed(agent.Id, website.Id, billingId, host);

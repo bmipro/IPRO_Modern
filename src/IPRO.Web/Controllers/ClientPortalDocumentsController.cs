@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
+using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
@@ -15,12 +17,20 @@ public class ClientPortalDocumentsController : Controller
 
     private readonly IPRODbContext _db;
     private readonly IBlobStorageService _blob;
+    private readonly IPackageEntitlementService _entitlements;
+    private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<ClientPortalDocumentsController> _logger;
     private int ClientId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public ClientPortalDocumentsController(IPRODbContext db, IBlobStorageService blob)
+    public ClientPortalDocumentsController(IPRODbContext db, IBlobStorageService blob, IPackageEntitlementService entitlements, IEmailService email, IConfiguration configuration, ILogger<ClientPortalDocumentsController> logger)
     {
         _db = db;
         _blob = blob;
+        _entitlements = entitlements;
+        _email = email;
+        _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -30,12 +40,20 @@ public class ClientPortalDocumentsController : Controller
             .Where(d => d.ClientId == ClientId)
             .OrderByDescending(d => d.UploadedAt)
             .ToListAsync();
+        ViewBag.PortalReadOnly = await IPRO.Web.Infrastructure.ClientPortalActivity.IsReadOnlyAsync(_entitlements, User);
         return View(documents);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(IFormFile file)
     {
+        // 598: read-only while the adviser's plan has no client portal.
+        if (await IPRO.Web.Infrastructure.ClientPortalActivity.IsReadOnlyAsync(_entitlements, User))
+        {
+            TempData["Error"] = IPRO.Web.Infrastructure.ClientPortalActivity.ReadOnlyMessage;
+            return RedirectToAction(nameof(Index));
+        }
+
         if (file == null || file.Length == 0)
         {
             TempData["Error"] = "Choose a file to upload.";
@@ -44,6 +62,19 @@ public class ClientPortalDocumentsController : Controller
         if (file.Length > MaxFileSizeBytes)
         {
             TempData["Error"] = "That file is larger than the 20 MB upload limit.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // 598: a client's upload counts against the adviser's storage like the adviser's own (the total
+        // already counted portal files; only this path never checked it). The message speaks to the client.
+        var adviserId = IPRO.Web.Infrastructure.ClientPortalActivity.AdviserId(User);
+        if (adviserId is null) return Forbid();
+        var capacity = await _entitlements.GetAccessAsync(adviserId.Value, PackageFeatureCodes.FileUploadCapacity);
+        var limitBytes = IPRO.Web.Infrastructure.AgentStorageUsage.LimitBytes(capacity.LimitValue);
+        var usedBytes = await IPRO.Web.Infrastructure.AgentStorageUsage.TotalBytesAsync(_db, adviserId.Value);
+        if (limitBytes > 0 && usedBytes + file.Length > limitBytes)
+        {
+            TempData["Error"] = "Your advisor's document storage is full, so this file can't be uploaded right now. Please send it to your advisor another way, or let them know so they can make room.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -67,6 +98,7 @@ public class ClientPortalDocumentsController : Controller
             FileSizeBytes = file.Length
         });
         await _db.SaveChangesAsync();
+        await IPRO.Web.Infrastructure.ClientPortalActivity.NotifyAdviserAsync(_db, _email, _configuration, ClientId, IPRO.Web.Infrastructure.ClientPortalActivity.Kind.Document, _logger);
 
         TempData["Success"] = "Document uploaded.";
         return RedirectToAction(nameof(Index));
@@ -86,6 +118,13 @@ public class ClientPortalDocumentsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
+        // 598: read-only while the adviser's plan has no client portal.
+        if (await IPRO.Web.Infrastructure.ClientPortalActivity.IsReadOnlyAsync(_entitlements, User))
+        {
+            TempData["Error"] = IPRO.Web.Infrastructure.ClientPortalActivity.ReadOnlyMessage;
+            return RedirectToAction(nameof(Index));
+        }
+
         var document = await _db.PortalDocuments.FirstOrDefaultAsync(d => d.Id == id && d.ClientId == ClientId && d.UploadedByClient);
         if (document == null) return NotFound();
 

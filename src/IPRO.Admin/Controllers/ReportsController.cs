@@ -1,3 +1,6 @@
+using System.Globalization;
+using IPRO.Admin.Models;
+using IPRO.Billing;
 using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
@@ -17,10 +20,13 @@ public class ReportsController : Controller
     // been deleted (invoices are retained through deletion and carry their own bill-to snapshot).
     // Having "Revenue" and "Invoices" as separate nav items meant the button NAMED Revenue was the
     // shallow one, and the detail hid behind a different word.
+    // 600 (2026-10-24): and every credit note -- a refund marked Refunded, a Refer a Friend reward paid -- as its own
+    // negative row, netted in the totals, the months and the tax by region (the owner: "matters for tax filing").
+    // The model stays the invoice list; the screen reads LedgerRows.
     public async Task<IActionResult> Revenue(DateTime? from = null, DateTime? to = null, string? q = null,
         string sort = "date", string dir = "desc")
     {
-        var (invoices, fromDate, toDate) = await LoadLedgerAsync(from, to, q);
+        var (invoices, creditNotes, fromDate, toDate) = await LoadLedgerAsync(from, to, q);
 
         var agents = (await _uow.AgentUsers.GetAllAsync()).ToDictionary(a => a.Id);
         var billings = (await _uow.Billings.GetAllAsync()).ToDictionary(b => b.Id);
@@ -41,6 +47,14 @@ public class ReportsController : Controller
             ("date", "asc") => invoices.OrderBy(i => i.IssuedAt).ToList(),
             _ => invoices.OrderByDescending(i => i.IssuedAt).ToList()
         };
+        var rows = LedgerRows(invoices, creditNotes, agents, PackageNameOf);
+        rows = (sort, dir) switch
+        {
+            ("package", "asc") => rows.OrderBy(r => r.Package).ThenByDescending(r => r.IssuedAt).ToList(),
+            ("package", "desc") => rows.OrderByDescending(r => r.Package).ThenByDescending(r => r.IssuedAt).ToList(),
+            ("date", "asc") => rows.OrderBy(r => r.IssuedAt).ToList(),
+            _ => rows.OrderByDescending(r => r.IssuedAt).ToList()
+        };
 
         var paid = invoices.Where(i => i.IsPaid).ToList();
 
@@ -50,16 +64,26 @@ public class ReportsController : Controller
         // beneath print agent-LOCAL dates (AgentLocalTime.FromUtc) -- an evening month-boundary
         // invoice appeared in a different month than its own ledger row. Both now read the same
         // clock: the issuing agent's, defaulting like the rows do when the agent is deleted.
-        ViewBag.ChartMonths = paid
-            .GroupBy(i =>
+        // 600: each month is invoiced, credit notes (negative) and net; a credit note reads its adviser's clock too.
+        string MonthOf(DateTime utc, string? timeZone)
+        {
+            var local = IPRO.DataAccess.AgentLocalTime.FromUtc(utc, timeZone);
+            return $"{local.Year}-{local.Month:D2}";
+        }
+        var invoicedByMonth = paid
+            .GroupBy(i => MonthOf(i.IssuedAt, agents.TryGetValue(i.AgentUserId, out var a) ? a.TimeZone : null))
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.Total));
+        var creditedByMonth = creditNotes
+            .GroupBy(c => MonthOf(c.IssuedAt, c.AdviserTimeZone))
+            .ToDictionary(g => g.Key, g => -g.Sum(c => c.Gross));
+        ViewBag.ChartMonths = invoicedByMonth.Keys.Union(creditedByMonth.Keys)
+            .OrderBy(label => label, StringComparer.Ordinal)
+            .Select(label =>
             {
-                var local = IPRO.DataAccess.AgentLocalTime.FromUtc(
-                    i.IssuedAt, agents.TryGetValue(i.AgentUserId, out var a) ? a.TimeZone : null);
-                return new { local.Year, local.Month };
+                var invoiced = invoicedByMonth.GetValueOrDefault(label);
+                var credited = creditedByMonth.GetValueOrDefault(label);
+                return new RevenueMonth(label, invoiced, credited, invoiced + credited);
             })
-            .Select(g => new { Label = $"{g.Key.Year}-{g.Key.Month:D2}", Total = g.Sum(i => i.Total) })
-            .OrderBy(g => g.Label)
-            .Cast<dynamic>()
             .ToList();
 
         ViewBag.From = fromDate;
@@ -73,13 +97,23 @@ public class ReportsController : Controller
         ViewBag.PaidTotal = paid.Sum(i => i.Total);
         ViewBag.PaidCount = paid.Count;
         ViewBag.UnpaidCount = invoices.Count - paid.Count;
+        // 600: credit notes as a negative, and what is left.
+        var creditNotesTotal = -creditNotes.Sum(c => c.Gross);
+        ViewBag.CreditNotesTotal = creditNotesTotal;
+        ViewBag.CreditNoteCount = creditNotes.Count;
+        ViewBag.NetTotal = paid.Sum(i => i.Total) + creditNotesTotal;
+        ViewBag.LedgerRows = rows;
         // Grouped on the region label the invoice was issued under -- this is the remittance view.
+        // 600: a credit note carries its invoice's region, so the tax it gave back comes off the same line.
         ViewBag.TaxByRegion = paid
             .Where(i => i.TaxAmount > 0)
-            .GroupBy(i => i.TaxRegion)
-            .Select(g => new { Region = g.Key, Taxable = g.Sum(i => i.SubTotal), Tax = g.Sum(i => i.TaxAmount) })
-            .OrderByDescending(g => g.Tax)
-            .Cast<dynamic>()
+            .Select(i => (Region: i.TaxRegion ?? string.Empty, Taxable: i.SubTotal, Collected: i.TaxAmount, Credited: 0m))
+            .Concat(creditNotes
+                .Where(c => c.Tax > 0)
+                .Select(c => (Region: c.TaxRegion ?? string.Empty, Taxable: -c.Net, Collected: 0m, Credited: -c.Tax)))
+            .GroupBy(l => l.Region)
+            .Select(g => new RevenueTaxRegion(g.Key, g.Sum(l => l.Taxable), g.Sum(l => l.Collected), g.Sum(l => l.Credited), g.Sum(l => l.Collected + l.Credited)))
+            .OrderByDescending(r => r.Collected)
             .ToList();
         return View(invoices);
     }
@@ -105,12 +139,30 @@ public class ReportsController : Controller
         return View(invoice);
     }
 
+    // 600 (2026-10-24): a credit note -- a refund (kind=refund, the SubscriptionChange) or a Refer a Friend reward
+    // (kind=referral, the Referral) -- to print or save as PDF, in the invoice print view's layout.
+    public async Task<IActionResult> CreditNote(int id, string kind = CreditNotes.RefundKind)
+    {
+        var note = await CreditNotes.FindAsync(_uow.Context, kind, id);
+        if (note == null) return NotFound();
+        var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        ViewBag.Company = await BillingCompanyDetails.LoadAsync(_uow.Context, key => configuration[key]);
+        return View(note);
+    }
+
+    private static string CreditNoteUrl(CreditNoteEntry note) => $"/Reports/CreditNote/{note.SourceId}?kind={note.Kind}";
+
+    // 600: the columns and their order are as they were; Type and CreditsInvoice are added at the end. A credit note's
+    // SubTotal, TaxAmount and Total are negative, so summing a column nets it; its Paid is "yes" (the refund was made)
+    // and its PayPalTransactionId is PayPal's refund id.
     public async Task<IActionResult> InvoicesCsv(DateTime? from = null, DateTime? to = null, string? q = null)
     {
-        var (invoices, fromDate, toDate) = await LoadLedgerAsync(from, to, q);
+        var (invoices, creditNotes, fromDate, toDate) = await LoadLedgerAsync(from, to, q);
         var agents = (await _uow.AgentUsers.GetAllAsync()).ToDictionary(a => a.Id);
         var billings = (await _uow.Billings.GetAllAsync()).ToDictionary(b => b.Id);
         var packages = (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id);
+        string PackageNameOf(Invoice i) =>
+            billings.TryGetValue(i.BillingId, out var b) && packages.TryGetValue(b.BillingRuleId, out var p) ? p.PackageName : string.Empty;
 
         static string Csv(string? value)
         {
@@ -119,27 +171,40 @@ public class ReportsController : Controller
                 ? $"\"{value.Replace("\"", "\"\"")}\""
                 : value;
         }
+        static string Amount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("InvoiceNumber,IssuedAtUtc,BillToName,BillToCompany,BillToEmail,AgentUserId,AgentAccount,Package,SubTotal,TaxRegion,TaxRatePercent,TaxAmount,Total,Currency,Paid,PayPalTransactionId");
-        foreach (var i in invoices)
+        sb.AppendLine("InvoiceNumber,IssuedAtUtc,BillToName,BillToCompany,BillToEmail,AgentUserId,AgentAccount,Package,SubTotal,TaxRegion,TaxRatePercent,TaxAmount,Total,Currency,Paid,PayPalTransactionId,Type,CreditsInvoice");
+        foreach (var r in LedgerRows(invoices, creditNotes, agents, PackageNameOf).OrderByDescending(r => r.IssuedAt))
         {
-            var package = billings.TryGetValue(i.BillingId, out var b) && packages.TryGetValue(b.BillingRuleId, out var p)
-                ? p.PackageName : string.Empty;
-            var account = agents.TryGetValue(i.AgentUserId, out var a) ? a.UserName : "(deleted)";
+            var account = agents.TryGetValue(r.AgentUserId, out var a) ? a.UserName : "(deleted)";
             sb.AppendLine(string.Join(",",
-                Csv(i.InvoiceNumber), i.IssuedAt.ToString("yyyy-MM-dd HH:mm"), Csv(i.BillToName), Csv(i.BillToCompany),
-                Csv(i.BillToEmail), i.AgentUserId.ToString(), Csv(account), Csv(package),
-                i.SubTotal.ToString("0.00"), Csv(i.TaxRegion), (i.TaxRate * 100).ToString("0.###"),
-                i.TaxAmount.ToString("0.00"), i.Total.ToString("0.00"), Csv(i.Currency),
-                i.IsPaid ? "yes" : "no", Csv(i.PayPalTransactionId)));
+                Csv(r.Number), r.IssuedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), Csv(r.BillToName), Csv(r.BillToCompany),
+                Csv(r.BillToEmail), r.AgentUserId.ToString(CultureInfo.InvariantCulture), Csv(account), Csv(r.Package),
+                Amount(r.SubTotal), Csv(r.TaxRegion), (r.TaxRate * 100).ToString("0.###", CultureInfo.InvariantCulture),
+                Amount(r.Tax), Amount(r.Total), Csv(r.Currency),
+                r.Paid ? "yes" : "no", Csv(r.PayPalReference), r.Type, Csv(r.CreditsInvoice)));
         }
 
         var name = $"ipro-invoices-{fromDate:yyyyMMdd}-{toDate:yyyyMMdd}.csv";
         return File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", name);
     }
 
-    private async Task<(List<Invoice> Invoices, DateTime From, DateTime To)> LoadLedgerAsync(DateTime? from, DateTime? to, string? q)
+    // 600: the invoices and the credit notes as one ledger -- the screen and the CSV read the same rows.
+    private static List<RevenueLedgerRow> LedgerRows(IEnumerable<Invoice> invoices, IEnumerable<CreditNoteEntry> creditNotes,
+        IReadOnlyDictionary<int, AgentUser> agents, Func<Invoice, string> packageOf) =>
+        invoices.Select(i => new RevenueLedgerRow(
+                false, i.InvoiceNumber, i.IssuedAt, i.AgentUserId, i.BillToName, i.BillToCompany, i.BillToEmail,
+                packageOf(i), i.SubTotal, i.TaxRegion, i.TaxRate, i.TaxAmount, i.Total, i.Currency, i.IsPaid,
+                i.PayPalTransactionId, string.Empty, $"/Reports/Invoice/{i.Id}",
+                agents.TryGetValue(i.AgentUserId, out var a) ? a.TimeZone : string.Empty))
+            .Concat(creditNotes.Select(c => new RevenueLedgerRow(
+                true, c.Number, c.IssuedAt, c.AgentUserId, c.BillToName, c.BillToCompany, c.BillToEmail,
+                c.Package, -c.Net, c.TaxRegion, c.TaxRate, -c.Tax, -c.Gross, c.Currency, true,
+                c.PayPalRefundId, c.CreditsInvoice, CreditNoteUrl(c), c.AdviserTimeZone, c.KindLabel)))
+            .ToList();
+
+    private async Task<(List<Invoice> Invoices, List<CreditNoteEntry> CreditNotes, DateTime From, DateTime To)> LoadLedgerAsync(DateTime? from, DateTime? to, string? q)
     {
         var fromDate = (from ?? DateTime.UtcNow.AddMonths(-12)).Date;
         var toDate = (to ?? DateTime.UtcNow).Date;
@@ -148,7 +213,8 @@ public class ReportsController : Controller
         var invoices = (await _uow.Invoices.FindAsync(i => i.IssuedAt >= fromDate && i.IssuedAt < endExclusive))
             .OrderByDescending(i => i.IssuedAt)
             .ToList();
-
+        // 600: the credit notes issued in the same days.
+        var creditNotes = await CreditNotes.ListAsync(_uow.Context, fromDate, endExclusive);
         // 2026-08-26: QA harness charges are not revenue. The daily test packages
         // (IsHiddenTestPackage: 7/8/9) bill through PayPal's SANDBOX, so their invoices are real
         // rows recording money that never moved -- ~$500 of them from the BobyMot lifecycle run
@@ -172,6 +238,8 @@ public class ReportsController : Controller
             if (testBillingIds.Count > 0)
             {
                 invoices = invoices.Where(i => !testBillingIds.Contains(i.BillingId)).ToList();
+                // 600: a refund on a sandbox subscription is no more real than its charge (same positive match).
+                creditNotes = creditNotes.Where(c => !(c.BillingId.HasValue && testBillingIds.Contains(c.BillingId.Value))).ToList();
             }
         }
 
@@ -185,9 +253,19 @@ public class ReportsController : Controller
                     i.BillToEmail.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
                     i.PayPalTransactionId.Contains(needle, StringComparison.OrdinalIgnoreCase))
                 .ToList();
+            // 600: a credit note is found by its own number, the invoice it credits, the bill-to, or either PayPal id.
+            creditNotes = creditNotes.Where(c =>
+                    c.Number.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                    c.CreditsInvoice.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                    c.BillToName.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                    c.BillToCompany.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                    c.BillToEmail.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                    c.PayPalRefundId.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                    c.RefundedAgainst.Contains(needle, StringComparison.OrdinalIgnoreCase))
+                .ToList();
         }
 
-        return (invoices, fromDate, toDate);
+        return (invoices, creditNotes, fromDate, toDate);
     }
 
     public async Task<IActionResult> Agents()

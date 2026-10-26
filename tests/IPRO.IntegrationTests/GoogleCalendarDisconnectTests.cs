@@ -188,8 +188,8 @@ public class GoogleCalendarDisconnectTests
         public Task<GoogleTokenResult> ExchangeCodeAsync(string code, string redirectUri) => throw new NotSupportedException();
         public Task<(string AccessToken, DateTime ExpiresAt)> RefreshAccessTokenAsync(string refreshToken) => throw new NotSupportedException();
         public Task<GoogleEventListResult> ListEventsAsync(string accessToken, string calendarId, string? syncToken) => throw new NotSupportedException();
-        public Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime startAtUtc, DateTime? endAtUtc) => throw new NotSupportedException();
-        public Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime startAtUtc, DateTime? endAtUtc) => throw new NotSupportedException();
+        public Task<string> CreateEventAsync(string accessToken, string calendarId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone) => throw new NotSupportedException();
+        public Task UpdateEventAsync(string accessToken, string calendarId, string googleEventId, string title, DateTime localStart, DateTime? localEnd, TimeZoneInfo zone) => throw new NotSupportedException();
         public Task DeleteEventAsync(string accessToken, string calendarId, string googleEventId) => throw new NotSupportedException();
         public Task RevokeTokenAsync(string token)
         {

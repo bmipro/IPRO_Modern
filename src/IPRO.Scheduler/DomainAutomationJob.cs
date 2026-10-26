@@ -16,23 +16,45 @@ public class DomainAutomationJob
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
     private readonly ILogger<DomainAutomationJob> _logger;
+    private readonly IAzureDomainAutomationService? _azureDomains;
 
     public DomainAutomationJob(
         IPRODbContext db,
         IDomainCheckService domainCheck,
         IEmailService email,
         IConfiguration configuration,
-        ILogger<DomainAutomationJob> logger)
+        ILogger<DomainAutomationJob> logger,
+        IAzureDomainAutomationService? azureDomains = null)
     {
         _db = db;
         _domainCheck = domainCheck;
         _email = email;
         _configuration = configuration;
         _logger = logger;
+        _azureDomains = azureDomains;
     }
 
+    // 592: one run at a time. A run asks DNS resolvers and Azure, each with a timeout, for up to 75 rows; a slow
+    // run must not overlap the next one and ask Azure for the same removals twice.
+    // No automatic retries either: the next run is five minutes away, and a run that waited for the lock and gave
+    // up would otherwise be queued again, up to ten times.
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 10 * 60)]
+    [Hangfire.AutomaticRetry(Attempts = 0)]
     public async Task RunAsync()
     {
+        // 592: first, the addresses that stopped being an adviser's and are still to be removed from Azure.
+        if (_azureDomains != null)
+        {
+            try
+            {
+                await DomainCleanupQueue.RunDueAsync(_db, _azureDomains, _configuration, _logger);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Removing released domain addresses from Azure failed this run; the next run asks again");
+            }
+        }
+
         var now = DateTime.UtcNow;
 
         // Fully-bound domains used to be excluded outright, which froze the root-domain forwarding
@@ -92,14 +114,118 @@ public class DomainAutomationJob
             {
                 await _domainCheck.CheckAsync(domain);
                 await AlertIfCertificateIsOverdueAsync(domain);
+                // 592: saved one by one. A row removed while it was being checked (its adviser's Remove, or another
+                // adviser proving the name) must not cost the other rows of the run their results.
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogWarning(ex, "Domain {DomainId} was removed while it was being checked; its result is dropped", domain.Id);
+                _db.Entry(domain).State = EntityState.Detached;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Domain automation check failed for domain {DomainId}", domain.Id);
+                // 592: left tracked, its unsaved changes would fail every later save of this run.
+                _db.Entry(domain).State = EntityState.Detached;
             }
         }
 
         await _db.SaveChangesAsync();
+
+        // 595: and the advisers hear how their domains are doing.
+        try
+        {
+            await SendSetupEmailsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Domain setup emails failed this run; the next run tries again");
+        }
+    }
+
+    // 595: the adviser is emailed when a domain is live, and once if it is still not connected a day after it was added,
+    // with what is missing (the guide's own words). Each at most once per domain, stamped before sending as the
+    // certificate alert is: a slow or failing mail provider must not turn into a repeating email. A few per run.
+    internal static readonly TimeSpan StuckAfter = TimeSpan.FromHours(24);
+
+    private async Task SendSetupEmailsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var settings = DomainSetupGuide.Settings.From(_configuration);
+        var myWebsite = WebAppUrlHelper.GetWebAppBaseUrl(_configuration).TrimEnd('/') + PortalPaths.To("/Website/Domains");
+
+        var live = await _db.AgentDomains
+            .Where(d => d.LiveEmailSentAt == null && d.OwnershipVerifiedAt != null && d.AzureBindingStatus == AgentDomainStatus.Bound &&
+                        (d.SslStatus == AgentDomainStatus.Bound || d.SslStatus == "SslBound"))
+            .OrderBy(d => d.Id).Take(20).ToListAsync();
+        foreach (var domain in live)
+        {
+            domain.LiveEmailSentAt = now;
+            await _db.SaveChangesAsync();
+            var www = WebUtility.HtmlEncode(domain.DomainName);
+            var shortAddress = ShortAddressState.HasShortAddress(domain)
+                ? ShortAddressState.Describe(domain).Working
+                    ? $"<p>{WebUtility.HtmlEncode(domain.RootDomain)} (without www) opens it too.</p>"
+                    : $"<p>Optional: {WebUtility.HtmlEncode(domain.RootDomain)} (without www) does not open your site yet. Step 3 of the guide on your <a href=\"{WebUtility.HtmlEncode(myWebsite)}\">Domain page</a> shows how.</p>"
+                : string.Empty;
+            await SendToAdviserAsync(domain, $"{domain.DomainName} is live", $"""
+                <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+                  <h1 style="font-size:22px">{www} is live</h1>
+                  <p>Good news: your website now opens at <a href="https://{www}">https://{www}</a>, secured with SSL.</p>
+                  {shortAddress}
+                  <p>There is nothing more to do. The SSL certificate renews itself.</p>
+                </div>
+                """);
+        }
+
+        var cutoff = now - StuckAfter;
+        var stuck = await _db.AgentDomains
+            .Where(d => d.StuckEmailSentAt == null && d.LiveEmailSentAt == null && d.CreatedAt < cutoff &&
+                        !(d.OwnershipVerifiedAt != null && d.AzureBindingStatus == AgentDomainStatus.Bound &&
+                          (d.SslStatus == AgentDomainStatus.Bound || d.SslStatus == "SslBound")))
+            .OrderBy(d => d.CreatedAt).Take(5).ToListAsync();
+        foreach (var domain in stuck)
+        {
+            domain.StuckEmailSentAt = now;
+            await _db.SaveChangesAsync();
+            // At most ten seconds for the look (595's review, L-i); without it the email says what is recorded.
+            DomainSetupLook? look;
+            using (var budget = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+            {
+                try { look = await _domainCheck.LookAsync(domain, budget.Token).WaitAsync(budget.Token); }
+                catch (Exception ex) when (ex is OperationCanceledException or TimeoutException) { look = null; }
+            }
+            var guide = DomainSetupGuide.Describe(domain, look, settings, now);
+            var missing = string.Concat(DomainSetupGuide.StillToDo(guide).Select(item => $"<li style=\"margin-bottom:8px\">{WebUtility.HtmlEncode(item)}</li>"));
+            var www = WebUtility.HtmlEncode(domain.DomainName);
+            await SendToAdviserAsync(domain, $"{domain.DomainName} is not connected yet", $"""
+                <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+                  <h1 style="font-size:22px">{www} is not connected yet</h1>
+                  <p>You added {www} on {domain.CreatedAt.ToString("MMMM d", System.Globalization.CultureInfo.InvariantCulture)}. Your website keeps working at its temporary address meanwhile. This is what is still missing:</p>
+                  <ul>{missing}</ul>
+                  <p>The guide on your <a href="{WebUtility.HtmlEncode(myWebsite)}">Domain page</a> (My Website, then Domain) shows each record with Copy buttons, and ticks each step as soon as it sees it.</p>
+                  <p>Would you rather we help? Click <strong>I need help</strong> in the guide: it sends us what we see for each record.</p>
+                </div>
+                """);
+        }
+    }
+
+    private async Task SendToAdviserAsync(AgentDomain domain, string subject, string html)
+    {
+        // An account that is switched off hears nothing (595's review, L11).
+        var adviser = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == domain.AgentUserId && a.IsActive)
+            .Select(a => new { a.Email, Name = a.FirstName + " " + a.LastName }).FirstOrDefaultAsync();
+        if (adviser == null || string.IsNullOrWhiteSpace(adviser.Email)) return;
+        try
+        {
+            var sent = await _email.SendAsync(adviser.Email, adviser.Name.Trim(), subject, html);
+            if (!sent) _logger.LogWarning("Domain email '{Subject}' to agent {AgentUserId} was not sent: the provider refused it", subject, domain.AgentUserId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not send domain email '{Subject}' to agent {AgentUserId}", subject, domain.AgentUserId);
+        }
     }
 
     // Bound + no certificate is NORMAL for the first few minutes: Azure issues managed certificates
@@ -126,7 +252,8 @@ public class DomainAutomationJob
             domain.RootSslStatus != AgentDomainStatus.Bound;
 
         string? overdue = null;
-        if (wwwWaiting && utcNow - domain.CreatedAt >= CertificateGracePeriod)
+        // 595: from when the www name was connected (CertificateClock), not from when the row was added.
+        if (wwwWaiting && utcNow - CertificateClock.StartOf(domain) >= CertificateGracePeriod)
         {
             overdue = domain.DomainName;
         }

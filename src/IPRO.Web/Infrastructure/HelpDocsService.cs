@@ -63,8 +63,19 @@ public static class HelpDocsService
     // heading can never disagree.
     private const int TocMinimumSections = 3;
 
+    // 598 (2026-10-24): parts of a guide written for iPro staff -- Azure commands, our own incident notes,
+    // what support tells a new adviser -- sit between a `<!-- staff-only -->` line and a
+    // `<!-- /staff-only -->` line. The repository keeps them; the advisers' help library leaves them out.
+    public static string WithoutStaffOnly(string markdown) =>
+        StaffOnlyBlock.Replace(markdown, string.Empty);
+
+    private static readonly System.Text.RegularExpressions.Regex StaffOnlyBlock = new(
+        @"^[ \t]*<!--\s*staff-only\s*-->[ \t]*\r?\n.*?^[ \t]*<!--\s*/staff-only\s*-->[ \t]*(\r?\n|$)",
+        System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.Multiline);
+
     public static string RenderArticle(string markdown)
     {
+        markdown = WithoutStaffOnly(markdown);
         var document = Markdown.Parse(markdown, Pipeline);
 
         var sections = new List<(string Id, string Text)>();

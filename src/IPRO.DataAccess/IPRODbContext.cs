@@ -10,6 +10,8 @@ public class IPRODbContext : DbContext
     public DbSet<AgentUser> AgentUsers => Set<AgentUser>();
     public DbSet<AgentWebsite> AgentWebsites => Set<AgentWebsite>();
     public DbSet<AgentDomain> AgentDomains => Set<AgentDomain>();
+    public DbSet<DomainCleanup> DomainCleanups => Set<DomainCleanup>();   // 592
+    public DbSet<DomainClaimToken> DomainClaimTokens => Set<DomainClaimToken>();   // 592
     public DbSet<WebsiteTemplate> WebsiteTemplates => Set<WebsiteTemplate>();
     public DbSet<WebsitePage> WebsitePages => Set<WebsitePage>();
     public DbSet<WebsiteContentBlock> WebsiteContentBlocks => Set<WebsiteContentBlock>();
@@ -191,6 +193,7 @@ public class IPRODbContext : DbContext
             e.Property(d => d.RootAzureBindingStatus).HasMaxLength(40).IsRequired();
             e.Property(d => d.RootSslStatus).HasMaxLength(40).IsRequired();
             e.Property(d => d.CaaBlockingName).HasMaxLength(255).IsRequired();
+            e.Property(d => d.VerificationToken).HasMaxLength(64).IsRequired();   // 592
 
             e.HasOne(d => d.AgentUser)
              .WithMany()
@@ -201,6 +204,26 @@ public class IPRODbContext : DbContext
              .WithMany(w => w.Domains)
              .HasForeignKey(d => d.AgentWebsiteId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 592: addresses waiting to be removed from Azure. No foreign key on purpose: the adviser may be erased,
+        // and the record must outlive them until Azure confirms.
+        modelBuilder.Entity<DomainCleanup>(e =>
+        {
+            e.Property(c => c.HostName).HasMaxLength(255).IsRequired();
+            e.Property(c => c.Reason).HasMaxLength(40).IsRequired();
+            e.Property(c => c.LastError).HasMaxLength(1000).IsRequired();
+            e.Property(c => c.Outcome).HasMaxLength(40).IsRequired();
+            e.HasIndex(c => new { c.DoneAt, c.NextAttemptAt });
+            e.HasIndex(c => c.FormerAgentUserId);
+        });
+
+        // 592: one proof value per adviser and domain name.
+        modelBuilder.Entity<DomainClaimToken>(e =>
+        {
+            e.Property(t => t.ProvenName).HasMaxLength(255).IsRequired();
+            e.Property(t => t.Token).HasMaxLength(64).IsRequired();
+            e.HasIndex(t => new { t.AgentUserId, t.ProvenName }).IsUnique();
         });
 
         // Client → AgentUser
@@ -755,6 +778,12 @@ public class IPRODbContext : DbContext
             e.Property(c => c.ProratedCharge).HasPrecision(10, 2);
             e.Property(c => c.AmountDue).HasPrecision(10, 2);
             e.Property(c => c.Currency).HasMaxLength(3).IsRequired();
+            // 600: the refund's credit note (StartupSchemaRepair.EnsureRefundCreditNoteSchemaAsync).
+            e.Property(c => c.CreditNoteNumber).HasMaxLength(30);
+            e.Property(c => c.CreditNoteInvoiceNumber).HasMaxLength(64);
+            e.Property(c => c.CreditNoteTaxRate).HasPrecision(7, 5);
+            e.Property(c => c.CreditNoteTaxRegion).HasMaxLength(100);
+            e.Property(c => c.PayPalRefundId).HasMaxLength(200);
         });
 
         // NewsLetter → AgentUser
