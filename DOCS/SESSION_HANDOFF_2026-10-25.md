@@ -37,8 +37,8 @@ asked it for tonight's close-out).
 - www.iproadvisors.ca (his test domain) connected on the MichaelTran demo account on 10-24 through the new guide:
   live with its certificate (GeoTrust, to 2027-04-24), the bare name forwards to www. His feedback led to 603.
 - The System Book is complete: Parts 1-6 in `C:\Users\admin\Documents\iPro_System_Book` (Part 6, "Dates and
-  history", ch 26-28, 8 pages, written tonight: the calendar of dates ahead, what runs by itself, the history,
-  every release since launch).
+  history", ch 26-28, 10 pages, written tonight: the calendar of dates ahead, what runs by itself, the history,
+  every release since launch, and chapter 28's open items).
 - A reminder fires at 8:00 a.m. on 2026-10-26 (scheduled task `test-release-244d4c4`, in the app's Scheduled list)
   with the list of what to test.
 
