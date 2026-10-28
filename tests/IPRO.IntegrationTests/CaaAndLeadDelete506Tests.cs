@@ -130,8 +130,10 @@ public class CaaAndLeadDelete506Tests : IDisposable
     [Fact]
     public void The_adviser_is_shown_the_record_and_the_operator_is_told_the_cause()
     {
-        var page = Read(@"src\IPRO.Web\Views\Website\Index.cshtml");
-        Assert.Contains("@if (!sslReady && !string.IsNullOrEmpty(primaryDomain?.CaaBlockingName))", page);
+        // 595: in each domain's guide (step 4), while the domain is not live and its CAA records keep DigiCert out.
+        var page = Read(@"src\IPRO.Web\Views\Website\_DomainGuide.cshtml");
+        Assert.Contains("<div class=\"alert alert-danger border-0 small mb-2 py-2\" data-guide-caa hidden=\"@(guide.CaaName == null)\">", page);
+        Assert.Contains("var caaName = !live && !string.IsNullOrEmpty(domain.CaaBlockingName) ? domain.CaaBlockingName : null;", Read(@"src\IPRO.Utility\DomainSetupGuide.cs"));
         Assert.Contains("<td>CAA</td>", page);
         Assert.Contains("<code>@IPRO.Utility.CaaCheck.RecordToAdd</code>", page);
         Assert.Contains("Keep the CAA records that are already there", page);

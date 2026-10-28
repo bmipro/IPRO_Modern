@@ -18,6 +18,14 @@ Every adviser's invoice-type mail goes through SES since 5:02 p.m. Eastern; his 
 with everyone else's. The web log after the restart: no warning, no failure. Amazon's Reputation metrics that
 afternoon: Healthy, bounce 0.00%, complaint 0.00%. **Next: 8.2 about 2026-10-11** (`notify,news`), if the
 figures hold; then 8.3's alarms.
+**Step 8.2 DONE, 2026-10-27 (the owner; it had slipped, TODO 609):** Amazon's figures read 10-26 (Healthy, bounce
+0.01%, complaint 0.00%); `Email__Ses__Streams` = `notify,news` at 20:14 UTC (restart, clean log). Every adviser's
+newsletters, drips, cards, letters, polls and Did You Know go through SES since 4:14 p.m. Eastern. His test
+newsletter landed in his Inbox at 4:16 p.m. from `mail@news.iproadvisers.com`, Amazon's report back 4 s later.
+**Step 8.3 DONE, 2026-10-27:** two CloudWatch alarms in Canada (Central), "SES bounce rate over 2 percent" and
+"SES complaint rate over 0.05 percent" (Average, 1 hour, missing data as good), emailing the SNS topic
+`ipro-ses-alarms` (two of his addresses, both confirmed). The go-live is complete; iPro's own mail to advisers
+stays on ACS until its own move (before 2028-09-30).
 
 **What exists in AWS already.** Account 354245663230, region Canada (Central) `ca-central-1`, Business
 Support+. Production access granted 2026-09-30: 50,000 emails a day, 14 a second. Two verified identities:

@@ -93,6 +93,21 @@ public class AgentsController : Controller
             "Subscription details",
             warnings);
         ViewBag.Subscription = activeSubscription;
+        // 607: the suspended note says what the suspension did to billing, read from its own log entry (Deactivate
+        // writes "PayPal billing cancelled" or "no active PayPal subscription"). It said "Billing cancelled"
+        // for an account that had no subscription (the owner's 599 test, 2026-10-26).
+        if (!agent.IsActive && agent.SuspendedAt.HasValue)
+        {
+            var suspensionEntry = await LoadDetailsPanelAsync(
+                () => _db.OperateLogs.AsNoTracking()
+                    .Where(l => l.AgentUserId == id && l.Module == "Agents" && l.Action == "Deactivate")
+                    .OrderByDescending(l => l.CreatedAt)
+                    .Select(l => l.Description)
+                    .FirstOrDefaultAsync(),
+                "Suspension",
+                warnings);
+            ViewBag.SuspensionBilling = SuspensionBillingNote(suspensionEntry);
+        }
         // 503: the same next charge the agent's own Billing page shows (see NextCharge), so the
         // owner answering "what will I be billed?" reads the number the customer is reading.
         ViewBag.NextCharge = activeSubscription == null
@@ -130,6 +145,16 @@ public class AgentsController : Controller
             async () => (await _uow.BillingRules.GetAllAsync()).ToDictionary(p => p.Id),
             "Packages",
             warnings)) ?? new Dictionary<int, BillingRule>();
+        // 595: the agent's custom domains, each with the step its guide on My Website is on.
+        ViewBag.DomainGuides = await LoadDetailsPanelAsync(async () =>
+            {
+                var rows = await _db.AgentDomains.AsNoTracking().Where(d => d.AgentUserId == id).OrderByDescending(d => d.IsPrimary).ThenBy(d => d.DomainName).ToListAsync();
+                var guides = await DomainsController.GuidesAsync(_services.GetRequiredService<IPRO.Utility.IDomainCheckService>(), _services.GetService<IConfiguration>(),
+                    _services.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(), rows);
+                return rows.Select(d => new AgentDomainViewModel { Domain = d, Guide = guides[d.Id] }).ToList();
+            },
+            "Custom domains",
+            warnings) ?? new List<AgentDomainViewModel>();
         ViewBag.ClientCount = await LoadDetailsPanelAsync(
             () => _uow.Clients.CountAsync(c => c.AgentUserId == id),
             "Client count",
@@ -162,6 +187,16 @@ public class AgentsController : Controller
                 .OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync(),
             "Locked client portal sign-ins",
             warnings) ?? new List<Client>();
+        // 593: two-step sign-in -- the agent's own, whether it is required, and their team members' that are on.
+        ViewBag.TwoStep = await LoadDetailsPanelAsync(() => TwoStepStore.FindAsync(_db, TwoStepAccount.Adviser(id)), "Two-step sign-in", warnings);
+        ViewBag.TwoStepRequired = await LoadDetailsPanelAsync(() => TwoStepStore.IsRequiredAsync(_db, id), "Two-step sign-in", warnings);
+        ViewBag.TwoStepTeam = await LoadDetailsPanelAsync(
+            async () => await (from t in _db.TwoStepSignIns.AsNoTracking()
+                               join m in _db.TeamMembers.AsNoTracking() on t.TeamMemberId equals m.Id
+                               where t.AgentUserId == id && t.TeamMemberId != 0 && m.AgentUserId == id
+                               orderby m.FullName
+                               select new TwoStepTeamRow(m.Id, m.FullName, m.Email, t.Method, t.CodeLockedUntil, t.WrongCodes)).ToListAsync(),
+            "Two-step sign-in", warnings) ?? new List<TwoStepTeamRow>();
         ViewBag.DetailsWarnings = warnings;
         return View(agent);
     }
@@ -201,6 +236,10 @@ public class AgentsController : Controller
         }
 
         var wasLocked = await SignInLockout.ClearAsync(_db, account, DateTime.UtcNow);
+        // 593: and a lock after 5 wrong two-step codes (its own lock: a new password does not end it).
+        if (account.Kind != SignInAccountKind.Client
+            && await TwoStepStore.ClearCodeLockAsync(_db, account.Kind == SignInAccountKind.Adviser ? TwoStepAccount.Adviser(agent.Id) : TwoStepAccount.Member(agent.Id, account.Id), DateTime.UtcNow))
+            wasLocked = true;
         if (wasLocked) SignInLockout.LogCleared(_logger, account, $"unlocked by {CurrentAdminUsername}");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "SignInUnlocked", wasLocked
             ? $"Unlocked sign-in for {who}."
@@ -208,6 +247,113 @@ public class AgentsController : Controller
         TempData["Success"] = wasLocked
             ? "Sign-in unlocked. They can sign in again now."
             : "That sign-in was not locked; the count of wrong passwords is back to 0.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 593: two-step sign-in is optional, and SuperAdmin can require it for one adviser's account: the
+    // adviser and each of their team members then set it up before using the portal (the portal sends
+    // them to its set-up page). Recorded in the audit log.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequireTwoStep(int id, bool required)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+        var changed = await TwoStepStore.SetRequiredAsync(_db, id, required, CurrentAdminUsername, DateTime.UtcNow);
+        if (changed)
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, required ? "TwoStepRequired" : "TwoStepNotRequired",
+                required ? $"Required two-step sign-in for agent '{agent.UserName}' and their team members."
+                         : $"Two-step sign-in is optional again for agent '{agent.UserName}' and their team members.");
+        TempData["Success"] = required
+            ? "Two-step sign-in is required for this account: the adviser and each team member set it up the next time they use the portal."
+            : "Two-step sign-in is optional again for this account. Anyone who has it on keeps it.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 593: someone lost their phone and their recovery codes. Their two-step sign-in is turned off (every
+    // session of theirs ends at the next page), the reset is in the audit log, and they are emailed. The
+    // account must be this agent's, as for UnlockSignIn.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetTwoStep(int id, SignInAccountKind kind = SignInAccountKind.Adviser, int accountId = 0)
+    {
+        var agent = await _agents.GetByIdAsync(id);
+        if (agent == null) return NotFound();
+
+        TwoStepAccount account;
+        TwoStepLetters.Person person;
+        TeamMember? member = null;
+        string who;
+        switch (kind)
+        {
+            case SignInAccountKind.Adviser:
+                account = TwoStepAccount.Adviser(agent.Id);
+                person = TwoStepLetters.ForAdviser(agent);
+                who = $"agent '{agent.UserName}'";
+                break;
+            case SignInAccountKind.TeamMember:
+                member = await _db.TeamMembers.FirstOrDefaultAsync(t => t.Id == accountId && t.AgentUserId == id);
+                if (member == null) return NotFound();
+                account = TwoStepAccount.Member(agent.Id, member.Id);
+                person = TwoStepLetters.ForTeamMember(member, agent);
+                who = $"team member {member.Email} of agent '{agent.UserName}'";
+                break;
+            default:
+                return NotFound();
+        }
+
+        var row = await TwoStepStore.FindAsync(_db, account);
+        if (row == null)
+        {
+            TempData["Success"] = "Two-step sign-in was not on for that sign-in; nothing to reset.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        // Held after 20 wrong codes: whoever was guessing has the password. The reset gives a temporary
+        // password in the same action (as My Team does), and FIRST: a reset that left the password would
+        // hand the login to the guesser between two clicks (the second re-check of 593).
+        string? temporaryPassword = null;
+        if (TwoStepStore.IsCodeHeld(row))
+        {
+            temporaryPassword = BuildTemporaryPassword();
+            if (member != null)
+            {
+                member.PasswordHash = new PasswordHasher<TeamMember>().HashPassword(member, temporaryPassword);
+                member.MustChangePassword = true;
+                await _db.SaveChangesAsync();   // tracked: these columns only
+            }
+            else
+            {
+                agent.PasswordHash = _hasher.HashPassword(agent, temporaryPassword);
+                agent.MustChangePassword = true;
+                agent.PasswordChangedAt = null;
+                await _agents.UpdateAsync(agent);
+            }
+            await SignInLockout.ClearAsync(_db, account.SignIn, DateTime.UtcNow);
+        }
+        await TwoStepStore.DisableAsync(_db, account);
+        _logger.LogWarning("Two-step sign-in reset by {Admin}: {Kind} {Id}", CurrentAdminUsername, kind, kind == SignInAccountKind.Adviser ? agent.Id : accountId);
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "TwoStepReset", temporaryPassword == null
+            ? $"Reset two-step sign-in for {who}."
+            : $"Reset two-step sign-in for {who}; it was locked after 20 wrong codes, so a temporary password was issued too.");
+
+        var sent = false;
+        if (!string.IsNullOrWhiteSpace(person.Email) && _services.GetService<IPRO.Email.IEmailService>() is { } email)
+        {
+            var letter = TwoStepLetters.Reset(person, byOwner: false);
+            try
+            {
+                sent = (await email.SendDetailedAsync(letter.To, letter.ToName, letter.Subject, letter.Html)).Success;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "The two-step reset email for {Kind} {Id} failed", kind, accountId);
+            }
+        }
+        TempData["Success"] = (sent
+            ? "Two-step sign-in reset. Their password alone signs them in until they set it up again; they have been emailed."
+            : "Two-step sign-in reset. Their password alone signs them in until they set it up again. The email to them could not be sent: tell them yourself.")
+            + (temporaryPassword == null ? "" :
+                $" It was locked after 20 wrong codes, so someone has their password: their temporary password is now {temporaryPassword} (give it to them securely; they choose a new one when they sign in).");
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -806,16 +952,19 @@ public class AgentsController : Controller
             }
         }
 
+        // 607: said "PayPal subscription cancelled" every time, also for an account that had none (the owner's
+        // deletion of the 599 test account, 2026-10-26).
+        var paypalNote = hasActiveSubscription ? "PayPal subscription cancelled" : "no PayPal subscription to cancel";
         var financialNote = eraseFinancialRecords
             ? "Financial records erased too (test-agent shred)."
             : $"Financial records retained: {report.RetainedInvoices} invoices ({report.RetainedRows} rows).";
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDelete",
-            $"Agent '{userName}' (id {id}) permanently deleted. PayPal subscription cancelled. " +
+            $"Agent '{userName}' (id {id}) permanently deleted; {paypalNote}. " +
             $"{report.TotalRows} rows across {report.TableCount} tables; {blobsDeleted}/{report.Blobs.Count} files removed; " +
             $"{report.SharedBlobsKept.Count} file(s) kept because another agent still references them. {financialNote}");
 
         TempData["Warning"] = $"Agent {userName} deleted: {report.TotalRows} rows across {report.TableCount} tables, " +
-                              $"{blobsDeleted} uploaded files, PayPal subscription cancelled. {financialNote}";
+                              $"{blobsDeleted} uploaded files, {paypalNote}. {financialNote}";
         return RedirectToAction(nameof(Index));
     }
 
@@ -874,11 +1023,18 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+        var wasSuspended = agent.SuspendedAt.HasValue;
         agent.IsActive = true;
+        // 599: Activate ends a suspension. Billing stays cancelled; the adviser subscribes again from Billing.
+        agent.SuspendedAt = null;
+        agent.DataReviewDueAt = null;
+        agent.DataReviewNoticeSentAt = null;
         await _agents.UpdateAsync(agent);
         await LogAsync(id, "Activate", "Agent activated");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentActivate", $"Agent '{agent.UserName}' activated");
-        TempData["Success"] = $"Agent {agent.UserName} activated.";
+        TempData["Success"] = wasSuspended
+            ? $"Agent {agent.UserName} is active again and can sign in. Their PayPal billing stays cancelled: they subscribe again from Billing, and their website comes back once they have a plan."
+            : $"Agent {agent.UserName} activated.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -893,16 +1049,80 @@ public class AgentsController : Controller
     {
         var agent = await _agents.GetByIdAsync(id);
         if (agent == null) return NotFound();
+
+        // 599 (the owner's decision of 2026-10-24): Deactivate is a SUSPENSION. It used to block sign-in
+        // only, while PayPal kept charging and the website stayed up. Billing is cancelled FIRST, the same
+        // way the adviser's own Cancel does it (any refund owed goes to the Refunds queue); if PayPal
+        // refuses, nothing changes. Then sign-in is blocked (adviser, team, clients) and the public site
+        // goes offline. Every row is kept; a year on the owner is emailed to keep or delete.
+        var hasActiveSubscription = (await _uow.Billings.FindAsync(
+            b => b.AgentUserId == id && b.Status == BillingStatus.Active)).Any();
+        if (hasActiveSubscription)
+        {
+            bool cancelled;
+            try { cancelled = await _billing.CancelSubscriptionAsync(id); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PayPal cancellation failed for agent {AgentId}; suspension aborted", id);
+                cancelled = false;
+            }
+            if (!cancelled)
+            {
+                TempData["Error"] = $"Could not cancel {agent.UserName}'s PayPal subscription, so the account was NOT suspended and nothing changed. " +
+                                    "Cancel the subscription in PayPal first, then retry.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+
         await _agents.DeactivateAsync(id);
-        await LogAsync(id, "Deactivate", "Agent deactivated");
-        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate", $"Agent '{agent.UserName}' deactivated");
-        TempData["Warning"] = $"Agent {agent.UserName} deactivated.";
+        var suspended = await _db.AgentUsers.FirstAsync(a => a.Id == id);
+        var now = DateTime.UtcNow;
+        suspended.SuspendedAt = now;
+        suspended.DataReviewDueAt = now.AddYears(1);
+        suspended.DataReviewNoticeSentAt = null;
+        await _db.SaveChangesAsync();
+
+        var billingNote = hasActiveSubscription ? "PayPal billing cancelled" : "no active PayPal subscription";
+        await LogAsync(id, "Deactivate", $"Agent suspended ({billingNote})");
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeactivate",
+            $"Agent '{agent.UserName}' suspended: {billingNote}, website offline, sign-in blocked; data kept, review due {suspended.DataReviewDueAt:yyyy-MM-dd}");
+        TempData["Warning"] = $"{agent.UserName} is suspended: {billingNote}" +
+            (hasActiveSubscription ? " (any refund owed is in Refunds)" : "") +
+            $", website offline, sign-in blocked for them, their team and their clients. All data is kept; you'll be emailed on {suspended.DataReviewDueAt:MMMM d, yyyy} to keep it another year or delete it.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 599: the yearly review's "keep" answer -- another year before the next email.
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> KeepSuspendedData(int id)
+    {
+        var agent = await _db.AgentUsers.FirstOrDefaultAsync(a => a.Id == id);
+        if (agent == null) return NotFound();
+        if (agent.IsActive || agent.SuspendedAt == null)
+        {
+            TempData["Error"] = $"{agent.UserName} is not suspended.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        agent.DataReviewDueAt = DateTime.UtcNow.AddYears(1);
+        agent.DataReviewNoticeSentAt = null;
+        await _db.SaveChangesAsync();
+        await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentKeepSuspendedData",
+            $"Agent '{agent.UserName}': suspended data kept another year, next review {agent.DataReviewDueAt:yyyy-MM-dd}");
+        TempData["Success"] = $"{agent.UserName}'s data is kept for another year; you'll be asked again on {agent.DataReviewDueAt:MMMM d, yyyy}.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
     // ProvisionHosting/PleskLogin removed 2026-08-04 along with the rest of the Plesk integration:
     // agent sites are hosted on Azure now, so there is no control panel to provision against or log
     // into. Agent domains are managed through AgentDomain + the domain automation job instead.
+
+    // 607: the billing half of a suspension's log entry, in the suspended note's words; null when unknown.
+    internal static string? SuspensionBillingNote(string? logEntry) =>
+        logEntry == null ? null
+        : logEntry.Contains("PayPal billing cancelled") ? "PayPal billing cancelled"
+        : logEntry.Contains("no active PayPal subscription") ? "No subscription to cancel"
+        : null;
 
     private async Task LogAsync(int agentId, string action, string desc)
     {
@@ -930,6 +1150,12 @@ public class AgentsController : Controller
     // powers the preview screen. Add new agent-owned tables there, not here.
 
     private static string BuildTemporaryPassword() => EncryptionService.GenerateToken(12);
+
+    // 593: a team member with two-step sign-in on, for the agent record's Two-step card.
+    public sealed record TwoStepTeamRow(int Id, string FullName, string Email, string Method, DateTime? CodeLockedUntil, int WrongCodes)
+    {
+        public bool Held => WrongCodes >= TwoStepStore.WrongCodesBeforeHold;
+    }
 
     private static AgentEditViewModel ToEditModel(AgentUser agent) => new()
     {

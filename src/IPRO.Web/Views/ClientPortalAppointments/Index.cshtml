@@ -2,7 +2,8 @@
 @{
     Layout = "_ClientPortalLayout";
     ViewData["Title"] = "Appointments";
-    var followUps = (ViewBag.UpcomingFollowUps as List<IPRO.Entities.ClientFollowUp>) ?? new List<IPRO.Entities.ClientFollowUp>();
+    var appointments = (ViewBag.UpcomingAppointments as List<IPRO.Web.Models.PortalUpcomingAppointment>) ?? new List<IPRO.Web.Models.PortalUpcomingAppointment>();
+    var appointmentTimes = ViewBag.AppointmentTimes as IReadOnlyDictionary<int, DateTime>;
     string StatusBadge(IPRO.Entities.PortalAppointmentRequestStatus s) => s switch
     {
         IPRO.Entities.PortalAppointmentRequestStatus.Scheduled => "bg-success-subtle text-success",
@@ -19,18 +20,18 @@
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
     <h5 class="fw-bold mb-3">Upcoming</h5>
-    @if (!followUps.Any())
+    @if (!appointments.Any())
     {
       <div class="text-muted">Nothing scheduled yet.</div>
     }
     else
     {
       <ul class="list-group list-group-flush">
-        @foreach (var f in followUps)
+        @foreach (var a in appointments)
         {
           <li class="list-group-item d-flex justify-content-between">
-            <span>@f.Title</span>
-            <span class="text-muted">@f.DueAt.ToString("MMM d, yyyy h:mm tt")</span>
+            <span>@(string.IsNullOrWhiteSpace(a.ClientNotes) ? "Appointment" : "Appointment: " + a.ClientNotes)</span>
+            <span class="text-muted">@a.When.ToString("MMM d, yyyy h:mm tt")</span>
           </li>
         }
       </ul>
@@ -41,6 +42,13 @@
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
     <h5 class="fw-bold mb-3">Request an Appointment</h5>
+    @* 598: read-only while the adviser's plan has no client portal. *@
+    @if (ViewBag.PortalReadOnly == true)
+    {
+      <div class="alert alert-secondary mb-0"><i class="fas fa-lock me-1"></i>@IPRO.Web.Infrastructure.ClientPortalActivity.ReadOnlyMessage</div>
+    }
+    else
+    {
     <form asp-action="RequestAppointment" method="post">
       @Html.AntiForgeryToken()
       <div class="row g-3">
@@ -55,6 +63,7 @@
       </div>
       <button type="submit" class="btn btn-success mt-3"><i class="fas fa-paper-plane me-1"></i>Send Request</button>
     </form>
+    }
   </div>
 </div>
 
@@ -75,9 +84,10 @@
               <div>@r.Notes</div>
               <div class="small text-muted">Requested @r.CreatedAt.ToLocalTime().ToString("MMM d, yyyy") @(r.PreferredDate.HasValue ? $"— preferred {r.PreferredDate.Value:MMM d, yyyy}" : "")</div>
             </div>
+            @{ var currentTime = IPRO.Web.Infrastructure.PortalAppointmentTimes.For(r, appointmentTimes); }
             <span class="badge @StatusBadge(r.Status)">
-              @(r.Status == IPRO.Entities.PortalAppointmentRequestStatus.Scheduled && r.ScheduledAt.HasValue
-                  ? "Scheduled " + r.ScheduledAt.Value.ToString("MMM d, yyyy 'at' h:mm tt")
+              @(r.Status == IPRO.Entities.PortalAppointmentRequestStatus.Scheduled && currentTime.HasValue
+                  ? "Scheduled " + currentTime.Value.ToString("MMM d, yyyy 'at' h:mm tt")
                   : r.Status.ToString())
             </span>
           </li>

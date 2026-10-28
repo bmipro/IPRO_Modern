@@ -19,6 +19,9 @@
   charged on the refunded portion — type that exact figure into PayPal. PayPal generally refuses refunds
   against transactions older than ~@IPRO.Billing.PrepaidValue.PayPalRefundWindowDays days; expired rows
   should be converted to credit or waived with a reason instead.
+  @* 600 (2026-10-24): marking Refunded is what issues the credit note. *@
+  Marking a row Refunded issues its credit note (CN-YYYY-NNNN, the same numbers as referral rewards), emails it to the
+  adviser, and nets it in <a href="/Reports/Revenue">Revenue</a>. A waived refund gets no credit note.
 </div>
 
 @{
@@ -92,7 +95,7 @@
       <tbody>
       @foreach (var r in rewardsPaid)
       {
-        <tr><td>@AdviserName(r.AgentUserId)</td><td>@r.FriendName</td><td>$@r.RewardGross.ToString("N2")</td><td>@r.PaidAt?.ToString("MMM d, yyyy")</td><td>@r.CreditNoteNumber</td><td class="small">@r.RefundTransactionId</td></tr>
+        <tr><td>@AdviserName(r.AgentUserId)</td><td>@r.FriendName</td><td>$@r.RewardGross.ToString("N2")</td><td>@r.PaidAt?.ToString("MMM d, yyyy")</td><td>@if (!string.IsNullOrEmpty(r.CreditNoteNumber)) { <a href="/Reports/CreditNote/@(r.Id)?kind=referral">@r.CreditNoteNumber</a> }</td><td class="small">@r.RefundTransactionId</td></tr>
       }
       </tbody>
     </table>
@@ -136,7 +139,7 @@
         <form asp-action="MarkRefunded" asp-route-id="@row.Id" method="post" class="d-flex gap-2">
           @Html.AntiForgeryToken()
           <input type="text" name="refundTransactionId" class="form-control form-control-sm" style="width:220px" placeholder="PayPal REFUND txn id" required />
-          <button type="submit" class="btn btn-success btn-sm">Mark Refunded</button>
+          <button type="submit" class="btn btn-success btn-sm">Mark Refunded (issues a credit note and emails the adviser)</button>
         </form>
         <form asp-action="MarkWaived" asp-route-id="@row.Id" method="post" class="d-flex gap-2">
           @Html.AntiForgeryToken()
@@ -154,7 +157,7 @@
   <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
       <table class="table table-sm mb-0">
-        <thead><tr><th class="ps-3">Agent</th><th>Gross</th><th>Status</th><th>Resolved</th><th>Note</th></tr></thead>
+        <thead><tr><th class="ps-3">Agent</th><th>Gross</th><th>Status</th><th>Resolved</th><th>Credit note</th><th>Note</th></tr></thead>
         <tbody>
         @foreach (var row in resolved)
         {
@@ -163,6 +166,14 @@
             <td>$@row.RefundGrossAmount.ToString("N2")</td>
             <td><span class="badge @(row.RefundStatus == IPRO.Entities.RefundStatus.Refunded ? "bg-success" : "bg-secondary")">@row.RefundStatus</span></td>
             <td>@row.RefundResolvedAt?.ToString("MMM d, yyyy")</td>
+            <td class="small">
+              @* 600: the credit note to print; "not emailed" when the adviser's copy did not go out. *@
+              @if (!string.IsNullOrEmpty(row.CreditNoteNumber))
+              {
+                <a href="/Reports/CreditNote/@(row.Id)?kind=refund">@row.CreditNoteNumber</a>
+                @if (row.CreditNoteEmailSentAt == null) { <span class="badge bg-warning text-dark ms-1" title="The adviser's email did not go out.">not emailed</span> }
+              }
+            </td>
             <td class="small text-muted">@row.RefundResolutionNote</td>
           </tr>
         }

@@ -26,6 +26,17 @@
   <form id="removePhotoForm" asp-controller="Account" asp-action="RemovePhoto" method="post" class="d-none">@Html.AntiForgeryToken()</form>
 }
 
+@{
+    // 593: a new login email takes the current password (and a code with two-step sign-in on); a team
+    // member cannot change it.
+    var emailChangeByTeamMember = ViewBag.EmailChangeByTeamMember as bool? ?? false;
+    var emailChangeTwoStepMethod = ViewBag.EmailChangeTwoStepMethod as string;
+}
+@if (!emailChangeByTeamMember && emailChangeTwoStepMethod == IPRO.Entities.TwoStepMethods.Email)
+{
+  <form id="emailMeACodeForm" action="/portal/TwoStep/EmailMeACode" method="post" class="d-none">@Html.AntiForgeryToken()<input type="hidden" name="returnTo" value="profile"/></form>
+}
+
 <form asp-action="Profile" method="post">
   @Html.AntiForgeryToken()
   <input type="hidden" asp-for="Id" />
@@ -81,8 +92,33 @@
         <div class="card-body p-4">
           <h5 class="fw-bold mb-3">Login Email</h5>
           <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-          <input asp-for="Email" type="email" class="form-control" maxlength="200" required />
-          <div class="form-text">Invoices and system messages use this email, and your clients' replies come to it.</div>
+          @if (emailChangeByTeamMember)
+          {
+            <input asp-for="Email" type="email" class="form-control" maxlength="200" required readonly />
+          }
+          else
+          {
+            <input asp-for="Email" type="email" class="form-control" maxlength="200" required />
+          }
+          <div class="form-text">Invoices and system messages use this email, and your clients' replies come to it. Password resets and emailed sign-in codes go to it too.</div>
+          @if (emailChangeByTeamMember)
+          {
+            <div class="form-text">Only the account owner can change the login email.</div>
+          }
+          else
+          {
+            <label for="CurrentPassword" class="form-label fw-semibold mt-3">Current password <span class="fw-normal text-muted">(only to change the email)</span></label>
+            <input id="CurrentPassword" name="CurrentPassword" type="password" class="form-control" autocomplete="current-password" />
+            @if (emailChangeTwoStepMethod != null)
+            {
+              <label for="TwoStepCode" class="form-label fw-semibold mt-3">Two-step code <span class="fw-normal text-muted">(only to change the email)</span></label>
+              <input id="TwoStepCode" name="TwoStepCode" type="text" class="form-control" autocomplete="one-time-code" maxlength="20" />
+              @if (emailChangeTwoStepMethod == IPRO.Entities.TwoStepMethods.Email)
+              {
+                <button type="submit" form="emailMeACodeForm" class="btn btn-link px-0">Email me a code</button>
+              }
+            }
+          }
         </div>
       </div>
     </div>

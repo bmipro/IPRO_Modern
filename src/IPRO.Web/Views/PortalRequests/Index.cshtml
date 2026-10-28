@@ -3,6 +3,7 @@
     ViewData["Title"] = "Portal Requests";
     var status = (string)(ViewBag.Status ?? "pending");
     var agentTimeZone = ViewBag.AgentTimeZone as string ?? IPRO.Web.Infrastructure.AgentTimeZoneHelper.DefaultTimeZone;
+    var appointmentTimes = ViewBag.AppointmentTimes as IReadOnlyDictionary<int, DateTime>;
     string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
 }
 
@@ -37,13 +38,21 @@
         </div>
         @if (request.Status == IPRO.Entities.PortalAppointmentRequestStatus.Pending)
         {
-          <div class="d-flex align-items-center gap-2">
-            <form asp-action="Schedule" method="post" class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-start gap-2">
+            @* 606: the box starts at 9:00 AM on the preferred day. It started at 12:00 AM, so typing "2" kept AM and
+               the owner's test appointment went to the client for 2:00 AM. The line under it says the time in
+               words as it is typed, and a time from 9:00 PM to 7:00 AM is asked about before the client is emailed. *@
+            <form asp-action="Schedule" method="post" data-schedule-form>
               @Html.AntiForgeryToken()
               <input type="hidden" name="id" value="@request.Id" />
-              <input type="datetime-local" name="scheduledAt" class="form-control form-control-sm" style="width:auto;"
-                     value="@(request.PreferredDate?.ToString("yyyy-MM-ddTHH:mm"))" required />
-              <button type="submit" class="btn btn-sm btn-success">Schedule</button>
+              <div class="d-flex align-items-center gap-2">
+                <input type="datetime-local" name="scheduledAt" class="form-control form-control-sm" style="width:auto;"
+                       value="@(request.PreferredDate?.Date.AddHours(9).ToString("yyyy-MM-ddTHH:mm"))" required
+                       aria-label="Appointment date and time" aria-describedby="schedule-when-@(request.Id)" />
+                <button type="submit" class="btn btn-sm btn-success">Schedule</button>
+              </div>
+              @* width 0 with min-width 100%: the line wraps under the box and button instead of widening the row. *@
+              <div id="schedule-when-@(request.Id)" class="small text-muted mt-1" style="width:0;min-width:100%;" data-schedule-when aria-live="polite"></div>
             </form>
             <form asp-action="Decline" method="post">
               @Html.AntiForgeryToken()
@@ -54,8 +63,9 @@
         }
         else if (request.Status == IPRO.Entities.PortalAppointmentRequestStatus.Scheduled)
         {
+          var currentTime = IPRO.Web.Infrastructure.PortalAppointmentTimes.For(request, appointmentTimes);
           <span class="badge bg-success-subtle text-success">
-            Scheduled @(request.ScheduledAt.HasValue ? request.ScheduledAt.Value.ToString("MMM d, yyyy 'at' h:mm tt") : "")
+            Scheduled @(currentTime.HasValue ? currentTime.Value.ToString("MMM d, yyyy 'at' h:mm tt") : "")
           </span>
         }
         else
@@ -66,3 +76,53 @@
     }
   </div>
 </div>
+
+@section Scripts {
+<script nonce="@Context.GetCspNonce()">
+// 606: the chosen time in words under each Schedule box, and a question before an appointment from 9:00 PM
+// to 7:00 AM goes to the client (the owner meant 2:00 PM, typed 2, and the box kept AM).
+(function () {
+  document.querySelectorAll('[data-schedule-form]').forEach(function (form) {
+    var input = form.querySelector('input[name="scheduledAt"]');
+    var line = form.querySelector('[data-schedule-when]');
+    if (!input || !line) return;
+
+    function chosen() {
+      if (!input.value) return null;
+      var d = new Date(input.value);   // "yyyy-MM-ddTHH:mm" from the box reads as local time
+      return isNaN(d.getTime()) ? null : d;
+    }
+    function words(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) + ' at ' +
+             d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    function outsideHours(d) {
+      var minutes = d.getHours() * 60 + d.getMinutes();
+      return minutes < 7 * 60 || minutes > 21 * 60;   // 7:00 AM and 9:00 PM themselves are fine
+    }
+    function paint() {
+      var d = chosen();
+      var odd = !!d && outsideHours(d);
+      line.textContent = !d ? '' : odd
+        ? words(d) + ': outside 7:00 AM to 9:00 PM. Is that the hour you meant?'
+        : words(d);
+      line.classList.toggle('text-muted', !odd);
+      line.classList.toggle('text-danger', odd);
+      line.classList.toggle('fw-semibold', odd);
+    }
+
+    input.addEventListener('input', paint);
+    input.addEventListener('change', paint);
+    paint();
+
+    form.addEventListener('submit', function (event) {
+      var d = chosen();
+      if (d && outsideHours(d) &&
+          !confirm('Schedule this appointment for ' + words(d) + '? That is outside 7:00 AM to 9:00 PM, and the client is emailed this time.')) {
+        event.preventDefault();
+      }
+    });
+  });
+})();
+</script>
+}

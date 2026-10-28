@@ -9,6 +9,18 @@ Since 583 (2026-10-16), 5 wrong passwords in a row lock a sign-in for 15 minutes
 - The container log keeps a warning for each lock and each unlock; the lock line says which account and the last visitor address. Many locks of many names from one address are someone guessing, not a customer.
 - If the same account locks again and again, someone keeps guessing its password: the person should choose a new, strong password. They get one email a day at most about it.
 
+
+## Someone Cannot Get Past the Code Page (Two-Step Sign-In)
+
+Since 593, an adviser or team member who turned on two-step sign-in is asked for a code after the right password.
+
+- **No code from the app:** the phone's clock must be right (set to automatic). A code from the 30 seconds before or after is accepted; each code works once.
+- **No email code:** check junk; **Email me a new code** sends another, at most one a minute and 5 an hour; each works once, for 10 minutes. The code page itself lasts 10 minutes: after that, sign in again.
+- **Lost phone:** a recovery code works in the same box (`abcde-fghjk`). Without one: a team member asks the adviser (shield icon on **My Team**); an adviser calls support, and Super Admin resets it on the agent record after confirming who is asking (Super Admin manual, **Two-Step Sign-In**).
+- **"Sign-in is locked for 15 minutes after 5 wrong codes in a row":** wait 15 minutes, or Super Admin **Unlock**. A password reset does not end this lock. The person's password was typed correctly: if it was not them, they should change it.
+- **Signed out right after turning it on or off, making new recovery codes, or a new password:** that is on purpose; every other browser signs in again. (When 593 went live, everyone was signed out once.)
+- **"Sign-in is locked after 20 wrong codes without a right one":** only Super Admin **Unlock** ends it; the person's password is known to someone, so they reset it first.
+- **Cannot change the login email:** it needs the current password (and a code with two-step sign-in on); a team member cannot change it.
 ## A Client's Right Password Is Refused on the Client Portal
 
 Since 586 (2026-10-17) a client's portal sign-in belongs to their adviser: the page checks the password against one adviser's clients only (Client Portal guide, **A client's sign-in is yours alone**). So a right password is refused when:

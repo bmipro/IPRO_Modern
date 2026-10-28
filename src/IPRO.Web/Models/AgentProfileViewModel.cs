@@ -59,4 +59,8 @@ public class AgentProfileViewModel
     public string? PromotionCode { get; set; }
     public string? DefaultPaymentLink { get; set; }
     public string? PhotoUrl { get; set; }
+
+    // 593: needed only to change the login email (the address password resets and emailed codes go to).
+    public string? CurrentPassword { get; set; }
+    public string? TwoStepCode { get; set; }
 }

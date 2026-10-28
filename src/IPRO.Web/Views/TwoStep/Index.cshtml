@@ -1,0 +1,91 @@
+@model IPRO.Web.Models.TwoStepStatusViewModel
+@using IPRO.Entities
+@{
+    ViewData["Title"] = "Two-Step Sign-In";
+    var byEmail = Model.Method == TwoStepMethods.Email;
+    var since = Model.EnabledAt is { } enabledAt
+        ? IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(enabledAt, Model.TimeZone).ToString("MMMM d, yyyy")
+        : null;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h1 class="h2 fw-bold mb-1"><i class="fas fa-shield-halved me-2 text-primary" aria-hidden="true"></i>Two-step sign-in</h1>
+    <div class="text-muted">After your password, a code only you can get: a stolen password alone can't open your account.</div>
+  </div>
+  <a href="/portal/Dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Dashboard</a>
+</div>
+
+@if (!Model.IsOn)
+{
+  <div class="card mb-4">
+    <div class="card-body p-4">
+      <h2 class="h5 fw-bold"><span class="badge bg-secondary me-2">Off</span>Your password alone signs you in</h2>
+      @if (Model.Required)
+      {
+        <p class="mb-3">iPro requires two-step sign-in for this account. Set it up to keep using the portal.</p>
+      }
+      else
+      {
+        <p class="mb-3">Your clients' personal and financial information is in iPro. Turn on two-step sign-in so that someone who learns your password still can't get in. It takes about two minutes.</p>
+      }
+      <a href="/portal/TwoStep/Setup" class="btn btn-primary"><i class="fas fa-lock me-1" aria-hidden="true"></i>Set up two-step sign-in</a>
+    </div>
+  </div>
+}
+else
+{
+  <div class="card mb-4">
+    <div class="card-body p-4">
+      <h2 class="h5 fw-bold"><span class="badge bg-success me-2">On</span>@(byEmail ? "A code by email" : "A code from your authenticator app")</h2>
+      <ul class="mb-0">
+        @if (since != null) { <li>On since @since.</li> }
+        <li>@(byEmail ? $"After your password, iPro emails a code to {Model.MaskedEmail}." : "After your password, you type the code your authenticator app shows.")</li>
+        <li>Recovery codes left: <strong>@Model.RecoveryCodesLeft</strong> of 10. @(Model.RecoveryCodesLeft <= 3 ? "Make new ones below." : "")</li>
+        @if (Model.Required) { <li>iPro requires two-step sign-in for this account.</li> }
+      </ul>
+    </div>
+  </div>
+
+  @if (byEmail)
+  {
+    <div class="alert alert-light border d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <span>The forms below need a code. Get one by email:</span>
+      <form asp-action="EmailMeACode" method="post"><button type="submit" class="btn btn-sm btn-outline-primary">Email me a code</button></form>
+    </div>
+  }
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-body p-4">
+          <h2 class="h6 fw-bold">New recovery codes</h2>
+          <p class="small text-muted">Ten new codes; the old ones stop working, and every other signed-in browser is signed out.</p>
+          <form asp-action="NewRecoveryCodes" method="post">
+            <label for="rc-password" class="form-label small mb-1">Current password</label>
+            <input type="password" id="rc-password" name="currentPassword" class="form-control mb-2" autocomplete="current-password" required/>
+            <label for="rc-code" class="form-label small mb-1">Code</label>
+            <input type="text" id="rc-code" name="code" class="form-control mb-3" autocomplete="one-time-code" maxlength="20" required/>
+            <button type="submit" class="btn btn-outline-primary">Make new recovery codes</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100 border-danger-subtle">
+        <div class="card-body p-4">
+          <h2 class="h6 fw-bold">Turn off two-step sign-in</h2>
+          <p class="small text-muted">Your password alone will sign you in again, and every other signed-in browser is signed out. To change how you get codes, turn it off, then set it up again.</p>
+          <form asp-action="TurnOff" method="post">
+            <label for="off-password" class="form-label small mb-1">Current password</label>
+            <input type="password" id="off-password" name="currentPassword" class="form-control mb-2" autocomplete="current-password" required/>
+            <label for="off-code" class="form-label small mb-1">Code</label>
+            <input type="text" id="off-code" name="code" class="form-control mb-3" autocomplete="one-time-code" maxlength="20" required/>
+            <button type="submit" class="btn btn-outline-danger">Turn off</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="small text-muted mt-3">A recovery code works in the Code box too. Five wrong codes in a row lock sign-in for 15 minutes.</p>
+}

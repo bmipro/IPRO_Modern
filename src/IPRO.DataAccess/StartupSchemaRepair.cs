@@ -227,6 +227,8 @@ public static class StartupSchemaRepair
         await EnsureTableColumnAsync(db, "AgentDomains", "RootAzureBindingStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootAzureBindingStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootSslStatus", "ALTER TABLE `AgentDomains` ADD COLUMN `RootSslStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'NotConfigured'");
         await EnsureTableColumnAsync(db, "AgentDomains", "RootBoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `RootBoundAt` datetime(6) NULL");
+        // 595: when the www name was bound, the start of its certificate's grace period (null for rows bound before).
+        await EnsureTableColumnAsync(db, "AgentDomains", "BoundAt", "ALTER TABLE `AgentDomains` ADD COLUMN `BoundAt` datetime(6) NULL");
         // 506: the name whose CAA records keep DigiCert out (empty = nothing in the way).
         await EnsureTableColumnAsync(db, "AgentDomains", "CaaBlockingName", "ALTER TABLE `AgentDomains` ADD COLUMN `CaaBlockingName` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
         // 592: proof that the domain is the adviser's (a TXT record holding VerificationToken). The column arrives
@@ -246,6 +248,24 @@ public static class StartupSchemaRepair
         UNIQUE KEY `IX_DomainClaimTokens_AgentUserId_ProvenName` (`AgentUserId`, `ProvenName`)
     ) CHARACTER SET=utf8mb4;");
         await FinishDomainOwnershipReleaseAsync(db);
+
+        // 595: when the adviser was emailed that the domain is live, or that it is stuck. Each arrives with the time as
+        // its default, so every row already there counts as told (nobody hears about a domain connected long ago, or one
+        // abandoned months back); then the default goes back to NULL for the rows added from now on.
+        foreach (var column in new[] { "LiveEmailSentAt", "StuckEmailSentAt" })
+        {
+            await EnsureTableColumnAsync(db, "AgentDomains", column, $"ALTER TABLE `AgentDomains` ADD COLUMN `{column}` datetime(6) NULL DEFAULT CURRENT_TIMESTAMP(6)");
+            if (await ColumnHasDefaultAsync(db, "AgentDomains", column))
+            {
+                // Except a domain being set up at the release: added in the last week it still hears when it is live, and
+                // added in the last day it still hears if it is stuck (595's review, L11).
+                var since = DateTime.UtcNow - (column == "LiveEmailSentAt" ? TimeSpan.FromDays(7) : TimeSpan.FromDays(1));
+                await db.Database.ExecuteSqlRawAsync(
+                    $"UPDATE `AgentDomains` SET `{column}` = NULL WHERE `CreatedAt` > {{0}} " +
+                    "AND NOT (`AzureBindingStatus` = 'Bound' AND `SslStatus` IN ('Bound', 'SslBound'))", since);
+                await db.Database.ExecuteSqlRawAsync($"ALTER TABLE `AgentDomains` ALTER COLUMN `{column}` SET DEFAULT NULL");
+            }
+        }
     }
 
     // 592: the release of proof of ownership, finished. The column arrived with the time as its default, so every
@@ -395,6 +415,28 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundWindowEndsAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundWindowEndsAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundResolvedAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundResolvedAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "SubscriptionChanges", "RefundResolutionNote", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `RefundResolutionNote` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
+    // 600 (2026-10-24): a refund marked Refunded in SuperAdmin -> Refunds is a credit note (CreditNotes in
+    // IPRO.Billing): its number from the shared CN-YYYY-NNNN sequence, the day it was issued, the invoice it
+    // credits with that invoice's tax region and rate, PayPal's refund id, and when the adviser was emailed.
+    public static async Task EnsureRefundCreditNoteSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteNumber", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteNumber` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteIssuedAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteIssuedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteInvoiceNumber", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteInvoiceNumber` varchar(64) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteTaxRate", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteTaxRate` decimal(7,5) NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteTaxRegion", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteTaxRegion` varchar(100) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "PayPalRefundId", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `PayPalRefundId` varchar(200) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            await EnsureTableColumnAsync(db, "SubscriptionChanges", "CreditNoteEmailSentAt", "ALTER TABLE `SubscriptionChanges` ADD COLUMN `CreditNoteEmailSentAt` datetime(6) NULL");
         }
         finally
         {
@@ -859,6 +901,9 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleEventId", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleEventId` varchar(255) CHARACTER SET utf8mb4 NULL");
             // 493: a follow-up the adviser deleted from Google stays off Google (GoogleCalendarSyncJob).
             await EnsureTableColumnAsync(db, "ClientFollowUps", "GoogleUnlinkedAt", "ALTER TABLE `ClientFollowUps` ADD COLUMN `GoogleUnlinkedAt` datetime(6) NULL");
+            // 601 (2026-10-24): NULL on every connection that exists at the release, so each one's calendar is read
+            // in full once and the events written before 601 (shifted by the UTC offset) are put right.
+            await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "LocalTimesResyncedAt", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `LocalTimesResyncedAt` datetime(6) NULL");
         }
         finally
         {
@@ -1888,6 +1933,22 @@ public static class StartupSchemaRepair
     // email last went out -- on each table people sign in with (SignInLockout), and the count for names
     // that are no account. AdminUsers gets its two columns in IPRO.Admin's EnsureAdminUserSchemaAsync,
     // where that table is created.
+    // 599 (2026-10-24): SuperAdmin's Deactivate became a suspension with a yearly data review.
+    public static async Task EnsureAccountSuspensionSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "AgentUsers", "SuspendedAt", "ALTER TABLE `AgentUsers` ADD COLUMN `SuspendedAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "AgentUsers", "DataReviewDueAt", "ALTER TABLE `AgentUsers` ADD COLUMN `DataReviewDueAt` datetime(6) NULL");
+            await EnsureTableColumnAsync(db, "AgentUsers", "DataReviewNoticeSentAt", "ALTER TABLE `AgentUsers` ADD COLUMN `DataReviewNoticeSentAt` datetime(6) NULL");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     public static async Task EnsureSignInLockoutSchemaAsync(IPRODbContext db)
     {
         await db.Database.OpenConnectionAsync();
@@ -1914,6 +1975,80 @@ public static class StartupSchemaRepair
         PRIMARY KEY (`NameKey`),
         KEY `IX_SignInNameLocks_LastFailedAt` (`LastFailedAt`)
     ) CHARACTER SET=utf8mb4;");
+    }
+
+    // 593 (2026-10-20): two-step sign-in (TwoStepStore). New tables only, but every portal sign-in and every
+    // signed-in portal request reads them (AgentCookieRevalidator), so the portal app does not start
+    // without them (Program.cs: TwoStepSignInTablesExistAsync after a failed step): a missing table would
+    // otherwise answer every adviser with an error page while the deploy check saw a healthy app.
+    public static async Task EnsureTwoStepSignInSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepSignIns` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `TeamMemberId` int NOT NULL DEFAULT 0,
+        `Method` varchar(10) CHARACTER SET utf8mb4 NOT NULL,
+        `ProtectedSecret` varchar(1000) CHARACTER SET utf8mb4 NULL,
+        `Stamp` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `EnabledAt` datetime(6) NOT NULL,
+        `LastUsedStep` bigint NOT NULL DEFAULT 0,
+        `FailedCodeCount` int NOT NULL DEFAULT 0,
+        `CodeLockedUntil` datetime(6) NULL,
+        `WrongCodes` int NOT NULL DEFAULT 0,
+        `CodeLockNoticeAt` datetime(6) NULL,
+        `EmailCodeHash` varchar(128) CHARACTER SET utf8mb4 NULL,
+        `EmailCodeExpiresAt` datetime(6) NULL,
+        `EmailCodeSentAt` datetime(6) NULL,
+        `EmailCodesSent` int NOT NULL DEFAULT 0,
+        `EmailCodesSince` datetime(6) NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_TwoStepSignIns_AgentUserId_TeamMemberId` (`AgentUserId`, `TeamMemberId`)
+    ) CHARACTER SET=utf8mb4;");
+
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepRecoveryCodes` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `TeamMemberId` int NOT NULL DEFAULT 0,
+        `CodeHash` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `UsedAt` datetime(6) NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_TwoStepRecoveryCodes_AgentUserId_TeamMemberId` (`AgentUserId`, `TeamMemberId`)
+    ) CHARACTER SET=utf8mb4;");
+
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepSetupCodes` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `TeamMemberId` int NOT NULL DEFAULT 0,
+        `CodeHash` varchar(128) CHARACTER SET utf8mb4 NULL,
+        `ExpiresAt` datetime(6) NULL,
+        `SentAt` datetime(6) NULL,
+        `SentCount` int NOT NULL DEFAULT 0,
+        `SentSince` datetime(6) NULL,
+        `WrongCount` int NOT NULL DEFAULT 0,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_TwoStepSetupCodes_AgentUserId_TeamMemberId` (`AgentUserId`, `TeamMemberId`)
+    ) CHARACTER SET=utf8mb4;");
+
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `TwoStepRequirements` (
+        `AgentUserId` int NOT NULL,
+        `RequiredAt` datetime(6) NOT NULL,
+        `RequiredBy` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`AgentUserId`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
+    public static async Task<bool> TwoStepSignInTablesExistAsync(IPRODbContext db)
+    {
+        // Names compared case-blind: the local Windows MySQL lower-cases them, Azure keeps the case.
+        var found = await db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS `Value` FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() " +
+            "AND LOWER(TABLE_NAME) IN ('twostepsignins', 'twosteprecoverycodes', 'twostepsetupcodes', 'twosteprequirements')").ToListAsync();
+        return found.Single() == 4;
     }
 
     // 450 (2026-09-02): anonymous website votes are PollRecipients with Source = Website.

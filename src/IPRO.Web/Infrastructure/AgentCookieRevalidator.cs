@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using IPRO.DataAccess;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -33,6 +35,22 @@ public class AgentCookieRevalidator : CookieAuthenticationEvents
         {
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        // 593: two-step sign-in. A session made before it was turned on (a "Remember me" week included),
+        // or before it was turned off or reset, or before the password last changed, ends here; an account
+        // required to have it, without it, may only set it up (Program.cs sends every other page there).
+        switch (await EvaluateSignInAsync(db, agentIdClaim, teamMemberClaim, context.Principal?.FindFirstValue(TwoStepGate.ClaimType),
+                    context.Principal?.FindFirstValue(PortalSignIn.PasswordClaimType)))
+        {
+            case TwoStepVerdict.Reject:
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                break;
+            case TwoStepVerdict.SetupRequired:
+                context.HttpContext.Items[TwoStepGate.SetupRequiredItem] = true;
+                break;
         }
     }
 
@@ -70,5 +88,43 @@ public class AgentCookieRevalidator : CookieAuthenticationEvents
         if (member is null || !member.IsActive || member.AgentUserId != agentId) return Verdict.Reject;
 
         return Verdict.Ok;
+    }
+
+    public enum TwoStepVerdict { Ok, Reject, SetupRequired }
+
+    // 593. The session against the person (the adviser, or the team member signed in as themself):
+    //   - the password: the session must carry the fingerprint of the password hash as it is now -- a new
+    //     password since the session began ends it (PortalSignIn.PasswordClaimType);
+    //   - two-step on: the session must carry the current stamp -- it passed the second step since the
+    //     last time two-step was turned on (or its recovery codes were made new);
+    //   - two-step off: a session carrying a stamp is from before it was turned off or reset, and ends;
+    //   - off but required for the account (SuperAdmin): the session may only set it up.
+    // One round trip (indexed lookups as subqueries of the agent's row), on every request.
+    public static async Task<TwoStepVerdict> EvaluateSignInAsync(IPRODbContext db, string? agentIdClaim, string? teamMemberIdClaim,
+        string? twoStepClaim, string? passwordClaim)
+    {
+        if (!int.TryParse(agentIdClaim, out var agentId)) return TwoStepVerdict.Reject;
+        var memberId = 0;
+        if (!string.IsNullOrEmpty(teamMemberIdClaim) && !int.TryParse(teamMemberIdClaim, out memberId)) return TwoStepVerdict.Reject;
+
+        var state = await db.AgentUsers.AsNoTracking()
+            .Where(a => a.Id == agentId)
+            .Select(a => new
+            {
+                AdviserHash = a.PasswordHash,
+                MemberHash = db.TeamMembers.Where(m => m.Id == memberId && m.AgentUserId == agentId).Select(m => m.PasswordHash).FirstOrDefault(),
+                Stamp = db.TwoStepSignIns.Where(t => t.AgentUserId == agentId && t.TeamMemberId == memberId).Select(t => t.Stamp).FirstOrDefault(),
+                Required = db.TwoStepRequirements.Any(r => r.AgentUserId == agentId)
+            })
+            .FirstOrDefaultAsync();
+        if (state == null) return TwoStepVerdict.Reject;
+        var passwordHash = memberId == 0 ? state.AdviserHash : state.MemberHash;
+        if (passwordHash == null || string.IsNullOrEmpty(passwordClaim)
+            || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(TwoStepGate.Fingerprint(passwordHash)), Encoding.ASCII.GetBytes(passwordClaim)))
+            return TwoStepVerdict.Reject;
+        if (state.Stamp != null)
+            return string.Equals(state.Stamp, twoStepClaim, StringComparison.Ordinal) ? TwoStepVerdict.Ok : TwoStepVerdict.Reject;
+        if (!string.IsNullOrEmpty(twoStepClaim)) return TwoStepVerdict.Reject;
+        return state.Required ? TwoStepVerdict.SetupRequired : TwoStepVerdict.Ok;
     }
 }

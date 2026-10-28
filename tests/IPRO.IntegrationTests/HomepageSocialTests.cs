@@ -14,9 +14,10 @@ public class HomepageSocialTests
     {
         var razor = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\Home\Index.cshtml"));
 
-        Assert.Contains("https://www.facebook.com/p/iPRO-100071151034796/", razor);
-        // @@ is Razor's escape for a literal @ -- the page renders youtube.com/@AllAdvisers.
-        Assert.Contains("https://www.youtube.com/@@AllAdvisers", razor);
+        // The active Facebook page (the owner, 2026-10-26, 605: the old /p/iPRO-100071151034796/ page was still linked).
+        Assert.Contains("https://www.facebook.com/AllAdvisers/", razor);
+        // @@ is Razor's escape for a literal @ -- the page renders youtube.com/@iProAdvisers (the active channel; the owner, 2026-10-24).
+        Assert.Contains("https://www.youtube.com/@@iProAdvisers", razor);
 
         // Both open in a new tab without handing the homepage a window.opener.
         var footerStart = razor.IndexOf("class=\"i2-footer-social\"", StringComparison.Ordinal);

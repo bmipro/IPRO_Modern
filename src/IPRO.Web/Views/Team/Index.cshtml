@@ -6,6 +6,8 @@
     int activeCount = ViewBag.ActiveCount;
     var tempPassword = TempData["TeamTempPassword"] as string;
     var tempPasswordFor = TempData["TeamTempPasswordFor"] as string;
+    var twoStepOn = ViewBag.TwoStepOn as HashSet<int> ?? new HashSet<int>();   // 593
+    var twoStepHeld = ViewBag.TwoStepHeld as HashSet<int> ?? new HashSet<int>();
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -91,6 +93,11 @@ else
               {
                 <div class="small text-danger mt-1"><i class="fas fa-lock me-1"></i>Sign-in locked until @AgentTimeZoneHelper.FromUtc(m.SignInLockedUntil!.Value, ViewBag.AgentTimeZone as string).ToString("h:mm tt") after 5 wrong passwords. Resetting the password unlocks it.</div>
               }
+              @if (twoStepOn.Contains(m.Id)) { <span class="badge bg-info text-dark" title="Two-step sign-in is on for this member.">Two-step on</span> }
+              @if (twoStepHeld.Contains(m.Id))
+              {
+                <div class="small text-danger mt-1"><i class="fas fa-lock me-1"></i>Sign-in locked after 20 wrong two-step codes: someone has their password. Resetting their two-step sign-in (shield) also gives them a new temporary password.</div>
+              }
             </td>
             <td><small class="text-muted">@(m.LastLoginAt == null ? "Never" : AgentTimeZoneHelper.FromUtc(m.LastLoginAt.Value, ViewBag.AgentTimeZone as string).ToString("MMM d, yyyy h:mm tt"))</small></td>
             <td class="text-end">
@@ -99,6 +106,15 @@ else
                 <button type="submit" class="btn btn-sm btn-outline-dark js-confirm-submit" title="Reset password"
                         data-confirm-message="Reset @m.FullName's password to a new temporary one?"><i class="fas fa-key"></i></button>
               </form>
+              @if (twoStepOn.Contains(m.Id))
+              {
+                @* 593: they lost their phone and their recovery codes. *@
+                <form asp-action="ResetTwoStep" asp-route-id="@m.Id" method="post" class="d-inline">
+                  @Html.AntiForgeryToken()
+                  <button type="submit" class="btn btn-sm btn-outline-info js-confirm-submit" title="Reset two-step sign-in" aria-label="Reset two-step sign-in for @m.FullName"
+                          data-confirm-message="Reset @m.FullName's two-step sign-in? Their password alone will sign them in until they set it up again. They will be emailed."><i class="fas fa-shield-halved"></i></button>
+                </form>
+              }
               <form asp-action="Toggle" asp-route-id="@m.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-sm btn-outline-warning" title="@(m.IsActive ? "Deactivate" : "Reactivate")">

@@ -36,6 +36,18 @@ public class SubscriptionChange
     public DateTime? RefundResolvedAt { get; set; }
     public string RefundResolutionNote { get; set; } = string.Empty;
 
+    // 600 (2026-10-24): a refund marked Refunded is a credit note -- numbered from the one CN-YYYY-NNNN
+    // sequence the Refer a Friend credit notes use, so Revenue and the CSV net it against the invoices
+    // (the owner: "matters for tax filing"). The invoice it credits and that invoice's tax region and rate
+    // are copied in when it is issued, so the document never changes afterwards. Waived refunds get none.
+    public string CreditNoteNumber { get; set; } = string.Empty;
+    public DateTime? CreditNoteIssuedAt { get; set; }
+    public string CreditNoteInvoiceNumber { get; set; } = string.Empty;
+    public decimal CreditNoteTaxRate { get; set; }
+    public string CreditNoteTaxRegion { get; set; } = string.Empty;
+    public string PayPalRefundId { get; set; } = string.Empty;          // PayPal's id for the refund itself
+    public DateTime? CreditNoteEmailSentAt { get; set; }
+
     public AgentUser AgentUser { get; set; } = null!;
     public BillingRule? CurrentBillingRule { get; set; }
     public BillingRule RequestedBillingRule { get; set; } = null!;

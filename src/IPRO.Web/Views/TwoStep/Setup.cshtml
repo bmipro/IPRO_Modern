@@ -1,0 +1,107 @@
+@model IPRO.Web.Models.TwoStepSetupViewModel
+@using IPRO.Entities
+@{
+    ViewData["Title"] = "Set Up Two-Step Sign-In";
+    var wayParam = Model.Method == TwoStepMethods.App ? "app" : "email";
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h1 class="h2 fw-bold mb-1"><i class="fas fa-shield-halved me-2 text-primary" aria-hidden="true"></i>Set up two-step sign-in</h1>
+    <div class="text-muted">After your password, iPro will ask for a code only you can get.</div>
+  </div>
+  <a href="/portal/TwoStep" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a>
+</div>
+
+@if (Model.Required)
+{
+  <div class="alert alert-warning" role="status"><i class="fas fa-circle-info me-2" aria-hidden="true"></i>iPro requires two-step sign-in for this account. Set it up to keep using the portal.</div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+  <div class="alert alert-danger" role="alert">@Model.Error</div>
+}
+
+@if (Model.Method == null)
+{
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-body p-4">
+          <h2 class="h5 fw-bold">A code from an authenticator app <span class="badge bg-primary ms-1">Recommended</span></h2>
+          <p>Google Authenticator, Microsoft Authenticator, or your password manager shows a new 6-digit code every 30 seconds. It works even without a signal.</p>
+          <a href="/portal/TwoStep/Setup?method=app" class="btn btn-primary">Use an authenticator app</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-body p-4">
+          <h2 class="h5 fw-bold">A code by email</h2>
+          <p>No app needed: each time you sign in, iPro emails a 6-digit code to <strong>@Model.MaskedEmail</strong>. Safer than a password alone, but only as safe as that mailbox.</p>
+          <a href="/portal/TwoStep/Setup?method=email" class="btn btn-outline-primary">Use email codes</a>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+else if (!Model.EmailSent)
+{
+  @* 593: either way starts with a code to the email on file -- the person turning it on can read the inbox. *@
+  <div class="card" style="max-width:640px">
+    <div class="card-body p-4">
+      <h2 class="h5 fw-bold">@(Model.Method == TwoStepMethods.App ? "An authenticator app" : "Codes by email")</h2>
+      <p>First, to check it is you, we email a 6-digit code to <strong>@Model.MaskedEmail</strong>.@(Model.Method == TwoStepMethods.App ? " Then you scan a QR code with your app." : "")</p>
+      <form asp-action="StartEmail" method="post">
+        <input type="hidden" name="method" value="@wayParam"/>
+        <button type="submit" class="btn btn-primary">Email me a code</button>
+      </form>
+      <a href="/portal/TwoStep/Setup" class="btn btn-link px-0 mt-2">Choose the other way</a>
+    </div>
+  </div>
+}
+else
+{
+  <div class="card">
+    <div class="card-body p-4">
+      @if (Model.Method == TwoStepMethods.App)
+      {
+        <ol class="mb-4">
+          <li class="mb-2">Install an authenticator app on your phone if you do not have one: Google Authenticator, Microsoft Authenticator, or a password manager that shows codes.</li>
+          <li class="mb-2">In the app, add an account and scan this QR code.</li>
+        </ol>
+        <div class="d-flex flex-wrap gap-4 align-items-center mb-4">
+          <div class="border rounded p-2 bg-white">@Html.Raw(Model.QrSvg)</div>
+          <div>
+            <div class="small text-muted mb-1">Can't scan it? Type this key into the app instead:</div>
+            <div class="fs-5 font-monospace fw-semibold" style="word-break:break-all">@Model.ManualKey</div>
+            <div class="small text-muted mt-1">Time-based, 6 digits. Keep this key to yourself.</div>
+          </div>
+        </div>
+      }
+      <p>We emailed a 6-digit code to <strong>@Model.MaskedEmail</strong>. It works once, for 10 minutes. Check your junk folder if it has not arrived.</p>
+      <form asp-action="Confirm" method="post" class="row g-3" style="max-width:520px">
+        <input type="hidden" name="setupToken" value="@Model.SetupToken"/>
+        @if (Model.Method == TwoStepMethods.App)
+        {
+          <div class="col-12">
+            <label for="code" class="form-label fw-semibold">The 6-digit code the app shows now</label>
+            <input type="text" id="code" name="code" class="form-control form-control-lg" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required/>
+          </div>
+        }
+        <div class="col-12">
+          <label for="emailCode" class="form-label fw-semibold">The code from the email</label>
+          <input type="text" id="emailCode" name="emailCode" class="form-control form-control-lg" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required/>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">Turn on two-step sign-in</button>
+        </div>
+      </form>
+      <form asp-action="StartEmail" method="post" class="mt-2">
+        <input type="hidden" name="method" value="@wayParam"/>
+        <input type="hidden" name="setupToken" value="@Model.SetupToken"/>
+        <button type="submit" class="btn btn-link p-0">Email me a new code</button>
+      </form>
+    </div>
+  </div>
+}

@@ -1,0 +1,72 @@
+@model IPRO.Web.Models.TwoStepVerifyViewModel
+@{ ViewData["Title"] = "Two-Step Sign-In"; Layout = null; var byEmail = Model.Method == IPRO.Entities.TwoStepMethods.Email; }
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IPRO - Two-Step Sign-In</title>
+<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<style>
+body{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);min-height:100vh;display:flex;align-items:center;}
+.card{border:none;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.code-input{font-size:1.4rem;letter-spacing:.2em;text-align:center;}
+</style></head>
+<body>
+<main class="container">
+<div class="row justify-content-center">
+<div class="col-md-5">
+<div class="card">
+<div class="card-body p-5">
+  <div class="text-center mb-4">
+    <img src="/images/ipro-advisers-logo.png" alt="IPRO Advisers" style="height:56px;width:auto;"/>
+    <h1 class="h3 fw-bold mt-3">Two-step sign-in</h1>
+    @if (byEmail)
+    {
+      <p class="text-muted mb-0">We emailed a 6-digit code to <strong>@Model.MaskedEmail</strong>. It works once, for 10 minutes.</p>
+    }
+    else
+    {
+      <p class="text-muted mb-0">Open your authenticator app and type the 6-digit code it shows for iPro.</p>
+    }
+  </div>
+  @if (!string.IsNullOrEmpty(Model.Error))
+  { <div class="alert alert-danger" role="alert">@Model.Error</div> }
+  @if (!string.IsNullOrEmpty(Model.Notice))
+  { <div class="alert alert-info" role="status">@Model.Notice</div> }
+  <form asp-controller="TwoStep" asp-action="Verify" method="post">
+    <div class="mb-3">
+      <label for="code" class="form-label fw-semibold">Code</label>
+      <input type="text" id="code" name="code" class="form-control form-control-lg code-input" autocomplete="one-time-code"
+             autocapitalize="off" spellcheck="false" maxlength="20" required autofocus aria-describedby="code-help"/>
+      <div id="code-help" class="form-text">
+        Can't get a code? Type one of your recovery codes instead (it looks like <code>abcde-fghjk</code>).
+      </div>
+    </div>
+    @* 593: ticked unless the person unticks it (the owner, 2026-10-21); a new password or turning two-step off ends it. *@
+    <div class="form-check mb-4">
+      <input class="form-check-input" type="checkbox" name="rememberDevice" id="rememberDevice" value="true" checked aria-describedby="rememberDevice-help"/>
+      <label class="form-check-label" for="rememberDevice">Don't ask for a code on this device for 30 days</label>
+      <div id="rememberDevice-help" class="form-text">Only on your own computer or phone. Untick it on a shared one.</div>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg w-100">Verify</button>
+  </form>
+  @if (byEmail)
+  {
+    <form asp-controller="TwoStep" asp-action="SendCode" method="post" class="text-center mt-3">
+      <button type="submit" class="btn btn-link p-0">Email me a new code</button>
+    </form>
+  }
+  <div class="text-center mt-3">
+    <small><a href="/portal/Account/Login">Sign in with a different account</a></small>
+  </div>
+  <p class="small text-muted mt-4 mb-0">
+    @if (Model.IsTeamMember)
+    {
+      <text>Lost your phone and your recovery codes? Ask the account owner to reset your two-step sign-in on My Team.</text>
+    }
+    else
+    {
+      <text>Lost your phone and your recovery codes? Call iPro support at @IPRO.Entities.TwoStepLetters.SupportPhone.</text>
+    }
+  </p>
+</div></div></div></div></main>
+</body></html>

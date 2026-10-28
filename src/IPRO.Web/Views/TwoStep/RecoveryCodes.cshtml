@@ -1,0 +1,30 @@
+@model IPRO.Web.Models.TwoStepRecoveryCodesViewModel
+@using IPRO.Web.Infrastructure
+@{
+    ViewData["Title"] = "Recovery Codes";
+}
+
+<div class="mb-4">
+  <h1 class="h2 fw-bold mb-1"><i class="fas fa-key me-2 text-primary" aria-hidden="true"></i>@(Model.JustTurnedOn ? "Two-step sign-in is on" : "Your new recovery codes")</h1>
+  <div class="text-muted">Save these ten recovery codes now. This is the only time iPro shows them.</div>
+</div>
+
+<div class="card mb-4" style="max-width:640px">
+  <div class="card-body p-4">
+    <p>If you lose your phone (or cannot get an email), each code signs you in once in place of a code. Keep them somewhere safe and private: a password manager, or printed and put away.</p>
+    <ul class="list-unstyled row row-cols-2 g-2 font-monospace fs-5 mb-4" aria-label="Recovery codes">
+      @foreach (var code in Model.Codes)
+      {
+        <li class="col">@code</li>
+      }
+    </ul>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" id="print-codes" class="btn btn-outline-primary"><i class="fas fa-print me-1" aria-hidden="true"></i>Print</button>
+      <a href="/portal/TwoStep" class="btn btn-primary">I have saved them</a>
+    </div>
+  </div>
+</div>
+
+<script nonce="@Context.GetCspNonce()">
+  document.getElementById('print-codes').addEventListener('click', function () { window.print(); });
+</script>

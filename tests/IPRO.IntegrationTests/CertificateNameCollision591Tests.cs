@@ -347,6 +347,7 @@ public class CertificateNameCollision591Tests : IDisposable
         var row = Row(agentId, siteId, host, "alert591.example.test", host);
         row.SslStatus = AgentDomainStatus.BindingPending;
         row.CreatedAt = DateTime.UtcNow.AddHours(-5);
+        row.OwnershipVerifiedAt = DateTime.UtcNow.AddHours(-5);   // 595: the wait counts from when it was proven and connected
         db.Add(row);
         await db.SaveChangesAsync();
 

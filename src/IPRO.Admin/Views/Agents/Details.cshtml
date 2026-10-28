@@ -39,7 +39,7 @@
         <a href="/Agents/Edit/@Model.Id" class="btn btn-primary"><i class="fas fa-pen me-1"></i>Edit</a>
         <form asp-action="ResetPassword" asp-route-id="@Model.Id" method="post">
             @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-dark js-confirm-submit" data-confirm-message="Reset @Model.UserName's password to a new random temporary password and force a change at next sign-in? The temporary password is emailed to the agent."><i class="fas fa-key me-1"></i>Reset Password</button>
+            <button type="submit" class="btn btn-outline-dark js-confirm-submit" data-confirm-message="Reset @Model.UserName's password to a new random temporary password and force a change at next sign-in? The temporary password is shown here on screen, for you to pass on to the agent; it is not emailed."><i class="fas fa-key me-1"></i>Reset Password</button>
         </form>
         @* Pre-launch audit (2026-08-30): this rendered unconditionally while the rebuild actions
            below correctly gate on the SuperAdmin claim, so a Support admin saw a live button
@@ -52,7 +52,8 @@
             {
                 <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-warning js-confirm-submit" data-confirm-message="Deactivate this agent?"><i class="fas fa-ban me-1"></i>Deactivate</button>
+                    @* 599: Deactivate is a suspension; the box says everything it does. *@
+                    <button type="submit" class="btn btn-warning js-confirm-submit" data-confirm-message="Suspend @Model.UserName? This cancels their PayPal billing (any refund owed goes to Refunds), takes their website offline, and blocks sign-in for them, their team and their clients. All their data is kept: Activate brings the account back, and in a year you will be emailed to keep the data another year or delete it."><i class="fas fa-ban me-1"></i>Suspend</button>
                 </form>
             }
             else
@@ -61,6 +62,13 @@
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i>Activate</button>
                 </form>
+                @if (Model.SuspendedAt.HasValue)
+                {
+                    <form asp-action="KeepSuspendedData" asp-route-id="@Model.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-box-archive me-1"></i>Keep another year</button>
+                    </form>
+                }
             }
         }
         @* 571: bring a site in from the Template Builder. Replaces a customer's pages, so SuperAdmin
@@ -117,17 +125,39 @@
         </form>
     </div>
 </div>
+@if (!Model.IsActive && Model.SuspendedAt.HasValue)
+{
+    @* 599; 607: on its own line under the buttons (inside their row it squeezed them into narrow three-line
+       boxes), and it says what the suspension did to billing as its log entry recorded it -- it said
+       "Billing cancelled" for an account that had no subscription. *@
+    var suspensionBilling = ViewBag.SuspensionBilling as string;
+    <div class="alert alert-warning mb-4">
+        <strong>Suspended since @Model.SuspendedAt.Value.ToString("MMMM d, yyyy").</strong>
+        @(suspensionBilling == null ? "Website offline" : suspensionBilling + ", website offline"), sign-in blocked; all data kept.
+        @if (Model.DataReviewDueAt.HasValue)
+        {
+            <span>Data review @(Model.DataReviewDueAt.Value <= DateTime.UtcNow ? "was due" : "due") @Model.DataReviewDueAt.Value.ToString("MMMM d, yyyy"): <em>Keep another year</em>, or <em>Delete</em> (their invoices are kept).</span>
+        }
+    </div>
+}
 
 @{
     var detailsWarnings = ViewBag.DetailsWarnings as IEnumerable<string> ?? Enumerable.Empty<string>();
     var billings = (ViewBag.Billings as IEnumerable<IPRO.Entities.Billing> ?? Enumerable.Empty<IPRO.Entities.Billing>()).ToList();
     var subscriptionChanges = (ViewBag.SubscriptionChanges as IEnumerable<IPRO.Entities.SubscriptionChange> ?? Enumerable.Empty<IPRO.Entities.SubscriptionChange>()).ToList();
+    var agentDomainGuides = ViewBag.DomainGuides as List<IPRO.Admin.Models.AgentDomainViewModel> ?? new List<IPRO.Admin.Models.AgentDomainViewModel>();   // 595
     var packageLookup = ViewBag.PackageLookup as IDictionary<int, IPRO.Entities.BillingRule> ?? new Dictionary<int, IPRO.Entities.BillingRule>();
     var openInvoices = (ViewBag.OpenInvoices as IEnumerable<IPRO.Entities.Invoice> ?? Enumerable.Empty<IPRO.Entities.Invoice>()).ToList();
     var failedPaymentInvoices = (ViewBag.FailedPaymentInvoices as IEnumerable<IPRO.Entities.Invoice> ?? Enumerable.Empty<IPRO.Entities.Invoice>()).ToList();
     var billingLogs = (ViewBag.BillingLogs as IEnumerable<IPRO.Entities.OperateLog> ?? Enumerable.Empty<IPRO.Entities.OperateLog>()).ToList();
     var lockedTeamMembers = ViewBag.LockedTeamMembers as List<IPRO.Entities.TeamMember> ?? new List<IPRO.Entities.TeamMember>();
     var lockedClients = ViewBag.LockedClients as List<IPRO.Entities.Client> ?? new List<IPRO.Entities.Client>();
+    // 593: two-step sign-in.
+    var twoStep = ViewBag.TwoStep as IPRO.Entities.TwoStepSignIn;
+    var twoStepRequired = ViewBag.TwoStepRequired as bool? ?? false;
+    var twoStepTeam = ViewBag.TwoStepTeam as List<IPRO.Admin.Controllers.AgentsController.TwoStepTeamRow> ?? new List<IPRO.Admin.Controllers.AgentsController.TwoStepTeamRow>();
+    var isSuperAdminHere = User.HasClaim("Role", IPRO.Entities.AdminRoles.SuperAdmin);
+    string TwoStepWay(string method) => method == IPRO.Entities.TwoStepMethods.Email ? "email codes" : "authenticator app";
     var paidInvoiceEmailLogs = billingLogs
         .Where(l => l.Action == "InvoiceEmail" || l.Action == "InvoiceEmailFailed")
         .ToList();
@@ -270,6 +300,42 @@
                 </dl>
             </div>
         </div>
+        @* 595: the agent's custom domains, each with the step its guide on My Website is on (DomainSetupGuide), so the
+           owner can say "you are on step 2" on the phone. The full list is under Domains. *@
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-2"><i class="fas fa-route me-2 text-primary"></i>Custom domains</h6>
+                @if (agentDomainGuides.Count == 0)
+                {
+                    <div class="text-muted small">No custom domains.</div>
+                }
+                <ul class="list-unstyled mb-0 small">
+                    @foreach (var item in agentDomainGuides)
+                    {
+                        var guide = item.Guide!;
+                        var currentStep = guide.Steps.FirstOrDefault(s => s.Number == guide.CurrentStep);
+                        <li class="mb-2">
+                            <div class="fw-semibold text-break">@item.Domain.DomainName</div>
+                            <span class="badge @(guide.Refusal != null ? "bg-danger" : guide.Live ? "bg-success" : "bg-primary")">@(guide.Refusal != null ? "Refused" : guide.Live ? "Live" : $"Step {guide.CurrentStep} of 4")</span>
+                            <span>@guide.Heading</span>
+                            @if (currentStep != null && currentStep.Seen.Length > 0)
+                            {
+                                <div class="text-muted">What iPro sees: @currentStep.Seen</div>
+                            }
+                            @if (guide.CaaName != null)
+                            {
+                                <div class="text-danger">CAA records at @guide.CaaName keep the SSL certificate out.</div>
+                            }
+                            @if (guide.MailAtRisk || guide.MailBroken)
+                            {
+                                <div class="text-danger">@guide.MailNote</div>
+                            }
+                        </li>
+                    }
+                </ul>
+                <a class="small" href="/Domains">All domains</a>
+            </div>
+        </div>
         @if (lockedTeamMembers.Count > 0 || lockedClients.Count > 0)
         {
             <div class="card border-0 shadow-sm mb-3">
@@ -289,6 +355,75 @@
                 </div>
             </div>
         }
+        @* 593: two-step sign-in -- the agent's own and their team members', the requirement, reset and code locks. *@
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-2"><i class="fas fa-shield-halved me-2 text-primary"></i>Two-step sign-in</h6>
+                <dl class="row mb-2 small">
+                    <dt class="col-5 text-muted">Agent</dt>
+                    <dd class="col-7">
+                        @if (twoStep == null)
+                        {
+                            <span>Off</span>
+                        }
+                        else
+                        {
+                            <span class="text-success">On (@TwoStepWay(twoStep.Method)) since @LocalDate(twoStep.EnabledAt)</span>
+                            @if (IPRO.DataAccess.TwoStepStore.IsCodeHeld(twoStep))
+                            {
+                                <div class="text-danger"><i class="fas fa-lock me-1"></i>Locked until you unlock it (20 wrong codes without a right one: someone has their password) @{ await UnlockButton("Adviser", 0); }</div>
+                            }
+                            else if (IPRO.DataAccess.TwoStepStore.IsCodeLocked(twoStep, DateTime.UtcNow))
+                            {
+                                <div class="text-danger"><i class="fas fa-lock me-1"></i>Locked until @LocalTime(twoStep.CodeLockedUntil!.Value) (5 wrong codes in a row) @{ await UnlockButton("Adviser", 0); }</div>
+                            }
+                            <form action="/Agents/ResetTwoStep/@Model.Id" method="post" class="mt-1">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="kind" value="Adviser" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 js-confirm-submit" @(isSuperAdminHere ? "" : "disabled") title="@(isSuperAdminHere ? "They lost their phone and their recovery codes" : "SuperAdmin only")"
+                                        data-confirm-message="Reset two-step sign-in for @Model.UserName? Their password alone will sign them in until they set it up again. They will be emailed, and it is written to the audit log.">Reset two-step</button>
+                            </form>
+                        }
+                    </dd>
+                    <dt class="col-5 text-muted">Required</dt>
+                    <dd class="col-7">
+                        <span>@(twoStepRequired ? "Yes, for the agent and their team members" : "No (optional)")</span>
+                        <form action="/Agents/RequireTwoStep/@Model.Id" method="post" class="mt-1">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="required" value="@(twoStepRequired ? "false" : "true")" />
+                            <button type="submit" class="btn btn-sm btn-outline-primary py-0" @(isSuperAdminHere ? "" : "disabled") title="@(isSuperAdminHere ? "" : "SuperAdmin only")">@(twoStepRequired ? "Make optional" : "Require two-step sign-in")</button>
+                        </form>
+                    </dd>
+                </dl>
+                @if (twoStepTeam.Count > 0)
+                {
+                    <div class="small fw-semibold mb-1">Team members with it on</div>
+                    <ul class="list-unstyled mb-0 small">
+                        @foreach (var row in twoStepTeam)
+                        {
+                            <li class="mb-2">
+                                @row.FullName (@row.Email), @TwoStepWay(row.Method)
+                                @if (row.Held)
+                                {
+                                    <span class="text-danger">, locked until you unlock it (20 wrong codes) @{ await UnlockButton("TeamMember", row.Id); }</span>
+                                }
+                                else if (row.CodeLockedUntil is { } until && until > DateTime.UtcNow)
+                                {
+                                    <span class="text-danger">, locked until @LocalTime(until) @{ await UnlockButton("TeamMember", row.Id); }</span>
+                                }
+                                <form action="/Agents/ResetTwoStep/@Model.Id" method="post" class="d-inline ms-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="kind" value="TeamMember" />
+                                    <input type="hidden" name="accountId" value="@row.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 js-confirm-submit" @(isSuperAdminHere ? "" : "disabled") title="@(isSuperAdminHere ? "" : "SuperAdmin only")"
+                                            data-confirm-message="Reset two-step sign-in for @row.Email? They will be emailed, and it is written to the audit log.">Reset</button>
+                                </form>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
         <div class="row g-2">
             <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold text-info">@ViewBag.ClientCount</div><div class="text-muted small">Clients</div></div></div>
             <div class="col-6"><div class="card border-0 shadow-sm text-center p-3"><div class="fs-3 fw-bold @(ViewBag.Subscription != null ? "text-success" : "text-danger")"><i class="fas @(ViewBag.Subscription != null ? "fa-check-circle" : "fa-times-circle")"></i></div><div class="text-muted small">Subscription</div></div></div>

@@ -278,9 +278,17 @@ converted by mistake.
 - Read as a UTC instant, "due 21 September" is 20 September at 8 p.m. in Toronto. The first draft of
   the morning follow-ups email (TODO 498) did that and would have mailed an item due today as "overdue
   since yesterday"; `FollowUpReminderJobTests` pins the rule with the values the forms really store.
-- **Known violation, recorded 2026-09-18 and NOT yet fixed:** `GoogleCalendarService` pushes and reads
-  the field as UTC (`DOCS/TRUTH_SWEEP_2026-09-18.md`, item 11). Fix it with the owner's Google account
-  in hand; do not "fix" it by converting the stored values, which every other page reads as local.
+- **Known violation recorded 2026-09-18, fixed by 601 (2026-10-24):** `GoogleCalendarService` pushed and
+  read the field as UTC (`DOCS/TRUTH_SWEEP_2026-09-18.md`, item 11). The Google sync is the one place
+  `DueAt` meets a real instant, and it now converts there and only there -- never the stored values:
+  a timed follow-up goes to Google as the adviser's wall clock with that date's offset and the zone's
+  IANA name (`AgentLocalTime.Zone`), a date with no time (midnight) as an all-day event on that date;
+  an event read back from Google becomes the adviser's wall clock in the same zone, and so do the copies
+  of the adviser's own Google events. Events written before 601 (timeZone "UTC", instant equal to `DueAt`
+  read as UTC) are recognised and re-written from the stored `DueAt`, never taken for the adviser's move;
+  each connection's calendar is read in full once after the release to find them
+  (`GoogleCalendarConnection.LocalTimesResyncedAt`). `GoogleCalendarTime601Tests` pins it; the owner's
+  check on his own Google account is `DOCS/601_TRY_IT.md`.
 
 ## Before calling a cross-cutting change "done"
 

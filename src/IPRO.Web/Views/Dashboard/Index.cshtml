@@ -35,6 +35,18 @@
   </div>
 </div>
 
+@if (ViewBag.TwoStepOff == true)
+{
+  @* 593: until two-step sign-in is on for the person signed in. *@
+  <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4" role="region" aria-label="Two-step sign-in">
+    <div>
+      <i class="fas fa-shield-halved me-2" aria-hidden="true"></i><strong>Protect your account with two-step sign-in.</strong>
+      Your clients' personal and financial information is in iPro. With two-step sign-in, a stolen password alone can't open your account. It takes about two minutes.
+    </div>
+    <a href="/portal/TwoStep/Setup" class="btn btn-warning btn-sm">Set up two-step sign-in</a>
+  </div>
+}
+
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
     <h6 class="fw-bold mb-3"><i class="fas fa-robot me-2 text-primary"></i>AI Daily Assistant</h6>

@@ -56,9 +56,14 @@ public class AgentService : IAgentService
         return user;
     }
 
+    // 593 (review): a row this context already holds (every read here tracks it) is saved by change tracking,
+    // which writes only the columns that changed. Update() wrote EVERY column, so a request that read the
+    // row before a password reset -- a profile save, a colour, a photo, a sign-in's last-login time -- put
+    // the old password hash back after it, undoing the reset and the sign-out of other browsers it brings.
+    // Only a row from outside this context (none today) is still attached whole.
     public async Task UpdateAsync(AgentUser user)
     {
-        _uow.AgentUsers.Update(user);
+        if (_uow.Context.Entry(user).State == Microsoft.EntityFrameworkCore.EntityState.Detached) _uow.AgentUsers.Update(user);
         await _uow.SaveChangesAsync();
     }
 
@@ -70,8 +75,7 @@ public class AgentService : IAgentService
         user.PasswordHash = _hasher.HashPassword(user, plainPassword);
         user.MustChangePassword = false;
         user.PasswordChangedAt = DateTime.UtcNow;
-        _uow.AgentUsers.Update(user);
-        await _uow.SaveChangesAsync();
+        await _uow.SaveChangesAsync();   // tracked: these columns only (593, UpdateAsync)
         // 583: a new password unlocks sign-in at once.
         await SignInLockout.ClearAsync(_uow.Context, new SignInAccount(SignInAccountKind.Adviser, id), DateTime.UtcNow);
     }
@@ -84,8 +88,7 @@ public class AgentService : IAgentService
 
         user.PasswordResetToken = Guid.NewGuid().ToString("N");
         user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
-        _uow.AgentUsers.Update(user);
-        await _uow.SaveChangesAsync();
+        await _uow.SaveChangesAsync();   // tracked: the token's two columns only (593, UpdateAsync)
         return user;
     }
 
@@ -109,8 +112,7 @@ public class AgentService : IAgentService
         user.PasswordChangedAt = DateTime.UtcNow;
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiresAt = null;
-        _uow.AgentUsers.Update(user);
-        await _uow.SaveChangesAsync();
+        await _uow.SaveChangesAsync();   // tracked: these columns only (593, UpdateAsync)
         // 583: the forgot-password reset is the honest person's way out of a sign-in lock.
         await SignInLockout.ClearAsync(_uow.Context, new SignInAccount(SignInAccountKind.Adviser, user.Id), DateTime.UtcNow);
         return true;
@@ -122,8 +124,7 @@ public class AgentService : IAgentService
         if (user != null)
         {
             user.IsActive = false;
-            _uow.AgentUsers.Update(user);
-            await _uow.SaveChangesAsync();
+            await _uow.SaveChangesAsync();   // tracked: this column only (593, UpdateAsync)
         }
     }
 
@@ -145,8 +146,7 @@ public class AgentService : IAgentService
         if (user != null)
         {
             user.LastLoginAt = DateTime.UtcNow;
-            _uow.AgentUsers.Update(user);
-            await _uow.SaveChangesAsync();
+            await _uow.SaveChangesAsync();   // tracked: this column only (593, UpdateAsync)
         }
     }
 

@@ -1,7 +1,7 @@
 # Privacy Policy
 
 **iPro Advisers Inc.**
-Effective date: **15 February 2012** · Last updated: 17 September 2026
+Effective date: **15 February 2012** · Last updated: 26 October 2026
 
 > **Not yet legal advice.** Drafted from what the platform verifiably does, not from a
 > template. Every third-party processor named below was confirmed in the codebase. Not
@@ -136,8 +136,8 @@ of them may use it for their own purposes.
 |---|---|---|
 | **Microsoft Azure** | Hosting, database, uploaded files, diagnostic telemetry (Application Insights) | Eastern Canada |
 | **PayPal** | Subscription payments and card details | Canada / United States |
-| **Microsoft Azure Communication Services** | Delivering newsletters, campaigns, cards, letters and system email, and reporting on delivery | Canada |
-| **SendGrid (Twilio)** | Standby email delivery, used only if Azure cannot send | United States |
+| **Microsoft Azure Communication Services** | Delivering iPro's own email and email that advisers send to their clients, and reporting on delivery | Canada |
+| **Amazon Web Services (Amazon SES)** | Delivering email that advisers send to their clients, and reporting on delivery | Canada |
 | **Anthropic PBC** | AI drafting and daily-assistant content, when you use those features | United States |
 | **Google** | Calendar synchronisation — only if you connect your Google Calendar (section 2 says exactly what) | United States |
 | **Let's Encrypt** | Issuing SSL certificates for custom domains (domain name only) | International |

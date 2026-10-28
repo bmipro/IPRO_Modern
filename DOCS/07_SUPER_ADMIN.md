@@ -72,10 +72,38 @@ Every sign-in (advisers, their team members, their clients, admins) locks for 15
 
 Unlock is Super Admin only (Support admins see the button disabled). Each unlock is written to the audit log as **SignInUnlocked**, naming who was unlocked. Locks and unlocks are also written to the container log as warnings ("Sign-in locked for 15 minutes after 5 wrong passwords in a row: ..." and "Sign-in lock cleared (...)"). A new password unlocks at once: the agent's **Forgot password?**, **Reset Password** here or under **Admin Users**, an agent resetting a team member's password, a client's new portal invitation (**Send a New Invitation** on the client's profile).
 
+
+## Two-Step Sign-In
+
+Advisers and their team members can turn on two-step sign-in (a code from an authenticator app, or by email, after the password; ten recovery codes for a lost phone). It is optional for everyone. Production Super Admin sign-in is not part of it: the admin site sits behind Microsoft Entra sign-in, so its second step is an Entra setting (Conditional Access or security defaults in the Azure portal).
+
+The agent record has a **Two-step sign-in** card under the Profile card:
+
+- **Agent:** "Off", or "On (authenticator app / email codes) since ..." with **Reset two-step**. A line "Locked until ... (5 wrong codes in a row)" with **Unlock** appears while the second step is locked.
+- **Required:** **Require two-step sign-in** makes it compulsory for this account: the agent and each team member are sent to the set-up page until it is on (they can still change their password and sign out). **Make optional** undoes it; anyone who has it on keeps it. Written to the audit log as **TwoStepRequired** / **TwoStepNotRequired**.
+- **Team members with it on:** each with **Reset**, and **Unlock** while locked.
+
+**Reset two-step** is for someone who lost their phone and their recovery codes. Confirm who is asking first (call them back on the number on file): a reset lets their password alone sign them in. It turns their two-step sign-in off, signs out every browser where they were signed in, writes **TwoStepReset** to the audit log naming who, and emails them ("Two-step sign-in was reset for your iPro account"). If the account requires it, they set it up again at their next sign-in. If it was locked after 20 wrong codes (someone has their password), the same click also gives them a temporary password, shown once at the top of the page; give it to them securely. An agent can also reset a team member's on **My Team**.
+
+**Unlock** (the same button as for a password lock) also ends a lock caused by 5 wrong codes in a row, and the longer one after 20 wrong codes without a right one ("Locked until ... (5 wrong codes in a row)" stays on the card until you unlock it; that person's password is known to someone, so they should change it first). A new password does not end that lock on purpose: whoever has the password and the inbox could otherwise reset, guess five more codes, and reset again. The lock email for codes tells the person their password was typed correctly, and to change it.
+
+A new password (theirs, **Reset Password** here, or an agent's reset of a team member) signs out every browser where that person was signed in; so do new recovery codes. Changing an agent's login email in the portal needs their password (and a code with two-step sign-in on), and the old address is told; team members cannot change it.
+
+Locks, resets and every turn-on and turn-off are warnings in the container log ("Two-step sign-in locked for 15 minutes after 5 wrong codes in a row: ...", "Two-step sign-in reset by ...", "Two-step sign-in turned on/off ...").
 ## Activate, Deactivate, or Delete an Agent
 
-- **Activate** restores access.
-- **Deactivate** blocks access while retaining records.
+- **Suspend** (the button that used to read Deactivate; 599, 2026-10-24) is a real suspension, in this order:
+  1. their PayPal subscription is cancelled, exactly as when an adviser cancels themselves (any refund owed goes to **Refunds**);
+     if PayPal refuses, nothing changes and the page says so;
+  2. sign-in is blocked for the adviser, their team and their clients;
+  3. their public website goes offline at once (not at the end of a paid period).
+
+  Every record and file is kept. The page shows when they were suspended and when the data review is due.
+- **The yearly data review.** A year after a suspension, iPro's mailbox (Signups:NotificationEmail, else Support:NotificationEmail) gets
+  one email per account: keep the data another year, or delete the account. **Keep another year** on the agent's page moves the
+  review a year on; nothing is ever deleted automatically.
+- **Activate** ends a suspension: they can sign in again. Their PayPal billing stays cancelled, so they subscribe again from Billing,
+  and their website comes back once they have a plan.
 - **Delete** permanently removes the agent and dependent information. Use only after confirming retention requirements.
 
 ## Review Agent Billing
@@ -186,6 +214,29 @@ tax back once the friend stays. It ships **OFF**.
 
 The adviser's side is in `01_AGENT_ACCOUNT_AND_DASHBOARD.md`, "Refer a Friend". Automatic refunds (a switch for the
 rewards alone) are not built yet: manual for now, the owner's choice.
+
+## Refunds (the Refund Queue)
+
+**Refunds** (Super Admin only, under **System**) lists the money owed back. Nothing on the page moves money: you refund
+at PayPal, then mark the row (`22_PREPAID_VALUE.md` has the policy).
+
+1. **Referral rewards to refund**: Refer a Friend rewards, worked out against the adviser's own payments (above).
+2. **Pending**: a cancellation's refund of unused prepaid value, or money PayPal captured after a subscription had
+   ended (the note says "captured-after-end"). Each row shows net + tax + gross, the PayPal transaction to refund
+   against and the days left in PayPal's refund window.
+3. Refund the **gross** amount at PayPal against that transaction, copy PayPal's **refund** transaction id, paste it
+   and select **Mark Refunded (issues a credit note and emails the adviser)**. That (600):
+   - issues a **credit note** numbered from the same `CN-YYYY-NNNN` sequence as Refer a Friend credit notes, for the
+     invoice the refunded payment paid, with that invoice's tax region and rate;
+   - emails it to the adviser (supplier block from **Company Details**, amounts before tax, tax and total, all
+     negative, the invoice it credits and PayPal's refund id). If the email does not go out, the row stays refunded and
+     the green message says so -- tell the adviser by phone or a support ticket;
+   - puts it in **Revenue** as a negative row (below). Clicking twice, or two admins at once, issues one credit note.
+4. **Waive** (a reason is required) when no money goes back; a waived refund gets no credit note.
+5. **Resolved** lists the latest rows with their credit note; select the number to open the credit note to print or
+   save as PDF.
+
+Every action is written to the Audit Log.
 
 ## Manage Trial Packages and Invite Codes
 
@@ -625,6 +676,12 @@ Good to know:
 The setup domain on **Edit** is the free site's address: a new value must be under `247advisers.com`. An agent's
 own domain is added on their **My Website** page, where they prove it is theirs (592).
 
+Since 595 every domain row also shows the step the agent's guide on **My Website** is on (**Step 2 of 4: Point www
+at iPro**, or **Live**), what IPRO sees for that step in the agent's own words, and the company that manages the
+domain's DNS; rows still being set up get a fresh look at DNS when the page opens (the newest eight). The agent's
+page (**Agents**, then the agent) lists the same under **Custom domains**, so support can say "you are on step 2".
+An agent who clicks **I need help** in the guide sends a support ticket with all of it.
+
 Since 592 every domain row also says whether the agent has proven the domain is theirs: **Not proven yet**
 (with the TXT record name IPRO is waiting for, `_ipro-verify.<their domain>`), **Proven** with the date it
 was seen, or **Proven: there before 592** for domains that were connected before 15 October 2026.
@@ -660,6 +717,24 @@ Use the reporting screens to review:
 - Agent statistics
 - Revenue by period
 - Subscription status
+
+### Revenue
+
+**Revenue** shows the selected period (3, 6 or 12 months, or your own dates and a search):
+
+- **Invoiced (paid)**, **Credit notes** (a negative: refunds marked Refunded in **Refunds** and Refer a Friend rewards
+  paid) and **Net revenue**; the same three for each month, in the chart and the table beneath it.
+- **Tax collected by region**: the taxable amount, the tax collected, the tax credited back by credit notes and the
+  net tax -- the figures for a tax filing.
+- **The ledger**: every invoice ever issued and every credit note, a credit note as its own row with negative
+  amounts, marked **Credit note** with the invoice it credits. **View / Print** opens the invoice or the credit note
+  to print or save as PDF.
+- **Export CSV**: the same rows. The columns are as before (InvoiceNumber ... PayPalTransactionId) with **Type**
+  (Invoice / Credit note) and **CreditsInvoice** added at the end. A credit note's SubTotal, TaxAmount and Total are
+  negative, its Paid reads yes (the refund was made) and its PayPalTransactionId is PayPal's refund id, so summing a
+  column nets the credit notes.
+
+Refunds marked Refunded before credit notes existed (600, 2026-10-24) have none and are not in the ledger.
 
 ## Job Scheduler
 

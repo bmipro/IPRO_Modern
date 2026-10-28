@@ -811,6 +811,7 @@ public class SignInLockout583Tests
             @"src\IPRO.Business\Services\AgentService.cs",
             @"src\IPRO.Web\Controllers\AccountController.cs",
             @"src\IPRO.Web\Controllers\ClientPortalAccountController.cs",
+            @"src\IPRO.Web\Controllers\TwoStepController.cs",   // 593: turning two-step on or off, new recovery codes
         }, checks);
 
         // The agent's check is only reached through PasswordMatches, and every caller of that, and every
@@ -820,13 +821,20 @@ public class SignInLockout583Tests
         Assert.Contains("public bool PasswordMatches(AgentUser user, string password) =>", service);
         var account = Lock583.Read(@"src\IPRO.Web\Controllers\AccountController.cs");
         Assert.Equal(1, Regex.Matches(account, @"VerifyHashedPassword\(").Count);   // TeamPasswordMatches
-        Assert.Equal(3, Regex.Matches(account, @"SignInLockout\.TryAsync\(").Count);   // Login, both Change Passwords
-        // Two candidates in Login, one in each Change Password: every call is a TryAsync candidate.
-        Assert.Equal(4, Regex.Matches(account, @"new SignInCandidate\(new SignInAccount\(SignInAccountKind\.(Adviser|TeamMember), [a-z]+\.Id\), \(\) => (_agents\.PasswordMatches|TeamPasswordMatches)\(").Count);
-        Assert.Equal(4, Regex.Matches(account, @"_agents\.PasswordMatches\(|TeamPasswordMatches\(member, ").Count);
+        Assert.Equal(4, Regex.Matches(account, @"SignInLockout\.TryAsync\(").Count);   // Login, both Change Passwords, 593's login-email change
+        // Two candidates in Login, one in each Change Password, one for the email: every call is a TryAsync candidate.
+        Assert.Equal(5, Regex.Matches(account, @"new SignInCandidate\(new SignInAccount\(SignInAccountKind\.(Adviser|TeamMember), [a-z]+\.Id\), \(\) => (_agents\.PasswordMatches|TeamPasswordMatches)\(").Count);
+        Assert.Equal(5, Regex.Matches(account, @"_agents\.PasswordMatches\(|TeamPasswordMatches\(member, ").Count);
+        // 593: the two-step pages' one password check (team member or adviser), inside TryAsync.
+        var twoStep = Lock583.Read(@"src\IPRO.Web\Controllers\TwoStepController.cs");
+        Assert.Equal(1, Regex.Matches(twoStep, @"SignInLockout\.TryAsync\(").Count);
+        Assert.Equal(1, Regex.Matches(twoStep, @"VerifyHashedPassword\(").Count);
+        Assert.Equal(1, Regex.Matches(twoStep, @"_agents\.PasswordMatches\(").Count);
+        Assert.Equal(2, Regex.Matches(twoStep, @"new SignInCandidate\(new SignInAccount\(SignInAccountKind\.(Adviser|TeamMember), ").Count);
         Assert.Contains("SignInLockout.TryAsync(_db, SignInDoor.ClientPortal", Lock583.Read(@"src\IPRO.Web\Controllers\ClientPortalAccountController.cs"));
         Assert.Contains("SignInLockout.TryAsync(_uow.Context, SignInDoor.Admin", Lock583.Read(@"src\IPRO.Admin\Controllers\AdminController.cs"));
-        Assert.DoesNotContain("PasswordMatches(", Lock583.SourcesExcept(root, @"src\IPRO.Business\Services\AgentService.cs", @"src\IPRO.Business\Interfaces\IAgentService.cs", @"src\IPRO.Web\Controllers\AccountController.cs", @"src\IPRO.Web\Controllers\ClientPortalAccountController.cs", @"src\IPRO.Admin\Controllers\AdminController.cs", @"src\IPRO.DataAccess\SignInLockout.cs"));
+        Assert.DoesNotContain("PasswordMatches(", Lock583.SourcesExcept(root, @"src\IPRO.Business\Services\AgentService.cs", @"src\IPRO.Business\Interfaces\IAgentService.cs", @"src\IPRO.Web\Controllers\AccountController.cs", @"src\IPRO.Web\Controllers\ClientPortalAccountController.cs", @"src\IPRO.Admin\Controllers\AdminController.cs", @"src\IPRO.DataAccess\SignInLockout.cs",
+            @"src\IPRO.Web\Controllers\TwoStepController.cs"));
     }
 }
 
@@ -924,7 +932,8 @@ internal static class Lock583
     public static AccountController Portal(IPRODbContext db, RecordingLockNotices notices, RecordingLogger log,
         IPasswordHasher<AgentUser>? hasher = null, ClaimsPrincipal? user = null) =>
         Prepare(new AccountController(new AgentService(new UnitOfWork(db), hasher ?? new PasswordHasher<AgentUser>()), null!, new UnitOfWork(db), null!, db,
-            null!, null!, log.For<AccountController>(), Config, null!, new PasswordHasher<TeamMember>(), notices), user);
+            null!, null!, log.For<AccountController>(), Config, null!, new PasswordHasher<TeamMember>(), notices,
+            new TwoStepGate(db, new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(), new RecordingTwoStepNotices(), notices, log.For<TwoStepGate>())), user);
 
     public static async Task<string?> PortalRefusalAsync(TestDatabase testDb, string name, string password, RecordingLockNotices notices, RecordingLogger log)
     {
@@ -1092,6 +1101,9 @@ public sealed class RecordingLockNotices : ISignInLockNotices
 {
     public ConcurrentQueue<SignInAccount> Queued { get; } = new();
     public void Queue(SignInAccount account) => Queued.Enqueue(account);
+    // 593: the two-step lock's email.
+    public ConcurrentQueue<TwoStepAccount> CodeLocks { get; } = new();
+    public void QueueCodeLock(TwoStepAccount account) => CodeLocks.Enqueue(account);
 }
 
 public sealed class RecordingLogger : ILogger

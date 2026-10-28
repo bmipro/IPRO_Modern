@@ -35,6 +35,8 @@ public class DashboardController : Controller
         ViewBag.Website         = await _websites.GetByAgentIdAsync(agentId);
         ViewBag.Subscription    = await _billing.GetActiveSubscriptionAsync(agentId);
         ViewBag.AgentName       = User.FindFirstValue("FullName");
+        // 593: everyone without two-step sign-in (the adviser, or the team member signed in) is asked to turn it on.
+        ViewBag.TwoStepOff = TwoStepGate.AccountOf(User) is { } me && await TwoStepStore.FindAsync(_db, me) == null;
         ViewBag.FeatureAccess = await LoadFeatureAccessAsync(agentId);
 
         // 523: the adviser's money at a glance, only where the package includes client invoicing;

@@ -199,6 +199,29 @@ public class AgentDeleteSafetyTests
         await db.Database.ExecuteSqlRawAsync("DROP TRIGGER IF EXISTS trg_sa_fail");
     }
 
+    // ---- 607: the message says whether a PayPal subscription was cancelled --------------------------
+
+    [Fact]
+    public async Task Deleting_an_agent_with_no_subscription_does_not_say_one_was_cancelled_607()
+    {
+        // The owner deleted his 599 test account (a trial, no PayPal) on 2026-10-26 and was told
+        // "PayPal subscription cancelled": the message said it every time.
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var agentId = await SeedAgentAsync(db, "nopaypal");
+
+        var audit = new RecordingAudit();
+        var controller = NewController(db, new RecordingBlobStore(), audit: audit);
+        await controller.Delete(agentId);
+
+        Assert.False(await db.AgentUsers.AsNoTracking().AnyAsync(a => a.Id == agentId));
+        var warning = Assert.IsType<string>(controller.TempData["Warning"]);
+        Assert.Contains("no PayPal subscription to cancel", warning);
+        Assert.DoesNotContain("PayPal subscription cancelled", warning);
+        var entry = Assert.Single(audit.Entries, e => e.Action == "AgentDelete");
+        Assert.Contains("no PayPal subscription to cancel", entry.Details);
+    }
+
     // ------------------------------------------------------------------------------ plumbing --
 
     private const string Solo = "https://iprostorageprod.blob.core.windows.net/article-media/safety-solo.jpg";

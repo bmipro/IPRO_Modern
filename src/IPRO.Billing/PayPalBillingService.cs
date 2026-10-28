@@ -1482,7 +1482,10 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         var subject = isFailedPayment
             ? "Action required: IPRO payment failed"
             : "Reminder: IPRO payment pending";
-        var html = BuildBillingIssueEmailHtml(fullName, packageName, amount, isFailedPayment ? BillingStatus.Failed : billing.Status);
+        // 598 (2026-10-24): "suspended" only once PayPal has suspended the subscription. A single failed
+        // payment while the subscription is still active is retried by PayPal, and the email says so.
+        var html = BuildBillingIssueEmailHtml(fullName, packageName, amount, isFailedPayment ? BillingStatus.Failed : billing.Status,
+            suspended: billing.Status == BillingStatus.Failed);
         var text = $"Hello {fullName},\n\nWe need your attention on the payment for {packageName}. Amount: {amount}. Please sign in to your IPRO Agent Portal and go to Billing to correct the issue.\n\nIPRO Management";
 
         if (!await _email.SendAsync(agent.Email, fullName, subject, html, text))
@@ -2233,8 +2236,8 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         var agent = await _uow.AgentUsers.GetByIdAsync(userId);
         if (agent == null || agent.PackageId == billingRuleId) return;
 
+        // Tracked (GetByIdAsync): the caller's save writes this column alone, never the whole row (593).
         agent.PackageId = billingRuleId;
-        _uow.AgentUsers.Update(agent);
     }
 
     private async Task<BillingChangeResult> BeginPaidChangeAsync(
@@ -3170,7 +3173,7 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             activeSubscription.BillingRuleId != issueBilling.BillingRuleId;
     }
 
-    private static string BuildBillingIssueEmailHtml(string fullName, string packageName, string amount, BillingStatus status)
+    private static string BuildBillingIssueEmailHtml(string fullName, string packageName, string amount, BillingStatus status, bool suspended = true)
     {
         var heading = status == BillingStatus.Failed ? "Payment Needs Attention" : "Payment Still Pending";
         return $"""
@@ -3187,9 +3190,11 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
                 <strong>Amount:</strong> {amount}<br/>
                 <strong>Status:</strong> {heading}
               </div>
-              <p>{(status == BillingStatus.Failed
-                    ? "Your subscription is suspended at PayPal, so there is nothing to retry here. Please sign in to your IPRO Agent Portal, open <strong>Billing</strong>, and subscribe again -- or contact support and we will help."
-                    : "Please sign in to your IPRO Agent Portal and open <strong>Billing</strong> to complete your payment.")}</p>
+              <p>{(status != BillingStatus.Failed
+                    ? "Please sign in to your IPRO Agent Portal and open <strong>Billing</strong> to complete your payment."
+                    : suspended
+                        ? "Your subscription is suspended at PayPal, so there is nothing to retry here. Please sign in to your IPRO Agent Portal, open <strong>Billing</strong>, and subscribe again -- or contact support and we will help."
+                        : "A payment didn't go through. PayPal will try again automatically over the next few days, and your account keeps working meanwhile. To avoid an interruption, sign in to your IPRO Agent Portal, open <strong>Billing</strong> and choose <strong>Fix Billing</strong> to update your payment method at PayPal.")}</p>
               <p style="margin-top:28px;">IPRO Management</p>
             </div>
           </div>

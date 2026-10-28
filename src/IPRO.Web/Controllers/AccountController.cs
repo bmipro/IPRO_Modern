@@ -35,9 +35,11 @@ public class AccountController : Controller
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> _teamHasher;
     private readonly ISignInLockNotices _lockNotices;
+    private readonly TwoStepGate _twoStep;
 
-    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory, Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> teamHasher, ISignInLockNotices lockNotices)
+    public AccountController(IAgentService agents, IEmailService email, IUnitOfWork uow, IBillingService billing, IPRODbContext db, IPackageEntitlementService entitlements, IBlobStorageService blob, ILogger<AccountController> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory, Microsoft.AspNetCore.Identity.IPasswordHasher<TeamMember> teamHasher, ISignInLockNotices lockNotices, TwoStepGate twoStep)
     {
+        _twoStep = twoStep;
         _teamHasher = teamHasher;
         _lockNotices = lockNotices;
         _agents = agents;
@@ -89,8 +91,12 @@ public class AccountController : Controller
             await SignInLockout.PadAsync(started);
             ModelState.AddModelError("", attempt.Locked ? SignInMessages.PortalLocked : "Invalid username or password."); return View();
         }
-        var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
-        await SignInAgentAsync(user, props);
+        // 593: with two-step sign-in on, the right password is half of it: on to the code page, signed in
+        // to nothing yet (unless this browser is remembered for the account).
+        var twoStep = await _twoStep.AfterPasswordAsync(HttpContext, TwoStepAccount.Adviser(user.Id), user.PasswordHash, rememberMe, returnUrl);
+        if (twoStep.Next != null) return twoStep.Next;
+        var props = PortalSignIn.Session(rememberMe);
+        await SignInAgentAsync(user, props, twoStep.Stamp);
         await _agents.UpdateLastLoginAsync(user.Id);
         if (user.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
@@ -223,11 +229,20 @@ public class AccountController : Controller
         var user = await _agents.GetByIdAsync(agent.Id);
         if (user != null)
         {
-            await SignInAgentAsync(user, new AuthenticationProperties
+            // 593: the reset proves the inbox, not the second step: with two-step sign-in on, the code
+            // page comes next (a remembered device is not, since its password fingerprint is the old one).
+            var twoStep = await _twoStep.AfterPasswordAsync(HttpContext, TwoStepAccount.Adviser(user.Id), user.PasswordHash, false, null);
+            if (twoStep.Next != null)
+            {
+                TempData["TwoStepNotice"] = "Your new password is saved. Type your code to finish signing in.";
+                return twoStep.Next;
+            }
+            var props = new AuthenticationProperties
             {
                 IsPersistent = false,
                 ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-            });
+            };
+            await SignInAgentAsync(user, props, twoStep.Stamp);
         }
         // Explicit path, not RedirectToAction("Index", "Dashboard") - that generates "/" because
         // Dashboard/Index are the default route's default values, and "/" on an agent's own
@@ -720,6 +735,7 @@ public class AccountController : Controller
 
         var profile = ToProfileViewModel(agent, package?.PackageName ?? "");
         profile.FollowUpReminderEmails = await FollowUpReminderPreference.IsEnabledAsync(_db, agent.Id);
+        await LoadEmailChangeStateAsync(agent.Id);
         return View(profile);
     }
 
@@ -748,6 +764,18 @@ public class AccountController : Controller
             ModelState.AddModelError("", "Another account already uses that email address.");
         }
 
+        // 593 (review): the login email is where "Forgot password?" and emailed two-step codes go, so a new
+        // one takes the current password -- and a code, when two-step sign-in is on -- and only the adviser
+        // may set it: a team member, or anyone holding a session left open, could otherwise move the
+        // account's keys to their own inbox. Checked last, so a form sent back for another reason costs no try.
+        var oldEmail = (agent.Email ?? string.Empty).Trim();
+        var emailChanging = !string.Equals(model.Email, oldEmail, StringComparison.OrdinalIgnoreCase);
+        if (emailChanging && ModelState.IsValid)
+        {
+            var proofError = await EmailChangeProofErrorAsync(agent, model.CurrentPassword, model.TwoStepCode);
+            if (proofError != null) ModelState.AddModelError("", proofError);
+        }
+
         if (!ModelState.IsValid)
         {
             var package = agent.PackageId > 0 ? await _uow.BillingRules.GetByIdAsync(agent.PackageId) : null;
@@ -755,7 +783,10 @@ public class AccountController : Controller
             model.UserName = agent.UserName;
             model.DomainName = agent.DomainName;
             model.PackageName = package?.PackageName ?? "";
+            model.CurrentPassword = null;
+            model.TwoStepCode = null;
             LoadTimeZoneOptions();
+            await LoadEmailChangeStateAsync(agent.Id);
             return View(model);
         }
 
@@ -784,11 +815,12 @@ public class AccountController : Controller
         await _agents.UpdateAsync(agent);
         // 498: the morning follow-ups email's switch lives in its own table, not on the adviser's row.
         await FollowUpReminderPreference.SetAsync(_db, agent.Id, model.FollowUpReminderEmails);
-        await SignInAgentAsync(agent, new AuthenticationProperties
+        await RefreshSessionAsync(agent);
+        if (emailChanging)
         {
-            IsPersistent = false,
-            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-        });
+            _logger.LogWarning("Login email changed for adviser {AgentId}", agent.Id);
+            _twoStep.NoticeEmailChanged(TwoStepAccount.Adviser(agent.Id), oldEmail);
+        }
 
         TempData["Success"] = "Profile updated.";
         return RedirectToAction(nameof(Profile));
@@ -810,11 +842,7 @@ public class AccountController : Controller
         {
             agent.PortalAccentColor = color.ToLowerInvariant();
             await _agents.UpdateAsync(agent);
-            await SignInAgentAsync(agent, new AuthenticationProperties
-            {
-                IsPersistent = false,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-            });
+            await RefreshSessionAsync(agent);
         }
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
@@ -955,7 +983,7 @@ public class AccountController : Controller
             {
                 IsPersistent = false,
                 ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-            });
+            }, CurrentTwoStepStamp);
         }
         // Explicit path, not RedirectToAction("Index", "Dashboard") - that generates "/" because
         // Dashboard/Index are the default route's default values, and "/" on an agent's own
@@ -991,7 +1019,8 @@ public class AccountController : Controller
 
         member.PasswordHash = _teamHasher.HashPassword(member, newPassword);
         member.MustChangePassword = false;
-        _uow.TeamMembers.Update(member);
+        // Tracked (GetByIdAsync): these columns only. Update() wrote the whole row (593: a request that read
+        // it before a password change could write the old hash back).
         await _uow.SaveChangesAsync();
         // 583: a new password unlocks sign-in at once.
         if (await SignInLockout.ClearAsync(_db, new SignInAccount(SignInAccountKind.TeamMember, member.Id), DateTime.UtcNow))
@@ -1004,7 +1033,7 @@ public class AccountController : Controller
             {
                 IsPersistent = false,
                 ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-            });
+            }, CurrentTwoStepStamp);
         }
         return Redirect("/portal/Dashboard");
     }
@@ -1091,54 +1120,94 @@ public class AccountController : Controller
     {
         var owner = member.AgentUser;
 
+        // 593: a team member's own two-step sign-in, exactly as the adviser's (TwoStepController finishes it).
+        var twoStep = await _twoStep.AfterPasswordAsync(HttpContext, TwoStepAccount.Member(member.AgentUserId, member.Id), member.PasswordHash, rememberMe, returnUrl);
+        if (twoStep.Next != null) return twoStep.Next;
+
         // Tracked since FindTeamMemberForSignInAsync: only this column is written (an Update() of the
         // member would write its owner's whole row back too, through the navigation).
         member.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        var props = new AuthenticationProperties { IsPersistent = rememberMe, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(rememberMe ? 168 : 8) };
-        await SignInTeamMemberAsync(member, owner, props);
+        var props = PortalSignIn.Session(rememberMe);
+        await SignInTeamMemberAsync(member, owner, props, twoStep.Stamp);
 
         if (member.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)) return LocalRedirect(returnUrl);
         return Redirect("/portal/Dashboard");
     }
 
-    private async Task SignInTeamMemberAsync(TeamMember member, AgentUser owner, AuthenticationProperties props)
+    // The claims are PortalSignIn's (593: TwoStepController makes the same cookie). `twoStepStamp`: the
+    // session passed two-step sign-in, or comes from a session that had (TwoStepGate.ClaimType).
+    private Task SignInTeamMemberAsync(TeamMember member, AgentUser owner, AuthenticationProperties props, string? twoStepStamp = null) =>
+        PortalSignIn.TeamMemberAsync(HttpContext, member, owner, props, twoStepStamp);
+
+    private Task SignInAgentAsync(AgentUser user, AuthenticationProperties props, string? twoStepStamp = null) =>
+        PortalSignIn.AdviserAsync(HttpContext, user, props, twoStepStamp);
+
+    // The stamp this session was made with (TwoStepGate.ClaimType): a cookie made again for the same
+    // session keeps it, or AgentCookieRevalidator would end the session at the next request.
+    private string? CurrentTwoStepStamp => User.FindFirstValue(TwoStepGate.ClaimType);
+
+    // 593: null when the login email may change: the adviser's own session, the current password (counted
+    // as a sign-in is, 583), and a code when two-step sign-in is on (counted as at the code page).
+    private async Task<string?> EmailChangeProofErrorAsync(AgentUser agent, string? currentPassword, string? code)
     {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, owner.Id.ToString()),
-            new(ClaimTypes.Name, owner.UserName),
-            new(ClaimTypes.Email, member.Email),
-            new("FullName", member.FullName),
-            new("PackageId", owner.PackageId.ToString()),
-            new("MustChangePassword", member.MustChangePassword ? "true" : "false"),
-            new("PortalAccentColor", owner.PortalAccentColor ?? ""),
-            new("TeamMemberId", member.Id.ToString())
-        };
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
-            props);
+        if (User.FindFirstValue("TeamMemberId") != null)
+            return "Only the account owner can change the login email.";
+        if (string.IsNullOrWhiteSpace(currentPassword))
+            return "To change the login email, type your current password.";
+        var check = await SignInLockout.TryAsync(_db, SignInDoor.Portal, agent.UserName,
+            new[] { new SignInCandidate(new SignInAccount(SignInAccountKind.Adviser, agent.Id), () => _agents.PasswordMatches(agent, currentPassword!)) },
+            DateTime.UtcNow);
+        NoteLocks(check, SignInDoor.Portal);
+        if (!check.Succeeded)
+            return check.Locked ? TwoStepMessages.PasswordLocked : "Current password is incorrect.";
+
+        var account = TwoStepAccount.Adviser(agent.Id);
+        if (await TwoStepStore.FindAsync(_db, account) == null) return null;
+        var result = await _twoStep.CheckCodeAsync(HttpContext, account, code);
+        return result is TwoStepGate.CodeResult.Right or TwoStepGate.CodeResult.RightRecoveryCode
+            ? null
+            : result == TwoStepGate.CodeResult.Wrong
+                ? "To change the login email, type a two-step sign-in code (or one of your recovery codes) too."
+                : TwoStepMessages.ForResult(result, false);
     }
 
-    private async Task SignInAgentAsync(AgentUser user, AuthenticationProperties props)
+    // What the profile's Login Email card shows: whether a code is needed, and whether this session may
+    // change the email at all.
+    private async Task LoadEmailChangeStateAsync(int agentId)
     {
-        var claims = new List<Claim>
+        ViewBag.EmailChangeByTeamMember = User.FindFirstValue("TeamMemberId") != null;
+        var row = await TwoStepStore.FindAsync(_db, TwoStepAccount.Adviser(agentId));
+        ViewBag.EmailChangeTwoStepMethod = row?.Method;
+    }
+
+    // The cookie made again after the account row changed (profile, portal colour), as the same person.
+    // 593: a team member stays a team member. Before, this signed them in again as the adviser -- without
+    // the TeamMemberId claim, so Billing and My Team (more logins, other members' passwords) opened to
+    // them the moment they saved the profile form or picked a colour.
+    private async Task RefreshSessionAsync(AgentUser agent)
+    {
+        var props = new AuthenticationProperties
         {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.UserName),
-            new(ClaimTypes.Email, user.Email),
-            new("FullName", $"{user.FirstName} {user.LastName}"),
-            new("PackageId", user.PackageId.ToString()),
-            new("MustChangePassword", user.MustChangePassword ? "true" : "false"),
-            new("PortalAccentColor", user.PortalAccentColor ?? "")
+            IsPersistent = false,
+            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
         };
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
-            props);
+        if (User.FindFirstValue("TeamMemberId") is { } memberClaim)
+        {
+            var member = int.TryParse(memberClaim, out var memberId)
+                ? await _db.TeamMembers.AsNoTracking().FirstOrDefaultAsync(t => t.Id == memberId && t.AgentUserId == agent.Id && t.IsActive)
+                : null;
+            if (member == null)
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
+            }
+            await SignInTeamMemberAsync(member, agent, props, CurrentTwoStepStamp);
+            return;
+        }
+        await SignInAgentAsync(agent, props, CurrentTwoStepStamp);
     }
 
     private async Task<string> GenerateUniqueUserNameAsync(string firstName, string lastName)

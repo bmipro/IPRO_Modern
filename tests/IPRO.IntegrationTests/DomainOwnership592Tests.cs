@@ -290,11 +290,13 @@ public class DomainOwnership592Tests : IDisposable
         db.ChangeTracker.Clear();
         Assert.Matches("^ipro-[0-9a-f]{32}$", (await db.AgentDomains.SingleAsync(d => d.Id == row.Id)).VerificationToken);
 
-        var view = Read(@"src\IPRO.Web\Views\Website\Index.cshtml");
-        Assert.Contains("@if (IPRO.Utility.DomainOwnershipProof.IsNeeded(domain))", view);
-        Assert.Contains("@IPRO.Utility.DomainOwnershipProof.NameToType(domain)", view);
-        Assert.Contains("<span class=\"text-muted\">Value&nbsp;</span>@domain.VerificationToken", view);
+        // 595: step 1 of each domain's guide (DomainSetupGuide), with the record's Name and Value to copy.
+        var view = Read(@"src\IPRO.Web\Views\Website\_DomainGuide.cshtml");
         Assert.Contains("Nothing is connected until we see it.", view);
+        Assert.Contains("<code id=\"@recordId-value\" class=\"text-break\">@record.Value</code>", view);
+        var guide = Read(@"src\IPRO.Utility\DomainSetupGuide.cs");
+        Assert.Contains("var provenAlready = !DomainOwnershipProof.IsNeeded(domain);", guide);
+        Assert.Contains("Records = new[] { new Record(\"proof\", \"TXT\", NameFor(proofName), proofName, domain.VerificationToken) },", guide);
     }
 
     [Fact]

@@ -93,6 +93,14 @@ builder.Services.AddScoped<IPasswordHasher<TeamMember>, PasswordHasher<TeamMembe
 builder.Services.AddScoped<IAgentService, AgentService>();
 // 583: the one email a sign-in lock sends, after the sign-in has answered.
 builder.Services.AddSingleton<IPRO.Web.Infrastructure.ISignInLockNotices>(sp => new IPRO.Web.Infrastructure.SignInLockNotices(sp.GetRequiredService<IServiceScopeFactory>()));
+// 593: two-step sign-in -- its emails, and the gate every right password passes through.
+builder.Services.AddSingleton<IPRO.Web.Infrastructure.ITwoStepNotices>(sp => new IPRO.Web.Infrastructure.TwoStepNotices(sp.GetRequiredService<IServiceScopeFactory>()));
+builder.Services.AddScoped(sp => new IPRO.Web.Infrastructure.TwoStepGate(
+    sp.GetRequiredService<IPRODbContext>(),
+    sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+    sp.GetRequiredService<IPRO.Web.Infrastructure.ITwoStepNotices>(),
+    sp.GetRequiredService<IPRO.Web.Infrastructure.ISignInLockNotices>(),
+    sp.GetRequiredService<ILogger<IPRO.Web.Infrastructure.TwoStepGate>>()));
 builder.Services.AddScoped<IPackageEntitlementService, PackageEntitlementService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<INewsLetterService, NewsLetterService>();
@@ -133,8 +141,16 @@ builder.Services.AddScoped<IEmailService>(sp => new RoutingEmailService(
     sp.GetRequiredService<SesEmailService>(),
     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EmailSettings>>(),
     sp.GetRequiredService<ILogger<RoutingEmailService>>()));
+// 593: on a developer's PC, Email__Provider=Folder keeps every email as a file in Email__Folder instead of
+// sending it (two-step set-up needs its emailed code). Development only; never set it anywhere else (any
+// value but "Azure" means the SendGrid provider above, so mail would stop). The files hold sign-in codes
+// and reset links: with no folder named they go under the user's local app data, never into the repository.
+if (builder.Environment.IsDevelopment() && string.Equals(builder.Configuration["Email:Provider"], "Folder", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<IEmailService>(_ => new FolderEmailService(builder.Configuration["Email:Folder"] is { Length: > 0 } folder
+        ? folder : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ipro-local-mail")));
 // 585: a staging copy of iPro (App:Environment "Staging") does not start with settings that could reach a
-// real person or real money (StagingGuard), and emails only the addresses Email:OnlyTo names.
+// real person or real money (StagingGuard), and emails only the addresses Email:OnlyTo names. Last, so the
+// restriction wraps whichever email service is registered above.
 StagingGuard.ThrowIfUnsafe(builder.Configuration);
 builder.Services.RestrictEmailTo(StagingGuard.OnlyTo(builder.Configuration));
 // 531: Amazon's delivery reports arrive through SNS; nothing in them is believed until it is signed.
@@ -151,6 +167,8 @@ builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddScoped<IReferralPayerLookup, PayPalBillingService>();
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
+// 608: the Google sync tells a client when the adviser moves their appointment there.
+builder.Services.AddScoped<IPRO.Scheduler.IAppointmentMoveNotifier, IPRO.Web.Infrastructure.AppointmentMoveNotifier>();
 // 527: Stripe Connect -- the adviser's own processor. The keys are App Service settings; empty
 // means "not set up", and the Payments page says so instead of failing.
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
@@ -247,13 +265,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     // range the front-end actually connects from - omitting it left every request untrusted and
     // silently falling back to that internal hop address instead of the real client IP (caught
     // 2026-07-28 via a RegistrationIpAddress showing 169.254.x.x instead of a real client IP).
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
     foreach (var cidr in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16" })
     {
         var (prefix, length) = ParseCidr(cidr);
-        options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, length));
-        options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix.MapToIPv6(), length + 96));
+        options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, length));
+        options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix.MapToIPv6(), length + 96));
     }
 });
 
@@ -403,6 +421,17 @@ app.Use(async (context, next) =>
         return;
     }
 
+    // 593: SuperAdmin requires two-step sign-in for this account and this person has none yet
+    // (AgentCookieRevalidator marks the request): the two-step pages, Change Password and Sign out only,
+    // until it is on. The two-step pages are the person's own account, open to a billing-gated one too.
+    var canUseTwoStep = path.StartsWith("/TwoStep", StringComparison.OrdinalIgnoreCase);
+    var twoStepSetupRequired = isAuthenticated && context.Items.ContainsKey(IPRO.Web.Infrastructure.TwoStepGate.SetupRequiredItem);
+    if (twoStepSetupRequired && !canChangePassword && !canLogout && !canUseTwoStep)
+    {
+        context.Response.Redirect(IPRO.Web.Infrastructure.TwoStepGate.SetupPath);
+        return;
+    }
+
     // No active subscription and outside the trial + grace window (or never on a trial at all):
     // every tab except Billing (and Account, so they can still log out) is blocked until they
     // subscribe. Checked here rather than baked into the auth cookie because access needs to stop
@@ -425,7 +454,8 @@ app.Use(async (context, next) =>
         || path.StartsWith("/Account/SetPortalAccentColor", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("/Account/UploadPhoto", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("/Account/RemovePhoto", StringComparison.OrdinalIgnoreCase)
-        || canChangePassword;
+        || canChangePassword
+        || canUseTwoStep;
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
 
     // Team members (#379) act as their agent everywhere EXCEPT the owner-only controls: Billing
@@ -527,7 +557,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 20);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 21);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -563,6 +593,8 @@ RecurringJob.AddOrUpdate<CertificateExpiryJob>("certificate-expiry", job => job.
 // 474 (2026-09-11): a gzipped SQL dump of the whole database to the private db-backups container,
 // 30-day retention. 06:15 UTC is 02:15 Eastern, the quietest hour.
 RecurringJob.AddOrUpdate<DatabaseDumpJob>("database-dump", job => job.RunAsync(), "15 6 * * *");
+// 599 (2026-10-24): a suspended account's yearly data review -- one email to iPro's mailbox when due.
+RecurringJob.AddOrUpdate<SuspendedAccountReviewJob>("suspended-account-review", job => job.RunAsync(), "30 13 * * *");
 // 585: the new builder (Beta): erasures owed to it, looks whose hour is over, spent passes.
 RecurringJob.AddOrUpdate<BuilderBetaJob>("builder-beta", job => job.RunAsync(), "*/10 * * * *");
 }
@@ -610,11 +642,20 @@ using (var scope = app.Services.CreateScope())
     // 583: the sign-in lock columns and SignInNameLocks, right after TeamMembers is created and before any
     // later step can load an account row (EF reads every mapped column).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureSignInLockoutSchemaAsync", () => StartupSchemaRepair.EnsureSignInLockoutSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAccountSuspensionSchemaAsync", () => StartupSchemaRepair.EnsureAccountSuspensionSchemaAsync(db), db, app.Logger);
+    // 593: two-step sign-in's tables. Every portal sign-in and signed-in request reads them, so if the step
+    // failed AND they are not there, the app does not start (the deploy check then fails where it is seen);
+    // a step that failed on tables already there (a lock wait) costs nothing, as for any other step.
+    if (!await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureTwoStepSignInSchemaAsync", () => StartupSchemaRepair.EnsureTwoStepSignInSchemaAsync(db), db, app.Logger)
+        && !await StartupSchemaRepair.TwoStepSignInTablesExistAsync(db))
+        throw new InvalidOperationException("The two-step sign-in tables are missing and could not be made; the portal cannot sign anyone in without them.");
     await StartupGuard.RunStepAsync("WebsiteContentSchema.EnsureAsync", () => WebsiteContentSchema.EnsureAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteLeadSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteContentBlockSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync", () => StartupSchemaRepair.EnsureDripCampaignEnrollmentSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePrepaidValueSchemaAsync", () => StartupSchemaRepair.EnsurePrepaidValueSchemaAsync(db), db, app.Logger);
+    // 600: the refund credit-note columns on SubscriptionChanges, right after the refund columns themselves.
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureRefundCreditNoteSchemaAsync", () => StartupSchemaRepair.EnsureRefundCreditNoteSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync", () => StartupSchemaRepair.EnsureNewsLetterTemplateSchemaAsync(db), db, app.Logger);
 
     // Starter content is optional: an agent can work without a card design or a letter template,

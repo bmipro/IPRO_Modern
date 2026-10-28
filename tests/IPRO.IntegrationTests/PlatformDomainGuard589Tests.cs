@@ -94,7 +94,7 @@ public class PlatformDomainGuard589Tests : IDisposable
         {
             controller.TempData.Clear();
             var result = await controller.AddDomain(name);
-            Assert.Equal("Index", Assert.IsType<RedirectToActionResult>(result).ActionName);
+            Assert.Equal("Domains", Assert.IsType<RedirectToActionResult>(result).ActionName);   // 595: the Domain page
             Assert.Contains("one of IPRO's own addresses", controller.TempData["Error"] as string ?? "(no error for " + name + ")");
         }
 

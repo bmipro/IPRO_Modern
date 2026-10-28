@@ -5,6 +5,7 @@ using IPRO.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IPRO.Web.Controllers;
 
@@ -38,6 +39,13 @@ public class TeamController : Controller
         ViewBag.SeatLimit = await ResolveSeatLimitAsync();
         ViewBag.ActiveCount = members.Count(m => m.IsActive);
         ViewBag.AgentTimeZone = (await _uow.AgentUsers.GetByIdAsync(AgentId))?.TimeZone;
+        // 593: whose two-step sign-in is on (the Reset button is offered for those), and whose is held.
+        var twoStep = await _uow.Context.TwoStepSignIns.AsNoTracking()
+            .Where(t => t.AgentUserId == AgentId && t.TeamMemberId != 0)
+            .Select(t => new { t.TeamMemberId, t.WrongCodes })
+            .ToListAsync();
+        ViewBag.TwoStepOn = twoStep.Select(t => t.TeamMemberId).ToHashSet();
+        ViewBag.TwoStepHeld = twoStep.Where(t => t.WrongCodes >= IPRO.DataAccess.TwoStepStore.WrongCodesBeforeHold).Select(t => t.TeamMemberId).ToHashSet();
         return View(members);
     }
 
@@ -106,7 +114,8 @@ public class TeamController : Controller
         var temporaryPassword = EncryptionService.GenerateToken(12);
         member.PasswordHash = _hasher.HashPassword(member, temporaryPassword);
         member.MustChangePassword = true;
-        _uow.TeamMembers.Update(member);
+        // Tracked (GetByIdAsync): these columns only (593: Update() wrote the whole row, so a request that
+        // read it before a password change could write the old hash back).
         await _uow.SaveChangesAsync();
         // 583: a new password unlocks sign-in at once -- the team member's way out of a lock.
         var account = new IPRO.DataAccess.SignInAccount(IPRO.DataAccess.SignInAccountKind.TeamMember, member.Id);
@@ -116,6 +125,53 @@ public class TeamController : Controller
         TempData["TeamTempPassword"] = temporaryPassword;
         TempData["TeamTempPasswordFor"] = $"{member.FullName} ({member.Email})";
         TempData["Success"] = $"Password reset for {member.FullName}. They must change it at first login.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // 593: a team member who lost their phone and their recovery codes. Their two-step sign-in is turned
+    // off (every session of theirs ends: AgentCookieRevalidator) and they are emailed; the next sign-in
+    // needs only their password, and they set it up again (straight away, where it is required).
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetTwoStep(int id)
+    {
+        if (IsTeamMemberSession) return Redirect("/portal/Dashboard");
+        var member = await GetOwnedMemberAsync(id);
+        if (member == null) return NotFound();
+
+        var account = IPRO.DataAccess.TwoStepAccount.Member(member.AgentUserId, member.Id);
+        // Held after 20 wrong codes: whoever was guessing has their password, so a reset that left it would
+        // hand them the login (the review of 593). They get a new temporary password as well.
+        var held = IPRO.DataAccess.TwoStepStore.IsCodeHeld(await IPRO.DataAccess.TwoStepStore.FindAsync(_uow.Context, account));
+        // The new password first: two-step is only turned off once it is saved.
+        string? temporaryPassword = null;
+        if (held)
+        {
+            temporaryPassword = EncryptionService.GenerateToken(12);
+            member.PasswordHash = _hasher.HashPassword(member, temporaryPassword);
+            member.MustChangePassword = true;
+            await _uow.SaveChangesAsync();
+            await IPRO.DataAccess.SignInLockout.ClearAsync(_uow.Context, account.SignIn, DateTime.UtcNow);
+        }
+        if (await IPRO.DataAccess.TwoStepStore.DisableAsync(_uow.Context, account))
+        {
+            _logger.LogWarning("Two-step sign-in reset by the account owner: TeamMember {Id}", member.Id);
+            HttpContext.RequestServices.GetService<IPRO.Web.Infrastructure.ITwoStepNotices>()?
+                .Queue(account, IPRO.Web.Infrastructure.TwoStepNotice.ResetByOwner);
+            if (temporaryPassword != null)
+            {
+                TempData["TeamTempPassword"] = temporaryPassword;
+                TempData["TeamTempPasswordFor"] = $"{member.FullName} ({member.Email})";
+                TempData["Success"] = $"Two-step sign-in reset for {member.FullName}. It was locked after 20 wrong codes, so someone has their password: they also have a new temporary password, below. They have been emailed.";
+            }
+            else
+            {
+                TempData["Success"] = $"Two-step sign-in reset for {member.FullName}. Their password alone signs them in until they set it up again; they have been emailed.";
+            }
+        }
+        else
+        {
+            TempData["Success"] = $"{member.FullName} does not have two-step sign-in on.";
+        }
         return RedirectToAction(nameof(Index));
     }
 
@@ -138,7 +194,7 @@ public class TeamController : Controller
         }
 
         member.IsActive = !member.IsActive;
-        _uow.TeamMembers.Update(member);
+        // Tracked: this column only (593: Update() wrote the whole row back, password hash included).
         await _uow.SaveChangesAsync();
         TempData["Success"] = member.IsActive
             ? $"{member.FullName} can sign in again."
@@ -155,6 +211,8 @@ public class TeamController : Controller
 
         _uow.TeamMembers.Remove(member);
         await _uow.SaveChangesAsync();
+        // 593: their two-step sign-in and recovery codes go with them.
+        await IPRO.DataAccess.TwoStepStore.ForgetAsync(_uow.Context, IPRO.DataAccess.TwoStepAccount.Member(member.AgentUserId, member.Id));
         TempData["Success"] = $"{member.FullName} removed.";
         return RedirectToAction(nameof(Index));
     }

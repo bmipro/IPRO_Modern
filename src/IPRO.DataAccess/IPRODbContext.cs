@@ -43,6 +43,11 @@ public class IPRODbContext : DbContext
     public DbSet<NumberSequence> NumberSequences => Set<NumberSequence>();
     // 583: wrong passwords typed with a name that is no account (SignInLockout).
     public DbSet<SignInNameLock> SignInNameLocks => Set<SignInNameLock>();
+    // 593: two-step sign-in (TwoStepStore).
+    public DbSet<TwoStepSignIn> TwoStepSignIns => Set<TwoStepSignIn>();
+    public DbSet<TwoStepRecoveryCode> TwoStepRecoveryCodes => Set<TwoStepRecoveryCode>();
+    public DbSet<TwoStepRequirement> TwoStepRequirements => Set<TwoStepRequirement>();
+    public DbSet<TwoStepSetupCode> TwoStepSetupCodes => Set<TwoStepSetupCode>();
     public DbSet<AgentFollowUpReminder> AgentFollowUpReminders => Set<AgentFollowUpReminder>();
     // 523 (slice 3): the adviser's invoice-reminder schedule, and the stages sent per invoice.
     public DbSet<ClientInvoiceReminderSettings> ClientInvoiceReminderSettings => Set<ClientInvoiceReminderSettings>();
@@ -725,6 +730,33 @@ public class IPRODbContext : DbContext
             e.HasIndex(n => n.LastFailedAt);
         });
 
+        // 593: two-step sign-in. No relationships on purpose: the rows go with the account through
+        // AgentDataEraser's map and TwoStepStore.ForgetAsync, as the start-up tables' rows do.
+        modelBuilder.Entity<TwoStepSignIn>(e =>
+        {
+            e.HasIndex(t => new { t.AgentUserId, t.TeamMemberId }).IsUnique();
+            e.Property(t => t.Method).HasMaxLength(10);
+            e.Property(t => t.ProtectedSecret).HasMaxLength(1000);
+            e.Property(t => t.Stamp).HasMaxLength(64);
+            e.Property(t => t.EmailCodeHash).HasMaxLength(128);
+        });
+        modelBuilder.Entity<TwoStepRecoveryCode>(e =>
+        {
+            e.HasIndex(r => new { r.AgentUserId, r.TeamMemberId });
+            e.Property(r => r.CodeHash).HasMaxLength(200);
+        });
+        modelBuilder.Entity<TwoStepSetupCode>(e =>
+        {
+            e.HasIndex(c => new { c.AgentUserId, c.TeamMemberId }).IsUnique();
+            e.Property(c => c.CodeHash).HasMaxLength(128);
+        });
+        modelBuilder.Entity<TwoStepRequirement>(e =>
+        {
+            e.HasKey(r => r.AgentUserId);
+            e.Property(r => r.AgentUserId).ValueGeneratedNever();
+            e.Property(r => r.RequiredBy).HasMaxLength(200);
+        });
+
         // 452: the invoice's email log. Cascades with the invoice; ProviderMessageId is indexed because
         // every delivery event resolves by it (AzureEmailEventsController.ResolveByMessageIdAsync).
         modelBuilder.Entity<ClientInvoiceEmail>(e =>
@@ -779,6 +811,12 @@ public class IPRODbContext : DbContext
             e.Property(c => c.ProratedCharge).HasPrecision(10, 2);
             e.Property(c => c.AmountDue).HasPrecision(10, 2);
             e.Property(c => c.Currency).HasMaxLength(3).IsRequired();
+            // 600: the refund's credit note (StartupSchemaRepair.EnsureRefundCreditNoteSchemaAsync).
+            e.Property(c => c.CreditNoteNumber).HasMaxLength(30);
+            e.Property(c => c.CreditNoteInvoiceNumber).HasMaxLength(64);
+            e.Property(c => c.CreditNoteTaxRate).HasPrecision(7, 5);
+            e.Property(c => c.CreditNoteTaxRegion).HasMaxLength(100);
+            e.Property(c => c.PayPalRefundId).HasMaxLength(200);
         });
 
         // NewsLetter → AgentUser
