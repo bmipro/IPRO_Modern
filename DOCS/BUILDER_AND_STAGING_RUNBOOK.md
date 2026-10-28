@@ -143,10 +143,12 @@ a staging copy set up wrongly does not start, and says why):
 8. **Sign-in in front of staging:** on `ipro-staging-admin` and on `ipro-staging-web`, **Authentication >
    Add identity provider > Microsoft**, as you did for production's SuperAdmin on 2026-09-12
    (DOCS/14 and TODO 482: require authentication, only you assigned). Then tell me, and on your word I
-   exclude the addresses that must stay open: `/health,/health/version` on both, and `/builder-api` on
-   `ipro-staging-web` (the staging builder's server talks to it; without the exclusion every opening of
-   the staging builder fails with "iPro's answer could not be read"). The two builders need no such
-   step: nobody gets into a builder without a session from iPro.
+   exclude the addresses that must stay open: `/health,/health/version` on both, and `/builder-api` AND
+   `/builder-api/*` on `ipro-staging-web` (the staging builder's server talks to it; without the exclusion
+   every opening of the staging builder fails). **An excluded path matches only itself**: with `/builder-api`
+   alone, `/builder-api/session` still met the sign-in (401) and the builder said "Your session has ended"
+   (found 2026-10-28; `/builder-api/*` added on your word; a key-less call now gets iPro's own 404). The two
+   builders need no such step: nobody gets into a builder without a session from iPro.
 
 ## Part B: settings (each app's Configuration > Application settings)
 
