@@ -113,6 +113,14 @@ a staging copy set up wrongly does not start, and says why):
       repository is private, where GitHub's free plan has no environments; its production workflow runs
       only when you start it, and only for a commit the staging builder serves. Check in its GitHub
       settings, Collaborators, that nobody but you can write to it.)
+
+   **The builder repository's two credentials (a and b) carry GitHub's immutable subject** (found at the
+   first staging deploy, 2026-10-28): GitHub names that repository by its owner's and its own ids,
+   `repo:bmipro@297932945/IPRO.TemplateBuilder@1350733688:ref:refs/heads/main`, while `IPRO_Modern` is
+   still named plainly (`repo:bmipro/IPRO_Modern:...`). Azure refused the plain builder subject
+   (AADSTS700213) until both `builder-main` credentials were changed to the immutable one, on your word.
+   What a repository sends: `gh api repos/bmipro/<repository>/actions/oidc/customization/sub`
+   (`sub_claim_prefix`).
    c. **Production iPro** (the existing app registration behind `AZUREAPPSERVICE_CLIENTID_...`): add a
       federated credential for repository `IPRO_Modern`, entity **Environment**, environment
       `production`. In GitHub, `IPRO_Modern` > Settings > Environments > New environment `production`,
