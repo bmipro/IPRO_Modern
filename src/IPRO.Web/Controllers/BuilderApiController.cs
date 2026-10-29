@@ -98,7 +98,7 @@ public class BuilderApiController : Controller
             adviser = adviser.Length <= 120 ? adviser : adviser[..120],
             publishing = granted.Beta.AdviserPublishes ? "adviser" : "staff",
             returnTo = PortalBase + "/portal/Website",
-            look = BuilderBeta.Look(granted.Site),
+            look = BuilderBeta.Look(granted.Site, agent),
             site = siteName.Length <= 120 ? siteName : siteName[..120],
             address = address.Length <= 253 ? address : string.Empty,
             accent = PortalAccents.Contains(accent) ? accent : PortalAccents[0],

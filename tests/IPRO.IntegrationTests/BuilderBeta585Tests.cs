@@ -140,6 +140,19 @@ public class BuilderBeta585Tests
         Assert.Equal(free, opened["address"]!.GetValue<string>());
         Assert.Equal("#1457d9", opened["accent"]!.GetValue<string>());
         Assert.Equal("https://portal.example.test/portal/Support/Article/website-builder#try-the-new-builder-beta", opened["help"]!.GetValue<string>());
+        // 614: and what the builder needs to draw the page in the site's own design.
+        var owner = await db.AgentUsers.AsNoTracking().SingleAsync(a => a.Id == seeded.Site.AgentUserId);
+        var siteLook = opened["look"]!;
+        Assert.Equal("modern-professional", siteLook["design"]!.GetValue<string>());
+        Assert.Equal("#07142f", siteLook["vars"]!["--site-theme-deep"]!.GetValue<string>());
+        Assert.Matches("^#[0-9a-f]{6}$", siteLook["vars"]!["--site-theme-ink"]!.GetValue<string>());
+        Assert.Equal("82px", siteLook["vars"]!["--section-space"]!.GetValue<string>());
+        Assert.Matches("^header-[a-z]+ hero-[a-z-]+ hero-style-[a-z]+ buttons-[a-z]+$", siteLook["bodyClass"]!.GetValue<string>());
+        Assert.Equal("style-standard logo-left logo-size-medium", siteLook["headerClass"]!.GetValue<string>());
+        Assert.Equal(owner.CompanyName, siteLook["company"]!.GetValue<string>());
+        Assert.Equal(BuilderBeta.Monogram(owner), siteLook["monogram"]!.GetValue<string>());
+        Assert.Equal($"{owner.FirstName} {owner.LastName}".Trim(), siteLook["contact"]!["name"]!.GetValue<string>());
+        Assert.Equal("Sample Bakery", siteLook["copyright"]!.GetValue<string>());
         Assert.IsType<UnauthorizedObjectResult>(await Api(db, blob, email, pass).Open());
 
         // 2. The site as it is now, as a hand-over made for the customer.

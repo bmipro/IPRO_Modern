@@ -275,7 +275,11 @@ public static class BuilderBeta
 
     // The colours, font and sizes the public site really uses: the template's own, with the adviser's
     // own choices from My Website over them (the same resolution the public site's shells make).
-    public static Dictionary<string, object> Look(AgentWebsite site)
+    // 614: and what the builder needs to draw the page as the site's own design does: which of the three
+    // designs, the custom properties its shell sets, the classes on its body and header, and the words
+    // the design writes itself (the business name over the hero, its first letter where the hero has
+    // no picture, the contact's name and phone, the footer's name). Every one optional to the builder.
+    public static Dictionary<string, object> Look(AgentWebsite site, AgentUser? agent = null)
     {
         var design = WebsiteTemplateDesign.FromTemplate(site.Template, new AgentDesignOverrides
         {
@@ -288,7 +292,7 @@ public static class BuilderBeta
             SectionSpacing = site.SectionSpacingOverride,
             HeroStyle = site.HeroStyleOverride
         });
-        return new Dictionary<string, object>
+        var look = new Dictionary<string, object>
         {
             ["accent"] = design.AccentColor ?? string.Empty,
             ["background"] = design.BackgroundColor ?? string.Empty,
@@ -297,7 +301,75 @@ public static class BuilderBeta
             ["bodySize"] = design.BodyFontSize,
             ["buttons"] = design.ButtonStyle switch { "square" => "square", "pill" => "pill", _ => "rounded" }
         };
+
+        var shell = ShellFor(design.Renderer);
+        var accent = AccentContrast.For(design.AccentColor ?? string.Empty, shell.Tint, design.BackgroundColor);
+        var vars = new Dictionary<string, string>
+        {
+            ["--site-theme"] = accent.Fill,
+            ["--site-theme-on"] = accent.OnFill,
+            ["--site-theme-band"] = accent.Band,
+            ["--site-theme-ink"] = accent.Ink,
+            ["--site-theme-deep"] = shell.Deep,
+            ["--site-theme-soft"] = shell.Tint,
+            ["--section-space"] = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px",
+            ["--button-radius"] = design.ButtonStyle == "square" ? "2px" : design.ButtonStyle == "pill" ? "999px" : "7px",
+            ["--heading-font-size"] = design.HeadingFontSize + "px",
+            ["--body-font-size"] = design.BodyFontSize + "px"
+        };
+        foreach (var (name, value) in shell.Extra) vars[name] = value;
+        var header = WebsiteHeaderSettings.FromJson(site.HeaderSettingsJson);
+        look["design"] = shell.Name;
+        // The font the live site really draws with: the shells write the font list into a <style> through
+        // Razor, which encodes its quote marks, and the browser drops a declaration so written; the page
+        // then falls back to Bootstrap's own font (TODO 618). Empty says "the browser's default".
+        var font = design.FontFamily ?? string.Empty;
+        look["siteFont"] = font.Contains('\'') || font.Contains('"') ? string.Empty : font;
+        look["vars"] = vars;
+        look["bodyClass"] = $"header-{design.HeaderStyle} hero-{design.HeroLayout} hero-style-{design.HeroStyle} buttons-{design.ButtonStyle}";
+        look["headerClass"] = $"style-{header.Style} logo-{header.LogoPosition} logo-size-{header.LogoSize}" + (header.Sticky ? " is-sticky" : string.Empty);
+        if (agent != null)
+        {
+            var company = (agent.CompanyName ?? string.Empty).Trim();
+            var person = $"{agent.FirstName} {agent.LastName}".Trim();
+            var footer = WebsiteFooterSettings.FromJson(site.FooterSettingsJson);
+            var siteName = string.IsNullOrWhiteSpace(site.SiteTitle) ? (company.Length == 0 ? person : company) : site.SiteTitle.Trim();
+            look["company"] = Clip(company, 120);
+            look["monogram"] = Monogram(agent);
+            look["contact"] = new Dictionary<string, string> { ["name"] = Clip(person, 120), ["phone"] = Clip((agent.Phone ?? string.Empty).Trim(), 40) };
+            look["copyright"] = Clip(string.IsNullOrWhiteSpace(footer.CopyrightText) ? siteName : footer.CopyrightText.Trim(), 120);
+            // What the header shows after the menu (_PublicNavigation): the phone, an "Email" link, a button.
+            look["headerActions"] = new Dictionary<string, object>
+            {
+                ["phone"] = header.ShowPhone ? Clip((agent.Phone ?? string.Empty).Trim(), 40) : string.Empty,
+                ["email"] = header.ShowEmail && !string.IsNullOrWhiteSpace(agent.Email),
+                ["button"] = Clip((header.ButtonText ?? string.Empty).Trim(), 60)
+            };
+        }
+        return look;
     }
+
+    // 614: what each of the three shells (_ModernProfessional, _ClassicSidebar, _EditorialVisual) sets in
+    // its :root besides the colour roles: its palest tint, its deep colour, and its own text colours.
+    // BuilderSiteLook614Tests holds these to the shells' own lines.
+    public sealed record Shell(string Name, string Tint, string Deep, IReadOnlyList<(string Name, string Value)> Extra);
+
+    public static Shell ShellFor(string? renderer) => renderer switch
+    {
+        "classic-sidebar" => new("classic-sidebar", "#f2f6fc", "#111827", [("--ink", "#162033"), ("--muted", "#607089"), ("--line", "#d8e1ee")]),
+        "editorial-visual" => new("editorial-visual", "#f1ece3", "#241f1a", [("--ink", "#211e1a"), ("--muted", "#6f685f")]),
+        _ => new("modern-professional", "#eef4ff", "#07142f", [])
+    };
+
+    // The letter a hero without a picture shows (each managed page's HeroMonogram).
+    public static string Monogram(AgentUser agent)
+    {
+        if (!string.IsNullOrWhiteSpace(agent.FirstName)) return agent.FirstName.Substring(0, 1).ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(agent.CompanyName)) return agent.CompanyName.Substring(0, 1).ToUpperInvariant();
+        return ((char)0x2022).ToString();
+    }
+
+    private static string Clip(string value, int max) => value.Length <= max ? value : value[..max];
 
     // ---- tokens ----
 
