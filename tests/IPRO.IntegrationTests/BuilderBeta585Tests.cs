@@ -133,6 +133,13 @@ public class BuilderBeta585Tests
         Assert.Equal("Sample Bakery", opened["adviser"]!.GetValue<string>());
         Assert.Equal("https://portal.example.test/portal/Website", opened["returnTo"]!.GetValue<string>());
         Assert.Matches("^#[0-9a-fA-F]{6}$", opened["look"]!["accent"]!.GetValue<string>());
+        // 613: what the builder's iPro bar shows: the site, the address its clients see (no custom domain
+        // here, so the free one), the portal's default colour, and Help at the builder's section of the guide.
+        var free = await db.AgentUsers.Where(a => a.Id == seeded.Site.AgentUserId).Select(a => a.DomainName).SingleAsync();
+        Assert.Equal("Sample Bakery", opened["site"]!.GetValue<string>());
+        Assert.Equal(free, opened["address"]!.GetValue<string>());
+        Assert.Equal("#1457d9", opened["accent"]!.GetValue<string>());
+        Assert.Equal("https://portal.example.test/portal/Support/Article/website-builder#try-the-new-builder-beta", opened["help"]!.GetValue<string>());
         Assert.IsType<UnauthorizedObjectResult>(await Api(db, blob, email, pass).Open());
 
         // 2. The site as it is now, as a hand-over made for the customer.
@@ -367,6 +374,12 @@ public class BuilderBeta585Tests
         Assert.Contains("The draft you have is kept there, under Versions.", open);
         Assert.Contains("October 1, 2026", open);
         Assert.Contains("a section you add in the page editor meanwhile is kept", open);
+        Assert.DoesNotContain("Your draft still has the changes you put back", open);
+
+        // 612: a package put back after the draft was made from the site with it on.
+        var afterPutBack = await Card(new BuilderBeta.State(beta, draft, null, null) { HasDraft = true, PutBackSinceDraft = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc) });
+        Assert.Contains("Your draft still has the changes you put back on October 4, 2026.", afterPutBack);
+        Assert.Contains("use <strong>Start again from my live site</strong>", afterPutBack);
 
         // A draft whose changes went onto the website: still the adviser's in the builder, offered as such.
         var kept = await Card(new BuilderBeta.State(beta, null, null, applied) { HasDraft = true });
@@ -487,6 +500,68 @@ public class BuilderBeta585Tests
         var old = Assert.IsType<UnprocessableEntityObjectResult>(await Api(db, blob, new RecordingEmail(), token,
             SiteHandoverReturn572Tests.Return(file.FileContents, _ => { })).Return());
         Assert.Contains("This site was handed over as", JsonSerializer.Serialize(old.Value));
+    }
+
+    // 612 (the owner's staging try): package A went onto the site, the builder opened the site afresh with A
+    // on it (the open draft), then A was put back. The card hears of it; a put-back the draft was not made
+    // over (one put back before the draft, or a package that went on after it) says nothing.
+    [Fact]
+    public async Task The_card_knows_when_the_open_draft_still_has_changes_that_were_put_back()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seeded = await SeedAsync(db, new BuilderImport571Tests.MemoryBlob());
+        var site = seeded.Site;
+        var now = DateTime.UtcNow;
+        await BuilderBeta.SetAsync(db, site.AgentUserId, enabled: true, adviserPublishes: false, "owner");
+        await db.AgentBuilderBetas.Where(b => b.AgentUserId == site.AgentUserId).ExecuteUpdateAsync(s => s.SetProperty(b => b.LastOpenedAt, now));
+        var drafted = now.AddHours(-2);
+        db.WebsiteBuilderHandovers.Add(new WebsiteBuilderHandover
+        {
+            AgentUserId = site.AgentUserId, AgentWebsiteId = site.Id, HandoverId = "h_draftdraftdraft01", IssuedAt = drafted,
+            IssuedBy = BuilderBeta.CustomerIssuer, SessionExpiresAt = drafted.AddHours(1)
+        });
+        WebsiteBuilderImport Import(string handover, DateTime applied, DateTime? closed, string status) => new()
+        {
+            AgentUserId = site.AgentUserId, AgentWebsiteId = site.Id, HandoverId = handover, Status = status,
+            AppliedAt = applied, ClosedAt = closed, Source = WebsiteBuilderImportSources.Customer, CreatedAt = applied
+        };
+        db.WebsiteBuilderImports.Add(Import("h_earlierearlier01", drafted.AddDays(-3), drafted.AddDays(-2), WebsiteBuilderImportStatus.Restored));
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        Assert.Null((await BuilderBeta.StateAsync(db, site, now)).PutBackSinceDraft);
+
+        var putBackAt = drafted.AddHours(1);
+        db.WebsiteBuilderImports.Add(Import("h_packageapackage1", drafted.AddHours(-1), putBackAt, WebsiteBuilderImportStatus.Restored));
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var state = await BuilderBeta.StateAsync(db, site, now);
+        Assert.Equal("h_draftdraftdraft01", state.OpenDraft?.HandoverId);
+        Assert.NotNull(state.PutBackSinceDraft);
+        Assert.True(Math.Abs((state.PutBackSinceDraft!.Value - putBackAt).TotalSeconds) < 1);
+    }
+
+    // 613: the builder's bar is drawn in the adviser's own portal colour, one of the portal's six; anything
+    // else in the column (an old value, a typing slip) gives the portal's default rather than reaching a page.
+    [Theory]
+    [InlineData("#D9541F", "#d9541f")]
+    [InlineData("#5b2f9e", "#5b2f9e")]
+    [InlineData("#123456", "#1457d9")]
+    [InlineData("red;}", "#1457d9")]
+    [InlineData(null, "#1457d9")]
+    public async Task The_builder_gets_the_advisers_own_portal_colour(string? stored, string sent)
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var blob = new BuilderImport571Tests.MemoryBlob();
+        var seeded = await SeedAsync(db, blob);
+        await db.AgentUsers.Where(a => a.Id == seeded.Site.AgentUserId).ExecuteUpdateAsync(s => s.SetProperty(a => a.PortalAccentColor, stored));
+        await BuilderBeta.SetAsync(db, seeded.Site.AgentUserId, enabled: true, adviserPublishes: false, "owner");
+        var pass = await BuilderBeta.IssuePassAsync(db, seeded.Site, false, DateTime.UtcNow);
+
+        var opened = Body(await Api(db, blob, new RecordingEmail(), pass).Open());
+
+        Assert.Equal(sent, opened["accent"]!.GetValue<string>());
     }
 
     [Fact]

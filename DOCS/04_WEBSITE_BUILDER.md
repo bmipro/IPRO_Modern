@@ -521,10 +521,10 @@ The block always shows the same links as the footer, so there is nothing to keep
 
 The new website builder lets you change your pages visually: type on the page itself, add, move and hide sections, and see each page as it looks on a computer, a tablet and a phone. It is a Beta: iPro switches it on for you. When it is on, **My Website** has a **New website builder (Beta)** card.
 
-1. On **My Website**, click **Try the new builder (Beta)**. The builder opens with your website as it is now. You do not sign in again.
+1. On **My Website**, click **Try the new builder (Beta)**. The builder opens with your website as it is now. You do not sign in again. Its bar names your website and its address; **Help** opens this page, and **My Website** takes you back.
 2. Change your pages. **Save** keeps your draft; **Undo** and **Redo** (or Ctrl+Z and Ctrl+Y) step back and forward. Your draft stays in the builder between visits. If you step away with unsaved changes, the builder saves them after ten minutes; a session lasts at most 12 hours, and the builder tells you a quarter of an hour before it ends.
-3. Click **See it on my site** to see a page as your website would show it, in its own colours, fonts, header and menu. It opens in a new tab, works for an hour, and changes nothing.
-4. Click **Send to iPro**. Nothing on your website changes yet. While the Beta is new, iPro's team checks what you send and publishes it, and you get an email when it is live (or an email saying it was not published, if they drop it). If iPro has let you publish yourself, you go to a review: each page says what will happen, with a **Look** at each, and **Publish** makes it live.
+3. Click **Preview** to see a page exactly as your website would show it, in its own colours, fonts, header and menu. It opens in a new tab, works for an hour, and changes nothing.
+4. Click **Send for review**. Nothing on your website changes yet. While the Beta is new, iPro's team checks what you send and publishes it, and you get an email when it is live (or an email saying it was not published, if they drop it). If iPro has let you publish yourself, the button says **Review and publish** and takes you to a review: each page says what will happen, with a **Look** at each, and **Publish** makes it live.
 
 Good to know:
 

@@ -218,9 +218,12 @@ public static class BuilderBeta
     // the website from it (the page editor's list then says changes made there meanwhile are kept).
     // Waiting: what the adviser sent and nobody has brought in. PutBack: the package on the site, when it
     // is the adviser's own and can still be taken back out (only the newest one can).
+    // PutBackSinceDraft (612): the open draft was made while a package was on the website, and that
+    // package has since been put back (when). The draft still has its changes, so the card says so.
     public sealed record State(AgentBuilderBeta? Beta, WebsiteBuilderHandover? OpenDraft, WebsiteBuilderImport? Waiting, WebsiteBuilderImport? PutBack)
     {
         public bool HasDraft { get; init; }
+        public DateTime? PutBackSinceDraft { get; init; }
     }
 
     public static async Task<State> StateAsync(IPRODbContext db, AgentWebsite site, DateTime now)
@@ -243,7 +246,15 @@ public static class BuilderBeta
             .Where(i => i.Id == appliedId && i.Source == WebsiteBuilderImportSources.Customer)
             .Select(i => new WebsiteBuilderImport { Id = i.Id, AgentUserId = i.AgentUserId, AgentWebsiteId = i.AgentWebsiteId, Status = i.Status, AppliedAt = i.AppliedAt, AppliedBy = i.AppliedBy, Source = i.Source })
             .FirstOrDefaultAsync();
-        return new State(beta, open, waiting, putBack) { HasDraft = hasDraft };
+        // 612 (the owner's staging try, 2026-10-28): a package went in, the builder opened the site afresh
+        // with it on, then the package was put back. "Continue my draft" carries on with those changes.
+        var putBackSinceDraft = open == null ? null : await db.WebsiteBuilderImports.AsNoTracking()
+            .Where(i => i.AgentWebsiteId == site.Id && i.Status == WebsiteBuilderImportStatus.Restored
+                && i.AppliedAt < open.IssuedAt && i.ClosedAt > open.IssuedAt)
+            .OrderByDescending(i => i.ClosedAt)
+            .Select(i => i.ClosedAt)
+            .FirstOrDefaultAsync();
+        return new State(beta, open, waiting, putBack) { HasDraft = hasDraft, PutBackSinceDraft = putBackSinceDraft };
     }
 
     // The pages changed on the site since a package went in: what "Put my previous site back" would

@@ -656,7 +656,7 @@ Good to know:
 - When the customer's billing needs attention or their package no longer includes the website, the
   builder refuses at once to show or send anything, and closes at its next check with iPro (within five
   minutes), as for the Beta switched off.
-- "See it on my site" in the builder makes a look that works for an hour. Such looks are not listed
+- "Preview" in the builder ("See it on my site" before 613) makes a look that works for an hour. Such looks are not listed
   here and go by themselves; their new pictures are never added to the customer's media library.
 - Deleting the agent asks the builder to erase their draft (a job repeats the request until the
   builder confirms it).

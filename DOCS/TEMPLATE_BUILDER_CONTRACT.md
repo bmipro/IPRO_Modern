@@ -1258,10 +1258,14 @@ from iPro, and takes nothing but iPro's own answer, as described below, for an a
    | `sessionExpiresAt` | ISO 8601 UTC, 12 hours after issue: the latest the session lasts |
    | `current` | `{ handoverId, state, at }`: the site's newest hand-over (`""` when there is none), and where it stands: `"open"` (a package of it can still be sent), `"published"` (a package of it is on the website since `at`) or `"putBack"` (one went on and was taken back off at `at`) |
    | `startFresh` | `true`: the adviser chose "Start again from my live site" |
-   | `adviser` | the business name, for "Editing …" only |
+   | `adviser` | the business name, for the editor's bar when `site` is missing ("<name>'s website") |
    | `publishing` | `"staff"` (iPro's staff review what is sent) or `"adviser"` (the adviser reviews and publishes it) |
-   | `returnTo` | the address of My Website on iPro's host, for "Back to iPro" |
+   | `returnTo` | the address of My Website on iPro's host, for the bar's "My Website" |
    | `look` | `{ accent, background, font, headingSize, bodySize, buttons }`: the site's own colours (`#rrggbb`), font list, sizes in pixels and button shape (`rounded`, `square`, `pill`), so the canvas can draw the site as it looks. Display only: nothing of it travels back |
+   | `site` | (613, optional) the site's own name, for the editor's iPro bar; at most 120 characters, control characters dropped |
+   | `address` | (613, optional) the address the site's clients are shown (its own domain while it is serving, with the adviser's capitals, else the free one); a host name only, dropped otherwise |
+   | `accent` | (613, optional) the adviser's own portal colour (`#rrggbb`, one of the portal's six; iPro's blue when unset), for the editor's main button, darkened by the builder until white writing on it reads at 4.5:1 |
+   | `help` | (613, optional) the builder's section of iPro's guide; followed only when it is on `returnTo`'s host |
 
    `401 { "message": … }` for a pass that is unknown, used or expired, or when the Beta is no longer on
    for the adviser, the account is closed, its billing needs attention or its package no longer

@@ -51,6 +51,11 @@
       }
       else
       {
+        @* 612: the draft was made while a package was on the site, and that package was put back since. *@
+        @if (state.PutBackSinceDraft is { } putBackAt)
+        {
+          <div class="alert alert-warning border-0 small mb-3" role="note">Your draft still has the changes you put back on @Model.Day(putBackAt). To start from your website as it is now, use <strong>Start again from my live site</strong>.</div>
+        }
         <div class="d-flex flex-wrap gap-2">
           @if (state.HasDraft)
           {

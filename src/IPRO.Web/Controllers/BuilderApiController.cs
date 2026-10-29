@@ -6,6 +6,7 @@ using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Utility;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -74,6 +75,11 @@ public class BuilderApiController : Controller
         var adviser = !string.IsNullOrWhiteSpace(agent.CompanyName) ? agent.CompanyName.Trim()
             : !string.IsNullOrWhiteSpace(granted.Site.SiteTitle) ? granted.Site.SiteTitle.Trim()
             : $"{agent.FirstName} {agent.LastName}".Trim();
+        // 613: the builder's iPro bar names the site and the address its clients are shown (AgentSiteAddress),
+        // in the adviser's own portal colour, with Help into iPro's guide.
+        var siteName = (granted.Site.SiteTitle ?? string.Empty).Trim();
+        var address = await AgentSiteAddress.HostAsync(_db, agent.Id, agent.DomainName);
+        var accent = (agent.PortalAccentColor ?? string.Empty).Trim().ToLowerInvariant();
         _logger.LogInformation("Builder session opened for agent {AgentId} ({Kind})", agent.Id, granted.Session.StartFresh ? "start again" : "open");
         return Json(new
         {
@@ -92,9 +98,16 @@ public class BuilderApiController : Controller
             adviser = adviser.Length <= 120 ? adviser : adviser[..120],
             publishing = granted.Beta.AdviserPublishes ? "adviser" : "staff",
             returnTo = PortalBase + "/portal/Website",
-            look = BuilderBeta.Look(granted.Site)
+            look = BuilderBeta.Look(granted.Site),
+            site = siteName.Length <= 120 ? siteName : siteName[..120],
+            address = address.Length <= 253 ? address : string.Empty,
+            accent = PortalAccents.Contains(accent) ? accent : PortalAccents[0],
+            help = PortalBase + HelpLinks.For("WebsiteBuilder", null).Url
         });
     }
+
+    // 613: the portal's six colours (the portal's layout and AccountController); the first is its default.
+    internal static readonly string[] PortalAccents = ["#1457d9", "#d9541f", "#1f7a4d", "#4b5563", "#7a1f3d", "#5b2f9e"];
 
     [HttpGet("session")]
     public async Task<IActionResult> Check()
@@ -252,7 +265,7 @@ public class BuilderApiController : Controller
         return StatusCode(StatusCodes.Status202Accepted, new
         {
             publishing = "staff",
-            message = "Sent to iPro. iPro's team checks it and publishes it, and you will get an email. Your website does not change until then."
+            message = "Sent for review. iPro's team checks your changes and publishes them, and you will get an email. Your website does not change until then."
         });
     }
 
