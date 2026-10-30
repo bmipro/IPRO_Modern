@@ -57,6 +57,8 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {
+        // 617: someone already signed in has no use for the sign-in page, and a form from it would be refused.
+        if (User?.Identity?.IsAuthenticated == true) return Redirect("/portal/Dashboard");
         ViewData["ReturnUrl"] = returnUrl;
         return View();
     }
@@ -1238,10 +1240,7 @@ public class AccountController : Controller
         return candidate;
     }
 
-    private static string NormalizeIdentifier(string value)
-    {
-        return Regex.Replace(value, "[^A-Za-z0-9]", "");
-    }
+    private static string NormalizeIdentifier(string value) => SignUpIdentifier.From(value);
 
     private static string GenerateTemporaryPassword() => EncryptionService.GenerateToken(12);
 

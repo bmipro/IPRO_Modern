@@ -37,7 +37,8 @@ public class AdminController : Controller
     // and the cookie's LoginPath takes a signed-out visitor to /Admin/Login from there.
     [HttpGet] public IActionResult Index() => Redirect("/");
 
-    [HttpGet] public IActionResult Login() => View();
+    // 617: someone already signed in has no use for the sign-in page, and a form from it would be refused.
+    [HttpGet] public IActionResult Login() => User?.Identity?.IsAuthenticated == true ? Redirect("/") : View();
 
     [EnableRateLimiting(EndpointRateLimits.SignIn)]
     [HttpPost, ValidateAntiForgeryToken]

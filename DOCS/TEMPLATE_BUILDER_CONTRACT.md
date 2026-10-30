@@ -1266,6 +1266,7 @@ from iPro, and takes nothing but iPro's own answer, as described below, for an a
    | `address` | (613, optional) the address the site's clients are shown (its own domain while it is serving, with the adviser's capitals, else the free one); a host name only, dropped otherwise |
    | `accent` | (613, optional) the adviser's own portal colour (`#rrggbb`, one of the portal's six; iPro's blue when unset), for the editor's main button, darkened by the builder until white writing on it reads at 4.5:1 |
    | `help` | (613, optional) the builder's section of iPro's guide; followed only when it is on `returnTo`'s host |
+   | `notInMenu` | (iPro TODO 621, optional) the slugs of the pages the site's own menu leaves out (not shown in the menu, or not published): the builder leaves them, and whatever hangs under them, out of the menu it draws and keeps them in its Pages list. Display only: "show in menu" stays on iPro's side (section 12) |
 
    `401 { "message": … }` for a pass that is unknown, used or expired, or when the Beta is no longer on
    for the adviser, the account is closed, its billing needs attention or its package no longer

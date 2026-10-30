@@ -221,6 +221,10 @@ internal sealed class HeadlessEdge : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        // 619: the Edge started here hands over to a browser process outside its own tree and ends, so Stop
+        // below finds nothing to end and the browser stayed running (351 processes after two gates). Asked over
+        // its own connection, it closes itself; the answer may never come, as the connection closes with it.
+        try { await SendAsync("Browser.close", browserLevel: true).WaitAsync(TimeSpan.FromSeconds(5)); } catch { }
         _stop.Cancel();
         try { await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None); } catch { }
         try { await _reader; } catch { }

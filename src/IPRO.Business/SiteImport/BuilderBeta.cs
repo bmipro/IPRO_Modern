@@ -279,6 +279,16 @@ public static class BuilderBeta
     // designs, the custom properties its shell sets, the classes on its body and header, and the words
     // the design writes itself (the business name over the hero, its first letter where the hero has
     // no picture, the contact's name and phone, the footer's name). Every one optional to the builder.
+    // 621: the pages the site's own menu leaves out (_PublicNavigation: only pages shown in the menu, of those
+    // published). The hand-over sends every page and "show in menu" stays on iPro's side (CONTRACT.md section 12),
+    // so the builder is told when a session opens, and draws the same menu.
+    public static Task<List<string>> NotInMenuAsync(IPRODbContext db, int siteId) =>
+        db.WebsitePages.AsNoTracking()
+            .Where(p => p.AgentWebsiteId == siteId && (!p.ShowInNavigation || !p.IsPublished))
+            .OrderBy(p => p.Slug)
+            .Select(p => p.Slug)
+            .ToListAsync();
+
     public static Dictionary<string, object> Look(AgentWebsite site, AgentUser? agent = null)
     {
         var design = WebsiteTemplateDesign.FromTemplate(site.Template, new AgentDesignOverrides

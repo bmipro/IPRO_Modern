@@ -153,6 +153,8 @@ public class BuilderBeta585Tests
         Assert.Equal(BuilderBeta.Monogram(owner), siteLook["monogram"]!.GetValue<string>());
         Assert.Equal($"{owner.FirstName} {owner.LastName}".Trim(), siteLook["contact"]!["name"]!.GetValue<string>());
         Assert.Equal("Sample Bakery", siteLook["copyright"]!.GetValue<string>());
+        // 621: and the pages the site's own menu leaves out.
+        Assert.Equal(await BuilderBeta.NotInMenuAsync(db, seeded.Site.Id), opened["notInMenu"]!.AsArray().Select(slug => slug!.GetValue<string>()).ToList());
         Assert.IsType<UnauthorizedObjectResult>(await Api(db, blob, email, pass).Open());
 
         // 2. The site as it is now, as a hand-over made for the customer.

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using IPRO.DataAccess;
 using Microsoft.EntityFrameworkCore;
@@ -19,14 +20,57 @@ public sealed class TestDatabase : IAsyncDisposable
 
     private TestDatabase(DbContextOptions<IPRODbContext> options) => _options = options;
 
+    // 619: dropping a test's database takes seconds on this PC and half a minute under a part's parallel load,
+    // and other tests' saves wait behind it. At MySqlConnector's default of 30 seconds a test failed with no
+    // assertion involved, and a drop that timed out left its database behind.
+    private const int CommandTimeoutSeconds = 300;
+
+    private static string ConnectionString(string name)
+    {
+        var template = Environment.GetEnvironmentVariable("IPRO_TEST_DB_TEMPLATE");
+        return string.IsNullOrEmpty(template)
+            ? $"server=127.0.0.1;port=3306;database={name};user=root;SslMode=None;AllowPublicKeyRetrieval=True;Default Command Timeout={CommandTimeoutSeconds}"
+            : string.Format(template, name);
+    }
+
+    // 619: a run that is stopped leaves its databases behind (94 of them by 2026-10-29). The first test of each
+    // run drops the ones more than a day old, by this class's exact name shape, so another run's are safe.
+    private static readonly Lazy<Task> Sweep = new(SweepLeftoversAsync);
+
+    private static async Task SweepLeftoversAsync()
+    {
+        try
+        {
+            await using var connection = new MySqlConnector.MySqlConnection(ConnectionString("mysql"));
+            await connection.OpenAsync();
+            var names = new List<string>();
+            await using (var list = connection.CreateCommand())
+            {
+                list.CommandText = "SELECT table_schema FROM information_schema.tables WHERE table_schema REGEXP '^ipro_test_[0-9a-f]{20}$' " +
+                                   "GROUP BY table_schema HAVING MAX(create_time) < NOW() - INTERVAL 1 DAY";
+                await using var reader = await list.ExecuteReaderAsync();
+                while (await reader.ReadAsync()) names.Add(reader.GetString(0));
+            }
+            foreach (var name in names)
+            {
+                await using var drop = connection.CreateCommand();
+                drop.CommandText = $"DROP DATABASE `{name}`";
+                await drop.ExecuteNonQueryAsync();
+            }
+        }
+        catch (MySqlConnector.MySqlException)
+        {
+            // Housekeeping never fails a test: the next run tries again.
+        }
+    }
+
     public static async Task<TestDatabase> CreateAsync(bool applyLedgerGuard)
     {
+        await Sweep.Value;
+
         // Unique name per test: tests are isolated from each other and safe to run in parallel.
         var name = $"ipro_test_{Guid.NewGuid():N}"[..30];
-        var template = Environment.GetEnvironmentVariable("IPRO_TEST_DB_TEMPLATE");
-        var connectionString = string.IsNullOrEmpty(template)
-            ? $"server=127.0.0.1;port=3306;database={name};user=root;SslMode=None;AllowPublicKeyRetrieval=True"
-            : string.Format(template, name);
+        var connectionString = ConnectionString(name);
 
         // Pinned version rather than ServerVersion.AutoDetect: AutoDetect opens a connection to a
         // database that does not exist yet.
