@@ -75,7 +75,7 @@ are dropped from the user name and address (`HlneCt` for Helene Cote written wit
 | 614 own-account test | -- | live | **10-30**: on his live account, My Website > open the builder: his site's own design; compare with his site or Preview; type, Save, reopen; drop the draft |
 | 617 | -- | open | rides with the next release |
 | 618 | -- | open | his decision (live sites drop a font whose name has quote marks) |
-| 619 | -- | open | rides with the next release's gate (test connections' timeout, sweep old test databases) |
+| 619 | -- | open | rides with the next release's gate (test connections' timeout, sweep old test databases, and the accessibility tests' leftover headless Edge: 351 processes ended at close) |
 | 620 | -- | open | about an hour plus a gate |
 | 615, 616 | -- | open | the builder's next stages, after 614's own-account test |
 | 611 | -- | open | his choice: (a) a staging site root `*.staging.iproadvisers.com`, or (b) no public address on staging |
