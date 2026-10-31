@@ -1,4 +1,5 @@
 @{
+    var words = ViewBag.Words as IPRO.Entities.BusinessWords ?? IPRO.Entities.BusinessWords.For(null);   // 626
     ViewData["Title"] = "Account Types";
     var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory>) ?? Enumerable.Empty<IPRO.Entities.ClientCategory>();
 }
@@ -9,7 +10,7 @@
       <ol class="breadcrumb mb-1"><li class="breadcrumb-item"><a href="/portal/Clients">Clients</a></li><li class="breadcrumb-item active">Account Types</li></ol>
     </nav>
     <h2 class="fw-bold mb-0"><i class="fas fa-tags me-2 text-primary"></i>Account Types</h2>
-    <small class="text-muted">Create groupings like seminar attendees, life insurance prospects, or mailing groups.</small>
+    <small class="text-muted">Create groupings like @words.GroupsExample.</small>
   </div>
   <a href="/portal/Clients/Create" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Add Client</a>
 </div>

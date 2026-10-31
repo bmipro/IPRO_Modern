@@ -21,7 +21,7 @@ public record AiBlogPostDraftResult(string? Title, string? Summary, string? Body
 public interface IAiSuggestionService
 {
     Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default);
-    Task<AiActionReasonResult> DraftSocialPostAsync(string topic, CancellationToken cancellationToken = default);
-    Task<AiNewsletterDraftResult> DraftNewsletterAsync(string topic, CancellationToken cancellationToken = default);
-    Task<AiBlogPostDraftResult> DraftBlogPostAsync(string topic, CancellationToken cancellationToken = default);
+    Task<AiActionReasonResult> DraftSocialPostAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default);
+    Task<AiNewsletterDraftResult> DraftNewsletterAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default);
+    Task<AiBlogPostDraftResult> DraftBlogPostAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default);
 }

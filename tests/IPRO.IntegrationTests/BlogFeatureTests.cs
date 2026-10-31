@@ -334,11 +334,11 @@ public class BlogFeatureTests
         public int Calls;
         public Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default)
             => Task.FromResult(AiActionReasonResult.Empty);
-        public Task<AiActionReasonResult> DraftSocialPostAsync(string topic, CancellationToken cancellationToken = default)
+        public Task<AiActionReasonResult> DraftSocialPostAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default)
             => Task.FromResult(AiActionReasonResult.Empty);
-        public Task<AiNewsletterDraftResult> DraftNewsletterAsync(string topic, CancellationToken cancellationToken = default)
+        public Task<AiNewsletterDraftResult> DraftNewsletterAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default)
             => Task.FromResult(AiNewsletterDraftResult.Empty);
-        public Task<AiBlogPostDraftResult> DraftBlogPostAsync(string topic, CancellationToken cancellationToken = default)
+        public Task<AiBlogPostDraftResult> DraftBlogPostAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default)
         {
             Calls++;
             return Task.FromResult(new AiBlogPostDraftResult("Drafted title", "Drafted summary", "<p>Drafted body</p>", 300, 900));

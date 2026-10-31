@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -5,6 +6,11 @@ namespace IPRO.Utility;
 
 public static class AdminPreviewToken
 {
+    // 627: appsettings.json carries a placeholder and the repository is public, so a token signed with it
+    // proves nothing. Neither app takes the placeholder for a secret; the real one is an Azure setting.
+    public static bool IsUnset([NotNullWhen(false)] string? sharedSecret) =>
+        string.IsNullOrWhiteSpace(sharedSecret) || sharedSecret.StartsWith("CHANGE_THIS", StringComparison.OrdinalIgnoreCase);
+
     public static string Create(string sharedSecret, int agentUserId, int templateId, bool useDefaults, TimeSpan validFor)
     {
         var expiresAtUnix = DateTimeOffset.UtcNow.Add(validFor).ToUnixTimeSeconds();
@@ -20,7 +26,7 @@ public static class AdminPreviewToken
         templateId = 0;
         useDefaults = false;
 
-        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(sharedSecret))
+        if (string.IsNullOrWhiteSpace(token) || IsUnset(sharedSecret))
         {
             return false;
         }

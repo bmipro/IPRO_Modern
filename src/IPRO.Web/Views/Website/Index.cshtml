@@ -1,5 +1,6 @@
 @model IPRO.Entities.AgentWebsite?
 @{
+    var words = ViewBag.Words as IPRO.Entities.BusinessWords ?? IPRO.Entities.BusinessWords.For(null);   // 626
     ViewData["Title"] = "My Website";
     var templates = (ViewBag.Templates as IEnumerable<IPRO.Entities.WebsiteTemplate> ?? Enumerable.Empty<IPRO.Entities.WebsiteTemplate>()).ToList();
     var temporaryDomain = ViewBag.TemporaryDomain as string ?? "";
@@ -131,7 +132,7 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Site Title</label>
-              <input name="SiteTitle" class="form-control" value="@siteTitle" placeholder="John Smith Insurance Adviser" required />
+              <input name="SiteTitle" class="form-control" value="@siteTitle" placeholder="@words.SiteTitleExample" required />
             </div>
             @* 578: the language the website is written in, so a screen reader reads it with the right voice
                (WCAG 3.1.1). A single page in another language is set on that page. *@

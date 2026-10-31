@@ -113,6 +113,7 @@ public static class AgentDataEraser
         ("WebsiteForms",                "AgentUserId = @agentId"),
 
         // -- Website --
+        ("ContactEmailSuppressions",    "AgentUserId = @agentId"), // 624: the opt-outs of contacts they deleted
         ("WebsiteBuilderImports",       "AgentUserId = @agentId"), // 571: the record of a builder import goes with the adviser
         ("WebsiteBuilderHandovers",     "AgentUserId = @agentId"), // 572: and so does the record of a site handed to the builder
         ("WebsiteBuilderSessions",      "AgentUserId = @agentId"), // 585: the passes and sessions iPro gave the builder for them
@@ -338,6 +339,18 @@ public static class AgentDataEraser
             await db.Database.ExecuteSqlRawAsync(
                 "INSERT INTO `BuilderTenantErasures` (`Tenant`, `CreatedAt`, `Attempts`, `LastError`) " +
                 "SELECT `Tenant`, UTC_TIMESTAMP(6), 0, '' FROM `AgentBuilderBeta` WHERE `AgentUserId` = {0}",
+                new object[] { agentId }, ct);
+        }
+
+        // 623: closing an account withdraws iPro's access at Google, as Disconnect does (the privacy policy
+        // says so). Only the web app can read the token, so its Google Calendar job makes the call
+        // (GoogleRevocations); the request is written here, before the connection's row is deleted.
+        if (execute && await TableExistsAsync(db, "GoogleCalendarConnections", ct) && await TableExistsAsync(db, "GoogleRevocations", ct))
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO `GoogleRevocations` (`EncryptedRefreshToken`, `CreatedAt`, `Attempts`) " +
+                "SELECT `EncryptedRefreshToken`, UTC_TIMESTAMP(6), 0 FROM `GoogleCalendarConnections` " +
+                "WHERE `AgentUserId` = {0} AND `EncryptedRefreshToken` <> ''",
                 new object[] { agentId }, ct);
         }
 

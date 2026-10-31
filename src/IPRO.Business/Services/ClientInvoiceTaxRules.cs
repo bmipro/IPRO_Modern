@@ -98,6 +98,9 @@ public static class ClientInvoiceTaxRules
         ["QUEBEC"] = "QC",
         ["QU" + (char)0xC9 + "BEC"] = "QC",   // with the accent
         ["SASKATCHEWAN"] = "SK",
-        ["YUKON"] = "YT"
+        ["YUKON"] = "YT",
+        // 625: what the sign-up and profile forms actually store. iPro's own billing had this gap closed in
+        // August (PayPalBillingService, F3); this list was written later from the bare names.
+        ["YUKON TERRITORY"] = "YT"
     };
 }

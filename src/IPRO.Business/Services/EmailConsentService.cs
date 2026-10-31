@@ -158,6 +158,16 @@ public class EmailConsentService : IEmailConsentService
         return false;
     }
 
+    // 624: a stop said before this contact existed, kept when an earlier contact with this address was
+    // deleted (ContactOptOuts). It is the same stop on a new row, so nothing is swept and nobody is told, and
+    // the date and the reason stay the person's. Here because this file is the one writer of EmailOptOutAt.
+    public static void CarryOptOut(Client client, DateTime optedOutAt, string source)
+    {
+        client.EmailOptOutAt = optedOutAt;
+        client.EmailOptOutSource = source.Length <= EmailOptOut.SourceMaxLength ? source : source[..EmailOptOut.SourceMaxLength];
+        client.IsNewsletterSubscribed = false;
+    }
+
     // Moved here from EmailPreferencesController so that the preferences page is no longer the ONLY
     // thing that can suppress. SendGrid's spamreport and unsubscribe events now call this too --
     // before, they set nothing, so someone who hit "this is spam" on a newsletter kept receiving

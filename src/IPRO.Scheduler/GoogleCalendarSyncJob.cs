@@ -28,6 +28,8 @@ public class GoogleCalendarSyncJob
 
     public async Task RunAsync()
     {
+        await RevokeClosedAccountsAsync();
+
         var connections = await _db.GoogleCalendarConnections.Where(c => c.IsActive).ToListAsync();
 
         foreach (var connection in connections)
@@ -41,6 +43,41 @@ public class GoogleCalendarSyncJob
                 _logger.LogError(ex, "Google Calendar sync failed for agent {AgentUserId}", connection.AgentUserId);
             }
         }
+    }
+
+    // 623: an account closed in SuperAdmin left its token here (GoogleRevocation): this app holds the keys to
+    // read it. Tried a few times, because the row must not sit for ever; a token nobody can read is dropped.
+    private const int RevocationAttempts = 5;
+
+    private async Task RevokeClosedAccountsAsync()
+    {
+        var owed = await _db.GoogleRevocations.OrderBy(r => r.Id).Take(50).ToListAsync();
+        foreach (var revocation in owed)
+        {
+            try
+            {
+                await _googleCalendar.RevokeTokenAsync(_tokenProtector.Unprotect(revocation.EncryptedRefreshToken));
+                _db.GoogleRevocations.Remove(revocation);
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                _logger.LogError(ex, "A closed account's Google token could not be read, so its access was not withdrawn");
+                _db.GoogleRevocations.Remove(revocation);
+            }
+            catch (Exception ex)
+            {
+                revocation.Attempts++;
+                revocation.LastAttemptAt = DateTime.UtcNow;
+                if (revocation.Attempts < RevocationAttempts)
+                {
+                    _logger.LogWarning(ex, "A closed account's Google access was not withdrawn yet (attempt {Attempts})", revocation.Attempts);
+                    continue;
+                }
+                _logger.LogError(ex, "A closed account's Google access could not be withdrawn after {Attempts} attempts", revocation.Attempts);
+                _db.GoogleRevocations.Remove(revocation);
+            }
+        }
+        if (owed.Count > 0) await _db.SaveChangesAsync();
     }
 
     private async Task SyncConnectionAsync(GoogleCalendarConnection connection)

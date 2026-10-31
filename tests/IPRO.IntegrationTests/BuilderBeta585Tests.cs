@@ -433,6 +433,21 @@ public class BuilderBeta585Tests
         Assert.DoesNotContain("/portal/WebsiteBuilder/Open", unavailable);
     }
 
+    // 622: the owner, following a test step, pressed the button while the form was already on its way.
+    // The same pass went twice, and he read "already used or has expired" twice over.
+    [Fact]
+    public async Task The_page_that_carries_the_pass_offers_no_second_press()
+    {
+        var page = await RenderPortalAsync("~/Views/WebsiteBuilder/Open.cshtml", new WebsiteBuilderOpenViewModel("https://builder.example.test/open", "PASS"));
+        var form = page[page.IndexOf("<form id=\"openBuilderForm\"", StringComparison.Ordinal)..];
+        form = form[..form.IndexOf("</form>", StringComparison.Ordinal)];
+        Assert.Contains("<noscript><button type=\"submit\"", form);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(form, "<button"));
+        Assert.Contains("spinner-border", page);
+        Assert.Contains("this page moves on by itself", page);
+        Assert.Contains("document.getElementById(\"openBuilderWait\").hidden = false;", page);
+    }
+
     [Fact]
     public async Task The_page_that_carries_the_pass_posts_it_and_puts_it_in_no_address()
     {

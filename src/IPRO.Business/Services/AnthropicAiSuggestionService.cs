@@ -26,14 +26,17 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
         _logger = logger;
     }
 
-    private const string SocialPostSystemPrompt =
-        "You draft a single social media post for a financial/insurance advisor's business page. " +
+    // 626: who the draft is written for, by the adviser's business type (BusinessWords).
+    private static string Writer(string? businessType) => IPRO.Entities.BusinessWords.For(businessType).AiWriter;
+
+    private static string SocialPostSystemPrompt(string? businessType) =>
+        $"You draft a single social media post for {Writer(businessType)}'s business page. " +
         "Keep it under 280 characters so it works everywhere, professional but warm in tone, no more than one emoji, " +
         "no hashtag spam (at most 2 relevant hashtags), no financial promises or guarantees. " +
         "No preamble, no quotation marks, just the post text.";
 
-    private const string NewsletterSystemPrompt =
-        "You draft a newsletter for a financial/insurance advisor to send to their clients. " +
+    private static string NewsletterSystemPrompt(string? businessType) =>
+        $"You draft a newsletter for {Writer(businessType)} to send to their clients. " +
         "Write a compelling subject line and a warm, professional body of 300-500 words in 2-4 short paragraphs. " +
         "Format the body as simple HTML using only <p> and <strong> tags - no headings, images, links, or lists. " +
         "No financial promises or guarantees, no preamble. " +
@@ -44,11 +47,11 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
     public Task<AiActionReasonResult> GenerateActionReasonAsync(string situation, CancellationToken cancellationToken = default) =>
         CallAnthropicAsync(SystemPrompt, situation, 60, cancellationToken);
 
-    public Task<AiActionReasonResult> DraftSocialPostAsync(string topic, CancellationToken cancellationToken = default) =>
-        CallAnthropicAsync(SocialPostSystemPrompt, $"Topic: {topic}", 120, cancellationToken);
+    public Task<AiActionReasonResult> DraftSocialPostAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default) =>
+        CallAnthropicAsync(SocialPostSystemPrompt(businessType), $"Topic: {topic}", 120, cancellationToken);
 
-    private const string BlogPostSystemPrompt =
-        "You draft a blog article for a financial/insurance advisor's public website. " +
+    private static string BlogPostSystemPrompt(string? businessType) =>
+        $"You draft a blog article for {Writer(businessType)}'s public website. " +
         "Write an engaging title, a one-to-two sentence summary for the blog listing, and a body of 500-800 words. " +
         "Format the body as simple HTML using only <p>, <strong> and <h3> tags - no images, links, or lists. " +
         "Educational and professional in tone; the advisor will review and edit before publishing. " +
@@ -59,9 +62,9 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
     // the prompt and the parse differ. Drafts are ALWAYS reviewed by the agent before publishing --
     // the button fills the editor, it never publishes -- because the authors are regulated advisers
     // and the author of record has to be the human.
-    public async Task<AiBlogPostDraftResult> DraftBlogPostAsync(string topic, CancellationToken cancellationToken = default)
+    public async Task<AiBlogPostDraftResult> DraftBlogPostAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default)
     {
-        var result = await CallAnthropicAsync(BlogPostSystemPrompt, $"Topic: {topic}", 1400, cancellationToken);
+        var result = await CallAnthropicAsync(BlogPostSystemPrompt(businessType), $"Topic: {topic}", 1400, cancellationToken);
         if (string.IsNullOrWhiteSpace(result.Reason))
         {
             return new AiBlogPostDraftResult(null, null, null, result.InputTokens, result.OutputTokens);
@@ -99,9 +102,9 @@ public class AnthropicAiSuggestionService : IAiSuggestionService
             summary, body, inputTokens, outputTokens);
     }
 
-    public async Task<AiNewsletterDraftResult> DraftNewsletterAsync(string topic, CancellationToken cancellationToken = default)
+    public async Task<AiNewsletterDraftResult> DraftNewsletterAsync(string topic, string? businessType = null, CancellationToken cancellationToken = default)
     {
-        var result = await CallAnthropicAsync(NewsletterSystemPrompt, $"Topic: {topic}", 900, cancellationToken);
+        var result = await CallAnthropicAsync(NewsletterSystemPrompt(businessType), $"Topic: {topic}", 900, cancellationToken);
         if (string.IsNullOrWhiteSpace(result.Reason))
         {
             return new AiNewsletterDraftResult(null, null, result.InputTokens, result.OutputTokens);

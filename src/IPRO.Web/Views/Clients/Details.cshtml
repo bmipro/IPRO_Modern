@@ -1,5 +1,6 @@
 @model IPRO.Entities.Client
 @{
+    var words = ViewBag.Words as IPRO.Entities.BusinessWords ?? IPRO.Entities.BusinessWords.For(null);   // 626
     var today = ViewBag.Today as DateTime? ?? DateTime.UtcNow.Date;   // 518: the agent's day, from the controller
     var agentTimeZone = ViewBag.AgentTimeZone as string;
     DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, agentTimeZone);   // 588: every stamp on this page, in the adviser's zone
@@ -335,7 +336,7 @@
           <input type="hidden" name="clientId" value="@Model.Id"/>
           <div class="col-lg-5">
             <label class="form-label small fw-semibold text-muted">What to do</label>
-            <input type="text" name="title" class="form-control" maxlength="160" placeholder="Call about policy renewal" required/>
+            <input type="text" name="title" class="form-control" maxlength="160" placeholder="@words.FollowUpExample" required/>
           </div>
           <div class="col-lg-3">
             <label class="form-label small fw-semibold text-muted">Due date</label>
@@ -440,7 +441,7 @@
             }
             else
             {
-              <span>Add a date of birth above to get automatic yearly birthday reminders. Use the form below for policy renewals, anniversaries, or anything else that repeats yearly.</span>
+              <span>Add a date of birth above to get automatic yearly birthday reminders. Use the form below for @words.RenewalsPhrase, anniversaries, or anything else that repeats yearly.</span>
             }
           </div>
 
@@ -450,14 +451,14 @@
             <div class="col-lg-3">
               <label class="form-label small fw-semibold text-muted">Type</label>
               <select name="eventType" class="form-select">
-                <option value="@((int)IPRO.Entities.ClientLifeEventType.PolicyRenewal)">Policy Renewal</option>
+                <option value="@((int)IPRO.Entities.ClientLifeEventType.PolicyRenewal)">@words.RenewalName</option>
                 <option value="@((int)IPRO.Entities.ClientLifeEventType.Anniversary)">Anniversary</option>
                 <option value="@((int)IPRO.Entities.ClientLifeEventType.Other)">Other</option>
               </select>
             </div>
             <div class="col-lg-4">
               <label class="form-label small fw-semibold text-muted">Label</label>
-              <input type="text" name="label" class="form-control" maxlength="200" placeholder="Auto Policy Renewal" required/>
+              <input type="text" name="label" class="form-control" maxlength="200" placeholder="@words.RenewalExample" required/>
             </div>
             <div class="col-lg-3">
               <label class="form-label small fw-semibold text-muted">Date</label>
@@ -492,7 +493,7 @@
           }
           else
           {
-            <div class="text-muted small py-2">No policy renewals or anniversaries added yet.</div>
+            <div class="text-muted small py-2">No @words.RenewalsPhrase or anniversaries added yet.</div>
           }
         }
       </div>

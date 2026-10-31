@@ -69,6 +69,18 @@ else if (isAccessGated)
       </small>
     </div>
   </div>
+  @* 626: the Terms promise 30 days to "reactivate or export"; the three exports are open to a limited account. *@
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <div class="fw-semibold mb-1">Your data stays yours</div>
+      <p class="small text-muted mb-2">You can download your records without subscribing. After you cancel, we keep them for 30 days.</p>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-sm btn-outline-secondary" href="/portal/Clients/ExportCsv"><i class="fas fa-download me-1"></i>Clients</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/portal/ClientInvoices/Export"><i class="fas fa-download me-1"></i>Invoices and quotes</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/portal/WebsiteLeads/Export"><i class="fas fa-download me-1"></i>Website leads</a>
+      </div>
+    </div>
+  </div>
 }
 else if (paidThrough != null && subscription == null)
 {
@@ -277,6 +289,12 @@ else if (currentPackage == null)
                   @* Same reasoning as the next-billing banner: these are pre-tax prices, and the
                      agent is choosing an upgrade from here. *@
                   <div class="small text-muted">plus applicable taxes</div>
+                  @* 626: the public table shows this fee and a new subscription pays it; only this card left it out.
+                     A subscriber's change of plan pays none, nor does finishing a scheduled downgrade. *@
+                  @if (subscription == null && pendingDowngradeCompletionPackage == null && pkg.EffectiveSetupFee(DateTime.UtcNow) > 0)
+                  {
+                    <div class="small text-muted">+ $@pkg.EffectiveSetupFee(DateTime.UtcNow).ToString("N0") one-time setup</div>
+                  }
                 }
                 <div class="mt-3">
                   @{

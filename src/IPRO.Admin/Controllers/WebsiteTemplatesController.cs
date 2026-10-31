@@ -74,7 +74,7 @@ public class WebsiteTemplatesController : Controller
     public async Task<IActionResult> PreviewOnAgent(int templateId, int agentUserId, bool useDefaults = false)
     {
         var secret = _configuration["AdminPreview:SharedSecret"];
-        if (string.IsNullOrWhiteSpace(secret) || secret.StartsWith("CHANGE_THIS", StringComparison.OrdinalIgnoreCase))
+        if (AdminPreviewToken.IsUnset(secret))
         {
             TempData["Error"] = "Admin preview is not configured yet. Set AdminPreview:SharedSecret (matching value in both apps) in Azure App Settings.";
             return RedirectToAction(nameof(Edit), new { id = templateId });

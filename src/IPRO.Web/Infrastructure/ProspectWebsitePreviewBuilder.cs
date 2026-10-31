@@ -506,7 +506,7 @@ public static class ProspectWebsitePreviewBuilder
         return people.Zip(quotes, (person, quote) => new TestimonialSubmission
         {
             FirstName = person.Item1,
-            LastName = person.Item2,
+            LastName = person.Item2 + " (sample)",   // 626: invented, and the preview says so
             Body = quote,
             Status = TestimonialStatus.Approved,
             SubmittedAt = DateTime.UtcNow.AddDays(-30),

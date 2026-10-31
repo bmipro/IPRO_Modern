@@ -193,6 +193,11 @@ ON is narrower: only the person themselves may do it (preferences page, their ow
 form they filled in). An agent may switch the newsletter off for a client but may not switch it back
 on for someone who opted out of everything.
 
+**A stop outlives the contact (624).** Deleting a contact keeps its opt-out, as a hash and no address
+(`ContactOptOuts`, `ContactEmailSuppressions`); a contact the adviser adds again, by hand or by import, gets it
+back through `EmailConsentService.CarryOptOut`, still the one writer. A website form or the person's own preferences
+are their word, and later than the stop.
+
 **Transactional mail is exempt and must stay exempt.** Password resets, invoice and document links,
 overdue reminders, portal invitations and every billing email send regardless of `EmailOptOutAt`.
 This holds because those senders never consult consent, and because the delivery tracker dispatches

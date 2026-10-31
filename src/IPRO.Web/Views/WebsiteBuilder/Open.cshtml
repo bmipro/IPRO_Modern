@@ -4,15 +4,28 @@
     ViewData["Title"] = "Opening the new builder";
 }
 @* 585: carries the one-time pass to the builder in a form post (never in an address, so it is in no
-   history, log or referrer). The form sends itself; the button is there if scripts are off. *@
+   history, log or referrer). The form sends itself. 622: the button is only for a browser with scripts
+   off. Shown to everyone, it was pressed while the form was on its way (a fresh copy of a site takes
+   seconds): the same pass went twice, the second post cancelled the first, and the adviser read
+   "already used or has expired" (the owner's 621 check, 2026-10-31). *@
 <div class="card border-0 shadow-sm mx-auto" style="max-width: 40rem;">
   <div class="card-body p-4">
     <h2 class="h5 fw-bold mb-2"><i class="fas fa-wand-magic-sparkles me-2 text-primary"></i>Opening the new builder (Beta)</h2>
-    <p class="mb-3">Your website is being opened in the new builder. This takes a few seconds. Nothing on your website changes until you send it back and it is published.</p>
+    <p class="mb-3">Your website is being opened in the new builder. Nothing on your website changes until you send it back and it is published.</p>
+    <div id="openBuilderWait" role="status" hidden>
+      <div class="d-flex align-items-center gap-2">
+        <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+        <span class="fw-semibold">Please wait, this page moves on by itself.</span>
+      </div>
+    </div>
     <form id="openBuilderForm" method="post" action="@Model.Action">
       <input type="hidden" name="pass" value="@Model.Pass" />
-      <button type="submit" class="btn btn-primary"><i class="fas fa-arrow-right me-1"></i>Open the builder</button>
+      <noscript><button type="submit" class="btn btn-primary"><i class="fas fa-arrow-right me-1"></i>Open the builder</button></noscript>
     </form>
+    <p class="small text-muted mt-3 mb-0">Still here after a minute? <a href="/portal/Website">Go back to My Website</a> and open it again.</p>
   </div>
 </div>
-<script nonce="@Context.GetCspNonce()">document.getElementById("openBuilderForm").submit();</script>
+<script nonce="@Context.GetCspNonce()">
+  document.getElementById("openBuilderWait").hidden = false;
+  document.getElementById("openBuilderForm").submit();
+</script>

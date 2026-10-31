@@ -52,6 +52,55 @@ public class GoogleCalendarDisconnectTests
         Assert.Contains("copied from Google", (string)controller.TempData["Success"]!);
     }
 
+    // 623 (2026-10-31): the privacy policy says closing an account does what Disconnect does. It only
+    // deleted iPro's copy. An account is closed in SuperAdmin, whose app cannot read the token, so the eraser
+    // leaves it for the web app's job, which withdraws the access and forgets it.
+    [Fact]
+    public async Task Closing_an_account_withdraws_iPros_access_at_google()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: true);
+        await using var db = testDb.CreateContext();
+        var provider = new EphemeralDataProtectionProvider();
+        var (agentA, _, _) = await SeedAsync(db, provider);
+
+        await AgentDataEraser.EraseAsync(db, agentA);
+        db.ChangeTracker.Clear();
+        Assert.False(await db.GoogleCalendarConnections.AnyAsync(c => c.AgentUserId == agentA));
+        Assert.Single(await db.GoogleRevocations.ToListAsync());
+
+        var google = new StubGoogle();
+        await SyncJob(db, google, provider).RunAsync();
+        db.ChangeTracker.Clear();
+        Assert.Equal("refresh-token", google.RevokedToken);
+        Assert.False(await db.GoogleRevocations.AnyAsync());
+    }
+
+    [Fact]
+    public async Task A_revocation_is_tried_a_few_times_and_never_kept_for_ever()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var provider = new EphemeralDataProtectionProvider();
+        var token = provider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1").Protect("refresh-token");
+        db.GoogleRevocations.Add(new GoogleRevocation { EncryptedRefreshToken = token });
+        db.GoogleRevocations.Add(new GoogleRevocation { EncryptedRefreshToken = "not something this app can read" });
+        await db.SaveChangesAsync();
+
+        var refusing = new StubGoogle { RevokeThrows = true };
+        await SyncJob(db, refusing, provider).RunAsync();
+        db.ChangeTracker.Clear();
+        var owed = await db.GoogleRevocations.SingleAsync();
+        Assert.Equal(1, owed.Attempts);
+        Assert.NotNull(owed.LastAttemptAt);
+
+        for (var attempt = 2; attempt <= 5; attempt++) await SyncJob(db, refusing, provider).RunAsync();
+        db.ChangeTracker.Clear();
+        Assert.False(await db.GoogleRevocations.AnyAsync());
+    }
+
+    private static IPRO.Scheduler.GoogleCalendarSyncJob SyncJob(IPRODbContext db, IGoogleCalendarService google, IDataProtectionProvider provider) =>
+        new(db, google, provider, Microsoft.Extensions.Logging.Abstractions.NullLogger<IPRO.Scheduler.GoogleCalendarSyncJob>.Instance);
+
     [Fact]
     public async Task Disconnect_still_removes_everything_when_google_refuses_the_revoke()
     {

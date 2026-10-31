@@ -1,5 +1,6 @@
 @model IEnumerable<IPRO.Entities.ClientFollowUp>
 @{
+    var words = ViewBag.Words as IPRO.Entities.BusinessWords ?? IPRO.Entities.BusinessWords.For(null);   // 626
     var today = ViewBag.Today as DateTime? ?? DateTime.UtcNow.Date;   // 518: the agent's day, from the controller
     ViewData["Title"] = "Follow-up Queue";
     var status = (ViewBag.Status as string) ?? "open";
@@ -62,7 +63,7 @@
       </div>
       <div class="col-lg-3">
         <label class="form-label small fw-semibold text-muted">What to do</label>
-        <input type="text" name="title" class="form-control" maxlength="160" placeholder="Call about policy renewal" required/>
+        <input type="text" name="title" class="form-control" maxlength="160" placeholder="@words.FollowUpExample" required/>
       </div>
       <div class="col-lg-2">
         <label class="form-label small fw-semibold text-muted">Due date</label>

@@ -456,6 +456,12 @@ app.Use(async (context, next) =>
         || path.StartsWith("/Account/RemovePhoto", StringComparison.OrdinalIgnoreCase)
         || canChangePassword
         || canUseTwoStep;
+    // 626: the Terms give 30 days after cancelling to "reactivate or export" and say data is never held as
+    // leverage in a billing dispute. Export sat behind the same gate as everything else, so it needed the
+    // reactivation. The three exports read the adviser's own records and change nothing.
+    var canExportOwnData = path.Equals("/Clients/ExportCsv", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/ClientInvoices/Export", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/WebsiteLeads/Export", StringComparison.OrdinalIgnoreCase);
     var isAgentSession = context.User.Identity?.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
 
     // Team members (#379) act as their agent everywhere EXCEPT the owner-only controls: Billing
@@ -470,7 +476,7 @@ app.Use(async (context, next) =>
         return;
     }
 
-    if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout && !canUseOwnAccount)
+    if (isAuthenticated && isAgentSession && !mustChangePassword && !canUseBilling && !canLoginOrLogout && !canUseOwnAccount && !canExportOwnData)
     {
         var idClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (int.TryParse(idClaim, out var gateAgentId))
@@ -763,6 +769,7 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePollWebsiteVoteSchemaAsync", () => StartupSchemaRepair.EnsurePollWebsiteVoteSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNumberSequenceSchemaAsync", () => StartupSchemaRepair.EnsureNumberSequenceSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync", () => StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureRevocationAndOptOutSchemaAsync", () => StartupSchemaRepair.EnsureRevocationAndOptOutSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteFormSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteFormSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteBuilderImportSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteBuilderImportSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync", () => StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync(db), db, app.Logger);

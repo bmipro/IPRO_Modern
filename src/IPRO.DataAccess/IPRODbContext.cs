@@ -22,6 +22,8 @@ public class IPRODbContext : DbContext
     public DbSet<AgentBuilderBeta> AgentBuilderBetas => Set<AgentBuilderBeta>();
     public DbSet<WebsiteBuilderSession> WebsiteBuilderSessions => Set<WebsiteBuilderSession>();
     public DbSet<BuilderTenantErasure> BuilderTenantErasures => Set<BuilderTenantErasure>();
+    public DbSet<GoogleRevocation> GoogleRevocations => Set<GoogleRevocation>();
+    public DbSet<ContactEmailSuppression> ContactEmailSuppressions => Set<ContactEmailSuppression>();
     public DbSet<WebsiteStarterPage> WebsiteStarterPages => Set<WebsiteStarterPage>();
     public DbSet<WebsiteStarterBlock> WebsiteStarterBlocks => Set<WebsiteStarterBlock>();
     public DbSet<WebsiteStarterArticle> WebsiteStarterArticles => Set<WebsiteStarterArticle>();
@@ -510,6 +512,14 @@ public class IPRODbContext : DbContext
             e.Property(x => x.Tenant).HasMaxLength(40);
             e.Property(x => x.LastError).HasMaxLength(300);
             e.HasIndex(x => x.Tenant);
+        });
+
+        // 624: one row per adviser and address; goes with the adviser (AgentDataEraser), no foreign key.
+        modelBuilder.Entity<ContactEmailSuppression>(e =>
+        {
+            e.Property(s => s.EmailHash).HasMaxLength(64);
+            e.Property(s => s.Source).HasMaxLength(EmailOptOut.SourceMaxLength);
+            e.HasIndex(s => new { s.AgentUserId, s.EmailHash }).IsUnique();
         });
 
         // 572: sites handed to the Template Builder; found by the hand-over's id when a package comes

@@ -31,6 +31,16 @@ public static class WebsiteStarterArticleSeeder
                     .ExecuteUpdateAsync(u => u.SetProperty(a => a.Category, to));
             }
 
+            // 626 (truth sweep item 6): a US term, two federal credits that ended in 2017, and a calculator an
+            // accountant's site does not get. The library's rows are corrected here, once (afterwards nothing
+            // matches); a copy already on an adviser's site is theirs to edit.
+            foreach (var (from, to) in CorrectedAccountantsLines)
+            {
+                await db.WebsiteStarterArticles
+                    .Where(a => a.BusinessType == "Accountants" && a.Content.Contains(from))
+                    .ExecuteUpdateAsync(u => u.SetProperty(a => a.Content, a => a.Content.Replace(from, to)));
+            }
+
             var existingKeys = (await db.WebsiteStarterArticles
                     .Select(a => new { a.BusinessType, a.Title })
                     .ToListAsync())
@@ -127,8 +137,6 @@ public static class WebsiteStarterArticleSeeder
                     "<li>Professional fees or dues</li>" +
                     "<li>Charitable donations</li>" +
                     "<li>Childcare expenses</li>" +
-                    "<li>Children's art, camp, and sports program fees</li>" +
-                    "<li>Transit pass credit</li>" +
                     "<li>Medical expenses</li>" +
                     "<li>Political contributions</li>" +
                     "</ul>" +
@@ -207,7 +215,7 @@ public static class WebsiteStarterArticleSeeder
                     "<p>Services we offer include:</p>" +
                     "<ul>" +
                     "<li>Personal tax returns for business owners</li>" +
-                    "<li>Sales and use tax returns for retail clients</li>" +
+                    "<li>GST/HST and PST returns for businesses</li>" +
                     "<li>Monthly or quarterly returns for payroll clients</li>" +
                     "<li>Support for all necessary tax forms and schedules</li>" +
                     "</ul>" +
@@ -295,7 +303,7 @@ public static class WebsiteStarterArticleSeeder
                     "<ul>" +
                     "<li><strong>Planning a purchase?</strong> A loan or mortgage calculator shows the real monthly cost, not just the sticker price.</li>" +
                     "<li><strong>Comparing loan offers?</strong> An APR calculator accounts for fees, not just the headline interest rate — the number that actually determines which offer is cheaper.</li>" +
-                    "<li><strong>Deciding between payment schedules?</strong> A bi-weekly mortgage calculator shows how extra payments accelerate payoff and reduce total interest.</li>" +
+                    "<li><strong>Weighing an RRSP against a TFSA?</strong> The tax-advantage comparison shows which one leaves you more after tax.</li>" +
                     "<li><strong>Thinking about savings or investments?</strong> A compound interest calculator shows how growth compounds over time — often surprising people about how much time itself is worth.</li>" +
                     "</ul>" +
                     "<p>The number a calculator gives you is a starting point, not a final answer — the real value comes from talking through what it means for your specific situation. That's what we're here for.</p>",
@@ -337,6 +345,15 @@ public static class WebsiteStarterArticleSeeder
     {
         ("Buying a Home", "Home Buying Basics"),
         ("Owning a Home", "Managing Your Mortgage")
+    };
+
+    private static readonly (string From, string To)[] CorrectedAccountantsLines =
+    {
+        ("<li>Children's art, camp, and sports program fees</li>", ""),
+        ("<li>Transit pass credit</li>", ""),
+        ("<li>Sales and use tax returns for retail clients</li>", "<li>GST/HST and PST returns for businesses</li>"),
+        ("<li><strong>Deciding between payment schedules?</strong> A bi-weekly mortgage calculator shows how extra payments accelerate payoff and reduce total interest.</li>",
+         "<li><strong>Weighing an RRSP against a TFSA?</strong> The tax-advantage comparison shows which one leaves you more after tax.</li>"),
     };
 
     private static WebsiteStarterArticle Article(string businessType, string title, string summary, string content, int order, string? category = null) => new()

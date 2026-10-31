@@ -118,7 +118,7 @@ public class SocialPostsController : Controller
             return Json(new { success = false, error = "Enter a topic first, then draft with AI." });
         }
 
-        var result = await _aiSuggestions.DraftSocialPostAsync(topic.Trim());
+        var result = await _aiSuggestions.DraftSocialPostAsync(topic.Trim(), await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.BusinessType).FirstOrDefaultAsync());
         if (result.InputTokens > 0 || result.OutputTokens > 0)
         {
             await AiUsageRecorder.RecordAsync(_db, 1, result.InputTokens, result.OutputTokens);

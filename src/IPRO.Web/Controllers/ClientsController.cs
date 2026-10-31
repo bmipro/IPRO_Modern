@@ -94,6 +94,7 @@ public class ClientsController : Controller
 
     public async Task<IActionResult> Details(int id)
     {
+        ViewBag.Words = await BusinessWordsAsync();
         var client = await _db.Clients
             .Include(c => c.Categories)
             .Include(c => c.FollowUps)
@@ -358,6 +359,7 @@ public class ClientsController : Controller
     [HttpGet("portal/Clients/FollowUps")]
     public async Task<IActionResult> FollowUpQueue(string status = "open", int page = 1)
     {
+        ViewBag.Words = await BusinessWordsAsync();
         const int pageSize = 15;
         page = Math.Max(page, 1);
         status = string.IsNullOrWhiteSpace(status) ? "open" : status.Trim().ToLowerInvariant();
@@ -490,11 +492,16 @@ public class ClientsController : Controller
         // sign-in until InvitePortal, no preferences token until the first email, no opt-out. Categories
         // come from the database below.
         var client = NewContactFrom(model);
+        // 624: someone who opted out and was deleted is still opted out, whatever the box here says.
+        var keptOptOut = IPRO.Business.Services.ContactOptOuts.Apply(client, await IPRO.Business.Services.ContactOptOuts.ForAgentAsync(_db, AgentId));
         await ApplyCategoriesAsync(client, categoryIds);
         await _db.Clients.AddAsync(client);
         await _db.SaveChangesAsync();
 
         TempData["Success"] = $"{client.FirstName} {client.LastName} added successfully.";
+        if (keptOptOut) TempData["Warning"] = EmailOptOut.ReasonOf(client) == EmailOptOutReason.Bounced
+            ? "Email to this address bounced earlier, so it stays off your lists until the address is corrected."
+            : "This person opted out of your emails earlier, so they stay off your lists until they choose to hear from you again.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -550,6 +557,7 @@ public class ClientsController : Controller
 
     public async Task<IActionResult> AccountTypes()
     {
+        ViewBag.Words = await BusinessWordsAsync();
         ViewBag.AccountTypes = (await _uow.ClientCategories.FindAsync(c => c.AgentUserId == AgentId))
             .OrderBy(c => c.Name)
             .ToList();
@@ -643,6 +651,7 @@ public class ClientsController : Controller
     {
         var client = await _clients.GetByIdAsync(id);
         if (client == null || client.AgentUserId != AgentId) return NotFound();
+        await IPRO.Business.Services.ContactOptOuts.RememberAsync(_db, id);
         await ClientRecycleBin.DeleteToBinAsync(_db, id);
         TempData["Success"] = $"{client.FirstName} {client.LastName} moved to Recently Deleted. You can restore them for {ClientRecycleBin.RetentionDays} days.";
         return RedirectToAction(nameof(Index));
@@ -883,6 +892,11 @@ public class ClientsController : Controller
             toImport.Add(client);
         }
 
+        // 624: an import is the adviser's list, not the person's word: an earlier opt-out stands.
+        var keptOptOuts = await IPRO.Business.Services.ContactOptOuts.ForAgentAsync(_db, AgentId);
+        var stayedOff = toImport.Count(c => IPRO.Business.Services.ContactOptOuts.Apply(c, keptOptOuts));
+        var optOutNote = stayedOff == 0 ? "" : $" {stayedOff} of them opted out earlier and stay off your lists.";
+
         if (toImport.Count > 0)
         {
             await _db.Clients.AddRangeAsync(toImport);
@@ -890,7 +904,7 @@ public class ClientsController : Controller
         }
 
         var limitNote = limitStatus.IsUnlimited ? "" : $" Package limit remaining after import: {Math.Max(0, remainingSlots - toImport.Count)}.";
-        TempData["Success"] = $"Import complete: {toImport.Count} imported, {skipped} skipped, {result.Errors} errors.{limitNote}";
+        TempData["Success"] = $"Import complete: {toImport.Count} imported, {skipped} skipped, {result.Errors} errors.{optOutNote}{limitNote}";
         return RedirectToAction(nameof(Index));
     }
 
@@ -924,6 +938,10 @@ public class ClientsController : Controller
     }
 
     // 588: a new contact from the form's own fields (the ones Edit copies); the rest is the server's.
+    // 626: the forms' examples, in the words of this adviser's business.
+    private async Task<BusinessWords> BusinessWordsAsync() =>
+        BusinessWords.For(await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.BusinessType).FirstOrDefaultAsync());
+
     private Client NewContactFrom(Client posted)
     {
         var now = DateTime.UtcNow;

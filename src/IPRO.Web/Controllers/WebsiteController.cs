@@ -49,6 +49,7 @@ public class WebsiteController : Controller
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
+        ViewBag.Words = IPRO.Entities.BusinessWords.For((await _agents.GetByIdAsync(AgentId))?.BusinessType);   // 626
         var website = await _websites.GetByAgentIdAsync(AgentId);
         await LoadWebsiteContextAsync(website?.TemplateId);
         // 585: the new builder (Beta) card, for an adviser a SuperAdmin switched it on for (or whose

@@ -376,6 +376,7 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePollWebsiteVoteSchemaAsync", () => StartupSchemaRepair.EnsurePollWebsiteVoteSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureNumberSequenceSchemaAsync", () => StartupSchemaRepair.EnsureNumberSequenceSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync", () => StartupSchemaRepair.EnsureClientRecycleBinSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureRevocationAndOptOutSchemaAsync", () => StartupSchemaRepair.EnsureRevocationAndOptOutSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteFormSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteFormSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureWebsiteBuilderImportSchemaAsync", () => StartupSchemaRepair.EnsureWebsiteBuilderImportSchemaAsync(db), db, app.Logger);
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync", () => StartupSchemaRepair.EnsureAgentDailyInsightSchemaAsync(db), db, app.Logger);

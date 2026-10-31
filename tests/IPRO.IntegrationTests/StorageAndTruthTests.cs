@@ -316,11 +316,11 @@ public class StorageAndTruthTests
     {
         public Task<IPRO.Business.Interfaces.AiActionReasonResult> GenerateActionReasonAsync(string situation, System.Threading.CancellationToken cancellationToken = default)
             => Task.FromResult(IPRO.Business.Interfaces.AiActionReasonResult.Empty);
-        public Task<IPRO.Business.Interfaces.AiActionReasonResult> DraftSocialPostAsync(string topic, System.Threading.CancellationToken cancellationToken = default)
+        public Task<IPRO.Business.Interfaces.AiActionReasonResult> DraftSocialPostAsync(string topic, string? businessType = null, System.Threading.CancellationToken cancellationToken = default)
             => Task.FromResult(IPRO.Business.Interfaces.AiActionReasonResult.Empty);
-        public Task<IPRO.Business.Interfaces.AiNewsletterDraftResult> DraftNewsletterAsync(string topic, System.Threading.CancellationToken cancellationToken = default)
+        public Task<IPRO.Business.Interfaces.AiNewsletterDraftResult> DraftNewsletterAsync(string topic, string? businessType = null, System.Threading.CancellationToken cancellationToken = default)
             => Task.FromResult(IPRO.Business.Interfaces.AiNewsletterDraftResult.Empty);
-        public Task<IPRO.Business.Interfaces.AiBlogPostDraftResult> DraftBlogPostAsync(string topic, System.Threading.CancellationToken cancellationToken = default)
+        public Task<IPRO.Business.Interfaces.AiBlogPostDraftResult> DraftBlogPostAsync(string topic, string? businessType = null, System.Threading.CancellationToken cancellationToken = default)
             => Task.FromResult(IPRO.Business.Interfaces.AiBlogPostDraftResult.Empty);
     }
 

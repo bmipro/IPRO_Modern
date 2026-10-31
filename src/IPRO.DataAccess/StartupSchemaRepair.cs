@@ -2052,6 +2052,31 @@ public static class StartupSchemaRepair
     }
 
     // 450 (2026-09-02): anonymous website votes are PollRecipients with Source = Website.
+    // 623 and 624: what outlives a closed account's Google connection, and a deleted contact's opt-out.
+    // Both match the EF model column for column.
+    public static async Task EnsureRevocationAndOptOutSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `GoogleRevocations` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `EncryptedRefreshToken` longtext CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `Attempts` int NOT NULL,
+        `LastAttemptAt` datetime(6) NULL,
+        PRIMARY KEY (`Id`)
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ContactEmailSuppressions` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `EmailHash` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `OptedOutAt` datetime(6) NOT NULL,
+        `Source` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_ContactEmailSuppressions_AgentUserId_EmailHash` (`AgentUserId`, `EmailHash`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     public static async Task EnsurePollWebsiteVoteSchemaAsync(IPRODbContext db)
     {
         await db.Database.OpenConnectionAsync();
