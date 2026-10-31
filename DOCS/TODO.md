@@ -1,7 +1,7 @@
 # IPRO — Open Work
 
 **Last regenerated: 2026-08-08.** **Tidied 2026-10-27:** every row and heading that still read open was checked against the live site and the later rows; the ones closed say "Tidy 2026-10-27". What is really open is in the newest `SESSION_HANDOFF` file.
-**Reviewed 2026-10-31:** every line of this file was read and each open item checked against the code, the handoffs and the live site. Rows 623-643 record what that found; row 612 closed. The current list, grouped by who acts next, is the owner's private page `Documents\iPro_System_Book\iPro_Open_Work_2026-10-31_v3.pdf`; old lines inside finished rows may still read open.
+**Reviewed 2026-10-31:** every line of this file was read and each open item checked against the code, the handoffs and the live site. Rows 623-643 record what that found; row 612 closed. The current list, grouped by who acts next, is the owner's private page `Documents\iPro_System_Book\iPro_Open_Work_2026-10-31_final.pdf`; old lines inside finished rows may still read open.
 
 
 ## Why this file exists
