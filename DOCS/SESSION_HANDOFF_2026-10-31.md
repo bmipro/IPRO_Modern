@@ -82,6 +82,7 @@ confirmed, reported and from notes only.
 |---|---|---|
 | Second demo | -- | fresh health check and updated run sheet before about 11-03 |
 | First batch live | on staging | after the demo, on the owner's word |
+| 645 new PC | arrives the week of 11-02 | after the demo: fresh kit, move checklist, keep this PC until a full gate passes on the Dell |
 | 615, 616 builder pilot | unblocked | the owner's choice of 2-3 advisers |
 | 601 | watch | an appointment after the clocks change, 11-01 |
 | EF Core 8 support ends | no version for .NET 10 yet (Pomelo's newest is 9.0.0) | 2026-11-10; nothing to install; keep checking |
