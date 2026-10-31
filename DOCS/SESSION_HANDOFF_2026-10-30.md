@@ -1,5 +1,16 @@
 # Session handoff -- 2026-10-30
 
+## Update 2026-10-31
+
+- **His own-account check of 621 PASSED** on his live account: Photo Gallery gone from the builder's menu, listed in
+  Pages with the "Not in menu" mark, Preview matches. Nothing was saved or sent; his live site did not change. The rows
+  below that still show it as waiting are superseded by this note.
+- His first two tries that morning showed "This link to the builder was already used or has expired". Each sent the
+  one-time pass twice, 5 s and 1 s apart, which fits a press of the page's button, as my test step told him. **New TODO
+  622**: show that button only when scripts are off. The builder log's `Database.Connection[20004]` at 10:25:16 AM is the
+  dropped post, not a database fault.
+- Still open from the list below: the .NET bridge, the demo prep, and 618, 611 and 615/616 on his word.
+
 ## Branches and state: read this first
 
 - **Live (production):** portal and SuperAdmin on `05e7e25b` (617, 619, 620, 621); live builder
