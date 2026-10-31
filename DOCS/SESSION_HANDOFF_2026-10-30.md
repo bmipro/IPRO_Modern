@@ -9,7 +9,11 @@
   one-time pass twice, 5 s and 1 s apart, which fits a press of the page's button, as my test step told him. **New TODO
   622**: show that button only when scripts are off. The builder log's `Database.Connection[20004]` at 10:25:16 AM is the
   dropped post, not a database fault.
-- Still open from the list below: the .NET bridge, the demo prep, and 618, 611 and 615/616 on his word.
+- **596's bridge is gone** from all four apps, on his word: `DOTNET_ROLL_FORWARD` off both staging apps by me, off both
+  live apps by him in the Azure portal (my delete on production was refused; I did not work round it). Portal 11:04 AM,
+  SuperAdmin 11:07 AM, new containers on 10.0.14, 0 5xx, health 200. A .NET 8 build from before 10-24 will no longer
+  start; every rollback build we keep is .NET 10.
+- Still open from the list below: the demo prep, and 618, 611 and 615/616 on his word.
 
 ## Branches and state: read this first
 
