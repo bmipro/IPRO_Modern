@@ -64,6 +64,36 @@ The doc "iPro Demo Run Sheet" holds the current text. The print copy is
 `Documents\iPro_Demo_Run_Sheet_2026-11_updated.pdf`; the file without `_updated` was open in the app when it was printed,
 so it could not be overwritten and is out of date.
 
+## Close-out 2026-11-01
+
+The owner closed the week here: all of it worked, and the question they asked last was whether every line developed and
+tested is live.
+
+| Code | What | Gate | State |
+|---|---|---|---|
+| `a7bf43a7` | First batch, 622-627 | 2,420 of 2,420 | live as part of `2e2b95d8` |
+| `2e2b95d8` | Second batch, 632 E-3 and E-4, 639, 644; test fix for 644 | 2,444 of 2,445, the class re-run 50 of 50 after the test fix, no full gate repeated | **live** on portal and SuperAdmin |
+| `11bc328` | Builder | gated 10-30 | **live**, unchanged |
+
+**Is every line that was built and tested live? Yes, read from the hosts and from git on 2026-11-01:**
+
+- Portal and SuperAdmin serve `2e2b95d8`; the only later commits on `main` touch documents, 0 code files.
+- The live builder serves `11bc328`, the builder's `main`.
+- `main` equals `origin/main`, 0 uncommitted files, 0 stashes, none of the 23 worktrees holds uncommitted work, no remote
+  branch outside `main`.
+- **Eight local branches are not merged by commit id, and their work is in `main` anyway**, under other commits or
+  rewritten since: 582, 584, 587, 588, 589, 592, 594, `hold/576-locked-boxes`. 98-100% of the code lines of six of them
+  are in `main` word for word. 587's 15 test methods were folded into `ClientPortalOneAdviser586Tests.cs`, and 594's
+  wording moved to `Website/Domains.cshtml`. The few remaining lines were not traced one by one. The branches can go when
+  the owner wants them gone.
+- **Live but not on for everyone:** the website builder Beta is on for the owner's own adviser account only, until they
+  choose the pilot advisers (615, 616).
+- **Not the same as live, on purpose:** the owner's two local builders (5087, 5088) run `build-e853cae` from `ipro/beta`.
+  That branch's one extra commit, the .NET 10 move, is already in the live builder.
+
+Backups of this commit and a recovery kit are in `OneDrive\Codex_Code_Bkup` and `Documents\IPRO_Backups`. Azurite, which
+I started for today's local walk, is stopped; the owner's builders on 5087 and 5088 are left running.
+
 ## Do this first next session
 
 1. After a reboot neither local builder runs: the owner double-clicks the two Start-Builder cmd files.
@@ -71,3 +101,4 @@ so it could not be overwritten and is out of date.
    live builder `11bc328`.
 3. Before the meeting: a fresh check that morning. No releases from Wednesday.
 4. After the meeting: 646, on the owner's price decision, and 645.
+5. Scratchpad tools disappear after about a week: restore from the newest notes-and-tools zip before a gate or release.
