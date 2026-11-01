@@ -358,27 +358,28 @@ public class EmailConsentWriteTests
 
     // 644: a complaint read "sendgrid:spamreport:..." whichever provider reported it. It now names the provider, as
     // a hard bounce always did; the reason is read from the middle part, so old rows keep their meaning.
-    [Fact]
-    public async Task A_complaint_names_the_provider_that_reported_it()
+    [Theory]
+    [InlineData("ecard", "ses", "ses:spamreport:ecard")]
+    [InlineData("newsletter", "ses", "ses:spamreport:newsletter")]
+    [InlineData("dripcampaign", "acs", "acs:spamreport:dripcampaign")]
+    public async Task A_complaint_names_the_provider_that_reported_it(string kind, string provider, string expected)
     {
         await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
         await using var db = testDb.CreateContext();
-        var card = await SeedAsync(db);
-        var letter = await SeedAsync(db);
-        var drip = await SeedAsync(db);
+        var seed = await SeedAsync(db);
 
-        await NewTracker(db).RecordAsync("ecard", card.ECardRecipientId, "spamreport", "msg-1", null, DateTime.UtcNow, "ses");
-        await NewNewsletterService(db).RecordRecipientEventAsync(letter.NewsLetterRecipientId, "spamreport", "msg-2", null, DateTime.UtcNow, "ses");
-        await NewNewsletterService(db).RecordDripStepEventAsync(drip.DripStepSendId, "spamreport", "msg-3", null, DateTime.UtcNow, "acs");
+        var when = DateTime.UtcNow;
+        await (kind switch
+        {
+            "ecard" => NewTracker(db).RecordAsync("ecard", seed.ECardRecipientId, "spamreport", "msg-1", null, when, provider),
+            "newsletter" => NewNewsletterService(db).RecordRecipientEventAsync(seed.NewsLetterRecipientId, "spamreport", "msg-1", null, when, provider),
+            _ => NewNewsletterService(db).RecordDripStepEventAsync(seed.DripStepSendId, "spamreport", "msg-1", null, when, provider)
+        });
 
         db.ChangeTracker.Clear();
-        var sources = await db.Clients.AsNoTracking()
-            .Where(c => c.Id == card.ClientId || c.Id == letter.ClientId || c.Id == drip.ClientId)
-            .ToDictionaryAsync(c => c.Id, c => c.EmailOptOutSource);
-        Assert.Equal("ses:spamreport:ecard", sources[card.ClientId]);
-        Assert.Equal("ses:spamreport:newsletter", sources[letter.ClientId]);
-        Assert.Equal("acs:spamreport:dripcampaign", sources[drip.ClientId]);
-        Assert.All(sources.Values, s => Assert.Equal(EmailOptOutReason.Complaint, EmailOptOut.ReasonOf(s)));
+        var client = await db.Clients.AsNoTracking().SingleAsync(c => c.Id == seed.ClientId);
+        Assert.Equal(expected, client.EmailOptOutSource);
+        Assert.Equal(EmailOptOutReason.Complaint, EmailOptOut.ReasonOf(client));
     }
 
     private static EmailDeliveryTracker NewTracker(IPRODbContext db) =>
