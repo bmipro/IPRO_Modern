@@ -2,6 +2,7 @@ using System.Security.Claims;
 using IPRO.Billing;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public class ReferAFriendController : Controller
         var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == AgentId);
         if (agent == null) return NotFound();
         ViewBag.Agent = agent;
+        ViewBag.AgentTimeZone = AgentTimeZoneHelper.Normalize(agent.TimeZone);   // 639: the dates on the page
         return View(await ReferralProgram.ForAdviserAsync(_db, _configuration, agent.Id, agent.FirstName, DateTime.UtcNow));
     }
 

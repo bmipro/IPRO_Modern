@@ -86,16 +86,17 @@ public sealed class EmailEventCorrelation
 
     // The SAME three consumers the SendGrid webhook feeds -- nothing here re-implements recording. A
     // "spamreport" suppresses the client across every channel inside those consumers (JOBS-4).
-    public Task RecordAsync(TrackedMatch match, string mappedEvent, string messageId, string reason, DateTime occurredAt) =>
+    // 644: `provider` as in SuppressForHardBounceAsync below, so a complaint names who reported it.
+    public Task RecordAsync(TrackedMatch match, string mappedEvent, string messageId, string reason, DateTime occurredAt, string provider) =>
         match.Kind switch
         {
-            TrackedKind.Newsletter => _newsletters.RecordRecipientEventAsync(match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.DripStep => _newsletters.RecordDripStepEventAsync(match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.ECard => _deliveryTracker.RecordAsync("ecard", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.ELetter => _deliveryTracker.RecordAsync("eletter", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.Poll => _deliveryTracker.RecordAsync("poll", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.DidYouKnow => _deliveryTracker.RecordAsync("didyouknow", match.Id, mappedEvent, messageId, reason, occurredAt),
-            TrackedKind.Invoice => _deliveryTracker.RecordAsync("invoice", match.Id, mappedEvent, messageId, reason, occurredAt),
+            TrackedKind.Newsletter => _newsletters.RecordRecipientEventAsync(match.Id, mappedEvent, messageId, reason, occurredAt, provider),
+            TrackedKind.DripStep => _newsletters.RecordDripStepEventAsync(match.Id, mappedEvent, messageId, reason, occurredAt, provider),
+            TrackedKind.ECard => _deliveryTracker.RecordAsync("ecard", match.Id, mappedEvent, messageId, reason, occurredAt, provider),
+            TrackedKind.ELetter => _deliveryTracker.RecordAsync("eletter", match.Id, mappedEvent, messageId, reason, occurredAt, provider),
+            TrackedKind.Poll => _deliveryTracker.RecordAsync("poll", match.Id, mappedEvent, messageId, reason, occurredAt, provider),
+            TrackedKind.DidYouKnow => _deliveryTracker.RecordAsync("didyouknow", match.Id, mappedEvent, messageId, reason, occurredAt, provider),
+            TrackedKind.Invoice => _deliveryTracker.RecordAsync("invoice", match.Id, mappedEvent, messageId, reason, occurredAt, provider),
             _ => Task.CompletedTask
         };
 

@@ -1,6 +1,7 @@
 @model IReadOnlyCollection<IPRO.Entities.SocialPostDraft>
 @{
     ViewData["Title"] = "Social Posts";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     var status = (string)(ViewBag.Status ?? "all");
     string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
     string StatusBadge(IPRO.Entities.SocialPostStatus s) => s == IPRO.Entities.SocialPostStatus.Posted
@@ -53,7 +54,7 @@
                 <td>@(string.IsNullOrWhiteSpace(post.Topic) ? "-" : post.Topic)</td>
                 <td class="text-muted small">@Snippet(post.Body)</td>
                 <td><span class="badge rounded-pill @StatusBadge(post.Status)">@post.Status</span></td>
-                <td class="small text-muted">@post.UpdatedAt.ToString("MMM d, yyyy")</td>
+                <td class="small text-muted">@Local(post.UpdatedAt).ToString("MMM d, yyyy")</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-secondary" href="/portal/SocialPosts/Edit/@post.Id">Edit</a>
                   @if (post.Status == IPRO.Entities.SocialPostStatus.Draft)

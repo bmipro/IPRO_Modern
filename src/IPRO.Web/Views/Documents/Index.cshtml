@@ -1,6 +1,7 @@
 @model IReadOnlyCollection<IPRO.Entities.AgentDocument>
 @{
     ViewData["Title"] = "Documents";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     var search = ViewBag.Search as string;
     var category = ViewBag.Category as string;
     var categories = (ViewBag.Categories as IEnumerable<string>) ?? Enumerable.Empty<string>();
@@ -95,7 +96,7 @@
                 <td><i class="fas fa-file me-1 text-muted"></i>@doc.FileName</td>
                 <td>@(string.IsNullOrWhiteSpace(doc.Category) ? "-" : doc.Category)</td>
                 <td>@FormatSize(doc.FileSizeBytes)</td>
-                <td>@doc.UploadedAt.ToString("MMM d, yyyy")</td>
+                <td>@Local(doc.UploadedAt).ToString("MMM d, yyyy")</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-secondary" href="/portal/Documents/Download/@doc.Id">Download</a>
                   <form asp-action="Delete" asp-route-id="@doc.Id" method="post" class="d-inline">

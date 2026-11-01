@@ -47,6 +47,7 @@ public class ClientPortalAppointmentsController : Controller
             .Where(r => r.ClientId == ClientId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+        ViewBag.AgentTimeZone = await IPRO.Web.Infrastructure.AgentTimeZoneHelper.ResolveForClientAsync(_db, ClientId);   // 639: the dates on the page
         // 606: "Scheduled ... at" is the appointment's time now (a move in Google moves it), not the first one.
         ViewBag.AppointmentTimes = await IPRO.Web.Infrastructure.PortalAppointmentTimes.CurrentAsync(_db, requests);
 

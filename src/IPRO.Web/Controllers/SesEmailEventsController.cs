@@ -171,7 +171,7 @@ public class SesEmailEventsController : Controller
                 if (match == null) return true;   // iPro's own mail and untracked sends have no row
 
                 var (reason, occurredAt) = Details(root, eventType, mail);
-                await _correlation.RecordAsync(match.Value, mapped, messageId, reason, occurredAt);
+                await _correlation.RecordAsync(match.Value, mapped, messageId, reason, occurredAt, "ses");
                 if (hardBounce) await _correlation.SuppressForHardBounceAsync(match.Value, messageId, "ses");
                 return true;
             }

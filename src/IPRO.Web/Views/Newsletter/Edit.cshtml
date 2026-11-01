@@ -1,6 +1,7 @@
 @model IPRO.Entities.NewsLetter
 @{
     ViewData["Title"] = "Edit Newsletter";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     var articles = ViewBag.Articles as IEnumerable<IPRO.Entities.NewsLetterArticle>;
     var sidebarCtas = IPRO.Entities.NewsLetterSidebarCtas.FromJson(Model.SidebarCtasJson);
     string StripHtml(string? html) => string.IsNullOrWhiteSpace(html) ? "" : System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", " ").Trim();
@@ -202,7 +203,7 @@
         <div class="display-6 fw-bold text-success">@Model.TotalSent</div>
         <div class="text-muted small mt-1">of @Model.TotalRecipients recipients</div>
         @if (Model.SentAt.HasValue)
-        { <div class="text-muted small mt-2">Sent @Model.SentAt.Value.ToString("MMM d, yyyy h:mm tt")</div> }
+        { <div class="text-muted small mt-2">Sent @Local(Model.SentAt.Value).ToString("MMM d, yyyy h:mm tt")</div> }
       </div>
     </div>
   </div>

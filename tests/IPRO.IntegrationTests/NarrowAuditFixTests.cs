@@ -279,10 +279,10 @@ public class NarrowAuditFixTests
         private readonly IEmailDeliveryTracker _inner;
         public CountingTracker(IEmailDeliveryTracker inner) => _inner = inner;
         public int Calls { get; private set; }
-        public Task RecordAsync(string entityKind, int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt)
+        public Task RecordAsync(string entityKind, int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt, string provider = "sendgrid")
         {
             Calls++;
-            return _inner.RecordAsync(entityKind, recipientId, eventName, providerMessageId, reason, occurredAt);
+            return _inner.RecordAsync(entityKind, recipientId, eventName, providerMessageId, reason, occurredAt, provider);
         }
     }
 

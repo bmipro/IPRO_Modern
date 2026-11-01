@@ -40,4 +40,16 @@ public static class AgentTimeZoneHelper
             .FirstOrDefaultAsync();
         return Normalize(timeZone);
     }
+
+    // 639: the client portal shows its dates in the adviser's zone, as it does its appointments. Azure's clock is
+    // UTC, so ToLocalTime() there printed UTC.
+    public static async Task<string> ResolveForClientAsync(IPRODbContext db, int clientId)
+    {
+        var timeZone = await db.Clients
+            .AsNoTracking()
+            .Where(c => c.Id == clientId)
+            .Select(c => c.AgentUser.TimeZone)
+            .FirstOrDefaultAsync();
+        return Normalize(timeZone);
+    }
 }

@@ -122,6 +122,8 @@ public class GoogleCalendarController : Controller
             existing.AccessTokenExpiresAt = tokenResult.ExpiresAt;
             existing.IsActive = true;
             existing.SyncToken = null;
+            existing.FailedRuns = 0;            // 632: reconnecting is the fix the Profile notice asks for
+            existing.StoppedSyncingAt = null;
             await _db.SaveChangesAsync();
 
             TempData["Success"] = $"Connected to Google Calendar as {tokenResult.AccountEmail}.";

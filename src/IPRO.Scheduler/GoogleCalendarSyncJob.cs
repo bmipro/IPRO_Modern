@@ -1,8 +1,11 @@
+using System.Net;
 using IPRO.DataAccess;
+using IPRO.Email;
 using IPRO.Entities;
 using IPRO.Utility;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace IPRO.Scheduler;
@@ -15,17 +18,27 @@ public class GoogleCalendarSyncJob
     private readonly ILogger<GoogleCalendarSyncJob> _logger;
     // 608: who is told when the adviser moves a client's appointment in Google (the web app; none in a bare run).
     private readonly IAppointmentMoveNotifier? _moveNotifier;
+    // 632: the adviser is emailed when their connection stops (the web app; none in a bare run).
+    private readonly IEmailService? _email;
+    private readonly IConfiguration? _configuration;
     private readonly List<(int FollowUpId, DateTime From, DateTime To)> _moved = new();
 
-    public GoogleCalendarSyncJob(IPRODbContext db, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, ILogger<GoogleCalendarSyncJob> logger, IAppointmentMoveNotifier? moveNotifier = null)
+    public GoogleCalendarSyncJob(IPRODbContext db, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, ILogger<GoogleCalendarSyncJob> logger, IAppointmentMoveNotifier? moveNotifier = null, IEmailService? email = null, IConfiguration? configuration = null)
     {
         _moveNotifier = moveNotifier;
+        _email = email;
+        _configuration = configuration;
         _db = db;
         _googleCalendar = googleCalendar;
         _tokenProtector = dataProtectionProvider.CreateProtector("IPRO.Web.GoogleCalendar.Tokens.v1");
         _logger = logger;
     }
 
+    // 632 (the 2026-09-17 audit's E-4): one run at a time. Two runs at once each find the same new follow-ups and
+    // each create them at Google, which is a duplicate the adviser has to clean up by hand. No automatic retries:
+    // the next run is fifteen minutes away (as DomainAutomationJob).
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 10 * 60)]
+    [Hangfire.AutomaticRetry(Attempts = 0)]
     public async Task RunAsync()
     {
         await RevokeClosedAccountsAsync();
@@ -40,8 +53,66 @@ public class GoogleCalendarSyncJob
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Google Calendar sync failed for agent {AgentUserId}", connection.AgentUserId);
+                // Once the adviser has been told, the next failures are expected: a warning, not an error every 15 minutes.
+                _logger.Log(connection.StoppedSyncingAt == null ? LogLevel.Error : LogLevel.Warning, ex, "Google Calendar sync failed for agent {AgentUserId}", connection.AgentUserId);
+                await RecordFailedRunAsync(connection);
             }
+        }
+    }
+
+    // 632 (the audit's E-3): a connection Google no longer accepts failed every 15 minutes for ever and the adviser was
+    // never told; their follow-ups simply stopped reaching Google. Eight runs in a row is two hours, past any passing
+    // outage. The job keeps trying, so an outage that ends clears itself; the fix for a withdrawn permission is the
+    // adviser's own, Reconnect on Profile.
+    private const int FailedRunsBeforeTelling = 8;
+
+    private async Task RecordFailedRunAsync(GoogleCalendarConnection connection)
+    {
+        try
+        {
+            var failedRuns = connection.FailedRuns + 1;
+            var tell = failedRuns >= FailedRunsBeforeTelling && connection.StoppedSyncingAt == null;
+            var stoppedAt = tell ? DateTime.UtcNow : connection.StoppedSyncingAt;
+            // Straight to the row: the failed run may have left half its work tracked, and this must not save it.
+            await _db.GoogleCalendarConnections.Where(c => c.Id == connection.Id).ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.FailedRuns, failedRuns)
+                .SetProperty(c => c.StoppedSyncingAt, stoppedAt));
+            if (tell) await TellAdviserAsync(connection);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "A failed Google Calendar sync could not be recorded for agent {AgentUserId}", connection.AgentUserId);
+        }
+    }
+
+    private async Task TellAdviserAsync(GoogleCalendarConnection connection)
+    {
+        if (_email == null || _configuration == null) return;
+
+        var agent = await _db.AgentUsers.AsNoTracking()
+            .Where(a => a.Id == connection.AgentUserId)
+            .Select(a => new { a.Email, a.FirstName, a.LastName, a.IsActive })
+            .FirstOrDefaultAsync();
+        if (agent == null || !agent.IsActive || string.IsNullOrWhiteSpace(agent.Email)) return;
+
+        var profile = $"{IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration).TrimEnd('/')}/Account/Profile";
+        var account = WebUtility.HtmlEncode(connection.GoogleAccountEmail);
+        var html = $"""
+            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+              <p>Hi {WebUtility.HtmlEncode(agent.FirstName)},</p>
+              <p>iPro has not been able to reach your Google Calendar ({account}) for the last two hours. Until this is fixed, follow-ups you add in iPro will not appear in Google, and changes in Google will not come back to iPro. Your follow-ups in iPro are safe.</p>
+              <p>This usually means Google's permission was removed or has expired. Open your Profile and, under Calendar Source, choose Reconnect Google Calendar.</p>
+              <p style="margin-top:24px"><a href="{profile}" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">Open my Profile</a></p>
+              <p style="color:#5b6b7a;font-size:13px">If it was a passing outage at Google, syncing starts again by itself and you can ignore this email.</p>
+            </div>
+            """;
+        var text = $"Hi {agent.FirstName},\n\niPro has not been able to reach your Google Calendar ({connection.GoogleAccountEmail}) for the last two hours. Until this is fixed, follow-ups you add in iPro will not appear in Google, and changes in Google will not come back to iPro. Your follow-ups in iPro are safe.\n\nThis usually means Google's permission was removed or has expired. Open your Profile and, under Calendar Source, choose Reconnect Google Calendar: {profile}\n\nIf it was a passing outage at Google, syncing starts again by itself and you can ignore this email.";
+
+        var name = $"{agent.FirstName} {agent.LastName}".Trim();
+        var result = await _email.SendDetailedAsync(agent.Email, string.IsNullOrWhiteSpace(name) ? agent.Email : name, "Your Google Calendar has stopped syncing with iPro", html, text);
+        if (!result.Success)
+        {
+            _logger.LogWarning("The stopped-syncing email for agent {AgentUserId} was not sent: {Message}; Profile still shows the notice", connection.AgentUserId, result.Message);
         }
     }
 
@@ -99,6 +170,8 @@ public class GoogleCalendarSyncJob
         await NotifyMovesAsync(connection);
 
         connection.LastSyncedAt = DateTime.UtcNow;
+        connection.FailedRuns = 0;          // 632: a run that works clears the notice by itself
+        connection.StoppedSyncingAt = null;
         await _db.SaveChangesAsync();
     }
 

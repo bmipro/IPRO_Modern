@@ -3,6 +3,7 @@
 @using IPRO.Entities
 @{
     ViewData["Title"] = "Refer a Friend";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     var agent = ViewBag.Agent as AgentUser;
     var settings = Model.Settings;
     var gift = ReferralProgram.Money(settings.FriendGiftAmount);
@@ -76,7 +77,7 @@ else if (Model.Code.IsPaused)
                 var closed = r.Stage is ReferralStages.NotEarned or ReferralStages.Voided;
                 <tr>
                   <td>@r.FriendName</td>
-                  <td class="text-nowrap">@r.SignedUpAt.ToString("MMM d, yyyy")</td>
+                  <td class="text-nowrap">@Local(r.SignedUpAt).ToString("MMM d, yyyy")</td>
                   <td>@ReferralProgram.AdviserStatus(r)</td>
                   <td class="text-end text-nowrap">
                     @if (r.Stage == ReferralStages.Paid)

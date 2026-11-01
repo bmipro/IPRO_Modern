@@ -3,6 +3,7 @@
 @using IPRO.Web.Infrastructure
 @{
     ViewData["Title"] = "Payments";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     var stripe = Model.Stripe;
 
     // What the client would see for a sample invoice, from what is in the form right now.
@@ -180,7 +181,7 @@
             <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Test mode</span>
           }
           <div class="mt-2 fw-semibold">@(string.IsNullOrWhiteSpace(stripe.DisplayName) ? "Your Stripe account" : stripe.DisplayName)</div>
-          <div class="small text-muted">Account @stripe.ExternalAccountId &middot; connected @stripe.ConnectedAt.ToString("MMM d, yyyy")</div>
+          <div class="small text-muted">Account @stripe.ExternalAccountId &middot; connected @Local(stripe.ConnectedAt).ToString("MMM d, yyyy")</div>
         </div>
         <form method="post" action="/portal/Payments/StripeDisconnect">
           @Html.AntiForgeryToken()

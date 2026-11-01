@@ -57,7 +57,7 @@ public class Client
     public DateTime? EmailOptOutAt { get; set; }
 
     // 538: WHY, kept beside when -- the source every writer already hands SuppressAllAsync
-    // ("ses:bounced:invoice", "sendgrid:spamreport:newsletter", "one-click", "link"). Until this
+    // ("ses:bounced:invoice", "ses:spamreport:newsletter", "one-click", "link"). Until this
     // existed the reason went to an Information log line that production does not keep, and the
     // adviser was told "unsubscribed" about an address that had bounced. EmailOptOut.ReasonOf reads it.
     // Empty on a suppression recorded before 538, and whenever the client is not suppressed.

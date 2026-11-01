@@ -904,6 +904,9 @@ public static class StartupSchemaRepair
             // 601 (2026-10-24): NULL on every connection that exists at the release, so each one's calendar is read
             // in full once and the events written before 601 (shifted by the UTC offset) are put right.
             await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "LocalTimesResyncedAt", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `LocalTimesResyncedAt` datetime(6) NULL");
+            // 632 (2026-11-01): the adviser is told when a connection stops working (GoogleCalendarSyncJob).
+            await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "FailedRuns", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `FailedRuns` int NOT NULL DEFAULT 0");
+            await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "StoppedSyncingAt", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `StoppedSyncingAt` datetime(6) NULL");
         }
         finally
         {

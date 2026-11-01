@@ -45,6 +45,7 @@ public class TestimonialsController : Controller
         };
 
         ViewBag.Status = status;
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 639: the dates on the page
         return View(await query.OrderByDescending(t => t.SubmittedAt).ToListAsync());
     }
 
@@ -55,6 +56,7 @@ public class TestimonialsController : Controller
 
         var testimonial = await _db.TestimonialSubmissions.FirstOrDefaultAsync(t => t.Id == id && t.AgentUserId == AgentId);
         if (testimonial == null) return NotFound();
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 639: the dates on the page
         return View(testimonial);
     }
 

@@ -37,6 +37,7 @@ public class PollsController : Controller
             .Where(p => p.AgentUserId == AgentId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
+        ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();   // 639: the dates on the page
         return View(polls);
     }
 
@@ -164,6 +165,7 @@ public class PollsController : Controller
         ViewBag.Questions = questions;
         ViewBag.OptionsByQuestion = options.GroupBy(o => o.PollQuestionId).ToDictionary(g => g.Key, g => g.ToList());
         ViewBag.Sends = sends;
+        ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();   // 639: the dates on the page
         return View(survey);
     }
 

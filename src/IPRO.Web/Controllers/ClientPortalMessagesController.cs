@@ -30,6 +30,7 @@ public class ClientPortalMessagesController : Controller
 
     public async Task<IActionResult> Index()
     {
+        ViewBag.AgentTimeZone = await IPRO.Web.Infrastructure.AgentTimeZoneHelper.ResolveForClientAsync(_db, ClientId);   // 639: the dates on the page
         var messages = await _db.PortalMessages
             .Where(m => m.ClientId == ClientId)
             .OrderBy(m => m.CreatedAt)

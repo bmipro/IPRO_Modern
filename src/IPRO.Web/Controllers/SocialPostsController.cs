@@ -3,6 +3,7 @@ using IPRO.Business.Interfaces;
 using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,7 @@ public class SocialPostsController : Controller
         }
 
         ViewBag.Status = status ?? "all";
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 639: the dates on the page
         return View(await query.OrderByDescending(p => p.UpdatedAt).ToListAsync());
     }
 
@@ -77,6 +79,7 @@ public class SocialPostsController : Controller
         var post = await _db.SocialPostDrafts.FirstOrDefaultAsync(p => p.Id == id && p.AgentUserId == AgentId);
         if (post == null) return NotFound();
         ViewBag.AiAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AiDailyAssistant);
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 639: the dates on the page
         return View(post);
     }
 

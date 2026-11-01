@@ -2,6 +2,7 @@ using System.Security.Claims;
 using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
+using IPRO.Web.Infrastructure;
 using IPRO.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,6 +32,7 @@ public class FormsController : Controller
             .Where(f => f.AgentUserId == AgentId)
             .OrderByDescending(f => f.UpdatedAt)
             .ToListAsync();
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 639: the dates on the page
         return View(forms);
     }
 

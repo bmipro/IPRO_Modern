@@ -1,6 +1,7 @@
 @model IPRO.Entities.TestimonialSubmission
 @{
     ViewData["Title"] = "Edit Testimonial";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     string StatusBadge(IPRO.Entities.TestimonialStatus s) => s switch
     {
         IPRO.Entities.TestimonialStatus.Approved => "bg-success-subtle text-success",
@@ -12,7 +13,7 @@
 <div class="mb-4">
   <h2 class="fw-bold mb-1"><i class="fas fa-quote-left me-2 text-primary"></i>Edit Testimonial</h2>
   <div class="text-muted">
-    Submitted @Model.SubmittedAt.ToString("MMM d, yyyy") by @Model.Email &middot;
+    Submitted @Local(Model.SubmittedAt).ToString("MMM d, yyyy") by @Model.Email &middot;
     <span class="badge rounded-pill @StatusBadge(Model.Status)">@Model.Status</span>
   </div>
 </div>

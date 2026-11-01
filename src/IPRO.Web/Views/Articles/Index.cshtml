@@ -1,6 +1,7 @@
 @model IEnumerable<IPRO.Entities.Article>
 @{
     ViewData["Title"] = "Articles";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -32,7 +33,7 @@ else
         <div class="card-body p-4">
           <div class="d-flex justify-content-between align-items-start mb-2">
             <span class="badge rounded-pill @(article.IsPublished ? "bg-success" : "bg-secondary")">@(article.IsPublished ? "Published" : "Draft")</span>
-            <small class="text-muted">Updated @article.UpdatedAt.ToString("MMM d, yyyy")</small>
+            <small class="text-muted">Updated @Local(article.UpdatedAt).ToString("MMM d, yyyy")</small>
           </div>
           <h6 class="fw-bold mb-1">@article.Title</h6>
           @if (!string.IsNullOrWhiteSpace(article.Summary))

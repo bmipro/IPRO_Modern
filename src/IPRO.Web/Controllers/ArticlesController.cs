@@ -4,6 +4,7 @@ using IPRO.Business.Services;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Utility;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -70,6 +71,7 @@ public class ArticlesController : Controller
             .Where(a => a.AgentUserId == AgentId)
             .OrderByDescending(a => a.UpdatedAt)
             .ToListAsync();
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 639: the dates on the page
         return View(articles);
     }
 

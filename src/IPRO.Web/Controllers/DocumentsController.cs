@@ -3,6 +3,7 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using IPRO.Utility;
+using IPRO.Web.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,7 @@ public class DocumentsController : Controller
 
     public async Task<IActionResult> Index(string? search, string? category)
     {
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 639: the dates on the page
         var query = _db.AgentDocuments.Where(d => d.AgentUserId == AgentId);
 
         if (!string.IsNullOrWhiteSpace(search))

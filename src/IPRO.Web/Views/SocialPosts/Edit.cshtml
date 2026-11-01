@@ -1,6 +1,7 @@
 @model IPRO.Entities.SocialPostDraft
 @{
     ViewData["Title"] = "Edit Social Post";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     var aiAccess = ViewBag.AiAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
     var aiLocked = aiAccess?.IsIncluded != true;
 }
@@ -11,7 +12,7 @@
     Status: <span class="badge rounded-pill @(Model.Status == IPRO.Entities.SocialPostStatus.Posted ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary")">@Model.Status</span>
     @if (Model.PostedAt.HasValue)
     {
-      <span class="ms-2 small">Posted @Model.PostedAt.Value.ToString("MMM d, yyyy")</span>
+      <span class="ms-2 small">Posted @Local(Model.PostedAt.Value).ToString("MMM d, yyyy")</span>
     }
   </div>
 </div>

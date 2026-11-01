@@ -534,7 +534,13 @@ public class NewsletterController : Controller
             ? uri.ToString()
             : string.Empty;
     }
-    public async Task<IActionResult> Subscribers() { var gate = await RequireNewsletterAccessAsync(); return gate ?? View(await _clients.GetNewsletterSubscribersAsync(AgentId)); }
+    public async Task<IActionResult> Subscribers()
+    {
+        var gate = await RequireNewsletterAccessAsync();
+        if (gate != null) return gate;
+        await LoadAgentTimeZoneAsync();   // 639: the dates on the page
+        return View(await _clients.GetNewsletterSubscribersAsync(AgentId));
+    }
 
     // The custom arg each sender tags its outgoing mail with, and the entity kind it maps to.
     // Newsletters and drip campaigns are handled separately above because they have their own

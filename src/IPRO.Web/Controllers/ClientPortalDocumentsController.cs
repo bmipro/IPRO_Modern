@@ -35,6 +35,7 @@ public class ClientPortalDocumentsController : Controller
 
     public async Task<IActionResult> Index()
     {
+        ViewBag.AgentTimeZone = await IPRO.Web.Infrastructure.AgentTimeZoneHelper.ResolveForClientAsync(_db, ClientId);   // 639: the dates on the page
         var documents = await _db.PortalDocuments
             .AsNoTracking()
             .Where(d => d.ClientId == ClientId)

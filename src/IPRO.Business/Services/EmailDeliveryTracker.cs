@@ -19,7 +19,9 @@ namespace IPRO.Business.Services;
 public interface IEmailDeliveryTracker
 {
     // entityKind matches the "ipro_entity" custom arg: ecard | eletter | poll | didyouknow.
-    Task RecordAsync(string entityKind, int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt);
+    // 644: provider is the short name that goes into a suppression's source ("ses", "acs"); the default is the old
+    // SendGrid webhook, which is the one caller that does not say.
+    Task RecordAsync(string entityKind, int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt, string provider = "sendgrid");
 }
 
 public class EmailDeliveryTracker : IEmailDeliveryTracker
@@ -64,7 +66,7 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
     // rewrite the history of a delivery that succeeded.
     private static bool IsTerminal(Outcome current) => current is Outcome.Bounced or Outcome.Failed;
 
-    public async Task RecordAsync(string entityKind, int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt)
+    public async Task RecordAsync(string entityKind, int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt, string provider = "sendgrid")
     {
         var outcome = Map(eventName);
         if (outcome == Outcome.Ignored) return;
@@ -98,13 +100,13 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
                 return;
         }
 
-        await SuppressIfRequestedAsync(clientId, outcome, normalized, entityKind);
+        await SuppressIfRequestedAsync(clientId, outcome, normalized, entityKind, provider);
     }
 
     // A spam complaint and an unsubscribe are the same instruction in law: stop mailing this person.
     // "dropped" and "deferred" also map to Outcome.Failed but are SendGrid's own delivery problems,
     // not a decision by the recipient, so the normalized name is checked rather than the outcome.
-    private async Task SuppressIfRequestedAsync(int? clientId, Outcome outcome, string normalized, string? entityKind)
+    private async Task SuppressIfRequestedAsync(int? clientId, Outcome outcome, string normalized, string? entityKind, string provider)
     {
         var recipientAsked = outcome == Outcome.Unsubscribed || (outcome == Outcome.Failed && normalized == "spamreport");
         if (!recipientAsked || !clientId.HasValue) return;
@@ -112,12 +114,12 @@ public class EmailDeliveryTracker : IEmailDeliveryTracker
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId.Value);
         if (client == null) return;
 
-        var result = await _consent.SuppressAllAsync(client, $"sendgrid:{normalized}:{entityKind}");
+        var result = await _consent.SuppressAllAsync(client, $"{provider}:{normalized}:{entityKind}");
         if (!result.WasAlreadySuppressed)
         {
             _logger.LogInformation(
-                "SendGrid '{Event}' on a {EntityKind} suppressed all email for client {ClientId}.",
-                normalized, entityKind, client.Id);
+                "{Provider} '{Event}' on a {EntityKind} suppressed all email for client {ClientId}.",
+                provider, normalized, entityKind, client.Id);
         }
     }
 

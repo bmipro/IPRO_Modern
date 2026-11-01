@@ -2,6 +2,7 @@
 @{
     Layout = "_ClientPortalLayout";
     ViewData["Title"] = "Appointments";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone, as the appointments are
     var appointments = (ViewBag.UpcomingAppointments as List<IPRO.Web.Models.PortalUpcomingAppointment>) ?? new List<IPRO.Web.Models.PortalUpcomingAppointment>();
     var appointmentTimes = ViewBag.AppointmentTimes as IReadOnlyDictionary<int, DateTime>;
     string StatusBadge(IPRO.Entities.PortalAppointmentRequestStatus s) => s switch
@@ -82,7 +83,7 @@
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <div>
               <div>@r.Notes</div>
-              <div class="small text-muted">Requested @r.CreatedAt.ToLocalTime().ToString("MMM d, yyyy") @(r.PreferredDate.HasValue ? $"— preferred {r.PreferredDate.Value:MMM d, yyyy}" : "")</div>
+              <div class="small text-muted">Requested @Local(r.CreatedAt).ToString("MMM d, yyyy") @(r.PreferredDate.HasValue ? $"— preferred {r.PreferredDate.Value:MMM d, yyyy}" : "")</div>
             </div>
             @{ var currentTime = IPRO.Web.Infrastructure.PortalAppointmentTimes.For(r, appointmentTimes); }
             <span class="badge @StatusBadge(r.Status)">

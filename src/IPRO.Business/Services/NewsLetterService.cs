@@ -183,7 +183,7 @@ public class NewsLetterService : INewsLetterService
     public Task<IEnumerable<NewsLetterSend>> GetSendsAsync(int newsletterId) =>
         _uow.NewsLetterSends.FindAsync(s => s.NewsLetterId == newsletterId);
 
-    public async Task RecordRecipientEventAsync(int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt)
+    public async Task RecordRecipientEventAsync(int recipientId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt, string provider = "sendgrid")
     {
         var recipient = await _uow.NewsLetterRecipients.GetByIdAsync(recipientId);
         if (recipient == null) return;
@@ -262,7 +262,7 @@ public class NewsLetterService : INewsLetterService
                         // a newsletter as spam went on receiving that agent's e-cards, e-letters,
                         // polls, Did You Know mail and drip campaigns. A complaint is not a
                         // channel-scoped preference (JOBS-4).
-                        await _consent.SuppressAllAsync(client, $"sendgrid:{normalizedEvent}:newsletter");
+                        await _consent.SuppressAllAsync(client, $"{provider}:{normalizedEvent}:newsletter");
                     }
                 }
                 break;
@@ -301,7 +301,7 @@ public class NewsLetterService : INewsLetterService
         await _uow.SaveChangesAsync();
     }
 
-    public async Task RecordDripStepEventAsync(int stepSendId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt)
+    public async Task RecordDripStepEventAsync(int stepSendId, string eventName, string? providerMessageId, string? reason, DateTime occurredAt, string provider = "sendgrid")
     {
         var stepSend = await _uow.DripCampaignStepSends.GetByIdAsync(stepSendId);
         if (stepSend == null) return;
@@ -374,7 +374,7 @@ public class NewsLetterService : INewsLetterService
             case "group_unsubscribe":
                 stepSend.Status = NewsLetterRecipientStatus.Unsubscribed;
                 stepSend.FailureReason = reason ?? stepSend.FailureReason;
-                await SuppressDripRecipientAsync(stepSend.DripCampaignEnrollmentId, normalizedEvent);
+                await SuppressDripRecipientAsync(stepSend.DripCampaignEnrollmentId, normalizedEvent, provider);
                 break;
         }
 
@@ -383,7 +383,7 @@ public class NewsLetterService : INewsLetterService
 
     // A step send names an enrollment, not a client, so the client is one hop away. SuppressAllAsync
     // cancels the enrollment itself, which is what actually stops the rest of the campaign.
-    private async Task SuppressDripRecipientAsync(int enrollmentId, string normalizedEvent)
+    private async Task SuppressDripRecipientAsync(int enrollmentId, string normalizedEvent, string provider)
     {
         var enrollment = await _uow.DripCampaignEnrollments.GetByIdAsync(enrollmentId);
         if (enrollment == null) return;
@@ -391,7 +391,7 @@ public class NewsLetterService : INewsLetterService
         var client = await _uow.Clients.GetByIdAsync(enrollment.ClientId);
         if (client == null) return;
 
-        await _consent.SuppressAllAsync(client, $"sendgrid:{normalizedEvent}:dripcampaign");
+        await _consent.SuppressAllAsync(client, $"{provider}:{normalizedEvent}:dripcampaign");
     }
 
     public Task<IEnumerable<NewsLetterArticle>> GetArticlesAsync(int newsletterId) =>

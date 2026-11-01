@@ -1,5 +1,8 @@
 @model IEnumerable<IPRO.Entities.Client>
-@{ ViewData["Title"] = "Newsletter Subscribers"; }
+@{
+    ViewData["Title"] = "Newsletter Subscribers";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
+}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
@@ -21,7 +24,7 @@
           <td class="fw-semibold">@c.FirstName @c.LastName</td>
           <td><a href="mailto:@c.Email" class="text-decoration-none text-muted">@c.Email</a></td>
           <td><small class="text-muted">@(c.City ?? "—")</small></td>
-          <td><small class="text-muted">@c.CreatedAt.ToString("MMM d, yyyy")</small></td>
+          <td><small class="text-muted">@Local(c.CreatedAt).ToString("MMM d, yyyy")</small></td>
           <td><a href="/portal/Clients/Details/@c.Id" class="btn btn-sm btn-outline-secondary">View</a></td>
         </tr>
       }

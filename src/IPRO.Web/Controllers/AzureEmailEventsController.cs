@@ -168,7 +168,7 @@ public class AzureEmailEventsController : Controller
                         continue;
                     }
 
-                    await _correlation.RecordAsync(match.Value, mapped, messageId, reason, occurredAt);
+                    await _correlation.RecordAsync(match.Value, mapped, messageId, reason, occurredAt, "acs");
 
                     if (isDelivery && ShouldSuppressOnStatus(ReadString(data, "status")))
                     {

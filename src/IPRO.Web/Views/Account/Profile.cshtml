@@ -309,8 +309,18 @@
     }
     else if (googleConnection != null)
     {
+      var googleStopped = googleConnection.StoppedSyncingAt != null;
+      if (googleStopped)
+      {
+        @* 632: told after two hours of failed runs (GoogleCalendarSyncJob); gone by itself once a run works. *@
+        <div class="alert alert-warning small mb-3" role="alert">
+          <i class="fas fa-triangle-exclamation me-2"></i><strong>Your Google Calendar has stopped syncing.</strong>
+          Follow-ups you add here are not reaching Google, and changes in Google are not coming back. Your follow-ups here are safe.
+          <a asp-controller="GoogleCalendar" asp-action="Connect" class="alert-link">Reconnect Google Calendar</a> to start again.
+        </div>
+      }
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span class="text-success"><i class="fas fa-circle-check me-2"></i>Connected as <strong>@googleConnection.GoogleAccountEmail</strong></span>
+        <span class="@(googleStopped ? "text-muted" : "text-success")"><i class="fas @(googleStopped ? "fa-circle-exclamation" : "fa-circle-check") me-2"></i>Connected as <strong>@googleConnection.GoogleAccountEmail</strong></span>
         <form asp-controller="GoogleCalendar" asp-action="Disconnect" method="post">
           @Html.AntiForgeryToken()
           @* js-confirm-submit, not onsubmit=confirm(): CSP's script-src drops inline handlers, which

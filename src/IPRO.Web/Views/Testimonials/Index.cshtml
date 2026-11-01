@@ -1,6 +1,7 @@
 @model IReadOnlyCollection<IPRO.Entities.TestimonialSubmission>
 @{
     ViewData["Title"] = "Testimonials";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
     var status = (string)(ViewBag.Status ?? "pending");
     string FilterClass(string value) => status == value ? "btn-primary" : "btn-outline-secondary";
     string StatusBadge(IPRO.Entities.TestimonialStatus s) => s switch
@@ -59,7 +60,7 @@
                 </td>
                 <td class="text-muted small">@Snippet(t.Body)</td>
                 <td><span class="badge rounded-pill @StatusBadge(t.Status)">@t.Status</span></td>
-                <td class="small text-muted">@t.SubmittedAt.ToString("MMM d, yyyy")</td>
+                <td class="small text-muted">@Local(t.SubmittedAt).ToString("MMM d, yyyy")</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-secondary" href="/portal/Testimonials/Edit/@t.Id">Edit</a>
                   @if (t.Status != IPRO.Entities.TestimonialStatus.Approved)

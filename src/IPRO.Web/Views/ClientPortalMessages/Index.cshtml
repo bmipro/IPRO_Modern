@@ -2,6 +2,7 @@
 @{
     Layout = "_ClientPortalLayout";
     ViewData["Title"] = "Messages";
+    DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone, as the appointments are
 }
 
 <div class="mb-4">
@@ -21,7 +22,7 @@
         <div class="p-3 rounded-3" style="max-width:70%;background:@(message.IsFromClient ? "#0f7a52" : "#f1f3f5");color:@(message.IsFromClient ? "#fff" : "#212529");">
           <div class="small fw-bold mb-1">@message.AuthorName</div>
           <div>@message.Body</div>
-          <div class="small mt-1" style="opacity:.75">@message.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt")</div>
+          <div class="small mt-1" style="opacity:.75">@Local(message.CreatedAt).ToString("MMM d, h:mm tt")</div>
         </div>
       </div>
     }

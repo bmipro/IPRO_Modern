@@ -241,6 +241,7 @@ public class PaymentsController : Controller
     private async Task<PaymentsViewModel> BuildModelAsync(PaymentsForm? posted)
     {
         var agentId = AgentId;
+        ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, agentId);   // 639: the dates on the page
         var saved = await _db.AgentPaymentMethods.AsNoTracking().Where(m => m.AgentUserId == agentId).ToListAsync();
         var legacy = saved.Count == 0
             ? await _db.AgentUsers.AsNoTracking().Where(a => a.Id == agentId).Select(a => a.DefaultPaymentLink).FirstOrDefaultAsync()

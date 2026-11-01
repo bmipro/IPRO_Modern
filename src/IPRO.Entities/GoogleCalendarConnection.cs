@@ -18,4 +18,9 @@ public class GoogleCalendarConnection
     // own time. Null = not yet: the next run ignores the stored sync token for one full read
     // (GoogleCalendarSyncJob.PullGoogleChangesIntoIproAsync).
     public DateTime? LocalTimesResyncedAt { get; set; }
+    // 632 (2026-11-01): runs in a row that failed, and when the adviser was told it stopped (null = working).
+    // A run that works clears both, so a passing outage needs nothing from the adviser
+    // (GoogleCalendarSyncJob.RecordFailedRunAsync).
+    public int FailedRuns { get; set; }
+    public DateTime? StoppedSyncingAt { get; set; }
 }
