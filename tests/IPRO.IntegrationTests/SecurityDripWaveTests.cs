@@ -134,10 +134,16 @@ public class SecurityDripWaveTests
             }
         }
         Assert.NotEmpty(declared);
-        var enumerated = new HashSet<string>(BlobReferences.Containers.Select(c => c.Container), StringComparer.OrdinalIgnoreCase);
+        // 635: a container whose files no row names (the key ring's copy) is registered as known but
+        // not scanned; it still has to be registered.
+        var enumerated = new HashSet<string>(
+            BlobReferences.Containers.Select(c => c.Container).Concat(BlobReferences.NotScannedContainers.Select(c => c.Container)),
+            StringComparer.OrdinalIgnoreCase);
         var missing = declared.Where(d => !enumerated.Contains(d)).ToList();
         Assert.True(missing.Count == 0,
-            $"container(s) the code uploads to but the orphan report never scans: {string.Join(", ", missing)}");
+            $"container(s) the code uploads to but the orphan report does not know: {string.Join(", ", missing)}");
+        Assert.Empty(BlobReferences.Containers.Select(c => c.Container)
+            .Intersect(BlobReferences.NotScannedContainers.Select(c => c.Container), StringComparer.OrdinalIgnoreCase));
     }
 
     // ---- M11: a null dispatch never advances the enrollment ----------------------------------

@@ -137,6 +137,18 @@ public class KeyRingCopy635Tests : IDisposable
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(program, @"options\.XmlRepository = "));
     }
 
+    // The storage report (Admin) knows the copy's container but never lists its keys as unreferenced:
+    // no row names a key, and a human reading "unreferenced" might delete one.
+    [Fact]
+    public void The_storage_report_knows_the_copy_and_never_calls_a_key_unreferenced()
+    {
+        Assert.Contains(IPRO.DataAccess.BlobReferences.NotScannedContainers, c => c.Container == KeyRingCopy.Container);
+        Assert.DoesNotContain(IPRO.DataAccess.BlobReferences.Containers, c => c.Container == KeyRingCopy.Container);
+        var view = Read(@"src\IPRO.Admin\Views\BlobReport\Index.cshtml");
+        Assert.Contains("@foreach (var (container, holds) in IPRO.DataAccess.BlobReferences.NotScannedContainers)", view);
+        Assert.Contains("<span class=\"badge bg-light text-muted\">not scanned</span>", view);
+    }
+
     // ---- harness ------------------------------------------------------------------------------
 
     private MirroredKeyRepository Repository(IKeyCopyStore copy) => new(_folder, copy, NullLoggerFactory.Instance);

@@ -61,9 +61,26 @@
   </div>
 }
 
+@foreach (var (container, holds) in IPRO.DataAccess.BlobReferences.NotScannedContainers)
+{
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <h6 class="fw-bold mb-0"><code>@container</code></h6>
+          <small class="text-muted">@holds</small>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-light text-muted">not scanned</span>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
 @if (totalUnreferenced == 0 && Model.All(r => r.Error == null))
 {
   <div class="alert alert-success border-0 shadow-sm">
-    <i class="fas fa-check-circle me-2"></i>Every file in storage is referenced by at least one database row.
+    <i class="fas fa-check-circle me-2"></i>Every file in the scanned containers is referenced by at least one database row.
   </div>
 }

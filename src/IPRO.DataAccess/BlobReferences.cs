@@ -87,6 +87,15 @@ public static class BlobReferences
         ("starter-content",  "Starter library images (SuperAdmin-managed)")
     };
 
+    // 635: containers the application owns whose files no row names, because they are not pictures
+    // or documents at all. The report shows them (an unknown container is still a finding, M18) but
+    // never scans them for "unreferenced" files: every file in them is unreferenced by design, and
+    // listing each as such would invite a human to delete a file that must never be deleted.
+    public static readonly IReadOnlyList<(string Container, string Holds)> NotScannedContainers = new[]
+    {
+        ("data-protection-keys", "Second copy of the portal's sign-in key ring (635). Every file is needed: never delete one.")
+    };
+
     public static async Task<bool> IsReferencedAsync(IPRODbContext db, string? blobUrl, CancellationToken ct = default) =>
         await CountReferencesAsync(db, blobUrl, ct) > 0;
 
