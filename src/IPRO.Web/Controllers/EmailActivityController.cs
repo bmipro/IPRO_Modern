@@ -242,7 +242,7 @@ public class EmailActivityController : Controller
                 g.Count(q => q.OpenedAt != null),
                 g.Count(q => q.Status == DidYouKnowQueueStatuses.Failed))));
 
-        rows.AddRange(await EmailActivityQueries.DripStepRowsAsync(_db, AgentId));
+        rows.AddRange(await EmailActivityQueries.DripStepRowsAsync(_db, AgentId, since)); // 652: the period too
         rows.AddRange(await EmailActivityQueries.InvoiceRowsAsync(_db, AgentId, since)); // 452
 
         return rows.OrderByDescending(r => r.When ?? DateTime.MinValue).ToList();

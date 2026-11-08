@@ -32,15 +32,29 @@ public class CampaignsController : Controller
         var gate = await RequireCampaignAccessAsync();
         if (gate != null) return gate;
 
+        // 652 (634's third): the list shows two numbers per campaign. It used to load every step joined to every
+        // enrollment for them (8 steps x 3,000 enrollments = 24,000 rows a campaign, and enrollments are never
+        // deleted); now each is counted in the database.
+        var campaigns = await _db.DripCampaigns
+            .AsNoTracking()
+            .Where(c => c.AgentUserId == AgentId)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+        var campaignIds = campaigns.Select(c => c.Id).ToList();
         return View(new CampaignIndexViewModel
         {
             Groups = await LoadGroupsAsync(),
-            Campaigns = await _db.DripCampaigns
-                .Include(c => c.Steps)
-                .Include(c => c.Enrollments)
-                .Where(c => c.AgentUserId == AgentId)
-                .OrderByDescending(c => c.CreatedAt)
-                .ToListAsync()
+            Campaigns = campaigns,
+            StepCounts = await _db.DripCampaignSteps
+                .Where(s => campaignIds.Contains(s.DripCampaignId))
+                .GroupBy(s => s.DripCampaignId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count),
+            ActiveEnrollmentCounts = await _db.DripCampaignEnrollments
+                .Where(e => campaignIds.Contains(e.DripCampaignId) && e.Status == DripCampaignEnrollmentStatus.Active)
+                .GroupBy(e => e.DripCampaignId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count)
         });
     }
 
@@ -84,17 +98,27 @@ public class CampaignsController : Controller
             .OrderBy(s => s.SortOrder)
             .ToListAsync();
 
+        // 652: counted in the database, per step (every send of every step used to be loaded into memory, 3,000
+        // more rows with each step sent to a 3,000-client book). Same four numbers as before.
         var stepIds = steps.Select(s => s.Id).ToList();
-        var stepPerformance = (await _db.DripCampaignStepSends
-                .Where(s => stepIds.Contains(s.DripCampaignStepId))
-                .ToListAsync())
+        var stepPerformance = await _db.DripCampaignStepSends
+            .AsNoTracking()
+            .Where(s => stepIds.Contains(s.DripCampaignStepId))
             .GroupBy(s => s.DripCampaignStepId)
-            .ToDictionary(g => g.Key, g => new CampaignStepPerformance
+            .Select(g => new
             {
-                Sent = g.Count(s => s.SentAt.HasValue || s.DeliveredAt.HasValue || s.OpenedAt.HasValue || s.ClickedAt.HasValue),
-                Delivered = g.Count(s => s.DeliveredAt.HasValue),
-                Opened = g.Count(s => s.OpenedAt.HasValue),
-                Clicked = g.Count(s => s.ClickedAt.HasValue)
+                StepId = g.Key,
+                Sent = g.Count(s => s.SentAt != null || s.DeliveredAt != null || s.OpenedAt != null || s.ClickedAt != null),
+                Delivered = g.Count(s => s.DeliveredAt != null),
+                Opened = g.Count(s => s.OpenedAt != null),
+                Clicked = g.Count(s => s.ClickedAt != null)
+            })
+            .ToDictionaryAsync(p => p.StepId, p => new CampaignStepPerformance
+            {
+                Sent = p.Sent,
+                Delivered = p.Delivered,
+                Opened = p.Opened,
+                Clicked = p.Clicked
             });
 
         return View(new CampaignDetailsViewModel
@@ -113,11 +137,7 @@ public class CampaignsController : Controller
                 .Take(50)
                 .ToListAsync(),
             Groups = await LoadGroupsAsync(),
-            Clients = await _db.Clients
-                .Where(c => c.AgentUserId == AgentId && !string.IsNullOrWhiteSpace(c.Email))
-                .OrderBy(c => c.LastName)
-                .ThenBy(c => c.FirstName)
-                .ToListAsync(),
+            // 652: no longer the whole book in a dropdown; the page asks ClientOptions as the adviser types.
             Newsletters = await _db.NewsLetters
                 .Where(n => n.AgentUserId == AgentId)
                 .OrderByDescending(n => n.CreatedAt)
@@ -467,6 +487,33 @@ public class CampaignsController : Controller
         else if (!TempData.ContainsKey("Warning") && !TempData.ContainsKey("Error"))
             TempData["Warning"] = "That client is already active in this campaign or has no email address.";
         return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // 652: the "Individual client" box on a campaign's page asks here as the adviser types (two letters or more):
+    // at most 20 of their own clients with an email address whose name or email contains the words, by last
+    // name. It used to be a dropdown of the whole book.
+    [HttpGet]
+    public async Task<IActionResult> ClientOptions(int id, string? q)
+    {
+        var gate = await RequireCampaignAccessAsync();
+        if (gate != null) return gate;
+        if (!await _db.DripCampaigns.AnyAsync(c => c.Id == id && c.AgentUserId == AgentId)) return NotFound();
+
+        var words = (q ?? string.Empty).Trim();
+        if (words.Length < 2) return Json(Array.Empty<object>());
+        if (words.Length > 100) words = words[..100];
+
+        var found = await _db.Clients
+            .AsNoTracking()
+            .Where(c => c.AgentUserId == AgentId && c.Email != null && c.Email != ""
+                && (c.FirstName.Contains(words) || c.LastName.Contains(words) || c.Email.Contains(words)
+                    || (c.FirstName + " " + c.LastName).Contains(words)))
+            .OrderBy(c => c.LastName)
+            .ThenBy(c => c.FirstName)
+            .Take(20)
+            .Select(c => new { c.Id, c.FirstName, c.LastName, c.Email })
+            .ToListAsync();
+        return Json(found.Select(c => new { id = c.Id, label = $"{$"{c.LastName}, {c.FirstName}".Trim(' ', ',')} - {c.Email}" }));
     }
 
     [HttpPost, ValidateAntiForgeryToken]

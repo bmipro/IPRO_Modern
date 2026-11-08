@@ -15,6 +15,9 @@ public class CampaignIndexViewModel
 {
     public List<CampaignGroupSummary> Groups { get; set; } = new();
     public List<DripCampaign> Campaigns { get; set; } = new();
+    // 652: counted in the database by campaign id (a campaign with none has no entry).
+    public Dictionary<int, int> StepCounts { get; set; } = new();
+    public Dictionary<int, int> ActiveEnrollmentCounts { get; set; } = new();
 }
 
 public class CampaignDetailsViewModel

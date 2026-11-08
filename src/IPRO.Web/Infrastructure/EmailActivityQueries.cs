@@ -17,44 +17,53 @@ public static class EmailActivityQueries
 {
     // One row per campaign step that has reached at least one recipient, so a step reads like a
     // newsletter send: how many, how many arrived, how many opened, how many failed.
-    public static async Task<List<EmailActivityRow>> DripStepRowsAsync(IPRODbContext db, int agentId)
+    // 652 (634's third): counted in the database, one row per step, instead of every send the adviser's
+    // campaigns ever made loaded into memory and grouped here; and held to the period the list shows (since,
+    // as the other kinds are since 565), which drip rows never were. The same numbers as before.
+    public static async Task<List<EmailActivityRow>> DripStepRowsAsync(IPRODbContext db, int agentId, DateTime? since = null)
     {
-        var sends = await db.DripCampaignStepSends
+        var counts = await db.DripCampaignStepSends
             .AsNoTracking()
             .Where(s => s.DripCampaignStep.DripCampaign.AgentUserId == agentId)
-            .Select(s => new
+            .Where(s => since == null || (s.SentAt ?? s.CreatedAt) >= since)
+            .GroupBy(s => s.DripCampaignStepId)
+            .Select(g => new
             {
-                s.DripCampaignStepId,
-                s.StepIndex,
-                StepSubject = s.DripCampaignStep.Subject,
-                Campaign = s.DripCampaignStep.DripCampaign.Name,
-                s.Status,
-                s.SentAt,
-                s.DeliveredAt,
-                s.OpenedAt,
-                s.CreatedAt
+                StepId = g.Key,
+                StepIndex = g.Min(s => s.StepIndex),
+                Last = g.Max(s => s.SentAt ?? s.CreatedAt),
+                Recipients = g.Count(),
+                Sent = g.Count(s => s.SentAt != null),
+                Delivered = g.Count(s => s.DeliveredAt != null),
+                Opened = g.Count(s => s.OpenedAt != null),
+                Failed = g.Count(s => s.Status == NewsLetterRecipientStatus.Failed
+                                   || s.Status == NewsLetterRecipientStatus.Bounced
+                                   || s.Status == NewsLetterRecipientStatus.Dropped),
+                Queued = g.Count(s => s.SentAt == null && s.Status == NewsLetterRecipientStatus.Queued)
             })
             .ToListAsync();
+        if (counts.Count == 0) return new List<EmailActivityRow>();
 
-        return sends
-            .GroupBy(s => s.DripCampaignStepId)
-            .Select(g =>
-            {
-                var first = g.First();
-                return new EmailActivityRow(
-                    "Campaign", "drip", g.Key,
-                    first.StepSubject,
-                    $"{first.Campaign} · step {first.StepIndex + 1}",
-                    g.Any(s => s.SentAt == null && s.Status == NewsLetterRecipientStatus.Queued) ? "Sending" : "Sent",
-                    g.Max(s => s.SentAt ?? s.CreatedAt),
-                    g.Count(),
-                    g.Count(s => s.SentAt != null),
-                    g.Count(s => s.DeliveredAt != null),
-                    g.Count(s => s.OpenedAt != null),
-                    g.Count(s => s.Status == NewsLetterRecipientStatus.Failed
-                              || s.Status == NewsLetterRecipientStatus.Bounced
-                              || s.Status == NewsLetterRecipientStatus.Dropped));
-            })
+        var stepIds = counts.Select(c => c.StepId).ToList();
+        var steps = await db.DripCampaignSteps
+            .AsNoTracking()
+            .Where(s => stepIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.Subject, Campaign = s.DripCampaign.Name })
+            .ToDictionaryAsync(s => s.Id);
+
+        return counts
+            .Where(c => steps.ContainsKey(c.StepId))
+            .Select(c => new EmailActivityRow(
+                "Campaign", "drip", c.StepId,
+                steps[c.StepId].Subject,
+                $"{steps[c.StepId].Campaign} · step {c.StepIndex + 1}",
+                c.Queued > 0 ? "Sending" : "Sent",
+                c.Last,
+                c.Recipients,
+                c.Sent,
+                c.Delivered,
+                c.Opened,
+                c.Failed))
             .ToList();
     }
 

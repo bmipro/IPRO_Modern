@@ -340,19 +340,18 @@
           </div>
         </form>
 
-        <form asp-action="EnrollClient" asp-route-id="@Model.Campaign.Id" method="post">
+        @* 652: the client is found as the adviser types (ClientOptions), no longer a dropdown of the whole book. *@
+        <form asp-action="EnrollClient" asp-route-id="@Model.Campaign.Id" method="post" id="enrollClientForm">
           @Html.AntiForgeryToken()
-          <label class="form-label fw-semibold">Individual client</label>
+          <label class="form-label fw-semibold" for="enrollClientInput">Individual client</label>
+          <input type="hidden" name="clientId" id="enrollClientId"/>
           <div class="input-group">
-            <select name="clientId" class="form-select" required>
-              <option value="">Choose client...</option>
-              @foreach (var client in Model.Clients)
-              {
-                <option value="@client.Id">@($"{client.LastName}, {client.FirstName}".Trim(' ', ',')) - @client.Email</option>
-              }
-            </select>
+            <input type="text" list="enrollClientOptions" id="enrollClientInput" class="form-control" placeholder="Type a name or email..." autocomplete="off" required
+                   data-options-url="/portal/Campaigns/ClientOptions/@Model.Campaign.Id"/>
+            <datalist id="enrollClientOptions"></datalist>
             <button class="btn btn-outline-success" type="submit">Enroll</button>
           </div>
+          <div class="form-text">Type at least two letters, then choose the client from the list.</div>
         </form>
       </div>
     </div>
@@ -431,3 +430,58 @@
     max-width: 520px;
   }
 </style>
+
+@section Scripts {
+<script nonce="@Context.GetCspNonce()">
+// 652: the "Individual client" box asks ClientOptions as the adviser types and offers what it answers; the
+// choice is matched to its id before the form is sent, as the follow-up queue's picker does.
+(function () {
+  const input = document.getElementById('enrollClientInput');
+  const hiddenId = document.getElementById('enrollClientId');
+  const options = document.getElementById('enrollClientOptions');
+  if (!input || !hiddenId || !options) return;
+  let timer = null;
+  let asked = '';
+
+  function syncClientId() {
+    const match = Array.from(options.options).find(o => o.value === input.value);
+    hiddenId.value = match ? match.getAttribute('data-id') : '';
+  }
+
+  function ask() {
+    const words = input.value.trim();
+    if (words.length < 2 || words === asked) return;
+    asked = words;
+    fetch(input.dataset.optionsUrl + '?q=' + encodeURIComponent(words), { headers: { 'Accept': 'application/json' } })
+      .then(r => r.ok ? r.json() : [])
+      .then(found => {
+        if (input.value.trim() !== words) return;
+        options.replaceChildren(...found.map(c => {
+          const o = document.createElement('option');
+          o.value = c.label;
+          o.setAttribute('data-id', c.id);
+          return o;
+        }));
+        syncClientId();
+      })
+      .catch(() => {});
+  }
+
+  input.addEventListener('input', function () {
+    syncClientId();
+    input.classList.remove('is-invalid');
+    if (hiddenId.value) return;
+    clearTimeout(timer);
+    timer = setTimeout(ask, 250);
+  });
+  input.closest('form').addEventListener('submit', function (e) {
+    syncClientId();
+    if (!hiddenId.value) {
+      e.preventDefault();
+      input.classList.add('is-invalid');
+      input.focus();
+    }
+  });
+})();
+</script>
+}

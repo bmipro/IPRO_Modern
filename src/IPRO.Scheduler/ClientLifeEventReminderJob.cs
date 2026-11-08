@@ -12,6 +12,10 @@ public class ClientLifeEventReminderJob
     private readonly IPackageEntitlementService _entitlements;
     private readonly ILogger<ClientLifeEventReminderJob> _logger;
 
+    // How many rows are read at a time while every row is looked at, and how many due rows are changed per save.
+    public const int BatchSize = 1000;
+    public const int BirthdayReminderDaysBefore = 7;
+
     public ClientLifeEventReminderJob(IPRODbContext db, IPackageEntitlementService entitlements, ILogger<ClientLifeEventReminderJob> logger)
     {
         _db = db;
@@ -19,108 +23,128 @@ public class ClientLifeEventReminderJob
         _logger = logger;
     }
 
-    public async Task RunAsync()
+    public Task RunAsync() => RunForDayAsync(DateTime.UtcNow.Date);
+
+    // 650 (634's first, built 2026-11-08 on the owner's word). This job used to read the 500 life events and the
+    // 500 clients with a birth date that it had checked longest ago -- across the whole platform -- and check
+    // only those. A reminder's window is a week, so once there were more than about 4,000 clients with a birth
+    // date (all advisers together) a client's turn came round less often than once a window and reminders were
+    // silently missed: about 60% of them at 10,000. Now every active row is looked at every day: a light read
+    // of the few columns the decision needs, in batches by Id, and only the rows due today are loaded and
+    // changed. The decision itself is unchanged (NextOccurrence, catch-up safe, LastReminderYear stops a
+    // repeat), and the rows that are not due are no longer written at all; the LastCheckedAt columns that
+    // ordered the rotation are kept but no longer written. A life event whose client was deleted (the table has
+    // no foreign key) is still left out in the query, so it can never stop the run.
+    public async Task RunForDayAsync(DateTime today)
     {
-        var today = DateTime.UtcNow.Date;
+        today = today.Date;
 
-        // Ordered by LastCheckedAt (oldest-checked-first, nulls -- never checked -- come first via
-        // CreatedAt) so that if there are ever more active rows than the cap, every row still gets
-        // a turn on a rotating basis instead of the same 500 winning every single day forever.
-        // e.Client != null excludes orphans, and it has to happen HERE rather than in the loop below.
-        // ClientLifeEvents has no FK to Clients (it is one of the ~40 tables created by the startup
-        // schema repairs, which declare none), so deleting a client leaves its life events behind.
-        // e.Client.AgentUserId is then read below OUTSIDE the per-row try, so a single orphan threw
-        // before the loop started -- and because LastCheckedAt is only written inside the loop, the
-        // orphan kept the oldest timestamp, stayed at the front of this OrderBy forever, and killed
-        // life-event AND birthday reminders for every agent in the system permanently. Filtering
-        // server-side also stops orphans consuming slots in the 500 cap.
-        var events = await _db.ClientLifeEvents
-            .Include(e => e.Client)
-            .Where(e => e.IsActive && e.Client != null)
-            .OrderBy(e => e.LastCheckedAt ?? e.CreatedAt)
-            .Take(500)
-            .ToListAsync();
-
-        var birthdayClients = await _db.Clients
-            .Where(c => c.DateOfBirth != null)
-            .OrderBy(c => c.BirthdayReminderLastCheckedAt ?? c.CreatedAt)
-            .Take(500)
-            .ToListAsync();
-
-        // Batched instead of one HasAccessAsync call per row (up to 1000 rows here) - see
-        // PackageEntitlementService.HasAccessBulkAsync.
-        var accessByAgent = await _entitlements.HasAccessBulkAsync(
-            events.Select(e => e.Client.AgentUserId).Concat(birthdayClients.Select(c => c.AgentUserId)),
-            PackageFeatureCodes.LifeEventReminders);
-
-        foreach (var lifeEvent in events)
+        var dueEvents = new List<int>();
+        for (var lastId = 0; ;)
         {
-            try
-            {
-                lifeEvent.LastCheckedAt = DateTime.UtcNow;
-
-                var nextOccurrence = NextOccurrence(lifeEvent.EventDate, today);
-                if (lifeEvent.LastReminderYear == nextOccurrence.Year) continue;
-                // Catch-up safe: fire once we've reached the reminder window rather than only on
-                // the exact day, so a single missed run doesn't silently skip this year's reminder
-                // entirely. LastReminderYear (checked above) is what actually prevents a repeat.
-                if (today < nextOccurrence.AddDays(-lifeEvent.ReminderDaysBefore)) continue;
-
-                if (!accessByAgent.GetValueOrDefault(lifeEvent.Client.AgentUserId))
-                {
-                    continue;
-                }
-
-                _db.ClientFollowUps.Add(new ClientFollowUp
-                {
-                    ClientId = lifeEvent.ClientId,
-                    Title = $"{lifeEvent.Label}: {lifeEvent.Client.FirstName} {lifeEvent.Client.LastName}",
-                    DueAt = nextOccurrence
-                });
-                lifeEvent.LastReminderYear = nextOccurrence.Year;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Life event reminder {LifeEventId} failed to generate a follow-up", lifeEvent.Id);
-            }
+            var batch = await _db.ClientLifeEvents.AsNoTracking()
+                .Where(e => e.Id > lastId && e.IsActive && e.Client != null)
+                .OrderBy(e => e.Id)
+                .Select(e => new { e.Id, e.EventDate, e.ReminderDaysBefore, e.LastReminderYear })
+                .Take(BatchSize)
+                .ToListAsync();
+            if (batch.Count == 0) break;
+            lastId = batch[^1].Id;
+            dueEvents.AddRange(batch.Where(e => IsDue(e.EventDate, e.ReminderDaysBefore, e.LastReminderYear, today)).Select(e => e.Id));
         }
 
-        const int birthdayReminderDaysBefore = 7;
-
-        foreach (var client in birthdayClients)
+        var dueBirthdays = new List<int>();
+        for (var lastId = 0; ;)
         {
-            try
-            {
-                client.BirthdayReminderLastCheckedAt = DateTime.UtcNow;
-
-                var nextBirthday = NextOccurrence(client.DateOfBirth!.Value, today);
-                if (client.LastBirthdayReminderYear == nextBirthday.Year) continue;
-                // Catch-up safe, same reasoning as the life-event check above.
-                if (today < nextBirthday.AddDays(-birthdayReminderDaysBefore)) continue;
-
-                if (!accessByAgent.GetValueOrDefault(client.AgentUserId))
-                {
-                    continue;
-                }
-
-                _db.ClientFollowUps.Add(new ClientFollowUp
-                {
-                    ClientId = client.Id,
-                    Title = $"\U0001F382 Birthday: {client.FirstName} {client.LastName}",
-                    DueAt = nextBirthday
-                });
-                client.LastBirthdayReminderYear = nextBirthday.Year;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Birthday reminder for client {ClientId} failed to generate a follow-up", client.Id);
-            }
+            var batch = await _db.Clients.AsNoTracking()
+                .Where(c => c.Id > lastId && c.DateOfBirth != null)
+                .OrderBy(c => c.Id)
+                .Select(c => new { c.Id, c.DateOfBirth, c.LastBirthdayReminderYear })
+                .Take(BatchSize)
+                .ToListAsync();
+            if (batch.Count == 0) break;
+            lastId = batch[^1].Id;
+            dueBirthdays.AddRange(batch.Where(c => IsDue(c.DateOfBirth!.Value, BirthdayReminderDaysBefore, c.LastBirthdayReminderYear, today)).Select(c => c.Id));
         }
 
-        await _db.SaveChangesAsync();
+        // A List, not the array Chunk makes: C# 14 binds an array's Contains to a span overload that EF Core 8
+        // cannot translate (596, ArrayContainsQueries596Tests).
+        foreach (var ids in dueEvents.Chunk(BatchSize).Select(chunk => chunk.ToList()))
+        {
+            var events = await _db.ClientLifeEvents
+                .Include(e => e.Client)
+                .Where(e => ids.Contains(e.Id) && e.IsActive && e.Client != null)
+                .ToListAsync();
+            var access = await _entitlements.HasAccessBulkAsync(events.Select(e => e.Client.AgentUserId), PackageFeatureCodes.LifeEventReminders);
+            foreach (var lifeEvent in events)
+            {
+                try
+                {
+                    var nextOccurrence = NextOccurrence(lifeEvent.EventDate, today);
+                    if (!IsDue(lifeEvent.EventDate, lifeEvent.ReminderDaysBefore, lifeEvent.LastReminderYear, today)) continue;
+                    // Not entitled: nothing is written, so the reminder is still due tomorrow, as before.
+                    if (!access.GetValueOrDefault(lifeEvent.Client.AgentUserId)) continue;
+
+                    _db.ClientFollowUps.Add(new ClientFollowUp
+                    {
+                        ClientId = lifeEvent.ClientId,
+                        Title = $"{lifeEvent.Label}: {lifeEvent.Client.FirstName} {lifeEvent.Client.LastName}",
+                        DueAt = nextOccurrence
+                    });
+                    lifeEvent.LastReminderYear = nextOccurrence.Year;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Life event reminder {LifeEventId} failed to generate a follow-up", lifeEvent.Id);
+                }
+            }
+            await _db.SaveChangesAsync();
+            _db.ChangeTracker.Clear();
+        }
+
+        foreach (var ids in dueBirthdays.Chunk(BatchSize).Select(chunk => chunk.ToList()))
+        {
+            var clients = await _db.Clients
+                .Where(c => ids.Contains(c.Id) && c.DateOfBirth != null)
+                .ToListAsync();
+            var access = await _entitlements.HasAccessBulkAsync(clients.Select(c => c.AgentUserId), PackageFeatureCodes.LifeEventReminders);
+            foreach (var client in clients)
+            {
+                try
+                {
+                    var nextBirthday = NextOccurrence(client.DateOfBirth!.Value, today);
+                    if (!IsDue(client.DateOfBirth!.Value, BirthdayReminderDaysBefore, client.LastBirthdayReminderYear, today)) continue;
+                    if (!access.GetValueOrDefault(client.AgentUserId)) continue;
+
+                    _db.ClientFollowUps.Add(new ClientFollowUp
+                    {
+                        ClientId = client.Id,
+                        Title = $"\U0001F382 Birthday: {client.FirstName} {client.LastName}",
+                        DueAt = nextBirthday
+                    });
+                    client.LastBirthdayReminderYear = nextBirthday.Year;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Birthday reminder for client {ClientId} failed to generate a follow-up", client.Id);
+                }
+            }
+            await _db.SaveChangesAsync();
+            _db.ChangeTracker.Clear();
+        }
     }
 
-    private static DateTime NextOccurrence(DateTime sourceDate, DateTime today)
+    // Due: this year's (or next year's) occurrence has not been reminded yet, and today is inside its window.
+    // Catch-up safe: once the window opens it stays due until a reminder is made, so a missed run never skips
+    // a year's reminder; LastReminderYear is what prevents a repeat.
+    public static bool IsDue(DateTime date, int reminderDaysBefore, int? lastReminderYear, DateTime today)
+    {
+        var next = NextOccurrence(date, today);
+        if (lastReminderYear == next.Year) return false;
+        return today >= next.AddDays(-reminderDaysBefore);
+    }
+
+    public static DateTime NextOccurrence(DateTime sourceDate, DateTime today)
     {
         var occurrence = ProjectToYear(sourceDate, today.Year);
         if (occurrence < today)

@@ -485,6 +485,11 @@ public static class StartupSchemaRepair
         `UpdatedAt` datetime(6) NOT NULL,
         PRIMARY KEY (`Id`)
     ) CHARACTER SET=utf8mb4;");
+
+        // 652: a campaign's page and Email Activity count a step's sends; without this every count read the
+        // whole table. Named as EF names it, so a database EF created already has it.
+        await EnsureUniqueIndexAsync(db, "DripCampaignStepSends", "IX_DripCampaignStepSends_DripCampaignStepId",
+            "ALTER TABLE `DripCampaignStepSends` ADD INDEX `IX_DripCampaignStepSends_DripCampaignStepId` (`DripCampaignStepId`)");
     }
 
     public static async Task EnsureDidYouKnowEmailQueueSchemaAsync(IPRODbContext db)
@@ -907,6 +912,9 @@ public static class StartupSchemaRepair
             // 632 (2026-11-01): the adviser is told when a connection stops working (GoogleCalendarSyncJob).
             await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "FailedRuns", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `FailedRuns` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "StoppedSyncingAt", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `StoppedSyncingAt` datetime(6) NULL");
+            // 652: a client's documents are read by client, in the portal and on the client's page.
+            await EnsureUniqueIndexAsync(db, "PortalDocuments", "IX_PortalDocuments_ClientId",
+                "ALTER TABLE `PortalDocuments` ADD INDEX `IX_PortalDocuments_ClientId` (`ClientId`)");
         }
         finally
         {
@@ -936,6 +944,9 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "Clients", "LastBirthdayReminderYear", "ALTER TABLE `Clients` ADD COLUMN `LastBirthdayReminderYear` int NULL");
             await EnsureTableColumnAsync(db, "ClientLifeEvents", "LastCheckedAt", "ALTER TABLE `ClientLifeEvents` ADD COLUMN `LastCheckedAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "Clients", "BirthdayReminderLastCheckedAt", "ALTER TABLE `Clients` ADD COLUMN `BirthdayReminderLastCheckedAt` datetime(6) NULL");
+            // 652: a client's page reads its life events by client.
+            await EnsureUniqueIndexAsync(db, "ClientLifeEvents", "IX_ClientLifeEvents_ClientId",
+                "ALTER TABLE `ClientLifeEvents` ADD INDEX `IX_ClientLifeEvents_ClientId` (`ClientId`)");
         }
         finally
         {

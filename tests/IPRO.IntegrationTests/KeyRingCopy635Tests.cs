@@ -134,7 +134,7 @@ public class KeyRingCopy635Tests : IDisposable
         // Nowhere else does the ring move: no other store, no new application name.
         Assert.DoesNotContain("PersistKeysTo", program);
         Assert.DoesNotContain("SetApplicationName", program);
-        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(program, @"options\.XmlRepository = ").Count);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(program, @"options\.XmlRepository = "));
     }
 
     // ---- harness ------------------------------------------------------------------------------

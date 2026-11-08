@@ -265,7 +265,7 @@ public class DripImmediateAndTrackingTests
     public void Email_activity_wires_the_drip_kind_in_the_list_the_detail_and_the_view()
     {
         var ctrl = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Controllers\EmailActivityController.cs"));
-        Assert.Contains("EmailActivityQueries.DripStepRowsAsync(_db, AgentId)", ctrl);
+        Assert.Contains("EmailActivityQueries.DripStepRowsAsync(_db, AgentId, since)", ctrl);   // 652: held to the period too
         Assert.Contains("\"drip\" => await EmailActivityQueries.DripStepRecipientsAsync(_db, AgentId, id)", ctrl);
 
         var view = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Views\EmailActivity\Index.cshtml"));
