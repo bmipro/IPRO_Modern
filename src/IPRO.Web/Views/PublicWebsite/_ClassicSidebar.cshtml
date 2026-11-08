@@ -26,7 +26,8 @@
     var tint = "#f2f6fc";
     var accent = IPRO.Entities.AccentContrast.For(theme, tint, design.BackgroundColor);
     var background = design.BackgroundColor;
-    var fontFamily = design.FontFamily;
+    // 618: written into the style element as it is (Html.Raw below); CssFontList lets only a font list through.
+    var fontFamily = IPRO.Entities.CssFontList.Safe(design.FontFamily);
     var company = string.IsNullOrWhiteSpace(agent.CompanyName) ? "IPRO Advisers" : agent.CompanyName;
     var sectionSpace = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px";
     var buttonRadius = design.ButtonStyle == "square" ? "2px" : design.ButtonStyle == "pill" ? "999px" : "7px";
@@ -64,7 +65,7 @@
       margin: 0;
       background: @background;
       color: var(--ink);
-      font-family: @fontFamily;
+      font-family: @Html.Raw(fontFamily);
     }
     .classic-shell {
       width: min(1120px, calc(100% - 32px));

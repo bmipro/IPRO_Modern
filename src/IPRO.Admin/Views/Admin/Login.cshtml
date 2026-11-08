@@ -20,6 +20,8 @@ body{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);min-height:100vh
         </div>
         @if (!ViewData.ModelState.IsValid)
         { <div class="alert alert-danger py-2 small">@Html.ValidationSummary()</div> }
+        @if (TempData["SignedOut"] is string signedOut)
+        { <div class="alert alert-success py-2 small">@signedOut</div> }
         <form asp-action="Login" method="post">
             @Html.AntiForgeryToken()
             <div class="mb-3">

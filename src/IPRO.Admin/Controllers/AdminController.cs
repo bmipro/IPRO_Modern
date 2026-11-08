@@ -78,24 +78,37 @@ public class AdminController : Controller
         await _uow.SaveChangesAsync();
         await _auditLog.LogAsync(user.Id, user.Username, "LoginSucceeded", $"Successful login for '{user.Username}'.");
 
-        await SignInAdminAsync(user, new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) });
+        await SignInAdminAsync(user, new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) }, DateTime.UtcNow);
 
         return RedirectToAction("Index", "AdminDashboard");
     }
 
-    private async Task SignInAdminAsync(AdminUser user, AuthenticationProperties props)
+    // 648: the claims, with the sign-in's stamp and start time, are AdminSignIn's (AdminUsersController
+    // makes the same cookie again when an admin gives their own account a new password).
+    private async Task SignInAdminAsync(AdminUser user, AuthenticationProperties props, DateTime signedInAtUtc)
     {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.Name, user.Username),
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new("Role", user.Role),
-            new("FullName", user.FullName),
-            new("PortalAccentColor", user.PortalAccentColor ?? "")
-        };
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            IPRO.Admin.Infrastructure.AdminSignIn.Principal(user, signedInAtUtc),
             props);
+    }
+
+    // 648: ends every sign-in of this account -- on every computer, this one included -- without
+    // changing the password. Signing in again starts a new one.
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SignOutEverywhere()
+    {
+        var username = User.Identity?.Name ?? "unknown";
+        if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var adminId)
+            && await IPRO.Admin.Infrastructure.AdminSignIn.EndEverySignInAsync(_uow.Context, adminId) != null)
+        {
+            await _auditLog.LogAsync(adminId, username, "SignedOutEverywhere",
+                $"'{username}' signed out everywhere: every sign-in of this account ended, on every computer.");
+        }
+
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        TempData["SignedOut"] = "You are signed out on every computer and phone. Sign in again here with your usual password.";
+        return RedirectToAction(nameof(Login));
     }
 
     private static readonly HashSet<string> PortalAccentColors = new(StringComparer.OrdinalIgnoreCase)
@@ -116,7 +129,8 @@ public class AdminController : Controller
             user.PortalAccentColor = color.ToLowerInvariant();
             _uow.AdminUsers.Update(user);
             await _uow.SaveChangesAsync();
-            await SignInAdminAsync(user, new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) });
+            await SignInAdminAsync(user, new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) },
+                IPRO.Admin.Infrastructure.AdminSignIn.SignedInAtOf(User) ?? DateTime.UtcNow);
         }
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))

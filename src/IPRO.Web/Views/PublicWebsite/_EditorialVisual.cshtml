@@ -55,7 +55,7 @@
       --muted: #6f685f;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; color: var(--ink); background: @design.BackgroundColor; font-family: @design.FontFamily; }
+    body { margin: 0; color: var(--ink); background: @design.BackgroundColor; font-family: @Html.Raw(IPRO.Entities.CssFontList.Safe(design.FontFamily)); }@* 618: only a font list gets through *@
     .editorial-intro { min-height: 72vh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(340px, .95fr); background: #fff; }
     .editorial-intro__content { display: flex; flex-direction: column; justify-content: center; padding: clamp(54px, 8vw, 120px); }
     .editorial-intro__visual { min-height: 480px; background: linear-gradient(145deg, var(--site-theme-deep), var(--site-theme, #b42318)); }

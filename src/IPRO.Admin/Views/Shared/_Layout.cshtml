@@ -248,6 +248,14 @@
         <a class="nav-link text-danger" href="/Admin/Logout">
             <i class="fas fa-sign-out-alt"></i>Logout
         </a>
+        @* 648: ends this account's sign-ins on every computer and phone, this one included; the password stays. *@
+        <form method="post" action="/Admin/SignOutEverywhere" class="m-0">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="nav-link text-danger border-0 bg-transparent text-start js-confirm-submit" style="width:calc(100% - 1.5rem)"
+                    data-confirm-message="Sign out on every computer and phone, this one included? Your password stays the same.">
+                <i class="fas fa-power-off"></i>Sign out everywhere
+            </button>
+        </form>
     </div>
 </aside>
 

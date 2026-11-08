@@ -457,6 +457,8 @@ CREATE TABLE IF NOT EXISTS `AdminUsers` (
         // 583: the admin sign-in lock (SignInLockout); no lock email, an admin account has no address.
         await StartupSchemaRepair.EnsureTableColumnAsync(db, "AdminUsers", "FailedSignInCount", "ALTER TABLE `AdminUsers` ADD COLUMN `FailedSignInCount` int NOT NULL DEFAULT 0");
         await StartupSchemaRepair.EnsureTableColumnAsync(db, "AdminUsers", "SignInLockedUntil", "ALTER TABLE `AdminUsers` ADD COLUMN `SignInLockedUntil` datetime(6) NULL");
+        // 648: "Sign out everywhere" (AdminSignIn).
+        await StartupSchemaRepair.EnsureTableColumnAsync(db, "AdminUsers", "SignInVersion", "ALTER TABLE `AdminUsers` ADD COLUMN `SignInVersion` int NOT NULL DEFAULT 0");
     }
     finally
     {

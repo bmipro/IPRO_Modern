@@ -732,6 +732,10 @@ public class IPRODbContext : DbContext
         {
             e.Property(a => a.FailedSignInCount).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
             e.Property(a => a.SignInLockedUntil).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            // 648: raised only by AdminSignIn.EndEverySignInAsync's own statement. A save of a row loaded
+            // before "Sign out everywhere" would otherwise put the old number back and let every ended
+            // sign-in in again.
+            e.Property(a => a.SignInVersion).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
         });
         modelBuilder.Entity<SignInNameLock>(e =>
         {

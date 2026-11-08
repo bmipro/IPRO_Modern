@@ -88,11 +88,14 @@ public class BuilderSiteLook614Tests
         Assert.Equal("416 555 0100", actions["phone"]);
         Assert.Equal(true, actions["email"]);
         Assert.Equal("Book a call", actions["button"]);
-        // The font as the live site draws it: a list with quote marks never reaches the page (TODO 618).
+        // The font as the live site draws it: since 618 a list with quote marks reaches the page too, and
+        // anything that is not a font list is drawn with the fallback, on the site and in the builder.
         site.FontFamilyOverride = "Georgia, 'Times New Roman', serif";
-        Assert.Equal(string.Empty, BuilderBeta.Look(site, agent)["siteFont"]);
+        Assert.Equal("Georgia, 'Times New Roman', serif", BuilderBeta.Look(site, agent)["siteFont"]);
         site.FontFamilyOverride = "Arial, Helvetica, sans-serif";
         Assert.Equal("Arial, Helvetica, sans-serif", BuilderBeta.Look(site, agent)["siteFont"]);
+        site.FontFamilyOverride = "Arial; } body { display:none";
+        Assert.Equal(CssFontList.Fallback, BuilderBeta.Look(site, agent)["siteFont"]);
         // Without the adviser (an older caller), the design alone.
         Assert.False(BuilderBeta.Look(site).ContainsKey("company"));
     }

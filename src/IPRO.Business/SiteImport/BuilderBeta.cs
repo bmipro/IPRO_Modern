@@ -330,11 +330,10 @@ public static class BuilderBeta
         foreach (var (name, value) in shell.Extra) vars[name] = value;
         var header = WebsiteHeaderSettings.FromJson(site.HeaderSettingsJson);
         look["design"] = shell.Name;
-        // The font the live site really draws with: the shells write the font list into a <style> through
-        // Razor, which encodes its quote marks, and the browser drops a declaration so written; the page
-        // then falls back to Bootstrap's own font (TODO 618). Empty says "the browser's default".
-        var font = design.FontFamily ?? string.Empty;
-        look["siteFont"] = font.Contains('\'') || font.Contains('"') ? string.Empty : font;
+        // The font the live site really draws with. Until 618 the shells' Razor encoded the quote marks and
+        // the browser dropped the declaration (this said "" then, the browser's default); since 618 they
+        // write CssFontList.Safe's list as it is, and the builder is given the same list.
+        look["siteFont"] = CssFontList.Safe(design.FontFamily);
         look["vars"] = vars;
         look["bodyClass"] = $"header-{design.HeaderStyle} hero-{design.HeroLayout} hero-style-{design.HeroStyle} buttons-{design.ButtonStyle}";
         look["headerClass"] = $"style-{header.Style} logo-{header.LogoPosition} logo-size-{header.LogoSize}" + (header.Sticky ? " is-sticky" : string.Empty);

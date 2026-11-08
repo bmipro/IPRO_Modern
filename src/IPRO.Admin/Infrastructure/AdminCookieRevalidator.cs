@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using IPRO.DataAccess;
 using IPRO.Entities;
 using Microsoft.AspNetCore.Authentication;
@@ -27,6 +29,11 @@ public class AdminCookieRevalidator : CookieAuthenticationEvents
         }
 
         var verdict = Evaluate(user, context.Principal?.FindFirstValue("Role"));
+        // 648: and the sign-in itself -- made before the password changed or "Sign out everywhere"
+        // was pressed, older than 12 hours, or from before 648 (no stamp): it ends here.
+        if (verdict == PrincipalVerdict.Ok)
+            verdict = EvaluateSignIn(user!, context.Principal?.FindFirstValue(AdminSignIn.StampClaimType),
+                AdminSignIn.SignedInAtOf(context.Principal), DateTime.UtcNow);
         if (verdict == PrincipalVerdict.Reject)
         {
             context.RejectPrincipal();
@@ -45,6 +52,19 @@ public class AdminCookieRevalidator : CookieAuthenticationEvents
     {
         if (user == null || !user.IsActive) return PrincipalVerdict.Reject;
         if (!string.Equals(user.Role, roleClaim, StringComparison.Ordinal)) return PrincipalVerdict.Reject;
+        return PrincipalVerdict.Ok;
+    }
+
+    // 648. Reject when the sign-in carries no stamp or one that is not the account's stamp now (a new
+    // password, or "Sign out everywhere", since it began), or no start time, or a start more than
+    // AdminSignIn.MaxLifetime ago (or more than five minutes ahead of this server's clock).
+    public static PrincipalVerdict EvaluateSignIn(AdminUser user, string? stampClaim, DateTime? signedInAtUtc, DateTime nowUtc)
+    {
+        if (string.IsNullOrEmpty(stampClaim)
+            || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(AdminSignIn.Stamp(user)), Encoding.ASCII.GetBytes(stampClaim)))
+            return PrincipalVerdict.Reject;
+        if (signedInAtUtc is not { } at || at > nowUtc.AddMinutes(5) || nowUtc - at > AdminSignIn.MaxLifetime)
+            return PrincipalVerdict.Reject;
         return PrincipalVerdict.Ok;
     }
 }

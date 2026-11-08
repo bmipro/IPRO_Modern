@@ -21,4 +21,7 @@ public class AdminUser
     // an admin account has no email address.
     public int FailedSignInCount { get; set; }
     public DateTime? SignInLockedUntil { get; set; }
+    // 648: part of every sign-in's stamp (AdminSignIn.Stamp, with the password hash); "Sign out
+    // everywhere" raises it and every sign-in made before ends. Written only by its own statement.
+    public int SignInVersion { get; set; }
 }

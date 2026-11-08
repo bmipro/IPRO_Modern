@@ -4,6 +4,8 @@ using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.DataAccess.Repositories;
 using IPRO.Entities;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -190,7 +192,17 @@ public class AdminUsersController : Controller
             SignInLockout.LogCleared(_logger, account, $"password reset by {CurrentAdminUsername}");
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AdminUserPasswordReset", $"Reset password for '{user.Username}'.");
 
-        TempData["Success"] = $"Password reset for {user.Username}.";
+        // 648: a new password ends every sign-in made with the old one (AdminSignIn.Stamp). An admin
+        // giving their OWN account a new password keeps this sign-in: the same cookie, with the new
+        // stamp and the sign-in's original start time (the 12 hours do not start again).
+        if (user.Id == CurrentAdminId)
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                AdminSignIn.Principal(user, AdminSignIn.SignedInAtOf(User) ?? DateTime.UtcNow),
+                new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(4) });
+
+        TempData["Success"] = user.Id == CurrentAdminId
+            ? $"Password reset for {user.Username}. Every other sign-in of this account has ended; this one stays."
+            : $"Password reset for {user.Username}. Any sign-in they had open has ended.";
         return RedirectToAction(nameof(Edit), new { id });
     }
 

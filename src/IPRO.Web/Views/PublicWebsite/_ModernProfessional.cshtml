@@ -26,7 +26,8 @@
     var tint = "#eef4ff";
     var accent = IPRO.Entities.AccentContrast.For(theme, tint, design.BackgroundColor);
     var background = design.BackgroundColor;
-    var fontFamily = design.FontFamily;
+    // 618: written into the style element as it is (Html.Raw below); CssFontList lets only a font list through.
+    var fontFamily = IPRO.Entities.CssFontList.Safe(design.FontFamily);
     var sectionSpace = design.SectionSpacing == "compact" ? "44px" : design.SectionSpacing == "comfortable" ? "62px" : "82px";
     var buttonRadius = design.ButtonStyle == "square" ? "2px" : design.ButtonStyle == "pill" ? "999px" : "7px";
     var prospectRegisterUrl = "/Account/Register?firstName=" + Uri.EscapeDataString(agent.FirstName)
@@ -59,7 +60,7 @@
       margin: 0;
       color: #111827;
       background: @background;
-      font-family: @fontFamily;
+      font-family: @Html.Raw(fontFamily);
     }
     .site-hero {
       min-height: 72vh;
