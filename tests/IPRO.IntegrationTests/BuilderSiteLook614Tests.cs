@@ -96,6 +96,12 @@ public class BuilderSiteLook614Tests
         Assert.Equal("Arial, Helvetica, sans-serif", BuilderBeta.Look(site, agent)["siteFont"]);
         site.FontFamilyOverride = "Arial; } body { display:none";
         Assert.Equal(CssFontList.Fallback, BuilderBeta.Look(site, agent)["siteFont"]);
+        // Modern UI keeps Apple's own font on Apple devices (2026-11-08), and the builder's own check on a
+        // font list (HostLook.FontStack: these characters, at most 120) takes the longer list as it is.
+        site.FontFamilyOverride = "'Segoe UI', Arial, Helvetica, sans-serif";
+        var modern = Assert.IsType<string>(BuilderBeta.Look(site, agent)["siteFont"]);
+        Assert.Equal("-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif", modern);
+        Assert.Matches(@"\A[A-Za-z0-9 ,'""-]{1,120}\z", modern);
         // Without the adviser (an older caller), the design alone.
         Assert.False(BuilderBeta.Look(site).ContainsKey("company"));
     }

@@ -13,7 +13,14 @@ public class SiteFont618Tests
 {
     [Theory]
     [InlineData("Georgia, 'Times New Roman', serif", "Georgia, 'Times New Roman', serif")]
-    [InlineData("'Segoe UI', Arial, Helvetica, sans-serif", "'Segoe UI', Arial, Helvetica, sans-serif")]
+    // Modern UI: Apple's interface font in front, so Apple devices keep it (the owner, 2026-11-08); Windows
+    // has neither name and draws Segoe UI as before.
+    [InlineData("'Segoe UI', Arial, Helvetica, sans-serif", "-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif")]
+    [InlineData("\"Segoe UI\",sans-serif", "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif")]
+    [InlineData("-apple-system, 'Segoe UI', Arial", "-apple-system, 'Segoe UI', Arial")]          // already there: once
+    [InlineData("BlinkMacSystemFont, 'Segoe UI', Arial", "BlinkMacSystemFont, 'Segoe UI', Arial")]
+    [InlineData("Arial, 'Segoe UI', sans-serif", "Arial, 'Segoe UI', sans-serif")]                // only a list that starts with it
+    [InlineData("'Segoe UI Light', sans-serif", "'Segoe UI Light', sans-serif")]
     [InlineData("'Times New Roman', Times, serif", "'Times New Roman', Times, serif")]
     [InlineData("Arial, Helvetica, sans-serif", "Arial, Helvetica, sans-serif")]
     [InlineData("\"Open Sans\",Arial ,  sans-serif", "\"Open Sans\", Arial, sans-serif")]
@@ -36,7 +43,9 @@ public class SiteFont618Tests
     [InlineData("url(x), serif")]
     [InlineData("Arial\\, serif")]
     [InlineData("Arial\n}")]
-    [InlineData("-moz-thing, serif")]                       // a bare name starts with a letter
+    [InlineData("-5px, serif")]                             // a bare name starts with a letter, or a hyphen and a letter
+    [InlineData("--x, serif")]
+    [InlineData("- apple, serif")]
     [InlineData("Ari&#x27;al")]
     public void Anything_else_is_drawn_with_the_fallback(string? given) =>
         Assert.Equal(CssFontList.Fallback, CssFontList.Safe(given));
