@@ -47,6 +47,9 @@
     var canAddDomain = domainAccess?.IsIncluded == true && (domainLimit == -1 || agentDomains.Count < (domainLimit ?? 0));
     var hasCustomDomain = !string.IsNullOrWhiteSpace(customDomain);
     var templateRetired = ViewBag.TemplateRetired == true;
+    // 611: see WebsiteController.LoadWebsiteContextAsync.
+    var isStaging = ViewBag.IsStaging == true;
+    var stagingPreviewPageId = ViewBag.StagingPreviewPageId as int?;
 }
 
 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -59,7 +62,15 @@
     <a href="/portal/WebsitePages/Footer" class="btn btn-outline-primary"><i class="fas fa-shoe-prints me-1"></i>Footer</a>
     <a href="/portal/Website/Domains" class="btn btn-outline-primary"><i class="fas fa-route me-1"></i>Domain</a>
     <a href="/portal/WebsitePages" class="btn btn-primary"><i class="fas fa-file-lines me-1"></i>Manage Pages</a>
-    @if (!string.IsNullOrWhiteSpace(liveDomain))
+    @if (isStaging)
+    {
+      @* 611: on staging the public address belongs to the live server; the portal's preview shows this copy's site. *@
+      if (stagingPreviewPageId is int previewPageId)
+      {
+        <a href="/portal/WebsitePages/Preview/@previewPageId" target="_blank" class="btn btn-outline-primary" title="Staging: your public address opens the live server, so this opens the portal's preview of your home page"><i class="fas fa-up-right-from-square me-1"></i>Open Website (preview)</a>
+      }
+    }
+    else if (!string.IsNullOrWhiteSpace(liveDomain))
     {
       <a href="https://@liveDomain" target="_blank" class="btn btn-outline-primary"><i class="fas fa-up-right-from-square me-1"></i>Open Website</a>
     }

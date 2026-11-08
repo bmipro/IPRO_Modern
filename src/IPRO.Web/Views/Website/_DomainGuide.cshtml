@@ -161,7 +161,8 @@
                 </table></div>
                 Keep the CAA records that are already there; this one is added beside them. Some registrars ask for it in three boxes: flag <code>0</code>, tag <code>issue</code>, value <code>digicert.com</code>.
               </div>
-              <p class="small text-muted mb-2">Your website stays live at <a href="https://@Model.TemporaryDomain" target="_blank" rel="noopener">@Model.TemporaryDomain</a> the whole time.</p>
+              @* 611: on staging the temporary address belongs to the live server, so it is not a link there. *@
+              <p class="small text-muted mb-2">Your website stays live at @if (ViewBag.IsStaging == true) {<span class="font-monospace">@Model.TemporaryDomain</span>} else {<a href="https://@Model.TemporaryDomain" target="_blank" rel="noopener">@Model.TemporaryDomain</a>} the whole time.</p>
             }
 
             <p class="guide-seen guide-seen--@(step.SeenRight == true ? "right" : step.SeenRight == false ? "wrong" : "unknown")" data-guide-seen hidden="@(step.Seen.Length == 0)">

@@ -177,6 +177,21 @@ builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ai"));
 builder.Services.AddScoped<IAiSuggestionService, AnthropicAiSuggestionService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IBlobStorageService, AzureBlobStorageService>();
+// 635: a second copy of the Data Protection key ring (two-step secrets, Google tokens) in iPro's storage,
+// beside the folder Azure has always kept it in, which stays the ring read first. On App Service only; see
+// KeyRingCopy for what it does and why.
+var keyFolder = IPRO.Web.Infrastructure.KeyRingCopy.AzureKeyFolder(Environment.GetEnvironmentVariable);
+var keyCopyName = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
+var keyCopyStorage = builder.Configuration["Azure:StorageConnectionString"];
+if (keyFolder != null && !string.IsNullOrWhiteSpace(keyCopyName) && !string.IsNullOrWhiteSpace(keyCopyStorage))
+{
+    builder.Services.AddDataProtection();
+    builder.Services.AddOptions<Microsoft.AspNetCore.DataProtection.KeyManagement.KeyManagementOptions>()
+        .Configure<ILoggerFactory>((options, loggers) => options.XmlRepository = new IPRO.Web.Infrastructure.MirroredKeyRepository(
+            keyFolder,
+            new IPRO.Web.Infrastructure.BlobKeyCopyStore(new Azure.Storage.Blobs.BlobContainerClient(keyCopyStorage, IPRO.Web.Infrastructure.KeyRingCopy.Container), keyCopyName),
+            loggers));
+}
 builder.Services.AddScoped<IContactImporter, ContactImporter>();
 builder.Services.AddSingleton<ITenantResolver>(_ => 
     new DomainTenantResolver(builder.Configuration["App:AdminDomain"]?? "admin.iprosystem.com"));
@@ -338,6 +353,17 @@ app.UseSecurityHeaders();
 app.UseIpRateLimiting();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+// 649: scanners' addresses (.git/config, wp-login.php, proc/self/environ) end here, before the URL-space
+// rule hands them to a customer site and its database. See ScannerProbes for the shapes and why.
+app.Use(async (context, next) =>
+{
+    if (IPRO.Web.Infrastructure.ScannerProbes.IsProbe(context.Request.Path))
+    {
+        await IPRO.Web.Infrastructure.ScannerProbes.AnswerAsync(context);
+        return;
+    }
+    await next();
+});
 app.Use(async (context, next) =>
 {
     // THE URL-SPACE RULE. See DOCS/INVARIANTS.md -- this middleware is its only enforcement point.

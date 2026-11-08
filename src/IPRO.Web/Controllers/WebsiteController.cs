@@ -411,6 +411,19 @@ public class WebsiteController : Controller
             .AnyAsync(t => t.Id == selectedTemplateId.Value && !t.IsActive);
         ViewBag.TemporaryDomain = agent?.DomainName ?? string.Empty;
         ViewBag.TemporaryRootDomain = _configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com";
+        // 611: a staging adviser's addresses are on production's domain, so "Open Website" would open the
+        // LIVE server. On staging it opens the portal's own preview of the site's home page instead.
+        var isStaging = StagingGuard.IsStaging(_configuration);
+        ViewBag.IsStaging = isStaging;
+        ViewBag.StagingPreviewPageId = isStaging
+            ? await _db.WebsitePages
+                .AsNoTracking()
+                .Where(p => p.AgentWebsite.AgentUserId == AgentId)
+                .OrderByDescending(p => p.IsHomePage)
+                .ThenBy(p => p.SortOrder)
+                .Select(p => (int?)p.Id)
+                .FirstOrDefaultAsync()
+            : null;
         ViewBag.WebsiteDnsTarget = _configuration["App:WebsiteDnsTarget"] ?? "ipro-prod-web.azurewebsites.net";
         // 553: the two values a short address needs to point straight at the platform -- the A
         // record's address and the TXT record that proves the domain to Azure. Neither is a secret
