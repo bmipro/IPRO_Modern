@@ -29,9 +29,18 @@ public class DeployWorkflowTests
         var yml = File.ReadAllText(FindRepoFile(file));
 
         Assert.Contains("Restart only if the new package is not being served yet", yml);
-        // Gives the deploy's own restart 90 seconds (9 x 10s) before deciding.
-        Assert.Contains("seq 1 9", yml);
+        // 653: gives the deploy's own restart about three minutes (18 checks, 10 s apart) before deciding;
+        // 90 s (seq 1 9) restarted a 24-second-old portal on 2026-11-09.
+        Assert.Contains("for attempt in $(seq 1 18); do", yml);
+        Assert.DoesNotContain("seq 1 9)", yml);
         Assert.Contains("no restart needed", yml);
+        // No answer at the last check means the app is starting: never restart into a start (445, 653).
+        Assert.Contains("if [ -z \"$actual\" ]; then", yml);
+        Assert.Contains("no restart into a start (445, 653)", yml);
+        var step = yml.Substring(yml.IndexOf("Restart only if the new package is not being served yet", StringComparison.Ordinal));
+        step = step.Substring(0, step.IndexOf("Verify the deployed build is actually serving", StringComparison.Ordinal));
+        Assert.True(step.IndexOf("no restart into a start", StringComparison.Ordinal) < step.IndexOf("az webapp restart", StringComparison.Ordinal),
+            "the no-answer guard must come before the restart");
         // The unconditional step is gone.
         Assert.DoesNotContain("name: Restart the app so the new package is mounted", yml);
 
@@ -56,6 +65,23 @@ public class DeployWorkflowTests
         Assert.Contains("after a second restart", yml);
         Assert.Contains("::error::", yml);
         Assert.Contains($"restarting once more (445)", yml);
+    }
+
+    // 653: staging restarted at check 9 whatever answered, so a slow start (staging serves after 7-10
+    // checks) could be restarted mid-start. Once, at check 18, and only while the OLD build answers.
+    [Fact]
+    public void Staging_restarts_once_late_and_only_while_the_old_build_answers()
+    {
+        var yml = File.ReadAllText(FindRepoFile(@".github\workflows\staging.yml"));
+
+        Assert.DoesNotContain("\"$attempt\" = \"9\"", yml);
+        Assert.Equal(2, Regex.Matches(yml, Regex.Escape("for attempt in $(seq 1 36); do")).Count);
+        foreach (var app in new[] { "STAGING_WEB_APP", "STAGING_ADMIN_APP" })
+        {
+            var restarts = Regex.Matches(yml, @"^.*az webapp restart --name ""\$" + app + @""".*$", RegexOptions.Multiline);
+            Assert.Single(restarts);
+            Assert.Contains("if [ \"$attempt\" = \"18\" ] && [ -n \"$actual\" ]; then", restarts[0].Value);
+        }
     }
 
     [Fact]

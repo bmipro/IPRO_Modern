@@ -76,12 +76,15 @@ jobs:
         with:
           app-name: ${{ env.STAGING_WEB_APP }}
           package: ./web
+      # 653 (2026-11-09): the restart used to fire at check 9 whatever answered, so a slow start (staging
+      # serves after 7-10 checks) was restarted mid-start, the 445 pattern. Now it fires once, at check
+      # 18 (about three minutes), and only while the OLD build is answering; no answer means starting.
       - name: Wait for the portal to serve this commit
         run: |
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 36); do
             actual=$(curl -fsS --max-time 10 "$STAGING_WEB_URL/health/version" 2>/dev/null || echo '')
             if [ "$actual" = "${{ github.sha }}" ]; then echo "portal serving after $attempt check(s)"; exit 0; fi
-            if [ "$attempt" = "9" ]; then az webapp restart --name "$STAGING_WEB_APP" --resource-group "$STAGING_RESOURCE_GROUP"; fi
+            if [ "$attempt" = "18" ] && [ -n "$actual" ]; then echo "old build still serving after about three minutes; restarting once"; az webapp restart --name "$STAGING_WEB_APP" --resource-group "$STAGING_RESOURCE_GROUP"; fi
             sleep 10
           done
           echo "::error::the staging portal is not serving ${{ github.sha }}"; exit 1
@@ -92,10 +95,10 @@ jobs:
           package: ./admin
       - name: Wait for SuperAdmin to serve this commit
         run: |
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 36); do
             actual=$(curl -fsS --max-time 10 "$STAGING_ADMIN_URL/health/version" 2>/dev/null || echo '')
             if [ "$actual" = "${{ github.sha }}" ]; then echo "SuperAdmin serving after $attempt check(s)"; exit 0; fi
-            if [ "$attempt" = "9" ]; then az webapp restart --name "$STAGING_ADMIN_APP" --resource-group "$STAGING_RESOURCE_GROUP"; fi
+            if [ "$attempt" = "18" ] && [ -n "$actual" ]; then echo "old build still serving after about three minutes; restarting once"; az webapp restart --name "$STAGING_ADMIN_APP" --resource-group "$STAGING_RESOURCE_GROUP"; fi
             sleep 10
           done
           echo "::error::staging SuperAdmin is not serving ${{ github.sha }}"; exit 1
