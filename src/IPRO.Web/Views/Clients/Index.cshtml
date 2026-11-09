@@ -17,6 +17,40 @@
 
         return $"data-upgrade-lock=\"true\" data-upgrade-title=\"{importAccess.FeatureName}\" data-upgrade-message=\"{importAccess.UpgradeMessage}\"";
     }
+
+    // 651: one page of the list at a time; the page links keep the search and the filters.
+    var searchText = ViewBag.Search as string;
+    var currentPage = ViewBag.Page as int? ?? 1;
+    var pageCount = ViewBag.PageCount as int? ?? 1;
+    var matchingCount = ViewBag.MatchingCount as int? ?? 0;
+    var pageSize = ViewBag.PageSize as int? ?? 50;
+    var firstShown = (currentPage - 1) * pageSize + 1;
+    var lastShown = Math.Min(currentPage * pageSize, matchingCount);
+    string PageUrl(int target)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(searchText)) parts.Add("search=" + Uri.EscapeDataString(searchText));
+        if (selectedAccountTypeId.HasValue) parts.Add("accountTypeId=" + selectedAccountTypeId.Value);
+        if (!string.IsNullOrEmpty(selectedNewsletter)) parts.Add("newsletter=" + Uri.EscapeDataString(selectedNewsletter));
+        if (target > 1) parts.Add("page=" + target);
+        return "/portal/Clients" + (parts.Count > 0 ? "?" + string.Join("&", parts) : "");
+    }
+    // The first page, the last, and two either side of this one; null marks a gap.
+    var pagerItems = new List<int?>();
+    {
+        var shown = new SortedSet<int> { 1, pageCount };
+        for (var i = currentPage - 2; i <= currentPage + 2; i++)
+        {
+            if (i >= 1 && i <= pageCount) shown.Add(i);
+        }
+        int? previous = null;
+        foreach (var i in shown)
+        {
+            if (previous.HasValue && i > previous.Value + 1) pagerItems.Add(null);
+            pagerItems.Add(i);
+            previous = i;
+        }
+    }
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
@@ -161,10 +195,7 @@
                         <div class="d-flex gap-1">
                             <a href="/portal/Clients/Details/@c.Id" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
                             <a href="/portal/Clients/Edit/@c.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
-                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" title="Delete" data-confirm-message="Delete @c.FirstName @c.LastName?"><i class="fas fa-trash"></i></button>
-                            </form>
+                            <button type="submit" form="clientDeleteForm" formaction="@Url.Action("Delete", new { id = c.Id })" class="btn btn-sm btn-outline-danger js-confirm-submit" title="Delete" data-confirm-message="Delete @c.FirstName @c.LastName?"><i class="fas fa-trash"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -190,6 +221,32 @@
         </table>
     </div>
 </div>
+
+@* 651: one form and one anti-forgery token for every Delete button on the page; each button names this
+   form and gives its own client's address. *@
+<form id="clientDeleteForm" method="post" class="d-none">@Html.AntiForgeryToken()</form>
+
+@if (pageCount > 1)
+{
+    <nav aria-label="Client list pages" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+        <small class="text-muted">Showing @firstShown.ToString("N0")&ndash;@lastShown.ToString("N0") of @matchingCount.ToString("N0")</small>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(currentPage <= 1 ? "disabled" : "")"><a class="page-link" href="@PageUrl(currentPage - 1)">Previous</a></li>
+            @foreach (var item in pagerItems)
+            {
+                if (item == null)
+                {
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                }
+                else
+                {
+                    <li class="page-item @(item == currentPage ? "active" : "")"><a class="page-link" href="@PageUrl(item.Value)" aria-current="@(item == currentPage ? "page" : null)">@item</a></li>
+                }
+            }
+            <li class="page-item @(currentPage >= pageCount ? "disabled" : "")"><a class="page-link" href="@PageUrl(currentPage + 1)">Next</a></li>
+        </ul>
+    </nav>
+}
 
 <div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog">

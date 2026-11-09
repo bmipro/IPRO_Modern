@@ -39,10 +39,14 @@ public class ClientsController : Controller
         _consent = consent;
     }
 
-    public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter)
+    // 651: the list shows one page at a time. It used to load the whole book with its account types
+    // (at 3,000 clients a 4-5 MB page with a token per row); the count, the order and the page are now
+    // the database's, and the page's rows are the only ones read.
+    public const int ClientListPageSize = 50;
+
+    public async Task<IActionResult> Index(string? search, int? accountTypeId, string? newsletter, int page = 1)
     {
-        var query = _db.Clients
-            .Include(c => c.Categories)
+        var query = _db.Clients.AsNoTracking()
             .Where(c => c.AgentUserId == AgentId);
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -89,7 +93,20 @@ public class ClientsController : Controller
             .OrderBy(c => c.Name)
             .ToListAsync();
         ViewBag.AgentTimeZone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, AgentId);   // 588: the Added date, the adviser's day
-        return View(await query.OrderByDescending(c => c.CreatedAt).ToListAsync());
+
+        var matchingCount = await query.CountAsync();
+        var pageCount = Math.Max(1, (matchingCount + ClientListPageSize - 1) / ClientListPageSize);
+        page = Math.Clamp(page, 1, pageCount);
+        ViewBag.Page = page;
+        ViewBag.PageCount = pageCount;
+        ViewBag.MatchingCount = matchingCount;
+        ViewBag.PageSize = ClientListPageSize;
+        // Newest first; the Id breaks ties so a client never shows on two pages or none.
+        return View(await query
+            .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
+            .Skip((page - 1) * ClientListPageSize).Take(ClientListPageSize)
+            .Include(c => c.Categories)
+            .ToListAsync());
     }
 
     public async Task<IActionResult> Details(int id)
