@@ -21,6 +21,22 @@ public class SubscriptionBillingJob
         // which is precisely when the later stages (dunning, reconciliation) matter most. The
         // per-item isolation inside each stage handles the common case; these guards are the
         // backstop for a stage-level failure (its opening query, for instance).
+        //
+        // 630: lost activations first, so no later stage treats a customer PayPal is already billing as
+        // unpaid (NotifyBillingIssuesAsync emails "payment pending" for a checkout Pending over 24 hours).
+        try
+        {
+            var caughtUp = await _billing.CatchUpLostActivationsAsync();
+            if (caughtUp > 0)
+            {
+                _logger.LogWarning("Activated {Count} checkout(s) PayPal reports active whose activation never reached iPro.", caughtUp);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CatchUpLostActivationsAsync failed; continuing with the remaining billing stages.");
+        }
+
         try
         {
             var applied = await _billing.ProcessDueSubscriptionChangesAsync();

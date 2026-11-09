@@ -332,6 +332,7 @@ public class CheckoutHostPreservationTests
         public Task<int> NotifyBillingIssuesAsync() => throw new NotSupportedException();
         public Task<int> ReconcileDuplicateActiveSubscriptionsAsync() => throw new NotSupportedException();
         public Task<int> ReconcileActiveSubscriptionsWithPayPalAsync() => throw new NotSupportedException();
+        public Task<int> CatchUpLostActivationsAsync() => throw new NotSupportedException();
         public Task<bool> HandleWebhookAsync(string eventType, string payload, PayPalWebhookHeaders headers, decimal amount) => throw new NotSupportedException();
         public Task<PayPalPlanSyncResult> SyncPayPalPlansAsync(int billingRuleId) => throw new NotSupportedException();
         public Task<PayPalPlanSyncResult> SyncDailyTestPlanAsync(int billingRuleId) => throw new NotSupportedException();

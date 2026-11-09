@@ -126,8 +126,21 @@ public class WebsiteTemplatesController : Controller
         var isNew = model.Id == 0;
         if (isNew)
         {
-            model.CreatedAt = DateTime.UtcNow;
-            await _uow.WebsiteTemplates.AddAsync(model);
+            // 631: the new template is the fields the form shows. Before, a crafted post could name websites
+            // around it (Websites[0].AgentUserId, .CustomDomain ...) and add a site to any adviser's account,
+            // with a domain that skipped the domain check.
+            await _uow.WebsiteTemplates.AddAsync(new WebsiteTemplate
+            {
+                TemplateKey = model.TemplateKey,
+                Name = model.Name,
+                Description = model.Description,
+                BusinessType = model.BusinessType,
+                PreviewImageUrl = model.PreviewImageUrl,
+                LayoutJson = model.LayoutJson,
+                IsActive = model.IsActive,
+                IsDefault = model.IsDefault,
+                CreatedAt = DateTime.UtcNow
+            });
         }
         else
         {

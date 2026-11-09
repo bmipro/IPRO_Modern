@@ -118,20 +118,39 @@ public class ECardDesignsController : Controller
             if (!ok) ModelState.AddModelError("artwork", error!);
             else uploadedUrl = url;
         }
-        else if (model.Kind == ECardArtKinds.Image && string.IsNullOrWhiteSpace(model.ImageUrl))
+        // 631: a new design's picture is the one uploaded here; the form has no picture address to type.
+        else if (model.Kind == ECardArtKinds.Image && (isNew || string.IsNullOrWhiteSpace(model.ImageUrl)))
         {
             ModelState.AddModelError("artwork", "Upload the card artwork.");
         }
 
         if (!ModelState.IsValid) { ViewBag.WebBaseUrl = WebBaseUrl; return View(model); }
 
-        if (uploadedUrl != null) model.ImageUrl = uploadedUrl;
-
         if (isNew)
         {
-            model.CreatedAt = DateTime.UtcNow;
-            model.UpdatedAt = DateTime.UtcNow;
-            _db.ECardDesigns.Add(model);
+            // 631: the new design is the fields the form shows, nothing else the request names.
+            var now = DateTime.UtcNow;
+            _db.ECardDesigns.Add(new ECardDesign
+            {
+                Key = model.Key,
+                Occasion = model.Occasion,
+                Name = model.Name,
+                Kind = model.Kind,
+                DefaultHeaderText = model.DefaultHeaderText,
+                DefaultMessage = model.DefaultMessage,
+                ImageUrl = uploadedUrl ?? string.Empty,
+                Width = uploadedUrl != null ? model.Width : 0,
+                Height = uploadedUrl != null ? model.Height : 0,
+                Accent = model.Accent,
+                Emoji = model.Emoji,
+                IsDark = model.IsDark,
+                IsActive = model.IsActive,
+                SendAfterUnsubscribe = model.SendAfterUnsubscribe,
+                GreetingStyle = model.GreetingStyle,
+                SortOrder = model.SortOrder,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
         }
         else
         {

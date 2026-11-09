@@ -124,10 +124,28 @@ public class PromotionCodesController : Controller
         }
 
         var isNew = model.Id == 0;
+        var savedId = model.Id;
+        PromotionCode? created = null;
         if (isNew)
         {
-            model.CreatedAt = DateTime.UtcNow;
-            await _uow.PromotionCodes.AddAsync(model);
+            // 631: the new code is the fields the form shows. Its redemption count, its cached PayPal plans and
+            // any package the request names around it are the server's: a crafted post set them before.
+            created = new PromotionCode
+            {
+                Code = model.Code,
+                Description = model.Description,
+                IsActive = model.IsActive,
+                ExpiresAt = model.ExpiresAt,
+                MaxRedemptions = model.MaxRedemptions,
+                RestrictedBillingRuleId = model.RestrictedBillingRuleId,
+                RecurringDiscountType = model.RecurringDiscountType,
+                RecurringDiscountValue = model.RecurringDiscountValue,
+                RecurringDurationCycles = model.RecurringDurationCycles,
+                SetupFeeDiscountType = model.SetupFeeDiscountType,
+                SetupFeeDiscountValue = model.SetupFeeDiscountValue,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _uow.PromotionCodes.AddAsync(created);
         }
         else
         {
@@ -163,10 +181,11 @@ public class PromotionCodesController : Controller
         }
 
         await _uow.SaveChangesAsync();
+        if (created != null) savedId = created.Id;
         // 508: the billing period the code works with, in its own table (no row = both). After the save,
         // so a new code has its id.
         var periodLimit = PromotionCodePeriod.Parse(appliesTo);
-        await PromotionCodePeriod.SetAsync(_db, model.Id, periodLimit);
+        await PromotionCodePeriod.SetAsync(_db, savedId, periodLimit);
         await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, isNew ? "PromotionCodeCreate" : "PromotionCodeEdit", $"Promotion code '{model.Code}' {(isNew ? "created" : "updated")} ({(periodLimit.HasValue ? PromotionCodePeriod.Words(periodLimit.Value) + " only" : "monthly and annual billing")})");
         TempData["Success"] = "Promotion code saved.";
         return RedirectToAction(nameof(Index));

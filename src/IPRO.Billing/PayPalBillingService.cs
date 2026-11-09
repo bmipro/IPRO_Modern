@@ -24,13 +24,16 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
     private readonly IConfiguration _configuration;
     private readonly PayPalSettings _settings;
     private readonly ILogger<PayPalBillingService> _logger;
+    private readonly PayPalAccessTokens _accessTokens;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public PayPalBillingService(IUnitOfWork uow, IPRODbContext db, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings, IConfiguration configuration, ILogger<PayPalBillingService> logger)
+    // 630: accessTokens is the app's one shared PayPal token (a singleton in both apps). Built without it
+    // (tests), the service keeps a token of its own.
+    public PayPalBillingService(IUnitOfWork uow, IPRODbContext db, IHttpClientFactory httpClientFactory, IEmailService email, IOptions<PayPalSettings> settings, IConfiguration configuration, ILogger<PayPalBillingService> logger, PayPalAccessTokens? accessTokens = null)
     {
         _uow = uow;
         _db = db;
@@ -39,6 +42,7 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         _configuration = configuration;
         _settings = settings.Value;
         _logger = logger;
+        _accessTokens = accessTokens ?? new PayPalAccessTokens();
     }
 
     public async Task<IPRO.Entities.Billing?> GetActiveSubscriptionAsync(int userId)
@@ -3901,6 +3905,74 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         });
     }
 
+    // 630: how long a checkout is left to the buyer's return and PayPal's notice before the hourly
+    // catch-up asks PayPal about it, and how far back it looks.
+    internal static readonly TimeSpan LostActivationWait = TimeSpan.FromHours(1);
+    internal static readonly TimeSpan LostActivationLookBack = TimeSpan.FromDays(30);
+
+    // 630: a checkout PayPal finished but iPro never heard about. Activation reaches iPro two ways: the
+    // buyer coming back to the portal, and PayPal's BILLING.SUBSCRIPTION.ACTIVATED notice. A buyer who
+    // closes the tab after approving, on a day the notice is lost, is billed by PayPal while the row sits
+    // Pending: no access, a "payment pending" email after 24 hours, and the 48-hour stale sweep only logged
+    // "an activation was lost" and left it there. Every hour this asks PayPal about each Pending checkout
+    // between an hour and 30 days old, and when PayPal says ACTIVE it does what the lost notice would have
+    // done (the same two lines as HandleSubscriptionActivatedWebhookAsync). Fail-safe in every direction:
+    // no answer or any other status leaves the row alone, and an agent whose NEWER plan is already Active
+    // is never touched (activating the old checkout would cancel that plan at PayPal); that is logged for a
+    // person, because PayPal is then billing two subscriptions.
+    public async Task<int> CatchUpLostActivationsAsync()
+    {
+        if (!HasPayPalSettings()) return 0;
+
+        var now = DateTime.UtcNow;
+        var youngest = now - LostActivationWait;
+        var oldest = now - LostActivationLookBack;
+        var checkouts = (await _uow.Billings.FindAsync(b =>
+                b.Status == BillingStatus.Pending && b.CreatedAt <= youngest && b.CreatedAt >= oldest))
+            .Where(b => !string.IsNullOrWhiteSpace(b.PayPalSubscriptionId))
+            .OrderBy(b => b.Id)
+            .ToList();
+
+        var activated = 0;
+        foreach (var billing in checkouts)
+        {
+            try
+            {
+                var (status, _) = await GetPayPalSubscriptionSnapshotAsync(billing.PayPalSubscriptionId);
+                if (!status.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var newerActive = await _uow.Billings.FirstOrDefaultAsync(b =>
+                    b.AgentUserId == billing.AgentUserId && b.Status == BillingStatus.Active && b.Id > billing.Id);
+                if (newerActive != null)
+                {
+                    _logger.LogError(
+                        "Lost activation: PayPal reports subscription {SubscriptionId} ACTIVE for Pending billing {BillingId} (agent {AgentUserId}), but the agent's newer billing {NewerBillingId} is already Active. Not activated: PayPal may be billing two subscriptions; cancel the unwanted one at PayPal and refund any charge.",
+                        billing.PayPalSubscriptionId, billing.Id, billing.AgentUserId, newerActive.Id);
+                    continue;
+                }
+
+                var invoice = (await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id && !i.IsPaid))
+                    .OrderByDescending(i => i.IssuedAt)
+                    .FirstOrDefault();
+                await ActivateSubscriptionBillingAsync(billing.AgentUserId, billing, invoice, "PayPal subscription activated.");
+                activated++;
+                _logger.LogWarning(
+                    "Lost activation caught up: PayPal reports subscription {SubscriptionId} ACTIVE but billing {BillingId} (agent {AgentUserId}) was still Pending {Age:0.0} hours after checkout; activated now.",
+                    billing.PayPalSubscriptionId, billing.Id, billing.AgentUserId, (now - billing.CreatedAt).TotalHours);
+            }
+            catch (Exception ex)
+            {
+                // Each checkout fails alone (M7): clear the tracker, carry on, ask again next hour.
+                _db.ChangeTracker.Clear();
+                _logger.LogError(ex,
+                    "Lost activation: checking billing {BillingId} (PayPal {SubscriptionId}, agent {AgentUserId}) failed; tracker cleared, asking again next hour.",
+                    billing.Id, billing.PayPalSubscriptionId, billing.AgentUserId);
+            }
+        }
+
+        return activated;
+    }
+
     // Audit #2 (A2-H2): the replacement paths deliberately leave the OLD row Active when its
     // PayPal cancellation fails, so the failure stays visible instead of hiding behind a local
     // "Cancelled". This hourly sweep is the retry that makes that state converge to one billable
@@ -4412,7 +4484,11 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         return response.IsSuccessStatusCode;
     }
 
-    private async Task<string> GetPayPalAccessTokenAsync()
+    // 630: kept and shared until shortly before PayPal's expiry (PayPalAccessTokens), not asked for per call.
+    private Task<string> GetPayPalAccessTokenAsync() =>
+        _accessTokens.GetAsync($"{_settings.BaseUrl}|{_settings.ClientId?.Trim()}", RequestPayPalAccessTokenAsync);
+
+    private async Task<(string Token, int ExpiresInSeconds)> RequestPayPalAccessTokenAsync()
     {
         var client = _httpClientFactory.CreateClient();
         var clientId = _settings.ClientId.Trim();
@@ -4438,7 +4514,11 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         }
 
         using var document = JsonDocument.Parse(json);
-        return document.RootElement.GetProperty("access_token").GetString() ?? string.Empty;
+        var expiresIn = document.RootElement.TryGetProperty("expires_in", out var expires) &&
+                        expires.ValueKind == JsonValueKind.Number && expires.TryGetInt32(out var seconds)
+            ? seconds
+            : 0;
+        return (document.RootElement.GetProperty("access_token").GetString() ?? string.Empty, expiresIn);
     }
 
     private async Task<bool> VerifyWebhookSignatureAsync(JsonElement webhookEvent, PayPalWebhookHeaders headers)

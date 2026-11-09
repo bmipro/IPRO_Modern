@@ -89,9 +89,20 @@ public class ELetterTemplatesController : Controller
         var isNew = model.Id == 0;
         if (isNew)
         {
-            model.CreatedAt = DateTime.UtcNow;
-            model.UpdatedAt = DateTime.UtcNow;
-            _db.ELetterTemplates.Add(model);
+            // 631: the new template is the fields the form shows, nothing else the request names.
+            var now = DateTime.UtcNow;
+            _db.ELetterTemplates.Add(new ELetterTemplate
+            {
+                Key = model.Key,
+                Name = model.Name,
+                Description = model.Description,
+                Subject = model.Subject,
+                Body = model.Body,
+                IsActive = model.IsActive,
+                SortOrder = model.SortOrder,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
         }
         else
         {

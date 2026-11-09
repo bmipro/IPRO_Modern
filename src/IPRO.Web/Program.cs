@@ -163,6 +163,8 @@ builder.Services.AddScoped<PollDispatcher>();
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
+// 630: one PayPal access token for the app, kept until shortly before it expires.
+builder.Services.AddSingleton<PayPalAccessTokens>();
 // 532: Refer a Friend's same-PayPal-payer check (ReferralJob) asks PayPal through the billing service.
 builder.Services.AddScoped<IReferralPayerLookup, PayPalBillingService>();
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));

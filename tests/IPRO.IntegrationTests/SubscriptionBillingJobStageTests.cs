@@ -28,26 +28,51 @@ public class SubscriptionBillingJobStageTests
         Assert.True(fake.ReconcilePayPalCalled);
     }
 
+    // 630: the lost-activation catch-up runs first, so a customer PayPal is already billing is active
+    // before NotifyBillingIssuesAsync looks for checkouts Pending over 24 hours; and it fails alone.
+    [Fact]
+    public async Task The_lost_activation_catch_up_runs_first_and_fails_alone()
+    {
+        var fake = new StageFake();
+        await new SubscriptionBillingJob(fake, NullLogger<SubscriptionBillingJob>.Instance).RunAsync();
+        Assert.Equal(new[] { "CatchUp", "ProcessDue", "Notify", "ReconcileDuplicates", "ReconcilePayPal" }, fake.Order);
+
+        var throwing = new StageFake { ThrowInCatchUp = true };
+        Assert.Null(await Record.ExceptionAsync(() => new SubscriptionBillingJob(throwing, NullLogger<SubscriptionBillingJob>.Instance).RunAsync()));
+        Assert.Equal(new[] { "CatchUp", "ProcessDue", "Notify", "ReconcileDuplicates", "ReconcilePayPal" }, throwing.Order);
+    }
+
     private sealed class StageFake : IBillingService
     {
+        public bool ThrowInCatchUp;
         public bool ThrowInProcessDue;
         public bool ThrowInNotify;
         public bool NotifyCalled;
         public bool ReconcileDuplicatesCalled;
         public bool ReconcilePayPalCalled;
+        public readonly List<string> Order = new();
 
+        public Task<int> CatchUpLostActivationsAsync()
+        {
+            Order.Add("CatchUp");
+            return ThrowInCatchUp ? throw new InvalidOperationException("stage boom") : Task.FromResult(0);
+        }
         public Task<int> ProcessDueSubscriptionChangesAsync()
-            => ThrowInProcessDue ? throw new InvalidOperationException("stage boom") : Task.FromResult(0);
+        {
+            Order.Add("ProcessDue");
+            return ThrowInProcessDue ? throw new InvalidOperationException("stage boom") : Task.FromResult(0);
+        }
         public Task<int> NotifyBillingIssuesAsync()
         {
+            Order.Add("Notify");
             NotifyCalled = true;
             if (ThrowInNotify) throw new InvalidOperationException("stage boom");
             return Task.FromResult(0);
         }
         public Task<int> ReconcileDuplicateActiveSubscriptionsAsync()
-        { ReconcileDuplicatesCalled = true; return Task.FromResult(0); }
+        { Order.Add("ReconcileDuplicates"); ReconcileDuplicatesCalled = true; return Task.FromResult(0); }
         public Task<int> ReconcileActiveSubscriptionsWithPayPalAsync()
-        { ReconcilePayPalCalled = true; return Task.FromResult(0); }
+        { Order.Add("ReconcilePayPal"); ReconcilePayPalCalled = true; return Task.FromResult(0); }
 
         // Members the job never touches.
         public Task<IPRO.Entities.Billing?> GetActiveSubscriptionAsync(int userId) => throw new NotSupportedException();

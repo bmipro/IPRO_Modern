@@ -81,6 +81,8 @@ builder.Services.RestrictEmailTo(StagingGuard.OnlyTo(builder.Configuration));
 builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection("PayPal"));
 builder.Services.Configure<AzureDomainAutomationOptions>(builder.Configuration.GetSection("AzureDomainAutomation"));
 builder.Services.AddScoped<IBillingService, PayPalBillingService>();
+// 630: one PayPal access token for the app, kept until shortly before it expires.
+builder.Services.AddSingleton<PayPalAccessTokens>();
 builder.Services.AddScoped<IPasswordHasher<AgentUser>, PasswordHasher<AgentUser>>();
 builder.Services.AddScoped<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
 builder.Services.AddHttpClient();

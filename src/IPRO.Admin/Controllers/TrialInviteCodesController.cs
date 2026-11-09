@@ -95,8 +95,18 @@ public class TrialInviteCodesController : Controller
         var isNew = model.Id == 0;
         if (isNew)
         {
-            model.CreatedAt = DateTime.UtcNow;
-            await _uow.TrialInviteCodes.AddAsync(model);
+            // 631: the new code is the fields the form shows. Its redemption count and any package the request
+            // names around it are the server's: a crafted post set them before.
+            await _uow.TrialInviteCodes.AddAsync(new TrialInviteCode
+            {
+                Code = model.Code,
+                Description = model.Description,
+                BillingRuleId = model.BillingRuleId,
+                IsActive = model.IsActive,
+                ExpiresAt = model.ExpiresAt,
+                MaxRedemptions = model.MaxRedemptions,
+                CreatedAt = DateTime.UtcNow
+            });
         }
         else
         {

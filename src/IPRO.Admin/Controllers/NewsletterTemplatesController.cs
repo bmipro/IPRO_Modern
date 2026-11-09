@@ -73,8 +73,18 @@ public class NewsletterTemplatesController : Controller
         var isNew = model.Id == 0;
         if (isNew)
         {
-            model.CreatedAt = DateTime.UtcNow;
-            await _uow.NewsLetterTemplates.AddAsync(model);
+            // 631: the new template is the fields the form shows, nothing else the request names.
+            await _uow.NewsLetterTemplates.AddAsync(new NewsLetterTemplate
+            {
+                Name = model.Name,
+                Description = model.Description,
+                Subject = model.Subject,
+                HtmlBody = model.HtmlBody,
+                TextBody = model.TextBody,
+                IsActive = model.IsActive,
+                SortOrder = model.SortOrder,
+                CreatedAt = DateTime.UtcNow
+            });
         }
         else
         {

@@ -91,9 +91,21 @@ public class WebsiteStarterArticlesController : Controller
         var isNew = model.Id == 0;
         if (isNew)
         {
-            model.CreatedAt = DateTime.UtcNow;
-            model.UpdatedAt = DateTime.UtcNow;
-            _db.WebsiteStarterArticles.Add(model);
+            // 631: the new article is the fields the form shows, nothing else the request names.
+            var now = DateTime.UtcNow;
+            _db.WebsiteStarterArticles.Add(new WebsiteStarterArticle
+            {
+                BusinessType = model.BusinessType,
+                Category = model.Category,
+                Title = model.Title,
+                Summary = model.Summary,
+                Content = model.Content,
+                ImageUrl = model.ImageUrl,
+                IsActive = model.IsActive,
+                SortOrder = model.SortOrder,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
         }
         else
         {

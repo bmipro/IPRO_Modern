@@ -22,6 +22,11 @@ public interface IBillingService
     // never be told about -- leaves an Active row granting full access forever. Returns how many rows
     // were corrected.
     Task<int> ReconcileActiveSubscriptionsWithPayPalAsync();
+
+    // 630: the other direction. A checkout the buyer finished at PayPal whose activation never reached
+    // iPro (no return to the portal, the ACTIVATED notice lost) is activated once PayPal says ACTIVE.
+    // Returns how many were activated.
+    Task<int> CatchUpLostActivationsAsync();
     Task<bool> HandleWebhookAsync(string eventType, string payload, PayPalWebhookHeaders headers, decimal amount);
     Task<PayPalPlanSyncResult> SyncPayPalPlansAsync(int billingRuleId);
     Task<PayPalPlanSyncResult> SyncDailyTestPlanAsync(int billingRuleId);
