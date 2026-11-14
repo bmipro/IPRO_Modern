@@ -57,6 +57,8 @@ Remote Desktop is on.
 2. **Tools.** Check `git`, `dotnet --list-sdks` (10.0.x; `global.json` asks 10.0.301 or a later feature band),
    `node`, `azurite`, `python`, `az`, `gh`. Fix PATH problems; the Microsoft Store's python stub must not win.
 3. **Local MySQL**, the same as the old PC: service `IPROLocalMySQL`, automatic start, LocalSystem.
+   - First the Visual C++ 2015-2022 x64 runtime (`winget install Microsoft.VCRedist.2015+.x64`, elevated):
+     without it `mysqld.exe` cannot start (exit 0xC0000135).
    - Initialise the empty data folder:
      `ipro-local\mysql-8.0.44-winx64\bin\mysqld.exe --defaults-file=C:\Users\admin\ipro-local\my.ini --initialize-insecure`.
      `my.ini` sets basedir and datadir under `C:/Users/admin/ipro-local`, port 3306, bind-address 127.0.0.1 and
@@ -87,3 +89,31 @@ Remote Desktop is on.
     the old PC.
 11. **When the gate passes**, tell the owner. The old PC can then be retired on his word, and the move folder
     in OneDrive can be deleted on his word.
+
+## Where it stands: 2026-11-14, evening (the first session on the new PC)
+
+**The new PC passed a full gate: 2,587 of 2,587, nothing failed or skipped, on `6ff679bb`.** Every step above is
+done. The old PC can be retired on the owner's word; nothing has been changed on it.
+
+| Step | Result |
+|---|---|
+| Place files | all eight markers in `iPro_tools\move-steps` |
+| Tools | Git 2.56, .NET SDK 10.0.404, Node 26, Azurite 3.36.0, Python 3.14 (first on PATH, not the Store stub), az, gh, VS Code. The drive is NVMe (Gigastone PCIe Gen3). |
+| Local MySQL | **Step 1 missed the Visual C++ runtime.** A fresh Windows does not have it, and `mysqld.exe` exited with 0xC0000135 (DLL not found) until `winget install Microsoft.VCRedist.2015+.x64` ran, elevated. Then: data folder initialised, service `IPROLocalMySQL` (automatic, LocalSystem), binlogs three days, `ipro_local` users, `ipro_crm` loaded from the dump (132 tables). The copies of `1-Install-Tools.cmd` and `RECOVERY_README.md` in `iPro_tools\scripts` now include the runtime. |
+| Local settings | Both `appsettings.Development.json` made from the templates as `DOCS/16_LOCAL_DEV.md` says. A new SuperAdmin password and AdminPreview secret are in the files only. The moved database already had `superadmin`, so the new password went onto it by one start of SuperAdmin with `Admin:RecoveryReset` true (the log said RECOVERY RESET APPLIED); the setting was removed again straight after. IPRO.Web keeps emails as files (`Email:Provider` Folder). |
+| Builds | `IPRO.sln` and the builder both build. |
+| Local check | Azurite up; the portal (5100) and SuperAdmin (5200) served their pages with no server errors. |
+| Builders | The owner started both; 5087 and 5088 answer 200. Both builders' settings also look for the pictures at `\\TSCLIENT\X`, which is how X: arrives here. |
+| Sign-ins | Azure CLI and GitHub (`bmipro`; both repositories reachable, Git uses gh's sign-in). Codex signed in by the owner. |
+| Full gate | 15:29 to 16:48, 79 minutes. Parts 1 and 2 took 7 minutes each; parts 3 and 4 took 28 and 36. |
+
+**Still open:**
+- **Why the second half of the gate was slow.** The first half ran at about twice the old PC's pace, the second
+  half far slower. Not explained yet: MySQL's log shows short redo-log waits only during the fast first half,
+  and there was no Defender scan or Windows update in that window (only Codex's own update, 15:36). The owner was
+  starting the builders, Codex and his sign-ins at the time. Next step: run one slow part again on a quiet PC
+  (`gate_move.sh part 4`, after a fresh `prepare`) and compare.
+- **The old sessions (optional):** `3-Bring-Sessions.cmd` in the move folder, with Claude closed. It adds the
+  old PC's session list and the newest copy of "Project overview (fork)"; it brings no memory notes and never
+  replaces a session that is already here.
+- The old PC's retirement and deleting the OneDrive move folder: on the owner's word.

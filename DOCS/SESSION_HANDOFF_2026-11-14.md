@@ -17,11 +17,14 @@
 | afternoon | The new PC (Dell OptiPlex 5080) arrived. Its admin accounts belonged to whoever prepared it, so the owner is resetting it and setting it up with the local account `admin`. | under way |
 | afternoon | On the owner's word, Codex's work moves too. | packed |
 | afternoon | The move folder was made in `OneDrive\Codex_Code_Bkup\move-20261114`: the two double-click files and the packs, tested by unpacking into a scratch folder on the old PC. Plan and steps: `DOCS/NEW_PC_MOVE.md`. | ready |
+| evening | On the new PC: tools checked, the missing Visual C++ runtime installed (MySQL could not start without it), MySQL as service `IPROLocalMySQL` with `ipro_crm` loaded, both local settings files made, both solutions built, local portal and SuperAdmin checked, builders started and signed in to Azure and GitHub by the owner. | done |
+| evening | **Full gate on the new PC: 2,587 of 2,587**, on `6ff679bb`, 79 minutes (the first half fast, the second half slow, cause still open). | **passed** |
 
 ## Do this first next session
 
-**On the NEW PC:** follow `DOCS/NEW_PC_MOVE.md`. Check `C:\Users\admin\iPro_tools\move-steps` to see whether
-`2-Place-Files` has run, then work through "The new PC's Claude session" list. The old PC stays as it is until a
-full gate passes on the new one.
+**On the NEW PC:** the work continues here. Read "Where it stands" in `DOCS/NEW_PC_MOVE.md`. Open: why the second
+half of the gate was slow (re-run one part on a quiet PC); the optional `3-Bring-Sessions` step if the owner has
+not run it yet.
 
-**On the old PC (until then):** nothing new. Do not change or delete anything there.
+**On the old PC:** nothing changed. It can be retired on the owner's word, and the OneDrive move folder deleted
+on his word.

@@ -8,7 +8,7 @@ of that week's new-breakage findings to exactly that gap.
 
 | Piece | Location / port | Notes |
 |---|---|---|
-| MySQL 8.0.44 (portable ZIP, no service) | `C:\Users\admin\ipro-local\`, `127.0.0.1:3306` | Prod is 8.0.21 — same major version. Bound to loopback only. |
+| MySQL 8.0.44 (Windows service `IPROLocalMySQL`, automatic start; needs the Visual C++ 2015-2022 x64 runtime) | `C:\Users\admin\ipro-local\`, `127.0.0.1:3306` | Bound to loopback only. The section "After a reboot" below is from before it became a service. |
 | Database | `ipro_crm`, user `ipro_local` / `ipro-local-dev-2026` | Local-only credentials; root has empty password but is loopback-bound. |
 | Azurite (blob emulator) | `127.0.0.1:10000` | Preinstalled global npm package. Data under `ipro-local\azurite`. |
 | IPRO.Web | `http://localhost:5100` | |
