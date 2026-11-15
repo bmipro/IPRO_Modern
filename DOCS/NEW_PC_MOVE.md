@@ -107,13 +107,19 @@ done. The old PC can be retired on the owner's word; nothing has been changed on
 | Sign-ins | Azure CLI and GitHub (`bmipro`; both repositories reachable, Git uses gh's sign-in). Codex signed in by the owner. |
 | Full gate | 15:29 to 16:48, 79 minutes. Parts 1 and 2 took 7 minutes each; parts 3 and 4 took 28 and 36. |
 
-**Still open:**
-- **Why the second half of the gate was slow.** The first half ran at about twice the old PC's pace, the second
-  half far slower. Not explained yet: MySQL's log shows short redo-log waits only during the fast first half,
-  and there was no Defender scan or Windows update in that window (only Codex's own update, 15:36). The owner was
-  starting the builders, Codex and his sign-ins at the time. Next step: run one slow part again on a quiet PC
-  (`gate_move.sh part 4`, after a fresh `prepare`) and compare.
-- **The old sessions (optional):** `3-Bring-Sessions.cmd` in the move folder, with Claude closed. It adds the
-  old PC's session list and the newest copy of "Project overview (fork)"; it brings no memory notes and never
-  replaces a session that is already here.
-- The old PC's retirement and deleting the OneDrive move folder: on the owner's word.
+**Settled later that evening (2026-11-14):**
+- **The slow second half of the gate was the owner's activity, not the PC.** Part 4 was run again on a quiet
+  PC: the same 61 test classes, after a fresh build (36 seconds). It took 6 minutes 43 seconds, against 36
+  minutes 21 seconds while the owner was starting the builders, Codex and his sign-ins. So a quiet full gate here
+  takes about 30 minutes (four parts of about 7 minutes, plus the build); on the old PC it took about two hours.
+  Keep the PC quiet while a gate runs.
+- **The old sessions came over.** The first `3-Bring-Sessions` stopped on a 262-character path under Temp
+  (Windows' long-path setting was off on this PC then; it is on now). The second edition unpacks the
+  conversations straight into place with Windows' own `tar`, and empties any leftover folder with `robocopy`.
+  It ran, and "Project overview (fork)" now runs on this PC. The copy in the move folder is the second edition.
+- **The picture drive and the builders.** X: arrives as `\\TSCLIENT\X`, and only while the owner is connected by
+  Remote Desktop with drive X shared. Then the hand-over builder (5088) lists the pictures. A restart stops both
+  builders; the owner double-clicks the two `Start-Builder*.cmd` files.
+
+**Still open:** the old PC's retirement and deleting the OneDrive move folder `move-20261114`, both on the
+owner's word.
