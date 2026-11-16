@@ -21,7 +21,7 @@
 | evening | **Full gate on the new PC: 2,587 of 2,587**, on `6ff679bb`, 79 minutes (the first half fast, the second half slow; the cause is settled two rows down). | **passed** |
 | evening | The old sessions came over with the second edition of `3-Bring-Sessions` (the first stopped on a 262-character path under Temp). This conversation, "Project overview (fork)", now runs on the new PC. | done |
 | evening | X: (`\\TSCLIENT\X`, there only while the owner is connected by Remote Desktop with drive X shared) and both builders checked: 5087 and 5088 answer, and 5088 lists the pictures. | done |
-| evening | **The slow second half was the owner's activity, not the PC.** Part 4 again on a quiet PC: 6 minutes 43 seconds, against 36 minutes 21 seconds before. A quiet full gate here takes about 30 minutes; on the old PC it took about two hours. | settled |
+| evening | The slow second half was put down to the owner's activity: part 4 again, alone, took 6 minutes 43 seconds, against 36 minutes 21 seconds before. **Corrected 2026-11-16:** a quiet PC slows the same way; the cause is open (TODO 655). | corrected |
 
 ## Close-out 2026-11-15
 
