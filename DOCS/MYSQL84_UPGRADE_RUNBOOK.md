@@ -25,7 +25,9 @@ charges start 2027-01-01. This runbook takes the production database `ipro-mysql
 - **Azure's rules** (learn.microsoft.com/azure/mysql/flexible-server/how-to-upgrade, read 2026-11-09): the
   upgrade is in place (same server, name, address and data) and **cannot be undone**; going back means restoring
   a backup taken before it to a NEW server. Azure takes no backup of its own first: take an on-demand one. A
-  Burstable server is first moved to General Purpose automatically, paid only for that time; afterwards the
+  Burstable server is first moved to General Purpose automatically (NOT from the CLI: the rehearsal of
+  2026-11-17 got "Major version update is not supported for the Burstable pricing tier", so part 3 moves the size
+  by hand), paid only for that time; afterwards the
   server can stay General Purpose or go back to Burstable, and the page says the default is **B2s**, so check
   the size afterwards and set **Standard_B1ms** again. Downtime "varies based on the size of the database and the
   number of tables"; client connections stop while the server upgrades. No open XA transactions allowed. A
@@ -88,6 +90,23 @@ twice).
    then `az mysql flexible-server list -g ipro-production -o table` shows only `ipro-mysql-prod`.
 7. Write the measured times into part 3 below and into TODO 590.
 
+**Result, 2026-11-17 (PASSED).** The copy was restored from 15:30 UTC (Ready after about 12 minutes, with
+`AllowAzureServices` already on it). Before: 8.0.46, routines/views/triggers 0/0/0, both accounts on
+caching_sha2_password, no XA, both sign-ins, **132 tables, 136,393 rows, fingerprint 247262ed**. The one-step
+`upgrade` was refused on Burstable ("Major version update is not supported for the Burstable pricing tier"), so
+the copy went through three steps, each timed (busy = the state was Updating):
+
+| Step | Command | Whole step | Busy |
+|---|---|---|---|
+| a | `update --tier GeneralPurpose --sku-name Standard_D2ds_v4` | 3 min 21 s | 2 min 31 s |
+| b | `upgrade --version 8.4 --yes` | 3 min 22 s | 1 min 57 s |
+| c | `update --tier Burstable --sku-name Standard_B1ms` | 3 min 5 s | 1 min 57 s |
+
+After: **8.4.11**, everything else the same, both sign-ins, **the same fingerprint 247262ed**. sql_mode,
+lower_case_table_names (1), time_zone, character set and collation, require_secure_transport, max_connections
+(171) and 35 days of backups all matched production. The copy was deleted on the owner's word. Cost: cents.
+Not done: the portal's Validate (the real upgrade of the copy answered the same question).
+
 Not in the rehearsal, on purpose: clicking through iPro on the copy. Staging has run the same code on 8.4 since
 2026-10-22; pointing staging at a copy of production data would mean swapping and restoring staging's settings
 and running real customers' rows (their Google connections among them) on a second app, for little gain.
@@ -100,13 +119,18 @@ nothing to customers: the downtime is the time part 2 measured.
 1. **Owner (Cloud Shell): backup and before.** Setup paste, then
    `az mysql flexible-server backup create -g ipro-production -n ipro-mysql-prod --backup-name before-mysql84-$(date -u +%Y%m%d%H%M)`
    and wait for it to finish; then `info $P; summary $P ~/prod_before.txt`.
-2. **Owner: upgrade:** `az mysql flexible-server upgrade -g ipro-production -n ipro-mysql-prod --version 8.4 --yes`
-   (or the portal's Upgrade button if part 2 showed the size choice is only offered there). iPro shows errors
-   while the server is upgrading.
-3. **Owner: the size back**, if `az mysql flexible-server show -g ipro-production -n ipro-mysql-prod --query sku`
-   does not say Standard_B1ms / Burstable:
-   `az mysql flexible-server update -g ipro-production -n ipro-mysql-prod --tier Burstable --sku-name Standard_B1ms`
-   (one more short restart).
+2. **Owner: the three steps, as rehearsed on 2026-11-17** (each line waits until Azure is done; iPro shows errors
+   while the server is busy, about 6 1/2 minutes in all, about 10 minutes start to finish). One paste:
+   ```bash
+   az mysql flexible-server update -g ipro-production -n ipro-mysql-prod --tier GeneralPurpose --sku-name Standard_D2ds_v4 -o none && \
+   az mysql flexible-server upgrade -g ipro-production -n ipro-mysql-prod --version 8.4 --yes -o none && \
+   az mysql flexible-server update -g ipro-production -n ipro-mysql-prod --tier Burstable --sku-name Standard_B1ms -o none; \
+   az mysql flexible-server show -g ipro-production -n ipro-mysql-prod --query "[state, version, sku.name]" -o tsv
+   ```
+   The last line must say Ready, 8.4 and Standard_B1ms. If a step stops, read its message before anything else:
+   after (a) alone the server is still 8.0, only bigger; after (b) it is 8.4 and still General Purpose (run the
+   third line again).
+3. (Folded into step 2 since the rehearsal: the size goes back as its third line.)
 4. **Owner: after.** `info $P; summary $P ~/prod_after.txt; diff ~/prod_before.txt ~/prod_after.txt`. Only tables
    written by the live apps in those minutes may differ (Hangfire's, logs, visits).
 5. **Assistant: checks.** Both hosts' `/health/version` and a customer site answer 200; the builder answers;
