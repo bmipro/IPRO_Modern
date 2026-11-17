@@ -20,13 +20,11 @@ This directory is the operating manual for the current IPRO application. The ins
 ## Project References
 
 - [Documentation Standard](DOCUMENTATION_STANDARD.md)
-- [Discovery Roadmap](DISCOVERY_ROADMAP.md)
 - [Legacy Template Migration](LEGACY_TEMPLATE_MIGRATION.md)
-- [Template System V2 Plan](TEMPLATE_SYSTEM_V2_PLAN.md)
-- [Template System Consultant Brief](TEMPLATE_SYSTEM_CONSULTANT_BRIEF.md)
 - [Legacy Training Workflow Map](LEGACY_TRAINING_WORKFLOW_MAP.md)
-- [Production Domain Cutover](PRODUCTION_DOMAIN_CUTOVER.md)
-- [Security & Code Quality Audit — 2026-07-24](SECURITY_AUDIT_2026-07-24.md)
+
+The project's working notes (the to-do list, session handoffs, audits, runbooks and plans) are kept in a private
+repository since 2026-11-17.
 
 ## Portal Addresses
 
