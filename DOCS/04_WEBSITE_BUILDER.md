@@ -539,4 +539,4 @@ Good to know:
 - The builder offers your own pictures, the shared starter banners and a few pictures made for the builder. A new picture you upload counts against your storage.
 - The builder is made for a computer. On a phone, use the page editor.
 - A draft you do not open for 90 days is deleted. Your website is not affected.
-- A website with more than 30 pages, a page with more than 40 sections, or more than 40 MB of pictures cannot be opened in the builder; the builder says why.
+- A website with more than 60 pages (hidden pages count too), a page with more than 40 sections, or more than 40 MB of pictures cannot be opened in the builder; the builder says why and what to change in the page editor first.

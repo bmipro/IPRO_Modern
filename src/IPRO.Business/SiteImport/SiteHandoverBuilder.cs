@@ -156,7 +156,10 @@ public static class SiteHandoverBuilder
         var unfit = new HashSet<int>();
         if (input.Pages.Count > BuilderContract.MaxPages)
         {
-            blockers.Add($"The site has {input.Pages.Count} pages, and a package holds at most {BuilderContract.MaxPages}.");
+            // 664: say what to do, not only what is wrong (the pilot's first site stopped here with no next step).
+            var over = input.Pages.Count - BuilderContract.MaxPages;
+            blockers.Add($"The site has {input.Pages.Count} pages, and the builder takes at most {BuilderContract.MaxPages}. " +
+                $"Remove or combine at least {over} {(over == 1 ? "page" : "pages")} (hidden pages count too), then open the builder again.");
         }
         foreach (var page in input.Pages.OrderBy(p => p.SortOrder).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase))
         {

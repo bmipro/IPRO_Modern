@@ -310,12 +310,38 @@ public class BuilderAudit574Tests
         Assert.Equal(7, fetched.Count);
         Assert.Equal(300, made.ArticleIds.Count);
 
-        // A site past the contract's own size says so from its rows, before any picture.
+        // A site past the contract's own size says so from its rows, before any picture, and (664) says what
+        // to do about it.
         fetched.Clear();
-        var many = Enumerable.Range(0, 31).Select(i => Page(i, $"https://store.blob.core.windows.net/website-media/{i:D32}_p.png")).ToList();
+        var many = Enumerable.Range(0, BuilderContract.MaxPages + 1).Select(i => Page(i, $"https://store.blob.core.windows.net/website-media/{i:D32}_p.png")).ToList();
         var tooMany = await SiteHandoverBuilder.BuildAsync(Input(site, many, new List<Article>()), url => { fetched.Add(url); return Task.FromResult<byte[]?>(Picture(1)); });
-        Assert.Contains(tooMany.Blockers, b => b.Contains("31 pages") && b.Contains("at most 30"));
+        Assert.Contains(tooMany.Blockers, b => b.Contains($"{BuilderContract.MaxPages + 1} pages") && b.Contains($"at most {BuilderContract.MaxPages}")
+            && b.Contains("Remove or combine at least 1 page (hidden pages count too), then open the builder again."));
         Assert.Empty(fetched);
+    }
+
+    [Fact]
+    public async Task A_site_of_34_pages_now_goes_to_the_builder_and_one_of_62_is_told_how_many_to_remove()
+    {
+        // 664 (2026-11-17): the builder pilot's first site, Michael Tran's, had 34 pages and was refused at the
+        // old limit of 30. The limit is 60 on both sides now (the builder's TemplateValidator says the same).
+        Assert.Equal(60, BuilderContract.MaxPages);
+        var site = new AgentWebsite { Id = 9, AgentUserId = 3, TemplateId = 1, SiteTitle = "Pilot" };
+        WebsitePage Page(int i) => new()
+        {
+            Id = 100 + i, AgentWebsiteId = 9, Title = i == 0 ? "Home" : "Page " + i, Slug = i == 0 ? "home" : "page-" + i, NavigationLabel = "P" + i, IsHomePage = i == 0, SortOrder = i,
+            Blocks = { new WebsiteContentBlock { Id = 1000 + i, WebsitePageId = 100 + i, BlockType = WebsiteBlockTypes.Text, Heading = "Section " + i, SortOrder = 0, IsVisible = true } }
+        };
+
+        var pilot = await SiteHandoverBuilder.BuildAsync(Input(site, Enumerable.Range(0, 34).Select(Page).ToList(), new List<Article>()),
+            url => Task.FromResult<byte[]?>(null));
+        Assert.True(pilot.CanHandOver, string.Join("\n", pilot.Blockers));
+
+        var big = await SiteHandoverBuilder.BuildAsync(Input(site, Enumerable.Range(0, 62).Select(Page).ToList(), new List<Article>()),
+            url => Task.FromResult<byte[]?>(null));
+        Assert.False(big.CanHandOver);
+        Assert.Contains(big.Blockers, b => b == "The site has 62 pages, and the builder takes at most 60. " +
+            "Remove or combine at least 2 pages (hidden pages count too), then open the builder again.");
     }
 
     [Fact]

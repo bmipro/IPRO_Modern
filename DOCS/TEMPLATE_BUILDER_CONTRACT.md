@@ -133,7 +133,7 @@ The **handover package** iPro sends the builder (§9) follows the same rules for
 | `handoverId` | string | **new in v0.4.** `""` for a template not started from an iPro handover (a designer template). Otherwise exactly the `handoverId` of the handover package the site came from (§9.2). Always emit the key |
 | `logoRef` | string | `""` (no logo) or an exact `ref` from `assets[]` — same both-directions matching rule as `imageRef`. Always emit the key. The importer lands it on the site's header logo, rendered by all three host shells. Same file rules as any asset (§1; no SVG). Recommend a landscape mark ≤512KB — the host header renders it small |
 | `logoAltText` | string | plain text ≤80 chars. REQUIRED non-empty when `logoRef` is set (accessibility); must be `""` when `logoRef` is `""`. iPro validates it; today its three shells write the logo's alternative text from the business name |
-| `pages` | array | 1–30 pages |
+| `pages` | array | 1–60 pages (1–30 until 2026-11-17; raised on both sides together, iPro TODO 664) |
 | `assets` | array | see §1 and §10; `ref` is the exact string blocks use in `imageRef`; `type` is the MIME type matching the extension (`image/jpeg`, `image/png`, `image/gif`, `image/webp`) |
 
 Unknown top-level keys: **do not emit any.** The importer treats unknown keys as an error in 0.x

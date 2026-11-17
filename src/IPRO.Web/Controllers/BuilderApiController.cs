@@ -145,7 +145,8 @@ public class BuilderApiController : Controller
             _logger.LogInformation("Builder hand-over refused for agent {AgentId}: {Count} reason(s)", agentId, handover.Blockers.Count);
             return UnprocessableEntity(new
             {
-                message = "Your website cannot be opened in the new builder yet. Nothing on it changed. In the page editor:",
+                // 664: the old ending "In the page editor:" read as a sentence cut off.
+                message = "Your website cannot be opened in the new builder yet. Nothing on it changed. What to change in the page editor first:",
                 reasons = handover.Blockers
             });
         }

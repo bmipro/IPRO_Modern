@@ -77,7 +77,9 @@ public static class BuilderContract
     public static readonly string[] HeroHeights = { "compact", "standard", "tall" };
     public const int HeroOverlayMax = 85;
 
-    public const int MaxPages = 30, MaxBlocksPerPage = 40, MaxDepth = 3;                              // section 3
+    // 664 (2026-11-17): pages raised from 30 to 60 on both sides, with the builder's TemplateValidator; the pilot's
+    // first site (Michael Tran's) had 34, and advisers' real sites can be that size.
+    public const int MaxPages = 60, MaxBlocksPerPage = 40, MaxDepth = 3;                              // section 3
     public const int MaxSlug = 80, MaxTitle = 120, MaxNavigationLabel = 40, MaxLogoAltText = 80;
     public const int MaxHeading = 200, MaxSubheading = 300, MaxBody = 10_000, MaxButtonText = 60, MaxButtonUrl = 500; // section 4
 

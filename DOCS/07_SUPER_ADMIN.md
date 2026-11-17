@@ -479,7 +479,7 @@ and the list of published articles and active forms the builder may place. In th
 - A page's **title** is at most 120 characters. A longer one stops the hand-over, and the screen names
   the page and its length: shorten it in the page editor (its Page Title field).
 - A picture taken from the page editor's own starter banners travels like any other picture.
-- A site with more than 30 pages, a page with more than 40 sections, or pictures of more than 40 MB in
+- A site with more than 60 pages (30 until 2026-11-17), a page with more than 40 sections, or pictures of more than 40 MB in
   all does not fit in a package; the screen says which.
 - Only the package made from the **newest** hand-over can come back. Making a new one closes the door on
   the one before it.
